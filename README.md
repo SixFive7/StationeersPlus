@@ -15,7 +15,7 @@ Scroll your mouse wheel while holding a spray can to cycle through all available
 Spray-paint a pipe, cable, or chute and the entire connected network gets painted at once.
 - **Hold Shift** to paint just a single item (or swap this default — see Settings)
 - **Hold Ctrl** for a checkered/alternating paint pattern
-- Works on: pipe networks, cable networks, chute networks, hydroponic trays, passive vents
+- Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks
 
 ### Infinite Spray Paint
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
@@ -49,13 +49,15 @@ All features are configurable via the mod settings panel.
 
 **Requires:** BepInEx + StationeersLaunchPad
 
-**Conflicts with** (disable these before using Spray Paint Plus):
+**Incompatible with** (detected at startup — the mod refuses to load if either is found):
 - [Color Cycler](https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298) by Elmotrix
 - [Network Painter](https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527) by Elmotrix
-- [Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002) by Aspct (redundant — disable to avoid confusion)
-- [Infinite Paint Mod](https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496) by Dingo (redundant)
 
-The mod detects Color Cycler and Network Painter at startup. If either is found, SprayPaintPlus refuses to load and repeats a visible error message. The detection hooks into `Prefab.OnPrefabsLoaded` to guarantee all mod assemblies are loaded before checking, regardless of machine speed or mod count.
+**Redundant** (not detected, but pointless to run alongside this mod — disable to avoid confusion):
+- [Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002) by Aspct
+- [Infinite Paint Mod](https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496) by Dingo
+
+The detection hooks into `Prefab.OnPrefabsLoaded` to guarantee all mod assemblies are loaded before checking, regardless of machine speed or mod count. If a conflict is found, no patches are applied and an error repeats every 5 seconds.
 
 **All players** on a server must have Spray Paint Plus installed. LaunchPadBooster enforces matching mod versions during the connection handshake automatically.
 
@@ -73,7 +75,7 @@ This section documents the technical approach for modders and contributors.
 
 **Harmony Prefix** on `InventoryManager.NormalMode` detects scroll input while holding a SprayCan. The mod updates visual properties locally for immediate feedback, then sends a `SprayCanColorMessage` (a `ModNetworkMessage<T>` registered via LaunchPadBooster) to the server.
 
-**What we do differently:** The original Color Cycler called `SetPrefab()` and swapped `PrefabHash`/`PrefabName` at runtime — changing the item's identity over the network. This is fragile because the game's replication system can overwrite it. Spray Paint Plus **never touches prefab identity**. It only updates rendering properties (`PaintMaterial`, mesh material, thumbnail) and tracks the selected color in a `Dictionary<long, int>` keyed by `ReferenceId`, which is immune to network sync overwrites.
+**What we do differently:** The original Color Cycler called `SetPrefab()` and swapped `PrefabHash`/`PrefabName` at runtime — changing the item's identity over the network. This is fragile because the game's replication system can overwrite it. Spray Paint Plus **never touches prefab identity**. It only updates rendering properties (`PaintableMaterial`, `PaintMaterial`, mesh material, and thumbnail) and tracks the selected color in a `Dictionary<long, int>` keyed by `ReferenceId`, which is immune to network sync overwrites.
 
 ### Network Messaging
 
@@ -86,7 +88,7 @@ Each message has its own `Serialize`, `Deserialize`, and `Process` methods. No p
 
 ### Modifier Key Sync
 
-The original Network Painter read `KeyManager.GetButton()` on the server — which can't see client keyboards. Spray Paint Plus captures modifier keys **on the client**, applies the `PaintSingleItemByDefault` inversion locally (via XOR), and sends the effective intent ("I want single paint" / "I want network paint") to the server via `PaintModifierMessage`. The server reads from a per-player dictionary and never touches `KeyManager`.
+The original Network Painter read `KeyManager.GetButton()` on the server — which can't see client keyboards. Spray Paint Plus captures modifier keys **on the client**, applies the `PaintSingleItemByDefault` inversion locally (via boolean inequality), and sends the effective intent ("I want single paint" / "I want network paint") to the server via `PaintModifierMessage`. The server reads remote clients' intent from a per-player dictionary, and reads `KeyManager` directly for the local host player.
 
 ### Network Painting
 
@@ -95,7 +97,7 @@ The original Network Painter read `KeyManager.GetButton()` on the server — whi
 - **Null checks** on all network references (PipeNetwork, CableNetwork, ChuteNetwork)
 - **`.ToList()` snapshots** on all iterations to prevent collection-modified-during-enumeration
 - **Per-item try/catch** via `PaintSafe()` so one destroyed item doesn't abort the whole network
-- **Skips the original thing** (`ReferenceEquals` check) to avoid redundant double-paint
+- **Skips the original thing** (`ReferenceEquals` check) — vanilla paints the target after the Prefix returns
 - **`CheckeredCheck`** casts `Mathf.Round()` to `int` before modulo to avoid float imprecision
 
 ### State Sync
@@ -113,7 +115,7 @@ StationeersLaunchPad bypasses BepInEx's Chainloader, so `[BepInIncompatibility]`
 ### Cleanup
 
 - `Thing.OnDestroy` Postfix removes spray can entries from the color tracking dictionary
-- `NetworkServer.ClientDisconnected` Postfix removes departed players' modifier state and resets the host's cached send state
+- `NetworkServer.ClientDisconnected` Postfix removes departed players' modifier state
 
 ## Credits
 
@@ -121,5 +123,5 @@ Spray Paint Plus would not exist without the modders who came before:
 
 - **Elmotrix** — Created [Color Cycler](https://github.com/Elmotrix/ColorCyclerMod) and [Network Painter](https://github.com/Elmotrix/NetworkPainter), the original spray paint enhancement mods for Stationeers. The core ideas of scroll-to-cycle and paint-entire-networks are theirs.
 - **SubHobo** (bls220) — Contributed the initial multiplayer networking code to Color Cycler via [PR #1](https://github.com/Elmotrix/ColorCyclerMod/pull/1), including the `ThingColorMessage` approach and the `BuildUpdate`/`ProcessUpdate` serialization that this mod builds on.
-- **Aspct** — Created [Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002), the clean XML-based infinite paint mod whose approach we use directly.
+- **Aspct** — Created [Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002), the original clean infinite paint mod for Stationeers. Spray Paint Plus reimplements the feature via Harmony patching.
 - **Dingo (DingoPD)** — Created the original [Infinite Paint Mod](https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496), the first infinite spray paint mod for Stationeers.
