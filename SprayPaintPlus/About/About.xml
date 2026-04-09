@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Spray Paint Plus [StationeersLaunchPad]</Name>
+  <ModID>net.spraypaintplus</ModID>
+  <Author>SixFive7</Author>
+  <Version>1.0.0</Version>
+  <Description>[h1]Spray Paint Plus[/h1]
+
+Combines color cycling, network painting, and infinite spray paint into one mod with full multiplayer support.
+
+[h2]Features[/h2]
+[list]
+[*]Scroll wheel to cycle spray can colors
+[*]Spray paints entire pipe/cable/chute networks
+[*]Hold Shift to paint single item (or swap with config)
+[*]Hold Ctrl for checkered pattern
+[*]Infinite spray paint uses (configurable)
+[*]No spray paint pollution (configurable)
+[*]All settings configurable via mod settings panel
+[*]Full multiplayer support — all players must have this mod installed
+[/list]
+
+[h2]Requirements[/h2]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[h2]Incompatible With[/h2]
+[list]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url] by Elmotrix
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url] by Elmotrix
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url] by Aspct (redundant — disable to avoid confusion)
+[/list]
+
+[h2]Credits[/h2]
+Built on the work of Elmotrix (Color Cycler, Network Painter), SubHobo (multiplayer networking), Aspct (Infinite Spray Paint), and Dingo (original Infinite Paint).
+
+[url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>paint</Tag>
+    <Tag>multiplayer</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Spray Paint Plus</color></size>
+Combines color cycling, network painting, and infinite spray paint into one mod.
+
+<b>Features:</b>
+- Scroll wheel to cycle spray can colors
+- Spray paints entire pipe/cable/chute networks
+- Hold Shift to paint single item (or swap with config)
+- Hold Ctrl for checkered pattern
+- Infinite spray paint uses (configurable)
+- No spray paint pollution (configurable)
+
+<b>Settings:</b>
+All features are configurable via the mod settings panel.
+Server settings control gameplay for all players.
+Client settings (scroll direction, single/network default) are personal.
+
+<b>Requirements:</b> BepInEx + StationeersLaunchPad
+
+<b>Multiplayer:</b> All players must have this mod installed.
+Incompatible with: Color Cycler, Network Painter.
+Disable Infinite Spray Paint too if installed (redundant).
+]]></InGameDescription>
+</ModMetadata>
