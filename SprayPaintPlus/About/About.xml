@@ -37,6 +37,7 @@ Combines color cycling, network painting, and infinite spray paint into one mod 
 Built on the work of Elmotrix (Color Cycler, Network Painter), SubHobo (multiplayer networking), Aspct (Infinite Spray Paint), and Dingo (original Infinite Paint).
 
 [url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
+  <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>
