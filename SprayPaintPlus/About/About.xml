@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus [StationeersLaunchPad]</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.0.0</Version>
+  <Version>1.1.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines color cycling, network painting, and infinite spray paint into one mod that now also fully supports multiplayer.
@@ -37,6 +37,18 @@ Combines color cycling, network painting, and infinite spray paint into one mod 
 Built on the work of Elmotrix (Color Cycler, Network Painter), SubHobo (multiplayer networking), Aspct (Infinite Spray Paint), and Dingo (original Infinite Paint).
 
 [url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
+  <ChangeLog>
+v1.1.0: LaunchPadBooster Networking V2
+- CHANGE: Migrated to the new Networking V2 API (dedicated channel, automatic compression, multi-packet splitting)
+- CHANGE: Explicitly enforce matching mod versions during the multiplayer handshake
+- REQUIRES: StationeersLaunchPad with LaunchPadBooster v0.2.0 or newer
+v1.0.0: Initial release
+- Combines Color Cycler, Network Painter, and Infinite Spray Paint into one multiplayer-safe mod
+- Scroll to cycle spray can colors; hold Shift to paint a single item; hold Ctrl for checkered pattern
+- Network painting for pipes, cables, and chutes with per-type toggles
+- Infinite spray paint uses and pollution suppression (server-side toggles)
+- Conflict detection against the three original mods
+  </ChangeLog>
   <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
