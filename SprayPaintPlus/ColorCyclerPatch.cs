@@ -4,6 +4,7 @@ using Assets.Scripts.Networking;
 using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
+using LaunchPadBooster.Networking;
 using UnityEngine;
 
 namespace SprayPaintPlus
@@ -64,9 +65,11 @@ namespace SprayPaintPlus
 
             if (NetworkManager.IsClient && !NetworkManager.IsServer)
             {
-                SprayCanColorMessage.Singleton.SprayCanId = sprayCan.ReferenceId;
-                SprayCanColorMessage.Singleton.ColorIndex = current;
-                SprayCanColorMessage.Singleton.SendToServer();
+                new SprayCanColorMessage
+                {
+                    SprayCanId = sprayCan.ReferenceId,
+                    ColorIndex = current,
+                }.SendToHost();
             }
         }
 
@@ -93,8 +96,10 @@ namespace SprayPaintPlus
             // The host reads its own keyboard directly in NetworkPainterPatch.
             if (NetworkManager.IsClient && !NetworkManager.IsServer)
             {
-                PaintModifierMessage.Singleton.Modifiers = modifiers;
-                PaintModifierMessage.Singleton.SendToServer();
+                new PaintModifierMessage
+                {
+                    Modifiers = modifiers,
+                }.SendToHost();
             }
         }
     }

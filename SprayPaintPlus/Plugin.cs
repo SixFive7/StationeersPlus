@@ -75,8 +75,9 @@ namespace SprayPaintPlus
 
             try
             {
-                MOD.RegisterNetworkMessage<SprayCanColorMessage>();
-                MOD.RegisterNetworkMessage<PaintModifierMessage>();
+                MOD.Networking.Required = true;
+                MOD.Networking.RegisterMessage<SprayCanColorMessage>();
+                MOD.Networking.RegisterMessage<PaintModifierMessage>();
 
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();

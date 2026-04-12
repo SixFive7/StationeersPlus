@@ -9,24 +9,24 @@ namespace SprayPaintPlus
     /// <summary>
     /// Client -> Server message: player scrolled to change a spray can's color.
     /// </summary>
-    public class SprayCanColorMessage : ModNetworkMessage<SprayCanColorMessage>
+    public class SprayCanColorMessage : INetworkMessage
     {
         public long SprayCanId;
         public int ColorIndex;
 
-        public override void Serialize(RocketBinaryWriter writer)
+        public void Serialize(RocketBinaryWriter writer)
         {
             writer.WriteInt64(SprayCanId);
             writer.WriteInt32(ColorIndex);
         }
 
-        public override void Deserialize(RocketBinaryReader reader)
+        public void Deserialize(RocketBinaryReader reader)
         {
             SprayCanId = reader.ReadInt64();
             ColorIndex = reader.ReadInt32();
         }
 
-        public override void Process(long hostId)
+        public void Process(long hostId)
         {
             // Validate ColorIndex at the trust boundary
             int maxColors = GameManager.Instance?.CustomColors?.Count ?? 0;
