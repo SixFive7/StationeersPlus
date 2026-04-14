@@ -35,6 +35,9 @@ Combines color cycling, network painting, and infinite spray paint into one mod 
 [*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url] by Aspct (redundant — disable to avoid confusion)
 [/list]
 
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/SprayPaintPlus/issues]GitHub[/url] — it would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
 [h2]Credits[/h2]
 Built on the work of Elmotrix (Color Cycler, Network Painter), SubHobo (multiplayer networking), Aspct (Infinite Spray Paint), and Dingo (original Infinite Paint).
 
