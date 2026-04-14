@@ -6,12 +6,24 @@ A combined Stationeers mod that brings together **color cycling**, **network pai
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
-This mod builds on the excellent work of **Elmotrix** ([Color Cycler](https://github.com/Elmotrix/ColorCyclerMod), [Network Painter](https://github.com/Elmotrix/NetworkPainter)) and **Aspct** ([Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002)), whose original mods inspired this project. The multiplayer networking code in Color Cycler was contributed by **SubHobo** (bls220). Spray Paint Plus combines their ideas and fixes the multiplayer issues that affected clients in those mods.
+This mod builds on the excellent work of **Elmotrix** ([Color Cycler](https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298), [Network Painter](https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527)) and **Aspct** ([Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002)), whose original mods inspired this project. The multiplayer networking code in Color Cycler was contributed by **SubHobo** (bls220). Spray Paint Plus combines their ideas and fixes the multiplayer issues that affected clients in those mods.
+
+## Installation
+
+1. Copy `SprayPaintPlus.dll` and the `About/` folder into your Stationeers local mods directory
+2. Disable the original Color Cycler, Network Painter, and Infinite Spray Paint mods
+3. Restart the game
 
 ## Features
 
+### Full Multiplayer Support
+All features work correctly for every player — host and clients alike. Late-joining players see the correct spray can colors immediately.
+
 ### Color Cycling
 Scroll your mouse wheel while holding a spray can to cycle through all available paint colors. No more carrying twelve cans in a backpack.
+
+### Infinite Spray Paint
+All spray cans have unlimited uses and produce no pollution. Both are configurable.
 
 ### Network Painting
 Spray-paint a pipe, cable, or chute and the entire connected network gets painted at once.
@@ -24,12 +36,6 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 - Walls use the game's `Room` membership to decide the paint set — paint spills across any wall the room touches, but never past a doorway into another room
 - Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
 - Same Shift / Ctrl modifiers apply
-
-### Infinite Spray Paint
-All spray cans have unlimited uses and produce no pollution. Both are configurable.
-
-### Full Multiplayer Support
-All features work correctly for every player — host and clients alike. Late-joining players see the correct spray can colors immediately.
 
 ### Settings
 
@@ -71,12 +77,6 @@ All features are configurable via the mod settings panel.
 
 **Dedicated servers** need the same BepInEx + StationeersLaunchPad + SprayPaintPlus setup installed server-side — the paint logic runs server-authoritatively and the handshake rejects mixed installs.
 
-## Installation
-
-1. Copy `SprayPaintPlus.dll` and the `About/` folder into your Stationeers local mods directory
-2. Disable the original Color Cycler, Network Painter, and Infinite Spray Paint mods
-3. Restart the game
-
 ## Reporting Issues
 
 If you run into a bug or something behaves unexpectedly, please open an issue on [GitHub](https://github.com/SixFive7/SprayPaintPlus/issues) — it would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
@@ -85,7 +85,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 
 Spray Paint Plus would not exist without the modders who came before:
 
-- **Elmotrix** — Created [Color Cycler](https://github.com/Elmotrix/ColorCyclerMod) and [Network Painter](https://github.com/Elmotrix/NetworkPainter), the original spray paint enhancement mods for Stationeers. The core ideas of scroll-to-cycle and paint-entire-networks are theirs.
+- **Elmotrix** — Created [Color Cycler](https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298) and [Network Painter](https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527), the original spray paint enhancement mods for Stationeers. The core ideas of scroll-to-cycle and paint-entire-networks are theirs.
 - **SubHobo** (bls220) — Contributed the initial multiplayer networking code to Color Cycler via [PR #1](https://github.com/Elmotrix/ColorCyclerMod/pull/1).
 - **Aspct** — Created [Infinite Spray Paint](https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002), the original clean infinite paint mod for Stationeers.
 - **Dingo (DingoPD)** — Created the original [Infinite Paint Mod](https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496), the first infinite spray paint mod for Stationeers.
