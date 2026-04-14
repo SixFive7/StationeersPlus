@@ -14,6 +14,7 @@ namespace PowerTransmitterPlus
         private readonly PowerTransmitter _transmitter;
         private readonly GameObject _gameObject;
         private readonly LineRenderer _lineRenderer;
+        private readonly BeamPulseTrain _pulseTrain;
 
         public bool IsVisible { get; private set; }
         public bool IsDestroyed => _gameObject == null;
@@ -30,11 +31,11 @@ namespace PowerTransmitterPlus
             _lineRenderer.positionCount = 2;
             _lineRenderer.sharedMaterial = BeamManager.SharedMaterial;
 
+            // Beam is always at full alpha when visible, so a player can always
+            // see where a link exists. The scrolling pulse train (below) carries
+            // the power-level information via speed of motion, not dimming.
             var color = BeamManager.BeamColor;
-            // Initial alpha is 0 — SetIntensity(power) will drive it up to match
-            // the game's current VisualizerIntensity. Prevents a full-bright
-            // flash during the one frame between Show() and the first intensity update.
-            color.a = 0f;
+            color.a = 1f;
             _lineRenderer.startColor = color;
             _lineRenderer.endColor = color;
 
@@ -48,6 +49,10 @@ namespace PowerTransmitterPlus
             _lineRenderer.lightProbeUsage = LightProbeUsage.Off;
             _lineRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
             _lineRenderer.enabled = false;
+
+            // AddComponent must happen after the LineRenderer exists — the
+            // pulse train reads it in its own Awake via GetComponent.
+            _pulseTrain = _gameObject.AddComponent<BeamPulseTrain>();
         }
 
         public void Show()
@@ -65,20 +70,14 @@ namespace PowerTransmitterPlus
             _lineRenderer.enabled = false;
         }
 
-        // Drives the LineRenderer vertex alpha with the game's power-level
-        // intensity (0..1). On an additive-blend shader, srcAlpha modulates
-        // the contribution — alpha=0.5 halves brightness, matching vanilla's
-        // "beam dims with low power" behavior.
+        // Forwards the game's power-level intensity (0..1) to the pulse train,
+        // which turns it into a scroll speed. The beam's own alpha is held at
+        // 1 so the line remains fully visible whenever the link exists — the
+        // pulse train is the only power-level indicator.
         public void SetIntensity(float intensity)
         {
             if (IsDestroyed) return;
-            var color = BeamManager.BeamColor;
-            // TEMP: force full alpha so the beam always renders at 100% regardless
-            // of actual power level. Revert to `Mathf.Clamp01(intensity)` to
-            // restore vanilla-style power-level dimming.
-            color.a = 1f;
-            _lineRenderer.startColor = color;
-            _lineRenderer.endColor = color;
+            _pulseTrain?.SetIntensity(intensity);
         }
 
         public void Refresh()

@@ -32,6 +32,12 @@ namespace PowerTransmitterPlus
         internal static ConfigEntry<float> EmissionIntensity;
         internal static ConfigEntry<string> ShaderName;
 
+        // Pulse train (power indicator). World-space so stripes look consistent
+        // on beams of any length. See BeamPulseTrain for rendering detail.
+        internal static ConfigEntry<float> StripeWavelength;
+        internal static ConfigEntry<float> ScrollSpeed;
+        internal static ConfigEntry<float> StripeTroughBrightness;
+
         void Awake()
         {
             Log = Logger;
@@ -51,6 +57,18 @@ namespace PowerTransmitterPlus
             ShaderName = Config.Bind(
                 "Advanced", "Shader Name", "Legacy Shaders/Particles/Additive",
                 "(Client-side) Unity shader used for the beam. Additive gives a laser-like glow. Fallbacks are tried automatically if this shader is missing.");
+
+            StripeWavelength = Config.Bind(
+                "Pulse", "Stripe Wavelength", 2.0f,
+                "(Client-side) Distance in world meters between one bright pulse and the next. Same physical spacing on 5m beams and 200m beams.");
+
+            ScrollSpeed = Config.Bind(
+                "Pulse", "Scroll Speed", 6.0f,
+                "(Client-side) Pulse scroll speed in world meters per second at full power. Half power = half speed.");
+
+            StripeTroughBrightness = Config.Bind(
+                "Pulse", "Trough Brightness", 0.5f,
+                "(Client-side) Beam brightness between pulses, 0..1. 1 = no visible pulsing (beam flat). 0 = troughs fully dark. Default 0.5 keeps the link clearly visible between peaks.");
 
             MainThreadDispatcher.Init();
 

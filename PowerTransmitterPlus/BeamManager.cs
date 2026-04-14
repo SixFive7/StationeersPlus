@@ -12,6 +12,39 @@ namespace PowerTransmitterPlus
             new Dictionary<PowerTransmitter, BeamLine>();
 
         private static Material _sharedMaterial;
+        private static Texture2D _stripeTexture;
+
+        // Procedural 1D stripe texture for the pulse train. Repeat-wrapped so
+        // LineRenderer UV tiling via mainTextureScale.x gives one cosine period
+        // per stripe. Brightness floor = StripeTroughBrightness; peak = 1.0.
+        // Regenerated lazily on first access; tied to current config value.
+        internal static Texture2D StripeTexture
+        {
+            get
+            {
+                if (_stripeTexture != null) return _stripeTexture;
+
+                const int width = 32;
+                var tex = new Texture2D(width, 1, TextureFormat.RGBA32, mipChain: false)
+                {
+                    wrapMode = TextureWrapMode.Repeat,
+                    filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                var trough = Mathf.Clamp01(PowerTransmitterPlusPlugin.StripeTroughBrightness?.Value ?? 0.5f);
+                for (int i = 0; i < width; i++)
+                {
+                    float t = i / (float)width;
+                    // 0.5 + 0.5*cos(2πt) = 1 at t=0, 0 at t=0.5, 1 at t=1
+                    float wave = 0.5f + 0.5f * Mathf.Cos(t * 2f * Mathf.PI);
+                    float b = Mathf.Lerp(trough, 1f, wave);
+                    tex.SetPixel(i, 0, new Color(b, b, b, 1f));
+                }
+                tex.Apply();
+                _stripeTexture = tex;
+                return _stripeTexture;
+            }
+        }
 
         internal static Material SharedMaterial
         {

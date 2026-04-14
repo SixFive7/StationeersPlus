@@ -64,6 +64,7 @@
     <Compile Include="MainThreadDispatcher.cs" />
     <Compile Include="BeamManager.cs" />
     <Compile Include="BeamLine.cs" />
+    <Compile Include="BeamPulseTrain.cs" />
     <Compile Include="VisualiserPatches.cs" />
     <Compile Include="RotationPatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
