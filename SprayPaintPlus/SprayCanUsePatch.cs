@@ -15,11 +15,13 @@ namespace SprayPaintPlus
         [UsedImplicitly]
         public static bool Prefix(SprayCan __instance, ref bool __result, ref float quantity)
         {
-            // Fix #6: Only apply on server. Clients should not modify quantity locally —
-            // the server's authoritative state will be synced to them. This prevents
-            // visual flicker where the client briefly shows paint consumed then gets
-            // corrected by the server.
-            if (!NetworkManager.IsServer)
+            // Skip only on multiplayer remote clients — their authoritative
+            // quantity is broadcast by the server, so running this locally
+            // would briefly show paint consumed before the sync corrects it.
+            // Single-player has NetworkRole.None (IsActive=false, IsServer=false),
+            // which the earlier `!IsServer` guard conflated with remote clients
+            // and accidentally disabled infinite spray in solo play.
+            if (NetworkManager.IsActive && !NetworkManager.IsServer)
                 return true;
 
             bool infinite = SprayPaintPlusPlugin.UnlimitedSprayPaintUses.Value;

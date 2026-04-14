@@ -5,6 +5,21 @@ All notable changes to Spray Paint Plus are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-04-14
+
+### Fixed
+- Infinite spray paint now works in single-player. The guard on
+  `SprayCan.OnUseItem` short-circuited on `!NetworkManager.IsServer`,
+  which is true for both multiplayer remote clients (correct — the
+  server owns quantity) *and* single-player (`NetworkRole.None`,
+  which the game itself treats as "not server, not client"). Updated
+  the guard to `IsActive && !IsServer` so the infinite/suppress
+  logic runs in solo play while still deferring to the server in
+  multiplayer.
+
+### Requires
+- All players on a server must run 1.2.2 (matching-version handshake).
+
 ## [1.2.1] - 2026-04-14
 
 ### Fixed
