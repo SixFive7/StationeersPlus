@@ -1,4 +1,6 @@
+using Assets.Scripts;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Entities;
 using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -21,14 +23,21 @@ namespace SprayPaintPlus
 
     /// <summary>
     /// Cleans up PlayerModifiers dictionary when a client disconnects.
+    /// Runs as a Prefix because NetworkServer.ClientDisconnected calls
+    /// NetworkBase.RemoveClient before returning, making the Client record
+    /// unreachable to a Postfix. We look up the disconnecting client's
+    /// registered Human and remove the modifiers entry keyed by its ReferenceId.
     /// </summary>
-    [HarmonyPatch(typeof(Assets.Scripts.NetworkServer), nameof(Assets.Scripts.NetworkServer.ClientDisconnected))]
+    [HarmonyPatch(typeof(NetworkServer), nameof(NetworkServer.ClientDisconnected))]
     public class ClientDisconnectCleanupPatch
     {
         [UsedImplicitly]
-        public static void Postfix(long connectionId)
+        public static void Prefix(long connectionId)
         {
-            SprayPaintHelpers.PlayerModifiers.Remove(connectionId);
+            Client client = Client.Find(connectionId);
+            Human human = client?.RegisteredHuman;
+            if (human != null)
+                SprayPaintHelpers.PlayerModifiers.Remove(human.ReferenceId);
         }
     }
 }

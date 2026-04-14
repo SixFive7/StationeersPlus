@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus [StationeersLaunchPad]</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.0</Version>
+  <Version>1.1.1</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines color cycling, network painting, and infinite spray paint into one mod that now also fully supports multiplayer.
@@ -38,6 +38,10 @@ Built on the work of Elmotrix (Color Cycler, Network Painter), SubHobo (multipla
 
 [url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
   <ChangeLog>
+v1.1.1: Modifier keys for clients
+- FIX: Shift / Ctrl modifiers now apply correctly when remote clients paint. Previously the server read the host's keyboard for every client's paint action, so clients' modifiers were ignored (always behaved as if nothing was held)
+- Skip redundant client-side network-paint prefix for non-spray paint paths (cosmetic-only, did not propagate)
+- REQUIRES: All players on a server must run 1.1.1 (wire format change in the modifier message)
 v1.1.0: LaunchPadBooster Networking V2
 - CHANGE: Migrated to the new Networking V2 API (dedicated channel, automatic compression, multi-packet splitting)
 - CHANGE: Explicitly enforce matching mod versions during the multiplayer handshake

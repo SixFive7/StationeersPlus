@@ -1,6 +1,7 @@
 using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Networking;
+using Assets.Scripts.Objects.Entities;
 using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -75,6 +76,10 @@ namespace SprayPaintPlus
 
         private static void SendModifierStateIfChanged()
         {
+            Human localHuman = InventoryManager.ParentHuman;
+            if (localHuman == null)
+                return;
+
             bool shiftHeld = KeyManager.GetButton(KeyCode.LeftShift)
                           || KeyManager.GetButton(KeyCode.RightShift);
             bool ctrlHeld = KeyManager.GetButton(KeyCode.LeftControl)
@@ -92,13 +97,17 @@ namespace SprayPaintPlus
 
             _lastSentModifiers = modifiers;
 
-            // Only remote clients need to send modifier state to the server.
-            // The host reads its own keyboard directly in NetworkPainterPatch.
+            // Always mirror into the server-side dictionary locally — host and
+            // single-player go through the same PlayerModifiers lookup path as
+            // remote clients do on the server.
+            SprayPaintHelpers.PlayerModifiers[localHuman.ReferenceId] = modifiers;
+
             if (NetworkManager.IsClient && !NetworkManager.IsServer)
             {
                 new PaintModifierMessage
                 {
                     Modifiers = modifiers,
+                    PlayerHumanId = localHuman.ReferenceId,
                 }.SendToHost();
             }
         }

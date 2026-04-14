@@ -1,4 +1,3 @@
-using Assets.Scripts;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -12,22 +11,54 @@ using UnityEngine;
 namespace SprayPaintPlus
 {
     /// <summary>
-    /// Captures the hostId from ThingColorMessage.Process so we know which
-    /// player triggered the current paint action.
+    /// Captures the painting player's Human ReferenceId when a local paint action
+    /// (host or single-player) reaches OnServer.AttackWith. The attackParent arg
+    /// is the player's controlled Entity (a Human).
     /// </summary>
-    [HarmonyPatch(typeof(ThingColorMessage), nameof(ThingColorMessage.Process))]
-    public class PaintHostIdTracker
+    [HarmonyPatch(typeof(OnServer), nameof(OnServer.AttackWith))]
+    public class PaintAttackerTracker_Local
     {
         [UsedImplicitly]
-        public static void Prefix(ThingColorMessage __instance, long hostId)
+        public static void Prefix(Thing attackParent)
         {
-            SprayPaintHelpers.CurrentPaintingHostId = hostId;
+            if (attackParent != null)
+                SprayPaintHelpers.CurrentPaintingHumanId = attackParent.ReferenceId;
+        }
+
+        [UsedImplicitly]
+        public static void Postfix()
+        {
+            SprayPaintHelpers.CurrentPaintingHumanId = -1;
+        }
+    }
+
+    /// <summary>
+    /// Captures the painting player's Human ReferenceId when the server processes
+    /// a remote client's AttackWithMessage. The hostId parameter from vanilla
+    /// message dispatch is unreliable on the server (NetworkManager._hostId is
+    /// only maintained client-side); AttackParentId in the message body is the
+    /// authoritative source identifier.
+    /// </summary>
+    [HarmonyPatch(typeof(AttackWithMessage), nameof(AttackWithMessage.Process))]
+    public class PaintAttackerTracker_Remote
+    {
+        [UsedImplicitly]
+        public static void Prefix(AttackWithMessage __instance)
+        {
+            SprayPaintHelpers.CurrentPaintingHumanId = __instance.AttackParentId;
+        }
+
+        [UsedImplicitly]
+        public static void Postfix()
+        {
+            SprayPaintHelpers.CurrentPaintingHumanId = -1;
         }
     }
 
     /// <summary>
     /// Prefix on OnServer.SetCustomColor — paints entire pipe/cable/chute networks.
-    /// Reads modifier keys from per-player dictionary instead of KeyManager.
+    /// Looks up the painter's modifier state from PlayerModifiers using the
+    /// Human ReferenceId captured by the trackers above.
     /// </summary>
     [HarmonyPatch(typeof(OnServer), nameof(OnServer.SetCustomColor))]
     public class NetworkPainterPatch
@@ -40,34 +71,27 @@ namespace SprayPaintPlus
             if (_painting)
                 return;
 
+            // The authoritative paint runs on the server and is broadcast back.
+            // Running this prefix on a remote client would only repaint the
+            // network locally via Thing.SetCustomColor, which does not set
+            // NetworkUpdateFlags on clients — so it would be purely cosmetic
+            // and invisible to other players.
+            if (NetworkManager.IsActive && !NetworkManager.IsServer)
+                return;
+
             if (!SprayPaintPlusPlugin.EnableNetworkPainting.Value)
                 return;
 
-            long hostId = SprayPaintHelpers.CurrentPaintingHostId;
-            SprayPaintHelpers.CurrentPaintingHostId = -1;
+            long humanId = SprayPaintHelpers.CurrentPaintingHumanId;
 
-            bool wantsSingle;
-            bool ctrlHeld;
+            // Read-and-reset guards against a stale id leaking into a later
+            // OnServer.SetCustomColor from a non-attack path (UI color picker,
+            // etc.) if an attack threw before its tracker postfix fired.
+            SprayPaintHelpers.CurrentPaintingHumanId = -1;
 
-            if (hostId == -1 && NetworkManager.IsServer)
-            {
-                // Local host / single player — read keyboard directly.
-                // The host's keyboard IS the local keyboard, no dictionary needed.
-                bool shift = KeyManager.GetButton(KeyCode.LeftShift)
-                          || KeyManager.GetButton(KeyCode.RightShift);
-                bool ctrl = KeyManager.GetButton(KeyCode.LeftControl)
-                         || KeyManager.GetButton(KeyCode.RightControl);
-                bool invert = SprayPaintPlusPlugin.PaintSingleItemByDefault.Value;
-                wantsSingle = shift != invert;
-                ctrlHeld = ctrl;
-            }
-            else
-            {
-                // Remote client — read from per-player dictionary.
-                SprayPaintHelpers.PlayerModifiers.TryGetValue(hostId, out byte modifiers);
-                wantsSingle = (modifiers & 1) != 0;
-                ctrlHeld = (modifiers & 2) != 0;
-            }
+            SprayPaintHelpers.PlayerModifiers.TryGetValue(humanId, out byte modifiers);
+            bool wantsSingle = (modifiers & 1) != 0;
+            bool ctrlHeld = (modifiers & 2) != 0;
 
             if (wantsSingle)
                 return;

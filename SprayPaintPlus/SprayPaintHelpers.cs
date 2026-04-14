@@ -1,5 +1,4 @@
 using Assets.Scripts;
-using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Items;
 using System.Collections.Generic;
@@ -16,15 +15,20 @@ namespace SprayPaintPlus
         // Entries are removed when a spray can is destroyed (see CleanupPatches).
         internal static readonly Dictionary<long, int> SprayCanColors = new Dictionary<long, int>();
 
-        // Tracks modifier key state per player connectionId.
-        // Bit 0 = wants single-item paint, Bit 1 = wants checkered pattern.
-        // Entries are removed when a player disconnects (see CleanupPatches).
+        // Tracks modifier key state per player, keyed by the player's Human ReferenceId.
+        // Bit 0 = wants single-item paint (invert already applied client-side),
+        // Bit 1 = wants checkered pattern.
+        // Server receives remote players' state via PaintModifierMessage; local
+        // player's own state is also written here so host/single-player takes the
+        // same lookup path as remote clients. Entries for remote players are
+        // removed on disconnect (see CleanupPatches).
         internal static readonly Dictionary<long, byte> PlayerModifiers = new Dictionary<long, byte>();
 
-        // Tracks which hostId triggered the current OnServer.SetCustomColor call.
-        // Set in PaintHostIdTracker.Prefix, read in NetworkPainterPatch.Prefix,
-        // reset to -1 after use to prevent stale reads.
-        internal static long CurrentPaintingHostId = -1;
+        // ReferenceId of the Human whose paint action is currently being processed.
+        // Set by PaintAttackerTracker_Local/_Remote prefixes before the paint
+        // reaches OnServer.SetCustomColor, read in NetworkPainterPatch.Prefix,
+        // reset to -1 on tracker postfix / after use to prevent stale reads.
+        internal static long CurrentPaintingHumanId = -1;
 
         // Cache: maps paint material to thumbnail sprite, built on first use.
         private static Dictionary<Material, Sprite> _thumbnailCache;
@@ -85,13 +89,13 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// Server-side update: changes visual + flags for network broadcast.
+        /// Server-side update: changes visual and sets the broadcast flag.
+        /// Callers must already be on the server.
         /// </summary>
         public static void UpdateSprayCanServer(SprayCan sprayCan, int colorIndex)
         {
             UpdateSprayCanVisual(sprayCan, colorIndex);
-            if (NetworkManager.IsServer)
-                sprayCan.NetworkUpdateFlags |= PaintColorNetworkFlag;
+            sprayCan.NetworkUpdateFlags |= PaintColorNetworkFlag;
         }
 
         private static Sprite GetThumbnailForMaterial(Material paintMaterial)
