@@ -223,14 +223,14 @@ namespace SprayPaintPlus
             {
                 foreach (Cell n in seed.NeighborCells)
                 {
-                    if (n != null)
+                    if (n != null && IsOrthogonalNeighbor(seed, n))
                         scanned.Add(n);
                 }
             }
 
             foreach (Cell cell in scanned)
             {
-                foreach (Structure s in cell.AllStructures.ToList())
+                foreach (Structure s in cell.AllStructures)
                 {
                     if (s == null || s.GetType() != targetType)
                         continue;
@@ -260,7 +260,7 @@ namespace SprayPaintPlus
             {
                 Cell cell = queue.Dequeue();
 
-                foreach (Structure s in cell.AllStructures.ToList())
+                foreach (Structure s in cell.AllStructures)
                 {
                     if (s == null || s.GetType() != targetType)
                         continue;
@@ -292,7 +292,7 @@ namespace SprayPaintPlus
         {
             if (s == null)
                 return null;
-            return GridController.World?.RoomController?.GetRoom(s.GridPosition);
+            return RoomController.World?.GetRoom(s.GridPosition);
         }
 
         /// <summary>
@@ -318,8 +318,13 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// Fix #8b: Wraps individual SetCustomColor calls so one destroyed item
-        /// doesn't abort painting the rest of the network.
+        /// Individual SetCustomColor calls can throw — most notably,
+        /// Structure.SetCustomColor throws NotImplementedException on any
+        /// structure whose structureRenderMode != Standard (batched-render
+        /// structures share a combined mesh and can't be recolored per
+        /// instance). A destroyed-mid-paint item can also trip a null deref.
+        /// Without the catch, one unpaintable or stale item would abort
+        /// painting the rest of the network.
         /// </summary>
         private static void PaintSafe(Thing item, int colorIndex)
         {
