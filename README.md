@@ -19,6 +19,12 @@ Spray-paint a pipe, cable, or chute and the entire connected network gets painte
 - **Hold Ctrl** for a checkered/alternating paint pattern
 - Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks
 
+### Room & Structure Painting
+Spray-paint a wall and every same-type wall bounding the same room is painted. Spray-paint a frame, girder, or any other large structure and all orthogonally-connected structures of the same exact type are painted with it.
+- Walls use the game's `Room` membership to decide the paint set — paint spills across any wall the room touches, but never past a doorway into another room
+- Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
+- Same Shift / Ctrl modifiers apply
+
 ### Infinite Spray Paint
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
 
@@ -46,6 +52,8 @@ All features are configurable via the mod settings panel.
 | Network Paint Pipes | On | Include pipes in network painting |
 | Network Paint Cables | On | Include cables in network painting |
 | Network Paint Chutes | On | Include chutes in network painting |
+| Network Paint Walls | On | Paint all same-type walls bounding the same room |
+| Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
 
 ## Compatibility
 

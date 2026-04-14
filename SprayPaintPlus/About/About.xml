@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus [StationeersLaunchPad]</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.1</Version>
+  <Version>1.2.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines color cycling, network painting, and infinite spray paint into one mod that now also fully supports multiplayer.
@@ -12,6 +12,8 @@ Combines color cycling, network painting, and infinite spray paint into one mod 
 [list]
 [*]Scroll wheel to cycle spray can colors
 [*]Spray paints entire pipe/cable/chute networks
+[*]Spray paints all walls bounding the same room
+[*]Spray paints connected frames, girders, and other large structures in a grid
 [*]Hold Shift to paint single item (or swap with config)
 [*]Hold Ctrl for checkered pattern
 [*]Infinite spray paint uses (configurable)
@@ -38,6 +40,11 @@ Built on the work of Elmotrix (Color Cycler, Network Painter), SubHobo (multipla
 
 [url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
   <ChangeLog>
+v1.2.0: Paint whole rooms and whole frame grids
+- NEW: Painting a wall now paints all same-type walls bounding the same room
+- NEW: Painting a frame, girder, or other large structure paints all orthogonally-connected structures of the exact same type
+- NEW: Server toggles for each — "Network Paint Walls" and "Network Paint Large Structures" (both default on)
+- Shift still restricts to the single targeted item; Ctrl still produces a checkered pattern
 v1.1.1: Modifier keys for clients
 - FIX: Shift / Ctrl modifiers now apply correctly when remote clients paint. Previously the server read the host's keyboard for every client's paint action, so clients' modifiers were ignored (always behaved as if nothing was held)
 - Skip redundant client-side network-paint prefix for non-spray paint paths (cosmetic-only, did not propagate)
@@ -66,6 +73,8 @@ Combines color cycling, network painting, and infinite spray paint into one mod.
 <b>Features:</b>
 - Scroll wheel to cycle spray can colors
 - Spray paints entire pipe/cable/chute networks
+- Spray paints all walls bounding the same room
+- Spray paints connected frames and other large structures in a grid
 - Hold Shift to paint single item (or swap with config)
 - Hold Ctrl for checkered pattern
 - Infinite spray paint uses (configurable)

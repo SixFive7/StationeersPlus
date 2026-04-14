@@ -20,7 +20,7 @@ namespace SprayPaintPlus
     {
         public const string PluginGuid = "net.spraypaintplus";
         public const string PluginName = "SprayPaintPlus";
-        public const string PluginVersion = "1.1.1";
+        public const string PluginVersion = "1.2.0";
 
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
 
@@ -37,6 +37,8 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> NetworkPaintPipes;
         internal static ConfigEntry<bool> NetworkPaintCables;
         internal static ConfigEntry<bool> NetworkPaintChutes;
+        internal static ConfigEntry<bool> NetworkPaintWalls;
+        internal static ConfigEntry<bool> NetworkPaintLargeStructures;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
 
@@ -151,6 +153,20 @@ namespace SprayPaintPlus
             NetworkPaintChutes = Config.Bind(
                 "Server", "Network Paint Chutes", true,
                 "(Server-side) Includes chute networks when painting an entire network. " +
+                "Has no effect if Enable Network Painting is disabled. " +
+                "Only the server's value matters in multiplayer.");
+
+            NetworkPaintWalls = Config.Bind(
+                "Server", "Network Paint Walls", true,
+                "(Server-side) When spray-painting a wall, all same-type walls " +
+                "bounding the same room are painted too. " +
+                "Has no effect if Enable Network Painting is disabled. " +
+                "Only the server's value matters in multiplayer.");
+
+            NetworkPaintLargeStructures = Config.Bind(
+                "Server", "Network Paint Large Structures", true,
+                "(Server-side) When spray-painting a frame, girder, or other large structure, " +
+                "all orthogonally-connected structures of the same exact type are painted too. " +
                 "Has no effect if Enable Network Painting is disabled. " +
                 "Only the server's value matters in multiplayer.");
         }

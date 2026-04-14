@@ -5,6 +5,29 @@ All notable changes to Spray Paint Plus are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-14
+
+### Added
+- Wall room-fill: painting a wall now paints all same-type walls bounding
+  the same `Room`. Cells inside `room.Grids` plus one layer of neighbors
+  are scanned, and structures whose exact type matches and whose
+  `GetRoom()` returns the same room are painted.
+- Large structure grid flood-fill: painting a `LargeStructure` (frame,
+  girder, ladder, etc.) flood-fills orthogonal 6-neighbor cells, painting
+  every structure of the exact same type that is connected through a
+  chain of cells containing that type. `Cell.NeighborCells` is filtered
+  to orthogonal via a Grid3 axis-diff check because it includes 26
+  neighbors (corners + diagonals).
+- Server toggles `Network Paint Walls` and `Network Paint Large Structures`
+  (both default on). Disabling walls short-circuits the wall branch
+  without falling through to the large-structure path.
+
+### Notes
+- Checkered pattern (Ctrl) applies to walls and large structures using
+  the same position-based `CheckeredCheck` as the pipe/cable/chute paths.
+- The `Structure.GetRoom()` method is protected; the mod replicates it
+  via `GridController.World.RoomController.GetRoom(structure.GridPosition)`.
+
 ## [1.1.1] - 2026-04-14
 
 ### Fixed

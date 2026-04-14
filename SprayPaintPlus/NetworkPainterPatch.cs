@@ -1,3 +1,5 @@
+using Assets.Scripts;
+using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -5,6 +7,7 @@ using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 using JetBrains.Annotations;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -176,8 +179,142 @@ namespace SprayPaintPlus
                         if (!checkered || CheckeredCheck(thing, item))
                             PaintSafe(item, colorIndex);
                     }
+                    return;
                 }
             }
+
+            // Wall branch must precede the LargeStructure branch because Wall
+            // derives from LargeStructure. Walls flood by shared Room, not grid
+            // adjacency. A wall with walls-painting disabled is *not* forwarded
+            // to the grid flood — otherwise walls would be painted anyway via
+            // the LargeStructure path.
+            if (thing is Wall wall)
+            {
+                if (SprayPaintPlusPlugin.NetworkPaintWalls.Value)
+                    PaintWallsInRoom(wall, colorIndex, checkered);
+                return;
+            }
+
+            if (SprayPaintPlusPlugin.NetworkPaintLargeStructures.Value && thing is LargeStructure largeStructure)
+            {
+                PaintLargeStructureGrid(largeStructure, colorIndex, checkered);
+                return;
+            }
+        }
+
+        private static void PaintWallsInRoom(Wall originalWall, int colorIndex, bool checkered)
+        {
+            Room targetRoom = GetRoomFor(originalWall);
+            if (targetRoom == null)
+                return;
+
+            Type targetType = originalWall.GetType();
+
+            // The room's interior cells are in room.Grids; walls sit on the
+            // boundary, so expand one layer to cover both sides.
+            var scanned = new HashSet<Cell>();
+            foreach (WorldGrid wg in targetRoom.Grids)
+            {
+                Cell c = GridController.World?.GetCell(wg);
+                if (c != null)
+                    scanned.Add(c);
+            }
+            foreach (Cell seed in scanned.ToList())
+            {
+                foreach (Cell n in seed.NeighborCells)
+                {
+                    if (n != null)
+                        scanned.Add(n);
+                }
+            }
+
+            foreach (Cell cell in scanned)
+            {
+                foreach (Structure s in cell.AllStructures.ToList())
+                {
+                    if (s == null || s.GetType() != targetType)
+                        continue;
+                    if (ReferenceEquals(s, originalWall))
+                        continue;
+                    if (GetRoomFor(s) != targetRoom)
+                        continue;
+                    if (checkered && !CheckeredCheck(originalWall, s))
+                        continue;
+                    PaintSafe(s, colorIndex);
+                }
+            }
+        }
+
+        private static void PaintLargeStructureGrid(LargeStructure origin, int colorIndex, bool checkered)
+        {
+            Cell startCell = GridController.World?.GetCell(origin.GridPosition);
+            if (startCell == null)
+                return;
+
+            Type targetType = origin.GetType();
+            var visited = new HashSet<Cell> { startCell };
+            var queue = new Queue<Cell>();
+            queue.Enqueue(startCell);
+
+            while (queue.Count > 0)
+            {
+                Cell cell = queue.Dequeue();
+
+                foreach (Structure s in cell.AllStructures.ToList())
+                {
+                    if (s == null || s.GetType() != targetType)
+                        continue;
+                    if (ReferenceEquals(s, origin))
+                        continue;
+                    if (checkered && !CheckeredCheck(origin, s))
+                        continue;
+                    PaintSafe(s, colorIndex);
+                }
+
+                foreach (Cell neighbor in cell.NeighborCells)
+                {
+                    if (neighbor == null || visited.Contains(neighbor))
+                        continue;
+                    if (!IsOrthogonalNeighbor(cell, neighbor))
+                        continue;
+                    if (!CellContainsType(neighbor, targetType))
+                        continue;
+                    visited.Add(neighbor);
+                    queue.Enqueue(neighbor);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replicates Structure.GetRoom() (which is protected) via public APIs.
+        /// </summary>
+        private static Room GetRoomFor(Structure s)
+        {
+            if (s == null)
+                return null;
+            return GridController.World?.RoomController?.GetRoom(s.GridPosition);
+        }
+
+        /// <summary>
+        /// Cell.NeighborCells contains all 26 surrounding cells (includeCorners:true
+        /// in the Cell ctor). We want 6-orthogonal only: exactly one grid axis
+        /// differs between the two cells.
+        /// </summary>
+        private static bool IsOrthogonalNeighbor(Cell a, Cell b)
+        {
+            Grid3 d = a.Grid - b.Grid;
+            int axes = (d.x != 0 ? 1 : 0) + (d.y != 0 ? 1 : 0) + (d.z != 0 ? 1 : 0);
+            return axes == 1;
+        }
+
+        private static bool CellContainsType(Cell cell, Type targetType)
+        {
+            foreach (Structure s in cell.AllStructures)
+            {
+                if (s != null && s.GetType() == targetType)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>
