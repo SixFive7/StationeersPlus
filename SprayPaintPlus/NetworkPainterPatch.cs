@@ -238,7 +238,7 @@ namespace SprayPaintPlus
                         continue;
                     if (GetRoomFor(s) != targetRoom)
                         continue;
-                    if (checkered && !CheckeredCheck(originalWall, s))
+                    if (checkered && !CheckeredCheckGrid(originalWall, s))
                         continue;
                     PaintSafe(s, colorIndex);
                 }
@@ -266,7 +266,7 @@ namespace SprayPaintPlus
                         continue;
                     if (ReferenceEquals(s, origin))
                         continue;
-                    if (checkered && !CheckeredCheck(origin, s))
+                    if (checkered && !CheckeredCheckGrid(origin, s))
                         continue;
                     PaintSafe(s, colorIndex);
                 }
@@ -347,6 +347,20 @@ namespace SprayPaintPlus
             int three = ((int)Mathf.Round(Mathf.Abs(original.Position.z) * 2) % 2)
                      == ((int)Mathf.Round(Mathf.Abs(target.Position.z) * 2) % 2) ? 1 : 0;
             return (one + two + three) % 2 != 0;
+        }
+
+        /// <summary>
+        /// Checkerboard for grid-aligned structures. The Thing-position variant
+        /// scales world coords by 2 to cope with half-grid pipe centers, which
+        /// collapses for walls/frames that sit at integer grid positions (every
+        /// doubled coord is even → every parity is 0 → nothing is masked out).
+        /// Using GridPosition sidesteps the grid-size assumption entirely.
+        /// </summary>
+        private static bool CheckeredCheckGrid(Structure original, Structure target)
+        {
+            Grid3 a = original.GridPosition;
+            Grid3 b = target.GridPosition;
+            return ((a.x + a.y + a.z) & 1) == ((b.x + b.y + b.z) & 1);
         }
     }
 }

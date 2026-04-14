@@ -69,6 +69,8 @@ All features are configurable via the mod settings panel.
 
 **All players** on a server must have Spray Paint Plus installed. Matching mod versions are enforced during the connection handshake automatically.
 
+**Dedicated servers** need the same BepInEx + StationeersLaunchPad + SprayPaintPlus setup installed server-side — the paint logic runs server-authoritatively and the handshake rejects mixed installs.
+
 ## Installation
 
 1. Copy `SprayPaintPlus.dll` and the `About/` folder into your Stationeers local mods directory
