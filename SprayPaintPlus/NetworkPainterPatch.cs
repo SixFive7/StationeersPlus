@@ -355,17 +355,26 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// Checkerboard for grid-aligned structures. The Thing-position variant
-        /// scales world coords by 2 to cope with half-grid pipe centers, which
-        /// collapses for walls/frames that sit at integer grid positions (every
-        /// doubled coord is even → every parity is 0 → nothing is masked out).
-        /// Using GridPosition sidesteps the grid-size assumption entirely.
+        /// 3D checkerboard parity for grid-aligned structures. Two traps make
+        /// the naive `(x+y+z) & 1` on GridPosition useless here:
+        ///   1. Grid3 scales world coords ×Grid3.one (10), so one world unit
+        ///      is ten Grid3 units.
+        ///   2. Walls and large structures snap to a GridSize-wide cell grid
+        ///      (default 2 world units). One cell therefore spans
+        ///      GridSize * Grid3.one Grid3 units — 20 by default — and every
+        ///      structure's GridPosition is a multiple of 20 (+ a fixed
+        ///      offset). Parity on raw coords is always the same value.
+        /// Working from the delta between the two positions sidesteps both
+        /// the scale and the grid offset: the delta is always an exact
+        /// multiple of cellSize, so integer division yields the cell-index
+        /// distance and its parity is the checker answer.
         /// </summary>
         private static bool CheckeredCheckGrid(Structure original, Structure target)
         {
-            Grid3 a = original.GridPosition;
-            Grid3 b = target.GridPosition;
-            return ((a.x + a.y + a.z) & 1) == ((b.x + b.y + b.z) & 1);
+            int cellSize = Grid3.one.x * (int)original.GridSize;
+            Grid3 d = target.GridPosition - original.GridPosition;
+            int cellsApart = d.x / cellSize + d.y / cellSize + d.z / cellSize;
+            return (cellsApart & 1) == 0;
         }
     }
 }
