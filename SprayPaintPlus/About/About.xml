@@ -96,7 +96,10 @@ Spray Paint Plus would not exist without the modders who came before:
 [*][b]Dingo (DingoPD)[/b]: Created the original [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url], the first infinite spray paint mod for Stationeers.
 [/list]
 
-[url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
+[url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
   <ChangeLog>
 v1.2.3: Refreshed Steam Workshop preview art
 - Replaced the preview and thumbnail images with a new 16:9 key art that showcases the mod's features (color cycling, infinite paint, network painting, Shift/Ctrl modifiers, multiplayer)
