@@ -54,7 +54,11 @@ namespace PowerTransmitterPlus
         {
             if (t == null || LinkedDistanceField == null) return 1f;
             var distance = (float)LinkedDistanceField.GetValue(t);
-            var k = PowerTransmitterPlusPlugin.DistanceCostFactor?.Value ?? 0f;
+            // GetEffectiveK() returns local config on host/single-player and
+            // the host-pushed synced value on clients. Simulation patches only
+            // run server-side so they always see the host's value; logic
+            // readouts on clients see the synced value too, so display matches.
+            var k = DistanceConfigSync.GetEffectiveK();
             if (k <= 0f) return 1f;
             var m = 1f + k * distance / 1000f;
             return m < 1f ? 1f : m;

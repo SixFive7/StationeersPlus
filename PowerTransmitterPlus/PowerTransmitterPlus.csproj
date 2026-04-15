@@ -68,6 +68,14 @@
     <Compile Include="VisualiserPatches.cs" />
     <Compile Include="RotationPatches.cs" />
     <Compile Include="DistanceCostPatches.cs" />
+    <Compile Include="LogicTypeRegistry.cs" />
+    <Compile Include="DistanceConfigMessage.cs" />
+    <Compile Include="DistanceConfigSync.cs" />
+    <Compile Include="Ic10ConstantsPatcher.cs" />
+    <Compile Include="LogicableInitializePatch.cs" />
+    <Compile Include="EnumNamePatches.cs" />
+    <Compile Include="LogicReadoutPatches.cs" />
+    <Compile Include="StationpediaPatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

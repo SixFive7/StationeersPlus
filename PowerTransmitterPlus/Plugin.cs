@@ -77,9 +77,10 @@ namespace PowerTransmitterPlus
 
             DistanceCostFactor = Config.Bind(
                 "Distance", "Cost Factor (k)", 5f,
-                "(Server-side) Per-kilometer overhead on transmitter source draw. Source pulls (1 + k * distance_m / 1000) watts for every watt delivered. k=0 = no overhead. k=5 (default) = 1km doubles to 6:1, 5km is 26:1. k=10 = 1km is 11:1. Server-authoritative — only the host's value matters in multiplayer.");
+                "(Server-authoritative) Per-kilometer overhead on transmitter source draw. Source pulls (1 + k * distance_m / 1000) watts for every watt delivered. k=0 = no overhead. k=5 (default) = 1km doubles to 6:1, 5km is 26:1. k=10 = 1km is 11:1. ONLY THE HOST'S VALUE AFFECTS GAMEPLAY in multiplayer — clients' values are ignored for simulation but used for tablet/IC10 display until the host's value is pushed at connect time. Changing this on the host live-broadcasts the new value to all clients.");
 
             MainThreadDispatcher.Init();
+            DistanceConfigSync.HookHostBroadcast();
 
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;
         }
@@ -90,8 +91,16 @@ namespace PowerTransmitterPlus
 
             try
             {
+                MOD.Networking.Required = true;
+                MOD.Networking.RegisterMessage<DistanceConfigMessage>();
+
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
+
+                // After Harmony patches are live, inject our IC10 named constants
+                // so MIPS source can refer to MicrowaveSourceDraw etc. by name.
+                Ic10ConstantsPatcher.Apply();
+
                 Log.LogInfo("Patches applied successfully");
             }
             catch (Exception e)
