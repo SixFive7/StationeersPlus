@@ -51,63 +51,35 @@ namespace PowerTransmitterPlus
         }
     }
 
-    // ---- Transmitter side ----
+    // CanLogicRead and GetLogicValue are declared on WirelessPower, not on
+    // PowerTransmitter/PowerReceiver (those inherit without override). Harmony
+    // attribute patching uses DeclaredMethod and won't resolve inherited methods,
+    // so we target the base class and branch on instance type.
 
-    [HarmonyPatch(typeof(PowerTransmitter), nameof(PowerTransmitter.CanLogicRead))]
-    public static class TransmitterCanLogicReadPatch
+    [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.CanLogicRead))]
+    public static class WirelessPowerCanLogicReadPatch
     {
         [UsedImplicitly]
-        public static void Postfix(LogicType logicType, ref bool __result)
+        public static void Postfix(WirelessPower __instance, LogicType logicType, ref bool __result)
         {
-            if (LogicTypeRegistry.IsCustom(logicType)) __result = true;
+            if (!LogicTypeRegistry.IsCustom(logicType)) return;
+            if (__instance is PowerTransmitter || __instance is PowerReceiver) __result = true;
         }
     }
 
-    [HarmonyPatch(typeof(PowerTransmitter), nameof(PowerTransmitter.GetLogicValue))]
-    public static class TransmitterGetLogicValuePatch
+    [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.GetLogicValue))]
+    public static class WirelessPowerGetLogicValuePatch
     {
         [UsedImplicitly]
-        public static bool Prefix(PowerTransmitter __instance, LogicType logicType, ref double __result)
-        {
-            switch ((ushort)logicType)
-            {
-                case LogicTypeRegistry.SourceDrawValue:
-                    __result = LogicReadoutCompute.GetSourceDraw(__instance);
-                    return false;
-                case LogicTypeRegistry.DestinationDrawValue:
-                    __result = LogicReadoutCompute.GetDestinationDraw(__instance);
-                    return false;
-                case LogicTypeRegistry.TransmissionLossValue:
-                    __result = LogicReadoutCompute.GetTransmissionLoss(__instance);
-                    return false;
-                default:
-                    return true; // run vanilla
-            }
-        }
-    }
-
-    // ---- Receiver side ----
-    // Receivers expose the same numbers by resolving the linked transmitter.
-    // If unlinked, returns 0.
-
-    [HarmonyPatch(typeof(PowerReceiver), nameof(PowerReceiver.CanLogicRead))]
-    public static class ReceiverCanLogicReadPatch
-    {
-        [UsedImplicitly]
-        public static void Postfix(LogicType logicType, ref bool __result)
-        {
-            if (LogicTypeRegistry.IsCustom(logicType)) __result = true;
-        }
-    }
-
-    [HarmonyPatch(typeof(PowerReceiver), nameof(PowerReceiver.GetLogicValue))]
-    public static class ReceiverGetLogicValuePatch
-    {
-        [UsedImplicitly]
-        public static bool Prefix(PowerReceiver __instance, LogicType logicType, ref double __result)
+        public static bool Prefix(WirelessPower __instance, LogicType logicType, ref double __result)
         {
             if (!LogicTypeRegistry.IsCustom(logicType)) return true;
-            var t = __instance != null ? __instance.LinkedPowerTransmitter : null;
+
+            PowerTransmitter t = null;
+            if (__instance is PowerTransmitter transmitter) t = transmitter;
+            else if (__instance is PowerReceiver receiver) t = receiver.LinkedPowerTransmitter;
+            else return true;
+
             switch ((ushort)logicType)
             {
                 case LogicTypeRegistry.SourceDrawValue:
