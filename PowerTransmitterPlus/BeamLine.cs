@@ -80,6 +80,12 @@ namespace PowerTransmitterPlus
             _pulseTrain?.SetIntensity(intensity);
         }
 
+        // The vanilla RayTransform on each dish sits slightly inside the visible
+        // geometry, so a beam drawn RayTransform-to-RayTransform looks short at
+        // both ends. Push each endpoint outward along the beam axis by a fixed
+        // amount so the line visually covers the emitter tips.
+        private const float EndpointExtensionMeters = 1.0f;
+
         public void Refresh()
         {
             if (IsDestroyed) return;
@@ -92,8 +98,18 @@ namespace PowerTransmitterPlus
                 return;
             }
 
-            _lineRenderer.SetPosition(0, _transmitter.RayTransform.position);
-            _lineRenderer.SetPosition(1, receiver.RayTransform.position);
+            var start = _transmitter.RayTransform.position;
+            var end = receiver.RayTransform.position;
+            var delta = end - start;
+            if (delta.sqrMagnitude > 1e-6f)
+            {
+                var axis = delta.normalized;
+                start -= axis * EndpointExtensionMeters;
+                end += axis * EndpointExtensionMeters;
+            }
+
+            _lineRenderer.SetPosition(0, start);
+            _lineRenderer.SetPosition(1, end);
         }
     }
 }
