@@ -13,6 +13,7 @@ namespace PowerTransmitterPlus
         private LineRenderer _lr;
         private Material _instanceMaterial;
         private float _intensity;
+        private float _nextDiagLog;
 
         private void Awake()
         {
@@ -28,6 +29,11 @@ namespace PowerTransmitterPlus
             // can set tiling/offset without re-reading (which would re-clone).
             _instanceMaterial = _lr.material;
             _instanceMaterial.mainTexture = BeamManager.StripeTexture;
+
+            PowerTransmitterPlusPlugin.Log?.LogInfo(
+                $"[diag] BeamPulseTrain Awake shader={_instanceMaterial.shader?.name} " +
+                $"hasMainTex={_instanceMaterial.HasProperty("_MainTex")} " +
+                $"tex={(_instanceMaterial.mainTexture != null ? _instanceMaterial.mainTexture.name : "null")}");
         }
 
         internal void SetIntensity(float intensity)
@@ -48,14 +54,28 @@ namespace PowerTransmitterPlus
             var wavelength = Mathf.Max(0.05f, PowerTransmitterPlusPlugin.StripeWavelength?.Value ?? 2f);
             var scrollMps = PowerTransmitterPlusPlugin.ScrollSpeed?.Value ?? 6f;
 
-            // Tiles = how many wavelengths fit across the beam. Offset scrolls
-            // in units of "wavelengths"; multiplied by -1 so peaks move from
-            // transmitter (u=0) toward receiver (u=1).
+            // Non-linear intensity ramp (sqrt) so even a tiny power draw
+            // produces visible motion — the game's VisualizerIntensity often
+            // sits at 0.001-0.05 during modest transmission. sqrt(0.002)=0.045,
+            // sqrt(0.01)=0.1, sqrt(1)=1 — preserves high/low differentiation
+            // while making low-end pulses perceptible.
+            var effective = _intensity > 0f ? Mathf.Sqrt(_intensity) : 0f;
+
             var tiles = distance / wavelength;
-            var offset = -Time.time * _intensity * scrollMps / wavelength;
+            var offset = -Time.time * effective * scrollMps / wavelength;
 
             _instanceMaterial.mainTextureScale = new Vector2(tiles, 1f);
             _instanceMaterial.mainTextureOffset = new Vector2(offset, 0f);
+
+            // Throttled diagnostic — once every 2s per instance — so we can
+            // see real intensity / scroll values without spamming the log.
+            if (Time.time >= _nextDiagLog)
+            {
+                _nextDiagLog = Time.time + 2f;
+                PowerTransmitterPlusPlugin.Log?.LogInfo(
+                    $"[diag] pulse intensity={_intensity:F3} effective={effective:F3} " +
+                    $"distance={distance:F2}m tiles={tiles:F1} offset={offset:F3}");
+            }
         }
 
         private void OnDestroy()

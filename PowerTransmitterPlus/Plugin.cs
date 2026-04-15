@@ -38,6 +38,11 @@ namespace PowerTransmitterPlus
         internal static ConfigEntry<float> ScrollSpeed;
         internal static ConfigEntry<float> StripeTroughBrightness;
 
+        // Distance cost: replaces vanilla's distance-based capacity derate with
+        // a source-draw multiplier. See DistanceCostPatches for the math + the
+        // four Harmony patches that implement it. Server-authoritative.
+        internal static ConfigEntry<float> DistanceCostFactor;
+
         void Awake()
         {
             Log = Logger;
@@ -69,6 +74,10 @@ namespace PowerTransmitterPlus
             StripeTroughBrightness = Config.Bind(
                 "Pulse", "Trough Brightness", 0.5f,
                 "(Client-side) Beam brightness between pulses, 0..1. 1 = no visible pulsing (beam flat). 0 = troughs fully dark. Default 0.5 keeps the link clearly visible between peaks.");
+
+            DistanceCostFactor = Config.Bind(
+                "Distance", "Cost Factor (k)", 5f,
+                "(Server-side) Per-kilometer overhead on transmitter source draw. Source pulls (1 + k * distance_m / 1000) watts for every watt delivered. k=0 = no overhead. k=5 (default) = 1km doubles to 6:1, 5km is 26:1. k=10 = 1km is 11:1. Server-authoritative — only the host's value matters in multiplayer.");
 
             MainThreadDispatcher.Init();
 

@@ -67,6 +67,7 @@
     <Compile Include="BeamPulseTrain.cs" />
     <Compile Include="VisualiserPatches.cs" />
     <Compile Include="RotationPatches.cs" />
+    <Compile Include="DistanceCostPatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
