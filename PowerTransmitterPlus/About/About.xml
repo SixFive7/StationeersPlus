@@ -6,7 +6,7 @@
   <Version>1.0.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
-A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, and exposes three new logic readouts for in-game and IC10 access.
+A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, and exposes four new logic readouts for in-game and IC10 access.
 
 [h2]Features[/h2]
 
@@ -28,13 +28,14 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
 
 [h3]Logic Readouts[/h3]
-Three new logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+Four new logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
 [list]
 [*][b]MicrowaveSourceDraw[/b] (6571): watts pulled from the source cable network
 [*][b]MicrowaveDestinationDraw[/b] (6572): watts delivered to the receiver's cable network
 [*][b]MicrowaveTransmissionLoss[/b] (6573): source minus destination (watts lost to distance)
+[*][b]MicrowaveEfficiency[/b] (6574): delivered / source as a 0..1 ratio
 [/list]
-All three return 0 when the link is down, the device is off, or no power is flowing.
+All four return 0 when the link is down, the device is off, or no power is flowing.
 
 [h3]Settings[/h3]
 
@@ -78,14 +79,17 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [*][b]ThunderDuck[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467]Stationeers Logic Extended[/url], which pioneered the pattern for registering custom LogicType values. The injection approach used here (extending ProgrammableChip.AllConstants, Logicable.LogicTypes, and the enum-name lookup paths) is adapted from that work.
 [/list]
 
-[url=https://github.com/SixFive7/PowerTransmitterPlus]Source Code on GitHub[/url]</Description>
+[url=https://github.com/SixFive7/PowerTransmitterPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
   <ChangeLog>
 v1.0.0: Initial release
 - Draws a visible laser beam between linked microwave transmitter and receiver dishes
 - Scrolling energy pulses along the beam, speed proportional to power throughput
 - Replaces vanilla distance-based capacity derate with a configurable source-draw overhead (k factor, server-authoritative)
-- Adds MicrowaveSourceDraw / MicrowaveDestinationDraw / MicrowaveTransmissionLoss logic readouts on both transmitter and receiver (LogicType values 6571-6573)
-- IC10 name resolution for the three new readouts
+- Adds MicrowaveSourceDraw / MicrowaveDestinationDraw / MicrowaveTransmissionLoss / MicrowaveEfficiency logic readouts on both transmitter and receiver (LogicType values 6571-6574)
+- IC10 name resolution for the four new readouts
 - Full multiplayer support with server-authoritative simulation and live config broadcast
   </ChangeLog>
   <Tags>
@@ -97,13 +101,13 @@ v1.0.0: Initial release
     <Tag>StationeersPlus</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#00aaff>Power Transmitter Plus</color></size>
-Visible beam, scrolling pulses, configurable distance cost, and three new logic readouts for the Microwave Power Transmitter.
+Visible beam, scrolling pulses, configurable distance cost, and four new logic readouts for the Microwave Power Transmitter.
 
 <b>Features:</b>
 - Visible laser beam between linked transmitter and receiver dishes
 - Scrolling energy pulses, speed scales with power throughput
 - Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
-- Three new logic readouts (tablet + IC10): MicrowaveSourceDraw (6571), MicrowaveDestinationDraw (6572), MicrowaveTransmissionLoss (6573)
+- Four new logic readouts (tablet + IC10): MicrowaveSourceDraw (6571), MicrowaveDestinationDraw (6572), MicrowaveTransmissionLoss (6573), MicrowaveEfficiency (6574)
 - Full multiplayer support with server-authoritative simulation
 
 <b>Settings:</b>

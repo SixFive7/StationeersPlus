@@ -2,7 +2,7 @@
 
 ![Power Transmitter Plus](PowerTransmitterPlus/About/Preview.png)
 
-A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, and exposes three new logic readouts for in-game and IC10 access.
+A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, and exposes four new logic readouts for in-game and IC10 access.
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
@@ -33,15 +33,16 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
 
 ### Logic Readouts
-Three new logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+Four new logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
 
 | Name | Value | Units |
 |---|---:|---|
 | `MicrowaveSourceDraw` | 6571 | watts pulled from the source cable network |
 | `MicrowaveDestinationDraw` | 6572 | watts delivered to the receiver's cable network |
 | `MicrowaveTransmissionLoss` | 6573 | source minus destination (watts lost to distance) |
+| `MicrowaveEfficiency` | 6574 | delivered / source as a 0..1 ratio |
 
-All three return 0 when the link is down, the device is off, or no power is flowing.
+All four return 0 when the link is down, the device is off, or no power is flowing.
 
 Example IC10 reading a single named transmitter on the data network:
 
@@ -96,3 +97,8 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 ## Credits
 
 - **ThunderDuck**: Created [Stationeers Logic Extended](https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467), which pioneered the pattern for registering custom LogicType values. The injection approach used here (extending `ProgrammableChip.AllConstants`, `Logicable.LogicTypes`, and the enum-name lookup paths) is adapted from that work.
+
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for attribution.
