@@ -5,6 +5,20 @@ All notable changes to Spray Paint Plus are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-04-15
+
+### Changed
+- Replaced the Steam Workshop preview image and in-game thumbnail
+  with new 16:9 key art that illustrates the mod's features: color
+  cycling, infinite spray paint, network painting, Shift and Ctrl
+  modifier keys, and multiplayer cooperation. The prior images were
+  uploaded at off-ratio sizes (1232x706 and 640x367) which Steam
+  letterboxed to fit its 16:9 display frame; the new art is exact
+  16:9 (1280x720 for `Preview.png`, 640x360 for `thumb.png`).
+
+### Requires
+- All players on a server must run 1.2.3 (matching-version handshake).
+
 ## [1.2.2] - 2026-04-14
 
 ### Fixed

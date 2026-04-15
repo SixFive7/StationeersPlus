@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus [StationeersLaunchPad]</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.2.2</Version>
+  <Version>1.2.3</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 A combined Stationeers mod that brings together [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into a single mod that now also fully supports multiplayer.
@@ -98,6 +98,10 @@ Spray Paint Plus would not exist without the modders who came before:
 
 [url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]</Description>
   <ChangeLog>
+v1.2.3: Refreshed Steam Workshop preview art
+- Replaced the preview and thumbnail images with a new 16:9 key art that showcases the mod's features (color cycling, infinite paint, network painting, Shift/Ctrl modifiers, multiplayer)
+- No gameplay changes
+- REQUIRES: All players on a server must run 1.2.3 (matching-version handshake)
 v1.2.2: Infinite spray fix for single-player
 - FIX: Infinite spray paint now works in solo play. The server-only guard was also catching single-player (which the game reports as neither server nor client), so the infinite/suppress logic was silently skipped outside multiplayer.
 - REQUIRES: All players on a server must run 1.2.2 (matching-version handshake)
