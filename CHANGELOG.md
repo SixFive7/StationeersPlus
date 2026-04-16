@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3 (2026-04-17)
+
+- Fixed custom LogicType names (MicrowaveSourceDraw, etc.) rendering red on in-game computer and laptop screen previews. The names now highlight correctly like vanilla LogicTypes.
+
 ## 1.1.2 (2026-04-16)
 
 - Removed the `Shader Name` config entry. The beam shader is now fixed to the built-in fallback chain (`Legacy Shaders/Particles/Additive` with three fallbacks). The entry was exposing a Unity internal with no practical alternatives that would look better in a shipping Stationeers build.
