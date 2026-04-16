@@ -15,11 +15,13 @@ namespace PowerTransmitterPlus
         internal const ushort DestinationDrawValue = 6572;
         internal const ushort TransmissionLossValue = 6573;
         internal const ushort EfficiencyValue = 6574;
+        internal const ushort AutoAimTargetValue = 6575;
 
         internal static readonly LogicType MicrowaveSourceDraw = (LogicType)SourceDrawValue;
         internal static readonly LogicType MicrowaveDestinationDraw = (LogicType)DestinationDrawValue;
         internal static readonly LogicType MicrowaveTransmissionLoss = (LogicType)TransmissionLossValue;
         internal static readonly LogicType MicrowaveEfficiency = (LogicType)EfficiencyValue;
+        internal static readonly LogicType MicrowaveAutoAimTarget = (LogicType)AutoAimTargetValue;
 
         internal class CustomLogicType
         {
@@ -56,6 +58,12 @@ namespace PowerTransmitterPlus
                 Name = "MicrowaveEfficiency",
                 Value = EfficiencyValue,
                 Description = "Ratio of delivered power to source draw, 0..1. Equals 1/(1 + k * distance_km). 1.0 at zero distance or k=0; drops toward 0 as distance grows. Returns 0 when no transmission is happening.",
+            },
+            new CustomLogicType
+            {
+                Name = "MicrowaveAutoAimTarget",
+                Value = AutoAimTargetValue,
+                Description = "Writable. Set to a Thing's ReferenceId to aim the dish at that thing; the dish slews via its built-in servo and the base-game line-of-sight link raycast decides when the pairing actually forms. Set to 0 to disable auto-aim. Writing an invalid or unresolved id is a no-op. Manually adjusting Horizontal or Vertical cancels auto-aim. Reading returns the current target id, or 0 when auto-aim is disabled.",
             },
         };
 

@@ -55,6 +55,10 @@
       <HintPath>E:\Steam\steamapps\common\Stationeers\rocketstation_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>E:\Steam\steamapps\common\Stationeers\rocketstation_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
@@ -75,6 +79,7 @@
     <Compile Include="LogicableInitializePatch.cs" />
     <Compile Include="EnumNamePatches.cs" />
     <Compile Include="LogicReadoutPatches.cs" />
+    <Compile Include="AutoAimPatches.cs" />
     <Compile Include="StationpediaPatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

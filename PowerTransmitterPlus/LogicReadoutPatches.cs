@@ -85,6 +85,14 @@ namespace PowerTransmitterPlus
         {
             if (!LogicTypeRegistry.IsCustom(logicType)) return true;
 
+            // AutoAim target is per-dish state (not forwarded through the link),
+            // so read it before the transmitter-side resolution below.
+            if ((ushort)logicType == LogicTypeRegistry.AutoAimTargetValue)
+            {
+                __result = (double)AutoAimState.GetCachedTarget(__instance);
+                return false;
+            }
+
             PowerTransmitter t = null;
             if (__instance is PowerTransmitter transmitter) t = transmitter;
             else if (__instance is PowerReceiver receiver) t = receiver.LinkedPowerTransmitter;
