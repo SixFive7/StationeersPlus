@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 (2026-04-16)
+
+- Patch version bump for Workshop release.
+
 ## 1.1.0 (2026-04-16)
 
 - Added `MicrowaveLinkedPartner` (LogicType 6576): read-only on both transmitter and receiver. Returns the ReferenceId of the currently linked partner dish, or 0 when unlinked. Enables closed-loop IC10 automation (aim at a target, confirm the link formed via LinkedPartner, fall back if not).

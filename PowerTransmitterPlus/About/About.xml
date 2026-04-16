@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus [StationeersLaunchPad]</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.0</Version>
+  <Version>1.1.1</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, adds IC10-driven auto-aim, and exposes new logic readouts including link-partner detection.
@@ -89,6 +89,8 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
   <ChangeLog>
+v1.1.1: Patch release
+
 v1.1.0:
 - Added MicrowaveLinkedPartner (6576): read-only LogicType returning the ReferenceId of the currently linked partner dish on both transmitter and receiver
 - Host beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are now always synced to all clients in multiplayer
@@ -102,6 +104,7 @@ v1.0.0: Initial release
 - IC10 name resolution for all five new LogicTypes
 - Full multiplayer support with server-authoritative simulation and live config broadcast
   </ChangeLog>
+  <WorkshopHandle>3707677512</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>
