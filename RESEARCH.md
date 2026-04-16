@@ -171,8 +171,9 @@ Postfix on `Logicable.Initialize`. Two steps:
 
 1. Appends to `Logicable.LogicTypes` (`LogicType[]`) and `Logicable.LogicTypeNames` (`string[]`) via reflection. Rebuilds `LogicTypeNamesRedirects` if present.
 2. Calls `ExtendEnumCollection(...)` which reflects into `EnumCollections.LogicTypes` and extends `Values`, `ValuesAsInts`, `Names`, `PaddedNames`, and the `<Length>k__BackingField`.
+3. Calls `ExtendScreenDropdownBase(...)` which reflects into `ScreenDropdownBase.LogicTypes` and `LogicTypeNames` to add custom entries.
 
-Both steps are required: step 1 drives `Logicable.NextLogicType` cycling; step 2 drives the configuration tablet cartridge UI. See §5.3 pitfall "More than one LogicTypes array".
+All three steps are required: step 1 drives `Logicable.NextLogicType` cycling; step 2 drives the configuration tablet cartridge UI; step 3 drives the on-screen IC10 code preview syntax highlighting on computers and laptops. See §8.12.
 
 Idempotent guard: `_injected` bool.
 
@@ -414,7 +415,7 @@ The game keeps **three separate arrays of logic types**:
 2. `Assets.Scripts.EnumCollections.LogicTypes`: the `EnumCollection<LogicType, ushort>` consumed by `ConfigCartridge` (configuration tablet cartridge).
 3. `Assets.Scripts.UI.Motherboard.ScreenDropdownBase.LogicTypes` / `LogicTypeNames`: IC housing on-screen dropdowns.
 
-All three are populated from `Enum.GetValues(typeof(LogicType))` at class load. Extending only `Logicable`'s pair is not enough: the configuration tablet is driven by `EnumCollections.LogicTypes`. This mod extends (1) and (2). (3) is not extended; no path the tablet drives touches it.
+All three are populated from `Enum.GetValues(typeof(LogicType))` at class load. Extending only `Logicable`'s pair is not enough: the configuration tablet is driven by `EnumCollections.LogicTypes`, and the on-screen code preview (rendered on the computer/laptop when the editor is closed) validates token names against `ScreenDropdownBase.LogicTypes`. This mod extends all three.
 
 `EnumCollection<T1, T2>` lives in `Assets.Scripts`, NOT `Assets.Scripts.Util`. `ProgrammableChip` lives in `Assets.Scripts.Objects.Electrical`, NOT `Motherboards`; `ProgrammableChip.Constant` is a nested `public readonly struct`.
 
@@ -485,7 +486,7 @@ Energy conservation: `_powerProvided` net-zeros each tick.
 |---|---|---|---|
 | 5 | `WirelessPowerCanLogicReadPatch` | `WirelessPower.CanLogicRead` | Postfix (branches on `__instance is PowerTransmitter / PowerReceiver`) |
 | 6 | `WirelessPowerGetLogicValuePatch` | `WirelessPower.GetLogicValue` | Prefix (same branch; reads AutoAim cache per-dish before the transmitter-side resolution) |
-| 9 | `LogicableInitializePatch` | `Logicable.Initialize` | Postfix (one-shot, idempotent); also extends `EnumCollections.LogicTypes` in-line |
+| 9 | `LogicableInitializePatch` | `Logicable.Initialize` | Postfix (one-shot, idempotent); also extends `EnumCollections.LogicTypes` and `ScreenDropdownBase.LogicTypes` in-line |
 | 10 | `EnumGetNamePatch` | `Enum.GetName(Type, object)` | Postfix |
 | 11 | `EnumCollectionGetNamePatch` | `EnumCollection<LogicType,ushort>.GetName` | Postfix |
 | 12 | `EnumCollectionGetNameFromValuePatch` | `EnumCollection<LogicType,ushort>.GetNameFromValue` | Postfix |
@@ -617,9 +618,13 @@ Network serialization quantizes floats to half-precision. `0.2` is not exactly r
 
 **Rule**: use `dish.transform.position` (the placement-anchored root) as both origin and target for aim computation. Invariant under all dish rotation.
 
-### 8.12. There is more than one `LogicTypes` array
+### 8.12. There are three separate `LogicTypes` arrays
 
-See §5.6. Extending only `Logicable.LogicTypes` / `LogicTypeNames` is not enough: the configuration tablet cartridge reads `EnumCollections.LogicTypes`. Extend both. `ScreenDropdownBase.LogicTypes` is a third copy used by IC housing screen dropdowns; currently not extended and no missing behavior reported.
+See §5.6. The game keeps three independent copies populated from `Enum.GetValues` at class load. All three must be extended:
+
+1. `Logicable.LogicTypes` / `LogicTypeNames`: drives `NextLogicType` cycling in the tablet.
+2. `EnumCollections.LogicTypes`: drives `ConfigCartridge` (tablet cartridge UI).
+3. `ScreenDropdownBase.LogicTypes` / `LogicTypeNames`: drives the on-screen IC10 code preview rendered on computers and laptops. If not extended, custom LogicType names appear red (invalid) in the code preview even though compilation and execution work fine.
 
 ---
 

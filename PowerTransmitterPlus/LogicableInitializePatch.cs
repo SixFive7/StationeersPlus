@@ -64,6 +64,12 @@ namespace PowerTransmitterPlus
                 // its Values / ValuesAsInts / Names / PaddedNames / Length.
                 ExtendEnumCollection(additions);
 
+                // The in-game screen preview (code rendered on the
+                // computer/laptop when NOT in the editor) validates tokens
+                // against ScreenDropdownBase.LogicTypes / LogicTypeNames.
+                // Without this, custom names draw red as "invalid".
+                ExtendScreenDropdownBase(additions);
+
                 PowerTransmitterPlusPlugin.Log.LogInfo(
                     $"Injected {additions.Count} entries into Logicable arrays");
             }
@@ -132,6 +138,59 @@ namespace PowerTransmitterPlus
             catch (Exception e)
             {
                 PowerTransmitterPlusPlugin.Log.LogError($"ExtendEnumCollection failed: {e}");
+            }
+        }
+
+        private static void ExtendScreenDropdownBase(List<LogicTypeRegistry.CustomLogicType> additions)
+        {
+            try
+            {
+                var sdbType = AccessTools.TypeByName(
+                    "Assets.Scripts.UI.Motherboard.ScreenDropdownBase");
+                if (sdbType == null)
+                {
+                    PowerTransmitterPlusPlugin.Log.LogWarning(
+                        "ScreenDropdownBase not found, on-screen code preview will show custom types in red");
+                    return;
+                }
+
+                var typesField = sdbType.GetField("LogicTypes",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                var namesField = sdbType.GetField("LogicTypeNames",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (typesField == null || namesField == null)
+                {
+                    PowerTransmitterPlusPlugin.Log.LogWarning(
+                        "ScreenDropdownBase.LogicTypes/LogicTypeNames not found");
+                    return;
+                }
+
+                var oldTypes = (LogicType[])typesField.GetValue(null);
+                var oldNames = (string[])namesField.GetValue(null);
+
+                int n = oldTypes.Length + additions.Count;
+                var newTypes = new LogicType[n];
+                var newNames = new string[n];
+                Array.Copy(oldTypes, newTypes, oldTypes.Length);
+                Array.Copy(oldNames, newNames, oldNames.Length);
+
+                for (int i = 0; i < additions.Count; i++)
+                {
+                    int idx = oldTypes.Length + i;
+                    newTypes[idx] = additions[i].AsLogicType;
+                    newNames[idx] = additions[i].Name;
+                }
+
+                typesField.SetValue(null, newTypes);
+                namesField.SetValue(null, newNames);
+
+                PowerTransmitterPlusPlugin.Log.LogInfo(
+                    $"Extended ScreenDropdownBase.LogicTypes ({oldTypes.Length} -> {n})");
+            }
+            catch (Exception e)
+            {
+                PowerTransmitterPlusPlugin.Log.LogError(
+                    $"ExtendScreenDropdownBase failed: {e}");
             }
         }
 
