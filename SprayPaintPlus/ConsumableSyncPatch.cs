@@ -3,7 +3,7 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
-using Objects.Items; // Consumable lives here, SprayCan in Assets.Scripts.Objects.Items — both needed
+using Objects.Items; // Consumable lives here, SprayCan in Assets.Scripts.Objects.Items (both needed)
 
 namespace SprayPaintPlus
 {
@@ -11,7 +11,7 @@ namespace SprayPaintPlus
     // If WriteInt32 succeeds but ReadInt32 fails (or vice versa), catching
     // the exception would leave the RocketBinaryReader/Writer at the wrong
     // position, silently corrupting ALL subsequent data for that object.
-    // Letting the exception propagate is safer — the game's own error
+    // Letting the exception propagate is safer; the game's own error
     // handling can reset the connection.
     //
     // The code inside each Postfix is a single WriteInt32/ReadInt32 call

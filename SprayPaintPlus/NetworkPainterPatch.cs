@@ -59,7 +59,7 @@ namespace SprayPaintPlus
     }
 
     /// <summary>
-    /// Prefix on OnServer.SetCustomColor — paints entire pipe/cable/chute networks.
+    /// Prefix on OnServer.SetCustomColor. Paints entire pipe/cable/chute networks.
     /// Looks up the painter's modifier state from PlayerModifiers using the
     /// Human ReferenceId captured by the trackers above.
     /// </summary>
@@ -77,7 +77,7 @@ namespace SprayPaintPlus
             // The authoritative paint runs on the server and is broadcast back.
             // Running this prefix on a remote client would only repaint the
             // network locally via Thing.SetCustomColor, which does not set
-            // NetworkUpdateFlags on clients — so it would be purely cosmetic
+            // NetworkUpdateFlags on clients, so it would be purely cosmetic
             // and invisible to other players.
             if (NetworkManager.IsActive && !NetworkManager.IsServer)
                 return;
@@ -118,7 +118,7 @@ namespace SprayPaintPlus
                 {
                     foreach (Pipe item in tray.PipeNetwork.StructureList.ToList())
                     {
-                        // Fix #5b: Skip the original thing — vanilla paints it after the Prefix
+                        // Fix #5b: Skip the original thing; vanilla paints it after the Prefix
                         if (ReferenceEquals(item, thing))
                             continue;
                         if (item is HydroponicTray && (!checkered || CheckeredCheck(thing, item)))
@@ -186,7 +186,7 @@ namespace SprayPaintPlus
             // Wall branch must precede the LargeStructure branch because Wall
             // derives from LargeStructure. Walls flood by shared Room, not grid
             // adjacency. A wall with walls-painting disabled is *not* forwarded
-            // to the grid flood — otherwise walls would be painted anyway via
+            // to the grid flood, because walls would be painted anyway via
             // the LargeStructure path.
             if (thing is Wall wall)
             {
@@ -318,7 +318,7 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// Individual SetCustomColor calls can throw — most notably,
+        /// Individual SetCustomColor calls can throw. Most notably,
         /// Structure.SetCustomColor throws NotImplementedException on any
         /// structure whose structureRenderMode != Standard (batched-render
         /// structures share a combined mesh and can't be recolored per
@@ -361,7 +361,7 @@ namespace SprayPaintPlus
         ///      is ten Grid3 units.
         ///   2. Walls and large structures snap to a GridSize-wide cell grid
         ///      (default 2 world units). One cell therefore spans
-        ///      GridSize * Grid3.one Grid3 units — 20 by default — and every
+        ///      GridSize * Grid3.one Grid3 units (20 by default), and every
         ///      structure's GridPosition is a multiple of 20 (+ a fixed
         ///      offset). Parity on raw coords is always the same value.
         /// Working from the delta between the two positions sidesteps both

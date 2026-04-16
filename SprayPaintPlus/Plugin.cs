@@ -47,7 +47,7 @@ namespace SprayPaintPlus
             Log = Logger;
             BindConfig();
 
-            // SLP loads mods progressively — conflicting assemblies may not exist
+            // SLP loads mods progressively; conflicting assemblies may not exist
             // yet when our Awake() fires. Prefab.OnPrefabsLoaded fires after SLP
             // finishes loading all mods. No patches are applied until the check passes.
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;

@@ -97,7 +97,7 @@ namespace SprayPaintPlus
 
             _lastSentModifiers = modifiers;
 
-            // Always mirror into the server-side dictionary locally — host and
+            // Always mirror into the server-side dictionary locally. Host and
             // single-player go through the same PlayerModifiers lookup path as
             // remote clients do on the server.
             SprayPaintHelpers.PlayerModifiers[localHuman.ReferenceId] = modifiers;

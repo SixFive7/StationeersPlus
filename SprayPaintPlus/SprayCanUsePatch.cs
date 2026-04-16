@@ -7,7 +7,7 @@ namespace SprayPaintPlus
 {
     /// <summary>
     /// Patches SprayCan.OnUseItem for configurable infinite paint and pollution suppression.
-    /// Only modifies behavior when running on the server — clients defer to server authority.
+    /// Only modifies behavior when running on the server. Clients defer to server authority.
     /// </summary>
     [HarmonyPatch(typeof(SprayCan), nameof(SprayCan.OnUseItem))]
     public class SprayCanUsePatch
@@ -15,7 +15,7 @@ namespace SprayPaintPlus
         [UsedImplicitly]
         public static bool Prefix(SprayCan __instance, ref bool __result, ref float quantity)
         {
-            // Skip only on multiplayer remote clients — their authoritative
+            // Skip only on multiplayer remote clients. Their authoritative
             // quantity is broadcast by the server, so running this locally
             // would briefly show paint consumed before the sync corrects it.
             // Single-player has NetworkRole.None (IsActive=false, IsServer=false),

@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Infinite spray paint now works in single-player. The guard on
   `SprayCan.OnUseItem` short-circuited on `!NetworkManager.IsServer`,
-  which is true for both multiplayer remote clients (correct — the
+  which is true for both multiplayer remote clients (correct, the
   server owns quantity) *and* single-player (`NetworkRole.None`,
   which the game itself treats as "not server, not client"). Updated
   the guard to `IsActive && !IsServer` so the infinite/suppress
@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   aligned structure's GridPosition landed on the same parity and the
   checker filter accepted every candidate. Parity is now derived from
   the delta between the two GridPositions using the structure's own
-  `GridSize` — the delta is always an exact multiple of cell size in
+  `GridSize`. The delta is always an exact multiple of cell size in
   Grid3 units, so integer division is exact and the grid offset falls
   out of the equation.
 
@@ -72,8 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Shift / Ctrl modifier keys are now honored when remote clients paint.
   The server previously tracked modifier state under the LaunchPadBooster
-  connection id but identified the painter from `AttackWithMessage` — which
-  does not carry that id on the server — so every client paint fell through
+  connection id but identified the painter from `AttackWithMessage`, which
+  does not carry that id on the server, so every client paint fell through
   to reading the host's own keyboard. The painter is now identified by the
   Human ReferenceId from the attack payload, matching how vanilla already
   identifies actors.
