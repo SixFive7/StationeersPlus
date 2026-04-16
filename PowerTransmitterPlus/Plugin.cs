@@ -14,7 +14,7 @@ namespace PowerTransmitterPlus
     {
         public const string PluginGuid = "net.powertransmitterplus";
         public const string PluginName = "PowerTransmitterPlus";
-        public const string PluginVersion = "1.1.1";
+        public const string PluginVersion = "1.1.2";
 
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
         internal static ManualLogSource Log;
@@ -30,7 +30,6 @@ namespace PowerTransmitterPlus
         internal static ConfigEntry<float> BeamWidth;
         internal static ConfigEntry<string> BeamColorHex;
         internal static ConfigEntry<float> EmissionIntensity;
-        internal static ConfigEntry<string> ShaderName;
 
         // Pulse train (power indicator). World-space so stripes look consistent
         // on beams of any length. See BeamPulseTrain for rendering detail.
@@ -59,10 +58,6 @@ namespace PowerTransmitterPlus
             EmissionIntensity = Config.Bind(
                 "Visual", "Emission Intensity", 10.0f,
                 "(Client-side) HDR brightness multiplier applied to the beam color. 10.0 matches the game's built-in beam emission intensity. Raise for more glow, lower for subtlety.");
-
-            ShaderName = Config.Bind(
-                "Advanced", "Shader Name", "Legacy Shaders/Particles/Additive",
-                "(Client-side) Unity shader used for the beam. Additive gives a laser-like glow. Fallbacks are tried automatically if this shader is missing.");
 
             StripeWavelength = Config.Bind(
                 "Pulse", "Stripe Wavelength", 2.0f,

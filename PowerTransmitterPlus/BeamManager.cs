@@ -52,9 +52,7 @@ namespace PowerTransmitterPlus
             {
                 if (_sharedMaterial != null) return _sharedMaterial;
 
-                var shaderName = PowerTransmitterPlusPlugin.ShaderName?.Value;
-                var shader = (!string.IsNullOrEmpty(shaderName) ? Shader.Find(shaderName) : null)
-                             ?? Shader.Find("Legacy Shaders/Particles/Additive")
+                var shader = Shader.Find("Legacy Shaders/Particles/Additive")
                              ?? Shader.Find("Particles/Additive")
                              ?? Shader.Find("Sprites/Default")
                              ?? Shader.Find("Hidden/Internal-Colored");

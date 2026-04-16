@@ -520,8 +520,9 @@ All in `BepInEx/config/net.powertransmitterplus.cfg`.
 | Pulse | `Stripe Wavelength` | `2.0` | Meters between pulse peaks. World-space, same on 5m and 200m beams |
 | Pulse | `Scroll Speed` | `25.0` | m/s at full power (5 kW delivered). Scales with `sqrt(intensity)`; draws above 5 kW (enabled by the distance-cost patches) exceed this |
 | Pulse | `Trough Brightness` | `0.5` | 0..1, beam brightness between pulses. Affects cached stripe texture (regenerates on game restart; see pitfall §8.8) |
-| Advanced | `Shader Name` | `Legacy Shaders/Particles/Additive` | Falls back through `Particles/Additive`, `Sprites/Default`, `Hidden/Internal-Colored` |
 | Distance | `Cost Factor (k)` | `5.0` | **Server-authoritative.** Per-km overhead on source draw |
+
+The beam shader is fixed to the fallback chain `Legacy Shaders/Particles/Additive` → `Particles/Additive` → `Sprites/Default` → `Hidden/Internal-Colored` (see `BeamManager.SharedMaterial`). Not user-configurable: Stationeers ships a single Unity build, no alternative in that build looks meaningfully better than Additive, and a misconfigured value would either fall back silently or degrade the beam look.
 
 ### k table
 
@@ -746,11 +747,12 @@ SprayPaintPlus only does client→server messages; this mod is the first in the 
 | `MOD.Networking.Required = true` | LaunchPad version handshake catches clients with missing or mismatched installs |
 | Visual sync always active in multiplayer | Keeps all players on the same page visually. Simplest model: host is authoritative for visuals just like for gameplay (k). No toggle to explain, no split behavior |
 | Visual sync invalidates all beams on receipt | Beam color and width are set in the `BeamLine` constructor and not updated thereafter. Destroying and letting `SetLineIntensityOnMain` recreate them is the simplest path to apply new visuals without adding per-frame config reads to the line renderer |
-| Visual sync does not sync Trough Brightness or Shader Name | Both are baked into cached objects (`StripeTexture` and `SharedMaterial`) created once at first beam. Invalidating those caches safely across all beam instances adds complexity for settings players rarely change |
+| Visual sync does not sync Trough Brightness | Baked into the cached `StripeTexture` created once at first beam. Invalidating that cache safely across all beam instances adds complexity for a setting players rarely change |
 | `MicrowaveLinkedPartner` is per-dish (not forwarded through the link) | A transmitter returns its receiver's id and vice versa. Forwarding through the link would require picking one side, which is ambiguous on the receiver (it could in theory be linked to multiple transmitters, though vanilla only allows one) |
 
 ### 11.2. Rejected or deferred
 
 - Custom shader for in-beam pulse animation matching the vanilla `Custom_PowerTransmission`: the vanilla shader's name is stripped from the build, so `Shader.Find` can't resolve it. Texture-scroll on the standard additive shader is the workaround and is sufficient.
+- User-configurable `Shader Name`: exposed briefly in 1.1.x, removed in 1.1.2. The fallback chain is kept as defense-in-depth for future Unity upgrades (legacy shader packages can be stripped between versions) but the user-facing setting served no realistic alternative, since every subscriber runs the same Unity build and no shader outside the chain improves the look.
 - MIPS name registration for vanilla value `159` (the unused slot): using our own `6571+` band is cleaner.
 - `RotationPatches` on `WirelessOutputNetwork` field changes: unnecessary since beam endpoints come from `RayTransform`, which is a Transform reference.

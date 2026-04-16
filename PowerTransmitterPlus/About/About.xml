@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus [StationeersLaunchPad]</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.1</Version>
+  <Version>1.1.2</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, adds IC10-driven auto-aim, and exposes new logic readouts including link-partner detection.
@@ -53,7 +53,6 @@ All features are configurable via the mod settings panel.
 [*][b]Stripe Wavelength[/b] (default 2.0): Distance in world meters between one pulse and the next
 [*][b]Scroll Speed[/b] (default 25.0): Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity) so low loads still move visibly
 [*][b]Trough Brightness[/b] (default 0.5): Beam brightness between pulses, 0..1. Regenerates on game restart
-[*][b]Shader Name[/b] (default Legacy Shaders/Particles/Additive): Unity shader used for the beam. Fallbacks are tried automatically if missing
 [/list]
 
 [b]Server settings[/b] (the host's value controls gameplay and visuals for everyone):
@@ -89,6 +88,9 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
   <ChangeLog>
+v1.1.2:
+- Removed the Shader Name config entry. The beam shader is now fixed to the built-in fallback chain (Legacy Shaders/Particles/Additive with three fallbacks).
+
 v1.1.1: Patch release
 
 v1.1.0:

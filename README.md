@@ -101,7 +101,6 @@ All features are configurable via the mod settings panel.
 | Stripe Wavelength | 2.0 | Distance in world meters between one pulse and the next |
 | Scroll Speed | 25.0 | Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with `sqrt(intensity)` so low loads still move visibly |
 | Trough Brightness | 0.5 | Beam brightness between pulses, 0..1. Regenerates on game restart |
-| Shader Name | Legacy Shaders/Particles/Additive | Unity shader used for the beam. Fallbacks are tried automatically if missing |
 
 **Server settings** (the host's value controls gameplay and visuals for everyone):
 
