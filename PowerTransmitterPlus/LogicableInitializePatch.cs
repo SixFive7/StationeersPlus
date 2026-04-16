@@ -32,7 +32,7 @@ namespace PowerTransmitterPlus
                 if (typesField == null || namesField == null)
                 {
                     PowerTransmitterPlusPlugin.Log.LogWarning(
-                        "Logicable.LogicTypes / LogicTypeNames not found — tablet dropdown disabled");
+                        "Logicable.LogicTypes / LogicTypeNames not found, tablet dropdown disabled");
                     return;
                 }
 
@@ -84,7 +84,7 @@ namespace PowerTransmitterPlus
                 if (collection == null)
                 {
                     PowerTransmitterPlusPlugin.Log.LogWarning(
-                        "EnumCollections.LogicTypes not found — tablet dropdown will not list custom entries");
+                        "EnumCollections.LogicTypes not found, tablet dropdown will not list custom entries");
                     return;
                 }
 

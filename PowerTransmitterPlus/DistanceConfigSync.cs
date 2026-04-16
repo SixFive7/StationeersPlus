@@ -52,7 +52,7 @@ namespace PowerTransmitterPlus
         }
 
         // Called when a client connects (server-side) AND when the host changes
-        // k mid-game. Safe to call on non-host — it short-circuits.
+        // k mid-game. Safe to call on non-host; it short-circuits.
         internal static void BroadcastIfHost()
         {
             if (!NetworkManager.IsServer) return;
@@ -65,7 +65,7 @@ namespace PowerTransmitterPlus
 
     // Hook the existing game event for "a client just finished connecting" so we
     // can push the current k to them. LaunchPadBooster has no public event for
-    // this — the documented pattern (per LPB authors) is to Harmony-postfix
+    // this. The documented pattern (per LPB authors) is to Harmony-postfix
     // NetworkManager.PlayerConnected. We re-broadcast to everyone on each
     // connect rather than chase the new client's connectionId; the cost is one
     // tiny float message per existing client per join, which is negligible.

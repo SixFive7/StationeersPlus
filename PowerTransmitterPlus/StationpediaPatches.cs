@@ -5,7 +5,7 @@ using System;
 namespace PowerTransmitterPlus
 {
     // Best-effort Stationpedia integration. We don't hard-fail if the game
-    // version refactored these methods — just log and skip; the readouts
+    // version refactored these methods. Just log and skip; the readouts
     // still work without documentation entries.
     //
     // Pattern lifted from Stationeers Logic Extended (ThunderDuck).

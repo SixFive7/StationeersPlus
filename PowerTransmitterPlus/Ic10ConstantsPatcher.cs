@@ -8,12 +8,12 @@ namespace PowerTransmitterPlus
 {
     // Teaches the IC10 / MIPS compiler to recognize our LogicType names.
     // The compiler resolves tokens like "MicrowaveSourceDraw" to a numeric
-    // constant by scanning ProgrammableChip.AllConstants — a public static
+    // constant by scanning ProgrammableChip.AllConstants, a public static
     // Constant[] array where each Constant has (Literal, Description, Value).
     //
     // Pattern lifted from Stationeers Logic Extended (ThunderDuck): one-time
     // reflection write that appends our entries to the existing array. No
-    // Harmony patch needed for this step — IC10 reads the array dynamically.
+    // Harmony patch needed for this step; IC10 reads the array dynamically.
     internal static class Ic10ConstantsPatcher
     {
         private static bool _applied;
@@ -30,7 +30,7 @@ namespace PowerTransmitterPlus
                 if (field == null)
                 {
                     PowerTransmitterPlusPlugin.Log.LogError(
-                        "ProgrammableChip.AllConstants not found — IC10 names disabled");
+                        "ProgrammableChip.AllConstants not found, IC10 names disabled");
                     return;
                 }
 

@@ -19,7 +19,7 @@ namespace PowerTransmitterPlus
     //
     // Where k is the configurable per-km overhead factor.
     //
-    // Implementation hinges on PowerTransmitter._powerProvided — the private
+    // Implementation hinges on PowerTransmitter._powerProvided, the private
     // float "debt accumulator" between the wireless-output tick and the
     // source-input tick:
     //   - UsePower(WirelessOutputNetwork, delivered):  _powerProvided += delivered

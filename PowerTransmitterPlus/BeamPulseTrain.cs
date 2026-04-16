@@ -6,7 +6,7 @@ namespace PowerTransmitterPlus
     // on a per-instance material. Spatial wavelength is held constant in world
     // meters, so a 5m beam and a 200m beam both have the same stripe spacing
     // and the same m/s scroll speed. Intensity (game's VisualizerIntensity)
-    // modulates scroll speed only — the beam itself stays at full alpha so
+    // modulates scroll speed only. The beam itself stays at full alpha so
     // "linked" remains visible at a glance.
     internal class BeamPulseTrain : MonoBehaviour
     {
@@ -49,9 +49,9 @@ namespace PowerTransmitterPlus
             var scrollMps = BeamVisualConfigSync.GetEffectiveScrollSpeed();
 
             // Non-linear intensity ramp (sqrt) so even a tiny power draw
-            // produces visible motion — the game's VisualizerIntensity often
+            // produces visible motion. The game's VisualizerIntensity often
             // sits at 0.001-0.05 during modest transmission. sqrt(0.002)=0.045,
-            // sqrt(0.01)=0.1, sqrt(1)=1 — preserves high/low differentiation
+            // sqrt(0.01)=0.1, sqrt(1)=1. Preserves high/low differentiation
             // while making low-end pulses perceptible.
             var effective = _intensity > 0f ? Mathf.Sqrt(_intensity) : 0f;
 

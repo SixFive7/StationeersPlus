@@ -5,7 +5,7 @@ namespace PowerTransmitterPlus
 {
     // Our three custom LogicType slots. Range 6571-6573 sits well outside vanilla
     // (0-349) and SLE (1000-1830). LogicType is a ushort, so any value up to
-    // 65535 is legal at runtime — we just need to avoid collisions with other
+    // 65535 is legal at runtime. We just need to avoid collisions with other
     // mods that might pick the same numbers.
     //
     // Reserve 6571-6599 as our band for future readouts.

@@ -26,7 +26,7 @@ namespace PowerTransmitterPlus
         public void Process(long hostId)
         {
             // We only adopt this on the client side. If we receive it as the
-            // server (e.g. a malformed echo) we ignore it — the server's own
+            // server (e.g. a malformed echo) we ignore it. The server's own
             // config is the authoritative source.
             if (NetworkManager.IsServer) return;
             DistanceConfigSync.OnHostConfigReceived(K);

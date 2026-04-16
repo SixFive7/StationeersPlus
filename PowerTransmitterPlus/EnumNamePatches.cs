@@ -32,7 +32,7 @@ namespace PowerTransmitterPlus
             }
             catch
             {
-                // Non-LogicType-valued cast — ignore silently.
+                // Non-LogicType-valued cast, ignore silently.
             }
         }
     }

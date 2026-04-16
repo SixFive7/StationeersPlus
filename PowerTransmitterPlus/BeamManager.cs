@@ -5,7 +5,7 @@ using UnityEngine;
 namespace PowerTransmitterPlus
 {
     // Public surface: SetLineIntensity, RefreshIfVisible. Both are safe from
-    // any thread — work is enqueued onto the main thread dispatcher.
+    // any thread; work is enqueued onto the main thread dispatcher.
     internal static class BeamManager
     {
         private static readonly Dictionary<PowerTransmitter, BeamLine> Beams =

@@ -11,6 +11,9 @@ obj/
 # Rider
 .idea/
 
+# Local build config
+Directory.Build.props
+
 # OS
 Thumbs.db
 .DS_Store

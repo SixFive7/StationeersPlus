@@ -50,7 +50,7 @@ namespace PowerTransmitterPlus
             _lineRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
             _lineRenderer.enabled = false;
 
-            // AddComponent must happen after the LineRenderer exists — the
+            // AddComponent must happen after the LineRenderer exists, since the
             // pulse train reads it in its own Awake via GetComponent.
             _pulseTrain = _gameObject.AddComponent<BeamPulseTrain>();
         }
@@ -78,7 +78,7 @@ namespace PowerTransmitterPlus
 
         // Forwards the game's power-level intensity (0..1) to the pulse train,
         // which turns it into a scroll speed. The beam's own alpha is held at
-        // 1 so the line remains fully visible whenever the link exists — the
+        // 1 so the line remains fully visible whenever the link exists. The
         // pulse train is the only power-level indicator.
         public void SetIntensity(float intensity)
         {

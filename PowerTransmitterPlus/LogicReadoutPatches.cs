@@ -46,7 +46,7 @@ namespace PowerTransmitterPlus
             if (t.OutputNetwork == null) return 0f;
             // OutputNetwork on a transmitter is the wireless network it's pumping
             // power into. CurrentLoad is what the receiver's downstream cable
-            // network is actually consuming this tick — i.e., delivered.
+            // network is actually consuming this tick (i.e., delivered).
             return (float)t.OutputNetwork.CurrentLoad;
         }
 
