@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus [StationeersLaunchPad]</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.2.3</Version>
+  <Version>1.2.4</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 A combined Stationeers mod that brings together [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into a single mod that now also fully supports multiplayer.
@@ -101,6 +101,8 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
   <ChangeLog>
+v1.2.4: Patch release
+- REQUIRES: All players on a server must run 1.2.4 (matching-version handshake)
 v1.2.3: Refreshed Steam Workshop preview art
 - Replaced the preview and thumbnail images with a new 16:9 key art that showcases the mod's features (color cycling, infinite paint, network painting, Shift/Ctrl modifiers, multiplayer)
 - No gameplay changes
