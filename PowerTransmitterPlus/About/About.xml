@@ -3,10 +3,10 @@
   <Name>Power Transmitter Plus [StationeersLaunchPad]</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.0.0</Version>
+  <Version>1.1.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
-A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, adds IC10-driven auto-aim, and exposes four new logic readouts.
+A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, adds IC10-driven auto-aim, and exposes new logic readouts including link-partner detection.
 
 [h2]Features[/h2]
 
@@ -28,14 +28,15 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
 
 [h3]Logic Readouts[/h3]
-Four new logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
 [list]
 [*][b]MicrowaveSourceDraw[/b] (6571): watts pulled from the source cable network
 [*][b]MicrowaveDestinationDraw[/b] (6572): watts delivered to the receiver's cable network
 [*][b]MicrowaveTransmissionLoss[/b] (6573): source minus destination (watts lost to distance)
 [*][b]MicrowaveEfficiency[/b] (6574): delivered / source as a 0..1 ratio
+[*][b]MicrowaveLinkedPartner[/b] (6576): ReferenceId of the linked partner dish (0 when unlinked)
 [/list]
-All four return 0 when the link is down, the device is off, or no power is flowing.
+The power readouts (6571-6574) return 0 when the link is down, the device is off, or no power is flowing. MicrowaveLinkedPartner returns 0 only when unlinked, regardless of power state.
 
 [h3]Auto-Aim[/h3]
 A writable logic type [b]MicrowaveAutoAimTarget[/b] (6575) on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. This enables IC10 patterns like switching transmit target when remote batteries fill.
@@ -55,10 +56,11 @@ All features are configurable via the mod settings panel.
 [*][b]Shader Name[/b] (default Legacy Shaders/Particles/Additive): Unity shader used for the beam. Fallbacks are tried automatically if missing
 [/list]
 
-[b]Server settings[/b] (the host's value controls gameplay for everyone):
+[b]Server settings[/b] (the host's value controls gameplay and visuals for everyone):
 [list]
 [*][b]Cost Factor (k)[/b] (default 5.0): Per-kilometer overhead on transmitter source draw. k = 0 disables the overhead entirely; k = 10 doubles it compared to the default. Live-broadcast to all connected clients when changed
 [/list]
+In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients on connect and on change.
 
 [h2]Compatibility[/h2]
 
@@ -87,6 +89,10 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
   <ChangeLog>
+v1.1.0:
+- Added MicrowaveLinkedPartner (6576): read-only LogicType returning the ReferenceId of the currently linked partner dish on both transmitter and receiver
+- Host beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are now always synced to all clients in multiplayer
+
 v1.0.0: Initial release
 - Draws a visible laser beam between linked microwave transmitter and receiver dishes
 - Scrolling energy pulses along the beam, speed proportional to power throughput
@@ -111,14 +117,14 @@ Visible beam, scrolling pulses, configurable distance cost, and four new logic r
 - Visible laser beam between linked transmitter and receiver dishes
 - Scrolling energy pulses, speed scales with power throughput
 - Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
-- Four new logic readouts (tablet + IC10): MicrowaveSourceDraw (6571), MicrowaveDestinationDraw (6572), MicrowaveTransmissionLoss (6573), MicrowaveEfficiency (6574)
+- Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw (6571), MicrowaveDestinationDraw (6572), MicrowaveTransmissionLoss (6573), MicrowaveEfficiency (6574), MicrowaveLinkedPartner (6576)
 - Writable MicrowaveAutoAimTarget (6575): write a Thing's ReferenceId to auto-aim the dish; write 0 to disable
 - Full multiplayer support with server-authoritative simulation
 
 <b>Settings:</b>
 All features are configurable via the mod settings panel.
-Server setting (Cost Factor k) controls gameplay for all players; host's value is live-broadcast on change.
-Client settings (beam width, color, stripe wavelength, scroll speed) are personal.
+Server setting Cost Factor (k) controls gameplay for all players.
+In multiplayer, the host's beam visual settings always override client-local config.
 
 <b>Requirements:</b> BepInEx + StationeersLaunchPad
 

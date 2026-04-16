@@ -2,7 +2,7 @@
 
 ![Power Transmitter Plus](PowerTransmitterPlus/About/Preview.png)
 
-A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, adds IC10-driven auto-aim, and exposes four new logic readouts.
+A Stationeers mod that gives the Microwave Power Transmitter a visible laser beam with scrolling energy pulses, replaces the vanilla distance-based capacity derate with a configurable source-draw overhead, adds IC10-driven auto-aim, and exposes new logic readouts including link-partner detection.
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
@@ -33,7 +33,7 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
 
 ### Logic Readouts
-Four new logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
 
 | Name | Value | Units |
 |---|---:|---|
@@ -41,8 +41,9 @@ Four new logic types are available on both the transmitter and the receiver, rea
 | `MicrowaveDestinationDraw` | 6572 | watts delivered to the receiver's cable network |
 | `MicrowaveTransmissionLoss` | 6573 | source minus destination (watts lost to distance) |
 | `MicrowaveEfficiency` | 6574 | delivered / source as a 0..1 ratio |
+| `MicrowaveLinkedPartner` | 6576 | ReferenceId of the linked partner dish (0 when unlinked) |
 
-All four return 0 when the link is down, the device is off, or no power is flowing.
+The power readouts (6571-6574) return 0 when the link is down, the device is off, or no power is flowing. `MicrowaveLinkedPartner` returns 0 only when unlinked, regardless of power state. On a transmitter it returns the linked receiver's ReferenceId; on a receiver it returns the linked transmitter's ReferenceId.
 
 ### Auto-Aim
 A fifth logic type, `MicrowaveAutoAimTarget` (value 6575), is **writable** on both transmitter and receiver. Write a Thing's `ReferenceId` and the dish slews to point at it via the built-in servo; the base game's line-of-sight link raycast decides when the actual pairing forms, so obstacles in the path still take priority like in vanilla.
@@ -51,7 +52,9 @@ A fifth logic type, `MicrowaveAutoAimTarget` (value 6575), is **writable** on bo
 |---|---:|---|
 | `MicrowaveAutoAimTarget` | 6575 | Write: target's ReferenceId (0 disables). Read: current target id |
 
-Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op. This enables logic like switching the transmit target when remote batteries fill up:
+Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op.
+
+Combine with `MicrowaveLinkedPartner` for closed-loop IC10 automation: aim at a target, confirm the link formed, and fall back if it did not. Example switching transmit target when remote batteries fill up:
 
 ```
 define self_ref 12345     # this transmitter's ReferenceId
@@ -100,11 +103,13 @@ All features are configurable via the mod settings panel.
 | Trough Brightness | 0.5 | Beam brightness between pulses, 0..1. Regenerates on game restart |
 | Shader Name | Legacy Shaders/Particles/Additive | Unity shader used for the beam. Fallbacks are tried automatically if missing |
 
-**Server settings** (the host's value controls gameplay for everyone):
+**Server settings** (the host's value controls gameplay and visuals for everyone):
 
 | Setting | Default | Description |
 |---|---|---|
 | Cost Factor (k) | 5.0 | Per-kilometer overhead on transmitter source draw. `k = 0` disables the overhead entirely; `k = 10` doubles it compared to the default. Live-broadcast to all connected clients when changed |
+
+In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients on connect and on change. Clients see the host's beam appearance, not their own local config.
 
 ## Compatibility
 

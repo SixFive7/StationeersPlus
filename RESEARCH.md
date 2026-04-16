@@ -25,12 +25,13 @@ Related files:
 
 ## 2. What the mod does (one-paragraph summary)
 
-Server-authoritative BepInEx mod enhancing the Microwave Power Transmitter / Receiver pair. Four feature pillars:
+Server-authoritative BepInEx mod enhancing the Microwave Power Transmitter / Receiver pair. Five feature pillars:
 
 1. A visible colored beam between any aligned, linked, powered transmitter / receiver pair.
 2. A texture-scroll pulse train along the beam whose speed scales with delivered power (`sqrt(intensity) × configured m/s`).
 3. Replacement of the vanilla distance-based capacity derate with a source-draw overhead: per watt delivered, the source pulls `1 + k × distance_km` watts (server-authoritative `k`, live-broadcast on change).
-4. Five new LogicTypes on both transmitter and receiver: `MicrowaveSourceDraw` (6571), `MicrowaveDestinationDraw` (6572), `MicrowaveTransmissionLoss` (6573), `MicrowaveEfficiency` (6574), `MicrowaveAutoAimTarget` (6575, writable). Readable from configuration tablet and from IC10 by name. Auto-aim writes a target Thing's ReferenceId and slews the dish via the vanilla servo; `TryContactReceiver` handles link establishment.
+4. Six new LogicTypes on both transmitter and receiver: `MicrowaveSourceDraw` (6571), `MicrowaveDestinationDraw` (6572), `MicrowaveTransmissionLoss` (6573), `MicrowaveEfficiency` (6574), `MicrowaveAutoAimTarget` (6575, writable), `MicrowaveLinkedPartner` (6576, read-only). Readable from configuration tablet and from IC10 by name. Auto-aim writes a target Thing's ReferenceId and slews the dish via the vanilla servo; `TryContactReceiver` handles link establishment. LinkedPartner returns the ReferenceId of the currently linked partner dish (0 when unlinked).
+5. Server-authoritative visual sync: in multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients via `BeamVisualConfigMessage`, overriding client-local config.
 
 The mod preserves vanilla gameplay rules everywhere possible: the `TryContactReceiver` raycast still decides when pairs link (so "obstacle in the path" behavior is intact), the dish slew servo still animates rotations, `LinkedReceiver` / `LinkedPowerTransmitter` are never written directly.
 
@@ -65,7 +66,8 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 | Logic readout (UI/IC10) | `LogicReadoutPatches.cs` | `CanLogicRead` postfix + `GetLogicValue` prefix on `WirelessPower` (base class); branches on instance type inside |
 | Auto-aim logic write | `AutoAimPatches.cs` | `SetLogicValue` prefix intercepts `MicrowaveAutoAimTarget`; `RotatableBehaviour` target setter postfixes clear the cache on manual override. Per-dish cache via `ConditionalWeakTable` |
 | Logic system bootstrap | `Ic10ConstantsPatcher.cs`, `LogicableInitializePatch.cs`, `EnumNamePatches.cs`, `StationpediaPatches.cs` | Teach the game about our `LogicType` values 6571-6575 everywhere the game looks them up by name |
-| Multiplayer sync | `DistanceConfigMessage.cs`, `DistanceConfigSync.cs` | Server-authoritative `k` push to clients via LPB networking |
+| Multiplayer sync (k) | `DistanceConfigMessage.cs`, `DistanceConfigSync.cs` | Server-authoritative `k` push to clients via LPB networking |
+| Multiplayer sync (visuals) | `BeamVisualConfigMessage.cs`, `BeamVisualConfigSync.cs` | Server-authoritative beam visual config push to clients via LPB networking |
 | Foundation | `Plugin.cs`, `MainThreadDispatcher.cs`, `LogicTypeRegistry.cs`, `BeamManager.cs`, `BeamLine.cs`, `BeamPulseTrain.cs` | Wiring, registry, beam GameObjects |
 
 ---
@@ -123,7 +125,7 @@ Four power-tick patches implementing the source-draw overhead model. See §6.2 f
 
 ### `LogicTypeRegistry.cs`
 
-Constants for all custom LogicType values (6571-6575). `List<CustomLogicType> All` with name / value / description per entry. `Dictionary<ushort, CustomLogicType> ByValue` index. `IsCustom(LogicType)` and `TryGetName(LogicType, out string)` helpers.
+Constants for all custom LogicType values (6571-6576). `List<CustomLogicType> All` with name / value / description per entry. `Dictionary<ushort, CustomLogicType> ByValue` index. `IsCustom(LogicType)` and `TryGetName(LogicType, out string)` helpers.
 
 ### `DistanceConfigMessage.cs`
 
@@ -138,6 +140,24 @@ Static class. Holds `_syncedHostK : float?` (null until first message arrives).
 - `HookHostBroadcast()`: subscribes to `DistanceCostFactor.SettingChanged` to call `BroadcastIfHost()`.
 - `BroadcastIfHost()`: if `IsServer`, builds and `SendAll(0L)`s a `DistanceConfigMessage`.
 - `[HarmonyPatch(typeof(NetworkManager), "PlayerConnected")]` postfix calls `BroadcastIfHost()` on every join.
+
+### `BeamVisualConfigMessage.cs`
+
+`INetworkMessage` carrying five fields: `BeamWidth`, `BeamColorHex`, `EmissionIntensity`, `StripeWavelength`, `ScrollSpeed`. Serialized via `RocketBinaryWriter/Reader`. `Process()` ignores on server; on client calls `BeamVisualConfigSync.OnHostConfigReceived()`.
+
+### `BeamVisualConfigSync.cs`
+
+Static sync manager mirroring the `DistanceConfigSync` pattern. Stores host-pushed visual values and a `_received` flag (set on first message).
+
+`UseHostValues`: true when `_received` AND `NetworkManager.IsActive` AND NOT `IsServer`.
+
+`GetEffective*()` methods (BeamWidth, BeamColorHex, EmissionIntensity, StripeWavelength, ScrollSpeed): return synced values when on a client with host values received, local config otherwise. Called by `BeamManager`, `BeamLine`, and `BeamPulseTrain` instead of reading `Plugin` config directly.
+
+`OnHostConfigReceived()`: stores values, logs, then calls `BeamManager.InvalidateAllBeams()` to force beam recreation with updated visuals.
+
+`HookHostBroadcast()`: wires `SettingChanged` on all five visual config entries to call `BroadcastIfHost()`.
+
+`BroadcastIfHost()`: if `IsServer`, builds and `SendAll(0L)`s a `BeamVisualConfigMessage` with current visual values.
 
 ### `Ic10ConstantsPatcher.cs`
 
@@ -178,7 +198,7 @@ For unknown LogicType values, looks up our registry and substitutes the name. Wi
 
 Two patches on the `WirelessPower` base class:
 - `WirelessPowerCanLogicReadPatch` (Postfix): returns `true` for custom LogicTypes on `PowerTransmitter` / `PowerReceiver` instances.
-- `WirelessPowerGetLogicValuePatch` (Prefix, returns false): reads `MicrowaveAutoAimTarget` from the per-dish cache (before the transmitter resolution path); for the other readouts, `PowerTransmitter` reads `__instance`, `PowerReceiver` resolves through `LinkedPowerTransmitter`.
+- `WirelessPowerGetLogicValuePatch` (Prefix, returns false): reads `MicrowaveAutoAimTarget` from the per-dish cache and `MicrowaveLinkedPartner` directly from the instance's linked partner field (both are per-dish, not forwarded through the link); for the power readouts, `PowerTransmitter` reads `__instance`, `PowerReceiver` resolves through `LinkedPowerTransmitter`.
 
 The base-class targeting is required because `CanLogicRead` / `GetLogicValue` are declared `override` on `WirelessPower` and the subclasses inherit without re-overriding; Harmony's attribute-based lookup uses `AccessTools.DeclaredMethod` which doesn't match inherited methods. See §8 pitfalls.
 
@@ -641,11 +661,32 @@ Effective k decision:
   else (client)             → _syncedHostK ?? local
 ```
 
-### 9.3. Auto-aim sync (no new infrastructure)
+### 9.3. Visual config sync protocol
+
+```
+Host:
+  On BeamWidth/BeamColorHex/EmissionIntensity/
+     StripeWavelength/ScrollSpeed.SettingChanged -> BeamVisualConfigSync.BroadcastIfHost()
+  On NetworkManager.PlayerConnected (postfix)   -> BroadcastIfHost()
+  BroadcastIfHost(): if IsServer, new BeamVisualConfigMessage{...}.SendAll(0L)
+
+Client:
+  BeamVisualConfigMessage.Process(hostId):
+    if !IsServer, BeamVisualConfigSync.OnHostConfigReceived(msg)
+  OnHostConfigReceived(msg):
+    store all values, set _received = true
+    call BeamManager.InvalidateAllBeams() to force beam recreation
+
+Effective value decision (per GetEffective* method):
+  _received AND IsActive AND !IsServer -> synced value from host
+  else                                 -> local config
+```
+
+### 9.4. Auto-aim sync (no new infrastructure)
 
 `WirelessPower.SetLogicValue` is server-authoritative in vanilla. Our prefix runs on the server. The ensuing writes to `RotatableBehaviour.TargetHorizontal` / `TargetVertical` set `NetworkUpdateFlags |= 256`, which the existing delta-state serialization ships to clients. `WirelessPower.ProcessUpdate` reads the flag and writes those targets on the client; the client's local servo then slews the dish. No new `INetworkMessage`.
 
-### 9.4. Why on-the-fly (not cached) computation for readouts
+### 9.5. Why on-the-fly (not cached) computation for readouts
 
 Readouts compute directly from `OutputNetwork.CurrentLoad` and `_linkedReceiverDistance` in the `GetLogicValue` prefix. Both are already client-synced via cable network and wireless link state respectively. Clients have everything they need to display the same numbers as the server given matching `k`.
 
@@ -703,6 +744,10 @@ SprayPaintPlus only does client→server messages; this mod is the first in the 
 | Don't touch `LinkedReceiver` / `LinkedPowerTransmitter` from auto-aim | The vanilla `TryContactReceiver` raycast handles link/unlink based on alignment, including the "obstacle C in the path" case. Writing link fields directly bypasses the physics check |
 | Multiplayer server broadcast (rather than client-side config) | Guarantees all clients see the same gameplay numbers as the host |
 | `MOD.Networking.Required = true` | LaunchPad version handshake catches clients with missing or mismatched installs |
+| Visual sync always active in multiplayer | Keeps all players on the same page visually. Simplest model: host is authoritative for visuals just like for gameplay (k). No toggle to explain, no split behavior |
+| Visual sync invalidates all beams on receipt | Beam color and width are set in the `BeamLine` constructor and not updated thereafter. Destroying and letting `SetLineIntensityOnMain` recreate them is the simplest path to apply new visuals without adding per-frame config reads to the line renderer |
+| Visual sync does not sync Trough Brightness or Shader Name | Both are baked into cached objects (`StripeTexture` and `SharedMaterial`) created once at first beam. Invalidating those caches safely across all beam instances adds complexity for settings players rarely change |
+| `MicrowaveLinkedPartner` is per-dish (not forwarded through the link) | A transmitter returns its receiver's id and vice versa. Forwarding through the link would require picking one side, which is ambiguous on the receiver (it could in theory be linked to multiple transmitters, though vanilla only allows one) |
 
 ### 11.2. Rejected or deferred
 
