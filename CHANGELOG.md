@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Ctrl-checkered pattern now actually alternates on walls and large
-  structures. `Grid3` stores world coords scaled ×10 and walls /
+  structures. `Grid3` stores world coords scaled x10 and walls /
   `LargeStructure`s snap to a 2-world-unit cell grid, so every cell-
   aligned structure's GridPosition landed on the same parity and the
   checker filter accepted every candidate. Parity is now derived from

@@ -4,7 +4,7 @@ using LaunchPadBooster.Networking;
 namespace SprayPaintPlus
 {
     /// <summary>
-    /// Client → Server message: player's modifier key state changed while holding a spray can.
+    /// Client -> Server message: player's modifier key state changed while holding a spray can.
     /// Bit 0 = Shift (single item paint, invert already applied), Bit 1 = Ctrl (checkered).
     /// PlayerHumanId is the sender's own controlled Human ReferenceId; the server keys
     /// PlayerModifiers by that id because vanilla paint messages identify the actor

@@ -357,7 +357,7 @@ namespace SprayPaintPlus
         /// <summary>
         /// 3D checkerboard parity for grid-aligned structures. Two traps make
         /// the naive `(x+y+z) & 1` on GridPosition useless here:
-        ///   1. Grid3 scales world coords ×Grid3.one (10), so one world unit
+        ///   1. Grid3 scales world coords x Grid3.one (10), so one world unit
         ///      is ten Grid3 units.
         ///   2. Walls and large structures snap to a GridSize-wide cell grid
         ///      (default 2 world units). One cell therefore spans

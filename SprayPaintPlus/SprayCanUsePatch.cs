@@ -28,10 +28,10 @@ namespace SprayPaintPlus
             bool suppressPollution = SprayPaintPlusPlugin.SuppressSprayPaintPollution.Value;
 
             // The two flags are independent. The four combinations:
-            //   infinite=T, suppress=T → no consumption, no pollution (skip vanilla)
-            //   infinite=T, suppress=F → no consumption, pollution still emits (vanilla runs with quantity=0)
-            //   infinite=F, suppress=T → normal consumption, no pollution (skip vanilla, apply quantity manually)
-            //   infinite=F, suppress=F → normal consumption, normal pollution (vanilla runs unmodified)
+            //   infinite=T, suppress=T -> no consumption, no pollution (skip vanilla)
+            //   infinite=T, suppress=F -> no consumption, pollution still emits (vanilla runs with quantity=0)
+            //   infinite=F, suppress=T -> normal consumption, no pollution (skip vanilla, apply quantity manually)
+            //   infinite=F, suppress=F -> normal consumption, normal pollution (vanilla runs unmodified)
 
             if (infinite)
                 quantity = 0f;
