@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.2.4</Version>
+  <Version>1.2.5</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
@@ -101,6 +101,12 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.2.5: Repoint Reporting Issues and Source Code URLs at the StationeersPlus monorepo
+- The Reporting Issues link in the About description now points at github.com/SixFive7/StationeersPlus/issues
+- The Source Code link now points at github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus
+- No gameplay changes
+- REQUIRES: All players on a server must run 1.2.5 (matching-version handshake)
+
 v1.2.4: Patch release
 - REQUIRES: All players on a server must run 1.2.4 (matching-version handshake)
 
