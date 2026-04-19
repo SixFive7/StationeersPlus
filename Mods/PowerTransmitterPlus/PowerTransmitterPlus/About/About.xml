@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Power Transmitter Plus</Name>
+  <ModID>net.powertransmitterplus</ModID>
+  <Author>SixFive7</Author>
+  <Version>1.1.3</Version>
+  <Description>[h1]Power Transmitter Plus[/h1]
+
+Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
+
+[h2]Features[/h2]
+
+[h3]Visible Laser Beam[/h3]
+A colored beam is drawn between a linked transmitter and receiver whenever the link is up and powered. The beam is at full brightness at all times while visible, so you can see at a glance which dishes are actually connected.
+
+[h3]Scrolling Pulse Train[/h3]
+Energy pulses scroll along the beam from transmitter to receiver. Stripe spacing is constant in world meters (same look on a 5m link or a 500m link). Scroll speed scales with power throughput, so a lightly-loaded link is clearly distinguishable from a heavily-loaded one at a glance.
+
+[h3]Distance Cost[/h3]
+Vanilla Stationeers caps microwave transmission capacity based on distance and hard-stops at 500m. This mod removes that cap entirely and replaces it with a source-draw overhead: the transmitter pulls more from its source cable network per watt delivered, proportional to link distance. Formula: for every watt delivered, the source pulls (1 + k * distance_km) watts. With the default k = 5:
+[list]
+[*]0 m: 1.0 watts drawn per watt delivered
+[*]100 m: 1.5 watts drawn per watt delivered
+[*]500 m: 3.5 watts drawn per watt delivered
+[*]1 km: 6.0 watts drawn per watt delivered
+[*]5 km: 26.0 watts drawn per watt delivered
+[/list]
+You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
+
+[h3]Logic Readouts[/h3]
+Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+[list]
+[*][b]MicrowaveSourceDraw[/b] (6571): watts pulled from the source cable network
+[*][b]MicrowaveDestinationDraw[/b] (6572): watts delivered to the receiver's cable network
+[*][b]MicrowaveTransmissionLoss[/b] (6573): source minus destination (watts lost to distance)
+[*][b]MicrowaveEfficiency[/b] (6574): delivered / source as a 0..1 ratio
+[*][b]MicrowaveLinkedPartner[/b] (6576): ReferenceId of the linked partner dish (0 when unlinked)
+[/list]
+The power readouts (6571-6574) return 0 when the link is down, the device is off, or no power is flowing. MicrowaveLinkedPartner returns 0 only when unlinked, regardless of power state.
+
+[h3]Auto-Aim[/h3]
+A writable logic type [b]MicrowaveAutoAimTarget[/b] (6575) on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. This enables IC10 patterns like switching transmit target when remote batteries fill.
+
+[h3]Settings[/h3]
+
+All features are configurable via the mod settings panel.
+
+[b]Client settings[/b] (visual preference, each player sets independently):
+[list]
+[*][b]Beam Width[/b] (default 0.1): Thickness of the beam in world meters
+[*][b]Beam Color[/b] (default 000DFF): Hex RGB color. 000DFF is the vanilla cyan-blue
+[*][b]Emission Intensity[/b] (default 10.0): HDR brightness multiplier on the beam color
+[*][b]Stripe Wavelength[/b] (default 2.0): Distance in world meters between one pulse and the next
+[*][b]Scroll Speed[/b] (default 25.0): Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity) so low loads still move visibly
+[*][b]Trough Brightness[/b] (default 0.5): Beam brightness between pulses, 0..1. Regenerates on game restart
+[/list]
+
+[b]Server settings[/b] (the host's value controls gameplay and visuals for everyone):
+[list]
+[*][b]Cost Factor (k)[/b] (default 5.0): Per-kilometer overhead on transmitter source draw. k = 0 disables the overhead entirely; k = 10 doubles it compared to the default. Live-broadcast to all connected clients when changed
+[/list]
+In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients on connect and on change.
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]All players[/b] on a server must have Power Transmitter Plus installed. Matching mod versions are enforced during the connection handshake automatically.
+
+[b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + PowerTransmitterPlus setup installed server-side. The distance-cost simulation runs server-authoritatively and the handshake rejects mixed installs.
+
+[b]Custom logic type range[/b] 6571-6599 is reserved by this mod. Any other mod that registers a LogicType in that range will collide. The range sits well outside the vanilla enum (0-349) and the range used by Stationeers Logic Extended (1000-1830).
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/PowerTransmitterPlus/issues]GitHub[/url]. It would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[h2]Credits[/h2]
+[list]
+[*][b]ThunderDuck[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467]Stationeers Logic Extended[/url], which pioneered the pattern for registering custom LogicType values. The injection approach used here (extending ProgrammableChip.AllConstants, Logicable.LogicTypes, and the enum-name lookup paths) is adapted from that work.
+[/list]
+
+[url=https://github.com/SixFive7/PowerTransmitterPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
+  <ChangeLog>
+v1.1.3: Screen syntax highlighting fix
+- Fixed custom LogicType names rendering red on in-game computer and laptop screen previews
+
+v1.1.2: Remove Shader Name config entry
+- Removed the Shader Name config entry. The beam shader is now fixed to the built-in fallback chain (Legacy Shaders/Particles/Additive with three fallbacks).
+
+v1.1.1: Patch release (Workshop preview images in build output)
+- Added <WorkshopHandle> to About.xml and ensured Preview.png / thumb.png copy to the build output for the Workshop upload pipeline.
+
+v1.1.0: Link-partner logic and host-broadcast beam visuals
+- Added MicrowaveLinkedPartner (6576): read-only LogicType returning the ReferenceId of the currently linked partner dish on both transmitter and receiver
+- Host beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are now always synced to all clients in multiplayer
+
+v1.0.0: Initial release
+- Draws a visible laser beam between linked microwave transmitter and receiver dishes
+- Scrolling energy pulses along the beam, speed proportional to power throughput
+- Replaces vanilla distance-based capacity derate with a configurable source-draw overhead (k factor, server-authoritative)
+- Adds MicrowaveSourceDraw / MicrowaveDestinationDraw / MicrowaveTransmissionLoss / MicrowaveEfficiency logic readouts on both transmitter and receiver (LogicType values 6571-6574)
+- Writable MicrowaveAutoAimTarget (6575): IC10 can aim the dish at any Thing by ReferenceId
+- IC10 name resolution for all five new LogicTypes
+- Full multiplayer support with server-authoritative simulation and live config broadcast
+  </ChangeLog>
+  <WorkshopHandle>3707677512</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>power</Tag>
+    <Tag>logic</Tag>
+    <Tag>multiplayer</Tag>
+    <Tag>StationeersPlus</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#00aaff>Power Transmitter Plus</color></size>
+Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
+
+<b>Features:</b>
+- Visible laser beam between linked transmitter and receiver dishes
+- Scrolling energy pulses, speed scales with power throughput
+- Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
+- Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw (6571), MicrowaveDestinationDraw (6572), MicrowaveTransmissionLoss (6573), MicrowaveEfficiency (6574), MicrowaveLinkedPartner (6576)
+- Writable MicrowaveAutoAimTarget (6575): write a Thing's ReferenceId to auto-aim the dish; write 0 to disable
+- Full multiplayer support with server-authoritative simulation
+
+<b>Settings:</b>
+All features are configurable via the mod settings panel.
+Server setting Cost Factor (k) controls gameplay for all players.
+In multiplayer, the host's beam visual settings always override client-local config.
+
+<b>Requirements:</b> BepInEx + StationeersLaunchPad
+
+<b>Multiplayer:</b> All players must have this mod installed. Matching mod versions are enforced during the connection handshake automatically. Dedicated servers need the same setup installed server-side.
+]]></InGameDescription>
+</ModMetadata>
