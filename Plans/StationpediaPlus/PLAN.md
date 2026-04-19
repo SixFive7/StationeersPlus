@@ -3674,7 +3674,7 @@ every time.
 Size: approximately 1.2 MB (shipped as both an embedded resource
 `StationpediaAscended.descriptions.json` inside SPA's DLL and as a loose
 file next to the DLL at
-`E:\Steam\steamapps\workshop\content\544550\3634225688\descriptions.json`).
+`<STEAM_ROOT>\steamapps\workshop\content\544550\3634225688\descriptions.json`).
 
 Content breakdown:
 

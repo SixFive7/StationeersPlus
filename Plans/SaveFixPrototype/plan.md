@@ -6,7 +6,7 @@ You are picking up a project mid-stream. Here is what exists, what the goal is, 
 
 **What exists right now:**
 - `terrain_reset.py` in this directory: a working Python CLI tool that selectively resets terrain in a Stationeers .save file while preserving sealed rooms. It has been tested against a real save and produces correct output.
-- A full decompilation of the game's Assembly-CSharp.dll was done at `/tmp/stationeers_decompile/` but that directory is ephemeral and may be gone. The game DLL is at `E:\Steam\steamapps\common\Stationeers\rocketstation_Data\Managed\Assembly-CSharp.dll`. You can re-decompile with `ilspycmd` (installed globally via dotnet tools) using `ilspycmd <dll> -p -o /tmp/stationeers_decompile`.
+- A full decompilation of the game's Assembly-CSharp.dll was done to a local scratch directory but that directory is ephemeral and may be gone. The game DLL lives at `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll`. You can re-decompile with `ilspycmd` (installed globally via dotnet tools) using `ilspycmd <dll> -p -o <SCRATCH_DIR>`.
 
 **What the user wants (the full arc):**
 
