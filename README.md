@@ -81,6 +81,10 @@ All features are configurable via the mod settings panel.
 
 If you run into a bug or something behaves unexpectedly, please open an issue on [GitHub](https://github.com/SixFive7/SprayPaintPlus/issues). It would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
 
+## Changelog
+
+Version history lives in [`SprayPaintPlus/About/About.xml`](SprayPaintPlus/About/About.xml) under `<ChangeLog>` and is published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3702940349) with every release.
+
 ## Credits
 
 Spray Paint Plus would not exist without the modders who came before:
