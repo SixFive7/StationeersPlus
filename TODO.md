@@ -23,3 +23,7 @@ Cross-mod and repo-wide tasks. Per-mod tasks live in each mod's own `TODO.md`.
 - [ ] **Review all `.ps1` scripts** committed to the repository (currently `tools/decode_il.ps1`) plus any `.ps1` scripts outside the repo that relate to the mods, for correctness, usefulness, and potential consolidation into `tools/`.
 
 - [ ] **Update deploy scripts** that referenced paths under the previous per-mod-repo layout so they now point at `Mods/<ModName>/` under this monorepo. Deploy commands in `DEV.md.template` already use the new layout; any external scripts (wrapper batch files, shell aliases) need review.
+
+- [ ] **Archive the old standalone GitHub repos** (`SixFive7/PowerTransmitterPlus`, `SixFive7/SprayPaintPlus`) once this monorepo is verified stable. Flip them to read-only on GitHub and replace each README with a pointer to the monorepo so outbound links and forks still lead somewhere useful.
+
+- [ ] **Audit every `RESEARCH.md` for stale filesystem paths**. After the subtree import, imported mods' `RESEARCH.md` files may reference absolute paths under the pre-migration layout (for example `C:\Source\SixFive7\StationeersPlus\<ModName>\...`) or relative paths rooted at the old per-mod repo. Rewrite these to monorepo-relative paths (`Mods/<ModName>/...`) or to placeholders documented in `DEV.md.template`. Likely candidates: the subtree-imported `Mods/PowerTransmitterPlus/RESEARCH.md` and `Mods/SprayPaintPlus/RESEARCH.md`, plus any `Plans/` mod whose RESEARCH predates the move.
