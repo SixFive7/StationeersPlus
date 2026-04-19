@@ -1,4 +1,4 @@
-# Spray Paint Plus [StationeersLaunchPad]
+# Spray Paint Plus
 
 ![Spray Paint Plus](SprayPaintPlus/About/Preview.png)
 
