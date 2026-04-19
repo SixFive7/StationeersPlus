@@ -16,11 +16,18 @@ Players type a message in chat starting with a trigger word (default `@sat`). Th
 
 ### Model file
 
-The model file is intentionally not shipped with the source tree (~1 GB, too large for a standard git repository without LFS). Download it separately and place it at `LLM/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` for source builds, or at `mods/LLM/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` alongside the deployed `LLM.dll`.
+**The model file is NOT included in the repository.** At ~1 GB it exceeds GitHub's free LFS quota, so it is gitignored on purpose. Download it yourself:
 
-Default model: `qwen2.5-1.5b-instruct-q4_k_m.gguf` (~1065 MB). Published by Qwen as part of the `Qwen2.5-1.5B-Instruct-GGUF` release on Hugging Face. Pick the `q4_k_m` quantization unless you want to experiment with a smaller or larger variant; the `Model File Name` setting lets you point the mod at any GGUF file in the `models/` folder.
+- **File:** `qwen2.5-1.5b-instruct-q4_k_m.gguf` (~1065 MB)
+- **Source:** [Qwen/Qwen2.5-1.5B-Instruct-GGUF on Hugging Face](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
+- **Direct download:** https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
-A different 1.5B-class instruction-tuned GGUF model will work if you prefer; match the filename to the `Model File Name` setting.
+Place the downloaded file at one of:
+
+- `LLM/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` (inside this source tree, for `Release` builds; the MSBuild `CopyModelFiles` target copies it into `bin/Release/models/`)
+- `mods/LLM/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` (next to the deployed `LLM.dll` in the Stationeers mods folder, for a local-only install that skips the source build)
+
+A different 1.5B-class instruction-tuned GGUF model will work if you prefer; match the filename to the `Model File Name` setting in the mod's configuration panel. The `q4_k_m` quantization is the default; smaller quants (`q3_k_m`, `q2_k`) reduce memory and disk cost at the price of output quality.
 
 ## Building from source
 

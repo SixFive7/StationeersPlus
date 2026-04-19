@@ -117,4 +117,4 @@
 - [x] Document model download instructions. README now covers model file, quantization, and the `models/` placement requirement for source and deploy.
 - [x] Decide: ship model inside Workshop upload or separate download. Separate download chosen; model file is gitignored in the monorepo (`*.gguf` pattern). Revisit if Git LFS becomes cost-effective (tracked in the root `TODO.md`).
 - [ ] Test on a clean machine (no NuGet cache) to verify all dependencies ship correctly.
-- [ ] Confirm the exact Hugging Face source URL for `qwen2.5-1.5b-instruct-q4_k_m.gguf` (listed in README as the `Qwen2.5-1.5B-Instruct-GGUF` release) and add the direct `resolve/main/...` URL once verified.
+- [x] Confirm the exact Hugging Face source URL for `qwen2.5-1.5b-instruct-q4_k_m.gguf`. README now links both the repo page (`huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF`) and the direct `resolve/main/...` download URL.
