@@ -1,4 +1,4 @@
-﻿using Assets.Scripts;
+using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects.Items;

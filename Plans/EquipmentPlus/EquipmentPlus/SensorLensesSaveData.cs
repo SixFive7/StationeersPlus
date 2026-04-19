@@ -1,4 +1,4 @@
-﻿using Assets.Scripts.Objects;
+using Assets.Scripts.Objects;
 
 namespace EquipmentPlus
 {
