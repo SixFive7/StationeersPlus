@@ -1040,7 +1040,7 @@ mod supersedes the vanilla behavior.
 - Secondary Harmony ID (script engine): `com.stationpediaascended.mod.scriptengine`
 - Workshop ID: `3634225688`
 - Version: `0.8.6` per `[BepInPlugin]` (About.xml shows stale 0.8.5)
-- Decompile root: `C:\Users\jori\AppData\Local\Temp\decompile_spa\`
+- Decompile root: `<DECOMPILE_SCRATCH>\`
 
 Use these strings:
 - `Chainloader.PluginInfos.ContainsKey("com.florpydorp.stationpediaascended")`
@@ -1751,7 +1751,7 @@ Resolution:
 2. Resolve SPA's `ShouldHideFromSearch` method via reflection against
    `StationpediaAscended.Patches.SearchPatches` (confirm exact name at
    implementation time by reading
-   `C:\Users\jori\AppData\Local\Temp\decompile_spa\StationpediaAscended.Patches\SearchPatches.cs`
+   `<DECOMPILE_SCRATCH>\StationpediaAscended.Patches\SearchPatches.cs`
    around line 360 per §18.2).
 3. Install a Harmony Postfix with instance ID
    `<ModGuid>.stationpediaplus.spasearchfilter` that sets `__result = true`
@@ -2884,7 +2884,7 @@ unless noted).
 
 ### 16.8 SPA decompile path
 
-`C:\Users\jori\AppData\Local\Temp\decompile_spa\`
+`<DECOMPILE_SCRATCH>\`
 
 Key files:
 - `StationpediaAscended\StationpediaAscendedMod.cs` — plugin entry, Awake, DeviceDatabase declaration
@@ -3058,7 +3058,7 @@ Workshop ID:        3634225688
 Version:            0.8.6 (runtime); 0.8.5 (stale About.xml)
 
 Decompile root:
-  C:\Users\jori\AppData\Local\Temp\decompile_spa\
+  <DECOMPILE_SCRATCH>\
 
 Key files:
   StationpediaAscended\StationpediaAscendedMod.cs

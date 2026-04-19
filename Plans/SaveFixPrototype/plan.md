@@ -13,9 +13,9 @@ You are picking up a project mid-stream. Here is what exists, what the goal is, 
 1. **Phase 1 (DONE):** Python prototype that edits .save files offline. This is `terrain_reset.py`.
 2. **Phase 2 (NEXT):** Port the logic to a C# mod for Stationeers using the Stationeers.Addons framework. The mod runs inside a live multiplayer server. Instead of editing files, it calls `VoxelTerrain.Octree.SetDensity()` at runtime to revert voxels to their base-terrain values. The reset is spread over many ticks (a few hundred voxels per tick) to avoid freezing the server, and is wrapped in a lore-flavored in-game event (seismic reclamation, nanite reconstruction, time anomaly, or similar) with visual/audio effects. Players see the terrain gradually filling back in around them while their sealed rooms remain untouched.
 
-**Build conventions:** read `C:\Source\SixFive7\StationeersPlus\CLAUDE.md` before writing any code. It defines MSBuild property rules, README/About.xml sync requirements, preview image dimensions, and a strict no-AI-tells writing style for user-facing text.
+**Build conventions:** read the repository root `CLAUDE.md` before writing any code. It defines MSBuild property rules, README/About.xml sync requirements, preview image dimensions, and a strict no-AI-tells writing style for user-facing text.
 
-**Test save:** `C:\Users\jori\Downloads\Luna.save` (Lunar world, game version 0.2.6228.27061). A backup of the original is at `Luna.save.bak`. The save has been edited multiple times during prototyping and may not match the original.
+**Test save:** a local `Luna.save` (Lunar world, game version 0.2.6228.27061). A backup of the original sits alongside at `Luna.save.bak`. The save has been edited multiple times during prototyping and may not match the original.
 
 ---
 
@@ -343,4 +343,4 @@ For context if you need to test against the same save.
 - **Veins:** 95 modified vein records in terrain.dat
 - **Pipe network 67553:** O2 line. Was cleaned of trace contaminants (N2, volatiles, H2, liquid N2O) in an earlier edit session.
 - **Earlier edits:** checksums were zeroed twice (game regenerated and re-saved each time). Pipe 67553 gas was cleaned. Current file state may reflect any combination of these.
-- **Backup:** `C:\Users\jori\Downloads\Luna.save.bak` is the pre-edit original.
+- **Backup:** `Luna.save.bak` next to the working copy is the pre-edit original.
