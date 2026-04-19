@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Spray Paint Plus</Name>
+  <ModID>net.spraypaintplus</ModID>
+  <Author>SixFive7</Author>
+  <Version>1.2.4</Version>
+  <Description>[h1]Spray Paint Plus[/h1]
+
+Combines [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
+
+Builds on the excellent work of [b]Elmotrix[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url], [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url]) and [b]Aspct[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url]), whose original mods inspired this project. The multiplayer networking code in Color Cycler was contributed by [b]SubHobo[/b] (bls220). Spray Paint Plus combines their ideas and fixes the multiplayer issues that affected clients in those mods.
+
+[h2]Features[/h2]
+
+[h3]Full Multiplayer Support[/h3]
+All features work correctly for every player, host and clients alike. Late-joining players see the correct spray can colors immediately.
+
+[h3]Color Cycling[/h3]
+Scroll your mouse wheel while holding a spray can to cycle through all available paint colors. No more carrying twelve cans in a backpack.
+
+[h3]Infinite Spray Paint[/h3]
+All spray cans have unlimited uses and produce no pollution. Both are configurable.
+
+[h3]Network Painting[/h3]
+Spray-paint a pipe, cable, or chute and the entire connected network gets painted at once.
+[list]
+[*][b]Hold Shift[/b] to paint just a single item (or swap this default, see Settings)
+[*][b]Hold Ctrl[/b] for a checkered/alternating paint pattern
+[*]Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks
+[/list]
+
+[h3]Room &amp; Structure Painting[/h3]
+Spray-paint a wall and every same-type wall bounding the same room is painted. Spray-paint a frame, girder, or any other large structure and all orthogonally-connected structures of the same exact type are painted with it.
+[list]
+[*]Walls use the game's Room membership to decide the paint set. Paint spills across any wall the room touches, but never past a doorway into another room
+[*]Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
+[*]Same Shift / Ctrl modifiers apply
+[/list]
+
+[h3]Settings[/h3]
+
+All features are configurable via the mod settings panel.
+
+[b]Client settings[/b] (personal preference, each player sets independently):
+[list]
+[*][b]Invert Color Scroll Direction[/b] (default Off): Reverse the scroll wheel direction
+[*][b]Paint Single Item By Default[/b] (default Off): Swap Shift behavior, single paint by default, hold Shift for network paint
+[/list]
+
+[b]Server settings[/b] (the server's value controls gameplay for everyone):
+[list]
+[*][b]Unlimited Spray Paint Uses[/b] (default On): Infinite spray cans
+[*][b]Suppress Spray Paint Pollution[/b] (default On): No pollutant gas when spraying
+[*][b]Enable Network Painting[/b] (default On): Paint entire networks at once
+[*][b]Network Paint Pipes[/b] (default On): Include pipes in network painting
+[*][b]Network Paint Cables[/b] (default On): Include cables in network painting
+[*][b]Network Paint Chutes[/b] (default On): Include chutes in network painting
+[*][b]Network Paint Walls[/b] (default On): Paint all same-type walls bounding the same room
+[*][b]Network Paint Large Structures[/b] (default On): Paint connected frames, girders, and other large structures in a 6-neighbor grid
+[/list]
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]Incompatible with[/b] (detected at startup; the mod refuses to load if either is found):
+[list]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url] by Elmotrix
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url] by Elmotrix
+[/list]
+
+[b]Redundant[/b] (not detected, but pointless to run alongside this mod; disable to avoid confusion):
+[list]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url] by Aspct
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url] by Dingo
+[/list]
+
+[b]All players[/b] on a server must have Spray Paint Plus installed. Matching mod versions are enforced during the connection handshake automatically.
+
+[b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + SprayPaintPlus setup installed server-side. The paint logic runs server-authoritatively and the handshake rejects mixed installs.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/SprayPaintPlus/issues]GitHub[/url]. It would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[h2]Credits[/h2]
+
+Spray Paint Plus would not exist without the modders who came before:
+[list]
+[*][b]Elmotrix[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url] and [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url], the original spray paint enhancement mods for Stationeers. The core ideas of scroll-to-cycle and paint-entire-networks are theirs.
+[*][b]SubHobo[/b] (bls220): Contributed the initial multiplayer networking code to Color Cycler via [url=https://github.com/Elmotrix/ColorCyclerMod/pull/1]PR #1[/url].
+[*][b]Aspct[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url], the original clean infinite paint mod for Stationeers.
+[*][b]Dingo (DingoPD)[/b]: Created the original [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url], the first infinite spray paint mod for Stationeers.
+[/list]
+
+[url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
+  <ChangeLog>
+v1.2.4: Patch release
+- REQUIRES: All players on a server must run 1.2.4 (matching-version handshake)
+
+v1.2.3: Refreshed Steam Workshop preview art
+- Replaced the preview and thumbnail images with a new 16:9 key art that showcases the mod's features (color cycling, infinite paint, network painting, Shift/Ctrl modifiers, multiplayer)
+- No gameplay changes
+- REQUIRES: All players on a server must run 1.2.3 (matching-version handshake)
+
+v1.2.2: Infinite spray fix for single-player
+- FIX: Infinite spray paint now works in solo play. The server-only guard was also catching single-player (which the game reports as neither server nor client), so the infinite/suppress logic was silently skipped outside multiplayer.
+- REQUIRES: All players on a server must run 1.2.2 (matching-version handshake)
+
+v1.2.1: Ctrl-checkered fix for walls and large structures
+- FIX: Ctrl now produces a proper alternating pattern on walls and large structures. Previously every candidate landed on the same cell-parity, so the checker filter painted the whole set.
+- REQUIRES: All players on a server must run 1.2.1 (matching-version handshake)
+
+v1.2.0: Paint whole rooms and whole frame grids
+- NEW: Painting a wall now paints all same-type walls bounding the same room
+- NEW: Painting a frame, girder, or other large structure paints all orthogonally-connected structures of the exact same type
+- NEW: Server toggles "Network Paint Walls" and "Network Paint Large Structures" (both default on)
+- Shift still restricts to the single targeted item; Ctrl still produces a checkered pattern
+
+v1.1.1: Modifier keys for clients
+- FIX: Shift / Ctrl modifiers now apply correctly when remote clients paint. Previously the server read the host's keyboard for every client's paint action, so clients' modifiers were ignored (always behaved as if nothing was held)
+- Skip redundant client-side network-paint prefix for non-spray paint paths (cosmetic-only, did not propagate)
+- REQUIRES: All players on a server must run 1.1.1 (wire format change in the modifier message)
+
+v1.1.0: LaunchPadBooster Networking V2
+- CHANGE: Migrated to the new Networking V2 API (dedicated channel, automatic compression, multi-packet splitting)
+- CHANGE: Explicitly enforce matching mod versions during the multiplayer handshake
+- REQUIRES: StationeersLaunchPad with LaunchPadBooster v0.2.0 or newer
+
+v1.0.0: Initial release
+- Combines Color Cycler, Network Painter, and Infinite Spray Paint into one multiplayer-safe mod
+- Scroll to cycle spray can colors; hold Shift to paint a single item; hold Ctrl for checkered pattern
+- Network painting for pipes, cables, and chutes with per-type toggles
+- Infinite spray paint uses and pollution suppression (server-side toggles)
+- Conflict detection against the three original mods
+  </ChangeLog>
+  <WorkshopHandle>3702940349</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>paint</Tag>
+    <Tag>multiplayer</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Spray Paint Plus</color></size>
+Combines color cycling, network painting, and infinite spray paint into one multiplayer-safe Stationeers mod.
+
+<b>Features:</b>
+- Full multiplayer support: all players see consistent paint results
+- Scroll wheel to cycle spray can colors
+- Infinite spray paint uses (configurable)
+- No spray paint pollution (configurable)
+- Spray paints entire pipe/cable/chute networks (hydroponic trays and passive vents form separate paint groups)
+- Spray paints all same-type walls bounding the same room
+- Spray paints connected frames, girders, and other large structures in a 6-neighbor grid
+- Hold Shift to paint single item (or swap with config)
+- Hold Ctrl for checkered pattern
+
+<b>Settings:</b>
+All features are configurable via the mod settings panel.
+Server settings control gameplay for all players.
+Client settings (scroll direction, single/network default) are personal.
+
+<b>Requirements:</b> BepInEx + StationeersLaunchPad
+
+<b>Multiplayer:</b> All players must have this mod installed. Matching mod versions are enforced during the connection handshake automatically. Dedicated servers need the same setup installed server-side.
+
+<b>Incompatible with</b> (mod refuses to load if either is found): Color Cycler, Network Painter (both by Elmotrix).
+<b>Redundant</b> (disable if installed): Infinite Spray Paint by Aspct, Infinite Paint Mod by Dingo.
+]]></InGameDescription>
+</ModMetadata>

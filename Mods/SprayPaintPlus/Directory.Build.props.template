@@ -1,0 +1,15 @@
+<!--
+  LOCAL BUILD CONFIGURATION
+
+  Copy this file to "Directory.Build.props" (same folder, alongside the .sln)
+  and edit StationeersPath to point at your Stationeers install root.
+
+  The copy is gitignored so each developer keeps their own path. MSBuild auto-
+  imports Directory.Build.props from any folder up the project tree, so the
+  value is picked up by the .csproj without any further wiring.
+-->
+<Project>
+  <PropertyGroup>
+    <StationeersPath>C:\Program Files (x86)\Steam\steamapps\common\Stationeers</StationeersPath>
+  </PropertyGroup>
+</Project>
