@@ -2,11 +2,11 @@
 
 ## Architecture overview
 
-Equipment Plus is a BepInEx plugin loaded via StationeersLaunchPad (SLP). It uses Harmony to patch game classes at runtime. The mod targets two items: `SensorLenses` and `AdvancedTablet`. It also patches `ConfigCartridge` for the configuration cartridge enhancements.
+Equipment Plus is a BepInEx plugin loaded via StationeersLaunchPad. It uses Harmony to patch game classes at runtime. The mod targets two items: `SensorLenses` and `AdvancedTablet`. It also patches `ConfigCartridge` for the configuration cartridge enhancements.
 
-All patches are applied in `Plugin.OnAllModsLoaded`, which fires from `Prefab.OnPrefabsLoaded` (after SLP finishes loading every mod). This timing lets the conflict detector scan all loaded assemblies before committing to patch.
+All patches are applied in `Plugin.OnAllModsLoaded`, which fires from `Prefab.OnPrefabsLoaded` (after StationeersLaunchPad finishes loading every mod). This timing lets the conflict detector scan all loaded assemblies before committing to patch.
 
-The plugin registers two custom save-data types (`SensorLensesSaveData`, `EquipmentPlusTabletSaveData`) and one custom network message (`SetActiveSensorMessage`) through SLP's `Mod` API. Save types are also injected directly into `XmlSaveLoad.ExtraTypes` at startup to handle the case where the serializer was already cached before our plugin loaded.
+The plugin registers two custom save-data types (`SensorLensesSaveData`, `EquipmentPlusTabletSaveData`) and one custom network message (`SetActiveSensorMessage`) through StationeersLaunchPad's `Mod` API. Save types are also injected directly into `XmlSaveLoad.ExtraTypes` at startup to handle the case where the serializer was already cached before our plugin loaded.
 
 ## File walkthrough
 
@@ -14,11 +14,11 @@ The plugin registers two custom save-data types (`SensorLensesSaveData`, `Equipm
 Entry point. `BepInPlugin`, `BepInDependency`, `BepInIncompatibility` attributes. `Awake` hooks `Prefab.OnPrefabsLoaded`. `OnAllModsLoaded` does:
 1. Conflict detection (assembly name scan for Better Advanced Tablet, ImprovedConfiguration, Slot Configuration Cartridge).
 2. Network setup (`Mod.Networking.Required = true`, registers `SetActiveSensorMessage`).
-3. Save-data type registration (both via SLP's `Mod.AddSaveDataType` and directly into `XmlSaveLoad.ExtraTypes`).
+3. Save-data type registration (both via StationeersLaunchPad's `Mod.AddSaveDataType` and directly into `XmlSaveLoad.ExtraTypes`).
 4. `Harmony.PatchAll()`.
 5. `SlotTypeIconPatch.RegisterMissingSensorIcon()`.
 
-`RegisterSaveDataTypeLate` uses reflection to append to `XmlSaveLoad.ExtraTypes` and null out `Serializers._worldData` so the XmlSerializer is rebuilt on next access. Both steps are needed because SLP's `AddSaveDataType` only injects via a Prefix on `XmlSaveLoad.AddExtraTypes`, which may have already executed before our plugin loaded.
+`RegisterSaveDataTypeLate` uses reflection to append to `XmlSaveLoad.ExtraTypes` and null out `Serializers._worldData` so the XmlSerializer is rebuilt on next access. Both steps are needed because StationeersLaunchPad's `AddSaveDataType` only injects via a Prefix on `XmlSaveLoad.AddExtraTypes`, which may have already executed before our plugin loaded.
 
 ### PrefabPatch.cs
 Mutates the `ItemSensorLenses` and `ItemAdvancedTablet` prefabs before any instances spawn. Adds 100 `Blocked` slots to each. Runs once, guarded by `_hasRun`. Triggered from three Harmony patches: `World.StartNewWorld`, `XmlSaveLoad.LoadWorld`, `NetworkClient.ProcessJoinData`. These cover new-game, load-game, and client-join paths.
@@ -82,7 +82,7 @@ Four Harmony patches on inherited methods of `SensorLenses`:
 All use `TargetMethod()` and type `__instance` as `Thing` (see note in SensorLensesPatches.cs).
 
 ### SetActiveSensorMessage.cs
-`INetworkMessage` (SLP). Fields: `LensesReferenceId`, `SensorReferenceId`, `PowerOn`.
+`INetworkMessage` (StationeersLaunchPad). Fields: `LensesReferenceId`, `SensorReferenceId`, `PowerOn`.
 
 `Process(clientId)` runs on the server. Validates that the lenses exist, the sensor chip exists and is in one of the lenses' slots, then applies `Sensor` and `OnOff` and sets flag 0x4000 for broadcast.
 
@@ -251,7 +251,7 @@ When the window is closed (GameObject inactive), `FindObjectsOfType<InventoryWin
 Vanilla restores children (chips/cartridges) one at a time AFTER the parent's `DeserializeSave`. Each child's `MoveToSlot` fires `OnChildEnterInventory`, which for lenses unconditionally sets `Sensor = child`. The last chip to enter wins, overwriting any value set during deserialization. Active-slot restoration must wait for `OnFinishedLoad`, which fires after all children are placed.
 
 ### XmlSaveLoad.ExtraTypes timing
-SLP's `Mod.AddSaveDataType` injects via a Prefix on `XmlSaveLoad.AddExtraTypes`. If that method already ran before our plugin loaded, the prefix never fires for our types. Direct injection into the `ExtraTypes` field plus nulling `Serializers._worldData` covers this race.
+StationeersLaunchPad's `Mod.AddSaveDataType` injects via a Prefix on `XmlSaveLoad.AddExtraTypes`. If that method already ran before our plugin loaded, the prefix never fires for our types. Direct injection into the `ExtraTypes` field plus nulling `Serializers._worldData` covers this race.
 
 ### SlotTypeIcon for SensorProcessingUnit
 Vanilla has no `sloticon-sensorprocessingunit` sprite in `Resources/UI/SlotTypes`. `Slot.PopulateSlotTypeSprites` runs at `InventoryManager.ManagerAwake` (before plugins load), so a Harmony Postfix on it never fires. The icon must be injected directly into `Slot._slotTypeLookup` at plugin load time.
@@ -280,7 +280,7 @@ Blocked slots cost almost nothing (no UI widget, no network traffic, no save-dat
 Plain click on held items fires vanilla's `AttackWith` path and collides with other mods that hook clicks (ImprovedConfiguration used plain click for Config Cartridge interaction). Requiring Ctrl makes the mod's cycling orthogonal to every other click handler.
 
 ### Why no custom message for slot writes
-Vanilla's `SetLogicFromClient` covers `LogicType` writes. No equivalent exists for `(LogicSlotType, slotIndex)` writes. Implementing a custom message for this would require registering it through SLP, handling server-side validation for slot-write permissions, and testing interactions with every device type that exposes writable slot logic. The original Slot Configuration Cartridge mod was single-player only; accepting the same limitation for remote clients (while supporting server/listen-server hosts) is a pragmatic tradeoff. A custom message can be added later if demand warrants it.
+Vanilla's `SetLogicFromClient` covers `LogicType` writes. No equivalent exists for `(LogicSlotType, slotIndex)` writes. Implementing a custom message for this would require registering it through StationeersLaunchPad, handling server-side validation for slot-write permissions, and testing interactions with every device type that exposes writable slot logic. The original Slot Configuration Cartridge mod was single-player only; accepting the same limitation for remote clients (while supporting server/listen-server hosts) is a pragmatic tradeoff. A custom message can be added later if demand warrants it.
 
 ### Why EquipmentPlusTabletSaveData inherits from vanilla AdvancedTabletSaveData
 Vanilla's `AdvancedTablet.DeserializeSave` does an `isinst` check for its own `AdvancedTabletSaveData`. By inheriting from it, our subclass passes that check and any fields vanilla adds in future updates are preserved automatically. The class is named differently to avoid XML type-name collision when both are registered in `ExtraTypes`.

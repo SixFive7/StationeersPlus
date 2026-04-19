@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace PowerTransmitterPlus
 {
     // Our three custom LogicType slots. Range 6571-6573 sits well outside vanilla
-    // (0-349) and SLE (1000-1830). LogicType is a ushort, so any value up to
+    // (0-349) and Stationeers Logic Extended (1000-1830). LogicType is a ushort, so any value up to
     // 65535 is legal at runtime. We just need to avoid collisions with other
     // mods that might pick the same numbers.
     //

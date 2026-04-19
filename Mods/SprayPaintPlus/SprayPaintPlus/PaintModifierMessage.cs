@@ -8,7 +8,7 @@ namespace SprayPaintPlus
     /// Bit 0 = Shift (single item paint, invert already applied), Bit 1 = Ctrl (checkered).
     /// PlayerHumanId is the sender's own controlled Human ReferenceId; the server keys
     /// PlayerModifiers by that id because vanilla paint messages identify the actor
-    /// by AttackParentId (a Human ReferenceId), not by the LPB connection id.
+    /// by AttackParentId (a Human ReferenceId), not by the LaunchPadBooster connection id.
     /// </summary>
     public class PaintModifierMessage : INetworkMessage
     {

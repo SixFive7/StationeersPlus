@@ -212,10 +212,10 @@ custom LogicType via `Stationpedia.Register(page, false)`. No body content
 beyond the one-line description. No extension sections. No reference pages.
 
 Pattern origin: the stub follows the pattern established by
-**Stationeers Logic Extended (SLE) by ThunderDuck** (Workshop ID `3625190467`).
-SLE has no public extensibility API, so every mod adding custom LogicTypes
-reimplements the registration pattern from scratch. The stub uses SLE-style
-defensive reflection (`AccessTools.TypeByName` with namespace fallbacks) and
+**Stationeers Logic Extended by ThunderDuck** (Workshop ID `3625190467`).
+Stationeers Logic Extended has no public extensibility API, so every mod adding custom LogicTypes
+reimplements the registration pattern from scratch. The stub uses the same
+defensive reflection style (`AccessTools.TypeByName` with namespace fallbacks) and
 the `TargetMethod()` + `Prepare()` Harmony pattern for graceful degradation
 on game-version drift.
 
@@ -229,18 +229,18 @@ once injected into `EnumCollections.LogicTypes`. Reserved bands:
 | Band | Owner | Notes |
 |---|---|---|
 | 0-349 | Vanilla game | Compiled-in `LogicType` enum members |
-| 1000-1830 | Stationeers Logic Extended (ThunderDuck) | Reserved by SLE; avoid |
+| 1000-1830 | Stationeers Logic Extended (ThunderDuck) | Reserved by Stationeers Logic Extended; avoid |
 | 6571-6599 | **PowerTransmitterPlus** | Our mod's reserved band |
 
 Future SixFive7 mods adding LogicTypes should reserve their own bands
-clear of vanilla, SLE, and PowerTransmitterPlus.
+clear of vanilla, Stationeers Logic Extended, and PowerTransmitterPlus.
 
 ### Three LogicType arrays that must be extended
 
 Stationeers stores LogicType lists in three separate places. A mod adding
 custom LogicTypes must extend all three for full UI coverage:
 
-| Array | Used by | PTP extension mechanism |
+| Array | Used by | PowerTransmitterPlus extension mechanism |
 |---|---|---|
 | `Logicable.LogicTypes` / `Logicable.LogicTypeNames` | `NextLogicType` cycling, tablet display | `LogicableInitializePatch` postfix |
 | `Assets.Scripts.EnumCollections.LogicTypes` | `ConfigCartridge` (configuration tablet UI) | Same patch; extends Values, ValuesAsInts, Names, PaddedNames, `<Length>k__BackingField` |
@@ -2069,7 +2069,7 @@ Library responsibility: none. Vanilla `PopulateThingPages` handles it.
 Mod responsibility:
 
 (a) Ensure custom LogicType rows appear natively by extending the enum
-collection and postfixing `CanLogicRead`/`Write`. (Existing PTP pattern.)
+collection and postfixing `CanLogicRead`/`Write`. (Existing PowerTransmitterPlus pattern.)
 
 (b) Call from `OnAllModsLoaded`:
 
@@ -3179,7 +3179,7 @@ StationpediaPlus implementation but available for diagnostic work.
 
 - SPA Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3634225688
 - SPA GitHub: https://github.com/FlorpyDorpinator/StationpediaAscended
-- SLE (Stationeers Logic Extended) Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467
+- Stationeers Logic Extended Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467
 
 ### 18.8 Preview / About.xml for StationpediaPlus
 
@@ -3301,7 +3301,7 @@ Motivation: public-vs-internal split visible in file tree. `Internal/` is a
 recognized .NET convention. Scales as the library grows.
 
 ### Decision 15, Testing matrix scope
-**B, 12 tests plus T-Native-Rows (13 for PTP).**
+**B, 12 tests plus T-Native-Rows (13 for PowerTransmitterPlus).**
 
 Motivation: SpaBridge is pure reflection into another mod's internals;
 explicit runtime verification tests catch regressions at test time rather
@@ -3467,7 +3467,7 @@ ILRepack tooling choice deferred to Phase 6 integration (Decision O1).
 - Reference page keys: `PowerTransmitterPlus_MicrowavePowerTransmissionModel`, `PowerTransmitterPlus_AutoAim`
 - Extended device keys: `ThingStructurePowerTransmitter`, `ThingStructurePowerTransmitterReceiver`
 
-### SLE reference (pattern origin)
+### Stationeers Logic Extended reference (pattern origin)
 - Workshop ID: `3625190467`
 - Author: ThunderDuck
 - Reserved LogicType band: 1000-1830 (avoid collision)

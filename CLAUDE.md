@@ -39,6 +39,16 @@ Examples: `Spray Paint Plus` / `SprayPaintPlus`, `Power Transmitter Plus` / `Pow
 
 No bracketed suffix tags (no `[StationeersLaunchPad]`, no `[SLP]`, no `[Beta]` etc.) are appended to display names. The fact that a mod requires StationeersLaunchPad is communicated by the "Compatibility / Requires" section in `README.md` and `About.xml` `<Description>`, not by the title.
 
+## Content: no abbreviations for mod or dependency names
+
+Never shorten a mod or dependency name to an invented acronym. The only accepted short forms are the canonical display name (`Power Transmitter Plus`) and the canonical code name (`PowerTransmitterPlus`); both are already short enough. Invented acronyms like `PTP` (Power Transmitter Plus), `SPP` (Spray Paint Plus), `EP` (Equipment Plus), `IP` (Inspector Plus), `SP` (Stationpedia Plus) are never acceptable, and the same rule applies to dependencies: write `StationeersLaunchPad`, not `SLP`; `LaunchPadBooster`, not `LPB`; `Stationeers Logic Extended`, not `SLE`; `BepInEx`, not `BIE`.
+
+Scope: every committed file (`README.md`, `RESEARCH.md`, `TODO.md`, `PLAN.md`, `NOTES.md`, `CLAUDE.md`, `About.xml`, `.cs`, `.csproj`, `.sln`, `.md` of any kind), every commit message, every PR description, every Workshop comment reply, and every chat response. No tables, no tags, no bracketed suffixes, no quick shorthand in parentheses.
+
+The cost of typing the full name is paid once; the cost of an abbreviation propagates to every future reader (including AI assistants re-reading the repo weeks later) who has to decode it, and inconsistent shorthand drifts across files. Readers should never need a glossary.
+
+Only exception: citing an abbreviation *as a negative example* explicitly calling it out as forbidden (for example, "section title `Power Transmitter Plus Details`, not `PTP Details`"). Such citations teach the anti-pattern and require the abbreviation to be shown precisely so the rule is unambiguous.
+
 ## Content: keep README and About in sync
 
 User-facing content lives in three mirrored places, each with its own markup. When features or settings copy change, update all three.

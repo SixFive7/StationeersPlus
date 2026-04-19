@@ -42,7 +42,7 @@ All require: tablet in active hand, cartridge currently displayed (not a sibling
 8. **Tablet in off-hand**: switch tablet to the non-active hand, click. Expected: handler bails with `"bail: tablet not in ActiveHandSlot"` in the log.
 9. **Cursor off device**: aim at empty air or a non-device prop, click. Expected: handler bails with `"bail: ScannedDevice is null"` in the log.
 
-If any of 1-6 fails, the log (tail `E:/Steam/steamapps/common/Stationeers/BepInEx/LogOutput.log`) should contain an `[EP.click]` line from the bail branch. That line names the exact gate that failed.
+If any of 1-6 fails, the log (tail `E:/Steam/steamapps/common/Stationeers/BepInEx/LogOutput.log`) should contain an `[EquipmentPlus.click]` line from the bail branch. That line names the exact gate that failed.
 
 ## Notes to keep
 

@@ -161,13 +161,13 @@ namespace EquipmentPlus
             if (ConfigCartridgeState.AnyCtrlHeld())
             {
                 if (ConfigCartridgeState.ClickTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EP.click] suppressed: Ctrl held");
+                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.click] suppressed: Ctrl held");
                 return;
             }
 
             if (ConfigCartridgeState.ClickTrace)
                 EquipmentPlusPlugin.Log.LogInfo(
-                    $"[EP.click] fired: selected={selected} lineCount={lines.Count}");
+                    $"[EquipmentPlus.click] fired: selected={selected} lineCount={lines.Count}");
 
             // Must be in the player's active hand
             var tablet = __instance.Tablet;
@@ -175,21 +175,21 @@ namespace EquipmentPlus
             {
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EP.click] bail: tablet={(tablet == null ? "null" : "set")} parentSlot=null");
+                        $"[EquipmentPlus.click] bail: tablet={(tablet == null ? "null" : "set")} parentSlot=null");
                 return;
             }
             if (tablet.ParentSlot != InventoryManager.ActiveHandSlot)
             {
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        "[EP.click] bail: tablet not in ActiveHandSlot");
+                        "[EquipmentPlus.click] bail: tablet not in ActiveHandSlot");
                 return;
             }
             if (tablet.Cartridge != __instance)
             {
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        "[EP.click] bail: tablet.Cartridge != this cartridge (not the displayed one)");
+                        "[EquipmentPlus.click] bail: tablet.Cartridge != this cartridge (not the displayed one)");
                 return;
             }
 
@@ -198,7 +198,7 @@ namespace EquipmentPlus
             {
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        "[EP.click] bail: ScannedDevice is null (cursor not on a device)");
+                        "[EquipmentPlus.click] bail: ScannedDevice is null (cursor not on a device)");
                 return;
             }
 
@@ -213,7 +213,7 @@ namespace EquipmentPlus
 
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EP.click] slot-line path: {slotLabel} writable={slotInfo.IsWritable} value={currentSlotValueStr}");
+                        $"[EquipmentPlus.click] slot-line path: {slotLabel} writable={slotInfo.IsWritable} value={currentSlotValueStr}");
 
                 if (slotInfo.IsWritable)
                 {
@@ -264,7 +264,7 @@ namespace EquipmentPlus
             {
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EP.click] bail: '{typeName}' is not a LogicType (likely header/ReferenceId)");
+                        $"[EquipmentPlus.click] bail: '{typeName}' is not a LogicType (likely header/ReferenceId)");
                 return;
             }
 
@@ -273,7 +273,7 @@ namespace EquipmentPlus
 
             if (ConfigCartridgeState.ClickTrace)
                 EquipmentPlusPlugin.Log.LogInfo(
-                    $"[EP.click] logic-type path: {logicType} writable={device.CanLogicWrite(logicType)} value={currentValueStr}");
+                    $"[EquipmentPlus.click] logic-type path: {logicType} writable={device.CanLogicWrite(logicType)} value={currentValueStr}");
 
             if (device.CanLogicWrite(logicType))
             {

@@ -39,7 +39,7 @@ All features work correctly for every player. Matching mod versions are enforced
 - [ImprovedConfiguration](https://steamcommunity.com/sharedfiles/filedetails/?id=3651839114) by Doggo, *replaced with multiplayer support*
 - [Slot Configuration Cartridge](https://steamcommunity.com/sharedfiles/filedetails/?id=3578912665) by Otis B., *absorbed*
 
-These mods touch the same prefabs or UI paths. Disable any that are installed before enabling Equipment Plus. The conflict check runs after StationeersLaunchPad finishes loading all mods, so conflicts are detected even when SLP bypasses BepInEx's own incompatibility system.
+These mods touch the same prefabs or UI paths. Disable any that are installed before enabling Equipment Plus. The conflict check runs after StationeersLaunchPad finishes loading all mods, so conflicts are detected even when StationeersLaunchPad bypasses BepInEx's own incompatibility system.
 
 **Explicitly verified compatible (decompiled DLL + Harmony-attribute audit + IL cross-reference scan):**
 - [ScriptedScreens](https://steamcommunity.com/sharedfiles/filedetails/?id=3666779631): All 63 `[HarmonyPatch]` attributes target `ProgrammableChipMotherboard`, `Motherboard`, `Circuitboard`, `Computer`, `ProgrammableChip`, UI-raycast/input classes, `GameManager`, `KeyWrap`, `SaveHelper`, `Thing.InteractWith`, and `Item.OnPowerTick`. Zero overlap with our patch surface. IL scan: zero uses of `NetworkUpdateFlag 0x4000`.

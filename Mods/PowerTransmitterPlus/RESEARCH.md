@@ -19,7 +19,7 @@ Related files:
 | Plugin GUID | `net.powertransmitterplus` |
 | Author | SixFive7 |
 | Custom LogicType reserved band | `6571 - 6599` |
-| Safely outside of | vanilla (0-349) and SLE (1000-1830) |
+| Safely outside of | vanilla (0-349) and Stationeers Logic Extended (1000-1830) |
 | Target framework | .NET Framework 4.7.2, classic-style csproj |
 | Hard dependency | `stationeers.launchpad` (StationeersLaunchPad) |
 
@@ -66,8 +66,8 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 | Logic readout (UI/IC10) | `LogicReadoutPatches.cs` | `CanLogicRead` postfix + `GetLogicValue` prefix on `WirelessPower` (base class); branches on instance type inside |
 | Auto-aim logic write | `AutoAimPatches.cs` | `SetLogicValue` prefix intercepts `MicrowaveAutoAimTarget`; `RotatableBehaviour` target setter postfixes clear the cache on manual override. Per-dish cache via `ConditionalWeakTable` |
 | Logic system bootstrap | `Ic10ConstantsPatcher.cs`, `LogicableInitializePatch.cs`, `EnumNamePatches.cs`, `StationpediaPatches.cs` | Teach the game about our `LogicType` values 6571-6576 everywhere the game looks them up by name: compiler constants, tablet arrays, enum name resolution, screen syntax highlighting, Stationpedia |
-| Multiplayer sync (k) | `DistanceConfigMessage.cs`, `DistanceConfigSync.cs` | Server-authoritative `k` push to clients via LPB networking |
-| Multiplayer sync (visuals) | `BeamVisualConfigMessage.cs`, `BeamVisualConfigSync.cs` | Server-authoritative beam visual config push to clients via LPB networking |
+| Multiplayer sync (k) | `DistanceConfigMessage.cs`, `DistanceConfigSync.cs` | Server-authoritative `k` push to clients via LaunchPadBooster networking |
+| Multiplayer sync (visuals) | `BeamVisualConfigMessage.cs`, `BeamVisualConfigSync.cs` | Server-authoritative beam visual config push to clients via LaunchPadBooster networking |
 | Foundation | `Plugin.cs`, `MainThreadDispatcher.cs`, `LogicTypeRegistry.cs`, `BeamManager.cs`, `BeamLine.cs`, `BeamPulseTrain.cs` | Wiring, registry, beam GameObjects |
 
 ---
@@ -85,7 +85,7 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 4. Hook `DistanceConfigSync.HookHostBroadcast()` (wires `SettingChanged` → broadcast).
 5. Subscribe `Prefab.OnPrefabsLoaded += OnAllModsLoaded`.
 
-`OnAllModsLoaded()` (deferred until SLP finishes loading all mods):
+`OnAllModsLoaded()` (deferred until StationeersLaunchPad finishes loading all mods):
 1. Set `MOD.Networking.Required = true`.
 2. Register `DistanceConfigMessage` with `MOD.Networking.RegisterMessage<T>()`.
 3. `new Harmony(PluginGuid).PatchAll()`.
@@ -745,7 +745,7 @@ No `PowerStatsTracker` dictionary, no per-tick stamping, no age-out. Snap-to-zer
 
 ## 10. Reference patterns from other mods
 
-### 10.1. Stationeers Logic Extended (SLE, Workshop ID 3625190467)
+### 10.1. Stationeers Logic Extended (Workshop ID 3625190467)
 
 Author: ThunderDuck. Establishes the pattern for mod-authored custom LogicTypes. This mod adopts that pattern in full:
 - Registry of `LogicTypeInfo` entries, hardcoded inline.
@@ -755,7 +755,7 @@ Author: ThunderDuck. Establishes the pattern for mod-authored custom LogicTypes.
 - Per-device `CanLogicRead` postfix + `GetLogicValue` prefix.
 - Postfix on `Stationpedia.PopulateLogicVariables`.
 
-SLE has NO public extensibility API. Every mod that wants custom LogicTypes reimplements the registration pattern from scratch.
+Stationeers Logic Extended has NO public extensibility API. Every mod that wants custom LogicTypes reimplements the registration pattern from scratch.
 
 `Animator.StringToHash(name)` is the value stored in `Constant.Hash`, used for the `#hash` MIPS directive; pure name lookups don't require it.
 
@@ -786,7 +786,7 @@ SprayPaintPlus only does client→server messages; this mod is the first in the 
 | Pulse intensity ramp `sqrt(intensity)` | Vanilla `VisualizerIntensity` rarely exceeds 0.3 in real bases; `sqrt` makes low values still visible |
 | Scroll speed default `25.0 m/s` | At 5 kW (intensity = 1) this is clearly energetic; the distance-cost patches allow > 5 kW, which pushes speed higher organically |
 | `k = 5` distance-cost default | Gives 1 km = 6:1, 5 km = 26:1; meaningful but not punishing |
-| LogicType values `6571 - 6575` (reserved `6571 - 6599`) | Safely outside vanilla (0-349) and SLE (1000-1830) |
+| LogicType values `6571 - 6575` (reserved `6571 - 6599`) | Safely outside vanilla (0-349) and Stationeers Logic Extended (1000-1830) |
 | `MicrowaveDestinationDraw` added (redundant with `PowerActual`) | Clearer naming on receiver side |
 | `MicrowaveEfficiency` as a fourth readout | Ratio of delivered/source purely derivable from distance and `k`, but convenient to expose directly rather than requiring an IC10 division every tick |
 | Pivot-to-pivot aim geometry, NOT `RayTransform` or `DishTarget` | `RayTransform` / `DishTarget` are Head children. Their world positions swing with dish rotation. Aiming from or at them produces self-referential error and locks aim onto the target's CURRENT pose. `dish.transform.position` → `target.transform.position` makes both endpoints rotation-invariant, so a dish targets correctly even when the other side is still pointing the wrong way |

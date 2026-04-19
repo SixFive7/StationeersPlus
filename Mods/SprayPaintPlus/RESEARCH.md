@@ -2,32 +2,32 @@
 
 ## Architecture
 
-Spray Paint Plus is a BepInEx plugin for Stationeers, loaded via StationeersLaunchPad (SLP). It uses Harmony patches to intercept game methods and LaunchPadBooster (LPB) for multiplayer message transport.
+Spray Paint Plus is a BepInEx plugin for Stationeers, loaded via StationeersLaunchPad. It uses Harmony patches to intercept game methods and LaunchPadBooster for multiplayer message transport.
 
 The mod is server-authoritative. Clients send input events (color scroll, modifier keys) to the server. The server applies paint and broadcasts results through the game's normal network update system.
 
 ### Dependencies
 
 - **BepInEx**: Plugin loader and configuration framework.
-- **StationeersLaunchPad (SLP)**: Mod manager that loads BepInEx plugins into Stationeers. Provides `Prefab.OnPrefabsLoaded` for deferred initialization.
-- **LaunchPadBooster (LPB)**: Networking layer on top of SLP. Provides `INetworkMessage`, channel-based message transport, automatic compression, and a version-matching handshake (`Networking.Required = true`).
+- **StationeersLaunchPad**: Mod manager that loads BepInEx plugins into Stationeers. Provides `Prefab.OnPrefabsLoaded` for deferred initialization.
+- **LaunchPadBooster**: Networking layer on top of StationeersLaunchPad. Provides `INetworkMessage`, channel-based message transport, automatic compression, and a version-matching handshake (`Networking.Required = true`).
 
 ### Conflict detection
 
-The mod replaces Color Cycler and Network Painter. It cannot coexist with them because they patch the same methods. `BepInIncompatibility` attributes cover load-time detection, but SLP loads mods progressively, so those assemblies may not exist when `Awake()` runs. A second check runs on `Prefab.OnPrefabsLoaded`, scanning `AppDomain.CurrentDomain.GetAssemblies()` for the conflicting assembly names. If found, the mod logs a fatal error and starts a coroutine that repeats the warning every 5 seconds. No Harmony patches are applied.
+The mod replaces Color Cycler and Network Painter. It cannot coexist with them because they patch the same methods. `BepInIncompatibility` attributes cover load-time detection, but StationeersLaunchPad loads mods progressively, so those assemblies may not exist when `Awake()` runs. A second check runs on `Prefab.OnPrefabsLoaded`, scanning `AppDomain.CurrentDomain.GetAssemblies()` for the conflicting assembly names. If found, the mod logs a fatal error and starts a coroutine that repeats the warning every 5 seconds. No Harmony patches are applied.
 
 ## File walkthrough
 
 | File | Purpose |
 |---|---|
-| `Plugin.cs` | Entry point. Binds config, runs conflict detection, registers LPB messages, applies Harmony patches. |
+| `Plugin.cs` | Entry point. Binds config, runs conflict detection, registers LaunchPadBooster messages, applies Harmony patches. |
 | `SprayPaintHelpers.cs` | Shared state and utility methods. Color index dictionary (`SprayCanColors`), modifier state dictionary (`PlayerModifiers`), current-painter tracking (`CurrentPaintingHumanId`), color lookup/apply helpers, thumbnail cache. |
 | `ColorCyclerPatch.cs` | Patches `InventoryManager.NormalMode`. Detects scroll input while holding a spray can, cycles color index, sends `SprayCanColorMessage` to the server. Also polls modifier keys and sends `PaintModifierMessage` when state changes. |
 | `NetworkPainterPatch.cs` | Patches `OnServer.SetCustomColor`. When a paint action fires, reads the painter's modifier state and either paints a single item or floods the connected network/room/grid. Contains `PaintAttackerTracker_Local` and `PaintAttackerTracker_Remote` patches that capture the painting player's Human ReferenceId before the paint reaches `SetCustomColor`. |
 | `SprayCanUsePatch.cs` | Patches `SprayCan.OnUseItem`. Implements infinite paint (sets quantity to 0) and pollution suppression (skips vanilla's gas emission). |
 | `ConsumableSyncPatch.cs` | Patches `Consumable.BuildUpdate`, `ProcessUpdate`, `SerializeOnJoin`, `DeserializeOnJoin`. Appends the spray can's color index to the game's binary network stream so color syncs to all clients and late joiners. |
-| `SprayCanColorMessage.cs` | LPB `INetworkMessage`. Client-to-server: "I scrolled to color X on spray can Y." Server validates the color index and applies it. |
-| `PaintModifierMessage.cs` | LPB `INetworkMessage`. Client-to-server: "My modifier key state is now X." Carries the player's Human ReferenceId so the server can key the lookup correctly. |
+| `SprayCanColorMessage.cs` | LaunchPadBooster `INetworkMessage`. Client-to-server: "I scrolled to color X on spray can Y." Server validates the color index and applies it. |
+| `PaintModifierMessage.cs` | LaunchPadBooster `INetworkMessage`. Client-to-server: "My modifier key state is now X." Carries the player's Human ReferenceId so the server can key the lookup correctly. |
 | `CleanupPatches.cs` | Patches `Thing.OnDestroy` and `NetworkServer.ClientDisconnected`. Removes stale entries from `SprayCanColors` and `PlayerModifiers` dictionaries. |
 
 ## Patch catalog
@@ -80,7 +80,7 @@ No try-catch wraps these calls. If the read/write throws, catching it would leav
 Two patches capture the painting player's identity before the paint reaches `SetCustomColor`:
 
 - **Local** (`OnServer.AttackWith`): `attackParent` is the player's Human. Store its `ReferenceId`.
-- **Remote** (`AttackWithMessage.Process`): `AttackParentId` from the message body is the Human ReferenceId. The `hostId` parameter (LPB connection id) is unreliable on the server.
+- **Remote** (`AttackWithMessage.Process`): `AttackParentId` from the message body is the Human ReferenceId. The `hostId` parameter (LaunchPadBooster connection id) is unreliable on the server.
 
 Both postfixes reset `CurrentPaintingHumanId` to -1. The `NetworkPainterPatch.Prefix` also resets it after reading, as a guard against stale values if an earlier tracker postfix was skipped due to an exception.
 
@@ -140,7 +140,7 @@ The `IsActive && !IsServer` guard correctly identifies remote clients without ca
 
 ### Messages
 
-Two LPB `INetworkMessage` types, both client-to-server:
+Two LaunchPadBooster `INetworkMessage` types, both client-to-server:
 
 1. **SprayCanColorMessage**: `{ SprayCanId: long, ColorIndex: int }`. Sent when a client scrolls to change color. Server validates ColorIndex range, finds the SprayCan by ReferenceId, and applies the color. The update broadcasts to all clients via the normal `Consumable` network update path.
 
@@ -148,7 +148,7 @@ Two LPB `INetworkMessage` types, both client-to-server:
 
 ### Version handshake
 
-`MOD.Networking.Required = true` tells LPB to reject connections from clients that do not have the mod, or have a different version. This ensures all players run the same wire format.
+`MOD.Networking.Required = true` tells LaunchPadBooster to reject connections from clients that do not have the mod, or have a different version. This ensures all players run the same wire format.
 
 ### Sync flow for color changes
 
@@ -208,13 +208,13 @@ The three original mods (Color Cycler, Network Painter, Infinite Spray Paint) ea
 
 All paint logic runs on the server. Clients send input (scroll, modifiers) and the server decides what gets painted. This prevents desync and means the server's config toggles are the single source of truth.
 
-### LPB Networking V2
+### LaunchPadBooster Networking V2
 
-Moved from piggybacking on `ThingColorMessage` to LPB's dedicated message channels. V2 provides automatic compression, multi-packet splitting, and a version handshake. The handshake rejects mismatched mod versions, preventing wire-format desync.
+Moved from piggybacking on `ThingColorMessage` to LaunchPadBooster's dedicated message channels. V2 provides automatic compression, multi-packet splitting, and a version handshake. The handshake rejects mismatched mod versions, preventing wire-format desync.
 
 ### Human ReferenceId for player identification
 
-The original mods used the LPB connection id to track which player pressed which modifier keys. But `AttackWithMessage` on the server does not carry the LPB connection id; it carries `AttackParentId`, which is the Human ReferenceId. Keying `PlayerModifiers` by Human ReferenceId matches the identifier available at paint time.
+The original mods used the LaunchPadBooster connection id to track which player pressed which modifier keys. But `AttackWithMessage` on the server does not carry the LaunchPadBooster connection id; it carries `AttackParentId`, which is the Human ReferenceId. Keying `PlayerModifiers` by Human ReferenceId matches the identifier available at paint time.
 
 ### GenericFlag2 for color sync
 

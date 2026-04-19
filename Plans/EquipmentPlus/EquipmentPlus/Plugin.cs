@@ -28,7 +28,7 @@ namespace EquipmentPlus
 
         internal const int MaxExtraSlots = 100;
 
-        // Conflicting mod assembly names (case-insensitive). SLP bypasses BepInIncompatibility.
+        // Conflicting mod assembly names (case-insensitive). StationeersLaunchPad bypasses BepInIncompatibility.
         private static readonly (string Assembly, string DisplayName)[] ConflictingMods =
         {
             ("betteradvancedtablet", "Better Advanced Tablet"),
@@ -74,7 +74,7 @@ namespace EquipmentPlus
 
                 // Register our save-data subclasses via LaunchPadBooster so
                 // future XmlSaveLoad.AddExtraTypes callers pick them up via
-                // LPB's prefix, AND inject directly into XmlSaveLoad.ExtraTypes
+                // LaunchPadBooster's prefix, AND inject directly into XmlSaveLoad.ExtraTypes
                 // + invalidate the cached XmlSerializer. See comment on
                 // RegisterSaveDataTypeLate for why both are needed.
                 MOD.AddSaveDataType<SensorLensesSaveData>();
