@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.4</Version>
+  <Version>1.1.5</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
@@ -88,6 +88,11 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.1.5: Fix About.xml parse error that caused the mod to load as [Invalid About.xml]
+- The v1.1.1 changelog entry contained a literal &lt;WorkshopHandle&gt; tag which the XML parser read as a child element inside &lt;ChangeLog&gt;, breaking About.xml deserialization
+- Escaped the angle brackets so the tag renders as plain text in Workshop change notes
+- No gameplay changes
+
 v1.1.4: Repoint Reporting Issues and Source Code URLs at the StationeersPlus monorepo
 - The Reporting Issues link in the About description now points at github.com/SixFive7/StationeersPlus/issues
 - The Source Code link now points at github.com/SixFive7/StationeersPlus/tree/master/Mods/PowerTransmitterPlus
