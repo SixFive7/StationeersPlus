@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Inspector Plus</Name>
+  <ModID>net.inspectorplus</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]Inspector Plus[/h1]
+
+Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
+
+Not intended for end-user gameplay. Subscribe only if you are writing or debugging a Stationeers mod.
+
+[h2]Features[/h2]
+
+[h3]On-Demand Snapshots via Request JSON[/h3]
+Drop a request JSON into [b]BepInEx/inspector/requests/[/b] specifying types and fields to inspect. The plugin writes a snapshot into [b]BepInEx/inspector/snapshots/snapshot_<timestamp>.json[/b] and deletes the request. This is the programmatic path: drop the file, get the result.
+
+[h3]F8 Full-Scene Dump[/h3]
+Press F8 in-game to dump every MonoBehaviour in the current scene to the same snapshots folder in one shot. Useful for the first-pass "what is in the scene right now" survey.
+
+[h3]Field, Property, and Unity Position Capture[/h3]
+Dumps private and public fields, computed properties, and Unity Transform positions. Walks nested objects to a configurable depth, with cycle detection.
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]Single-player and multiplayer.[/b] Works on any instance where it is installed. This is a developer tool; do not require it on a shared server.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/InspectorPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v0.1.0: Initial release
+- On-demand snapshots via request JSON drop in BepInEx/inspector/requests/
+- F8 full-scene MonoBehaviour dump
+- Field, property, and Unity position capture with configurable recursion depth and cycle detection
+  </ChangeLog>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>Tool</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Inspector Plus</color></size>
+Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
+
+<b>Usage:</b> Press F8 in-game for a full MonoBehaviour dump, or drop a request JSON into BepInEx/inspector/requests/ for a targeted snapshot. Output lands in BepInEx/inspector/snapshots/.
+
+<b>Not intended for end-user gameplay.</b> For modders only.
+]]></InGameDescription>
+</ModMetadata>
