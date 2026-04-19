@@ -57,13 +57,6 @@ Inspired by [url=https://steamcommunity.com/sharedfiles/filedetails/?id=31344835
 
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
-  <Tags>
-    <Tag>BepInEx</Tag>
-    <Tag>StationeersLaunchPad</Tag>
-    <Tag>sensor</Tag>
-    <Tag>tablet</Tag>
-    <Tag>multiplayer</Tag>
-  </Tags>
   <ChangeLog>
 v1.0.0: Initial release
 - Dynamic multi-slot support for Sensor Lenses and the Advanced Tablet (slots grow as you fill them, shrink as you empty them; exactly one empty slot visible at all times)
@@ -73,6 +66,14 @@ v1.0.0: Initial release
 - Active sensor chip persists across save/load (custom SensorLensesSaveData registered via XmlSaveLoad.AddExtraTypes) and syncs across peers in multiplayer (custom NetworkUpdateFlag 0x4000 + SerializeOnJoin/DeserializeOnJoin + client SetActiveSensorMessage)
 - Startup conflict detection for Better Advanced Tablet, ImprovedConfiguration, and Slot Configuration Cartridge; the mod refuses to load if any of those are enabled and logs an ongoing warning
   </ChangeLog>
+  <WorkshopHandle></WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>sensor</Tag>
+    <Tag>tablet</Tag>
+    <Tag>multiplayer</Tag>
+  </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Equipment Plus</color></size>
 Adds dynamic multi-slot sensor lenses and advanced tablets to Stationeers, with multiplayer-safe configuration cartridge enhancements.
 

@@ -100,7 +100,7 @@ v1.1.2: Remove Shader Name config entry
 - Removed the Shader Name config entry. The beam shader is now fixed to the built-in fallback chain (Legacy Shaders/Particles/Additive with three fallbacks).
 
 v1.1.1: Patch release (Workshop preview images in build output)
-- Added <WorkshopHandle> to About.xml and ensured Preview.png / thumb.png copy to the build output for the Workshop upload pipeline.
+- Added &lt;WorkshopHandle&gt; to About.xml and ensured Preview.png / thumb.png copy to the build output for the Workshop upload pipeline.
 
 v1.1.0: Link-partner logic and host-broadcast beam visuals
 - Added MicrowaveLinkedPartner (6576): read-only LogicType returning the ReferenceId of the currently linked partner dish on both transmitter and receiver

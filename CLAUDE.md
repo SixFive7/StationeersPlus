@@ -81,6 +81,24 @@ v1.2.3: Previous version's summary
 
 Blank line between versions. Dashes for bullets. No `#`, no `[h3]`, no Markdown. Line breaks render as line breaks on Workshop.
 
+## Content: About.xml structure and XML safety
+
+Every `About.xml` uses the same element order, and every mod pays attention to the same two XML-parse pitfalls. StationeersLaunchPad deserializes `About.xml` with `XmlSerializer`; a single stray angle bracket inside a simple-text element renames the mod `[Invalid About.xml] <ModID>` in-game and the plugin loads under that broken label.
+
+Canonical top-level element order (matches `Mods/Template/Template/About/About.xml`):
+
+```
+Name, ModID, Author, Version, Description, ChangeLog, WorkshopHandle, Tags, InGameDescription
+```
+
+Rules:
+
+- Follow that order in every new and existing `About.xml`. Do not interleave `<Tags>` before `<ChangeLog>`, do not push `<WorkshopHandle>` to the end.
+- `<WorkshopHandle>` is always present. Un-published mods (anything in `Plans/`, or a released mod before its first Workshop upload) keep an empty element: `<WorkshopHandle></WorkshopHandle>`. Fill in the numeric handle once the Workshop item exists.
+- `<Description>` and `<ChangeLog>` are simple-text XML elements. Any literal `<` or `>` inside their content must be escaped as `&lt;` and `&gt;`. This applies to phrases like "added `<WorkshopHandle>` to About.xml" in the changelog and filename patterns like `snapshot_<timestamp>.json` in the description. BBCode square brackets (`[h1]`, `[list][*]`, `[url=...]`) are safe; only angle brackets need escaping.
+- `<InGameDescription>` is wrapped in `<![CDATA[...]]>` everywhere. Unity rich text (`<size>`, `<color>`, `<b>`) inside the CDATA block is raw, not escaped.
+- When seeding a new mod from `Mods/Template/`, preserve the element order and the empty `<WorkshopHandle>` verbatim.
+
 ## Content: Reporting Issues section
 
 Every mod's `README.md` and `About.xml` `<Description>` must include a "Reporting Issues" section directing users to the monorepo's GitHub issues page. Steam Workshop comment notifications are unreliable, so bug reports left as Workshop comments often go unseen. Point users at GitHub instead.
