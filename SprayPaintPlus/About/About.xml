@@ -103,29 +103,36 @@ Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache Licen
   <ChangeLog>
 v1.2.4: Patch release
 - REQUIRES: All players on a server must run 1.2.4 (matching-version handshake)
+
 v1.2.3: Refreshed Steam Workshop preview art
 - Replaced the preview and thumbnail images with a new 16:9 key art that showcases the mod's features (color cycling, infinite paint, network painting, Shift/Ctrl modifiers, multiplayer)
 - No gameplay changes
 - REQUIRES: All players on a server must run 1.2.3 (matching-version handshake)
+
 v1.2.2: Infinite spray fix for single-player
 - FIX: Infinite spray paint now works in solo play. The server-only guard was also catching single-player (which the game reports as neither server nor client), so the infinite/suppress logic was silently skipped outside multiplayer.
 - REQUIRES: All players on a server must run 1.2.2 (matching-version handshake)
+
 v1.2.1: Ctrl-checkered fix for walls and large structures
 - FIX: Ctrl now produces a proper alternating pattern on walls and large structures. Previously every candidate landed on the same cell-parity, so the checker filter painted the whole set.
 - REQUIRES: All players on a server must run 1.2.1 (matching-version handshake)
+
 v1.2.0: Paint whole rooms and whole frame grids
 - NEW: Painting a wall now paints all same-type walls bounding the same room
 - NEW: Painting a frame, girder, or other large structure paints all orthogonally-connected structures of the exact same type
 - NEW: Server toggles "Network Paint Walls" and "Network Paint Large Structures" (both default on)
 - Shift still restricts to the single targeted item; Ctrl still produces a checkered pattern
+
 v1.1.1: Modifier keys for clients
 - FIX: Shift / Ctrl modifiers now apply correctly when remote clients paint. Previously the server read the host's keyboard for every client's paint action, so clients' modifiers were ignored (always behaved as if nothing was held)
 - Skip redundant client-side network-paint prefix for non-spray paint paths (cosmetic-only, did not propagate)
 - REQUIRES: All players on a server must run 1.1.1 (wire format change in the modifier message)
+
 v1.1.0: LaunchPadBooster Networking V2
 - CHANGE: Migrated to the new Networking V2 API (dedicated channel, automatic compression, multi-packet splitting)
 - CHANGE: Explicitly enforce matching mod versions during the multiplayer handshake
 - REQUIRES: StationeersLaunchPad with LaunchPadBooster v0.2.0 or newer
+
 v1.0.0: Initial release
 - Combines Color Cycler, Network Painter, and Infinite Spray Paint into one multiplayer-safe mod
 - Scroll to cycle spray can colors; hold Shift to paint a single item; hold Ctrl for checkered pattern
