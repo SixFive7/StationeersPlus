@@ -7,11 +7,9 @@
   - Delete the three preview placeholder files: `Preview.source.png.placeholder`, `About/Preview.png.placeholder`, `About/thumb.png.placeholder`
   - Collapse `About.xml` back to a short plain-text `<Description>` that makes the dev-tool framing obvious and drop the `<ChangeLog>`, `<ModID>` (optional), and `Reporting Issues` / `License` h2 sections from the Workshop-facing surface
   - Remove the `BepInEx` and `StationeersLaunchPad` tags, keep only the `Tool` tag
-  - Skip the GitHub repo creation and Workshop publish
+  - Skip the Workshop publish (the mod still lives in the monorepo source tree under `Mods/InspectorPlus/` either way, only the Workshop presence differs).
 
   If it stays public, the remaining public-release steps apply:
 
-- [ ] Generate preview art (`Preview.source.png` at repo root, `About/Preview.png` at 1280x720, `About/thumb.png` at 640x360). Placeholders document the required dimensions.
-- [ ] Create GitHub repo `SixFive7/InspectorPlus` and push
-- [ ] Run `gh repo edit SixFive7/InspectorPlus --description "Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development."`
-- [ ] Publish to Steam Workshop, populate `<WorkshopHandle>` in `About.xml`, replace the "Once the mod is published..." sentence in the README Changelog section with the real Workshop change-notes URL
+- [ ] Generate preview art (`Preview.source.png` at the mod's folder root, `About/Preview.png` at 1280x720, `About/thumb.png` at 640x360). Placeholders document the required dimensions.
+- [ ] Publish to Steam Workshop, populate `<WorkshopHandle>` in `About.xml`, replace the "Once the mod is published..." sentence in the README Changelog section with the real Workshop change-notes URL.
