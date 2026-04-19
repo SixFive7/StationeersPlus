@@ -6,7 +6,7 @@
   <Version>1.2.4</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
-A combined Stationeers mod that brings together [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into a single mod that now also fully supports multiplayer.
+Combines [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
 
 Builds on the excellent work of [b]Elmotrix[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url], [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url]) and [b]Aspct[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url]), whose original mods inspired this project. The multiplayer networking code in Color Cycler was contributed by [b]SubHobo[/b] (bls220). Spray Paint Plus combines their ideas and fixes the multiplayer issues that affected clients in those mods.
 
@@ -141,7 +141,7 @@ v1.0.0: Initial release
     <Tag>multiplayer</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Spray Paint Plus</color></size>
-Combines color cycling, network painting, and infinite spray paint into one multiplayer-safe mod.
+Combines color cycling, network painting, and infinite spray paint into one multiplayer-safe Stationeers mod.
 
 <b>Features:</b>
 - Full multiplayer support: all players see consistent paint results

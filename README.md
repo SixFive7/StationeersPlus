@@ -2,7 +2,7 @@
 
 ![Spray Paint Plus](SprayPaintPlus/About/Preview.png)
 
-A combined Stationeers mod that brings together **color cycling**, **network painting**, and **infinite spray paint** into a single mod that now also fully supports multiplayer.
+Combines **color cycling**, **network painting**, and **infinite spray paint** into one multiplayer-safe Stationeers mod.
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
