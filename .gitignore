@@ -18,6 +18,9 @@ obj/
 *.exe
 *.cache
 
+## Committed runtime binaries that must escape the *.dll rule
+!Plans/LLM/LLM/redist/*.dll
+
 ## NuGet
 packages/
 *.nupkg
@@ -82,9 +85,5 @@ build/
 ## Node (defensive; unlikely to be used)
 node_modules/
 
-## LLM mod content (2+ GB, pending Git LFS; see root TODO.md)
-Plans/LLM/*
-!Plans/LLM/README.md
-
-## LLM model files (binary weights)
+## LLM model files (binary weights; users download separately, see Plans/LLM/README.md)
 *.gguf

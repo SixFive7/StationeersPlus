@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{B8E3A1F0-7C42-4D19-9A6E-3F1D5C8B2E47}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>LLM</RootNamespace>
+    <AssemblyName>LLM</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Enable PackageReference in old-style csproj -->
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <!-- LLamaSharp targets net8.0 primarily but works on net472 via netstandard2.0 -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>embedded</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>$(StationeersPath)\BepInEx\core\BepInEx.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="LaunchPadBooster">
+      <HintPath>$(StationeersPath)\BepInEx\plugins\StationeersLaunchPad\LaunchPadBooster.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LLamaSharp" Version="0.19.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.19.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Plugin.cs" />
+    <Compile Include="LlmEngine.cs" />
+    <Compile Include="ChatPatch.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="About\About.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- Copy native llama.cpp libraries to output. LLamaSharp.Backend.Cpu's
+       built-in copy target only fires for packages.config, not PackageReference.
+       LLamaSharp probes runtimes/{rid}/native/ at runtime. -->
+  <Target Name="CopyNativeLibraries" AfterTargets="Build">
+    <ItemGroup>
+      <NativeRuntime Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.19.0\runtimes\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeRuntime)"
+          DestinationFiles="@(NativeRuntime->'$(OutputPath)runtimes\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- Bundle VC++ runtime alongside the native llama libraries so the mod
+       works on machines without the VC++ redistributable installed.
+       DLL loader finds these next to llama.dll before searching System32. -->
+  <Target Name="CopyVcRedist" AfterTargets="CopyNativeLibraries">
+    <ItemGroup>
+      <VcRedist Include="redist\vcruntime140.dll;redist\vcruntime140_1.dll;redist\msvcp140.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VcRedist)"
+          DestinationFolder="$(OutputPath)runtimes\win-x64\native"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- Copy GGUF model files to output so the build folder is self-contained.
+       SkipUnchangedFiles avoids re-copying the 1+ GB file every build. -->
+  <Target Name="CopyModelFiles" AfterTargets="Build">
+    <ItemGroup>
+      <ModelFile Include="models\*.gguf" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModelFile)"
+          DestinationFolder="$(OutputPath)models"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

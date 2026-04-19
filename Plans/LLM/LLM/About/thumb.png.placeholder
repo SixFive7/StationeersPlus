@@ -1,0 +1,20 @@
+About/thumb.png placeholder
+============================
+
+Replace this file with the real `thumb.png` at this exact path:
+
+    {{ModCodeName}}/About/thumb.png
+
+Requirements:
+
+- File format: PNG (RGB or RGBA).
+- Exact dimensions: 640x360 pixels (exact 16:9).
+- This is the in-game mod browser thumbnail.
+- Derive this PNG from the `Preview.source.png` at the repo root (downscale to 640x360).
+- Delete this `.placeholder` file once the real PNG is in place.
+
+Verification command (from any shell with Pillow available):
+
+    python -c "from PIL import Image; img = Image.open('thumb.png'); print(img.size)"
+
+Output must be exactly `(640, 360)`. Any other size is invalid.

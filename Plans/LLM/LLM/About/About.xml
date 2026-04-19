@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>LLM</Name>
+  <ModID>net.llm</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]LLM[/h1]
+
+Adds a server-side chat companion powered by a local language model that responds as a satellite communications relay.
+
+Players type a message in chat starting with a trigger word (default [b]@sat[/b]). The server runs the message through a local language model and posts the response back under a bot name (default [b]SATCOM[/b]). Responses take a few seconds depending on server hardware. The lore framing is a satellite relay with intermittent signal, so latency is a feature.
+
+[h2]Features[/h2]
+
+[h3]Chat Companion[/h3]
+Chat messages starting with the trigger prefix are routed to a local language model running on the server. The model generates a response on the server CPU and the response is posted back to chat under the configured bot name.
+
+[h3]Satellite Relay Framing[/h3]
+The default system prompt positions the bot as a satellite communications relay with intermittent signal, which frames inference latency as in-character rather than as server lag.
+
+[h3]Runs on CPU, No GPU Required[/h3]
+Inference runs on server CPU threads via LLamaSharp. Expect 2-4 GB of additional RAM usage on the server. No GPU needed.
+
+[h3]Asynchronous Inference[/h3]
+Generation runs on a background thread so the main server thread is not blocked while tokens are produced.
+
+[h3]Setup[/h3]
+Download [b]qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] (~950 MB) and place it in a [b]models/[/b] folder next to the LLM.dll. All settings (bot name, personality, trigger word, inference threads) are configurable via the mod settings panel.
+
+[h3]Settings[/h3]
+All settings are server-side.
+[list]
+[*][b]Model File Name[/b]: GGUF file in the models/ folder
+[*][b]Bot Name[/b]: Name shown in chat (default SATCOM)
+[*][b]System Prompt[/b]: The bot's personality and behavior instructions
+[*][b]Trigger Prefix[/b]: Chat prefix that activates the bot (default @sat)
+[*][b]Max Tokens[/b]: Response length cap
+[*][b]Temperature[/b]: Creativity vs. predictability
+[*][b]Inference Threads[/b]: CPU threads for generation
+[*][b]Context Size[/b]: Token window size
+[/list]
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]Server-side only.[/b] Clients do not need this mod installed; the bot's messages appear as normal chat.
+
+[b]Dedicated servers[/b] need BepInEx + StationeersLaunchPad + LLM installed and a [b]models/[/b] folder with the GGUF model file next to LLM.dll.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Plans/LLM]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v0.1.0: Initial prototype
+- Embedded LLM inference via LLamaSharp (CPU only)
+- Configurable bot personality via system prompt
+- Trigger prefix to filter which messages the bot responds to
+- Async inference on a background thread
+  </ChangeLog>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>chat</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>LLM</color></size>
+Adds a server-side chat companion powered by a local language model that responds as a satellite communications relay.
+
+<b>Usage:</b> Type @sat followed by your message in chat. The bot responds in character as a satellite relay.
+
+<b>Server-side only.</b> No GPU needed. Configurable personality, trigger word, and inference settings.
+]]></InGameDescription>
+</ModMetadata>

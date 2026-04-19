@@ -18,7 +18,7 @@ Cross-mod and repo-wide tasks. Per-mod tasks live in each mod's own `TODO.md`.
 
 ## Repository infrastructure
 
-- [ ] **Enable Git LFS for the repository** so `Plans/LLM/` source (2+ GB, LLaMA.cpp native runtimes plus model weights) can be committed. Currently `Plans/LLM/` is gitignored entirely; only a stub README lives there.
+- [ ] **Revisit Git LFS for the LLM model weights** if the $5/month GitHub data pack becomes worth it. Current state: `Plans/LLM/` source is committed; the ~1 GB GGUF model file is excluded via the repo-wide `*.gguf` rule, and users download it separately per `Plans/LLM/README.md`. Switching to LFS would make the repo self-contained at the cost of the data-pack subscription and LFS bandwidth usage per clone.
 
 - [ ] **Review all `.ps1` scripts** committed to the repository (currently `tools/decode_il.ps1`) plus any `.ps1` scripts outside the repo that relate to the mods, for correctness, usefulness, and potential consolidation into `tools/`.
 
