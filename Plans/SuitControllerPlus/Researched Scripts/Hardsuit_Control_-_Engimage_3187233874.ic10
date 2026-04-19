@@ -1,0 +1,67 @@
+# Workshop ID: 3187233874
+# Title: Hardsuit Control
+# Author: Engimage
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3187233874
+# ---
+alias Suit db
+alias Helmet d0
+
+alias ExternalThreat r6
+alias FilterActive r7
+
+move FilterActive 0
+s Suit PressureSetting 200
+
+start:
+yield
+
+# Check for toxins inside the suit
+l r0 Suit RatioVolatiles
+bge r0 0.01 CloseAndFlush
+l r0 Suit RatioPollutant
+bge r0 0.01 CloseAndFlush
+l r0 Suit RatioNitrousOxide
+bge r0 0.01 CloseAndFlush
+
+# Check for external conditions
+l r0 Suit TemperatureExternal
+slt ExternalThreat r0 273 #Temp < 0C
+sgt r1 r0 323
+or ExternalThreat ExternalThreat r1
+l r0 Suit PressureExternal
+slt r1 r0 30
+or ExternalThreat ExternalThreat r1
+sgt r1 r0 230
+or ExternalThreat ExternalThreat r1
+
+#If helmet is open and there is a threat - close it
+l r0 Helmet Open
+beqz r0 HelmetIsClosed
+breqz ExternalThreat 3
+s Helmet Open 0
+j HelmetIsClosed
+
+s Suit AirRelease 0
+s Suit Filtration 0
+s Suit On 0
+j start
+
+HelmetIsClosed:
+#If there is an external threat lock the helmet
+s Helmet Lock ExternalThreat
+s Suit On 1
+s Suit AirRelease 1
+#Save power and filters on filtration
+#Also prevents O2 drain to waste on hot planets
+l r0 Suit RatioCarbonDioxide
+brgt r0 0.05 2
+move FilterActive 0
+brlt r0 0.7 2
+move FilterActive 1
+s Suit Filtration FilterActive
+j start
+
+CloseAndFlush:
+s Helmet Open 0
+s Helmet Flush 1
+j HelmetIsClosed

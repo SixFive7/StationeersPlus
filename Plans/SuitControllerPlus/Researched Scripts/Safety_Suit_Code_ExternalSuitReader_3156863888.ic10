@@ -1,0 +1,84 @@
+# Workshop ID: 3156863888
+# Title: Suit Code
+# Author: terametech
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3156863888
+# ---
+# Safe Suit Code v1
+# !!Requires ExternalSuitReader mod
+# on workshop to function properly!!
+alias Suit db
+alias Helm d0
+alias Backpack d1
+
+define MINPRESSURE 20
+define MAXPRESSURE 243
+define MINTEMP 273.15
+define MAXTEMP 323.15
+define MINO2PP 16
+define MAXTOXINPP 0.45
+
+alias pressure r8
+alias temp r9
+alias oxygenpp r10
+alias safe r11
+
+start:
+yield
+l pressure Suit PressureExternal
+sge r0 pressure MINPRESSURE
+sle r1 pressure MAXPRESSURE
+and r0 r0 r1
+move safe r0
+
+l temp Suit TemperatureExternal
+sge r0 temp MINTEMP
+sle r1 temp MAXTEMP
+and r0 r0 r1
+and safe safe r0
+
+l r0 Suit RatioOxygenOutput
+mul oxygenpp pressure r0
+sge r0 oxygenpp MINO2PP
+and safe safe r0
+
+l r0 Suit RatioPollutantOutput
+l r1 Suit RatioVolatilesOutput
+min r0 r0 1
+min r1 r1 1
+add r0 r0 r1
+div r0 r0 2
+mul r0 r0 pressure
+sle r0 r0 MAXTOXINPP
+and safe safe r0
+
+seqz r0 safe
+l r1 Helm Open
+and r0 r0 r1
+bnezal r0 emergencyflush
+seqz r0 safe
+s Helm Lock r0
+bnez safe issafe
+j start
+
+emergencyflush:
+s Suit On 1
+s Suit AirRelease 1
+s Suit Filtration 1
+s Helm Open 0
+s Helm Lock 1
+s Helm Flush 1
+s Helm SoundAlert 20
+sleep 1.5
+s Helm Flush 0
+s Helm SoundAlert 21
+sleep 2
+s Helm SoundAlert 0
+j ra
+
+issafe:
+l r0 Helm Open
+seqz r0 r0
+s Suit On r0
+s Suit AirRelease r0
+s Suit Filtration r0
+j start

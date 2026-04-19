@@ -1,0 +1,27 @@
+# Workshop ID: 2797730814
+# Title: LogisticSuitCode
+# Author: Elmo
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2797730814
+# ---
+alias Suit db
+alias Backpack d1
+alias Avalue r5
+alias Bvalue r6
+Start:
+yield
+##add any code here##
+#Be carefull about using Suit Setting
+#Make sure you don't overwrite negative values
+#.. or hash values
+l r0 Backpack On
+bgtz r0 Start
+s Backpack On 1
+ls Avalue Backpack 1 OccupantHash
+ls Bvalue Backpack 1 MaxQuantity
+s Suit Setting Avalue
+yield
+l r0 Suit Setting
+breq r0 Avalue -2
+mul Bvalue Bvalue -1
+s Suit Setting Bvalue
+j Start

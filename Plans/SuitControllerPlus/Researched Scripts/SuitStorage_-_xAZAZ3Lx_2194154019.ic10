@@ -1,0 +1,125 @@
+# Workshop ID: 2194154019
+# Title: SuitStorage 2.0
+# Author: xAZAZ3Lx
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2194154019
+# ---
+alias SuitStorage d0
+alias PumpO2 d1
+alias PumpN2 d2
+alias PumpWaste d3
+alias LED d4
+alias Display d5
+
+alias mem r0
+alias Suit r1
+alias BPack r2
+alias PresO2 r3
+alias PresN2 r4
+alias PresWaste r5
+alias Akku r6
+alias BPackHash r7
+alias dispAir r8
+alias dispWaste r9
+alias dispNitro r10
+alias BPackOK r11
+
+define maxPres 7000
+
+Start:
+s SuitStorage On 1
+s Display Mode 1
+s Display On 1
+s LED Color 6
+s LED On 0
+j CheckAir
+
+CheckAir:
+ls Suit SuitStorage 1 Occupied
+ls PresO2 SuitStorage 1 PressureAir
+div dispAir PresO2 maxPres
+yield
+s Display Color 6
+s Display Setting dispAir
+beqz Suit StopAir #a==0 dann C
+bge PresO2 maxPres StopAir #a>=b dann C
+s PumpO2 Setting 10
+s PumpO2 On 1
+j CheckWaste
+
+StopAir:
+s PumpO2 Setting 0
+s PumpO2 On 0
+j CheckWaste
+
+CheckWaste:
+ls Suit SuitStorage 1 Occupied
+ls PresWaste SuitStorage 1 PressureWaste
+div dispWaste PresWaste maxPres
+yield
+s Display Color 5
+s Display Setting dispWaste
+beqz Suit StopWaste #a==0 dann C
+beqz PresWaste StopWaste
+s PumpWaste Setting 100
+s PumpWaste On 1
+j CheckNitro
+
+StopWaste:
+s PumpWaste Setting 0
+s PumpWaste On 0
+j CheckNitro
+
+CheckNitro:
+ls BPack SuitStorage 2 Occupied
+ls BPackHash SuitStorage 2 OccupantHash
+seq BPackOK BPackHash -412551656
+ls PresN2 SuitStorage 2 Pressure
+div dispNitro PresN2 maxPres
+yield
+s Display Color 2
+s Display Setting dispNitro
+bne BPackHash -412551656 StopNitro#a!=b dann
+beqz BPack StopNitro #a==0 dann C
+bge PresN2 maxPres StopNitro #a>=b dann C
+s PumpN2 Setting 10
+s PumpN2 On 1
+j CheckAkku
+
+StopNitro:
+s PumpN2 Setting 0
+s PumpN2 On 0
+j CheckAkku
+
+CheckAkku:
+ls Suit SuitStorage 1 Occupied
+ls Akku SuitStorage 1 ChargeRatio
+yield
+s Display Color 11
+s Display Setting Akku
+beqz Suit CheckReadyJetpack #a==0 dann C
+j CheckReadySuit
+
+CheckReadySuit:
+beqz Suit CheckReadyJetpack
+blt PresO2 maxPres NotReady
+bnez PresWaste NotReady
+bne Akku 1 NotReady
+
+CheckReadyJetpack:
+beqz BPack Ready
+bne BPackHash -412551656 Ready #a!=b dann
+blt PresN2 maxPres NotReady
+
+Ready:
+add mem Suit BPackOK
+blt mem 1 Start
+s LED Color 2
+s LED On 1
+j CheckAir
+
+NotReady:
+add mem Suit BPackOK
+blt mem 1 Start
+s LED Color 5
+s LED On 1
+j CheckAir

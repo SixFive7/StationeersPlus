@@ -1,0 +1,46 @@
+# Workshop ID: 2468976689
+# Title: Basic HardSuit Management (IC10)
+# Author: PantACRO4life
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2468976689
+# ---
+### Basic HardSuit Management (IC10) ###
+### By PantACRO4life ###
+
+## Start Settings
+define minPressure 20
+define maxPressure 125
+define minTemp 275
+define maxTemp 310
+## End Settings
+alias helmet d0
+alias backpack d1
+start:
+l r0 db TemperatureExternal
+blt r0 minTemp outside
+bgt r0 maxTemp outside
+l r0 db PressureExternal
+blt r0 minPressure outside
+bgt r0 maxPressure outside
+j inside
+
+inside:
+s d0 Lock 0 #Unlock Helmet
+s d0 Open 1 #Open Helmet
+s db Filtration 0 #Filtration Off
+s db AirRelease 0 #Air System Of
+s db On 0 #A/C System Off
+s db PressureSetting 21 #Set internal Pressure
+s db TemperatureSetting 296 #Set internal Temp
+yield
+j start
+
+outside:
+s d0 Open 0 #Close Helmet
+s d0 Lock 1 #Lock Helmet
+s db Filtration 1 #Filtration On
+s db AirRelease 1 #Air System On
+s db On 1 #A/C System On
+s db PressureSetting 21 #Set internal Pressure
+s db TemperatureSetting 296 #Set internal Temp
+yield
+j start

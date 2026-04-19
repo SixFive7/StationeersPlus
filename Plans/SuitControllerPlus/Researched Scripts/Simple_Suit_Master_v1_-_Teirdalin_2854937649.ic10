@@ -1,0 +1,28 @@
+# Workshop ID: 2854937649
+# Title: Simple Suit Master v1
+# Author: Teirdalin
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2854937649
+# ---
+alias suit db
+alias helmet d0
+alias backpack d1
+alias filterAir r0
+alias oxygenLevel r1
+
+start:
+
+l oxygenLevel helmet RatioOxygen
+slt filterAir oxygenLevel 0.83
+bgtz filterAir filter
+yield
+
+j start
+
+
+filter:
+
+s suit Filtration 1
+sleep 1
+s suit Filtration 0
+
+j start

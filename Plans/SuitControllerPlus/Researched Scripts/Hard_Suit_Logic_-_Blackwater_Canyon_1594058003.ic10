@@ -1,0 +1,33 @@
+# Workshop ID: 1594058003
+# Title: Suit Logic 2
+# Author: Blackwater Canyon
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=1594058003
+# ---
+alias dHelmet d0​
+alias dSuit db​
+alias dBackpack d1​
+​
+alias rHelmetOpen r0​
+alias rActive r1​
+alias rHostileEnvironment r2​
+​
+start:​
+#Load Device Parameters​
+l rHelmetOpen dHelmet Open​
+l rHostileEnvironment dSuit PressureExternal​
+​
+#Calculate Values​
+nor rActive rHelmetOpen rHelmetOpen​
+​
+#Environment not safe under 10 kPa​
+sle rHostileEnvironment rHostileEnvironment 10​
+and rHostileEnvironment rActive rHostileEnvironment​
+​
+s dSuit On rActive​
+s dSuit Filtration rActive​
+s dSuit AirRelease rActive​
+s dHelmet Lock rHostileEnvironment​
+​
+end:​
+yield​
+j start

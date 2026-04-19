@@ -1,0 +1,29 @@
+# Workshop ID: 3205753067
+# Title: Guide me home
+# Author: Emilgardis
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3205753067
+# ---
+define targetx -3.0
+define targetz -7.0
+alias currx r10
+alias currz r11
+alias currrot r12
+homeloop:
+l currx db PositionX
+l currz db PositionZ
+l currrot db Orientation
+sub r3 targetz currz
+sub r4 targetx currx
+atan2 r0 r3 r4 # angle to target in radians [-pi,pi]
+bgez r0 nopi # if negative
+add r0 r0 6.283185307179586 # add 2*pi
+nopi:
+mul r0 57.295779513082321 r0 # to deg [180/pi]
+sub r0 currrot r0
+abs r0 r0
+blt r0 5 turnon
+s d0 On 0
+j homeloop
+turnon:
+s d0 On 1
+j homeloop

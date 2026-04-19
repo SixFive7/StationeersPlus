@@ -1,0 +1,123 @@
+# Workshop ID: 3414036352
+# Title: RA's Hardsuit Script 1.1
+# Author: Remarkably Average
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3414036352
+# ---
+alias suit db
+alias helmet d0
+alias jetpack d1
+alias pressureWaste r13
+alias warningItr r12
+alias sound r11
+alias charge r10
+alias pressureExt r9
+alias helmetOpen r8
+alias pressureO2 r7
+alias tempExt r6
+define MINO2RAT 0.26
+define TARGETPRESSURE 202
+define WASTEWARNING 3000
+define MAXWASTE 3500
+define MINPRESSUREEXT 30
+define MINTEMPEXT 273.15
+define MAXTEMPEXT 313.15
+define WARNINGINTERVAL 60
+s suit Volume 100
+s suit Setting 25
+move warningItr WARNINGINTERVAL
+loop:
+yield
+s suit PressureSetting TARGETPRESSURE
+l r0 suit EntityState
+bgtz r0 unconciousState
+l sound suit Setting
+bnezal sound playsound
+l pressureExt suit PressureExternal
+l tempExt suit TemperatureExternal
+l helmetOpen helmet Open
+l r0 suit RatioOxygen
+sle r0 r0 MINO2RAT
+seqz r1 helmetOpen
+s suit On r1
+s suit AirRelease r1
+and r0 r0 r1
+s suit Filtration r0
+beqz helmetOpen helmetClosed
+sle r0 pressureExt MINPRESSUREEXT # 1 if less than minpressure
+sle r1 tempExt MINTEMPEXT # 1 if less than min temp
+or r0 r0 r1
+sge r1 tempExt MAXTEMPEXT # 1 if greater than max temp
+or r0 r0 r1
+l r1 suit RatioVolatiles
+mul r1 r1 pressureExt
+sgt r1 r1 1
+or r0 r0 r1
+l r1 suit RatioPollutant
+mul r1 r1 pressureExt
+sgt r1 r1 1
+or r0 r0 r1
+l r1 suit RatioNitrousOxide
+mul r1 r1 pressureExt
+sgt r1 r1 1
+or r0 r0 r1
+l r1 suit RatioOxygen
+mul r1 r1 pressureExt
+slt r1 r1 26
+or r0 r0 r1
+seqz r0 r0
+s helmet Open r0
+helmetClosed:
+ls charge suit 2 ChargeRatio
+ls pressureWaste suit 1 Pressure
+ls pressureO2 suit 0 Pressure
+add warningItr warningItr 1
+blt warningItr WARNINGINTERVAL skipWarnings
+move warningItr 0
+sle r0 charge 0.20
+select sound r0 23 sound
+sgt r0 pressureWaste WASTEWARNING
+select sound r0 44 sound
+slt r0 pressureO2 1500
+select sound r0 40 sound
+skipWarnings:
+sgt r0 pressureWaste MAXWASTE
+slt r1 pressureO2 750
+or r0 r0 r1
+select sound r0 3 sound
+bnezal sound playsound
+l helmetOpen helmet Open
+seqz r2 helmetOpen
+l r0 suit RatioVolatiles
+sgtz r0 r0
+l r1 suit RatioPollutant
+sgtz r1 r1
+or r0 r0 r1
+l r1 suit RatioNitrousOxide
+sgtz r1 r1
+or r0 r0 r1
+and r0 r0 r2
+select sound r0 43 sound
+l r1 suit RatioNitrogen
+sgtz r1 r1
+or r0 r0 r1
+and r0 r0 r2
+s helmet Flush r0
+j loop
+playsound:
+s suit SoundAlert sound
+sleep 3
+s suit Setting 0
+s suit SoundAlert 0
+move sound 0
+j ra
+unconciousState:
+s suit SoundAlert 6
+uncon2:
+s suit On 1
+s suit AirRelease 1
+s suit Filtration 1
+yield
+l r0 suit EntityState
+bgtz r0 uncon2
+s suit SoundAlert 0
+j loop

@@ -1,0 +1,18 @@
+# Weather Base Station - Companion for SuitControllerPlus
+# d0: Weather Station
+# d1: Logic Transmitter (linked to suit via screwdriver)
+# Sends storm countdown (seconds) to suit Setting
+# Only alerts when storm is within 5 minutes (300s)
+alias ws d0
+alias tx d1
+start:
+yield
+l r0 ws Mode
+bne r0 1 clear
+l r0 ws NextWeatherEventTime
+bgt r0 300 clear
+s tx Setting r0
+j start
+clear:
+s tx Setting 0
+j start

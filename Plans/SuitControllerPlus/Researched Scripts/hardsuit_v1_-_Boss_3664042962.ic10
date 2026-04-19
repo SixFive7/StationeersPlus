@@ -1,0 +1,109 @@
+# Workshop ID: 3664042962
+# Title: hardsuit v 1
+# Author: Boss
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3664042962
+# ---
+#Hardsuit otomatik guvenli kask acmak kapatmak Vulcan+
+# yazan: Cetin Boss (neden yazdigimi bilmiyorum)
+#extralar:
+#Base IC10 ekle
+#Extra Proxy korumasi icin base 3 proxy sensor ekle
+#logic Transmitter ekle tornavida ile giysiyi bul
+#amac baseden elbisenin Setting registerine bit bilgi flaglari gonderilir.
+# boylece daha guvenlikli. dilerseniz kullanmayin.
+#ornek vulkanda bazen atmosfer 60kps olabilir kask acilir yanarsin.
+#fakat proxiden uzaksan acilmaz. odalarina sensor doseyebilisin
+# ps1 ve ps2 sensor isimleri guvenli alan demek
+# ps3 cikis kapi araligina ekle kilitlemek icindir p1 ve 2 sensor ayari buyuk olursa
+# yuvarlak sokaga sarkabilir camin dibinde kaskin acilmasin diye lock sart.
+# iceride bir bolgeye tetik mekanizmasi ekle adI tetikic kapi cikisina yakin
+# tetik canin isterde kilidim otomatik acilsin dersen ustune 1 sn bekle
+# ek ozellikleri kullanmak icin vulkan otomatik base yazilimimi indirmeniz gerekir
+# indirmez iseniz en jal guvensiz  ibaresini silin.
+# versiyon 0.0.0.0001 zeta :D
+define kelvin0 273.15
+alias suit db
+alias baslik d0 # hava icin pek bir ise yaramiyor
+alias backpack d1 # hava icin pek bir ise yaramiyor
+alias A r7
+alias B r8
+alias C r9
+alias kilit r10
+alias oksijen r11
+alias oksijendis r12
+alias rx r15 # setting desigkeni suit e base yazacak
+##### setup
+add C kelvin0 15
+s suit TemperatureSetting C
+s suit PressureSetting 55
+#####
+main:
+yield
+# en onemli kontrol en ustte olmali
+# dis hava basinci kontrol et
+l A suit PressureExternal
+blt A 35 guvensiz #  return main olmali
+bgt A 200 guvensiz  # Return main olmali
+yield
+# degilse devam
+# dis sicakligi kontrol et
+l A suit TemperatureExternal
+sub C A kelvin0 # cevir centigrat
+blt C 5 guvensiz  #Return main olmali
+bgt C 49 guvensiz # return main olmali
+yield
+# baseden gelen bigiler. baseden bilgi gelmiyorsa tasarimda etki yok kabul edilecek altta
+# kisi base sizde kullanabilsin.
+l rx suit Setting
+# baseden atmosfer bilgisini al ornek oksijen az yada vol mevcut ise flag 1 olur
+and r0 rx 16 # base ajanimiz dediki iceride veya sokakta seni olduren gaz var
+beq r0 16 guvensiz
+
+and r0 rx $04 # ps3 disari cikiyorsun
+beqal r0 $04 kilitle # ra kaydet. abi sokaga cikti bu adam koruma icin onlem al
+
+and r0 rx $08 # tetik iceri girdin
+beqal r0 $08 kilitac # ra kaydet
+
+and r0 rx $01 # ps1 alt oda
+beq r0 1 guvenli  # return main
+
+and r0 rx $02 # ps2 ust oda
+beq r0 2 guvenli # return main
+
+# else bilinmeyen durum. icin kaski kapat
+ jal guvensiz # base kullanmaz isen bunu sil
+j main
+
+
+
+guvenli:
+l r0 baslik Lock  # kilit varsa acma
+beq r0 1 ra # geri don bu bir tuzak olabilir. kullanici kilidi acana kadar bekle
+s suit On 0
+s suit Filtration 0
+s suit AirRelease 0
+s baslik Open 1
+yield
+move ra 0 # yanlislikla donersin. hatali diger procedurelere koruma
+j main # goto
+
+
+kilitac:
+s baslik Lock 0
+j ra # return
+
+kilitle:
+s baslik Lock 1
+j guvensiz # jump
+
+
+guvensiz:
+# basligi kapat ama kilitleme belki evin cekmeyen kosesindedir IC10 yeterli aciklma yok.
+s baslik Open 0
+s suit On 1
+s suit Filtration 1
+s suit AirRelease 1
+yield
+move ra 0 #  hatali diger procedurelere koruma
+j main # goto

@@ -1,0 +1,38 @@
+# Workshop ID: 3294632904
+# Title: Hardsuit Manager
+# Author: DWal
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3294632904
+# ---
+start:
+sleep 1
+l r0 db TemperatureExternal
+l r1 db PressureExternal
+l r2 db RatioCarbonDioxide
+l r3 d0 Open
+l r4 d0 Lock
+bgt 280 r0 forceshut #if temp < 280 K
+bgt r0 300 forceshut #if temp > 300 K
+bgt 50 r1 forceshut     #if pressure < 50kpa
+bgt r1 190 forceshut    #if pressure > 190kpa
+s d0 Lock 0
+j aircheck
+forceshut:
+beq r3 1 17 #if helmet open
+beq r4 0 18 #if helmet unlocked
+j aircheck
+s d0 Lock 0 #unlock
+s d0 Open 0 #close
+s d0 Lock 1 #lock
+aircheck:
+l r3 d0 Open
+l r4 d0 Lock
+beq r3 0 28 #if helmet closed, skip 24-27
+s db AirRelease 0 #close air
+s db On 0 #turn off AC
+s db Filtration 0 #close filters
+j start
+s db AirRelease 1 #open air
+s db On 1 #turn on AC
+bge 0.15 r2 26 #if CO2 <= 15%, close filters
+s db Filtration 1 #otherwise open filters
+j start

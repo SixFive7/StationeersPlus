@@ -1,0 +1,126 @@
+# Workshop ID: 3667530772
+# Title: Harm Suit Controller (Zrillian)
+# Author: Mooka
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3667530772
+# ---
+alias suit db
+alias helmet d0
+alias t r13
+alias p r12
+
+define minAirPercentage 0.92
+define suitTempTarget 284.15
+define wasteTankPressureHigh 1100
+define wasteTankPressureSuperHigh 1200
+define wasteTankTempHigh 1000
+define wasteTankTempFire 1500
+
+s db Volume 5
+s db PressureSetting 200
+s db TemperatureSetting suitTempTarget
+
+alias slotBattery r11
+alias slotFilter r10
+
+# hard or harm suit
+ls r0 db 3 Class # ic slot
+seq r0 r0 26 # programable chip
+select slotBattery r0 2 3
+select slotFilter r0 4 5
+
+start:
+yield
+sdns r0 d0
+beq r0 1 notEquiped
+l r0 helmet Open
+select r0 r0 0 1
+l r1 db RatioMethane
+slt r1 r1 minAirPercentage
+add r1 r0 r1
+seq r1 r1 2
+s suit Filtration r1
+l r1 db Pressure
+slt r1 r1 50
+add r1 r0 r1
+seq r1 r1 2
+s db On r1
+s suit AirRelease r1
+l r1 db Temperature
+slt r2 r1 273.15
+sgt r3 r1 293.15
+add r1 r2 r3
+add r1 r1 r0
+sge r1 r1 2
+s suit On r1
+# external check
+l t suit TemperatureExternal
+l p db PressureExternal
+slt r0 t 275
+select r0 r0 1 0
+sgt r0 t 332
+select r0 r0 1 r0
+slt r0 p 30
+select r0 r0 1 0
+beqal r0 1 closeHelmet
+j checkAlert
+closeHelmet:
+s helmet Open 0
+j ra
+checkAlert:
+s db SoundAlert 0
+yield
+ls r0 db slotBattery ChargeRatio
+bltal r0 0.05 batteryLow
+ls r0 db 0 Pressure
+bltal r0 500 pLow
+ls r0 db 1 Pressure
+bgtal r0 wasteTankPressureHigh pHigh
+bgtal r0 wasteTankPressureSuperHigh pSuperHigh
+ls r0 db 1 Temperature
+bgtal r0 wasteTankTempFire fire
+bgtal r0 wasteTankTempHigh tempHigh
+ls r0 db slotFilter Quantity
+bltal r0 3 filterLow
+j start
+batteryLow:
+s db SoundAlert 23
+sleep 2
+j ra
+pLow:
+s db SoundAlert 40
+sleep 2
+j ra
+pSuperHigh:
+yield
+s db Filtration 0
+s db SoundAlert 1
+sleep 2
+s db SoundAlert 15
+sleep 1.5
+s db SoundAlert 24
+sleep 2
+j ra
+pHigh:
+s db SoundAlert 39
+sleep 2
+j ra
+fire:
+s db SoundAlert 28
+s db Filtration 0
+s db On 0
+s db AirRelease 0
+sleep 2
+j ra
+tempHigh:
+s db SoundAlert 41
+sleep 2
+j ra
+filterLow:
+s db SoundAlert 20
+sleep 2
+j ra
+notEquiped:
+s db On 0
+s db Filtration 0
+s db AirRelease 0
+j start

@@ -1,0 +1,104 @@
+# Workshop ID: 2865123071
+# Title: _HardSuit
+# Author: troglodyt
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2865123071
+# ---
+#Hardsuit safety system.
+#Send suit Setting:
+# 0 No warning
+# 1..360 Indicate heading as PressureSetting
+# >360 Sound warning
+alias suit db
+alias helmet d0
+alias backpack d1
+
+alias safe r15
+
+#tolerable: 0-39, survivable: -10-49
+define minT 273.15 #K
+define maxT 312.15 #K
+#tolerable: 20-150, survivable: 11-300
+define minP 20  #kPa
+define maxP 150 #kPa
+
+s helmet Lock 0
+s suit Setting 0
+s suit TemperatureSetting 293
+s suit PressureSetting 60
+
+start:
+#is the outside safe?
+l r0 suit RatioVolatiles
+slt safe r0 0.02
+l r1 suit RatioPollutant
+slt r0 r0 0.02
+and safe safe r0
+l r0 suit RatioNitrousOxide
+slt r0 r0 0.02
+and safe safe r0
+#Oxygen partial pressure must be > 20 kPa
+l r0 suit RatioOxygen
+l r1 suit PressureExternal
+mul r1 r0 r1
+sgt r0 r1 20
+and safe safe r0
+l r0 suit TemperatureExternal
+sgt safe r0 minT
+slt r0 r0 maxT
+and safe safe r0
+l r0 suit PressureExternal
+sgt r0 r0 minP
+and safe safe r0
+slt r0 r0 maxP
+and safe safe r0
+
+#open/close helmet depending on safe environment
+l r0 helmet Open
+#breqz r0 2
+s helmet Open safe
+
+#safe power if helmet is open
+l r0 helmet Open
+seqz r0 r0
+s suit AirRelease r0
+#s suit Filtration r0
+#s suit On r0
+#safe filtration if helmet is closed and enough O2
+l r0 suit RatioOxygen
+l r1 suit Pressure
+mul r1 r0 r1
+sle r1 r1 27
+and r1 r0 r1
+s suit Filtration r1
+#safe power and gas for AC
+l r0 suit Temperature
+slt r1 r0 minT
+sgt r2 r0 maxT
+or r1 r1 r2
+s suit On r1
+#if helmet is open we're done
+beqz r0 end
+
+#indicate heading if Setting < 1..360
+l r0 suit Setting
+ble r0 0 end
+ble r0 360 heading
+#sound alarm if Setting >= 360
+s suit Error 1
+j end
+
+#Navigation
+heading:
+l r0 suit Setting
+l r1 suit PressureSetting
+s suit AirRelease 0
+s suit Filtration 0
+s suit PressureSetting r0
+yield
+s suit PressureSetting r1
+s suit AirRelease 1
+s suit Filtration 1
+
+end:
+yield
+j start

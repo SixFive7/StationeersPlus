@@ -1,0 +1,22 @@
+# Workshop ID: 2874535650
+# Title: Simple Suit
+# Author: Triggers0
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2874535650
+# ---
+# Simple Suit
+alias suit db
+alias helmet d0
+alias jetpack d1
+
+alias visor r0
+alias close r1
+
+start:
+l visor helmet Open
+seqz r1 r0
+s db On close
+s db Filtration close
+s db AirRelease close
+yield
+
+j start

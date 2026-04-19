@@ -1,0 +1,118 @@
+# Workshop ID: 2421520522
+# Title: Auto Suit
+# Author: Dark_raven
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2421520522
+# ---
+# Settings
+define PressMax 150
+define PressNorm 101
+define PressMin 50
+define TempMax 315 # 315 = 42 C
+define TempNorm 300 # 300 = 27 C
+define TempMin 283 # 283 = 10 C
+define MinOxygenInt 0.45 # 45%
+define MinOxygenExt 0.35 # 35%
+define MaxPollutantExt 0.005
+define MaxVolatilesExt 0.005
+define WantOpeningVisor 1 # 1=true, 0=false
+
+# Don't touch
+alias Skaf db
+alias Visor d0
+alias ROxygen r15
+alias RPollutant r14
+alias RVolatiles r13
+alias PressExt r12
+alias PressInt r11
+alias VisorIsOpen r10
+alias TempExt r9
+alias TempInt r8
+
+s Skaf PressureSetting PressNorm
+s Skaf TemperatureSetting TempNorm
+
+Main:
+yield
+jal ReadSystem
+bgtz VisorIsOpen IsOpen # if Visor Open
+# else Visor Closed
+beqal WantOpeningVisor 1 AbilityOpenVisor
+jal TemperatureControl
+jal PressureControl
+jal OxygenControl
+j Main
+
+ReadSystem:
+l VisorIsOpen Visor Open
+l TempExt Skaf TemperatureExternal
+l TempInt Skaf Temperature
+l PressInt Skaf Pressure
+l PressExt Skaf PressureExternal
+l ROxygen Skaf RatioOxygen
+l RPollutant Skaf RatioPollutant
+l RVolatiles Skaf RatioVolatiles
+j ra
+
+TemperatureControl:
+bge TempExt 323 TempContrOn # if TempExt > +50
+ble TempExt 183 TempContrOn # if TempExt < -50
+l r0 Skaf On # Get status conditioner
+beq r0 1 TempContrEnabled # if conditioner ON
+ble TempInt TempMin TempContrOn # if Temp <= min
+bge TempInt TempMax TempContrOn # if Temp >= max
+j ra
+TempContrOn:
+s Skaf On 1
+j ra
+TempContrEnabled:
+sne r0 TempInt TempNorm # if curTemp=SetTemp
+s Skaf On r0 # set conditioner
+j ra
+
+IsOpen:
+blt PressExt PressMin VisorClose # if Low
+bgt PressExt PressMax VisorClose # if High
+blt ROxygen MinOxygenExt VisorClose # if Low
+bge RPollutant MaxPollutantExt VisorClose # if High
+bge RVolatiles MaxVolatilesExt VisorClose # if High
+l r0 Visor Lock
+beq r0 1 VisorClose
+s Skaf Filtration 0
+s Skaf AirRelease 0
+s Skaf On 0
+j Main
+VisorClose:
+s Visor Open 0
+j Main
+
+AbilityOpenVisor:
+l r0 Visor Lock # read Lock
+beq r0 1 ra # if lock=true then exit
+sgt r0 TempExt TempMin # r0 = TempExt>min
+slt r1 TempExt TempMax # TempExt = TempExt<max
+and r0 r1 r0 # r0 = 1 if (r=3 & r0=1)
+sgt PressExt PressExt PressMin#r0=PressExt.High
+and r0 PressExt r0 # r0=1 if (PressExt=1&TempExt=1)
+s Visor Open r0
+j ra
+
+PressureControl:
+l r0 Skaf AirRelease # Get status Air
+bgtz r0 AirEnabled # if Air ON
+ble PressInt PressMin AirOn # if <= min
+bge PressInt PressMax AirOn # if >= max
+j ra
+AirOn:
+s Skaf AirRelease 1
+j ra
+AirEnabled:
+sub PressExt PressNorm PressInt
+abs PressExt PressExt # PressExt = |PressExt|
+bgt PressExt 5 ra # if op1 > op2
+s Skaf AirRelease 0
+j ra
+
+OxygenControl:
+slt r0 ROxygen MinOxygenInt# if Oxygen.Low
+s Skaf Filtration r0
+j ra

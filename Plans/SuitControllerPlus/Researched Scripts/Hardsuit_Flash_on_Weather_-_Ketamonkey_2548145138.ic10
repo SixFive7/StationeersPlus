@@ -1,0 +1,37 @@
+# Workshop ID: 2548145138
+# Title: Hardsuit Flash on Weather
+# Author: Ketamonkey
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2548145138
+# ---
+alias suit db
+alias helmet d0
+alias tempSetting r0
+alias alarmFlag r1
+alias alarmCounter r2
+alias lightSetting r3
+
+define alarmOnTemp 295
+define defaultTemp 293
+
+
+start:
+yield
+move alarmCounter 0
+l tempSetting suit TemperatureSetting
+beq tempSetting alarmOnTemp alarm
+j start
+
+alarm:
+yield
+bgt alarmCounter 4 alarmWait
+add alarmCounter alarmCounter 1
+l lightSetting helmet On
+nor lightSetting lightSetting 0
+s helmet On lightSetting
+j alarm
+
+alarmWait:
+yield
+l tempSetting suit TemperatureSetting
+beq tempSetting defaultTemp start
+j alarmWait

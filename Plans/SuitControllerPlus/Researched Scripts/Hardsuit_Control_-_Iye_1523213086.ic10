@@ -1,0 +1,66 @@
+# Workshop ID: 1523213086
+# Title: Hardsuit Control
+# Author: Iye
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=1523213086
+# ---
+alias Suit db​
+alias Helmet d0​
+alias Backpack d1​
+alias autoclosed r9​
+move r9 0​
+START:​
+​
+l r0 Suit RatioPollutant​
+slt r1 0 r0​
+l r0 Suit RatioOxygen​
+slt r2 r0 0.15​
+or r1 r1 r2​
+l r0 Suit PressureExternal​
+slt r2 r0 30​
+or r1 r1 r2​
+slt r2 150 r0​
+or r1 r1 r2​
+l r0 Suit TemperatureExternal​
+slt r2 r0 280​
+or r1 r1 r2​
+slt r2 310 r0​
+or r1 r1 r2​
+​
+beq r1 1 AUTOCLOSE #MUST be closed, bad env​
+l r0 Helmet Open​
+beq r0 1 CHANGESTATE  #helmet is open, lets ensure everything is off​
+#helmet is closed here​
+beq autoclosed 1 AUTOOPEN #helmet had been autoclosed -> Open it​
+#helmet has been manually closed​
+move r1 1 #system should be on​
+j CHANGESTATE​
+​
+AUTOOPEN:​
+move autoclosed 0​
+move r1 0​
+j CHANGESTATE​
+​
+AUTOCLOSE:​
+​move autoclosed 1​
+​
+CHANGESTATE:​
+l r0 Suit On​
+breq r0 r1 2​
+s Suit On r1​
+​
+l r0 Suit AirRelease​
+breq r0 r1 2​
+s Suit AirRelease r1​
+​
+l r0 Suit Filtration​
+breq r0 r1 2​
+s Suit Filtration r1​
+​
+ xor r1 r1 1​
+ l r0 Helmet Open​
+breq r0 r1 2​
+s Helmet Open r1​
+​
+FINISH:​
+yield​
+j START

@@ -1,0 +1,118 @@
+# Workshop ID: 3368865532
+# Title: Phenomenal Hardsuit Script
+# Author: Wilhelm W. Walrus
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3368865532
+# ---
+alias suit db
+alias helmet d0
+alias isStormy r15
+alias wasStormy r14
+alias alarmTimer r13
+define maxTemp 320
+define minTemp 275
+define maxKpa 150
+define minKpa 40
+
+#This script starts in automatic mode where the suit is on temp or kpa are bad,
+#and will open the suit automatically when they are good. When on, the filtration
+#will only trigger when needed to increase filter life. Each tick, the weather is
+#checked, regardless of suit status, but this only works with a second IC connected
+#to a weather station and a logic transmitter set to mirror the suit. This script
+#will work without that, but you won't recieve weather updates. Both the closed
+#and open modes can be overriden by manually opening or closing the helmet.
+#it will return to automatic mode by cycling the helmet back to the previous state.
+#This is handy if your base suddenly fills with toxins. And yes, it does still
+#check the weather. Check the workshop for the other script. It also allows
+#you to manually enable a tracking beacon by increasing the temperature
+#setpoint of the suit.
+
+s suit Setting 0 #prevent alarm from triggering on suit update
+###AUTOMATIC LOOP LOGIC
+EnableLifeSupport:
+move r0 1
+jal SetLifeSupportStatus
+WaitForSafety:
+yield
+jal CheckWeather #check for weather updates
+l r0 helmet Open #check manual override
+bnez r0 OverrideToOpen
+jal HandleFiltration
+l r0 suit TemperatureExternal #determine if helmet should remain closed
+bge r0 maxTemp WaitForSafety #check temp
+ble r0 minTemp WaitForSafety
+l r0 suit PressureExternal
+bge r0 maxKpa WaitForSafety #check pressure
+ble r0 minKpa WaitForSafety #continue to disable life support all conditions are good
+DisableLifeSupport:
+move r0 0
+jal SetLifeSupportStatus
+WaitForDanger:
+jal CheckWeather #check for weather updates
+l r0 helmet Open #check manual override
+beqz r0 OverrideToClosed
+l r0 suit TemperatureExternal #determine if helmet should be closed
+bge r0 maxTemp EnableLifeSupport #check temp
+ble r0 minTemp EnableLifeSupport
+l r0 suit PressureExternal
+bge r0 maxKpa EnableLifeSupport #check pressure
+ble r0 minKpa EnableLifeSupport
+yield #maintain open loop while all conditions are good
+j WaitForDanger
+
+###MANUAL LOOP LOGIC
+OverrideToOpen:
+move r0 0
+jal SetLifeSupportStatus
+HoldOpenTillClosed:
+yield
+jal CheckWeather
+l r0 helmet Open
+beqz r0 EnableLifeSupport
+j HoldOpenTillClosed
+OverrideToClosed:
+move r0 1
+jal SetLifeSupportStatus
+HoldClosedTillOpen:
+yield
+jal CheckWeather
+l r0 helmet Open
+bnez r0 DisableLifeSupport
+jal HandleFiltration
+j HoldClosedTillOpen
+
+###WEATHER HELPER FUNCTION
+CheckWeather:
+l isStormy suit Setting #set by logic transmitter, mirrors mode of weather station
+seqz r0 wasStormy #check if storm status has changed since last tick
+and r0 r0 isStormy
+breqz r0 3 #skip starting alarm if status is unchanged (not stormy OR still stormy)
+move alarmTimer 1 #otherwise, enable alarm and sound alert
+s suit SoundAlert Sound.StormIncoming
+beqz alarmTimer FinishForecast #return if alarm is off
+brgt alarmTimer 6 6 #else, skip to end warning if alarm is finished
+add alarmTimer alarmTimer 1 #else, increment alarm timer
+l r0 helmet On #and flash helmet for visual indication
+seqz r0 r0
+s helmet On r0
+j FinishForecast #then return
+move alarmTimer 0 #skips here when alarm hits max time, disables sound and timer
+s suit SoundAlert 0
+FinishForecast:
+move wasStormy isStormy #move current tick data to previous tick
+j ra #then return
+###LIFE SUPPORT HELPER FUNCTION
+SetLifeSupportStatus:
+s suit On r0
+s suit AirRelease r0
+s suit Filtration r0
+seqz r0 r0
+s helmet Open r0
+j ra
+###FILTRATION HELPER FUNCTION
+HandleFiltration:
+l r0 helmet Pressure
+l r1 helmet RatioOxygen
+mul r0 r0 r1
+sle r0 r0 30
+s suit Filtration r0
+j ra

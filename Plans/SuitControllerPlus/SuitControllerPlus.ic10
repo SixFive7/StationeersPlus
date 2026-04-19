@@ -1,0 +1,128 @@
+alias suit db
+alias helm d0
+define MINP 20
+define MAXP 200
+define MINT 273
+define MAXT 323
+define MINO2 16
+define MAXTOX 0.5
+alias prev r7
+alias paus r8
+alias wtmr r9
+alias safe r10
+alias sFlt r12
+ls r0 suit 3 Class
+seq r0 r0 26
+select sFlt r0 4 5
+move prev -1
+start:
+yield
+sdns r0 helm
+bnez r0 isOpen
+l r0 helm Lock
+bnez r0 start
+l r0 suit EntityState
+bgtz r0 uncon
+l r1 suit PressureExternal
+l r2 suit TemperatureExternal
+l r3 suit RatioOxygenOutput
+mul r3 r3 r1
+l r4 suit RatioPollutantOutput
+l r5 suit RatioVolatilesOutput
+add r4 r4 r5
+mul r4 r4 r1
+sge r0 r1 MINP
+sle r5 r1 MAXP
+and r0 r0 r5
+sge r5 r2 MINT
+sle r15 r2 MAXT
+and r5 r5 r15
+sge r15 r3 MINO2
+sle r14 r4 MAXTOX
+and safe r0 r5
+and safe safe r15
+and safe safe r14
+bne safe prev resume
+bnez paus done
+l r0 helm Open
+beq r0 safe done
+move paus 1
+j done
+resume:
+move paus 0
+s helm Open safe
+done:
+move prev safe
+l r0 helm Open
+bnez r0 isOpen
+ls r1 suit 1 Temperature
+sgt r13 r1 2500
+l r1 suit Temperature
+slt r2 r1 273
+sgt r3 r1 313
+or r2 r2 r3
+s suit On r2
+l r1 suit Pressure
+slt r2 r1 30
+sgt r3 r1 120
+or r2 r2 r3
+select r2 r13 0 r2
+s suit AirRelease r2
+l r1 suit RatioOxygen
+slt r2 r1 0.45
+l r1 suit RatioCarbonDioxide
+sgt r3 r1 0.05
+or r2 r2 r3
+select r2 r13 0 r2
+s suit Filtration r2
+l r1 suit RatioVolatiles
+l r2 suit RatioPollutant
+add r1 r1 r2
+l r2 suit RatioNitrousOxide
+add r1 r1 r2
+sgtz r1 r1
+s helm Flush r1
+j alerts
+isOpen:
+s suit On 0
+s suit Filtration 0
+s suit AirRelease 0
+alerts:
+add wtmr wtmr 1
+blt wtmr 60 start
+move wtmr 0
+ls r0 suit 2 ChargeRatio
+sle r0 r0 0.20
+mul r13 r0 23
+ls r0 suit 0 Pressure
+slt r0 r0 1500
+select r13 r0 40 r13
+ls r0 suit 1 Pressure
+sgt r0 r0 3500
+select r13 r0 39 r13
+ls r0 suit 1 Temperature
+sgt r0 r0 2000
+select r13 r0 41 r13
+ls r0 suit sFlt Quantity
+slt r0 r0 3
+select r13 r0 20 r13
+l r0 suit Setting
+sgtz r1 r0
+sle r0 r0 300
+and r0 r1 r0
+select r13 r0 18 r13
+beqz r13 start
+s suit SoundAlert r13
+sleep 2
+s suit SoundAlert 0
+j start
+uncon:
+s suit On 1
+s suit AirRelease 1
+s suit Filtration 1
+s suit SoundAlert 6
+yield
+l r0 suit EntityState
+bgtz r0 uncon
+s suit SoundAlert 0
+j start

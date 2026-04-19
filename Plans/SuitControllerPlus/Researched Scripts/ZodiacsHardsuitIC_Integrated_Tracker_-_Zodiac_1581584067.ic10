@@ -1,0 +1,93 @@
+# Workshop ID: 1581584067
+# Title: ZodiacsHardsuitIC(WithIntegratedTracker)
+# Author: Zodiac
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=1581584067
+# ---
+#SuitIC​
+#Screws​
+alias Suit db​
+alias Helmet d0​
+alias Backpack d1​
+#registers​
+alias ExtPress r0​
+alias ExtTemp r1​
+alias HelmetClosed r2​
+alias BaseX r3​
+alias BaseY r4​
+alias CurrentX r6​
+alias CurrentY r7​
+​
+alias BaseRadius r9​
+alias MaxDistance r10​
+​
+move BaseRadius 50​
+move MaxDistance 500​
+​
+l BaseX Suit PositionX​
+l BaseY Suit PositionY​
+​
+Start:​
+yield​
+l ExtPress Suit PressureExternal​
+l ExtTemp Suit TemperatureExternal​
+l HelmetClosed Helmet Open​
+l CurrentX Suit PositionX​
+l CurrentY Suit PositionY​
+​
+#Coordinates​
+#XDistance​
+sub r15 BaseX CurrentX​
+abs r15 r15​
+mul r15 r15 r15​
+#YDistance​
+sub r14 BaseY CurrentY​
+abs r14 r14​
+mul r14 r14 r14​
+#TotoalDistance​
+add r15 r15 r14​
+sqrt r15 r15​
+​
+#CheckForMaxDistance​
+brlt r15 MaxDistance 2​
+move MaxDistance r15​
+​
+#SettingPressure​
+blt r15 BaseRadius InBase​
+​
+div r15 r15 MaxDistance​
+mul r15 r15 530​
+​
+s Suit PressureSetting r15​
+​
+jr 4​
+InBase:​
+s Suit PressureSetting 30​
+move MaxDistance 500​
+​
+Checks:​
+#TempChecks​
+blt ExtTemp 265 CloseHelmet​
+bgt ExtTemp 320 CloseHelmet​
+​
+#PressChecks​
+bgt ExtPress 570 CloseHelmet​
+blt ExtPress 25 CloseHelmet​
+​
+s Helmet Lock 0​
+​
+#ActivateInternalSystems​
+seq HelmetClosed HelmetClosed 0​
+s Suit On HelmetClosed​
+s Suit Filtration HelmetClosed​
+s Suit AirRelease HelmetClosed​
+​
+j Start​
+​
+CloseHelmet:​
+s Helmet Open 0​
+s Helmet Lock 1​
+move HelmetClosed 1​
+s Suit On HelmetClosed​
+s Suit Filtration HelmetClosed​
+s Suit AirRelease HelmetClosed​
+j Start

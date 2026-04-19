@@ -1,0 +1,88 @@
+# Workshop ID: 2891086325
+# Title: Suit Control
+# Author: HydrO
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2891086325
+# ---
+# Suit Control, Hydro @ 2022
+# Unlock helmet for manual control
+alias suit db
+alias helmet d0
+
+
+alias filtration r15
+alias flickerFiltering r14
+alias maxTempC r13
+alias minTempC r12
+alias maxPressure r11
+alias minPressure r10
+alias helmetOpen r9
+alias externalPressure r8
+alias tempC r7
+
+
+#Config
+move flickerFiltering 0
+move minPressure 39
+move maxPressure 125
+move minTempC 17
+move maxTempC 45
+s suit PressureSetting 50
+s suit TemperatureSetting 294
+#----------------
+
+define K2C -273.15
+
+start:
+
+yield
+l r0 helmet Lock # Manual control
+beq r0 0 start
+
+l helmetOpen helmet Open
+l externalPressure db PressureExternal
+
+l r0 db TemperatureExternal
+add tempC r0 K2C
+beq helmetOpen 0 isClosed
+
+isOpen:
+s db On 0
+s db Filtration 0
+s db AirRelease 0
+
+slt r3 externalPressure minPressure
+bne r3 0 close
+slt r3 maxPressure externalPressure
+bne r3 0 close
+slt r3 tempC minTempC
+bne r3 0 close
+slt r3 maxTempC tempC
+bne r3 0 close
+j start
+
+isClosed:
+l r0 suit RatioOxygen
+sgt r1 r0 0.5
+and r1 flickerFiltering r1
+nor r1 r1 r1
+s suit Filtration r1
+s suit On 1
+s suit AirRelease 1
+
+slt r3 externalPressure minPressure
+bne r3 0 start
+slt r3 maxPressure externalPressure
+bne r3 0 start
+slt r3 tempC minTempC
+bne r3 0 start
+slt r3 maxTempC tempC
+bne r3 0 start
+open:
+s db On 0
+s db Filtration 0
+s db AirRelease 0
+s helmet Open 1
+j start
+close:
+s helmet Open 0
+j isClosed

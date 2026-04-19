@@ -1,0 +1,36 @@
+# Workshop ID: 2696051620
+# Title: Suit base station
+# Author: CowsAreEvil
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2696051620
+# ---
+#Suit base station.  CowsAreEvil
+alias transmitter d0
+#alias display d1
+alias alarm d2
+
+alias posX r10
+alias posZ r11
+alias heading r12
+
+define HOMEX -16  #Set your home position
+define HOMEZ -11  #Set your home position
+
+start:
+yield
+l posX transmitter PositionX
+l posZ transmitter PositionZ
+sub posX posX HOMEX
+sub posZ posZ HOMEZ
+atan2 heading posZ posX
+div heading heading 3.14
+mul heading heading 180
+sub heading 180 heading
+
+
+l r1 alarm Setting
+mul r1 r1 1000
+add heading heading r1
+
+#s display Setting heading
+s transmitter Setting heading
+j start

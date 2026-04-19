@@ -1,0 +1,125 @@
+# Workshop ID: 1729002219
+# Title: Suit GPS and Helmet Control
+# Author: D.Mentia
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=1729002219
+# ---
+#Hardsuit IC for auto helmet control​
+​
+#Override control by moving filter​
+# out of the first filter slot​
+​
+#SETTINGS ---------------​
+​
+define minPressure 40​
+define maxPressure 125​
+define minTemp 280​
+define maxTemp 310​
+s db PressureSetting 50​
+s db TemperatureSetting 294​
+​
+#END OF SETTINGS ---------​
+  Conalias helmet d0alias backpack d1alias x r2​
+alias y r3​
+alias z r4​
+alias helmetOpen r5​
+alias externalPressure r6​
+alias temp r7​
+alias lastdist r8​
+alias temp2 r9​
+alias distance r10​
+alias distancediff r11​
+alias temp3 r12​
+alias pressure r13​
+​
+start:​
+jal checkdistance​
+l helmetOpen helmet Open​
+l externalPressure db PressureExternal​
+#No longer needed as of r7869​
+#div externalPressure externalPressure 1000​
+l temp db TemperatureExternal​
+beq helmetOpen 0 isclosed​
+​
+isopen:​
+#If open, make sure pressure and temp are ok​
+#And light is off​
+#Check for override​
+ls r9 db 4 Occupied​
+ls r12 db 7 Occupied​
+or r9 r9 r12​
+beq r9 0 open2 #Still handle toggles on override​
+s helmet Lock 1 #lock helmet if not override​
+slt r9 externalPressure minPressure​
+bne r9 0 closing​
+slt r9 maxPressure externalPressure​
+bne r9 0 closing​
+slt r9 temp minTemp​
+bne r9 0 closing​
+slt r9 maxTemp temp​
+bne r9 0 closing​
+j open3​
+open2:​
+s helmet Lock 0 #Unlock​
+open3:​
+s db On 0​
+s db Filtration 0​
+s db AirRelease 0​
+yield​
+j start​
+isclosed:​
+#Check for override​
+ls r9 db 4 Occupied​
+or r9 r9 r12​
+beq r9 0 next1 #Still handle toggles on override​
+s helmet Lock 1 #Lock helmet if not override​
+slt r9 externalPressure minPressure​
+bne r9 0 next​
+slt r9 maxPressure externalPressure​
+bne r9 0 next​
+slt r9 temp minTemp​
+bne r9 0 next​
+slt r9 maxTemp temp​
+bne r9 0 next​
+#If we're here, it's safe to open​
+j opening​
+next1:​
+s helmet Lock 0 #Unlock​
+next:​
+#s helmet On 1​
+s db On 1​
+s db Filtration 1​
+s db AirRelease 1​
+yield​
+j start​
+opening:​
+s helmet Open 1​
+yield​
+j start​
+closing:​
+s helmet Open 0​
+yield​
+j start​
+​
+checkdistance:​
+yield​
+l x db PositionX​
+l y db PositionY​
+l z db PositionZ​
+#Easiest thing is to calculate distance correctly​
+#sqrt(x^2+y^2+z^2)...​
+move lastdist distance​
+mul x x x​
+mul y y y​
+mul z z z​
+add distance x y​
+add distance distance z​
+sqrt distance distance​
+sub distancediff lastdist distance​
+#If positive, right direction​
+#If positive, right direction​
+#Scale it down so you dont suffocate​
+#if going the wrong way​
+div distancediff distancediff 2​
+add pressure 50 distancediff​
+s db PressureSetting pressure​
+j ra

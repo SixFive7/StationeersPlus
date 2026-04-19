@@ -1,0 +1,33 @@
+# Workshop ID: 2935571409
+# Title: Stationeers - HardSuit (OnOff)
+# Author: NIKOLAS 11 02 82
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2935571409
+# ---
+alias Suit db
+alias Helmet d0
+alias extP r0
+alias extT r1
+define lowpressure 50
+define highpressure 200
+define lowtemperature 275
+define hightemperature 315
+s Suit PressureSetting 50
+s Suit TemperatureSetting 293.15
+
+main:
+l extP Suit PressureExternal
+l extT Suit TemperatureExternal
+slt r3 extP lowpressure
+sgt r4 extP highpressure
+slt r5 extT lowtemperature
+sgt r6 extT hightemperature
+or r3 r3 r4
+or r5 r5 r6
+or r3 r3 r5
+seqz r4 r3
+s Helmet Open r4
+s Helmet Lock r3
+s Suit On r3
+s Suit Filtration r3
+s Suit AirRelease r3
+j main

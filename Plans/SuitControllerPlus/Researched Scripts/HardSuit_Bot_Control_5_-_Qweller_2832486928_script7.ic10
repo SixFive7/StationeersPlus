@@ -1,0 +1,81 @@
+# Workshop ID: 2832486928
+# Title: HardSuit Bot Control 5 (world save - script 7)
+# Author: Qweller
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2832486928
+# Note: Extracted from world save, not a standalone script
+# ---
+alias wsmode r0
+alias wseventtime r1
+alias hardsuittemperature r2
+alias hardsuitpressure r3
+alias stormswitchstate r4
+alias switchchecktrigger r5
+alias StormSwitch db
+alias WeatherStation d0
+alias EventTimeDisplay d1
+alias StormKlaxon d2
+alias HardSuit d3
+define AllClear 0
+define IncomingStorm 1
+define InStorm 2
+define Green 2
+define Red 4
+define Yellow 5
+define Alarm5 4
+define DefaultTemp 293.15
+define DefaultPressure 50
+define TriggerTemp1 295
+define TriggerTemp2 292
+define SuitStormTrigger 2
+
+ProgramStart:
+s EventTimeDisplay Setting 0
+s EventTimeDisplay Color Green
+
+WatchingLoop:
+jal HardSuitToggle
+jal SwitchCheck
+l wsmode WeatherStation Mode
+beq wsmode AllClear WatchingLoop
+sleep 2
+
+StormComing:
+s StormSwitch Setting 1
+s HardSuit Setting SuitStormTrigger
+
+StormComingLoop:
+l wseventtime WeatherStation NextWeatherEventTime
+s EventTimeDisplay Color Yellow
+s EventTimeDisplay Setting wseventtime
+s StormKlaxon Mode Alarm5
+s StormKlaxon On 1
+l wsmode WeatherStation Mode
+beq wsmode IncomingStorm StormComingLoop
+
+StormHere:
+s EventTimeDisplay Color Red
+s StormKlaxon On 0
+l wsmode WeatherStation Mode
+bne wsmode AllClear StormHere
+j ProgramStart
+
+HardSuitToggle:
+l hardsuitpressure HardSuit PressureSetting
+bne hardsuitpressure DefaultPressure ra
+l hardsuittemperature HardSuit TemperatureSetting
+blt hardsuittemperature TriggerTemp1 ra
+l stormswitchstate StormSwitch Setting
+nor stormswitchstate stormswitchstate stormswitchstate
+s StormSwitch Setting stormswitchstate
+s HardSuit TemperatureSetting DefaultTemp
+j ra
+
+SwitchCheck:
+l hardsuitpressure HardSuit PressureSetting
+bne hardsuitpressure DefaultPressure ra
+l hardsuittemperature HardSuit TemperatureSetting
+bgt hardsuittemperature TriggerTemp2 ra
+l stormswitchstate StormSwitch Setting
+add switchchecktrigger stormswitchstate 3 #convert
+s HardSuit Setting switchchecktrigger
+j ra

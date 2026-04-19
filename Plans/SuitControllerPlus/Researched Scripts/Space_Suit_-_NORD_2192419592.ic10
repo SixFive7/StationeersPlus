@@ -1,0 +1,48 @@
+# Workshop ID: 2192419592
+# Title: Skafandr
+# Author: NO[R]D
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2192419592
+# ---
+alias Skaf db
+alias Helm d0
+alias Temp r4
+alias Press r5
+alias PressE r6
+alias OpenH r7
+define TempMin 280
+define TempMax 310
+define TempNorm 287
+Main:
+l Temp Skaf Temperature
+l PressE Skaf PressureExternal
+l Press Skaf Pressure
+s Skaf On 0
+s Skaf TemperatureSetting 289
+s Skaf PressureSetting 100
+ble Temp TempMin TempOn
+bge Temp TempMax TempOn
+sle r0 Press 30
+s Skaf AirRelease r0
+ble PressE 30 CloseHelm
+l OpenH Helm Open
+beq OpenH 1 OpenHelm
+l r0 Skaf RatioOxygen
+sle r0 r0 0.60
+s Skaf Filtration r0
+j Main
+TempOn:
+l Temp Skaf Temperature
+s Skaf On 1
+ble Temp TempMin TempOn
+bge Temp TempMax TempOn
+j Main
+OpenHelm:
+s Skaf AirRelease 0
+s Skaf Filtration 0
+j Main
+CloseHelm:
+s Helm Open 0
+l r0 Skaf RatioOxygen
+sle r0 r0 0.60
+s Skaf Filtration r0
+j Main

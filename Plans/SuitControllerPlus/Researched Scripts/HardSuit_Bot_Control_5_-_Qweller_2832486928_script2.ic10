@@ -1,0 +1,133 @@
+# Workshop ID: 2832486928
+# Title: HardSuit Bot Control 5 (world save - script 2)
+# Author: Qweller
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2832486928
+# Note: Extracted from world save, not a standalone script
+# ---
+alias robotcurrentmode r0
+alias robothold r1
+alias stormswitchstate r2
+alias dataholder r3
+alias hardsuitpressure r4
+alias hardsuittemperature r5
+alias robottargetx r6
+alias robottargety r7
+alias robottargetz r8
+alias destinationmine r9
+alias robotnotempty r10
+alias robotcharged r11
+alias moveretrycount r12
+alias locationcontroler db
+alias robot d0
+alias stormswitch d1
+alias hardsuit d2
+alias destinationlocx d3
+alias destinationlocy d4
+alias destinationlocz d5
+define savelocmin 47 #east bot save trigger min
+define savelocmax 49 #east bot save trigger max
+ProgramStart:
+s locationcontroler Setting 100 #ProgramStart type
+sleep 1
+s robot On 1
+move robothold 1
+move moveretrycount 0
+MoveToStart:
+move destinationmine 0
+s locationcontroler Setting 20 #move to startloc type
+jal MoveRobot
+s locationcontroler Setting 120 #at startloc type
+sleep 1
+l stormswitchstate stormswitch Open
+or robothold robothold stormswitchstate
+bnez robothold MoveToUnload
+
+MoveToMine:
+move destinationmine 1
+s locationcontroler Setting 40 #move to mineloc type
+jal MoveRobot
+s locationcontroler Setting 140 #mining type
+Mining:
+jal SaveLoc
+s robot Mode RobotMode.Roam
+l stormswitchstate stormswitch Open
+bnez stormswitchstate MoveToStart
+ls robotcharged robot 0 ChargeRatio
+blt robotcharged 0.25 ProgramStart
+l robotcurrentmode robot Mode
+bne robotcurrentmode RobotMode.StorageFull Mining
+move robothold 1
+j MoveToStart
+
+MoveToUnload:
+s locationcontroler Setting 30 #move to unloadloc type
+jal MoveRobot
+Unloading:
+jal SaveLoc
+s locationcontroler Setting 130 #unloading type
+sleep 2
+s robot Mode RobotMode.Unload
+AtUnload:
+jal SaveLoc
+l robothold stormswitch Open
+ls robotnotempty robot 9 Occupied
+or robothold robothold robotnotempty
+bnez robothold AtUnload
+ls robotcharged robot 0 ChargeRatio
+blt robotcharged 0.98 AtUnload
+move robothold 0
+j MoveToStart
+
+MoveRobot:
+push ra
+sleep 1
+move moveretrycount 0
+l robottargetx destinationlocx Setting
+l robottargety destinationlocy Setting
+l robottargetz destinationlocz Setting
+s robot TargetX robottargetx
+s robot TargetY robottargety
+s robot TargetZ robottargetz
+NotAtTarget:
+jal SaveLoc
+l stormswitchstate stormswitch Setting
+and dataholder stormswitchstate destinationmine
+sub sp sp dataholder
+bnez dataholder MoveToStart
+s locationcontroler Setting moveretrycount
+s robot Mode RobotMode.MoveToTarget
+sleep 5
+s robot Mode RobotMode.PathToTarget
+sleep 3
+add moveretrycount moveretrycount 0.5
+bgt moveretrycount 19.5 ProgramStart
+l dataholder robot PositionX
+sub dataholder dataholder 1
+bgt dataholder robottargetx NotAtTarget
+add dataholder dataholder 2
+blt dataholder robottargetx NotAtTarget
+l dataholder robot PositionZ
+sub dataholder dataholder 1
+bgt dataholder robottargetz NotAtTarget
+add dataholder dataholder 2
+blt dataholder robottargetz NotAtTarget
+pop ra
+j ra
+
+SaveLoc:
+l hardsuittemperature hardsuit TemperatureSetting
+blt hardsuittemperature 295 ra #save loc temp trigger
+l hardsuitpressure hardsuit PressureSetting
+blt hardsuitpressure savelocmin ra
+bgt hardsuitpressure savelocmax ra
+l dataholder hardsuit PositionX
+s destinationlocx Setting dataholder
+l dataholder hardsuit PositionY
+s destinationlocy Setting dataholder
+l dataholder hardsuit PositionZ
+s destinationlocz Setting dataholder
+s locationcontroler Setting hardsuitpressure
+sleep 2
+s hardsuit TemperatureSetting 293.15 #default temp
+s hardsuit PressureSetting 50 #default pressure
+j ProgramStart

@@ -1,0 +1,115 @@
+# Workshop ID: 3468122172
+# Title: SpotlightMod Suit Tracker
+# Author: WIKUS
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3468122172
+# ---
+alias Transmitter d0
+alias Spotlight d1
+alias PlayerX r0
+alias PlayerY r1
+alias PlayerZ r2
+alias DevX r3
+alias DevY r4
+alias DevZ r5
+alias dx r6
+alias dy r7
+alias dz r8
+alias distanceXZ r9
+alias angleH r10
+alias angleV r11
+alias offsetH r12
+alias offsetV r13
+alias mountMode r14
+alias temp r15
+Start:
+# Mount Setup:
+# Floor/Ceiling: data port faces north (0 degrees)
+# Wall: data port faces up
+
+# Modes:
+# 0 = Floor     | 1 = Ceiling
+# 2 = Wall West | 3 = Wall East
+# 4 = Wall North| 5 = Wall South
+
+# Set mount mode here:
+move mountMode 0
+
+l PlayerX Transmitter PositionX
+l PlayerY Transmitter PositionY
+l PlayerZ Transmitter PositionZ
+l DevX Spotlight PositionX
+l DevY Spotlight PositionY
+l DevZ Spotlight PositionZ
+sub dx PlayerX DevX
+sub dy PlayerY DevY
+sub dz PlayerZ DevZ
+beq mountMode 0 SetUp
+beq mountMode 1 SetDown
+beq mountMode 2 SetWest
+beq mountMode 3 SetEast
+beq mountMode 4 SetNorth
+beq mountMode 5 SetSouth
+SetUp:
+move offsetH 0
+move offsetV 0
+j Calc
+SetDown:
+move offsetH 180
+move offsetV 180
+j Calc
+SetWest:
+move offsetH 90
+move offsetV 0
+push dx
+move dx dy
+pop dy
+j Calc
+SetEast:
+move offsetH 90
+move offsetV 270
+push dx
+move dx dy
+pop dy
+j Calc
+SetNorth:
+move offsetH 0
+move offsetV 180
+push dz
+move dz dy
+pop dy
+j Calc
+SetSouth:
+move offsetH 180
+move offsetV 0
+push dz
+move dz dy
+pop dy
+Calc:
+atan2 temp dx dz
+mul temp temp 180
+div angleH temp 3.14159265359
+add angleH angleH offsetH
+mul temp dx dx
+mul distanceXZ dz dz
+add distanceXZ distanceXZ temp
+sqrt distanceXZ distanceXZ
+atan2 temp dy distanceXZ
+mul temp temp 180
+div angleV temp 3.14159265359
+add angleV angleV 30
+add angleV angleV offsetV
+beq mountMode 1 InvertH
+beq mountMode 2 InvertH
+beq mountMode 3 InvertV
+beq mountMode 5 InvertH
+j Apply
+InvertH:
+sub angleH 360 angleH
+j Apply
+InvertV:
+sub angleV 360 angleV
+sub angleV angleV 30
+Apply:
+s Spotlight Horizontal angleH
+s Spotlight Vertical angleV
+j Start

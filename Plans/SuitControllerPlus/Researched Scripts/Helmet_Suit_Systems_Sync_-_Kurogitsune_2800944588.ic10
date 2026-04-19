@@ -1,0 +1,27 @@
+# Workshop ID: 2800944588
+# Title: Helmet - suit systems synchronization
+# Author: Kurogitsune
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2800944588
+# ---
+alias Suit db
+alias Helmet d0
+
+alias HelmetState r0
+
+main:
+l HelmetState Helmet Open
+beqzal HelmetState turnOn
+bnezal HelmetState turnOff
+j main
+
+turnOn:
+s Suit Filtration 1
+s Suit AirRelease 1
+s Suit On 1
+j ra # Return to caller
+
+turnOff:
+s Suit Filtration 0
+s Suit AirRelease 0
+s Suit On 0
+j ra

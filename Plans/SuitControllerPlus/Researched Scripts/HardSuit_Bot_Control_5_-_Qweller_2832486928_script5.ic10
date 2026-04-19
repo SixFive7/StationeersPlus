@@ -1,0 +1,79 @@
+# Workshop ID: 2832486928
+# Title: HardSuit Bot Control 5 (world save - script 5)
+# Author: Qweller
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2832486928
+# Note: Extracted from world save, not a standalone script
+# ---
+alias suitstate r0
+alias pressuresetting r1
+alias Suit db
+alias Helmet d0
+define BotBatteryLow 1
+define StormWarning 2
+define SwitchOpenTrigger 3
+define SwitchClosedTrigger 4
+define NormalPressure 50
+define DefaultTemp 293.15
+
+ProgramStart:
+s Suit Setting 0
+
+WatchingLoop:
+l suitstate Suit Setting
+beq suitstate BotBatteryLow FlashBatteryLow
+beq suitstate StormWarning FlashStormWarning
+beq suitstate SwitchOpenTrigger FlashSwitchOpen
+beq suitstate SwitchClosedTrigger FlashSwitchClosed
+j WatchingLoop
+
+FlashBatteryLow:
+s Helmet On 1
+sleep 0.2
+s Helmet On 0
+sleep 0.2
+s Helmet On 1
+sleep 0.2
+s Helmet On 0
+sleep 0.2
+s Helmet On 1
+sleep 0.2
+s Helmet On 0
+sleep 2
+l pressuresetting Suit PressureSetting
+beq pressuresetting NormalPressure FlashBatteryLow
+s Suit PressureSetting NormalPressure
+j ProgramStart
+
+FlashStormWarning:
+s Helmet On 1
+sleep 1
+s Helmet On 0
+sleep 1
+l pressuresetting Suit PressureSetting
+beq pressuresetting NormalPressure FlashStormWarning
+s Suit PressureSetting NormalPressure
+j ProgramStart
+
+FlashSwitchOpen:
+s Helmet On 1
+sleep 0.2
+s Helmet On 0
+sleep 1
+s Suit TemperatureSetting DefaultTemp
+s Suit Setting 0
+move suitstate 0
+j ra
+
+FlashSwitchClosed:
+s Helmet On 1
+sleep 0.2
+s Helmet On 0
+sleep 0.2
+s Helmet On 1
+sleep 0.2
+s Helmet On 0
+sleep 1
+s Suit TemperatureSetting DefaultTemp
+s Suit Setting 0
+move suitstate 0
+j ra

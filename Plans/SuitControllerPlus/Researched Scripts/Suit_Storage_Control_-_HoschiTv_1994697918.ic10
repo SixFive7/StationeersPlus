@@ -1,0 +1,46 @@
+# Workshop ID: 1994697918
+# Title: Suit Storage Control
+# Author: HoschiTv
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=1994697918
+# ---
+alias Helm r0
+alias Suit r1
+alias JetPack r2
+alias Bat.Check r3
+alias O2Check r4
+alias N2Check r5
+alias AZL d0
+alias 02 d1
+alias N2 d2
+alias LED d3
+s d0 On 0
+s d1 On 0
+s d1 Setting 0
+s d2 On 0
+s d2 Setting 0
+s d3 On 0
+s d3 Color 1
+Check:
+ls r0 d0 0 Occupied
+blt r0 1 8
+ls r1 d0 1 Occupied
+blt r1 1 8
+ls r2 d0 2 Occupied
+blt r2 1 8
+s d0 On 1
+s d1 On 1
+s d1 Setting 6500
+s d2 On 1
+s d2 Setting 6500
+l r3 d0 RequiredPower
+bgt r3 50 Check
+ls r4 d0 1 PressureAir
+blt r4 6500 Check
+ls r5 d0 2 Pressure
+blt r5 6500 Check
+s d3 On 1
+s d3 Color 2
+j Check
+#---End & Epilogue---#
+#---Coded from HoschiTv---#
+#---Have fun with it :)---#

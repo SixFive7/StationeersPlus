@@ -1,0 +1,56 @@
+# Workshop ID: 2832486928
+# Title: HardSuit Bot Control 5 (world save - script 3)
+# Author: Qweller
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=2832486928
+# Note: Extracted from world save, not a standalone script
+# ---
+alias robotslot r0
+alias slotloaded r1
+alias totalslotsloaded r2
+alias batterycharge r3
+alias mineablesnear r4
+alias mineablesqueue r5
+alias Robot d0
+alias SlotsLoadedDisplay d1
+alias BatteryDisplay d2
+alias MineablesNearDisplay d3
+alias MineablesQueueDisplay d4
+alias HardSuit d5
+define BatterySlot 0
+define BatteryLow 0.15
+define SuitLowBatteryTrigger 1
+define FirstMineablesSlot 9
+define LastMineablesSlot 2
+
+ProgramStart:
+jal CheckBattery
+move robotslot FirstMineablesSlot
+jal CheckMineablesLoaded
+l mineablesnear Robot MineablesInVicinity
+s MineablesNearDisplay Setting mineablesnear
+l mineablesqueue Robot MineablesInQueue
+s MineablesQueueDisplay Setting mineablesqueue
+j ProgramStart
+
+CheckBattery:
+ls batterycharge Robot BatterySlot ChargeRatio
+s BatteryDisplay Setting batterycharge
+bgt batterycharge BatteryLow ra
+s HardSuit Setting SuitLowBatteryTrigger
+BatteryLowLoop:
+ls batterycharge Robot BatterySlot ChargeRatio
+s BatteryDisplay Setting batterycharge
+bgt batterycharge BatteryLow ra
+j BatteryLowLoop
+
+CheckMineablesLoaded:
+ls slotloaded Robot robotslot Occupied
+beqz slotloaded WriteSlotsLoaded
+sub robotslot robotslot 1
+blt robotslot LastMineablesSlot WriteSlotsLoaded
+j CheckMineablesLoaded
+
+WriteSlotsLoaded:
+sub totalslotsloaded FirstMineablesSlot robotslot
+s SlotsLoadedDisplay Setting totalslotsloaded
+j ra

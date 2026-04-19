@@ -1,0 +1,41 @@
+# Workshop ID: 3663586339
+# Title: Suit Auto
+# Author: darknugget4231
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3663586339
+# ---
+l r0 db PressureExternal  # Sets r0 (variable) to current External Pressure
+blt r0 70 3  # Check if External pressure is less than 70. If less, then jump to line 3
+bgt r0 71 12 # Check if External pressure is Greater than 70. Jump to line 13 if true
+s d0 Open 0
+s d0 On 1
+s d0 Lock 1
+s db AirRelease 1
+s db On 1
+s db SoundAlert 0
+j 25
+
+# This is the code to OPEN your helmet automatically (and turn off the suit)
+yield
+yield
+yield
+yield
+s d0 SoundAlert 0
+s d0 Lock 0
+s d0 Open 1
+s d0 On 0
+s db AirRelease 0
+s db On 0
+j 30
+
+# This checks Helmet CO2 ratio -- saves some of the filter durability by not being on cons
+l r1 d0 RatioCarbonDioxide
+blt r1 0.2 30
+s db Filtration 1
+
+# Wait a few ticks before checking again
+yield
+yield
+yield
+yield
+s db Filtration 0
+j 0 # Jump to start of script

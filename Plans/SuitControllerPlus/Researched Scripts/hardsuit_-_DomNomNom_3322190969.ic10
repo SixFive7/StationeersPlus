@@ -1,0 +1,44 @@
+# Workshop ID: 3322190969
+# Title: hardsuit
+# Author: DomNomNom
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3322190969
+# ---
+alias suit db
+alias helmet d0
+alias backpack d1
+
+start:
+
+l r0 suit TemperatureExternal
+blt r0 273 atmosUnsafe
+bgt r0 323 atmosUnsafe
+l r0 suit PressureExternal
+blt r0 45 atmosUnsafe
+bgt r0 150 atmosUnsafe
+#l r0 suit RatioPollutant
+#bge r0 0.01 atmosUnsafe
+#l r0 suit RatioVolatiles
+#bge r0 0.01 atmosUnsafe
+#l r0 suit RatioNitrousOxide
+#bge r0 0.01 atmosUnsafe
+
+atmosSafe:
+add r0 0 1
+j applyAtmos
+atmosUnsafe:
+add r0 0 0
+applyAtmos:
+xor r1 r0 1
+s helmet Open r0
+#s helmet On r1
+s suit Filtration r1
+s suit AirRelease r1
+
+# not doing A/C. The "On" seems to be doing weird thing
+#l r2 suit On
+#bne r2 r1 suitCorrect
+#s suit On r1
+#suitCorrect:
+
+yield
+j start

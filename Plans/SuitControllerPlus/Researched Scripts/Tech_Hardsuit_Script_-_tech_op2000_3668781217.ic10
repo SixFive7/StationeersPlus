@@ -1,0 +1,107 @@
+# Workshop ID: 3668781217
+# Title: Tech Hardsuit Script
+# Author: Tech_op
+# URL: https://steamcommunity.com/sharedfiles/filedetails/?id=3668781217
+# ---
+#Tech's Hardsuit Safety System Original script credit to CowsAreEvil
+#Pair with Tech's Weather and Base Homing Script to get weather warnings and heading home
+#For Heading, set suit temp to 19 degrees and read internal pressure setting
+#Suit pressure will flash between desired heading and 70(for maintaining suit pressure)
+
+
+#Pins: d0 = Helmet, db = Suit
+alias suit db
+alias helmet d0
+alias backpack d1
+alias safe r10
+s suit Volume 100
+
+start:
+yield
+
+#Check for Toxic Gases (Volatiles, Pollutants, Nitrous)
+l r0 suit RatioVolatiles
+slt safe r0 0.05
+l r0 suit RatioPollutant
+slt r1 r0 0.05
+and safe safe r1
+l r0 suit RatioNitrousOxide
+slt r1 r0 0.05
+and safe safe r1
+
+#CRITICAL: Check for Breathable Oxygen (At least 18%)
+l r0 suit RatioOxygen
+sgt r1 r0 0.18
+and safe safe r1
+
+#Check Environment (Temperature: 0C to 50C)
+l r0 suit TemperatureExternal
+sgt r1 r0 273
+and safe safe r1
+slt r1 r0 323
+and safe safe r1
+
+#Check Environment (Pressure: 45kPa to 150kPa)
+l r0 suit PressureExternal
+sgt r1 r0 45
+and safe safe r1
+slt r1 r0 150
+and safe safe r1
+
+#Apply Lock Status first
+#If safe, unlock (0). If not safe, lock (1).
+seqz r0 safe
+s helmet Lock r0
+
+#Auto-Open/Close Visor
+s helmet Open safe
+
+#Life Support Management
+#If visor is open, turn off air to save tank resources
+l r0 helmet Open
+seqz r0 r0
+s suit AirRelease r0
+s suit Filtration r0
+s suit On r0
+
+#Storm Alarm Feature (use code masking)
+l r2 suit Setting #get 32bit heading/storm time from Transmitter.
+#1st 16bits are heading in degrees.2nd 16bits are storm approaching time in seconds
+and r3 r2 $FFFF0000 #????????????????0000000000000000
+srl r3 r3 16
+and r4 r2 $FFFF #0000000000000000????????????????
+trunc r4 r4
+div r4 r4 60 #get minutes till storm
+
+#Storm audio warning
+blt r4 1 heading #skip storm warning if less than one minute
+bgt r4 10 heading #skip if storm more than 10 minutes
+round r5 r4
+bne r4 r5 heading #skip if time is not a round number
+s suit SoundAlert 18 #storm incoming
+add r5 r4 28  #Minutes+28 to get 1,2,3,4,5 Sounds
+sleep 2
+brle r4 5 4
+s suit SoundAlert 33 #say 5
+sub r5 r5 5
+sleep 1
+s suit SoundAlert 0
+s suit SoundAlert r5
+sleep 1
+
+#Navigation/Pressure Toggle
+heading:
+s suit SoundAlert 0
+l r0 suit TemperatureSetting
+bgt r0 293 start
+l r0 suit Setting
+mod r0 r0 1000
+s suit AirRelease 0
+s suit Filtration 0
+s suit PressureSetting r3
+yield
+s suit PressureSetting 70
+s suit AirRelease 1
+s suit Filtration 1
+
+j start
