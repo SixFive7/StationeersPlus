@@ -122,7 +122,7 @@ In multiplayer, the host's beam visual settings (width, color, emission intensit
 
 ## Reporting Issues
 
-If you run into a bug or something behaves unexpectedly, please open an issue on [GitHub](https://github.com/SixFive7/PowerTransmitterPlus/issues). It would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+If you run into a bug or something behaves unexpectedly, please open an issue on [GitHub](https://github.com/SixFive7/StationeersPlus/issues). Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
 
 ## Changelog
 
@@ -135,4 +135,4 @@ Version history lives in [`PowerTransmitterPlus/About/About.xml`](PowerTransmitt
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for attribution.
+Apache License 2.0. See [LICENSE](../../LICENSE) for the full text and [NOTICE](../../NOTICE) for attribution.

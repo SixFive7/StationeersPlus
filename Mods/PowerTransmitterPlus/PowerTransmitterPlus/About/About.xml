@@ -76,17 +76,17 @@ In multiplayer, the host's beam visual settings (width, color, emission intensit
 [b]Custom logic type range[/b] 6571-6599 is reserved by this mod. Any other mod that registers a LogicType in that range will collide. The range sits well outside the vanilla enum (0-349) and the range used by Stationeers Logic Extended (1000-1830).
 
 [h2]Reporting Issues[/h2]
-If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/PowerTransmitterPlus/issues]GitHub[/url]. It would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
 
 [h2]Credits[/h2]
 [list]
 [*][b]ThunderDuck[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467]Stationeers Logic Extended[/url], which pioneered the pattern for registering custom LogicType values. The injection approach used here (extending ProgrammableChip.AllConstants, Logicable.LogicTypes, and the enum-name lookup paths) is adapted from that work.
 [/list]
 
-[url=https://github.com/SixFive7/PowerTransmitterPlus]Source Code on GitHub[/url]
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/PowerTransmitterPlus]Source Code on GitHub[/url]
 
 [h2]License[/h2]
-Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v1.1.3: Screen syntax highlighting fix
 - Fixed custom LogicType names rendering red on in-game computer and laptop screen previews
