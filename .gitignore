@@ -1,0 +1,90 @@
+## .NET / Visual Studio
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userosscache
+*.userprefs
+*.sln.docstates
+.vs/
+*.iobj
+*.ipdb
+
+## Build results
+*.dll
+*.pdb
+*.exe
+*.cache
+
+## NuGet
+packages/
+*.nupkg
+
+## OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Rider / VS Code / Fleet
+.idea/
+.vscode/
+*.DotSettings.user
+*.iml
+.fleet/
+
+## Local build config (Stationeers install path)
+## Copy Directory.Build.props.template to Directory.Build.props and set your path
+Directory.Build.props
+
+## Developer-specific notes (copy DEV.md.template to DEV.md and fill in)
+DEV.md
+
+## Claude Code local state
+.claude/
+
+## Code-signing keys (never commit)
+*.pfx
+*.snk
+
+## Logs, temp, backups, merge-conflict leftovers
+*.log
+*.tmp
+*.bak
+*.orig
+*.bak.*
+*~
+
+## Test / benchmark / coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+BenchmarkDotNet.Artifacts/
+
+## Analyzer / version-tool caches
+StyleCop.Cache
+GitVersion_*
+MinVer_*
+
+## IDE extras
+*.vssettings
+*.vsix
+
+## Release-build output dirs
+artifacts/
+publish/
+out/
+build/
+
+## Node (defensive; unlikely to be used)
+node_modules/
+
+## LLM mod content (2+ GB, pending Git LFS; see root TODO.md)
+Plans/LLM/*
+!Plans/LLM/README.md
+
+## LLM model files (binary weights)
+*.gguf
