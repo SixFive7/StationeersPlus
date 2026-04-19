@@ -9,7 +9,7 @@ Working notes for the ConfigCartridge click + scroll fixes. Verification is pend
 
 ## Pending work
 
-- [ ] Deploy `bin/Release/EquipmentPlus.dll` to `C:\Users\jori\Documents\My Games\Stationeers\mods\EquipmentPlus\` after the user gives the go-ahead. Update `About.xml` alongside if it changed (it has not in this round).
+- [ ] Deploy `bin/Release/EquipmentPlus.dll` to the local Stationeers mods deploy folder (see `DEV.md` / `DEV.md.template` for the exact path on your setup) after confirming the build. Update `About.xml` alongside if it changed (it has not in this round).
 - [ ] Verify scroll behavior in-game (see test regime below).
 - [ ] Verify click behavior in-game. If logs show the handler never runs, the root cause is environmental (load order, conflict detector, deploy path). If logs show a specific gate bailing, that's the real bug and needs a targeted follow-up.
 - [ ] Once click is confirmed working, flip `ConfigCartridgeState.ClickTrace` to `false` and rebuild. The extra log lines are noisy on a long cartridge scan.
@@ -46,7 +46,7 @@ If any of 1-6 fails, the log (tail `E:/Steam/steamapps/common/Stationeers/BepInE
 
 ## Notes to keep
 
-- The user's active Stationeers deploy path is `C:\Users\jori\Documents\My Games\Stationeers\mods\<ModName>\`. The sibling `Stationeers - Copy*` folders under `My Games` are full-game backups and must never be read or written.
+- The Stationeers deploy folder layout is documented in `DEV.md.template` (section "Local deploy target"). If the deploy path has `Stationeers - Copy*` sibling folders, those are full-game backups and must never be read or written; treat only `mods/<ModName>/` as a valid target.
 - `Plugin.OnAllModsLoaded` aborts `Harmony.PatchAll()` if any of `BetterAdvancedTablet`, `ImprovedConfiguration`, or `SlotConfigurationCartridge` is loaded. Users reporting "the new behavior doesn't happen" with any of those mods still enabled are expected. Log line to look for on abort: `CONFLICT: {mod} is loaded` followed by `EquipmentPlus NOT LOADED`.
 - `Cartridge.UpdateEachFrame` fires `OnScreenUpdate` for every cartridge in the tablet, not just the displayed one. The `tablet.Cartridge != __instance` guard in the click handler is load-bearing; removing it causes clicks on device A to open an input window for whichever inactive cartridge was last scrolled.
 - `ConfigCartridge.OnScreenUpdate` overwrites `_displayTextMesh.text = _outputText` every call. Any text-mesh edit must be re-applied in a postfix every frame. The text-equality guard `if (textMesh.text != newText) textMesh.text = newText;` avoids redundant TMP mesh rebuilds.
