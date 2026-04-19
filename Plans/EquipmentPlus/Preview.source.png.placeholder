@@ -1,0 +1,20 @@
+Preview.source.png placeholder
+===============================
+
+Replace this file with the real `Preview.source.png` at this exact path:
+
+    {{ModCodeName}}/Preview.source.png
+
+Requirements:
+
+- File format: PNG (RGB or RGBA).
+- Aspect ratio: exactly 16:9.
+- Recommended dimensions: 1920x1080 (preferred for archival quality) or 1280x720 (acceptable minimum).
+- This is the original full-resolution source image, before any resizing. Both `About/Preview.png` (1280x720) and `About/thumb.png` (640x360) are derived from it, so keep this source committed so future regenerations have a high-resolution starting point.
+- Delete this `.placeholder` file once the real PNG is in place.
+
+Verification command (from any shell with Pillow available):
+
+    python -c "from PIL import Image; img = Image.open('Preview.source.png'); print(img.size, round(img.size[0] / img.size[1], 4))"
+
+The second number must print as 1.7778 (16:9). Any other ratio is invalid and will be letterboxed on Steam Workshop with visible black bars.
