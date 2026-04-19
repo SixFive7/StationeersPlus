@@ -84,7 +84,7 @@ All features are configurable via the mod settings panel.
 [b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + SprayPaintPlus setup installed server-side. The paint logic runs server-authoritatively and the handshake rejects mixed installs.
 
 [h2]Reporting Issues[/h2]
-If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/SprayPaintPlus/issues]GitHub[/url]. It would be greatly appreciated. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
 
 [h2]Credits[/h2]
 
@@ -96,10 +96,10 @@ Spray Paint Plus would not exist without the modders who came before:
 [*][b]Dingo (DingoPD)[/b]: Created the original [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url], the first infinite spray paint mod for Stationeers.
 [/list]
 
-[url=https://github.com/SixFive7/SprayPaintPlus]Source Code on GitHub[/url]
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus]Source Code on GitHub[/url]
 
 [h2]License[/h2]
-Licensed under the [url=https://www.apache.org/licenses/LICENSE-2.0]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files in the source repository.</Description>
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v1.2.4: Patch release
 - REQUIRES: All players on a server must run 1.2.4 (matching-version handshake)
