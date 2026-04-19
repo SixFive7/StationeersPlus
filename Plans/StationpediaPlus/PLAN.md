@@ -182,9 +182,9 @@ Key mechanics:
 
 From vanilla `english.xml`:
 
-- `StructurePowerTransmitter` — Microwave Power Transmitter (the dish)
-- `StructurePowerTransmitterReceiver` — Microwave Power Receiver
-- `StructurePowerTransmitterOmni` — vanilla omni variant, NOT modified by this mod
+- `StructurePowerTransmitter`, Microwave Power Transmitter (the dish)
+- `StructurePowerTransmitterReceiver`, Microwave Power Receiver
+- `StructurePowerTransmitterOmni`, vanilla omni variant, NOT modified by this mod
 
 Stationpedia page keys:
 
@@ -194,16 +194,16 @@ Stationpedia page keys:
 
 ### Existing Harmony patches (to keep)
 
-- `LogicableInitializePatch` — extends `EnumCollections.LogicTypes.Values` to include 6571-6576
-- `LogicReadoutPatches` — `CanLogicRead` / `GetLogicValue` postfixes branched by `__instance is PowerTransmitter / PowerReceiver`
-- `AutoAimPatches` — `SetLogicValue` prefix, `CanLogicWrite` postfix, `RotatableBehaviour` setter postfixes to reset auto-aim on manual H/V write
-- `EnumNamePatches` — postfixes on `Enum.GetName`, `EnumCollection<LogicType, ushort>.GetName` / `GetNameFromValue`
-- `Ic10ConstantsPatcher` — reflection injection into `ProgrammableChip.AllConstants` for IC10 name resolution
+- `LogicableInitializePatch`, extends `EnumCollections.LogicTypes.Values` to include 6571-6576
+- `LogicReadoutPatches`, `CanLogicRead` / `GetLogicValue` postfixes branched by `__instance is PowerTransmitter / PowerReceiver`
+- `AutoAimPatches`, `SetLogicValue` prefix, `CanLogicWrite` postfix, `RotatableBehaviour` setter postfixes to reset auto-aim on manual H/V write
+- `EnumNamePatches`, postfixes on `Enum.GetName`, `EnumCollection<LogicType, ushort>.GetName` / `GetNameFromValue`
+- `Ic10ConstantsPatcher`, reflection injection into `ProgrammableChip.AllConstants` for IC10 name resolution
 - Distance-cost patches (four-patch dance):
-  - `GeneratedPowerNoDistanceDeratePatch` — prefix on `PowerTransmitter.GetGeneratedPower`
-  - `UsePowerInflateDebtPatch` — postfix on `PowerTransmitter.UsePower`
-  - `GetUsedPowerLiftCapPatch` — postfix on `PowerTransmitter.GetUsedPower`
-  - `ReceivePowerVisualizerFixPatch` — postfix on `PowerTransmitter.ReceivePower`
+  - `GeneratedPowerNoDistanceDeratePatch`, prefix on `PowerTransmitter.GetGeneratedPower`
+  - `UsePowerInflateDebtPatch`, postfix on `PowerTransmitter.UsePower`
+  - `GetUsedPowerLiftCapPatch`, postfix on `PowerTransmitter.GetUsedPower`
+  - `ReceivePowerVisualizerFixPatch`, postfix on `PowerTransmitter.ReceivePower`
 
 ### Current Stationpedia stub (to be DELETED during migration)
 
@@ -251,7 +251,7 @@ patch (best-effort; tolerates absence).
 
 Additionally the mod must patch `Enum.GetName(Type, object)` and
 `EnumCollection<LogicType, ushort>.GetName` / `GetNameFromValue` postfixes
-so reflection-based name lookups find our custom values — done by
+so reflection-based name lookups find our custom values, done by
 `EnumNamePatches`.
 
 ### Threading / main-thread safety
@@ -307,27 +307,27 @@ Optional secondary hook:
 
 ### Four public helpers (mod-facing API)
 
-1. `CategoryBuilder` — injects collapsible sections on vanilla device pages.
-2. `ReferencePage` — registers hidden reference pages linkable but not
+1. `CategoryBuilder`, injects collapsible sections on vanilla device pages.
+2. `ReferencePage`, registers hidden reference pages linkable but not
    searchable.
-3. `LogicTypePageBuilder` — enriches LogicType page bodies; also invokes
+3. `LogicTypePageBuilder`, enriches LogicType page bodies; also invokes
    `SpaBridge` automatically for every registered spec.
-4. `SpaBridge` — soft-detects SPA and reflects into its `DeviceDatabase` for
+4. `SpaBridge`, soft-detects SPA and reflects into its `DeviceDatabase` for
    tooltip enrichment. Usually called automatically by `LogicTypePageBuilder`;
    public for edge-case direct use.
 
 ### One runtime support MonoBehaviour
 
-- `SixFive7LinkHandler` — minimal `IPointerClickHandler` attached to every
+- `SixFive7LinkHandler`, minimal `IPointerClickHandler` attached to every
   dynamically created TMP text element inside extension sections.
   Routes `<link=...>` clicks to `Stationpedia.Instance.SetPage(linkID)`.
 
 ### Three internal plumbing files
 
-- `SearchFilterPatch` — installs the search-filter Harmony postfixes.
-- `TextElementFactory` — builds dynamic TMP elements with donor styling and
+- `SearchFilterPatch`, installs the search-filter Harmony postfixes.
+- `TextElementFactory`, builds dynamic TMP elements with donor styling and
   attaches `SixFive7LinkHandler`.
-- `HarmonyIdHelper` — derives per-mod Harmony instance IDs from the
+- `HarmonyIdHelper`, derives per-mod Harmony instance IDs from the
   consuming mod's GUID.
 
 ---
@@ -336,7 +336,7 @@ Optional secondary hook:
 
 Every piece of Stationpedia content maps to exactly one kind.
 
-### Kind A — New-thing pages
+### Kind A, New-thing pages
 
 Vanilla game auto-generates a page for any registered prefab. Key is
 `"Thing" + prefab.PrefabName`. Body comes from the prefab's
@@ -348,7 +348,7 @@ the new device class. Zero Stationpedia-specific code.
 
 Library responsibility: none.
 
-### Kind B — LogicType pages
+### Kind B, LogicType pages
 
 Vanilla auto-generates a page per enum value in
 `EnumCollections.LogicTypes.Values`. Key is `"LogicType" + enumName`. Body
@@ -365,7 +365,7 @@ Library responsibility: via `LogicTypePageBuilder` postfix on
 - Additionally invoke `SpaBridge.TryEnrichLogicTooltips` for every device key
   in `spec.RelatedDeviceKeys`.
 
-### Kind C — Extension sections
+### Kind C, Extension sections
 
 For mods that modify vanilla prefabs (not add new ones). The vanilla page
 stays intact; we inject one collapsible `StationpediaCategory` at the bottom.
@@ -384,7 +384,7 @@ Library responsibility: via `CategoryBuilder` postfix on
 - Default collapsed.
 - `page.CreatedCategories.Add(category)` for vanilla cleanup on next navigation.
 
-### Kind D — Shared-reference pages
+### Kind D, Shared-reference pages
 
 Content referenced from more than one page. Promoted to a dedicated page
 keyed `<FullModName>_<Topic>` (e.g. `PowerTransmitterPlus_AutoAim`). Hidden
@@ -446,17 +446,17 @@ The `(key, title, text)` overload sets `Text`, NOT `Description`.
 
 Key fields relevant to our implementation:
 
-- `string Key` — unique ID, goes into `_linkIdLookup`
-- `string Title` — display name, used in nav and search results
-- `string Text` — raw markup source, consumed by `ParsePage`
-- `string Description` — parsed body; this is what `ChangeDisplay` renders
-- `int SortPriority` — ascending sort key
-- `bool ImportantPage` — visual flag (not used by us)
-- `SPDAEntryType DisplayFilter` — default Undefined; Guides/Lore add to category shortcuts
-- `Sprite CustomSpriteToUse` — optional page thumbnail
-- `List<StationLogicInsert> LogicInsert` — public mutable, eagerly initialized
-- `List<StationLogicInsert> LogicSlotInsert`, `ModeInsert`, `ConnectionInsert` — same
-- `List<StationCategory> CreatedCategories` on `UniversalPage` (not `page`) — game-owned cleanup list
+- `string Key`, unique ID, goes into `_linkIdLookup`
+- `string Title`, display name, used in nav and search results
+- `string Text`, raw markup source, consumed by `ParsePage`
+- `string Description`, parsed body; this is what `ChangeDisplay` renders
+- `int SortPriority`, ascending sort key
+- `bool ImportantPage`, visual flag (not used by us)
+- `SPDAEntryType DisplayFilter`, default Undefined; Guides/Lore add to category shortcuts
+- `Sprite CustomSpriteToUse`, optional page thumbnail
+- `List<StationLogicInsert> LogicInsert`, public mutable, eagerly initialized
+- `List<StationLogicInsert> LogicSlotInsert`, `ModeInsert`, `ConnectionInsert`, same
+- `List<StationCategory> CreatedCategories` on `UniversalPage` (not `page`), game-owned cleanup list
 
 ### 6.3 StationLogicInsert full definition
 
@@ -511,8 +511,8 @@ Method at game.cs:234485. Body order:
 
 1. Destroy every GameObject in `CreatedCategories`, clear the list.
 2. Set `PageHeaderImage.sprite`.
-3. Call `ResetUniversalPageInserts()` — clears all built-in categories' children.
-4. `CheckAndSetTextElement(PageDescription, page.Description)` — plain
+3. Call `ResetUniversalPageInserts()`, clears all built-in categories' children.
+4. `CheckAndSetTextElement(PageDescription, page.Description)`, plain
    assignment; no re-parse.
 5. Call every other `CheckAndSetTextElement` (thermal, power, chemistry, etc.).
 6. Call each `Populate*Inserts` method synchronously (game.cs:234554-234574):
@@ -566,8 +566,8 @@ via one is visible via the other.
 
 1. `Instance.PopulateLists()`
 2. `foreach (StationpediaPage p in StationpediaPages) p.ParsePage()`
-3. `Instance.PopulateThingPages()` — builds Thing pages
-4. `Instance.PopulateLogicVariables()` — builds LogicType pages
+3. `Instance.PopulateThingPages()`, builds Thing pages
+4. `Instance.PopulateLogicVariables()`, builds LogicType pages
 5. `Instance.PopulateLogicSlotVariables()`
 6. `Instance.PopulateReagents()`
 7. `Instance.PopulateGenes()`
@@ -740,7 +740,7 @@ unrelated (IC10 help panel). Do NOT patch the one-arg overload.
 
 Why we patch `IsRegexMatch` and not `DoSearch` directly: `DoSearch` is
 `private async UniTask`, meaning Harmony patches the state-machine kick-off
-method — the patch receives the `UniTask` return before iteration has run.
+method, the patch receives the `UniTask` return before iteration has run.
 A Postfix on `DoSearch` can't filter results because the results haven't
 been materialized at postfix time. `IsRegexMatch`, by contrast, is a
 regular synchronous method called from inside the async state machine's
@@ -1140,13 +1140,13 @@ All lowercase-first field names. Plain fields, no properties, no constructors.
 
 From shipped `descriptions.json`:
 
-- `ThingStructurePowerTransmitter` (line 24385) — empty `operationalDetails: []`; `logicDescriptions` covers vanilla LogicTypes only.
-- `ThingStructurePowerTransmitterReceiver` (line 24524) — same.
-- `ThingStructurePowerTransmitterOmni` (line 24482) — same.
+- `ThingStructurePowerTransmitter` (line 24385), empty `operationalDetails: []`; `logicDescriptions` covers vanilla LogicTypes only.
+- `ThingStructurePowerTransmitterReceiver` (line 24524), same.
+- `ThingStructurePowerTransmitterOmni` (line 24482), same.
 
 None of our six custom LogicType names appear in SPA's JSON. Without
 `SpaBridge` enrichment, SPA users hovering our custom rows see "No detailed
-description available yet." — which we fix automatically via
+description available yet.", which we fix automatically via
 `LogicTypePageBuilder` invoking `SpaBridge`.
 
 ### 7.6 SPA tooltip flow
@@ -1179,7 +1179,7 @@ flagged for testing.
 ### 7.8 SPA AdditionalData tooltip fallback
 
 Tooltip resolution chain (step 3) is `GenericDescriptionsData.AdditionalData[cleanName]`
-— a `[JsonExtensionData]` catch-all dictionary that Newtonsoft.Json uses for
+,  a `[JsonExtensionData]` catch-all dictionary that Newtonsoft.Json uses for
 unknown JSON properties deserialized into `GenericDescriptionsData`. SPA
 uses it as a dynamic bucket for community-authored descriptions not
 captured by the typed schema.
@@ -1225,27 +1225,27 @@ enrichment), and SPA ignores our extension section's text elements
 SPA's `SearchPatches` class (at `StationpediaAscended.Patches\SearchPatches.cs`)
 owns the following static state:
 
-- `_pageTitleIndex` / `_pageWordIndex` — inverted indexes from words/titles
+- `_pageTitleIndex` / `_pageWordIndex`, inverted indexes from words/titles
   to `StationpediaPage` references. Built once by `BuildPageIndexes` on
   first need, rebuilt on explicit invalidation.
-- `_hideFromSearchCache` — memoized bool per page computed by
+- `_hideFromSearchCache`, memoized bool per page computed by
   `ShouldHideFromSearch`.
-- `_lastSearchText`, `_lastResultCount` — used to skip redundant
+- `_lastSearchText`, `_lastResultCount`, used to skip redundant
   reorganizations when the visible result count hasn't changed.
 
 Key methods:
 
-- `BuildPageIndexes` — scans `Stationpedia.StationpediaPages`, skips pages
+- `BuildPageIndexes`, scans `Stationpedia.StationpediaPages`, skips pages
   failing `ShouldHideFromSearch`, populates the two indexes.
-- `ShouldHideFromSearch(StationpediaPage page)` — SPA's own hide policy.
+- `ShouldHideFromSearch(StationpediaPage page)`, SPA's own hide policy.
   Based on name patterns like `Ruptured`, `Burnt`, `Wreckage`. Returns
   `true` (hide) for pages matching those patterns. This is SPA's opinion;
   our mod's hidden keys are NOT in this set.
-- `ReorganizeSearchResults` — runs after vanilla `DoSearch` populates its
+- `ReorganizeSearchResults`, runs after vanilla `DoSearch` populates its
   pool; adds SPA category headers to the search UI, may inject missing
   matches from its own indexes via `FindMissingMatches` /
   `InjectMissingResults`.
-- `ClearPreviousSearch_Postfix` — patches vanilla `Stationpedia.ClearPreviousSearch`
+- `ClearPreviousSearch_Postfix`, patches vanilla `Stationpedia.ClearPreviousSearch`
   to take care of SPA-owned category headers and to lazily register
   listeners on `SearchField` / build indexes.
 
@@ -1254,7 +1254,7 @@ Risk surface for our hidden pages: if SPA's title/word indexes contain our
 query matches them, SPA could inject them as "missing results" even after
 our `IsRegexMatch` postfix returned false. Mitigated in practice because
 SPA builds its indexes via `BuildPageIndexes` which skips pages failing
-`ShouldHideFromSearch` — our pages DO pass `ShouldHideFromSearch` (SPA
+`ShouldHideFromSearch`, our pages DO pass `ShouldHideFromSearch` (SPA
 doesn't know about our mod), so they ARE in SPA's indexes. Whether SPA
 re-injects them depends on whether the typed query's regex happens to
 match our page titles or keys. For `PowerTransmitterPlus_...` keys that's
@@ -1270,12 +1270,12 @@ Escape hatch if observed: soft-reflective postfix on SPA's
 SPA ships two of its own `IPointerClickHandler` MonoBehaviours in
 `StationpediaAscended.UI\`:
 
-- `TocLinkHandler` — attached to dynamic TMP elements SPA creates inside
+- `TocLinkHandler`, attached to dynamic TMP elements SPA creates inside
   its operational-detail sections. Handles `toc_*` link clicks (its own
   Table-of-Contents anchor system) AND falls through to
   `Stationpedia.Instance.SetPage(linkID, true)` for standard links.
   Includes hover-color feedback via vertex colors.
-- `CategoryHeaderHandler` — attached to SPA's search-result category
+- `CategoryHeaderHandler`, attached to SPA's search-result category
   headers for click-to-expand behavior on the Search page.
 
 We do NOT reuse `TocLinkHandler` even though our use case is similar
@@ -1330,9 +1330,9 @@ time (§9). No runtime artifact distributed separately.
 
 ### 8.2 Namespace
 
-`StationpediaPlus` — all public types live at this root.
+`StationpediaPlus`, all public types live at this root.
 
-`StationpediaPlus.Internal` — internal plumbing.
+`StationpediaPlus.Internal`, internal plumbing.
 
 ### 8.3 File layout (Decision 14A)
 
@@ -1442,15 +1442,15 @@ setup required).
 ### 8.6 Internal helpers
 
 `TextElementFactory.Create(RectTransform parent, TextMeshProUGUI donor, string parsedMarkup)`
-— creates a new GameObject named `DetailText` with:
+,  creates a new GameObject named `DetailText` with:
 - `TextMeshProUGUI` donor-styled (font, size, color, line spacing, margin)
 - `ContentSizeFitter` (horizontal unconstrained, vertical preferred)
 - `RectTransform` anchored top-stretch
 - `SixFive7LinkHandler` with `Text = tmp`
 
-`HarmonyIdHelper.ForMod(string helperName)` — returns `<ConsumingModPluginGuid>.stationpediaplus.<helperName>`. The consuming mod's GUID is discovered via `Chainloader.PluginInfos` or via a per-mod registration (TBD at implementation time; both approaches work with ILRepack).
+`HarmonyIdHelper.ForMod(string helperName)`, returns `<ConsumingModPluginGuid>.stationpediaplus.<helperName>`. The consuming mod's GUID is discovered via `Chainloader.PluginInfos` or via a per-mod registration (TBD at implementation time; both approaches work with ILRepack).
 
-`SearchFilterPatch.EnsureInstalled()` — idempotent install of the two search
+`SearchFilterPatch.EnsureInstalled()`, idempotent install of the two search
 Harmony postfixes (details in §6.12 and below).
 
 ### 8.7 CategoryBuilder implementation notes
@@ -1476,7 +1476,7 @@ For each registered entry:
       Build markup via entry.contentBuilder(pageKey)
       If markup is null or whitespace: skip this page
       Find pre-existing GameObject child of page.Content named
-        "<ModName>Details" — destroy it via DestroyImmediate (idempotency)
+        "<ModName>Details", destroy it via DestroyImmediate (idempotency)
       Null-guard: Stationpedia.Instance, CategoryPrefab, up.PageDescription
       Instantiate CategoryPrefab under up.Content
       Name the GameObject "<ModName>Details"
@@ -1666,7 +1666,7 @@ Key reflection details confirmed during research:
 
 Idempotent `EnsureInstalled()`. Installs:
 
-Primary: postfix on `StationpediaPage.IsRegexMatch(string, string)` — two-arg overload only.
+Primary: postfix on `StationpediaPage.IsRegexMatch(string, string)`, two-arg overload only.
 
 ```csharp
 static void Postfix(StationpediaPage __instance, ref bool __result)
@@ -1727,7 +1727,7 @@ key; our reference pages are not in these listings under normal operation
 case a future code path routes a reference key through a category listing.
 
 No `[HarmonyAfter]` / `[HarmonyBefore]` needed on any of the three targets
-— none is patched by SPA.
+,  none is patched by SPA.
 
 ### 8.11a SpaSearchFilter (internal, soft-dependent; decision 19 ii)
 
@@ -1856,7 +1856,7 @@ SixFive7 mod uses ILRepack yet.
 
 ### 10.1 Colors
 
-- Extension section title: `#FF7A18` (orange) — matches SPA's `OperationalDetailsCategory`.
+- Extension section title: `#FF7A18` (orange), matches SPA's `OperationalDetailsCategory`.
 - LINK token default blue: `#0080FFFF` (game-controlled).
 - LOGICTYPE token default orange: `orange` (game-controlled).
 
@@ -1961,12 +1961,12 @@ reserved as an XML-escape hatch. Never author literal square brackets.
 
 ### 11.5 Markup token usage
 
-- `{HEADER:Title}` — sub-headings within any section body.
-- `{LIST}...{/LIST}` — bulleted lists (indentation).
-- `{LINK:Key;Label}` — cross-page link. Label must include click phrasing (§11.3).
-- `{LOGICTYPE:Name}` — LogicType cross-link (orange, auto-formatted).
-- `{THING:PrefabName}` — Thing page cross-link (green, auto-formatted).
-- `{POS:N}` — column alignment in table-like layouts.
+- `{HEADER:Title}`, sub-headings within any section body.
+- `{LIST}...{/LIST}`, bulleted lists (indentation).
+- `{LINK:Key;Label}`, cross-page link. Label must include click phrasing (§11.3).
+- `{LOGICTYPE:Name}`, LogicType cross-link (orange, auto-formatted).
+- `{THING:PrefabName}`, Thing page cross-link (green, auto-formatted).
+- `{POS:N}`, column alignment in table-like layouts.
 - Unity rich text (`<b>`, `<i>`, `<color=#RRGGBB>`, `<size=N%>`) for inline emphasis.
 
 ### 11.6 Pre-parse before assigning to Description in postfixes
@@ -2054,7 +2054,7 @@ browser). Not applicable to StationpediaPlus (library, no Workshop listing).
 Every mod that uses StationpediaPlus follows this four-step ladder. Each
 step is optional based on the mod's feature set.
 
-### Step 1 — Adding a new prefab (Kind A page)
+### Step 1, Adding a new prefab (Kind A page)
 
 Mod responsibility:
 - Author `<RecordThing>` entry in the mod's language XML with display name and description.
@@ -2064,7 +2064,7 @@ Mod responsibility:
 
 Library responsibility: none. Vanilla `PopulateThingPages` handles it.
 
-### Step 2 — Extending a vanilla device (Kind C page)
+### Step 2, Extending a vanilla device (Kind C page)
 
 Mod responsibility:
 
@@ -2087,7 +2087,7 @@ CategoryBuilder.Register(
     });
 ```
 
-### Step 3 — Adding custom LogicTypes (Kind B page; auto-triggers SpaBridge)
+### Step 3, Adding custom LogicTypes (Kind B page; auto-triggers SpaBridge)
 
 Mod responsibility: call for each LogicType from `OnAllModsLoaded`:
 
@@ -2110,7 +2110,7 @@ Library automatically invokes `SpaBridge.TryEnrichLogicTooltips` for every
 device in `RelatedDeviceKeys` (grouped per device). Mod never calls SpaBridge
 directly in the common path.
 
-### Step 4 — Shared content (Kind D page)
+### Step 4, Shared content (Kind D page)
 
 Mod responsibility: call for each reference page from `OnAllModsLoaded`:
 
@@ -2148,8 +2148,8 @@ Mod adds custom LogicTypes (6), extension sections (2), and reference pages (2).
 full spec data.
 
 **Extension sections:** 2 entries, one per extended device.
-- `ThingStructurePowerTransmitter` — section markup in §13.2.
-- `ThingStructurePowerTransmitterReceiver` — section markup in §13.3.
+- `ThingStructurePowerTransmitter`, section markup in §13.2.
+- `ThingStructurePowerTransmitterReceiver`, section markup in §13.3.
 
 **Reference pages:** 2 entries.
 - `PowerTransmitterPlus_MicrowavePowerTransmissionModel` (§13.4).
@@ -2514,12 +2514,12 @@ LogicName column. If any row is missing, it is a release-blocker bug;
 investigate timing of `EnumCollections.LogicTypes.Values` extension vs
 `CanLogicRead/Write` postfixes; do NOT add a fallback.
 
-### T1 — Native rows with content
+### T1, Native rows with content
 
 Click each custom LogicType row. Navigates to the enriched LogicType page
 (Summary / Formula / Related sections populated).
 
-### T2 — Extension section renders
+### T2, Extension section renders
 
 Scroll to bottom of transmitter page. One collapsible category
 `<color=#FF7A18>Power Transmitter Plus Details</color>`, collapsed by
@@ -2527,27 +2527,27 @@ default. Click to expand. Three subsections render correctly: Distance cost
 model, Auto-aim, Custom logic variables. Repeat on receiver (three
 different subsections).
 
-### T3 — Link clicks work inside extension sections
+### T3, Link clicks work inside extension sections
 
 Inside expanded transmitter section, click "Click here for the full model
 with worked examples". Navigates to
 `PowerTransmitterPlus_MicrowavePowerTransmissionModel` page. Reference
 page renders with full body.
 
-### T4 — Reference page cross-links resolve
+### T4, Reference page cross-links resolve
 
 On the reference page, click "Go to the Microwave Power Transmitter page".
 Navigates back to the transmitter page. Our extension section is still
 present on re-render (CreatedCategories + CategoryBuilder postfix pattern).
 
-### T5 — Reference page hidden from search
+### T5, Reference page hidden from search
 
 Open search bar. Type `transmission model`. No result for
 `PowerTransmitterPlus_MicrowavePowerTransmissionModel`. Type the exact
 title: still no match. Type `auto-aim`: no match for the auto-aim reference
 page. Vanilla transmitter page may match if description contains the term.
 
-### T5a — Reference page absent from SPA-reorganized search (SPA only; decision 19)
+### T5a, Reference page absent from SPA-reorganized search (SPA only; decision 19)
 
 With SPA installed. Open search bar; type `transmission model`. Wait 1 full
 second for SPA's `ReorganizeSearchResults` coroutine to fire (0.3s on submit,
@@ -2559,23 +2559,23 @@ reflection path resolved correctly.
 
 If T5a fails (reference page appears after the delay), `SpaSearchFilter`
 failed to install. Most likely causes: (a) SPA's method name differs from
-`ShouldHideFromSearch` — read `SearchPatches.cs` and try fallbacks
+`ShouldHideFromSearch`, read `SearchPatches.cs` and try fallbacks
 (`BuildPageIndexes` Postfix, `ReorganizeSearchResults` Postfix); (b) reflection
-exception swallowed — check BepInEx log for the LogDebug entry from the
+exception swallowed, check BepInEx log for the LogDebug entry from the
 soft-detect path.
 
-### T6 — Reference page absent from home-page listings
+### T6, Reference page absent from home-page listings
 
 Open home page. Browse every category listing and the Guides/Lore tabs.
 Reference pages are absent from every listing.
 
-### T7 — SPA installed: visual coexistence
+### T7, SPA installed: visual coexistence
 
 Open transmitter page. SPA's Operational Details category (empty;
 operationalDetails: [] in JSON) at sibling 20. Our Power Transmitter Plus
 Details at sibling 21. No collision, distinct GameObject names.
 
-### T8 — SPA installed: custom tooltip rendering
+### T8, SPA installed: custom tooltip rendering
 
 Hover a `MicrowaveSourceDraw` row. Tooltip shows our
 TooltipDescription text ("Watts the transmitter pulls from its source
@@ -2584,17 +2584,17 @@ yet."). Same for all six custom rows.
 
 Hover a vanilla Power row. SPA's standard tooltip shows. Unaffected by our mod.
 
-### T9 — SPA uninstalled
+### T9, SPA uninstalled
 
 All T1-T6 still pass. No Harmony patch failures in BepInEx log. Hover does
 nothing on any row (vanilla has no tooltip system).
 
-### T10 — Language change mid-session
+### T10, Language change mid-session
 
 Change game language. Revisit transmitter page. Extension section still
 present. Reference pages still hidden. No duplicate categories. No errors.
 
-### T11 — SpaBridge reflection verification (SpaBridge-using mods only)
+### T11, SpaBridge reflection verification (SpaBridge-using mods only)
 
 With SPA installed, use a runtime debug command or log statement to inspect
 SPA's `DeviceDatabase["ThingStructurePowerTransmitter"].logicDescriptions`.
@@ -2602,14 +2602,14 @@ Confirm all six of our `LogicDescription` entries are present with correct
 `dataType`, `range`, `description`. Same for
 `ThingStructurePowerTransmitterReceiver`.
 
-### T12 — SpaBridge silent-degradation verification
+### T12, SpaBridge silent-degradation verification
 
 Uninstall SPA. Boot the game. Expected:
 - No BepInEx exceptions related to StationpediaPlus or SpaBridge.
 - LogDebug entry confirming "SPA not installed; SpaBridge skipped".
 - All other behavior identical to T9.
 
-### T13 — Idempotency
+### T13, Idempotency
 
 Navigate to transmitter, away, back, 10 times in succession. Exactly one
 extension section instance present each time. No duplicates, no orphans.
@@ -2621,7 +2621,7 @@ extension section instance present each time. No duplicates, no orphans.
 Implementer should work these phases in order. Each phase produces a
 testable artifact.
 
-### Phase 0 — Pre-implementation verification (5 minutes, no code)
+### Phase 0, Pre-implementation verification (5 minutes, no code)
 
 Before spending any implementation time on StationpediaPlus, verify that
 PowerTransmitterPlus's existing patches already cause our six custom
@@ -2649,7 +2649,7 @@ investigate timing of `LogicableInitializePatch` vs
 `EnumCollections.LogicTypes.Values` construction and `CanLogicRead`/`Write`
 postfix firing before continuing.
 
-### Phase 1 — StationpediaPlus project skeleton
+### Phase 1, StationpediaPlus project skeleton
 
 Create `c:\Source\SixFive7\StationeersPlus\StationpediaPlus\`:
 - `.gitignore` excluding `Directory.Build.props` and `bin/`, `obj/`.
@@ -2659,18 +2659,18 @@ Create `c:\Source\SixFive7\StationeersPlus\StationpediaPlus\`:
 
 Build produces empty DLL; confirms references resolve.
 
-### Phase 2 — SixFive7LinkHandler
+### Phase 2, SixFive7LinkHandler
 
 Smallest component; no dependencies. Implement and build.
 
-### Phase 3 — Internal helpers
+### Phase 3, Internal helpers
 
 - `HarmonyIdHelper.cs`
 - `TextElementFactory.cs` (depends on SixFive7LinkHandler)
 - `SearchFilterPatch.cs` (depends on HarmonyIdHelper)
 - `SpaSearchFilter.cs` (depends on HarmonyIdHelper; soft-dependent on SPA)
 
-### Phase 4 — Public helpers
+### Phase 4, Public helpers
 
 Implement in order of independence:
 - `SpaBridge.cs` (no helper dependencies)
@@ -2678,11 +2678,11 @@ Implement in order of independence:
 - `CategoryBuilder.cs` (depends on TextElementFactory, HarmonyIdHelper)
 - `LogicTypePageBuilder.cs` (depends on SpaBridge, HarmonyIdHelper)
 
-### Phase 5 — Stub scan and cleanup
+### Phase 5, Stub scan and cleanup
 
 Run the cross-mod stub scan (§13.7 step 1). Document findings.
 
-### Phase 6 — PowerTransmitterPlus migration
+### Phase 6, PowerTransmitterPlus migration
 
 - Add StationpediaPlus.dll reference.
 - Configure ILRepack (choose tooling option).
@@ -2690,12 +2690,12 @@ Run the cross-mod stub scan (§13.7 step 1). Document findings.
 - Add `PtpStationpediaContent.cs` per §13.
 - Update `Plugin.cs` per §13.7 step 3.
 
-### Phase 7 — Runtime verification
+### Phase 7, Runtime verification
 
 Run the 13-test matrix (§14). All must pass. T-Native-Rows is
 release-blocking; if it fails, root-cause before shipping.
 
-### Phase 8 — CLAUDE.md integration
+### Phase 8, CLAUDE.md integration
 
 Add the Stationpedia integration recipe to top-level CLAUDE.md at
 `c:\Source\SixFive7\StationeersPlus\CLAUDE.md`. See §11 and §12 for content.
@@ -2756,7 +2756,7 @@ Do NOT:
   it automatically.
 ```
 
-### Phase 9 — Document this pattern for future mods
+### Phase 9, Document this pattern for future mods
 
 Once Phase 7 passes, snapshot the successful PowerTransmitterPlus integration
 as the canonical example for SprayPaintPlus, EquipmentPlus, and future mods.
@@ -2875,7 +2875,7 @@ c:\Source\SixFive7\StationeersPlus\PowerTransmitterPlus\PowerTransmitterPlus\
 ### 16.6 Template mod to clone for .csproj
 
 `c:\Source\SixFive7\StationeersPlus\EquipmentPlus\EquipmentPlus\EquipmentPlus.csproj`
-— closest to StationpediaPlus's shape (UI + TextMeshPro; missing only EventSystems).
+,  closest to StationpediaPlus's shape (UI + TextMeshPro; missing only EventSystems).
 
 ### 16.7 Game decompile path
 
@@ -2887,17 +2887,17 @@ unless noted).
 `<DECOMPILE_SCRATCH>\`
 
 Key files:
-- `StationpediaAscended\StationpediaAscendedMod.cs` — plugin entry, Awake, DeviceDatabase declaration
-- `StationpediaAscended.Patches\HarmonyPatches.cs` — all Harmony patches
-- `StationpediaAscended.Patches\SearchPatches.cs` — search reorg coroutine
-- `StationpediaAscended.Data\*` — LogicDescription, DeviceDescriptions, etc.
-- `StationpediaAscended.UI\TocLinkHandler.cs` — SPA's own click handler (for reference; we do not use it)
+- `StationpediaAscended\StationpediaAscendedMod.cs`, plugin entry, Awake, DeviceDatabase declaration
+- `StationpediaAscended.Patches\HarmonyPatches.cs`, all Harmony patches
+- `StationpediaAscended.Patches\SearchPatches.cs`, search reorg coroutine
+- `StationpediaAscended.Data\*`, LogicDescription, DeviceDescriptions, etc.
+- `StationpediaAscended.UI\TocLinkHandler.cs`, SPA's own click handler (for reference; we do not use it)
 
 ---
 
 ## 17. Open items
 
-### O1 — ILRepack tooling choice (DEFERRED)
+### O1, ILRepack tooling choice (DEFERRED)
 
 Two options:
 - `ILRepack.Lib.MSBuild.Task` NuGet package
@@ -2906,7 +2906,7 @@ Two options:
 Decide at Phase 6 when integrating into PowerTransmitterPlus. No existing
 SixFive7 mod uses ILRepack, so this choice sets the pattern.
 
-### O2 — Mod GUID discovery for HarmonyIdHelper
+### O2, Mod GUID discovery for HarmonyIdHelper
 
 At runtime, `HarmonyIdHelper.ForMod(helperName)` needs to know the consuming
 mod's plugin GUID. Options:
@@ -2915,7 +2915,7 @@ mod's plugin GUID. Options:
 
 Decide at Phase 4 when implementing HarmonyIdHelper.
 
-### O3 — Runtime verification items flagged by T-Native-Rows
+### O3, Runtime verification items flagged by T-Native-Rows
 
 If T-Native-Rows fails, investigate:
 - `LogicableInitializePatch` timing vs `EnumCollections.LogicTypes.Values` freeze point.
@@ -2925,7 +2925,7 @@ If T-Native-Rows fails, investigate:
 The fix is a root-cause correction, NOT addition of a LogicInsert fallback
 (Decision 11A is firm on this).
 
-### O4 — SPA-cache re-injection (RESOLVED by decision 19 ii)
+### O4, SPA-cache re-injection (RESOLVED by decision 19 ii)
 
 **Status: resolved.** SPA's `ReorganizeSearchResults` coroutine re-injects
 search results from `_pageTitleIndex` (built by `BuildPageIndexes` from
@@ -3126,7 +3126,7 @@ Key conventions enforced (all apply to StationpediaPlus):
 - `LICENSE` file (full, unmodified Apache 2.0 text) at every repo root.
 - `NOTICE` file naming the copyright holder (SixFive7) and the mod.
 - Style rules (no em dashes, no ellipsis char, no curly quotes, no AI mentions).
-- Preview image dimensions (not applicable to StationpediaPlus — library, no Preview.png).
+- Preview image dimensions (not applicable to StationpediaPlus, library, no Preview.png).
 - Mandatory RESEARCH.md reading before any mod work (§11.7).
 - Validate new lessons via independent second sub-agent (§11.8).
 - Reporting Issues section in every mod's README and About.xml pointing to GitHub issues.
@@ -3149,7 +3149,7 @@ StationeersPlus/
   EquipmentPlus/            (future consumer)
   InspectorPlus/            (local-only BepInEx plugin for runtime state dumps; see §18.6)
   LLM/                      (LLM integration experiment)
-  StationpediaPlus/         (NEW — this library)
+  StationpediaPlus/         (NEW, this library)
 ```
 
 Each mod directory is an independent git repository with its own
@@ -3198,65 +3198,65 @@ All 18 design decisions resolved during the planning phase, plus 2 research
 tasks (R1, R2). For each decision: the choice, the motivation, and any
 bound implications.
 
-### Decision 1 — API shape
-**A — Three imperative helpers** (`CategoryBuilder.Register`,
+### Decision 1, API shape
+**A, Three imperative helpers** (`CategoryBuilder.Register`,
 `ReferencePage.Register`, `LogicTypePageBuilder.Register`, plus `SpaBridge`
 called automatically). Mods call each helper as needed, à la carte.
 
 Motivation: modular, piecemeal adoption, clear per-helper boundaries, simple
 documentation per helper.
 
-### Decision 2 — Page taxonomy
-**B — Four kinds** (New-thing, LogicType, Extension, Reference).
+### Decision 2, Page taxonomy
+**B, Four kinds** (New-thing, LogicType, Extension, Reference).
 
 Motivation: LogicType pages have their own game-side generator, key prefix,
 and rendering path; folding them into Extended-device hides that distinction.
 Explicit categories reduce doc traversal cost for new mod authors.
 
-### Decision 3 — LogicType page enrichment ownership
-**B — Shared `LogicTypePageBuilder` helper.** Brings helper count to four.
+### Decision 3, LogicType page enrichment ownership
+**B, Shared `LogicTypePageBuilder` helper.** Brings helper count to four.
 
 Motivation: composition is nontrivial (header sections, related links, parse
 timing, sprite assignment); centralizing enforces cross-mod visual
 consistency. Under ILRepack each mod gets its own embedded postfix, but
 authoring-time code is shared.
 
-### Decision 4 — Reference page key prefix
-**B — `<FullModName>_<Topic>`** (NOT abbreviation).
+### Decision 4, Reference page key prefix
+**B, `<FullModName>_<Topic>`** (NOT abbreviation).
 
 Motivation: abbreviations risk collision with unrelated third-party mods by
 different authors. Full mod name is unambiguous across the entire Stationeers
 modding ecosystem.
 
-### Decision 5 — Reference page title format
-**A — Plain natural-language title.** No bracketed abbreviation.
+### Decision 5, Reference page title format
+**A, Plain natural-language title.** No bracketed abbreviation.
 
 Motivation: no abbreviations anywhere in user-visible documentation. This
 rule extends globally to all user-visible strings.
 
-### Decision 6 — Hide-from-search filter identification
-**B — Explicit `HiddenKeys` HashSet.**
+### Decision 6, Hide-from-search filter identification
+**B, Explicit `HiddenKeys` HashSet.**
 
 Motivation: decouples "has mod prefix" from "is hidden from search" for
 future flexibility (mod-prefixed pages that should remain searchable,
 per-page visibility toggles via config, etc.).
 
-### Decision 7 — Extension section GameObject name
-**A — `<ModName>Details`** (e.g. `PowerTransmitterPlusDetails`).
+### Decision 7, Extension section GameObject name
+**A, `<ModName>Details`** (e.g. `PowerTransmitterPlusDetails`).
 
 Motivation: GameObject names are dev-facing only; short and unambiguous in
 Unity hierarchy. Matches SPA's `OperationalDetailsCategory` idiom for visual
 consistency.
 
-### Decision 8 — Section title format
-**A — `<color=#FF7A18>{ModName} Details</color>`** (non-bold, " Details" suffix).
+### Decision 8, Section title format
+**A, `<color=#FF7A18>{ModName} Details</color>`** (non-bold, " Details" suffix).
 
 Motivation: matches SPA's visual rhythm. Vanilla category titles are
 non-bold; bolding only our section creates dissonance. " Details" suffix
 signals supplementary content.
 
-### Decision 9 — Link-click handler
-**A — Ship custom `SixFive7LinkHandler`.**
+### Decision 9, Link-click handler
+**A, Ship custom `SixFive7LinkHandler`.**
 
 Motivation: avoids vanilla `HelpLinkHandler`'s `WorldManager.IsGamePaused`
 LateUpdate dependency (risk of NullReferenceException on pre-world-init pedia
@@ -3265,50 +3265,50 @@ open). Minimal click-only scope; reduced failure surface.
 **Compensating authoring rule**: every `{LINK:Key;Display}` label must
 include explicit click phrasing (§11.3).
 
-### Decision 10 — Harmony instance IDs
-**A — One instance per helper per mod.**
+### Decision 10, Harmony instance IDs
+**A, One instance per helper per mod.**
 
 Motivation: preserves three-helper boundary to runtime diagnostics. Mod
 conflict reports naming a Harmony ID immediately identify the responsible
 helper. ILRepack constraint: IDs derived from consuming mod's GUID, not
 hardcoded to `com.sixfive7.*`.
 
-### Decision 11 — LogicInsert fallback
-**A — No fallback.** Mandatory T-Native-Rows release-blocking test verifies.
+### Decision 11, LogicInsert fallback
+**A, No fallback.** Mandatory T-Native-Rows release-blocking test verifies.
 
 Motivation: loud failure beats silent compensation for a bug class that
 should be root-caused. Simpler codebase.
 
-### Decision 12 — LogicType page body assignment pattern
-**B — Text + ParsePage** (idiomatic game pattern).
+### Decision 12, LogicType page body assignment pattern
+**B, Text + ParsePage** (idiomatic game pattern).
 
 Motivation: matches vanilla `PopulateLogicVariables` exactly. ParsePage is
 the game's authoritative parser including niche features (`{LIST_OF_...}`,
 `PageCustomCategories`, `_worldHashes`) that direct assignment skips.
 
-### Decision 13 — PowerTransmitterPlus reference page count
-**B — Two reference pages** (`MicrowavePowerTransmissionModel` + `AutoAim`).
+### Decision 13, PowerTransmitterPlus reference page count
+**B, Two reference pages** (`MicrowavePowerTransmissionModel` + `AutoAim`).
 
 Motivation: auto-aim is referenced from three locations (transmitter
 extension section, MicrowaveAutoAimTarget page, MicrowaveLinkedPartner
 page); meets the "cited from multiple pages → promote to reference"
 taxonomy rule. Sets precedent for future mods.
 
-### Decision 14 — Shared library file layout
-**A — `src/` + `src/Internal/` subdir.**
+### Decision 14, Shared library file layout
+**A, `src/` + `src/Internal/` subdir.**
 
 Motivation: public-vs-internal split visible in file tree. `Internal/` is a
 recognized .NET convention. Scales as the library grows.
 
-### Decision 15 — Testing matrix scope
-**B — 12 tests plus T-Native-Rows (13 for PTP).**
+### Decision 15, Testing matrix scope
+**B, 12 tests plus T-Native-Rows (13 for PTP).**
 
 Motivation: SpaBridge is pure reflection into another mod's internals;
 explicit runtime verification tests catch regressions at test time rather
 than user-report time.
 
-### Decision 16 — SpaBridge usage policy
-**B — Structural enforcement via the shared codebase** (NOT convention-based).
+### Decision 16, SpaBridge usage policy
+**B, Structural enforcement via the shared codebase** (NOT convention-based).
 
 `LogicTypePageBuilder.Register(spec)` internally invokes
 `SpaBridge.TryEnrichLogicTooltips` for every device in `spec.RelatedDeviceKeys`.
@@ -3318,15 +3318,15 @@ skip SPA enrichment; the library does it for them.
 Motivation: CLAUDE.md conventions are non-deterministic (humans forget,
 reviews miss). Compiled code is deterministic.
 
-### Decision 17 — DLL distribution model
-**C — ILRepack into each mod from a shared codebase.**
+### Decision 17, DLL distribution model
+**C, ILRepack into each mod from a shared codebase.**
 
 Motivation: players must not subscribe to or install any separate artifact.
 Each mod ships a single self-contained DLL. Imposes the seven architectural
 constraints listed in §9.
 
-### Decision 18 — Stub deprecation timing
-**A — One-commit migration.** Plus cross-mod stub-scan TODO.
+### Decision 18, Stub deprecation timing
+**A, One-commit migration.** Plus cross-mod stub-scan TODO.
 
 Motivation: Register replace semantics mean the old stub provides no
 runtime fallback value; running both in parallel adds risk, not safety.
@@ -3336,15 +3336,15 @@ test-covered (13 tests) so shipping with confidence is warranted.
 Additional action: before migrating each mod, scan for dead stub code
 (§13.7 step 1) and remove.
 
-### Decision 19 — SPA search-index re-injection handling
-**ii — Soft-dependent SPA patch** (parallel to SpaBridge enforcement pattern).
+### Decision 19, SPA search-index re-injection handling
+**ii, Soft-dependent SPA patch** (parallel to SpaBridge enforcement pattern).
 
 Surfaced by R1 findings. SPA's `ReorganizeSearchResults` re-injects search
 results from its own `_pageTitleIndex` built by `BuildPageIndexes` from
 `Stationpedia.StationpediaPages`. SPA's own `ShouldHideFromSearch` knows
 only about burnt / ruptured / wreckage variants; it has no awareness of our
 `HiddenKeys`. Consequence: patching `StationpediaPage.IsRegexMatch` alone
-is insufficient when SPA is installed — reference pages reappear in SPA's
+is insufficient when SPA is installed, reference pages reappear in SPA's
 re-injected results after 0.3-0.8 seconds.
 
 Resolution: new internal helper `SpaSearchFilter` (`src/Internal/SpaSearchFilter.cs`)
@@ -3370,11 +3370,11 @@ just those without SPA. The CLAUDE.md rule "reference pages are hidden from
 search" cannot be quietly broken for 40%+ of the player base who run SPA.
 Soft-detect keeps the zero-SPA-dependency invariant intact; ILRepack-friendly.
 
-Testing: T5a added to the matrix (§14) — open Stationpedia with SPA installed,
+Testing: T5a added to the matrix (§14), open Stationpedia with SPA installed,
 search for a reference-page title, wait 1 second for SPA's coroutine, confirm
 the page does not appear in either vanilla or SPA-reorganized results.
 
-### Research Task R1 — Search method identification (RESOLVED)
+### Research Task R1, Search method identification (RESOLVED)
 
 Primary vanilla target: `StationpediaPage.IsRegexMatch(string, string)` at
 game.cs:233709. One caller (`DoSearch`). SPA does NOT patch it. Prefix that
@@ -3396,7 +3396,7 @@ SearchPatches.cs:360. Postfix that ORs in HiddenKeys. Handles SPA's
 DO NOT patch: `ClearPreviousSearch`, `SetPage`, `Register`, `Regenerate`,
 `SortPages`, `Render`, `GetPage`, `OpenPageByKey`, `OpenAt`.
 
-### Research Task R2 — HintPath inventory (RESOLVED)
+### Research Task R2, HintPath inventory (RESOLVED)
 
 Eight game/BepInEx DLLs plus three framework refs. All with `<Private>False</Private>`.
 Full list in §16.2. Closest existing template: `EquipmentPlus.csproj` (UI +
@@ -3421,16 +3421,16 @@ ILRepack tooling choice deferred to Phase 6 integration (Decision O1).
 - Section title: `#FF7A18` (orange, matching SPA)
 
 ### Harmony targets and kinds
-- `Stationpedia.PopulateLogicVariables` — Postfix (LogicTypePageBuilder)
-- `UniversalPage.ChangeDisplay` — Postfix, `[HarmonyAfter(spa)]` (CategoryBuilder)
-- `StationpediaPage.IsRegexMatch(string, string)` — Prefix (SearchFilterPatch, primary)
-- `Stationpedia.PopulateGuideLoreContents` — Prefix (SearchFilterPatch, secondary)
-- `Stationpedia.PopulateLists` — Postfix (SearchFilterPatch, tertiary; filters `_listDictionary`)
-- `StationpediaAscended.Patches.SearchPatches.ShouldHideFromSearch` — Postfix, soft-dependent (SpaSearchFilter; decision 19 ii)
+- `Stationpedia.PopulateLogicVariables`, Postfix (LogicTypePageBuilder)
+- `UniversalPage.ChangeDisplay`, Postfix, `[HarmonyAfter(spa)]` (CategoryBuilder)
+- `StationpediaPage.IsRegexMatch(string, string)`, Prefix (SearchFilterPatch, primary)
+- `Stationpedia.PopulateGuideLoreContents`, Prefix (SearchFilterPatch, secondary)
+- `Stationpedia.PopulateLists`, Postfix (SearchFilterPatch, tertiary; filters `_listDictionary`)
+- `StationpediaAscended.Patches.SearchPatches.ShouldHideFromSearch`, Postfix, soft-dependent (SpaSearchFilter; decision 19 ii)
 
 ### Mandatory markup rules
-- No bare identifiers — always `{LOGICTYPE:X}` or `{LINK:K;D}`.
-- No literal `[` or `]` — ParsePage rewrites.
+- No bare identifiers, always `{LOGICTYPE:X}` or `{LINK:K;D}`.
+- No literal `[` or `]`, ParsePage rewrites.
 - `{LINK:...}` labels include click phrasing ("Click here for ...", "Open the ...", "Go to the ...").
 - `{LOGICTYPE:N}` / `{THING:P}` are exempt from click phrasing.
 
@@ -3486,7 +3486,7 @@ Early investigation established that vanilla Stationpedia pages for stock
 devices (like the Microwave Power Transmitter) have a frozen `LogicInsert`
 list built once at game startup. Even though `Logicable.LogicTypes` can be
 extended at runtime, the page's `LogicInsert` is populated inside
-`AddLogicTypeInfo` which iterates `EnumCollections.LogicTypes.Values` — a
+`AddLogicTypeInfo` which iterates `EnumCollections.LogicTypes.Values`, a
 collection constructed from `Enum.GetValues(typeof(LogicType))` at
 `EnumCollection<LogicType,ushort>` construction time. Our runtime-cast
 `ushort → LogicType` values are NOT in the compiled enum, so
@@ -3558,7 +3558,7 @@ This means:
   `<ModName>Details` GameObject.
 - Multiple mods hiding reference pages each maintain their own `HiddenKeys`
   HashSet, but the filter runs via multiple postfixes that each remove
-  their own keys — additive effect.
+  their own keys, additive effect.
 - Harmony instance IDs are derived from the consuming mod's plugin GUID
   (e.g. `net.powertransmitterplus.stationpediaplus.categorybuilder`) so
   two mods' patches don't clash on identical IDs.
@@ -3585,7 +3585,7 @@ unrelated third-party mods by different authors (e.g. `PTP_` could conflict
 with "Power Tools Plus", "Precision Tracker Plus", etc.). Full mod name
 is unambiguous across the entire Stationeers modding ecosystem.
 
-This rule — no abbreviations in user-visible strings — extends globally to
+This rule, no abbreviations in user-visible strings, extends globally to
 all authored content (Decision 5 note).
 
 ### 21.8 Current StationpediaPatches.cs stub (what decision 18 replaces)

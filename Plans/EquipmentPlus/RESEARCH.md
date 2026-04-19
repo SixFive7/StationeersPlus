@@ -200,13 +200,13 @@ ImprovedConfiguration (Workshop 3651839114, `com.doggo.improved_configuration`, 
 - `Cartridge.OnScroll` is patched as a **Prefix that returns `bool`**. Returns `false` to suppress vanilla's free-scroll when a `ConfigCartridge` is the target. Does sign: `int num2 = (scrollDelta.y > 0f) ? -1 : 1` (wheel-up decreases index / moves selection up the list).
 - After updating the selected index, the prefix explicitly calls `_scrollPanel.SetScrollPosition((float)selected / (count - 1))` (reflected, `_scrollPanel` lives on `Cartridge`). This drives the viewport so the selected line stays roughly in view.
 - `ConfigCartridge.OnScreenUpdate` postfix re-applies `SetScrollPosition` every frame (same formula), re-wraps `lines[selected]` in `<color=#FFD561FF>...</color>` yellow, and handles the click.
-- Click detection uses Unity's `Input.GetMouseButtonDown(0)` — NOT the game's `KeyManager`. No modifier gate in the upstream (plain left-click is the only click it responds to).
+- Click detection uses Unity's `Input.GetMouseButtonDown(0)`, NOT the game's `KeyManager`. No modifier gate in the upstream (plain left-click is the only click it responds to).
 - Click validation chain: `tablet != null`, `tablet.ParentSlot != null`, `tablet.ParentSlot == InventoryManager.ActiveHandSlot`, `tablet.Cartridge == __instance`, `device = __instance.ScannedDevice != null`.
 - Line parsing: strips `<color=...>` and `</color>` tags with regex `<color=[^>]*>|</color>`, splits on `" ... "`, takes `parts[0].Trim()` as the `LogicType` name, `Enum.TryParse<LogicType>`. No fallback for non-numeric values (`double.TryParse` only).
 - Writable: `InputWindow.ShowInputPanel(typeName, currentValue.ToString(), Action<string,string> callback, 600)` with `maxLength = 600`. Callback signature requires TWO string parameters; the second is unused by upstream.
 - Read-only: direct `GUIUtility.systemCopyBuffer = value.ToString()`. No `TextEditor`, no `OS` clipboard API.
 - Selected-index dictionary is `static Dictionary<ConfigCartridge, int>`, keyed by instance (not `ReferenceId`). Cleaned up in a `Cartridge.OnDestroy` prefix. Not persisted to save files; resets to 0 on load.
-- Write path calls `Device.SetLogicValue(LogicType, double)` directly on the client. No network routing. On a remote MP client the write is applied locally and overwritten on next sync — upstream is effectively host-only. EquipmentPlus adds `SetLogicFromClient` routing to fix this.
+- Write path calls `Device.SetLogicValue(LogicType, double)` directly on the client. No network routing. On a remote MP client the write is applied locally and overwritten on next sync, upstream is effectively host-only. EquipmentPlus adds `SetLogicFromClient` routing to fix this.
 
 ### InventoryManager.HandlePrimaryUse
 Called every frame from input processing. Sequence for a held item:
@@ -216,7 +216,7 @@ Called every frame from input processing. Sequence for a held item:
 
 `AdvancedTablet.AllowSelfUse == false`, so patching `Item.OnUsePrimary` never fires for a plain tablet. `InventoryManager.HandlePrimaryUse` is the correct hook for tablet-level click intercepts because it runs regardless of `AllowSelfUse`. This is why the pre-refactor `CartridgeCyclePatch` on `Item.OnUsePrimary` never worked in practice, and why the current `ClickCyclePatch` targets `InventoryManager.HandlePrimaryUse`.
 
-`KeyManager.GetMouseDown("Primary")` is a thin forwarder to `Input.GetKeyDown(KeyMap.PrimaryAction)` — frame-stable, idempotent across multiple reads within a single Update tick. Multiple patches can read it in the same frame without interference.
+`KeyManager.GetMouseDown("Primary")` is a thin forwarder to `Input.GetKeyDown(KeyMap.PrimaryAction)`, frame-stable, idempotent across multiple reads within a single Update tick. Multiple patches can read it in the same frame without interference.
 
 ## Multiplayer protocol
 
