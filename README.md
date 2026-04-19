@@ -4,8 +4,10 @@ Mods for the game Stationeers, developed by SixFive7.
 
 ## Released mods
 
-- [Spray Paint Plus](Mods/SprayPaintPlus/README.md): combines color cycling, network painting, and infinite spray paint into one multiplayer-safe mod. [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3702940349).
-- [Power Transmitter Plus](Mods/PowerTransmitterPlus/README.md): adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter. [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3707677512).
+| Mod | Description | Source | Workshop |
+|---|---|---|---|
+| Spray Paint Plus | Combines color cycling, network painting, and infinite spray paint into one multiplayer-safe mod. | [GitHub](Mods/SprayPaintPlus) | [Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=3702940349) |
+| Power Transmitter Plus | Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter. | [GitHub](Mods/PowerTransmitterPlus) | [Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=3707677512) |
 
 ## Directory structure
 
