@@ -104,9 +104,9 @@ Rules for any contributor generating or regenerating preview art:
 
 Three files must exist for every mod's preview image:
 
-- `Preview.source.png` at the mod's folder root under `Mods/<ModName>/` — the original full-resolution source image (the file before any resizing). This is the archival copy for re-cropping or re-scaling.
-- `About/Preview.png` — resized to **1280x720** (exact 16:9). This is the Steam Workshop listing image.
-- `About/thumb.png` — resized to **640x360** (exact 16:9). This is the in-game mod browser thumbnail.
+- `Preview.source.png` at the mod's folder root under `Mods/<ModName>/`: the original full-resolution source image (the file before any resizing). This is the archival copy for re-cropping or re-scaling.
+- `About/Preview.png`: resized to **1280x720** (exact 16:9). This is the Steam Workshop listing image.
+- `About/thumb.png`: resized to **640x360** (exact 16:9). This is the in-game mod browser thumbnail.
 
 Both `Preview.png` and `thumb.png` are derived from `Preview.source.png`. When regenerating preview art, always save the source file first, then produce the two resized copies from it.
 

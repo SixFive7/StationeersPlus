@@ -1,4 +1,4 @@
-# StationeersPlus — Developer Environment
+# StationeersPlus: Developer Environment
 
 Machine-specific paths, toolchain locations, and workflow recipes shared across every mod under this monorepo. This file is the committed scaffold. Copy it to `DEV.md` at the monorepo root (gitignored) and replace the placeholder values in angle brackets with the real paths for your machine.
 
@@ -171,9 +171,9 @@ Grep these when looking for known patterns (BepInPlugin skeleton, INetworkMessag
 
 ## Log locations
 
-- **BepInEx stream**: `<STATIONEERS_INSTALL>/BepInEx/LogOutput.log` — append-only during the current game session. Cleared on game restart.
+- **BepInEx stream**: `<STATIONEERS_INSTALL>/BepInEx/LogOutput.log`, append-only during the current game session. Cleared on game restart.
 - **Diagnostic-style checks**: `grep "<ModGuidOrName>" LogOutput.log | tail -30` after a repro run to find plugin-specific entries.
-- **Unity Player log** (rare): `%LOCALAPPDATA%\..\LocalLow\Rocketstar Games\Stationeers\Player.log` — native crashes usually land here.
+- **Unity Player log** (rare): `%LOCALAPPDATA%\..\LocalLow\Rocketstar Games\Stationeers\Player.log`, where native crashes usually land.
 
 ---
 
