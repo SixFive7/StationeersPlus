@@ -112,6 +112,30 @@ Both `Preview.png` and `thumb.png` are derived from `Preview.source.png`. When r
 
 Canonical reference: `Mods/SprayPaintPlus/Preview.source.png` (source), `Mods/SprayPaintPlus/SprayPaintPlus/About/Preview.png` (1280x720), `Mods/SprayPaintPlus/SprayPaintPlus/About/thumb.png` (640x360). The three preview-image locations in `Mods/Template/` are populated with placeholder text files (`Preview.source.png.placeholder`, `About/Preview.png.placeholder`, `About/thumb.png.placeholder`) that document their required dimensions inline; replace each with the real PNG at the stated size.
 
+## Content: no developer-specific paths
+
+Committed files must not contain filesystem paths that tie the repository to a specific developer's machine layout. Committed files are public; any path leaked here exposes the author's username, directory habits, or drive partitioning to anyone who reads the repo.
+
+Forbidden:
+
+- User home directory paths with a named user: `C:\Users\<name>\...`, `/home/<name>/...`, `/Users/<name>/...`.
+- Personal scratch or temp directories tied to a specific user: `C:\Users\<name>\AppData\Local\Temp\...`, `/tmp/<developer-tag>/...` when the name is developer-specific.
+- Absolute paths to a developer's source tree outside this repo: `C:\Source\...`, `D:\Projects\...`.
+- Editor / IDE install paths that pin a specific version on a specific drive (e.g. `C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe`).
+- Game install paths with a specific drive letter hardcoded into source, `README.md`, `About.xml`, or `RESEARCH.md` (use `$(StationeersPath)` or describe as "the Stationeers install" instead).
+
+Allowed:
+
+- Repository-relative paths: `Mods/SprayPaintPlus/`, `../../LICENSE`, `tools/decode_il.ps1`.
+- Paths in `DEV.md.template` that use angle-bracket placeholders: `<STATIONEERS_INSTALL>`, `<YOUR_NAME>`, `<USER_DOCUMENTS>`, `<MSBUILD_PATH>`, `<REPO_CLONE_PATH>`, `<YOUR_SOURCE_ROOT>`.
+- MSBuild property references: `$(StationeersPath)\rocketstation_Data\...`.
+- Environment-variable references: `%USERPROFILE%`, `%APPDATA%`, `~/`.
+- Third-party URLs (Steam Workshop, GitHub, HuggingFace, etc.).
+
+Scope: every committed file. `README.md`, `RESEARCH.md`, `TODO.md`, `PLAN.md`, `plan.md`, `CLAUDE.md`, `NOTES.md`, `About.xml`, `.csproj`, `.sln`, `.cs`, commit messages. The rule applies equally to `Mods/` and `Plans/`. Not covered: `DEV.md` (gitignored) and `DEV.md.template` (the template that documents the placeholders).
+
+When a document needs to reference developer-specific context, use a placeholder from `DEV.md.template` or describe the target abstractly ("the local Stationeers deploy folder documented in `DEV.md`").
+
 ## Licensing: Apache 2.0
 
 This monorepo is licensed under **Apache License 2.0**. Required files and content:
