@@ -1,0 +1,24 @@
+<!--
+  LOCAL BUILD CONFIGURATION
+
+  Copy this file to "Directory.Build.props" (same folder, at the monorepo root)
+  and edit StationeersPath to point at your Stationeers install root.
+
+  The copy is gitignored so each developer keeps their own path. MSBuild auto-
+  imports Directory.Build.props from any folder up the project tree, so the
+  value is picked up by every mod's .csproj without any further wiring.
+
+  The EnsureStationeersPath target below runs once per csproj build and fails
+  with a clear message if the path is unset or does not contain the game's
+  Assembly-CSharp.dll.
+-->
+<Project>
+  <PropertyGroup>
+    <StationeersPath>C:\Program Files (x86)\Steam\steamapps\common\Stationeers</StationeersPath>
+  </PropertyGroup>
+
+  <Target Name="EnsureStationeersPath" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(StationeersPath)' == ''" Text="StationeersPath is not set. Copy Directory.Build.props.template (at the monorepo root) to Directory.Build.props and edit it to point at your Stationeers install." />
+    <Error Condition="'$(StationeersPath)' != '' AND !Exists('$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll')" Text="StationeersPath '$(StationeersPath)' does not contain rocketstation_Data\Managed\Assembly-CSharp.dll. Check the path in Directory.Build.props." />
+  </Target>
+</Project>

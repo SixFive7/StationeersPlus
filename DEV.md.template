@@ -1,0 +1,325 @@
+# StationeersPlus — Developer Environment
+
+Machine-specific paths, toolchain locations, and workflow recipes shared across every mod under this monorepo. This file is the committed scaffold. Copy it to `DEV.md` at the monorepo root (gitignored) and replace the placeholder values in angle brackets with the real paths for your machine.
+
+Durable per-mod knowledge lives in each mod's `RESEARCH.md`; project-wide conventions live in `CLAUDE.md`.
+
+---
+
+## Game install
+
+```
+<STATIONEERS_INSTALL>\
+  rocketstation_Data\
+    Managed\                     <- game DLLs (Assembly-CSharp.dll, UnityEngine.*.dll)
+    sharedassets0.assets
+    resources.assets             <- prefab data (UnityPy entry point)
+    ...
+  BepInEx\
+    core\                        <- 0Harmony.dll, BepInEx.dll
+    plugins\
+      StationeersLaunchPad\      <- LaunchPadBooster.dll
+    config\                      <- per-mod .cfg files (BepInEx format)
+    LogOutput.log                <- live log stream while game is running
+```
+
+Common defaults:
+
+- Steam default (no custom library): `C:\Program Files (x86)\Steam\steamapps\common\Stationeers\`
+- Secondary Steam library: `<DRIVE>:\Steam\steamapps\common\Stationeers\` (for example `E:\Steam\steamapps\common\Stationeers\`)
+
+`$(StationeersPath)` in `Directory.Build.props` points at this.
+
+## BepInEx per-mod configs
+
+Configuration files are named after the plugin GUID:
+
+```
+<STATIONEERS_INSTALL>\BepInEx\config\
+  net.powertransmitterplus.cfg
+  net.spraypaintplus.cfg
+  net.equipmentplus.cfg
+```
+
+BepInEx preserves existing setting values across mod updates. To propagate a new default, delete the file:
+
+```bash
+rm -f "<STATIONEERS_INSTALL>/BepInEx/config/net.powertransmitterplus.cfg"
+```
+
+## Local deploy target (also the Workshop upload source)
+
+```
+<USER_DOCUMENTS>\My Games\Stationeers\
+  modconfig.xml                  <- enabled local mods
+  mods\
+    <ModName>\                   <- deployment target, one folder per mod
+      <ModName>.dll
+      About\About.xml
+```
+
+Common default for Windows: `%USERPROFILE%\Documents\My Games\Stationeers\` (for example `C:\Users\<YOU>\Documents\My Games\Stationeers\`).
+
+`modconfig.xml` is where StationeersLaunchPad knows about local (non-Workshop) mods. Each mod needs a `<Local Enabled="true"><Path Value="..." /></Local>` entry pointing at the folder above.
+
+**This folder is the Steam Workshop upload source.** The game publishes whatever is in `mods/<ModName>/` directly to the Workshop. Every file in there ships to subscribers. Rules:
+
+- **Always build Release** (`-p:Configuration=Release`). Never deploy a Debug build.
+- **Only copy these files**: `<ModName>.dll` and the `About/` folder (`About.xml`, `Preview.png`, `thumb.png`).
+- **Never copy**: `.pdb` files, `.deps.json`, `.runtimeconfig.json`, `obj/` leftovers, source files, `RESEARCH.md`, `README.md`, `TODO.md`, `LICENSE`, `NOTICE`, or any other repo file. None of those belong on the Workshop.
+- **Verify before publishing**: `ls` the deploy folder and confirm it contains only the DLL and `About/`. If anything else is present, remove it before uploading.
+
+## Steam Workshop downloads
+
+Third-party mod installations from Workshop subscriptions:
+
+```
+<STEAM_ROOT>\steamapps\workshop\content\544550\
+  <PublishedFileId>\
+  ...
+```
+
+Useful for reading other mods' compiled assemblies with `ilspycmd` when patterns need confirmation.
+
+---
+
+## Build toolchain
+
+**MSBuild (Visual Studio)**:
+
+```
+<MSBUILD_PATH>
+```
+
+Typical locations:
+
+- VS Community, Windows: `C:\Program Files\Microsoft Visual Studio\<VERSION>\Community\MSBuild\Current\Bin\MSBuild.exe`
+- VS Build Tools: `C:\Program Files (x86)\Microsoft Visual Studio\<VERSION>\BuildTools\MSBuild\Current\Bin\MSBuild.exe`
+
+If you upgrade Visual Studio, the `<VERSION>` segment will change. No version-free alias is wired up by default.
+
+Build a mod (adjust path and config):
+
+```bash
+"<MSBUILD_PATH>" \
+  "<REPO_CLONE_PATH>/Mods/<ModName>/<ModName>.sln" \
+  -t:Build -p:Configuration=Release -p:Platform="Any CPU" -v:minimal
+```
+
+Output lands in `Mods/<ModName>/<ModName>/bin/Release/<ModName>.dll`.
+
+Deploy (Release only, Workshop-clean):
+
+```bash
+# DLL from Release build only
+cp "<REPO_CLONE_PATH>/Mods/<ModName>/<ModName>/bin/Release/<ModName>.dll" \
+   "<USER_DOCUMENTS>/My Games/Stationeers/mods/<ModName>/"
+
+# About/ folder when contents changed (About.xml, Preview.png, thumb.png)
+cp -r "<REPO_CLONE_PATH>/Mods/<ModName>/<ModName>/About" \
+   "<USER_DOCUMENTS>/My Games/Stationeers/mods/<ModName>/"
+
+# Verify: only DLL + About/ should be present (this folder uploads to Workshop)
+ls "<USER_DOCUMENTS>/My Games/Stationeers/mods/<ModName>/"
+```
+
+StationeersLaunchPad auto-detects changed mod folders; the game must be restarted to reload patches.
+
+---
+
+## Decompilation + reverse-engineering tooling
+
+- **`ilspycmd`** on PATH. Used for every decompilation pass of `Assembly-CSharp.dll`.
+  - Recreate a fresh decompile dump:
+    ```bash
+    cd <SCRATCH_DIR>
+    ilspycmd -p "<STATIONEERS_INSTALL>/rocketstation_Data/Managed/Assembly-CSharp.dll" \
+      -o . --nested-directories
+    ```
+  - The scratch directory is transient (cleared between reboots); recreate on demand.
+
+- **UnityPy** (Python package). Used for prefab extraction, transform tree inspection, MonoBehaviour-backed SerializeField values. Example: read `resources.assets`, walk the hierarchy under a GameObject, dump `m_LocalPosition` / `m_LocalRotation` per transform.
+
+- **Mono.Cecil PowerShell helpers** (typically under your source root, for example `<YOUR_SOURCE_ROOT>\`):
+  - `decompile_harmony.ps1`
+  - `cecil_inspect.ps1`
+  - `scan_dll.ps1`
+  - Useful fallbacks when `ilspycmd` output is hard to search. Assembly-Cecil-based.
+
+- **`gh` CLI** on PATH, authenticated against your GitHub account. Used for `gh repo create`, `gh pr create`, etc.
+
+---
+
+## Sibling-mod source locations
+
+The monorepo at `<REPO_CLONE_PATH>` holds every StationeersPlus mod. Other useful source trees typically sit under the same source root:
+
+```
+<YOUR_SOURCE_ROOT>\
+  SixFive7\
+    StationeersPlus\              <- this monorepo (DEV.md lives here)
+      Mods/
+      Plans/
+      tools/
+  <OTHER_MOD_DEV>\                <- older standalone clones (still useful to grep)
+  <ANOTHER_TREE>\
+```
+
+Grep these when looking for known patterns (BepInPlugin skeleton, INetworkMessage, Logicable patching, item pickup handling, etc.).
+
+---
+
+## Log locations
+
+- **BepInEx stream**: `<STATIONEERS_INSTALL>/BepInEx/LogOutput.log` — append-only during the current game session. Cleared on game restart.
+- **Diagnostic-style checks**: `grep "<ModGuidOrName>" LogOutput.log | tail -30` after a repro run to find plugin-specific entries.
+- **Unity Player log** (rare): `%LOCALAPPDATA%\..\LocalLow\Rocketstar Games\Stationeers\Player.log` — native crashes usually land here.
+
+---
+
+## Developer identity
+
+Git config is global:
+
+- Name: `<YOUR_NAME>`
+- Email: `<YOUR_EMAIL>`
+
+**Do NOT modify git config from automation.** Respect whatever the global config says.
+
+GitHub: your account, `gh` authenticated via keyring.
+
+---
+
+## Collaboration preferences for this developer
+
+Project-specific / technical-depth preferences that layer on top of the global `~/.claude/CLAUDE.md` settings. Customize for your own workflow.
+
+- **Approval gate before implementation.** After research or analysis, present findings and wait for explicit confirmation before writing code. This applies even when there's a clear winner among options.
+- **3 to 5 distinct solution directions on design questions**, not just one. Use comparison tables.
+- **Concrete numbers and tables** over prose handwaving.
+- **Clean, documented patterns** over hacky solutions, even at higher LOC cost.
+- **Vanilla-look matching where possible**, deviating only when functionally justified.
+- **Comprehensive test plans** with concrete steps for each change.
+- **Per-mod separate config sections** (`[Visual]`, `[Pulse]`, `[Distance]`) over one big section.
+- **Comfortable with technical depth**: IL details, threading semantics, decompilation, prefab extraction are all welcome.
+- **Commit messages explain WHY**, not just what.
+
+---
+
+## InspectorPlus: live runtime state snapshots
+
+**Purpose:** Read actual field and property values out of the running game without reloading saves or adding one-off logging. When a developer is running the game and needs to see what state the game is in at that moment, InspectorPlus dumps the relevant objects to JSON so the data can be read back.
+
+**Source:** `<REPO_CLONE_PATH>/Mods/InspectorPlus/` (local only, no Workshop publish).
+
+**Deploy target:** `<USER_DOCUMENTS>/My Games/Stationeers/mods/InspectorPlus/` (wire into `modconfig.xml` as Local / Enabled).
+
+**Runtime folders** (created automatically on first game launch):
+
+```
+<STATIONEERS_INSTALL>\BepInEx\inspector\
+  requests\      <- drop request .json files here to trigger a snapshot
+  snapshots\     <- plugin writes snapshot_<timestamp>.json files here
+```
+
+### Triggers
+
+**1. File-based (the programmatic path):**
+
+Drop a JSON request file into `BepInEx\inspector\requests\`. The plugin's `FileSystemWatcher` detects the new file, snapshots what was asked for, writes the result to `BepInEx\inspector\snapshots\snapshot_<YYYYMMDD_HHMMSS_fff>.json`, and deletes the request file. Typical round-trip is one frame once the game is in the main loop.
+
+Request file schema (all fields optional):
+
+```json
+{
+  "types": ["PowerTransmitter", "PowerReceiver"],
+  "fields": ["PowerActual", "PowerRequired", "LinkedPartner"],
+  "maxDepth": 2,
+  "includePrivate": true
+}
+```
+
+- `types`: fully-qualified type names (e.g. `"Assets.Scripts.Objects.Electrical.PowerTransmitter"`) OR short names (e.g. `"PowerTransmitter"`). Empty or omitted means "all MonoBehaviours in the scene."
+- `fields`: field / property names to include. Empty or omitted means "all public fields and properties."
+- `maxDepth`: how far to recurse into nested objects before collapsing them to a type-name stub. Default 3. Keep low (1-2) for tight snapshots of a single type; higher values explode file size fast.
+- `includePrivate`: include private and internal fields via reflection. Default false.
+
+**2. In-game hotkey:**
+
+Press **F8** in-game. Dumps every `MonoBehaviour` in the scene with default settings. Useful to capture a moment without coordination. Key is rebindable in the BepInEx config (`net.inspectorplus.cfg`, `[General] Snapshot Key`).
+
+### Output format
+
+```json
+{
+  "timestamp": "<ISO_TIMESTAMP>",
+  "frame": 1234567,
+  "gameTime": 423.15,
+  "objects": [
+    {
+      "_type": "Assets.Scripts.Objects.Electrical.PowerTransmitter",
+      "_name": "PowerTransmitter",
+      "_instanceId": 12345,
+      "_gameObject": "StructureMicrowavePowerTransmitter",
+      "_active": true,
+      "_position": [12.50, 3.20, -8.70],
+      "fields": {
+        "PowerActual": 1500.0,
+        "PowerRequired": 2000.0,
+        "LinkedPartner": "(PowerReceiver) StructureMicrowavePowerReceiver"
+      }
+    }
+  ]
+}
+```
+
+Special-cased value types (rendered compactly, not recursed into):
+
+- `Vector3` / `Vector2` / `Quaternion` / `Color`: flat numeric array.
+- `UnityEngine.Object` references: `"(TypeName) name"` string, never recursed (prevents infinite loops into GameObject -> Transform -> GameObject cycles).
+- `IEnumerable`: up to 50 items, then `"...(truncated)"`.
+- Primitives, strings, enums: native JSON.
+- Anything past `maxDepth`: `"(TypeName)"` stub.
+- Reflection errors caught per-field, rendered as `"<error reading value>"` so one bad property doesn't poison the whole snapshot.
+
+### When to use it
+
+- A repro is running in-game and state needs to be captured. Write a request file targeting the relevant types, wait for the snapshot file to appear, read it.
+- Debugging a patch and need to see the actual runtime state of the objects the patch touches.
+- Confirming a hypothesis about what value some field should hold after an event.
+
+### When NOT to use it
+
+- Pre-game menu (no scene objects yet; snapshot will be near-empty).
+- As a replacement for log instrumentation inside Harmony patches: a patch firing 60x/sec should not dump the entire scene. Use logging for that.
+- To inspect `static` fields on a class: the walker only looks at instance members right now. For statics, target the type and read via reflection in a one-off log call.
+
+### Request file cleanup
+
+The plugin deletes each request file after processing. If a request file lingers in `requests\`, processing failed; check `LogOutput.log` for `InspectorPlus` errors. Snapshots accumulate in `snapshots\` forever (timestamped filenames, no rotation). Clean the folder manually between sessions if it gets noisy.
+
+### Build & redeploy
+
+Same toolchain as every other mod:
+
+```bash
+"<MSBUILD_PATH>" \
+  "<REPO_CLONE_PATH>/Mods/InspectorPlus/InspectorPlus.sln" \
+  -t:Build -p:Configuration=Release -p:Platform="Any CPU" -v:minimal
+cp "<REPO_CLONE_PATH>/Mods/InspectorPlus/InspectorPlus/bin/Release/InspectorPlus.dll" \
+   "<USER_DOCUMENTS>/My Games/Stationeers/mods/InspectorPlus/"
+```
+
+No Workshop publish. InspectorPlus is local-only, `Private=true` in Workshop terms, never shipped to subscribers.
+
+---
+
+## Test / verification workflow
+
+1. Build Release.
+2. Copy `<ModName>.dll` (and `About/About.xml` when changed) into the deploy folder.
+3. If a config-default changed, delete the BepInEx config file (see above).
+4. Restart Stationeers.
+5. Watch `LogOutput.log` for the mod's `[Info]` startup lines and any `[Warning]` / `[Error]` / `[Fatal]` entries.
+6. Run whatever in-game repro steps the test requires.
+7. Grep the log for the mod name + tail recent lines.
