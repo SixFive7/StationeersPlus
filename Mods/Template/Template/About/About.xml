@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>{{Mod Display Name}}</Name>
+  <ModID>net.{{modcodename-lowercase}}</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]{{Mod Display Name}}[/h1]
+
+{{Tagline: same sentence as the GitHub repo description and README intro paragraph, in BBCode. One sentence describing the mod in its feature-complete state.}}
+
+[h2]Features[/h2]
+
+[h3]{{Feature 1 Title}}[/h3]
+{{One or two sentences per feature. Use [list][*]...[/list] for bullet points, [b]bold[/b] for setting names.}}
+
+[h3]{{Feature 2 Title}}[/h3]
+{{Repeat for each feature.}}
+
+[h3]Settings[/h3]
+
+All features are configurable via the mod settings panel.
+
+[b]Client settings[/b] (personal preference, each player sets independently):
+[list]
+[*][b]{{Setting Name}}[/b] (default {{Default}}): {{Description}}
+[/list]
+
+[b]Server settings[/b] (the server's value controls gameplay for everyone):
+[list]
+[*][b]{{Setting Name}}[/b] (default {{Default}}): {{Description}}
+[/list]
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]All players[/b] on a server must have {{Mod Display Name}} installed. Matching mod versions are enforced during the connection handshake automatically.
+
+[b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + {{ModCodeName}} setup installed server-side.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[h2]Credits[/h2]
+{{Optional; delete the section when the mod is original. When present, one bullet per predecessor or contributor with a Workshop link and a short credit line.}}
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/{{ModCodeName}}]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v0.1.0: Initial release
+- Describe the first public release here. Plain text only, no BBCode. Steam Workshop renders ChangeLog as plain text.
+  </ChangeLog>
+  <WorkshopHandle></WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>{{Mod Display Name}}</color></size>
+{{Tagline: same sentence as GitHub description and About.xml <Description> opener, in Unity rich text.}}
+
+<b>Features:</b>
+- {{Feature 1}}
+- {{Feature 2}}
+
+<b>Settings:</b>
+All features are configurable via the mod settings panel.
+Server settings control gameplay for all players.
+Client settings are personal preference.
+
+<b>Requirements:</b> BepInEx + StationeersLaunchPad
+
+<b>Multiplayer:</b> All players must have this mod installed. Matching mod versions are enforced during the connection handshake automatically. Dedicated servers need the same setup installed server-side.
+]]></InGameDescription>
+</ModMetadata>
