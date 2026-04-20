@@ -140,12 +140,6 @@ StationeersLaunchPad auto-detects changed mod folders; the game must be restarte
 
 - **UnityPy** (Python package). Used for prefab extraction, transform tree inspection, MonoBehaviour-backed SerializeField values. Example: read `resources.assets`, walk the hierarchy under a GameObject, dump `m_LocalPosition` / `m_LocalRotation` per transform.
 
-- **Mono.Cecil PowerShell helpers** (typically under your source root, for example `<YOUR_SOURCE_ROOT>\`):
-  - `decompile_harmony.ps1`
-  - `cecil_inspect.ps1`
-  - `scan_dll.ps1`
-  - Useful fallbacks when `ilspycmd` output is hard to search. Assembly-Cecil-based.
-
 - **`gh` CLI** on PATH, authenticated against your GitHub account. Used for `gh repo create`, `gh pr create`, etc.
 
 ---
