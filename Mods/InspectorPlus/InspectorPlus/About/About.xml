@@ -3,7 +3,7 @@
   <Name>Inspector Plus</Name>
   <ModID>net.inspectorplus</ModID>
   <Author>SixFive7</Author>
-  <Version>0.1.0</Version>
+  <Version>0.2.0</Version>
   <Description>[h1]Inspector Plus[/h1]
 
 Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
@@ -39,6 +39,15 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v0.2.0: Generic walker fixes for any Unity game
+- Inline-expand plain serializable classes instead of stringifying them as (TypeName); shared with the UnityEngine.Object path so the same filter, private-include, and skip rules apply
+- Null-guard FindObjectsOfType and fall back to a reflection scan over live MonoBehaviours and static members so non-UnityEngine.Object types are still reachable
+- Cycle detection via reference-equality set; emit (cycle) when a reference recurs on the same chain
+- Hard caps on total serialized bytes, top-level objects, and nested expansions; emit a visible _truncated marker when a cap is hit
+- Wrap name, gameObject, activeInHierarchy, transform.position, and other Unity reads in try-catch so destroyed Unity wrappers never throw out of the walker
+- Top-level try-catch surfaces unexpected walker errors as an error key in the snapshot JSON
+- New maxMonoBehaviours request field (default 10000) lets callers raise or lower the top-level cap
+
 v0.1.0: Initial release
 - On-demand snapshots via request JSON drop in BepInEx/inspector/requests/
 - F8 full-scene MonoBehaviour dump
