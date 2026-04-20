@@ -32,6 +32,14 @@ namespace InspectorPlus
         public bool IncludePrivate { get; set; } = false;
 
         /// <summary>
+        /// Hard cap on how many top-level objects a snapshot will serialize.
+        /// Defaults to 10000; raise for broad scene dumps on small scenes, lower
+        /// for tightly-scoped probes. Works together with the walker's byte and
+        /// nested-expansion caps to keep F8 dumps from exhausting memory.
+        /// </summary>
+        public int MaxMonoBehaviours { get; set; } = 10000;
+
+        /// <summary>
         /// Parse a JSON request file. Minimal hand-rolled parser since we
         /// can't depend on Newtonsoft being available.
         /// </summary>
@@ -51,6 +59,10 @@ namespace InspectorPlus
             var privateMatch = Regex.Match(json, @"""includePrivate""\s*:\s*(true|false)");
             if (privateMatch.Success)
                 req.IncludePrivate = privateMatch.Groups[1].Value == "true";
+
+            var maxMbMatch = Regex.Match(json, @"""maxMonoBehaviours""\s*:\s*(\d+)");
+            if (maxMbMatch.Success)
+                req.MaxMonoBehaviours = int.Parse(maxMbMatch.Groups[1].Value);
 
             return req;
         }
