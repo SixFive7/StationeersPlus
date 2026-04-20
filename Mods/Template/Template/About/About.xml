@@ -56,7 +56,7 @@ Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/
 v0.1.0: Initial release
 - Describe the first public release here. Plain text only, no BBCode. Steam Workshop renders ChangeLog as plain text.
   </ChangeLog>
-  <WorkshopHandle></WorkshopHandle>
+  <WorkshopHandle>0</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>

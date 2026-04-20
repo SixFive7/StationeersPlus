@@ -44,7 +44,7 @@ v0.1.0: Initial release
 - F8 full-scene MonoBehaviour dump
 - Field, property, and Unity position capture with configurable recursion depth and cycle detection
   </ChangeLog>
-  <WorkshopHandle></WorkshopHandle>
+  <WorkshopHandle>0</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>
