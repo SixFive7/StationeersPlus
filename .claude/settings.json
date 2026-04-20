@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Read|Grep|Glob",
+        "if": "Read(**/rocketstation_Data/Managed/**)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "if": "Read(**/Research/**)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-read.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "if": "Edit(**/Research/**)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-write.ps1"
+          }
+        ]
+      }
+    ]
+  }
+}

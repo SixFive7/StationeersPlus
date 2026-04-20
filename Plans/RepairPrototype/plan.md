@@ -4,6 +4,8 @@
 >
 > **Last updated:** 2026-04-15
 > **Status:** Research complete. Ready to begin implementation. Several open decisions remain (see Section 11).
+>
+> **Note on drained sections:** During the Phase 5 research migration (2026-04-XX), game-internals and reusable-pattern content was lifted from this plan to central pages under `Research/`. Drained sections below keep their original headings but the body is replaced by a short summary plus a pointer list. Implementation-strategy content (mod concepts, open decisions, roadmap, appendices B and C) remains in place. This doc is still usable as an implementation brief; for durable game-internals facts, follow the pointer links.
 
 ---
 
@@ -53,86 +55,17 @@ When there is an accident in Stationeers (overpressure event, storm, electrical 
 
 ## 2. Stationeers Save Format
 
-### File Structure
+Stationeers `.save` files are ZIP archives containing `world_meta.xml`, `world.xml`, `terrain.dat`, and preview images. Save-edit work that targets damage must operate on `world.xml` inside the ZIP, and the test save ("Lunar", day 46, 1212 things, 2 rooms, 24 pipe networks, 9 cable networks) is the reference used throughout this plan.
 
-Save files (e.g., `Luna.save`) are **ZIP archives** containing:
-
-| File | Size (example) | Content |
-|---|---|---|
-| `world_meta.xml` | ~700 B | Save metadata: world name, version, stats |
-| `world.xml` | ~2.6 MB | ALL game data: things, atmospheres, networks, players |
-| `terrain.dat` | ~184 KB | Terrain/voxel data (binary) |
-| `preview.png` | ~125 KB | Save thumbnail |
-| `screenshot.png` | ~139 KB | Screenshot |
-
-### World Meta Example (from user's save)
-
-```xml
-<WorldMetaData Id="af74fb5c-5fb7-466e-8269-ffa6820e7138">
-  <Game>Assembly-CSharp</Game>
-  <GameVersion>0.2.6228.27061</GameVersion>
-  <DateTime>134201614819267958</DateTime>
-  <DaysPast>46</DaysPast>
-  <WorldName>Lunar</WorldName>
-  <WorldFileName>Luna</WorldFileName>
-  <NumberOfRooms>2</NumberOfRooms>
-  <NumberOfPipeNetworks>24</NumberOfPipeNetworks>
-  <NumberOfCableNetworks>9</NumberOfCableNetworks>
-  <NumberOfThings>1212</NumberOfThings>
-  <NumberOfAtmospheres>122</NumberOfAtmospheres>
-</WorldMetaData>
-```
-
-### User's Save Details
-
-- World: "Lunar", day 46, Normal difficulty, DefaultStartCommunity, LunarSpawnMonsArcanus
-- 2 players (SteamIDs: 76561197970372584, 76561197965752767)
-- 1,212 things, 2 rooms, 24 pipe networks, 9 cable networks
-- One player was Unconscious (Stun=100), both had low Hydration (~5.6-5.8)
+Full content moved to:
+- [SaveFileStructure](../../Research/Protocols/SaveFileStructure.md) - Byte-level layout of the save ZIP: file inventory, `world_meta.xml` schema, and the world.xml / terrain.dat ordering.
 
 ### Critical Lesson: DamageState vs Atmosphere Fields
 
-The XML contains `<Oxygen>`, `<Hydration>`, etc. in TWO completely different contexts:
+The XML carries `<Oxygen>`, `<Hydration>`, `<Stun>`, etc. under three different parents (`<DamageState>` on Things, `<AtmosphereSaveData>` on rooms, and directly on player entities for vital stats), so a naive regex that zeros all `<Oxygen>` tags will remove breathable air and kill players. Safe save-edit requires a context-aware parser matching only inside `<DamageState>` blocks.
 
-1. **Inside `<DamageState>` blocks** (on Things) -- these ARE damage values, safe to zero out:
-   ```xml
-   <DamageState>
-     <Brute>20.70604</Brute>
-     <Burn>0</Burn>
-     <Oxygen>0</Oxygen>
-     <Hydration>0</Hydration>
-     <Starvation>0</Starvation>
-     <Toxic>0</Toxic>
-     <Radiation>0</Radiation>
-     <Stun>0</Stun>
-     <Decay>0</Decay>
-   </DamageState>
-   ```
-
-2. **Inside `<AtmosphereSaveData>` blocks** -- these are GAS AMOUNTS in rooms, NOT damage:
-   ```xml
-   <AtmosphereSaveData>
-     <Oxygen>318.45480094784614</Oxygen>
-     <Nitrogen>0</Nitrogen>
-     <CarbonDioxide>197.48193765921076</CarbonDioxide>
-     ...
-   </AtmosphereSaveData>
-   ```
-
-3. **On Player entities** -- `<Hydration>5.65211868</Hydration>` is a VITAL STAT (how thirsty), not damage.
-
-**A naive regex that zeroes all `<Oxygen>` tags will remove breathable air from rooms and kill players.** The correct approach uses a context-aware parser (e.g., Python regex with `re.DOTALL` matching inside `<DamageState>...</DamageState>` blocks only):
-
-```python
-import re
-def zero_damage(match):
-    block = match.group(0)
-    block = re.sub(
-        r'<(Brute|Burn|Oxygen|Hydration|Starvation|Toxic|Radiation|Stun|Decay)>[^<]+</\1>',
-        r'<\1>0</\1>', block)
-    return block
-content = re.sub(r'<DamageState>.*?</DamageState>', zero_damage, content, flags=re.DOTALL)
-```
+Full content moved to:
+- [DamageState](../../Research/GameSystems/DamageState.md) - DamageState vs Atmosphere vs vital-stat disambiguation, save-edit safety rules, and the Python regex pattern for zeroing damage inside `<DamageState>` blocks only.
 
 ---
 
@@ -140,92 +73,37 @@ content = re.sub(r'<DamageState>.*?</DamageState>', zero_damage, content, flags=
 
 ### DamageState Fields
 
-Every `Thing` in Stationeers has a `DamageState` property with these writable float fields:
+Every `Thing` carries a `DamageState` with nine writable float fields (`Brute`, `Burn`, `Oxygen`, `Hydration`, `Starvation`, `Toxic`, `Radiation`, `Stun`, `Decay`) plus `MaxDamage`, all writable from mod code as `thing.DamageState.Brute = 0f` and similar.
 
-| Field | Type | Description |
-|---|---|---|
-| `Brute` | float | Physical/structural damage (impact, overpressure) |
-| `Burn` | float | Thermal/electrical damage (cable overloads, fires) |
-| `Oxygen` | float | Oxygen-related damage |
-| `Hydration` | float | Hydration-related damage |
-| `Starvation` | float | Starvation damage |
-| `Toxic` | float | Toxic damage (pollutants) |
-| `Radiation` | float | Radiation damage |
-| `Stun` | float | Stun damage (incapacitation) |
-| `Decay` | float | Decay/rot damage |
-| `MaxDamage` | float | Maximum damage threshold |
-
-### Damage in Code
-
-Writable from mod code:
-```csharp
-thing.DamageState.Brute = 0f;    // Clear brute damage
-thing.DamageState.Burn = 0f;     // Clear burn damage
-// etc.
-```
-
-Also accessible: `thing.ThingHealth` (overall health property).
+Full content moved to:
+- [DamageState](../../Research/GameSystems/DamageState.md) - Full writable-field inventory with types and descriptions, code examples for reading and writing, and the `thing.ThingHealth` overall-health property.
 
 ### What Had Non-Zero Damage in User's Save (118 values)
 
-| Thing Type | Damage Type | Count | Range |
-|---|---|---|---|
-| `StructureWallIron` | Brute | ~25 | 10-27 |
-| `StructureCompositeWindowIron` | Brute | ~15 | 11-22 |
-| `StructureCableCorner/Straight/Junction` | Burn | ~6 | 5-9 |
-| `StructurePipeCorner/Straight` | Brute | 2 | 37-58 |
-| `OrganLungs` | Burn | 1 | 20.6 |
-| Player entities | Stun | 2 | 100 (unconscious) |
-| Player entities | Burn | 1 | 13.8 |
+The reference save's 118 non-zero damage values are dominated by brute on iron walls and windows (around 40 entries, 10-27 damage), burn on cables (6 entries, 5-9), and two pipe segments at 37-58 brute. Useful as a realistic scale test for the repair loop.
+
+Full content moved to:
+- [DamageState](../../Research/GameSystems/DamageState.md) - "Typical observed values" subsection: the per-thing-type damage distribution from the reference save, as a scale sanity-check for repair-loop design.
 
 ---
 
 ## 4. Repair Mechanics (Vanilla Game)
 
-### Method 1: Duct Tape (Items & Devices)
+Vanilla repair has two paths: duct tape for items / devices / suits (consumes a small amount of tape scaled to damage, 1-2g iron to craft), and build-state repair for walls / frames / pipes / cables (re-apply the original construction material with a welder or arc welder). Unrepairable items (AIMEe, Rover Mk I) must be fully replaced; fully destroyed wreckage needs angle-grinder removal and rebuild.
 
-- **Fixes:** Suits, solar panels, portable items, canisters -- anything "renamable"
-- **Cost:** Tape consumed. Amount scales with damage severity.
-- **Crafting:** Standard: 1g Iron (Fabricator) / 2g Iron (Tool Manufacturer). Mk II: 2g Iron + 1g Electrum
-- **Usage:** Left-click and hold on damaged object (right-click for suits)
-- **Suit caveat:** Repairs rupture but does NOT restore durability
+The key design insight for the mod: vanilla repair costs almost no resources, the real cost is player time. An auto-repair mod removes tedium, not meaningful resource decisions.
 
-### Method 2: Build-State Repair (Structures)
-
-- **Fixes:** Walls, frames, pipes, cables
-- **How:** Damage causes structures to revert to earlier build states. Re-apply original construction materials.
-- **Cost:** Same materials as originally building it (iron sheets for iron walls, steel for steel, etc.)
-- **Tools:** Welding Torch (fuel: 66% CH4 / 34% O2 canister) or Arc Welder (battery powered)
-
-### Unrepairable Items
-
-- AIMEe, Rover Mk I -- must be fully replaced
-- Wreckage (fully destroyed) -- remove with Angle Grinder, rebuild from scratch
-
-### Key Insight for Mod Design
-
-The resources consumed by vanilla repair are trivial (a few grams of iron for duct tape). The real cost is player TIME. This means an auto-repair mod doesn't remove meaningful resource decisions -- it removes tedium. This is a strong argument for the mod's existence.
+Full content moved to:
+- [RepairMechanics](../../Research/GameSystems/RepairMechanics.md) - Duct-tape mechanics, build-state repair flow, unrepairable-item list, welder and arc-welder fuel details, and the "cost is player time, not resources" design observation.
 
 ---
 
 ## 5. Existing Mod Landscape
 
-### No Auto-Repair Mod Exists
+As of 2026-04, no Stationeers mod provides automatic passive structural damage repair; this is a gap in the ecosystem. Adjacent damage mods exist (XRepairsInOne, Configurable Storms, Re-Volt, Perishable Items) but none target the auto-repair use case. Stationeers has no Steam achievement system or save integrity checks.
 
-As of 2026-04, no Stationeers mod provides automatic/passive structural damage repair. The Stationeers modding scene is small. This is a gap in the ecosystem.
-
-### Damage-Adjacent Mods
-
-| Mod | What It Does | Link |
-|---|---|---|
-| XRepairsInOne | Fixes broken weapon damage, solar panel storm damage bugs | [Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=2945613328) |
-| Configurable Storms (original) | Adjust/disable storm damage values | [GitHub](https://github.com/daniellovell/configurable-storms) |
-| Configurable Storms (fork) | Maintained fork | [GitHub](https://github.com/Kastuk/configurable-storms-r) |
-| Re-Volt | Overhauls cable damage/burnout (gradual instead of instant) | [Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=3587239682) |
-| Perishable Items | Food decay causes player health damage | [GitHub](https://github.com/ilodev/StationeersPerishableItems) |
-| Incident: Godmode | Makes player indestructible (removed from Workshop) | [Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=1871914430) |
-
-**Note:** Stationeers has no Steam achievement system or save integrity checks. No ironman mode. Save editing and mods are consequence-free from an achievement perspective.
+Full content moved to:
+- [ThirdPartyModIdentities](../../Research/GameSystems/ThirdPartyModIdentities.md) - Damage-mod-ecosystem survey section: mod names, workshop / GitHub links, and what each mod actually does.
 
 ---
 
@@ -344,279 +222,74 @@ Priority = pipes,cables,structures,devices
 
 ## 8. Technical Architecture
 
-### Framework Stack
+The mod targets BepInEx 5.4.21+ (x64 Mono) with HarmonyX 2.x, StationeersLaunchPad, and .NET Framework 4.5.2 against Unity 2021.2.x. Required game assemblies (`Assembly-CSharp`, `UnityEngine.*`, `com.unity.multiplayer-hlapi.Runtime`) and BepInEx core (`0Harmony`, `BepInEx`) are referenced via `$(StationeersPath)` per the monorepo's build rules.
 
-| Component | Version | Purpose |
-|---|---|---|
-| BepInEx | 5.4.21+ (x64, Mono) | Plugin loader |
-| Harmony (HarmonyX) | 2.x (bundled with BepInEx) | Runtime method patching |
-| StationeersLaunchPad | Latest | Mod loader UI + config |
-| .NET Framework | 4.5.2 | Target framework |
-| Unity | 2021.2.x (game version) | Engine (relevant for asset work only) |
+Full content moved to:
+- [ModProjectSetup](../../Research/Workflows/ModProjectSetup.md) - Framework stack, assembly-reference recipe, `Directory.Build.props` inheritance, and the `$(StationeersPath)` externalization convention.
 
-### Assembly References Needed
+### Object Hierarchy
 
-From `rocketstation_Data/Managed/`:
-- `Assembly-CSharp.dll` (game code)
-- `UnityEngine.dll` + `UnityEngine.CoreModule.dll`
-- `com.unity.multiplayer-hlapi.Runtime.dll` (networking)
+`Thing` is the base of every game object; `DynamicThing` branches to `Item` and `Entity`, and `Structure` branches to `LargeStructure` (2m grid) and `SmallGrid` (0.5m grid, with `Device` underneath). Any repair-mod iterator needs to know which branch covers which candidate.
 
-From `BepInEx/core/`:
-- `0Harmony.dll`
-- `BepInEx.dll`
+Full content moved to:
+- [Thing](../../Research/GameClasses/Thing.md) - Class-hierarchy diagram (Thing / DynamicThing / Item / Entity / Structure / LargeStructure / SmallGrid / Device) with the grid-size notes.
 
-Community package for game assemblies: https://github.com/ilodev/stationeers.modding.assemblies
+### Iterating Things
 
-### Key Game Classes & APIs
+`Thing.AllThings`, `Structure.AllStructures`, and `Device.AllDevices` are the static collections a periodic scan walks; `Thing.TryFind(referenceId, out var thing)` looks up by ID.
 
-#### Object Hierarchy
-```
-Assets.Scripts.Objects.Thing              (base of ALL game objects)
-  |-- DynamicThing                        (non-fixed-position)
-  |     |-- Item                          (inventory-storable)
-  |     |-- Entity                        (living: Human, etc.)
-  |-- Structure                           (player-built, fixed)
-        |-- LargeStructure                (2m grid: frames, walls)
-        |-- SmallGrid                     (0.5m grid: pipes, cables, devices)
-              |-- Device                  (powered machines)
-```
+Full content moved to:
+- [PooledSpanEnumeration](../../Research/Patterns/PooledSpanEnumeration.md) - Safe iteration patterns for the `AllThings` / `AllStructures` / `AllDevices` collections, including the known `Device.AllDevices` duplicates trap.
 
-#### Iterating Things
-- `Thing.AllThings` -- static list of ALL things in the world
-- `Structure.AllStructures` -- all structures
-- `Device.AllDevices` -- all devices
-- `Thing.TryFind(referenceId, out var thing)` -- find by ID
+### Damage Access
 
-#### Damage Access (writable)
 ```csharp
 thing.DamageState.Brute = 0f;
 thing.DamageState.Burn = 0f;
 thing.DamageState.Toxic += 0.001f;
-// etc.
 ```
 
-#### Atmosphere Access
-- `AtmosphericsManager.AllAtmospheres` -- static collection (may contain nulls)
-- `atmosphere.Temperature` -- Kelvin
-- `atmosphere.PressureGassesAndLiquidsInPa` -- total pressure
-- `atmosphere.Room` -- the Room object (has RoomId)
-- `thing.WorldAtmosphere` -- the atmosphere a thing is in
+Full field inventory and semantics live on the central `DamageState` page already cited from Section 3.
 
-#### Pipe/Cable Networks
-- `CableNetwork.AllCableNetworks` -- all cable networks
-- `PipeNetwork.AllPipeNetworks` -- all pipe networks
-- `network.DeviceList`, `network.CableList`, `network.FuseList`
+### Atmosphere, Pipe, Cable, Logic APIs
 
-#### Logic System
-- `device.GetLogicValue(LogicType)` / `SetLogicValue(LogicType, double)`
-- `device.CanLogicRead(LogicType)` / `CanLogicWrite(LogicType)`
-- Existing `LogicType` enum values (reuse, don't add new): `On`, `Mode`, `Setting`, `Power`, `PowerActual`, `Ratio`, `Quantity`, `Temperature`, `Pressure`, `Error`, `Lock`, etc.
+The mod reads `AtmosphericsManager.AllAtmospheres` (may contain nulls), `CableNetwork.AllCableNetworks`, `PipeNetwork.AllPipeNetworks`, and the `Device.GetLogicValue` / `SetLogicValue` / `CanLogicRead` / `CanLogicWrite` quartet for logic channels. Game-state guards (`GameManager.IsServer`, `WorldManager.IsPaused`, `WorldManager.Instance.GameMode`) fence the repair loop to the right conditions.
 
-#### Game State Guards
-```csharp
-if (!GameManager.IsServer) return;            // Server-only logic
-if (WorldManager.IsPaused) return;            // Skip when paused
-if (WorldManager.Instance.GameMode != GameMode.Survival) return;  // Survival only
-```
+Full content moved to:
+- [WorldStateAPIs](../../Research/GameSystems/WorldStateAPIs.md) - Public APIs for atmospheres, pipe networks, cable networks, and the logic-channel quartet, plus the canonical game-state guard snippet.
 
 ### Multiplayer Architecture
 
-- **Server-authoritative** model. Game simulation runs on server, clients receive updates.
-- **Server-only mods** (gameplay patches): Only need to be on the server. PerishableItems explicitly states this.
-- **Both-sides mods** (custom prefabs/assets): Clients need the mod to recognize new PrefabHash values.
-- **Key guard:** `if (!GameManager.IsServer) return;` at the top of every patch
-- **Power system** runs on a **background thread** (not main thread). Use `System.Random` not `UnityEngine.Random`. Use `UniTask.SwitchToMainThread()` for visual updates.
-- BepInEx installs on dedicated servers the same way (alongside `rocketstation_DedicatedServer.exe`)
+Stationeers is server-authoritative. Gameplay-only patches run server-side (`if (!GameManager.IsServer) return;`); mods that add custom prefabs or assets must ship to clients too. `PowerTick` runs on a background thread, so the repair loop needs a main-thread dispatcher if it touches Unity APIs.
+
+Full content moved to:
+- [ServerAuthoritativeSimulation](../../Research/Patterns/ServerAuthoritativeSimulation.md) - Server / client split, the `!GameManager.IsServer` guard pattern, and the rule for when a mod must install on both sides.
 
 ### Periodic Processing Options
 
-1. **Patch `DynamicThing.Update()`** -- runs every frame per thing (PerishableItems does this)
-2. **Timer in plugin's `Update()`**:
-   ```csharp
-   float timer = 0f;
-   void Update() {
-       timer += Time.deltaTime;
-       if (timer >= 5.0f) { timer = 0f; DoWork(); }
-   }
-   ```
-3. **Coroutine**:
-   ```csharp
-   IEnumerator PeriodicCheck() {
-       while (true) {
-           yield return new WaitForSeconds(5f);
-           DoWork();
-       }
-   }
-   ```
+Three options: patch `DynamicThing.Update()` (per-frame per-thing, as PerishableItems does), a timer inside the plugin's `Update()`, or a coroutine with `WaitForSeconds`.
+
+Full content moved to:
+- [PeriodicProcessing](../../Research/Patterns/PeriodicProcessing.md) - Three periodic-processing options with code examples and trade-offs for each (update-patch, plugin timer, coroutine).
 
 ### Save/Load for Cloned Prefabs
 
-- Stationeers saves use `PrefabHash` (integer) to identify things
-- `Animator.StringToHash(name)` is deterministic -- same name always produces same hash
-- Cloned prefabs with stable names survive save/load automatically
-- **If the mod is removed**, things with unknown PrefabHash will fail to load (silently disappear or cause errors)
-- No custom save data types needed if the clone doesn't add new state fields
+Stationeers saves reference things by `PrefabHash` (an integer). `Animator.StringToHash(name)` is deterministic, so cloned prefabs with stable names survive save/load automatically. If the mod is removed, unknown hashes fail to load.
+
+Full content moved to:
+- [PrefabCloning](../../Research/Patterns/PrefabCloning.md) - "PrefabHash stability" subsection: why `Animator.StringToHash` is safe to use, what happens when the mod is uninstalled, and why no custom save-data type is needed for identity-only clones.
 
 ---
 
 ## 9. Prefab Cloning Pattern (Mirrored Devices Deep Dive)
 
-### Source Repository
+The Mirrored Devices mod (Apolo / Vincent Charpentier) is the canonical example of runtime whole-prefab cloning in Stationeers: 3 C# files, ~950 lines. It installs three Harmony patches (`Prefab.LoadAll` prefix to clone, `Localization.LanguageFolder.LoadAll` prefix for names, `InventoryManager.SetupConstructionCursors` postfix for the placement cursor), uses a hidden `DontDestroyOnLoad` parent for clones, handles `Constructor` / `MultiConstructor` conversion, and carries MirrorDefinition as the declarative per-device shape.
 
-**GitHub:** https://github.com/VincentCharpentier/Stationeers-Mirrored-Devices
-**Author:** Apolo (Vincent Charpentier), with contributions from Vanguard
-**File count:** 3 C# source files (~950 lines total)
+For the repair mod, the full recipe (HiddenParent setup, `FindMirrorInfos`, `ConvertConstructorToMultiConstructor`, `CreateMirroredThing`, `AddToConstructor`, localization hook, free crafting recipes, key takeaways) is the single largest re-use target. Appendix A contains the reusable C# template derived from this analysis.
 
-### File Structure
-
-| File | Lines | Purpose |
-|---|---|---|
-| `MirroredAtmospherics.cs` | 41 | BepInEx plugin entry point |
-| `MirrorDefinition.cs` | 52 | Declarative structure per device |
-| `MirroredAtmosphericsPatch.cs` | 855 | All cloning/registration logic |
-
-### Three Harmony Patches
-
-1. **`Prefab.LoadAll` -- Prefix** (line 499): Runs before game loads prefabs. This is where cloning happens.
-2. **`Localization.LanguageFolder.LoadAll` -- Prefix** (line 828): Registers display names.
-3. **`InventoryManager.SetupConstructionCursors` -- Postfix** (line 455): Fixes placement cursor arrows.
-
-### Complete Execution Flow
-
-#### Step 1: Hidden Parent Setup
-```csharp
-// Static field (lives for entire game session)
-private static readonly GameObject HiddenParent = new GameObject("~HiddenGameObject");
-
-// In Prefab.LoadAll prefix:
-UnityEngine.Object.DontDestroyOnLoad(HiddenParent.gameObject);
-HiddenParent.SetActive(value: false);
-```
-The hidden parent prevents clones from being visible. `DontDestroyOnLoad` survives scene loads.
-
-#### Step 2: FindMirrorInfos() -- Resolve Source Prefabs (line 614)
-Scans `WorldManager.Instance.SourcePrefabs`. For each prefab:
-- If it's a `MultiConstructor` with a matching `Constructable`, store the constructor reference
-- If it's a plain `Constructor`, queue it for upgrade to `MultiConstructor`
-- If it matches by name, store as `deviceToMirror`
-
-Also walks all prefabs' `BuildStates` to find `Tool.ToolEntry`/`ToolEntry2` references that point at the old Constructor, and queues callbacks to update them.
-
-#### Step 3: ConvertConstructorToMultiConstructor (line 526)
-If a device uses a single-item `Constructor` kit:
-```csharp
-var buildStructure = ctor.BuildStructure;
-var mctor = ctor.gameObject.AddComponent<MultiConstructor>();
-mctor.Constructables = new List<Structure>() { buildStructure };
-CopySharedFields((Stackable)ctor, (Stackable)mctor);
-WorldManager.Instance.SourcePrefabs[prefabIndex] = mctor;
-UnityEngine.Object.DestroyImmediate(ctor);
-```
-
-`CopySharedFields` (line 546) uses reflection to copy every field from `Stackable` up through `Item`, `DynamicThing`, to `Thing`. Has special handling for:
-- Self-references (field value == source object): rewrites to target
-- IList<Interactable> with Parent refs pointing to source: rewrites to target
-
-#### Step 4: CreateMirroredThing -- THE CORE (line 750)
-```csharp
-// (1) Clone the entire GameObject hierarchy
-GameObject mirroredGameObject = GameObject.Instantiate(source, HiddenParent.transform);
-mirroredGameObject.name = mirrorDef.mirrorName;
-
-// (2) Override identity
-Thing mirroredThing = mirroredGameObject.GetComponent<Thing>();
-mirroredThing.PrefabName = mirrorDef.mirrorName;
-mirroredThing.PrefabHash = mirrorDef.mirrorHash;
-
-// (3) [Mirror-specific: flip transform -- NOT NEEDED for repair mod]
-FlipTransform(mirroredGameObject.transform);
-
-// (4) Clone and process blueprint (placement ghost)
-if (mirroredThing.Blueprint != null)
-{
-    mirroredThing.Blueprint = GameObject.Instantiate(mirroredThing.Blueprint, HiddenParent.transform);
-    FlipTransform(mirroredThing.Blueprint.transform);
-    Wireframe blueprintWireframe = mirroredThing.Blueprint.GetComponent<Wireframe>();
-    FlipWireframe(blueprintWireframe);
-}
-
-// (5) REGISTER with the game
-WorldManager.Instance.SourcePrefabs.Add(mirroredThing);
-```
-
-#### Step 5: AddToConstructor (line 736)
-```csharp
-int insertIndex = mirrorDef.constructor.Constructables.FindIndex(p => p.name == mirrorDef.deviceName);
-mirrorDef.constructor.Constructables.Insert(insertIndex + 1, mirroredDevice as Structure);
-```
-Inserts the clone right after the original in the kit's constructable list.
-
-#### Step 6: Per-device postfix delegate
-```csharp
-if (mirrorDef.postfix != null) mirrorDef.postfix(mirroredDevice);
-```
-Runs device-specific tweaks (e.g., flipping info screens back to readable orientation).
-
-### MirrorDefinition Class
-```csharp
-internal class MirrorDefinition
-{
-    public string deviceName;
-    public string mirrorName { get; private set; }
-    public int mirrorHash { get; private set; }
-    public string mirrorDescription;
-    public ConnectionDescription[] connectionsToFlip = { };
-    public Thing deviceToMirror;
-    public MultiConstructor constructor;
-    public delegate void MirrorPostFix(Thing mirroredThing);
-    public MirrorPostFix postfix;
-
-    public MirrorDefinition(string deviceName)
-    {
-        this.deviceName = deviceName;
-        this.mirrorName = $"{deviceName}Mirrored";
-        this.mirrorHash = Animator.StringToHash(this.mirrorName);
-        this.mirrorDescription = $"Mirrored version of the {{THING:{deviceName}}}";
-    }
-}
-```
-
-### Localization Registration (line 828)
-```csharp
-[HarmonyPatch(typeof(Localization.LanguageFolder), nameof(Localization.LanguageFolder.LoadAll))]
-[HarmonyPrefix]
-private static void Localization_LanguageFolder_LoadAll_Prefix(Localization.LanguageFolder __instance)
-{
-    if (__instance.Code != LanguageCode.EN) return;
-
-    foreach (var mirrorDef in atmoMirrorDefs)
-    {
-        var originalName = __instance.LanguagePages[0].Things
-            .Find(x => x.Key == mirrorDef.deviceName)?.Value;
-        __instance.LanguagePages[0].Things.Add(new Localization.RecordThing
-        {
-            Key = mirrorDef.mirrorName,
-            Value = $"{originalName} (Mirrored)",
-            ThingDescription = mirrorDef.mirrorDescription
-        });
-    }
-}
-```
-No XML needed. Just manipulate the in-memory language page.
-
-### Crafting Recipes: FREE
-
-`GameObject.Instantiate()` copies the entire `BuildStates` chain. The clone inherits the exact same recipe as the original. No XML, no recipe code needed.
-
-### Key Takeaways
-
-1. The actual cloning is ~30 lines. Everything else is bookkeeping.
-2. `Prefab.LoadAll` prefix is the universal hook for prefab manipulation.
-3. `Animator.StringToHash(name)` is the hash function -- deterministic, stable across saves.
-4. Hidden parent with `DontDestroyOnLoad` + inactive is essential.
-5. The Constructor/MultiConstructor distinction is the trickiest bookkeeping.
-6. Multiplayer and save/load "just work" because the clone shares all original components.
-7. This breaks the moment you add custom state or behavior -- then all clients need the mod.
+Full content moved to:
+- [PrefabCloning](../../Research/Patterns/PrefabCloning.md) - Complete recipe: Mirrored Devices three-patch structure, HiddenParent, `FindMirrorInfos` + `ConvertConstructorToMultiConstructor`, `CreateMirroredThing` core Instantiate-rename-register flow, `AddToConstructor` + MirrorDefinition class, PrefabHash stability, free crafting recipes, and key takeaways.
+- [Localization](../../Research/GameSystems/Localization.md) - How to register clone names via a `Localization.LanguageFolder.LoadAll` prefix without any XML edits.
 
 ---
 
@@ -725,34 +398,10 @@ Default 50% -- only repairs damage below this percentage of max health. Above th
 
 ### Code Pattern: Adding Logic Values to Existing Device
 
-From Re-Volt `TransformerLogicPatch.cs`:
-```csharp
-[HarmonyPatch(typeof(Transformer))]
-internal class TransformerLogicPatch
-{
-    [HarmonyPrefix]
-    [HarmonyPatch(nameof(Transformer.CanLogicRead))]
-    public static bool CanLogicReadPatch(LogicType logicType, ref bool __result)
-    {
-        if (logicType == LogicType.PowerActual) {
-            __result = true;
-            return false;  // skip original
-        }
-        return true;  // run original
-    }
+The Re-Volt `TransformerLogicPatch` demonstrates the universal recipe for adding custom logic channels to a vanilla device: a `[HarmonyPrefix]` on `CanLogicRead` sets `__result = true` and returns `false` to skip the original, and a parallel prefix on `GetLogicValue` reads a private field via the `____privateField` four-underscore convention. This is the shape every subsequent logic patch in this mod should follow.
 
-    [HarmonyPrefix]
-    [HarmonyPatch(nameof(Transformer.GetLogicValue))]
-    public static bool GetLogicValuePatch(LogicType logicType, ref double __result, float ____powerProvided)
-    {
-        if (logicType == LogicType.PowerActual) {
-            __result = ____powerProvided;  // access private field
-            return false;
-        }
-        return true;
-    }
-}
-```
+Full content moved to:
+- [CustomLogicValueInjection](../../Research/Patterns/CustomLogicValueInjection.md) - Re-Volt TransformerLogicPatch pattern in full: Harmony prefix shape, `__result = true` + `return false` to skip original, private-field access via parameter-name convention, and the matching `GetLogicValue` pair.
 
 ### Code Pattern: Server-Only Guard
 
@@ -778,61 +427,36 @@ private static void FindPrefab()
 
 ### Code Pattern: Sub-Component Grafting
 
-From FPGA `FPGALogicHousing.cs`:
-```csharp
-public override void OnPrefabLoad()
-{
-    var src = PrefabUtils.FindPrefab<Structure>("StructureCircuitHousing");
-    var srcOnOff = src.transform.Find("OnOffNoShadow");
-    var onOff = GameObject.Instantiate(srcOnOff, this.transform);
-    this.Interactables[2].Collider = onOff.GetComponent<SphereCollider>();
-    this.OnOffButton = onOff.GetComponent<LogicOnOffButton>();
-    base.OnPrefabLoad();
-}
-```
+FPGA's `FPGALogicHousing.OnPrefabLoad` lifts a specific child GameObject (`OnOffNoShadow`) from a vanilla prefab and grafts it into the mod's own prefab, wiring up its `SphereCollider` and `LogicOnOffButton`. This is the alternative to whole-prefab cloning when only one part of the vanilla prefab is desired.
+
+Full content moved to:
+- [SubcomponentGrafting](../../Research/Patterns/SubcomponentGrafting.md) - FPGA sub-component grafting pattern: `PrefabUtils.FindPrefab`, `transform.Find` for the specific child, `GameObject.Instantiate` onto the mod's own prefab, and Interactable wiring.
 
 ### Code Pattern: BepInEx Config
 
-```csharp
-var config = Config.Bind("Section", "Key", defaultValue, "Description");
-// Auto-saved to BepInEx/Config/org.author.modname.cfg
-```
+The standard BepInEx config pattern is `Config.Bind("Section", "Key", defaultValue, "Description")`, which auto-persists to `BepInEx/Config/<plugin-guid>.cfg`. Every configurable value in the mod goes through this call.
+
+Full content moved to:
+- [ModProjectSetup](../../Research/Workflows/ModProjectSetup.md) - "Config.Bind" subsection: signature, the auto-save path, and the BepInEx config reload semantics.
 
 ---
 
 ## 14. Stationeers Modding Framework Reference
 
-### BepInEx Plugin Template
-```csharp
-[BepInPlugin("com.author.modname", "Mod Name", "1.0")]
-public class MyPlugin : BaseUnityPlugin
-{
-    public static MyPlugin Instance;
-    void Awake()
-    {
-        Instance = this;
-        var harmony = new Harmony("com.author.modname");
-        harmony.PatchAll();
-    }
-}
-```
+### BepInEx Plugin Template + Harmony Patch Types
 
-### Harmony Patch Types
+The standard plugin shape is a `BaseUnityPlugin` subclass with `[BepInPlugin("guid", "name", "version")]`, an `Awake()` that stashes `Instance` and calls `new Harmony(guid).PatchAll()`. Harmony patch types are Prefix (can skip original by returning `false`), Postfix (can modify `__result`), Transpiler (IL edits), and Reverse Patch (call private methods).
 
-- **Prefix:** Runs before original. Return `false` to skip original. Gets `__instance`, can modify params.
-- **Postfix:** Runs after original. Can modify `__result`.
-- **Transpiler:** Modifies IL code at load time.
-- **Reverse Patch:** Calls private/internal methods from mod code.
+Full content moved to:
+- [ModProjectSetup](../../Research/Workflows/ModProjectSetup.md) - "Plugin template" subsection: `BaseUnityPlugin` scaffold, `[BepInPlugin]` attribute, Harmony init order.
+- [HarmonyPatchTypes](../../Research/Patterns/HarmonyPatchTypes.md) - Patch-type taxonomy (Prefix / Postfix / Transpiler / Reverse Patch) with the "return false to skip original" semantics and the `__result` / `__instance` / `____privateField` naming conventions.
 
 ### Private Field Access
-```csharp
-// Harmony convention: 4 underscores + field name
-static FieldInfo myField = AccessTools.Field(typeof(WeatherManager), "_stormWindStrength");
-myField.SetValue(__instance, newValue);
 
-// Or via parameter naming in patch method:
-public static void Patch(float ____privateFieldName) { ... }
-```
+Two recipes: the `AccessTools.Field(typeof(T), "_name").SetValue(instance, value)` approach for explicit reflection, and the Harmony four-underscore parameter-naming convention (`float ____privateFieldName`) for inline patch access.
+
+Full content moved to:
+- [AccessToolsRecipes](../../Research/Patterns/AccessToolsRecipes.md) - AccessTools recipe set, parameter-naming convention for private fields, and the trade-offs between explicit reflection and inline access.
 
 ### Key Singletons
 
@@ -843,11 +467,10 @@ public static void Patch(float ____privateFieldName) { ... }
 
 ### Known Gotchas
 
-- `Device.AllDevices` can contain duplicates (use HashSet to dedup)
-- `AtmosphericsManager.AllAtmospheres` can contain nulls (must filter)
-- Power calculations can produce `NaN` (guard against this)
-- Power tick runs on background thread -- can't use `UnityEngine.Random`
-- Atmosphere may be null until a player logs in on dedicated servers
+A catch-all of cross-cutting Stationeers modding traps: `Device.AllDevices` can contain duplicates (dedupe with a HashSet), `AtmosphericsManager.AllAtmospheres` can contain nulls, power calculations can produce NaN, the power tick runs on a background thread (do not use `UnityEngine.Random` there), and atmosphere may be null until a player logs in on dedicated servers.
+
+Full content moved to:
+- [StationeersModdingGotchas](../../Research/Patterns/StationeersModdingGotchas.md) - Known-gotchas reference: AllDevices duplicates, AllAtmospheres nulls, power NaN guards, background-thread Random trap, dedicated-server atmosphere null.
 
 ---
 
@@ -880,36 +503,10 @@ For "new device without 3D models": there IS no dominant pattern because almost 
 
 ### v1: BCSI Damage Tax (Passive Auto-Repair)
 
-1. **Scaffold BepInEx plugin** (1 hour)
-   - Plugin class, Harmony init, config binds
-   - Reference: Battery Backup Light structure
+Seven-step implementation plan: scaffold the BepInEx plugin, clone a vanilla device via the Mirrored Devices recipe, add logic channels for On / Setting / Mode / Ratio / Quantity, implement the periodic scan-and-repair loop, write the Inspector chat-message system, wire the BepInEx config, and iterate testing (single-player, dedicated-server multiplayer, save/load cycles). Rough estimate: 11 hours of build time plus ongoing test rounds.
 
-2. **Clone vanilla device** (2 hours)
-   - Implement Mirrored Devices cloning pattern (sans mirroring)
-   - Pick source device (Decision 1)
-   - Register with SourcePrefabs, add to MultiConstructor, register localization
-
-3. **Add logic channels** (2 hours)
-   - Patch `CanLogicRead`/`GetLogicValue`/`SetLogicValue`/`CanLogicWrite`
-   - Channels: On, Setting (threshold), Mode (priority), Ratio (damage %), Quantity (total damage)
-
-4. **Implement repair loop** (3 hours)
-   - Timer-based periodic scan (every in-game day)
-   - Iterate `Thing.AllThings`, filter structures, sum damage
-   - Calculate material cost based on damage type and structure material
-   - Search storage containers for materials, consume them
-   - Reduce DamageState values proportionally
-
-5. **Inspector chat messages** (2 hours)
-   - Inspector name assignment and persistence
-   - Message templates for: daily report, incident alert, overdue invoice, long no-damage streak
-   - Post to chat via game's messaging system
-
-6. **Config system** (1 hour)
-   - All rates, thresholds, toggles via BepInEx Config
-
-7. **Testing** (ongoing)
-   - Single player, multiplayer (dedicated server), save/load cycles
+Full content moved to:
+- [BCSIImplementationRoadmap](../../Research/Workflows/BCSIImplementationRoadmap.md) - Seven-step v1 roadmap with per-step time estimates and the "which reference mod to keep open for this step" annotations.
 
 ### v2: Maintenance Protocol (Active Repair)
 
@@ -1198,4 +795,4 @@ These were brainstormed as possible lore/mechanics for the mod. Numbers 1, 4, 5,
 
 ## End of Document
 
-This document contains the complete state of research and design for the StationeersPlus Repair Mod. All technical details, code patterns, lore, game design, cost structures, and open decisions are captured here. An agent or developer can resume from this point by reading this file alone.
+This document contains the complete state of research and design for the StationeersPlus Repair Mod. Durable game-internals facts have been migrated to the central `Research/` store (see section pointers above); the implementation strategy, mod concepts, open decisions, and roadmap remain here. An agent or developer can resume work by reading this file plus the linked central pages.

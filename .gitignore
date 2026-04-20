@@ -46,7 +46,9 @@ Directory.Build.props
 DEV.md
 
 ## Claude Code local state
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 
 ## Code-signing keys (never commit)
 *.pfx

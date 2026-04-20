@@ -244,29 +244,46 @@ Required setup:
 - `DEV.md` at the monorepo root is gitignored. `DEV.md.template` at the monorepo root is the committed scaffold a new contributor copies to create their own `DEV.md`.
 - No other long-form knowledge files (`plan.md`, `NOTES.md`, session logs) should accumulate in committed form inside `Mods/`. Use `RESEARCH.md` for durable knowledge, `TODO.md` for pending work, and git history / conversation for everything else. `Plans/` mods may carry such files since the work-in-progress phase is where they have value; they consolidate into `RESEARCH.md` or are deleted when a mod graduates to `Mods/`.
 
-## Workflow: read RESEARCH.md before touching any mod
+## Workflow: read the relevant Research before touching any mod
 
-Before doing any work on a mod (code changes, debugging, feature additions, refactors, content edits, build changes), read that mod's `RESEARCH.md` in full if it exists. It documents architecture, patch formulas, decompiled game internals, multiplayer protocol details, known pitfalls, and the rationale behind past design decisions. Skipping it routinely costs hours of rediscovery and produces patches that conflict with constraints already documented there.
-
-Rules:
-
-- The very first read for any mod task is that mod's `RESEARCH.md`. Paths are `Mods/<ModName>/RESEARCH.md` for released mods and `Plans/<ModName>/RESEARCH.md` for work-in-progress. Do this before grepping the source, before opening `.cs` files, before planning.
-- If `RESEARCH.md` is missing, note it and proceed; do not block.
-- For tasks that span multiple mods, read each affected mod's `RESEARCH.md`.
-- After completing work that changes architecture, patch behavior, game-internals understanding, or invalidates anything in `RESEARCH.md`, update `RESEARCH.md` so the next reader gets accurate information.
-- This rule applies to sub-agents too. When delegating a mod task, instruct the sub-agent to read the mod's `RESEARCH.md` first.
-
-## Workflow: validate new lessons independently, then persist to RESEARCH.md
-
-Decompilation, reverse-engineering, and deep-dive investigations are expensive (minutes of tool work, often tens of thousands of tokens). Any non-obvious finding surfaced during such work, game internals, IL patterns, UI event plumbing, multiplayer quirks, save-load ordering, Harmony pitfalls, etc., must be captured in the relevant mod's `RESEARCH.md` so the next reader does not repeat the work.
+Before doing any work on a mod (code changes, debugging, feature additions, refactors, content edits, build changes), read that mod's `RESEARCH.md` in full if it exists. The mod's `RESEARCH.md` carries mod-specific architecture, design decisions, and a pointer list into central `Research/` pages. That pointer list is the index into the wider knowledge base: each entry names a central page and the one-line reason this mod cares. Follow pointers selectively to the central pages relevant to your task.
 
 Rules:
 
-- Sub-agents doing research or debugging must report every new lesson learned (not just their final answer). The coordinating conversation is responsible for collecting these lessons.
-- Before writing a new lesson into `RESEARCH.md`, validate it with a second, independent sub-agent that has no exposure to the first agent's conclusions. The second agent gets the raw question and sources (decompiled code, game DLLs, other mods' assemblies) and must reach the same conclusion on its own. If the two agents disagree, reconcile with a third pass or by reading the source directly before committing anything to `RESEARCH.md`.
-- Once validated, append or update the relevant section of the mod's `RESEARCH.md` (architecture, patch catalog, decompiled game internals, pitfalls, or design decisions, whichever fits). Do this even when the current task did not require the lesson to be documented, if the lesson is durable.
-- Do not park durable knowledge in commit messages, conversation scratch, or per-session planning files. Those are ephemeral; `RESEARCH.md` is the single source of truth for each mod.
-- Speculation, unverified hypotheses, and "probably" claims do not go into `RESEARCH.md`. Only verified, sourced findings land there.
+- The very first read for any mod task is that mod's `RESEARCH.md`. Paths are `Mods/<ModName>/RESEARCH.md` for released mods and `Plans/<ModName>/RESEARCH.md` for work-in-progress. Do this before grepping source, before opening `.cs` files, before planning.
+- For each pointer in the mod's `RESEARCH.md`, decide whether to follow it. If you choose not to follow a pointer, justify the skip in one sentence (forces a deliberate decision rather than a silent omission).
+- For tasks that span multiple mods, repeat the process for each affected mod.
+- If a pointer is broken, or the mod clearly depends on a topic that has no central page yet, flag it and proceed. Do not block.
+- After completing work that changes architecture, patch behavior, or invalidates the mod's own `RESEARCH.md`, update it. Game-internals changes go to central `Research/` per Rule 2, not to mod-local files.
+- This rule applies to sub-agents too. When delegating a mod task, instruct the sub-agent to read the mod's `RESEARCH.md` first and to follow its pointers as needed.
+
+## Workflow: Research curation is mandatory on every decompiled-code touch
+
+When you read decompiled game code from `$(StationeersPath)\rocketstation_Data\Managed\` (the hook will remind you) or produce a finding about game internals (class behavior, method signature, side-effect, multiplayer message format, save-format detail, Harmony pitfall, transform math, any similar fact), you MUST create or update the matching page under `Research/` in the same response. Do not postpone. Do not park the finding in a commit message or a code comment. Do not write it into a mod's `RESEARCH.md` when the fact is not mod-specific.
+
+Central pages live under `Research/<category>/<page>.md`. The category list, per-category scope, and routing rules live in `Research/CLAUDE.md`. Read it before creating a new page.
+
+The hook injects the current game version on every `Research/` read and write; use that value for the frontmatter `created_in` and `verified_in` fields and for every section-level stamp. Do not guess the version.
+
+Requirements on every touch:
+
+- If the page does not yet exist, create it with full YAML frontmatter (see `Research/CLAUDE.md` for the schema), source citations pointing at the DLL path and any originating `RESEARCH.md` line range, and section-level `<!-- verified: <version> @ <YYYY-MM-DD> -->` stamps after each H2 (and after H3 where the finer granularity matters).
+- If the page exists and a section's content changes or is re-confirmed, update that section's stamp to the current game version and date. Cosmetic edits (typos, formatting) do not restamp.
+- If the finding does not fit any of the five established categories, put it in `Research/Unsorted/<descriptive-name>.md` with full lossless content AND append an entry to the root `TODO.md` in this format: `- [ ] Research/Unsorted: classify Research/Unsorted/<filename>.md (originally from <source>)`. The Unsorted protocol and TODO format are spelled out in `Research/CLAUDE.md`.
+- The lossless principle governs every central page: verbatim code excerpts, formulas, hex layouts, and exact field / method names carry forward untouched. No summarization that drops detail. When two existing sources overlap, preserve both until explicitly reconciled.
+
+## Workflow: validate new lessons independently, then persist to central Research
+
+Decompilation and reverse-engineering are expensive. Any non-obvious finding must land in central `Research/`, not in commit messages, conversation scratch, mod-local files, or per-session planning docs.
+
+Validation protocol:
+
+- Sub-agents doing research or debugging must report every new lesson, not just their final answer. The coordinating conversation is responsible for collecting those lessons and routing them into `Research/`.
+- Adding new content to a central page does not require a second agent. Additive content cannot contradict existing content.
+- Changing or removing existing verified content on a central page DOES require a fresh validator. Before persisting a lesson that contradicts what is already on the page, spawn a fresh sub-agent with no exposure to your reasoning, conversation history, or framing. Give it the raw question and the two conflicting source extracts (decompiled code, DLL path, other mods' assemblies, original `RESEARCH.md` line ranges). Instruct it not to defer to either existing claim. Its verdict is binding. The prompt template, source-extract format, and verdict-application rules live in `Research/CLAUDE.md` under "Conflict-resolution prompt template."
+- Record every conflict and its resolution in the target page's "Verification History" section (append-only): date, what was contradicted, fresh-agent verdict, resulting change. Genuinely unresolved cases (fresh agent could not determine ground truth) go to the page's "Open Questions" section and escalate to the user.
+- Speculation and "probably" claims do not go into central pages. Only verified, sourced findings land there. Unverified hypotheses stay in conversation or in a `Plans/<Mod>/` stub, never in `Research/`.
+- This rule applies to sub-agents too. When a sub-agent produces a finding that contradicts an existing page, the calling agent spawns the fresh validator before persisting.
 
 ## Style: write like a human, not like an AI was here
 

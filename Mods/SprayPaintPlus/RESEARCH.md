@@ -1,22 +1,34 @@
-# Spray Paint Plus: Internals
+# Spray Paint Plus: Research Reference
 
-## Architecture
+Spray Paint Plus is a BepInEx plugin that combines Color Cycler, Network Painter, and Infinite Spray Paint into one server-authoritative mod. Clients send input events (scroll, modifier keys) through LaunchPadBooster messages; the server applies paint and broadcasts results through the vanilla `Consumable` network update path with a piggybacked color index. First-time readers: plugin wiring, conflict detection, and the file walkthrough live in Section 1; the six patch classes are catalogued in Section 3; the wire format and two sync flows are Section 4; decompiled game internals (Cell, Room, Grid3, SprayCan, OnServer.SetCustomColor, NetworkUpdateFlags, etc.) live on the central pages pointed to from Section 5.
 
-Spray Paint Plus is a BepInEx plugin for Stationeers, loaded via StationeersLaunchPad. It uses Harmony patches to intercept game methods and LaunchPadBooster for multiplayer message transport.
+## 1. Architecture
+
+Mod identity:
+
+| Field | Value |
+|---|---|
+| Display Name | Spray Paint Plus |
+| Code Name | SprayPaintPlus |
+| Dependencies | BepInEx, StationeersLaunchPad, LaunchPadBooster (networking v2) |
 
 The mod is server-authoritative. Clients send input events (color scroll, modifier keys) to the server. The server applies paint and broadcasts results through the game's normal network update system.
 
-### Dependencies
+### 1.1. Plugin wiring
 
-- **BepInEx**: Plugin loader and configuration framework.
-- **StationeersLaunchPad**: Mod manager that loads BepInEx plugins into Stationeers. Provides `Prefab.OnPrefabsLoaded` for deferred initialization.
-- **LaunchPadBooster**: Networking layer on top of StationeersLaunchPad. Provides `INetworkMessage`, channel-based message transport, automatic compression, and a version-matching handshake (`Networking.Required = true`).
+`Plugin.Awake()` binds config, runs conflict detection, registers LaunchPadBooster messages (`SprayCanColorMessage`, `PaintModifierMessage`), then applies Harmony patches. `StationeersLaunchPad` provides `Prefab.OnPrefabsLoaded` for deferred initialization; `LaunchPadBooster` provides `INetworkMessage`, channel-based message transport, automatic compression, and the version-matching handshake.
 
-### Conflict detection
+**Conflict detection.** The mod replaces Color Cycler and Network Painter. It cannot coexist with them because they patch the same methods. `BepInIncompatibility` attributes cover load-time detection, but StationeersLaunchPad loads mods progressively, so those assemblies may not exist when `Awake()` runs. A second check runs on `Prefab.OnPrefabsLoaded`, scanning `AppDomain.CurrentDomain.GetAssemblies()` for the conflicting assembly names. If found, the mod logs a fatal error and starts a coroutine that repeats the warning every 5 seconds. No Harmony patches are applied. See [../../Research/Patterns/ConflictDetection.md](../../Research/Patterns/ConflictDetection.md) for the general assembly-scan-on-prefab-load pattern.
 
-The mod replaces Color Cycler and Network Painter. It cannot coexist with them because they patch the same methods. `BepInIncompatibility` attributes cover load-time detection, but StationeersLaunchPad loads mods progressively, so those assemblies may not exist when `Awake()` runs. A second check runs on `Prefab.OnPrefabsLoaded`, scanning `AppDomain.CurrentDomain.GetAssemblies()` for the conflicting assembly names. If found, the mod logs a fatal error and starts a coroutine that repeats the warning every 5 seconds. No Harmony patches are applied.
+### 1.2. Threading model
 
-## File walkthrough
+All patches run on the main Unity thread. No ThreadPool work, no Unity-API-from-background-thread bridging. Input polling in `ColorCyclerPatch` runs inside `InventoryManager.NormalMode`, which is already main-thread. Paint flood-fills in `NetworkPainterPatch` run synchronously inside `OnServer.SetCustomColor`.
+
+### 1.3. Server / client roles
+
+Server runs paint logic. Clients send input and receive visual updates through the vanilla update path. Single-player runs as `NetworkRole.None` (all role flags false); the `SprayCanUsePatch` guard uses `IsActive && !IsServer` so it catches remote clients without also catching single-player. See [../../Research/GameSystems/NetworkRoles.md](../../Research/GameSystems/NetworkRoles.md) for the full role-flag matrix and [../../Research/Patterns/SinglePlayerNetworkRole.md](../../Research/Patterns/SinglePlayerNetworkRole.md) for the trap.
+
+### 1.4. File walkthrough
 
 | File | Purpose |
 |---|---|
@@ -30,21 +42,37 @@ The mod replaces Color Cycler and Network Painter. It cannot coexist with them b
 | `PaintModifierMessage.cs` | LaunchPadBooster `INetworkMessage`. Client-to-server: "My modifier key state is now X." Carries the player's Human ReferenceId so the server can key the lookup correctly. |
 | `CleanupPatches.cs` | Patches `Thing.OnDestroy` and `NetworkServer.ClientDisconnected`. Removes stale entries from `SprayCanColors` and `PlayerModifiers` dictionaries. |
 
-## Patch catalog
+`SprayPaintHelpers` carries three concurrent dictionaries: `SprayCanColors` maps spray can ReferenceId to color index (server-side authoritative, mirrored to clients via the sync postfixes); `PlayerModifiers` maps Human ReferenceId to a modifier byte; `CurrentPaintingHumanId` is a one-slot static filled by the tracker patches right before `SetCustomColor` runs.
 
-### ColorCyclerPatch (Prefix on `InventoryManager.NormalMode`)
+## 2. Design decisions
 
-Runs every frame. Checks if the active hand holds a `SprayCan`. If scroll input is nonzero, computes the next color index (wrapping), updates the can's visual locally, and sends a `SprayCanColorMessage` to the server. Also checks modifier key state each frame and sends `PaintModifierMessage` on change.
+### 2.1. Applied
 
-The color index wraps with simple `+1`/`-1` and bounds check. `InvertColorScrollDirection` flips the scroll direction. `PaintSingleItemByDefault` XORs with Shift before encoding bit 0 of the modifier byte.
+- **Combined mod vs. separate mods.** The three original mods (Color Cycler, Network Painter, Infinite Spray Paint) each patched overlapping methods and had no coordination. Running them together caused double-patching, ordering issues, and broken multiplayer. Combining them into one mod eliminates patch conflicts and allows shared state (e.g., modifier tracking feeds into network painting).
+- **Server-authoritative paint.** All paint logic runs on the server. Clients send input (scroll, modifiers) and the server decides what gets painted. This prevents desync and means the server's config toggles are the single source of truth.
+- **LaunchPadBooster Networking V2.** Moved from piggybacking on `ThingColorMessage` to LaunchPadBooster's dedicated message channels. V2 provides automatic compression, multi-packet splitting, and a version handshake. The handshake rejects mismatched mod versions, preventing wire-format desync. See [../../Research/Protocols/LaunchPadBoosterNetworking.md](../../Research/Protocols/LaunchPadBoosterNetworking.md).
+- **Human ReferenceId for player identification.** The original mods used the LaunchPadBooster connection id to track which player pressed which modifier keys. But `AttackWithMessage` on the server does not carry the LaunchPadBooster connection id; it carries `AttackParentId`, which is the Human ReferenceId. Keying `PlayerModifiers` by Human ReferenceId matches the identifier available at paint time. See [../../Research/GameClasses/Human.md](../../Research/GameClasses/Human.md).
+- **GenericFlag2 (bit 12) for color sync.** Bit 12 of `NetworkUpdateFlags` was chosen because it is unused by `Consumable`'s vanilla serialization. Setting this flag triggers a network update that includes the spray can's data, and the postfix patches append the color index to that data. See [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md).
 
-### NetworkPainterPatch (Prefix on `OnServer.SetCustomColor`)
+## 3. Harmony patches catalog
 
-Core network/room/grid paint logic. Only runs on the server (or in single-player, which is also "server" from the game's perspective after the `IsActive` guard fix).
+### 3.1. ColorCyclerPatch (Prefix on `InventoryManager.NormalMode`)
 
-**Reentrancy guard**: A static `_painting` bool prevents recursive invocation. Each `PaintSafe` call invokes `item.SetCustomColor`, which re-enters this prefix. Without the guard, one paint would cascade into an infinite loop.
+Runs every frame. Checks if the active hand holds a `SprayCan`. If scroll input is nonzero, computes the next color index (wrapping), updates the can's visual locally, and sends a `SprayCanColorMessage` to the server. Also checks modifier key state each frame and sends `PaintModifierMessage` on change. When running on the host, modifier state is also mirrored directly into the server-side `PlayerModifiers` dictionary so the local player skips the network round-trip.
 
-**Modifier lookup**: Reads from `SprayPaintHelpers.PlayerModifiers` keyed by the Human ReferenceId captured by the tracker patches. Bit 0 = single-item mode (skip network paint). Bit 1 = checkered pattern.
+The color index wraps with simple `+1` / `-1` and bounds check. `InvertColorScrollDirection` flips the scroll direction. `PaintSingleItemByDefault` XORs with Shift before encoding bit 0 of the modifier byte.
+
+**Depends on:** [../../Research/GameClasses/InventoryManager.md](../../Research/GameClasses/InventoryManager.md), [../../Research/GameClasses/SprayCan.md](../../Research/GameClasses/SprayCan.md).
+
+### 3.2. NetworkPainterPatch (Prefix on `OnServer.SetCustomColor`)
+
+Core network/room/grid paint logic. Only runs on the server (or in single-player, which is also "server" from the game's perspective after the `IsActive` guard).
+
+**Reentrancy guard.** A static `_painting` bool prevents recursive invocation. Each `PaintSafe` call invokes `item.SetCustomColor`, which re-enters this prefix. Without the guard, one paint would cascade into an infinite loop.
+
+**Skip the original target.** Inside the flood loop, if an item is `ReferenceEquals` to the original paint target, the patch skips it; vanilla `SetCustomColor` is going to paint that one itself.
+
+**Modifier lookup.** Reads from `SprayPaintHelpers.PlayerModifiers` keyed by the Human ReferenceId captured by the tracker patches. Bit 0 = single-item mode (skip network paint). Bit 1 = checkered pattern.
 
 **Paint branches** (checked in order, first match wins):
 
@@ -52,11 +80,15 @@ Core network/room/grid paint logic. Only runs on the server (or in single-player
 2. **Cables**: Floods `CableNetwork.CableList`.
 3. **Chutes**: Floods `ChuteNetwork.StructureList`.
 4. **Walls**: Floods by `Room` membership. Scans `room.Grids` plus one orthogonal-neighbor expansion layer (walls sit on room boundaries, not inside). Filters to exact type match and same `GetRoom()` result.
-5. **Large structures**: BFS flood-fill on the world grid using 6-neighbor (cardinal) adjacency. `Cell.NeighborCells` returns all 26 neighbors (including diagonals); `IsOrthogonalNeighbor` filters to axis-aligned only by checking that exactly one axis differs.
+5. **Large structures**: BFS flood-fill on the world grid using 6-neighbor (cardinal) adjacency. `Cell.NeighborCells` returns all 26 neighbors (including diagonals); `IsOrthogonalNeighbor` filters to axis-aligned only by checking that exactly one axis of the `Grid3` difference is nonzero.
 
-Wall branch must precede Large Structure because `Wall` derives from `LargeStructure`. A wall with walls-painting disabled returns early and does not fall through to the grid flood.
+**Wall branch must precede Large Structure** because `Wall` derives from `LargeStructure`. A wall with walls-painting disabled returns early and does not fall through to the grid flood.
 
-### SprayCanUsePatch (Prefix on `SprayCan.OnUseItem`)
+**`PaintSafe` exception handling.** `PaintSafe` catches `NotImplementedException` per-item so one unpaintable batched-mesh structure does not abort the rest of the network.
+
+**Depends on:** [../../Research/GameClasses/OnServer.md](../../Research/GameClasses/OnServer.md), [../../Research/GameClasses/Cell.md](../../Research/GameClasses/Cell.md), [../../Research/GameClasses/Room.md](../../Research/GameClasses/Room.md), [../../Research/GameClasses/Grid3.md](../../Research/GameClasses/Grid3.md), [../../Research/GameClasses/Wall.md](../../Research/GameClasses/Wall.md), [../../Research/GameClasses/Structure.md](../../Research/GameClasses/Structure.md).
+
+### 3.3. SprayCanUsePatch (Prefix on `SprayCan.OnUseItem`)
 
 Four-combination matrix of `infinite` x `suppressPollution`:
 
@@ -69,88 +101,46 @@ Four-combination matrix of `infinite` x `suppressPollution`:
 
 Guard: `if (NetworkManager.IsActive && !NetworkManager.IsServer) return true`. This skips only multiplayer remote clients. Single-player has `NetworkRole.None` where both `IsActive` and `IsServer` are false, so the condition is false and the patch runs.
 
-### ConsumableSyncPatch (Postfixes on `Consumable` serialization)
+**Depends on:** [../../Research/GameClasses/SprayCan.md](../../Research/GameClasses/SprayCan.md), [../../Research/GameSystems/NetworkRoles.md](../../Research/GameSystems/NetworkRoles.md), [../../Research/Patterns/SinglePlayerNetworkRole.md](../../Research/Patterns/SinglePlayerNetworkRole.md).
 
-Appends one `Int32` (the color index) after the vanilla `Consumable` data in both the per-tick update stream (`BuildUpdate`/`ProcessUpdate`) and the join snapshot (`SerializeOnJoin`/`DeserializeOnJoin`). Uses `SprayPaintHelpers.PaintColorNetworkFlag` (bit 12, `GenericFlag2`) to gate the per-tick write/read.
+### 3.4. ConsumableSyncPatch (Postfixes on `Consumable` serialization)
 
-No try-catch wraps these calls. If the read/write throws, catching it would leave the binary stream at the wrong position, corrupting all subsequent data for that object. Letting it propagate is the safer choice.
+Appends one `Int32` (the color index) after the vanilla `Consumable` data in both the per-tick update stream (`BuildUpdate` / `ProcessUpdate`) and the join snapshot (`SerializeOnJoin` / `DeserializeOnJoin`). Uses `SprayPaintHelpers.PaintColorNetworkFlag` (bit 12, `GenericFlag2`) to gate the per-tick write / read.
 
-### PaintAttackerTracker (Prefix/Postfix on `OnServer.AttackWith` and `AttackWithMessage.Process`)
+No try-catch wraps these calls. A local try-catch here is actively dangerous: if the read throws, the `RocketBinaryReader` is already past some bytes and in an unknown position; swallowing the exception leaves every subsequent field for that object (and potentially the whole update packet) misaligned.
+
+**Depends on:** [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md), [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md).
+
+### 3.5. PaintAttackerTracker (Prefix / Postfix on `OnServer.AttackWith` and `AttackWithMessage.Process`)
 
 Two patches capture the painting player's identity before the paint reaches `SetCustomColor`:
 
-- **Local** (`OnServer.AttackWith`): `attackParent` is the player's Human. Store its `ReferenceId`.
-- **Remote** (`AttackWithMessage.Process`): `AttackParentId` from the message body is the Human ReferenceId. The `hostId` parameter (LaunchPadBooster connection id) is unreliable on the server.
+- **`PaintAttackerTracker_Local`** (`OnServer.AttackWith`): `attackParent` is the player's Human. Prefix stores its `ReferenceId` in `CurrentPaintingHumanId`. Postfix resets to -1.
+- **`PaintAttackerTracker_Remote`** (`AttackWithMessage.Process`): the authoritative id is `AttackParentId` from the message body (the Human ReferenceId). The `hostId` parameter (LaunchPadBooster connection id) is unreliable on the server, so the mod ignores it and reads from the message body instead.
 
 Both postfixes reset `CurrentPaintingHumanId` to -1. The `NetworkPainterPatch.Prefix` also resets it after reading, as a guard against stale values if an earlier tracker postfix was skipped due to an exception.
 
-### CleanupPatches
+**Depends on:** [../../Research/GameClasses/OnServer.md](../../Research/GameClasses/OnServer.md), [../../Research/GameClasses/Human.md](../../Research/GameClasses/Human.md), [../../Research/Protocols/GameMessageFactory.md](../../Research/Protocols/GameMessageFactory.md).
+
+### 3.6. CleanupPatches
 
 - `ThingDestroyCleanupPatch` (Postfix on `Thing.OnDestroy`): Removes destroyed spray cans from `SprayCanColors`.
 - `ClientDisconnectCleanupPatch` (Prefix on `NetworkServer.ClientDisconnected`): Removes the disconnecting player's entry from `PlayerModifiers`. Must be a Prefix because vanilla's `RemoveClient` destroys the `Client` record before returning, making it unreachable in a Postfix.
 
-## Game internals the mod hooks into
+**Depends on:** [../../Research/Patterns/ClientDisconnectedPrefix.md](../../Research/Patterns/ClientDisconnectedPrefix.md).
 
-### SprayCan
+## 4. Multiplayer and sync
 
-- `PaintMaterial` / `PaintableMaterial`: The `Material` representing the can's current color. The game has one `SprayCan` prefab per color.
-- `Thumbnail`: The `Sprite` shown in the inventory slot. Tied to the prefab, so switching color requires updating it manually.
-- `Quantity`: Decremented on each use. Setting it to 0 before vanilla runs effectively makes the can infinite.
-
-### CustomColors
-
-`GameManager.Instance.CustomColors` is a `List<CustomColor>` where each entry has a `.Normal` material. The index into this list is the canonical color identifier used throughout the mod.
-
-### Grid3
-
-World coordinates scaled by `Grid3.one` (10 units per world unit). Structures snap to a grid defined by their `GridSize` (2 world units for walls and large structures by default). One cell spans `GridSize * Grid3.one.x` Grid3 units (20 by default). Every grid-aligned structure's `GridPosition` is a multiple of this cell size plus a fixed offset.
-
-### Cell and NeighborCells
-
-`Cell.NeighborCells` returns all 26 surrounding cells (corners and diagonals included). The mod filters to 6 orthogonal neighbors by checking that exactly one axis of the `Grid3` difference is nonzero.
-
-### Room
-
-`RoomController.World.GetRoom(gridPosition)` returns the `Room` a cell belongs to. `room.Grids` lists the room's interior cells. Walls sit on the boundary (one layer outside `room.Grids`), which is why the wall-painting code expands one neighbor layer outward.
-
-### NetworkUpdateFlags
-
-`Thing.NetworkUpdateFlags` is a bitmask. Setting a bit causes the game's next network tick to include that object in the update broadcast. The mod uses bit 12 (`0x1000`, `GenericFlag2`) for spray can color updates. This piggybacks on the existing `Consumable.BuildUpdate`/`ProcessUpdate` serialization.
-
-### OnServer.SetCustomColor
-
-Called when a player paints something. The mod's prefix intercepts this to flood-fill connected items before (or instead of) the vanilla single-item paint.
-
-### OnServer.AttackWith / AttackWithMessage
-
-`OnServer.AttackWith(attackParent, ...)` is the local path (host or single-player). `AttackWithMessage.Process(hostId)` is the remote client path. Both eventually reach `OnServer.SetCustomColor` if the attack involves a spray can. The mod's tracker patches extract the player identity from these calls.
-
-### NetworkManager role flags
-
-| Scenario | IsActive | IsServer | IsClient |
-|---|---|---|---|
-| Single-player | false | false | false |
-| Multiplayer host | true | true | true |
-| Multiplayer client | true | false | true |
-| Dedicated server | true | true | false |
-
-The `IsActive && !IsServer` guard correctly identifies remote clients without catching single-player.
-
-## Multiplayer protocol
-
-### Messages
+### 4.1. Messages
 
 Two LaunchPadBooster `INetworkMessage` types, both client-to-server:
 
-1. **SprayCanColorMessage**: `{ SprayCanId: long, ColorIndex: int }`. Sent when a client scrolls to change color. Server validates ColorIndex range, finds the SprayCan by ReferenceId, and applies the color. The update broadcasts to all clients via the normal `Consumable` network update path.
+1. **SprayCanColorMessage**: `{ SprayCanId: long, ColorIndex: int }`. Sent when a client scrolls to change color. Server validates `ColorIndex` range, finds the SprayCan by ReferenceId, and applies the color. The update broadcasts to all clients via the normal `Consumable` network update path.
+2. **PaintModifierMessage**: `{ Modifiers: byte, PlayerHumanId: long }`. Sent when modifier key state changes. Server stores in `PlayerModifiers[PlayerHumanId]`. Read during `NetworkPainterPatch.Prefix` to decide single / network / checkered mode.
 
-2. **PaintModifierMessage**: `{ Modifiers: byte, PlayerHumanId: long }`. Sent when modifier key state changes. Server stores in `PlayerModifiers[PlayerHumanId]`. Read during `NetworkPainterPatch.Prefix` to decide single/network/checkered mode.
+See [../../Research/Protocols/SprayPaintPlusNetworking.md](../../Research/Protocols/SprayPaintPlusNetworking.md) for the full schema and the version handshake (`Networking.Required = true`) that enforces mod-version matching across all connected players.
 
-### Version handshake
-
-`MOD.Networking.Required = true` tells LaunchPadBooster to reject connections from clients that do not have the mod, or have a different version. This ensures all players run the same wire format.
-
-### Sync flow for color changes
+### 4.2. Sync flow for color changes
 
 1. Client detects scroll in `ColorCyclerPatch.Prefix`.
 2. Client updates the spray can's visual locally (immediate feedback).
@@ -159,63 +149,60 @@ Two LaunchPadBooster `INetworkMessage` types, both client-to-server:
 5. Next tick, `Consumable.BuildUpdate` fires; the `ConsumableBuildUpdatePatch` postfix writes the color index into the stream.
 6. All clients receive the update; `ConsumableProcessUpdatePatch` reads the color index and applies it visually.
 
-### Sync flow for painting
+The color sync piggybacks on bit 12 (`GenericFlag2`) of `Thing.NetworkUpdateFlags`. See [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md).
+
+### 4.3. Sync flow for painting
 
 1. Client attacks a structure with a spray can (vanilla input).
 2. Vanilla sends `AttackWithMessage` to the server.
 3. Server-side tracker prefix captures the Human ReferenceId.
 4. Vanilla calls `OnServer.SetCustomColor` for the targeted item.
-5. `NetworkPainterPatch.Prefix` intercepts, looks up modifiers for the painter, and paints the network/room/grid.
+5. `NetworkPainterPatch.Prefix` intercepts, looks up modifiers for the painter, and paints the network / room / grid.
 6. Each painted item's `SetCustomColor` sets its own `NetworkUpdateFlags`, broadcasting the color change to all clients through vanilla's update tick.
 
-## Pitfalls
+## 5. Relevant central pages
+
+### 5.1. GameClasses
+
+- [../../Research/GameClasses/Cell.md](../../Research/GameClasses/Cell.md) - `NeighborCells` returns all 26 surrounding cells; we filter to 6 orthogonal for checkered painting and room-wall propagation.
+- [../../Research/GameClasses/GameManager.md](../../Research/GameClasses/GameManager.md) - `GameManager.Instance.CustomColors` list; each entry's index is the canonical color identifier the mod uses everywhere.
+- [../../Research/GameClasses/Grid3.md](../../Research/GameClasses/Grid3.md) - `GridSize` scale (10 units per world unit, 2 world units per grid cell) and the parity math behind our checkered-painting option.
+- [../../Research/GameClasses/Human.md](../../Research/GameClasses/Human.md) - Human `ReferenceId` is the player-identification key our modifier dictionary and tracker patches use.
+- [../../Research/GameClasses/InventoryManager.md](../../Research/GameClasses/InventoryManager.md) - `NormalMode` is the per-frame hook for input polling in `ColorCyclerPatch`.
+- [../../Research/GameClasses/OnServer.md](../../Research/GameClasses/OnServer.md) - `SetCustomColor` and `AttackWith` are the two server-side entry points our paint and tracker patches hook.
+- [../../Research/GameClasses/Room.md](../../Research/GameClasses/Room.md) - `Room.Grids` lists interior cells; walls sit one layer outside, which is why our wall-painting expands a neighbor layer.
+- [../../Research/GameClasses/SprayCan.md](../../Research/GameClasses/SprayCan.md) - `PaintMaterial`, `Thumbnail`, `Quantity`, and one-prefab-per-color model that our color swap and infinite-paint logic target.
+- [../../Research/GameClasses/Structure.md](../../Research/GameClasses/Structure.md) - Batched structures (`structureRenderMode != Standard`) throw `NotImplementedException` from `SetCustomColor`; `PaintSafe` relies on this contract.
+- [../../Research/GameClasses/Wall.md](../../Research/GameClasses/Wall.md) - `Wall` extends `LargeStructure`; our paint branches must check Wall first for correct dispatch.
+
+### 5.2. GameSystems
+
+- [../../Research/GameSystems/NetworkRoles.md](../../Research/GameSystems/NetworkRoles.md) - `NetworkManager` role-flag matrix; basis for our `IsActive && !IsServer` remote-client check.
+- [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md) - Bitmask semantics and the free bit 12 (`GenericFlag2`) we piggyback for spray can color sync.
+
+### 5.3. Patterns
+
+- [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md) - Why `ConsumableSyncPatch` deliberately has no try-catch around the binary read / write.
+- [../../Research/Patterns/ClientDisconnectedPrefix.md](../../Research/Patterns/ClientDisconnectedPrefix.md) - `NetworkServer.ClientDisconnected` destroys the `Client` before returning; cleanup patches must be Prefixes.
+- [../../Research/Patterns/ConflictDetection.md](../../Research/Patterns/ConflictDetection.md) - `Prefab.OnPrefabsLoaded` assembly-scan pattern used when `BepInIncompatibility` is insufficient under progressive mod loading.
+- [../../Research/Patterns/SinglePlayerNetworkRole.md](../../Research/Patterns/SinglePlayerNetworkRole.md) - `NetworkRole.None` trap and the correct guard shape our `SprayCanUsePatch` uses.
+
+### 5.4. Protocols
+
+- [../../Research/Protocols/GameMessageFactory.md](../../Research/Protocols/GameMessageFactory.md) - `AttackWithMessage.hostId` is unreliable server-side; `AttackParentId` in the message body is authoritative (used by `PaintAttackerTracker_Remote`).
+- [../../Research/Protocols/LaunchPadBoosterNetworking.md](../../Research/Protocols/LaunchPadBoosterNetworking.md) - V2 message channels, compression, multi-packet splitting, and the `Networking.Required = true` handshake our two messages rely on.
+- [../../Research/Protocols/SprayPaintPlusNetworking.md](../../Research/Protocols/SprayPaintPlusNetworking.md) - Our two custom messages (`SprayCanColorMessage`, `PaintModifierMessage`) with schema, flow, and handshake details.
+
+## 6. Pitfalls / dead ends
 
 ### Reentrancy in SetCustomColor
 
 `PaintSafe` calls `item.SetCustomColor`, which re-enters the `NetworkPainterPatch` prefix. The `_painting` static bool prevents infinite recursion. Without it, painting one pipe would try to paint the whole network for every pipe in the network.
 
-### NotImplementedException on batched structures
-
-Some structures use `structureRenderMode != Standard` and share a combined mesh. `SetCustomColor` throws `NotImplementedException` on these. `PaintSafe` catches the exception per-item so one unpaintable structure does not abort the rest of the network.
-
-### Grid3 parity trap
-
-`Grid3` scales world coordinates by 10. Walls and large structures snap to a 2-world-unit cell grid, so every grid-aligned structure's `GridPosition` is a multiple of 20 Grid3 units. Naive `(x+y+z) % 2` parity is the same for every structure. The checkered check works on the delta between two positions divided by cell size, which gives the cell-index distance. Parity of that distance is the checker answer.
-
-### Wall vs. LargeStructure inheritance
+### Wall vs. LargeStructure inheritance ordering
 
 `Wall` extends `LargeStructure`. The wall branch in `PaintNetwork` must come first. If walls-painting is disabled for a wall target, the method returns early rather than falling through to the large-structure grid flood.
 
-### Single-player NetworkRole
+### Grid3 parity trap for checkered painting
 
-Single-player runs with `NetworkRole.None`: `IsActive`, `IsServer`, and `IsClient` are all false. Guards that check `!IsServer` to skip remote clients will also skip single-player. The correct remote-client check is `IsActive && !IsServer`.
-
-### ClientDisconnected cleanup timing
-
-`NetworkServer.ClientDisconnected` calls `NetworkBase.RemoveClient` before returning. The `Client` record is gone by the time a Postfix runs, so the cleanup patch must be a Prefix.
-
-### ConsumableSyncPatch exception handling
-
-No try-catch wraps the binary read/write. If one side writes an Int32 and the other side's read fails mid-stream, catching the exception would leave the `RocketBinaryReader` at the wrong position. Every subsequent field for that object (and potentially the entire update packet) would be misaligned. Letting the exception propagate allows the game's connection-reset logic to recover cleanly.
-
-## Design decisions
-
-### Combined mod vs. separate mods
-
-The three original mods (Color Cycler, Network Painter, Infinite Spray Paint) each patched overlapping methods and had no coordination. Running them together caused double-patching, ordering issues, and broken multiplayer. Combining them into one mod eliminates patch conflicts and allows shared state (e.g., modifier tracking feeds into network painting).
-
-### Server-authoritative paint
-
-All paint logic runs on the server. Clients send input (scroll, modifiers) and the server decides what gets painted. This prevents desync and means the server's config toggles are the single source of truth.
-
-### LaunchPadBooster Networking V2
-
-Moved from piggybacking on `ThingColorMessage` to LaunchPadBooster's dedicated message channels. V2 provides automatic compression, multi-packet splitting, and a version handshake. The handshake rejects mismatched mod versions, preventing wire-format desync.
-
-### Human ReferenceId for player identification
-
-The original mods used the LaunchPadBooster connection id to track which player pressed which modifier keys. But `AttackWithMessage` on the server does not carry the LaunchPadBooster connection id; it carries `AttackParentId`, which is the Human ReferenceId. Keying `PlayerModifiers` by Human ReferenceId matches the identifier available at paint time.
-
-### GenericFlag2 for color sync
-
-Bit 12 of `NetworkUpdateFlags` (`GenericFlag2`) was chosen because it is unused by `Consumable`'s vanilla serialization. Setting this flag triggers a network update that includes the spray can's data, and the postfix patches append the color index to that data.
+`Grid3` scales world coordinates by 10. Walls and large structures snap to a 2-world-unit cell grid, so every grid-aligned structure's `GridPosition` is a multiple of 20 Grid3 units. Naive `(x+y+z) % 2` parity is the same for every structure. The checkered check works on the delta between two positions divided by cell size, which gives the cell-index distance. Parity of that distance is the checker answer. See [../../Research/GameClasses/Grid3.md](../../Research/GameClasses/Grid3.md).
