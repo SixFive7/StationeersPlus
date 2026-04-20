@@ -22,11 +22,11 @@ Scroll your mouse wheel while holding a spray can to cycle through all available
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
 
 [h3]Network Painting[/h3]
-Spray-paint a pipe, cable, or chute and the entire connected network gets painted at once.
+Spray-paint a pipe, cable, chute, or robotic arm rail and the entire connected network gets painted at once.
 [list]
 [*][b]Hold Shift[/b] to paint just a single item (or swap this default, see Settings)
 [*][b]Hold Ctrl[/b] for a checkered/alternating paint pattern
-[*]Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks
+[*]Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks, and robotic arm rail assemblies (rails, junctions, bypass pieces, and docks)
 [/list]
 
 [h3]Room &amp; Structure Painting[/h3]
@@ -57,6 +57,7 @@ All features are configurable via the mod settings panel.
 [*][b]Network Paint Chutes[/b] (default On): Include chutes in network painting
 [*][b]Network Paint Walls[/b] (default On): Paint all same-type walls bounding the same room
 [*][b]Network Paint Large Structures[/b] (default On): Paint connected frames, girders, and other large structures in a 6-neighbor grid
+[*][b]Network Paint Rails[/b] (default On): Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke
 [/list]
 
 [h2]Compatibility[/h2]
@@ -164,6 +165,7 @@ Combines color cycling, network painting, and infinite spray paint into one mult
 - Spray paints entire pipe/cable/chute networks (hydroponic trays and passive vents form separate paint groups)
 - Spray paints all same-type walls bounding the same room
 - Spray paints connected frames, girders, and other large structures in a 6-neighbor grid
+- Spray paints whole robotic arm rail assemblies (rails, junctions, bypass pieces, docks)
 - Hold Shift to paint single item (or swap with config)
 - Hold Ctrl for checkered pattern
 

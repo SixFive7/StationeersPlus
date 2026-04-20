@@ -39,6 +39,7 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> NetworkPaintChutes;
         internal static ConfigEntry<bool> NetworkPaintWalls;
         internal static ConfigEntry<bool> NetworkPaintLargeStructures;
+        internal static ConfigEntry<bool> NetworkPaintRails;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
 
@@ -167,6 +168,13 @@ namespace SprayPaintPlus
                 "Server", "Network Paint Large Structures", true,
                 "(Server-side) When spray-painting a frame, girder, or other large structure, " +
                 "all orthogonally-connected structures of the same exact type are painted too. " +
+                "Has no effect if Enable Network Painting is disabled. " +
+                "Only the server's value matters in multiplayer.");
+
+            NetworkPaintRails = Config.Bind(
+                "Server", "Network Paint Rails", true,
+                "(Server-side) When spray-painting a robotic arm rail, junction, bypass, or dock, " +
+                "every piece on the same robotic arm assembly is painted too. " +
                 "Has no effect if Enable Network Painting is disabled. " +
                 "Only the server's value matters in multiplayer.");
         }

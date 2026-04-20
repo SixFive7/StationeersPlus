@@ -4,6 +4,7 @@ using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using Objects.RoboticArm;
 using HarmonyLib;
 using JetBrains.Annotations;
 using System;
@@ -178,6 +179,28 @@ namespace SprayPaintPlus
                             continue;
                         if (!checkered || CheckeredCheck(thing, item))
                             PaintSafe(item, colorIndex);
+                    }
+                    return;
+                }
+            }
+
+            // RoboticArmNetwork.RailList holds every member of the assembly:
+            // rail pieces plus junctions, bypass, and docks. One walk paints
+            // the whole loop. INetworkedRoboticArm is the network-accessor
+            // interface implemented by every rail-family base class.
+            if (SprayPaintPlusPlugin.NetworkPaintRails.Value)
+            {
+                if (thing is INetworkedRoboticArm armMember && armMember.RoboticArmNetwork?.RailList != null)
+                {
+                    foreach (IRoboticArmRail item in armMember.RoboticArmNetwork.RailList.ToList())
+                    {
+                        if (!(item is Structure s))
+                            continue;
+                        if (ReferenceEquals(s, thing))
+                            continue;
+                        if (checkered && !CheckeredCheck(thing, s))
+                            continue;
+                        PaintSafe(s, colorIndex);
                     }
                     return;
                 }

@@ -79,14 +79,15 @@ Core network/room/grid paint logic. Only runs on the server (or in single-player
 1. **Pipes**: `HydroponicTray`, `PassiveVent`, and `Pipe` each get their own sub-branch. Trays and passive vents are subtypes of Pipe but paint only within their own type. The pipe branch excludes trays and passive vents.
 2. **Cables**: Floods `CableNetwork.CableList`.
 3. **Chutes**: Floods `ChuteNetwork.StructureList`.
-4. **Walls**: Floods by `Room` membership. Scans `room.Grids` plus one orthogonal-neighbor expansion layer (walls sit on room boundaries, not inside). Filters to exact type match and same `GetRoom()` result.
-5. **Large structures**: BFS flood-fill on the world grid using 6-neighbor (cardinal) adjacency. `Cell.NeighborCells` returns all 26 neighbors (including diagonals); `IsOrthogonalNeighbor` filters to axis-aligned only by checking that exactly one axis of the `Grid3` difference is nonzero.
+4. **Rails**: Dispatches off `INetworkedRoboticArm` (the interface that exposes `RoboticArmNetwork`) and enumerates `RoboticArmNetwork.RailList`. One traversal covers every member of the assembly: rail pieces, junctions, bypass, and docks. No grid walk needed; the network object is maintained server-side and rebuilt on topology change.
+5. **Walls**: Floods by `Room` membership. Scans `room.Grids` plus one orthogonal-neighbor expansion layer (walls sit on room boundaries, not inside). Filters to exact type match and same `GetRoom()` result.
+6. **Large structures**: BFS flood-fill on the world grid using 6-neighbor (cardinal) adjacency. `Cell.NeighborCells` returns all 26 neighbors (including diagonals); `IsOrthogonalNeighbor` filters to axis-aligned only by checking that exactly one axis of the `Grid3` difference is nonzero.
 
 **Wall branch must precede Large Structure** because `Wall` derives from `LargeStructure`. A wall with walls-painting disabled returns early and does not fall through to the grid flood.
 
 **`PaintSafe` exception handling.** `PaintSafe` catches `NotImplementedException` per-item so one unpaintable batched-mesh structure does not abort the rest of the network.
 
-**Depends on:** [../../Research/GameClasses/OnServer.md](../../Research/GameClasses/OnServer.md), [../../Research/GameClasses/Cell.md](../../Research/GameClasses/Cell.md), [../../Research/GameClasses/Room.md](../../Research/GameClasses/Room.md), [../../Research/GameClasses/Grid3.md](../../Research/GameClasses/Grid3.md), [../../Research/GameClasses/Wall.md](../../Research/GameClasses/Wall.md), [../../Research/GameClasses/Structure.md](../../Research/GameClasses/Structure.md).
+**Depends on:** [../../Research/GameClasses/OnServer.md](../../Research/GameClasses/OnServer.md), [../../Research/GameClasses/Cell.md](../../Research/GameClasses/Cell.md), [../../Research/GameClasses/Room.md](../../Research/GameClasses/Room.md), [../../Research/GameClasses/Grid3.md](../../Research/GameClasses/Grid3.md), [../../Research/GameClasses/Wall.md](../../Research/GameClasses/Wall.md), [../../Research/GameClasses/Structure.md](../../Research/GameClasses/Structure.md), [../../Research/GameClasses/RoboticArmRail.md](../../Research/GameClasses/RoboticArmRail.md).
 
 ### 3.3. SprayCanUsePatch (Prefix on `SprayCan.OnUseItem`)
 
@@ -171,6 +172,7 @@ The color sync piggybacks on bit 12 (`GenericFlag2`) of `Thing.NetworkUpdateFlag
 - [../../Research/GameClasses/InventoryManager.md](../../Research/GameClasses/InventoryManager.md) - `NormalMode` is the per-frame hook for input polling in `ColorCyclerPatch`.
 - [../../Research/GameClasses/OnServer.md](../../Research/GameClasses/OnServer.md) - `SetCustomColor` and `AttackWith` are the two server-side entry points our paint and tracker patches hook.
 - [../../Research/GameClasses/Room.md](../../Research/GameClasses/Room.md) - `Room.Grids` lists interior cells; walls sit one layer outside, which is why our wall-painting expands a neighbor layer.
+- [../../Research/GameClasses/RoboticArmRail.md](../../Research/GameClasses/RoboticArmRail.md) - `IRoboticArmRail.RoboticArmNetwork.RailList` holds every rail + junction + bypass + dock on one assembly; the rail paint branch walks that single list.
 - [../../Research/GameClasses/SprayCan.md](../../Research/GameClasses/SprayCan.md) - `PaintMaterial`, `Thumbnail`, `Quantity`, and one-prefab-per-color model that our color swap and infinite-paint logic target.
 - [../../Research/GameClasses/Structure.md](../../Research/GameClasses/Structure.md) - Batched structures (`structureRenderMode != Standard`) throw `NotImplementedException` from `SetCustomColor`; `PaintSafe` relies on this contract.
 - [../../Research/GameClasses/Wall.md](../../Research/GameClasses/Wall.md) - `Wall` extends `LargeStructure`; our paint branches must check Wall first for correct dispatch.

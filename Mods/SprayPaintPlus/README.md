@@ -26,10 +26,10 @@ Scroll your mouse wheel while holding a spray can to cycle through all available
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
 
 ### Network Painting
-Spray-paint a pipe, cable, or chute and the entire connected network gets painted at once.
+Spray-paint a pipe, cable, chute, or robotic arm rail and the entire connected network gets painted at once.
 - **Hold Shift** to paint just a single item (or swap this default, see Settings)
 - **Hold Ctrl** for a checkered/alternating paint pattern
-- Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks
+- Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks, and robotic arm rail assemblies (rails, junctions, bypass pieces, and docks all share one paint set)
 
 ### Room & Structure Painting
 Spray-paint a wall and every same-type wall bounding the same room is painted. Spray-paint a frame, girder, or any other large structure and all orthogonally-connected structures of the same exact type are painted with it.
@@ -60,6 +60,7 @@ All features are configurable via the mod settings panel.
 | Network Paint Chutes | On | Include chutes in network painting |
 | Network Paint Walls | On | Paint all same-type walls bounding the same room |
 | Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
+| Network Paint Rails | On | Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke |
 
 ## Compatibility
 
