@@ -62,7 +62,7 @@ v0.1.0: Initial release
     <Tag>StationeersLaunchPad</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>{{Mod Display Name}}</color></size>
-<line-height=45%>{{Tagline: same sentence as GitHub description and About.xml <Description> opener, in Unity rich text.}}
+<line-height=40%>{{Tagline: same sentence as GitHub description and About.xml <Description> opener, in Unity rich text.}}
 <b>Features:</b>
 - {{Feature 1}}
 - {{Feature 2}}

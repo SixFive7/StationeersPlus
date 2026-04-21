@@ -140,18 +140,19 @@ Every mod's `README.md` and `About.xml` `<Description>` must include a "Reportin
 
 ## Content: InGameDescription compact line spacing
 
-StationeersLaunchPad renders `<InGameDescription>` through TextMeshPro with a default line-height that leaves visible gaps between every line. The in-game mod panel is a short scrollable area, and any description longer than a tagline gets pushed past the visible window because of the wasted vertical space. Wrap the body of `<InGameDescription>` (everything after the title line) in a `<line-height=X%>...</line-height>` tag so TMP uses a compact per-line advance.
+StationeersLaunchPad renders `<InGameDescription>` through TextMeshPro with a default line-height that leaves visible gaps between every line. The in-game mod panel is a short scrollable area, and any description longer than a tagline gets pushed past the visible window because of the wasted vertical space. Wrap the body of `<InGameDescription>` (everything after the title line) in a `<line-height=X%>...</line-height>` tag to compress the prose-line advance.
 
 Canonical shape:
 
 ```xml
 <InGameDescription><![CDATA[<size="30"><color=#ffa500>Mod Name</color></size>
-<line-height=45%>Tagline sentence here.
+<line-height=40%>Tagline sentence here.
 <b>Features:</b>
 - Bullet one
 - Bullet two
 <b>Settings:</b> ...
 <b>Requires:</b> ...
+<b>Credits:</b> ...
 </line-height>
 ]]></InGameDescription>
 ```
@@ -159,8 +160,9 @@ Canonical shape:
 Rules:
 
 - The `<size>` + `<color>` title line stays OUTSIDE the `<line-height>` wrap so it keeps the default taller line-height and separates visually from the body.
-- Tested starting value is `<line-height=45%>`. Acceptable range is 40 to 55 percent. Below 35 percent produces visible overlap; above 60 percent leaves enough gap that the tag stops earning its place.
-- Do not use blank lines anywhere inside `<InGameDescription>`. Section headers marked with `<b>` already carry enough visual weight; a blank line on top of the default TMP spacing reintroduces the airy layout this rule exists to prevent.
+- Tested working value is `<line-height=40%>`. Values above roughly 55 percent leave enough air that the tag stops earning its place.
+- `<line-height>` only affects prose text lines (the tagline, `<b>...</b>` headers, trailing sentences). It does NOT affect bullet-to-bullet spacing. Live testing in Stationeers 0.2.6228.27061 varied the value from 0 to 100 percent and also tried a nested `<line-height>` wrap around the bullet list itself; none of it changed the visual gap between `- bullet` lines. Accept the default bullet density. Do not add nested `<line-height>` wraps around bullets trying to force compression; they have no effect and add noise to the source.
+- Do not use blank lines anywhere inside `<InGameDescription>`. Section headers marked with `<b>` already carry enough visual weight; a blank line on top of any spacing reintroduces the airy layout this rule exists to prevent.
 - `<line-height>` is a Unity TMP tag. It has no effect on the Workshop `<Description>` (which is BBCode); the tag would render as literal text if it appeared there. Scope: in-game panel only.
 - Applies to every mod that ships an `<InGameDescription>`, including `Mods/Template/` as the canonical scaffold. Released mods not yet wrapped pick up the rule on their next release cycle.
 

@@ -215,18 +215,19 @@ v1.0.0: Initial release
     <Tag>multiplayer</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Spray Paint Plus</color></size>
-<line-height=45%>Combines color cycling, network painting, glow paint, and infinite spray paint into one multiplayer-safe Stationeers mod.
+<line-height=40%>Combines color cycling, network painting, glow paint, and infinite spray paint into one multiplayer-safe Stationeers mod.
 <b>Features:</b>
 - Scroll wheel cycles spray can colors
 - Infinite spray paint, no pollution (both configurable)
 - One-stroke paint for pipe / cable / chute networks, rooms of same-type walls, connected large structures, and robotic arm rail assemblies
-- Spray Paint Gun adds glow to painted targets (ammo-less, preserves color)
+- Spray Paint Gun adds glow to painted targets (ammo-less, preserves color); right-click the gun to toggle Add Glow / Remove Glow mode
 - Shift = single item, Ctrl = checkered pattern
 - Full multiplayer with matching-version handshake
 - Safe to uninstall: v1.6.0+ saves open cleanly without this mod installed
 <b>Settings:</b> Server settings control gameplay for all players; client settings are personal.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
 <b>Incompatible with:</b> Color Cycler, Network Painter (both by Elmotrix).
-<b>Redundant</b> (disable if installed): Infinite Spray Paint by Aspct, Infinite Paint Mod by Dingo.</line-height>
+<b>Redundant</b> (disable if installed): Infinite Spray Paint by Aspct, Infinite Paint Mod by Dingo.
+<b>Credits:</b> Elmotrix, SubHobo (bls220), Aspct, Dingo.</line-height>
 ]]></InGameDescription>
 </ModMetadata>
