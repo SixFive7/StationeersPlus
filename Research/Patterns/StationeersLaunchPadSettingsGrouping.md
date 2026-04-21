@@ -1,5 +1,5 @@
 ---
-title: SlpSettingsGrouping
+title: StationeersLaunchPadSettingsGrouping
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
@@ -15,13 +15,13 @@ tags: [launchpad, ui]
 
 # StationeersLaunchPad Settings Grouping Mechanism
 
-StationeersLaunchPad (SLP) renders each loaded BepInEx mod's `ConfigEntry` values inside its in-game settings panel. The grouping mechanism is purely BepInEx-native: settings are grouped by the `ConfigDefinition.Section` string (the first argument passed to `Config.Bind`). There is no custom attribute, no SLP-specific registration API, and no way to nest groups. One section string produces one collapsible header in the GUI.
+StationeersLaunchPad renders each loaded BepInEx mod's `ConfigEntry` values inside its in-game settings panel. The grouping mechanism is purely BepInEx-native: settings are grouped by the `ConfigDefinition.Section` string (the first argument passed to `Config.Bind`). There is no custom attribute, no StationeersLaunchPad-specific registration API, and no way to nest groups. One section string produces one collapsible header in the GUI.
 
 ## Data model
 
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
-Two SLP classes carry the grouped structure:
+Two StationeersLaunchPad classes carry the grouped structure:
 
 `SortedConfigFile` (constructor, approximately line 445):
 
@@ -95,7 +95,7 @@ Each section renders as an ImGui `CollapsingHeader`. The header label is the sec
 
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
-SLP reads tags from `ConfigDescription.Tags` (fourth argument to `Config.Bind`):
+StationeersLaunchPad reads tags from `ConfigDescription.Tags` (fourth argument to `Config.Bind`):
 
 | Tag key | Value type | Purpose |
 |---|---|---|
@@ -109,11 +109,11 @@ SLP reads tags from `ConfigDescription.Tags` (fourth argument to `Config.Bind`):
 
 None of these tags affect grouping. There is no tag that moves an entry into a different section, adds a sub-group, or nests categories.
 
-## What SLP does not support
+## What StationeersLaunchPad does not support
 
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
-- No custom attributes (no `[SlpCategory]`, `[ModSettingGroup]`, or similar).
+- No custom attributes (no `[StationeersLaunchPadCategory]`, `[ModSettingGroup]`, or similar).
 - No registration API for settings.
 - No naming conventions beyond the section string (prefixes like `[Client]` in a key name are not recognized, they render verbatim).
 - No multi-group entries. One `Config.Bind` call contributes to exactly one section.
@@ -124,7 +124,7 @@ None of these tags affect grouping. There is no tag that moves an entry into a d
 
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
-`PowerTransmitterPlus/Plugin.cs` binds three sections, which the SLP GUI renders as three collapsible headers sorted alphabetically:
+`PowerTransmitterPlus/Plugin.cs` binds three sections, which the StationeersLaunchPad GUI renders as three collapsible headers sorted alphabetically:
 
 ```csharp
 Config.Bind("Visual", "Beam Width", 0.1f, "...");

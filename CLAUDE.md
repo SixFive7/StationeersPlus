@@ -162,7 +162,7 @@ Canonical reference: `Mods/SprayPaintPlus/Preview.source.png` (source), `Mods/Sp
 
 ## Content: mod settings panel grouping and ordering
 
-Every `ConfigEntry` a mod binds via BepInEx `Config.Bind(section, key, default, description)` appears in the StationeersLaunchPad in-game mod settings panel under a collapsible header named after the `section` string. StationeersLaunchPad has no other grouping mechanism; see `Research/Patterns/SlpSettingsGrouping.md` for the decompiled internals. To keep the panel consistent across every mod in this repo, follow the conventions below.
+Every `ConfigEntry` a mod binds via BepInEx `Config.Bind(section, key, default, description)` appears in the StationeersLaunchPad in-game mod settings panel under a collapsible header named after the `section` string. StationeersLaunchPad has no other grouping mechanism; see `Research/Patterns/StationeersLaunchPadSettingsGrouping.md` for the decompiled internals. To keep the panel consistent across every mod in this repo, follow the conventions below.
 
 **Section naming.** Use the form `<Scope> - <Topic>`. The scope is one of:
 
