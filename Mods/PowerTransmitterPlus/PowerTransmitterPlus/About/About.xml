@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.5</Version>
+  <Version>1.2.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
@@ -52,14 +52,14 @@ All features are configurable via the mod settings panel.
 [*][b]Emission Intensity[/b] (default 10.0): HDR brightness multiplier on the beam color
 [*][b]Stripe Wavelength[/b] (default 2.0): Distance in world meters between one pulse and the next
 [*][b]Scroll Speed[/b] (default 25.0): Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity) so low loads still move visibly
-[*][b]Trough Brightness[/b] (default 0.5): Beam brightness between pulses, 0..1. Regenerates on game restart
+[*][b]Trough Brightness[/b] (default 0.5): Beam brightness between pulses, 0..1
 [/list]
 
 [b]Server settings[/b] (the host's value controls gameplay and visuals for everyone):
 [list]
 [*][b]Cost Factor (k)[/b] (default 5.0): Per-kilometer overhead on transmitter source draw. k = 0 disables the overhead entirely; k = 10 doubles it compared to the default. Live-broadcast to all connected clients when changed
 [/list]
-In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients on connect and on change.
+In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed, trough brightness) are always broadcast to all clients on connect and on change.
 
 [h2]Compatibility[/h2]
 
@@ -88,6 +88,11 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.2.0: Trough Brightness now syncs from host and takes effect live
+- Host beam Trough Brightness is now broadcast alongside the other visual settings, so clients always match the host's look
+- Changing Trough Brightness on the host applies immediately to all connected clients (previously required a game restart because it was baked into a cached stripe texture)
+- All players on a server must have v1.2.0; the LaunchPad handshake rejects mixed versions automatically
+
 v1.1.5: Fix About.xml parse error that caused the mod to load as [Invalid About.xml]
 - The v1.1.1 changelog entry contained a literal &lt;WorkshopHandle&gt; tag which the XML parser read as a child element inside &lt;ChangeLog&gt;, breaking About.xml deserialization
 - Escaped the angle brackets so the tag renders as plain text in Workshop change notes
