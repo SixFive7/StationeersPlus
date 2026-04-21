@@ -138,6 +138,32 @@ Every mod's `README.md` and `About.xml` `<Description>` must include a "Reportin
 - Issue titles should start with the mod's display name so triage is easy (e.g. `[SprayPaintPlus] ...`).
 - `<InGameDescription>` does not need this section (space is tight and the panel is not where players file bugs).
 
+## Content: InGameDescription compact line spacing
+
+StationeersLaunchPad renders `<InGameDescription>` through TextMeshPro with a default line-height that leaves visible gaps between every line. The in-game mod panel is a short scrollable area, and any description longer than a tagline gets pushed past the visible window because of the wasted vertical space. Wrap the body of `<InGameDescription>` (everything after the title line) in a `<line-height=X%>...</line-height>` tag so TMP uses a compact per-line advance.
+
+Canonical shape:
+
+```xml
+<InGameDescription><![CDATA[<size="30"><color=#ffa500>Mod Name</color></size>
+<line-height=45%>Tagline sentence here.
+<b>Features:</b>
+- Bullet one
+- Bullet two
+<b>Settings:</b> ...
+<b>Requires:</b> ...
+</line-height>
+]]></InGameDescription>
+```
+
+Rules:
+
+- The `<size>` + `<color>` title line stays OUTSIDE the `<line-height>` wrap so it keeps the default taller line-height and separates visually from the body.
+- Tested starting value is `<line-height=45%>`. Acceptable range is 40 to 55 percent. Below 35 percent produces visible overlap; above 60 percent leaves enough gap that the tag stops earning its place.
+- Do not use blank lines anywhere inside `<InGameDescription>`. Section headers marked with `<b>` already carry enough visual weight; a blank line on top of the default TMP spacing reintroduces the airy layout this rule exists to prevent.
+- `<line-height>` is a Unity TMP tag. It has no effect on the Workshop `<Description>` (which is BBCode); the tag would render as literal text if it appeared there. Scope: in-game panel only.
+- Applies to every mod that ships an `<InGameDescription>`, including `Mods/Template/` as the canonical scaffold. Released mods not yet wrapped pick up the rule on their next release cycle.
+
 ## Content: preview image dimensions
 
 Steam Workshop displays preview images in a 16:9 frame (637x358 on the listing page). Images that deviate from 16:9 get letterboxed with black bars by Steam's `impolicy=Letterbox` renderer, which looks broken. Any `Preview.png` or `thumb.png` generated for a mod's `About/` folder must be exactly 16:9.

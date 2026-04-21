@@ -62,19 +62,12 @@ v0.1.0: Initial release
     <Tag>StationeersLaunchPad</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>{{Mod Display Name}}</color></size>
-{{Tagline: same sentence as GitHub description and About.xml <Description> opener, in Unity rich text.}}
-
+<line-height=45%>{{Tagline: same sentence as GitHub description and About.xml <Description> opener, in Unity rich text.}}
 <b>Features:</b>
 - {{Feature 1}}
 - {{Feature 2}}
-
-<b>Settings:</b>
-All features are configurable via the mod settings panel.
-Server settings control gameplay for all players.
-Client settings are personal preference.
-
-<b>Requirements:</b> BepInEx + StationeersLaunchPad
-
-<b>Multiplayer:</b> All players must have this mod installed. Matching mod versions are enforced during the connection handshake automatically. Dedicated servers need the same setup installed server-side.
+<b>Settings:</b> Server settings control gameplay for all players; client settings are personal.
+<b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
+</line-height>
 ]]></InGameDescription>
 </ModMetadata>
