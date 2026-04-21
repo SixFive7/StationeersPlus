@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{F47AC10B-58CC-4372-A567-0E02B2C3D479}</ProjectGuid>
+    <ProjectGuid>{7F9D2B4A-8E3C-4D5F-B12C-7A6B5E4C3D2F}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>SprayPaintPlus</RootNamespace>
-    <AssemblyName>SprayPaintPlus</AssemblyName>
+    <RootNamespace>GlowPaintProbe</RootNamespace>
+    <AssemblyName>GlowPaintProbe</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
@@ -51,12 +51,8 @@
       <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityEngine.PhysicsModule">
-      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="LaunchPadBooster">
-      <HintPath>$(StationeersPath)\BepInEx\plugins\StationeersLaunchPad\LaunchPadBooster.dll</HintPath>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
@@ -65,29 +61,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Plugin.cs" />
-    <Compile Include="SprayPaintHelpers.cs" />
-    <Compile Include="SprayCanColorMessage.cs" />
-    <Compile Include="PaintModifierMessage.cs" />
-    <Compile Include="ColorCyclerPatch.cs" />
-    <Compile Include="NetworkPainterPatch.cs" />
-    <Compile Include="SprayCanUsePatch.cs" />
-    <Compile Include="CleanupPatches.cs" />
-    <Compile Include="ConsumableSyncPatch.cs" />
-    <Compile Include="GlowPaintHelpers.cs" />
-    <Compile Include="GlowThingSaveData.cs" />
-    <Compile Include="GlowPaintPatches.cs" />
-    <Compile Include="ThingGlowSyncPatches.cs" />
-    <Compile Include="GlowSaveLoadPatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="About\About.xml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="About\thumb.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="About\Preview.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

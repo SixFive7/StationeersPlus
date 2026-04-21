@@ -1,4 +1,6 @@
 using Assets.Scripts.Objects;
+using Assets.Scripts.Serialization;
+using Assets.Scripts.Util;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -40,6 +42,7 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> NetworkPaintWalls;
         internal static ConfigEntry<bool> NetworkPaintLargeStructures;
         internal static ConfigEntry<bool> NetworkPaintRails;
+        internal static ConfigEntry<bool> EnableGlowPaint;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
 
@@ -82,6 +85,12 @@ namespace SprayPaintPlus
                 MOD.Networking.RegisterMessage<SprayCanColorMessage>();
                 MOD.Networking.RegisterMessage<PaintModifierMessage>();
 
+                // Register GlowThingSaveData via LaunchPadBooster so XmlSaveLoad
+                // ExtraTypes picks it up, AND inject directly as a fallback
+                // for load-order races. See Research/GameSystems/SaveDataRegistration.md.
+                MOD.AddSaveDataType<GlowThingSaveData>();
+                RegisterSaveDataTypeLate(typeof(GlowThingSaveData));
+
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
                 Log.LogInfo("Patches applied successfully");
@@ -89,6 +98,35 @@ namespace SprayPaintPlus
             catch (Exception e)
             {
                 Log.LogFatal($"Failed to apply patches: {e}");
+            }
+        }
+
+        private static void RegisterSaveDataTypeLate(Type t)
+        {
+            try
+            {
+                var extraTypesField = AccessTools.Field(typeof(XmlSaveLoad), "ExtraTypes");
+                var current = extraTypesField.GetValue(null) as Type[];
+                if (current == null)
+                {
+                    extraTypesField.SetValue(null, new[] { t });
+                }
+                else if (!current.Contains(t))
+                {
+                    var next = new Type[current.Length + 1];
+                    Array.Copy(current, next, current.Length);
+                    next[current.Length] = t;
+                    extraTypesField.SetValue(null, next);
+                }
+
+                // Force the WorldData XmlSerializer to be regenerated on next
+                // access with the updated ExtraTypes. The field is private.
+                var worldDataField = AccessTools.Field(typeof(Serializers), "_worldData");
+                worldDataField?.SetValue(null, null);
+            }
+            catch (Exception e)
+            {
+                Log.LogWarning($"Late save-type registration failed: {e.Message}");
             }
         }
 
@@ -176,6 +214,13 @@ namespace SprayPaintPlus
                 "(Server-side) When spray-painting a robotic arm rail, junction, bypass, or dock, " +
                 "every piece on the same robotic arm assembly is painted too. " +
                 "Has no effect if Enable Network Painting is disabled. " +
+                "Only the server's value matters in multiplayer.");
+
+            EnableGlowPaint = Config.Bind(
+                "Server", "Enable Glow Paint", true,
+                "(Server-side) When enabled, painting a Thing with the Spray Paint Gun makes it " +
+                "glow (emissive material); painting with a bare Spray Paint can " +
+                "keeps the normal, non-glowing paint. When disabled, the gun behaves like a can. " +
                 "Only the server's value matters in multiplayer.");
         }
     }

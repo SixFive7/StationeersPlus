@@ -1,38 +1,37 @@
 # SprayPaintPlus TODO
 
-## Under Revision
+## v1.5.0 candidates
 
-### Glow-in-the-dark paint
+### Gun paint-mode toggle (add glow / remove glow)
 
-A special paint mode that makes painted surfaces emit a faint light matching the paint color, visible in unpowered or dark rooms.
+Nice-to-have: let the player switch the Spray Paint Gun between two modes:
 
-**Approach (first experiment): material emission injection**
+- **Add Glow** (default): paint with the gun applies glow to the target's existing color. This is the v1.4.0 behavior.
+- **Remove Glow**: paint with the gun removes glow from the target while keeping the color, effectively the same as painting with a plain spray can but without changing color.
 
-Harmony postfix on `SetCustomColor`. Get the object's `MeshRenderer.material`, enable the `_EMISSION` shader keyword, set `_EmissionColor` to the paint color scaled by an intensity factor. Track glow-enabled objects in a `HashSet<Thing>` so emission can be cleared on repaint or destruction. Derive glow from the already-synced color index (no new network messages). Persist glow state per-thing for save/load.
+Both modes should respect the existing Shift (single) and Ctrl (checkered) modifiers.
 
-**Player activation**
+Rough design:
 
-Gated by a new config toggle ("Enable Glow Paint") and a spray modifier (e.g. hold Alt while spraying) so normal paint is unaffected.
+- Per-gun mode state keyed by `SprayGun.ReferenceId`, stored in a new `GunGlowMode` dictionary in `GlowPaintHelpers`.
+- Scroll wheel while holding the gun cycles the mode (extend the existing `ColorCyclerPatch` which already runs on `InventoryManager.NormalMode` and already polls scroll for the can's color cycling).
+- New LaunchPadBooster message (`GunGlowModeMessage`) to sync the mode change from client to server, mirroring the `SprayCanColorMessage` pattern.
+- Server-side mode storage persists per-gun across save/load via a small extension to `GlowThingSaveData` (another bool) or a sibling save-data type on the gun itself.
+- `SprayGunGlowPatch.Prefix` reads the mode: add-glow calls `OnServer.SetCustomColor(target, target.CustomColor.Index)` and lets the glow postfix apply glow; remove-glow calls the same but routes through a "force glow off" path (possibly a separate scope counter like `GunRemoveScope` so the postfix knows to call `SetGlow(thing, false)` rather than `SetGlow(thing, true)`).
+- UI indicator: tint the gun's in-hand thumbnail or flash a console message on mode change. Feasibility depends on whether the gun's `Thumbnail` field is mutable at runtime like the can's is.
 
-**Known constraints**
+Deferred from v1.4.0 because it is a distinct feature on top of the "gun is a glow applicator" foundation, not a refinement of it. Ships cleanest as its own release.
 
-- Structures with `structureRenderMode != Standard` already throw `NotImplementedException` on `SetCustomColor` and can't be individually recolored; they also can't be individually glowed.
-- Accessing `.material` (not `.sharedMaterial`) creates per-instance material copies, increasing draw calls. Budget this against network-paint operations that could touch dozens of objects.
-- Emission injection only works if the game's shaders honor the `_EMISSION` keyword. If they don't, fall back to a shader swap (Legacy Shaders/Particles/Additive is confirmed to work at runtime from PowerTransmitterPlus) or a prebuilt emissive material set.
+### Legacy-save eject for loaded-gun saves
 
-**Alternatives considered (rejected for first pass)**
+v1.4.0 blocks new `SprayCan` insertions into the `SprayGun` via `Thing.CanEnter` + `Slot.AllowMove` patches, but does not touch saves that already have a can loaded in a gun from before the block shipped. Those cans remain visible inside the gun and continue to work, but cannot be re-inserted if removed.
 
-- Attach `Light` components per painted object. Real illumination but performance disaster with network painting (dozens of overlapping point lights) and save/load reconstruction needed.
-- Hybrid emission + capped point lights. Inconsistent UX (some glows cast light, others don't).
-- Shader swap to pure additive. Breaks normal shading on the object in lit areas.
-- Inject new "glow variants" into `GameManager.Instance.CustomColors`. Doubles the scroll list, risks index-stability issues with other mods and with save files when the mod is uninstalled.
+Follow-up: postfix the gun's post-load hook (likely `Thing.OnFinishedLoad`, pending verification of the method signature) to eject orphaned `SprayCan` occupants back to the world via `OnServer.MoveToWorld`. See `Research/Patterns/SlotInsertionBlock.md` section "Legacy-state handling" for the pattern.
 
-**Multiplayer**
+Low priority; impacts only players who both (a) had v1.3.x installed AND (b) actually loaded a can into a gun. Fresh v1.4.0 installs never hit this state.
 
-Zero new messages. Server paints, color index syncs via existing flow, each client applies emission locally in a postfix. Glow state is a deterministic function of color index + glow flag per object.
+### Bloom attachment verification
 
-**Open questions**
+`Research/GameClasses/CameraController.md` section "Runtime attachment (partially resolved)" lists three candidate runtime accessors for `UltimateBloom` (`CameraController.Instance.MainCamera.GetComponent<UltimateBloom>()`, `Camera.main.GetComponent<UltimateBloom>()`, `CameraController.Instance.CurrentCamera.GetComponent<UltimateBloom>()`). The decompile-derived `CameraController.Instance.CameraEffects[0].Bloom` path is a dead field at runtime.
 
-- Do the game's shaders actually honor `_EMISSION`? Prototype and check.
-- Does the glow need to survive save/load, or is it acceptable to reapply on spawn from a per-thing persisted flag?
-- Should the intensity be configurable per-player, or fixed?
+Runtime-verify which candidate resolves, so a future feature that wants to validate "is bloom on?" from mod code has a known-good accessor. A minimal probe plugin (similar to the previous `Plans/GlowPaintProbe/`) attaching a one-shot `GetComponent<UltimateBloom>()` check on a Harmony postfix of `InventoryManager.NormalMode` would settle it in a single game-launch cycle. Not blocking; feature ships without this because bloom is visibly working.

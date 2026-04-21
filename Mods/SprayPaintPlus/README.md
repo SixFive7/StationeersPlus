@@ -2,7 +2,7 @@
 
 ![Spray Paint Plus](SprayPaintPlus/About/Preview.png)
 
-Combines **color cycling**, **network painting**, and **infinite spray paint** into one multiplayer-safe Stationeers mod.
+Combines **color cycling**, **network painting**, **glow paint**, and **infinite spray paint** into one multiplayer-safe Stationeers mod.
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
@@ -37,6 +37,19 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 - Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
 - Same Shift / Ctrl modifiers apply
 
+### Glow Paint
+
+*Flavour: classified ODA research paint; the datasheet redacts everything below "handle with gloves".*
+
+The **Spray Paint Gun** becomes a self-contained glow applicator. Point at any painted target and fire; the target keeps its existing color and gains a glow halo, visible in unlit rooms. Every vanilla paint color supports glow.
+- Gun is ammo-less. It no longer accepts spray cans; loading one is blocked at the UI and at the server
+- Gun never changes a target's color. To change color, paint with a plain can first; then fire the gun to add glow
+- Shift (single target) and Ctrl (checkered pattern) modifiers apply to gun-paint too
+- Right-click the gun to switch between **Add Glow** and **Remove Glow** modes (the vanilla on/off toggle, HUD label rebranded)
+- Color and glow are orthogonal: a can paint only changes color, a gun fire only changes glow
+- Glow state persists across save/load and syncs correctly in multiplayer; every connected player sees the same glowing targets
+- Server toggle "Enable Glow Paint" lets admins disable the feature; when off, the gun reverts to the vanilla can-accepting behavior
+
 ### Settings
 
 All features are configurable via the mod settings panel.
@@ -61,6 +74,7 @@ All features are configurable via the mod settings panel.
 | Network Paint Walls | On | Paint all same-type walls bounding the same room |
 | Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
 | Network Paint Rails | On | Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke |
+| Enable Glow Paint | On | The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior |
 
 ## Compatibility
 

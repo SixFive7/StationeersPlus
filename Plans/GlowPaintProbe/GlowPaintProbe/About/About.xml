@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Glow Paint Probe</Name>
+  <ModID>net.glowpaintprobe</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]Glow Paint Probe[/h1]
+
+Throwaway probe plugin for the SprayPaintPlus glow-paint feature. Logs GameManager swatch Emissive-presence and camera bloom state at startup; F9 / F10 toggle the emissive flag on the Thing under the cursor and log the resulting renderer state. Not intended for publication. See Plans/GlowPaintProbe/PLAN.md for the full probe session.</Description>
+  <ChangeLog>
+v0.1.0: Initial probe
+- Logs every GameManager.CustomColors entry with Name and Normal/Emissive presence on OnPrefabsLoaded
+- Logs CameraController.Instance.CameraEffects[0].Bloom presence and enabled state
+- F9 applies SetCustomColor(index, emissive: true) on cursor target; F10 applies false
+- Logs ThingRenderer shader name, _EmissionColor value, _EMISSION keyword state post-call
+  </ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Glow Paint Probe</color></size>
+Throwaway probe plugin for SprayPaintPlus glow feasibility.
+
+<b>Keys:</b>
+- F9: make cursor target glow
+- F10: reset cursor target
+]]></InGameDescription>
+</ModMetadata>

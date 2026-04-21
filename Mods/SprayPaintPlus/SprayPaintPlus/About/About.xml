@@ -6,7 +6,7 @@
   <Version>1.3.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
-Combines [b]color cycling[/b], [b]network painting[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
+Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
 
 Builds on the excellent work of [b]Elmotrix[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url], [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url]) and [b]Aspct[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url]), whose original mods inspired this project. The multiplayer networking code in Color Cycler was contributed by [b]SubHobo[/b] (bls220). Spray Paint Plus combines their ideas and fixes the multiplayer issues that affected clients in those mods.
 
@@ -37,6 +37,18 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 [*]Same Shift / Ctrl modifiers apply
 [/list]
 
+[h3]Glow Paint[/h3]
+The [b]Spray Paint Gun[/b] becomes a self-contained glow applicator. Point at any painted target and fire; the target keeps its existing color and gains a glow halo, visible in unlit rooms. Every vanilla paint color supports glow.
+[list]
+[*]Gun is ammo-less. It no longer accepts spray cans; loading one is blocked at the UI and at the server
+[*]Gun never changes a target's color. To change color, paint with a plain can first; then fire the gun to add glow
+[*]Shift (single target) and Ctrl (checkered pattern) modifiers apply to gun-paint too
+[*]Right-click the gun to switch between [b]Add Glow[/b] and [b]Remove Glow[/b] modes (vanilla on/off toggle, HUD label rebranded)
+[*]Color and glow are orthogonal: a can paint only changes color, a gun fire only changes glow
+[*]Glow state persists across save/load and syncs correctly in multiplayer; every connected player sees the same glowing targets
+[*]Server toggle "Enable Glow Paint" lets admins disable the feature; when off, the gun reverts to the vanilla can-accepting behavior
+[/list]
+
 [h3]Settings[/h3]
 
 All features are configurable via the mod settings panel.
@@ -58,6 +70,7 @@ All features are configurable via the mod settings panel.
 [*][b]Network Paint Walls[/b] (default On): Paint all same-type walls bounding the same room
 [*][b]Network Paint Large Structures[/b] (default On): Paint connected frames, girders, and other large structures in a 6-neighbor grid
 [*][b]Network Paint Rails[/b] (default On): Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke
+[*][b]Enable Glow Paint[/b] (default On): The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior (accepts and uses loaded spray cans as ammo)
 [/list]
 
 [h2]Compatibility[/h2]
@@ -161,7 +174,7 @@ v1.0.0: Initial release
     <Tag>multiplayer</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Spray Paint Plus</color></size>
-Combines color cycling, network painting, and infinite spray paint into one multiplayer-safe Stationeers mod.
+Combines color cycling, network painting, glow paint, and infinite spray paint into one multiplayer-safe Stationeers mod.
 
 <b>Features:</b>
 - Full multiplayer support: all players see consistent paint results
@@ -172,6 +185,7 @@ Combines color cycling, network painting, and infinite spray paint into one mult
 - Spray paints all same-type walls bounding the same room
 - Spray paints connected frames, girders, and other large structures in a 6-neighbor grid
 - Spray paints whole robotic arm rail assemblies (rails, junctions, bypass pieces, docks)
+- Paint with the Spray Paint Gun to add glow to existing paint (ammo-less; does not change color; cans no longer loadable)
 - Hold Shift to paint single item (or swap with config)
 - Hold Ctrl for checkered pattern
 

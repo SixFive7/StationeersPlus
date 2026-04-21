@@ -27,10 +27,20 @@ namespace SprayPaintPlus
             if (slotItem == null)
                 return;
 
-            if (!(slotItem is SprayCan sprayCan))
+            // Modifier polling (Shift = single, Ctrl = checkered) applies to
+            // both the can and the glow gun; either tool paints through
+            // NetworkPainterPatch which reads PlayerModifiers. Color cycling
+            // only applies to the can; the gun is color-neutral.
+            bool isCan = slotItem is SprayCan;
+            bool isGun = slotItem is SprayGun;
+            if (!isCan && !isGun)
                 return;
 
             SendModifierStateIfChanged();
+
+            if (!isCan)
+                return;
+            var sprayCan = (SprayCan)slotItem;
 
             float scroll = __instance.newScrollData;
             if (scroll == 0f)

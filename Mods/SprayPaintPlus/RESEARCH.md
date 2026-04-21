@@ -130,6 +130,48 @@ Both postfixes reset `CurrentPaintingHumanId` to -1. The `NetworkPainterPatch.Pr
 
 **Depends on:** [../../Research/Patterns/ClientDisconnectedPrefix.md](../../Research/Patterns/ClientDisconnectedPrefix.md).
 
+### 3.7. Glow Paint (v1.4.0)
+
+The Spray Paint Gun is a self-contained glow applicator. Firing at a painted target preserves its color and adds a glow halo. The gun does not accept spray cans; it has no ammo requirement. A plain spray can removes glow by painting the target with the normal material.
+
+**Gun pipeline replacement** (`GlowPaintPatches.cs`):
+
+- `SprayGunGlowPatch` (Prefix on `SprayGun.OnUseItem`): when `EnableGlowPaint` is on, skips vanilla's can-delegating body entirely and calls `OnServer.SetCustomColor(target, target.CustomColor.Index)` directly inside a `GlowPaintHelpers.GunScope++ / --` scope. Null cursor target or unpainted target both short-circuit without doing anything (the gun only operates on already-painted Things). When the toggle is off, the prefix returns `true` and vanilla runs unchanged (the gun reverts to accepting and using a loaded can). The loaded can (if any) is entirely ignored on the glow path; no ammo consumption.
+
+**Tool-origin tracking** (`GlowPaintPatches.cs`):
+
+- `SprayCanOriginTracker` (Prefix/Postfix on `SprayCan.OnUseItem`): increments `GlowPaintHelpers.CanScope` on entry, decrements on exit. Nonzero means "a paint event from the bare can is in progress." `SprayGunGlowPatch` similarly manages `GunScope`; the downstream `Thing.SetCustomColor` postfix reads both to decide whether a paint is in progress and which tool fired it. See [../../Research/GameClasses/ISprayer.md](../../Research/GameClasses/ISprayer.md) for why tool identity must be captured upstream.
+
+**Color preservation** (`GlowPaintPatches.cs`):
+
+- `ThingSetCustomColorGunPreservePrefix` (Prefix on `Thing.SetCustomColor(int, bool)`): when `GunScope > 0` and the target already has a `CustomColor`, rewrites the incoming `index` to the target's existing color index. Net effect: the gun never changes a Thing's color. Works per-Thing during flood-fill too (each flooded neighbor preserves its own color independently).
+
+**Material re-application** (`GlowPaintPatches.cs`):
+
+- `ThingSetCustomColorGlowPatch` (Postfix on `Thing.SetCustomColor(int, bool)`): inside a paint event (`GunScope > 0 || CanScope > 0`), sets the Thing's `IsGlowing` flag based on `GunScope`. Raises `NetworkUpdateFlags` bit 13 so the state syncs. Regardless of whether a paint event is active, if `IsGlowing` is true and the call was non-emissive, re-invokes `SetCustomColor(index, true)` behind a `Reapplying` reentrancy guard. This one hook covers paint events, color-sync receives, save-load restore, UI color picker paths, and flood-fill paint from `NetworkPainterPatch`.
+- `ThingDestroyGlowCleanupPatch` (Postfix on `Thing.OnDestroy`): removes the Thing from `GlowPaintHelpers.GlowingThingIds`. Sibling of `ThingDestroyCleanupPatch` (section 3.6); Harmony allows multiple patches on the same method.
+
+**Gun slot block** (`SprayGunSlotPatches.cs`):
+
+- `BlockSprayCanIntoSprayGunCanEnter` (Postfix on `Thing.CanEnter`): overrides the `CanEnterResult` to `Fail(...)` when a `SprayCan` targets a slot owned by a `SprayGun`. Authoritative server-side block.
+- `BlockSprayCanIntoSprayGunAllowMove` (Prefix on `Slot.AllowMove`): short-circuits to `__result = false` for the same combination, so the UI affordance matches the server rule (player does not see the insert briefly succeed then snap back).
+
+Pattern documented in [../../Research/Patterns/SlotInsertionBlock.md](../../Research/Patterns/SlotInsertionBlock.md). Both patches gated by `EnableGlowPaint`; when off, the gun reverts to accepting cans as before.
+
+Legacy saves (pre-v1.4.0) that already had a can loaded into a gun retain that can after load; it becomes orphaned (cannot be re-inserted if removed) but the gun still functions. Eject-on-load is a deferred TODO for v1.5.0.
+
+**Modifier polling extension** (`ColorCyclerPatch.cs`):
+
+The existing `ColorCyclerPatch` polls Shift / Ctrl modifier state only when the active hand holds a `SprayCan`. Extended in v1.4.0 to also poll when the hand holds a `SprayGun`, so Shift (single) and Ctrl (checkered) work for gun-paint. Color-cycling via scroll remains can-only; the gun has no color state.
+
+**Multiplayer sync** (`ThingGlowSyncPatches.cs`): Postfixes on `Thing.BuildUpdate` / `ProcessUpdate` / `SerializeOnJoin` / `DeserializeOnJoin`. Piggybacks on bit 13 (`GenericFlag3`, `0x2000`) of `Thing.NetworkUpdateFlags` for per-tick updates; `SerializeOnJoin` / `DeserializeOnJoin` unconditionally write/read one byte for late joiners. No try-catch per [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md).
+
+**Save/load persistence** (`GlowSaveLoadPatches.cs`, `GlowThingSaveData.cs`): `GlowThingSaveData : ThingSaveData` adds a single `IsGlowing` bool. Registered in `Plugin.OnAllModsLoaded` via `MOD.AddSaveDataType<GlowThingSaveData>()` plus direct `XmlSaveLoad.ExtraTypes` injection (see `RegisterSaveDataTypeLate`). `ThingSerializeSaveGlowPatch` upgrades glowing Things' save data to `GlowThingSaveData` via reflection-based field copy; non-glowing Things skip the upgrade so saves do not pay a byte per Thing in the world. `ThingDeserializeSaveGlowPatch` restores the flag and re-applies emissive via `GlowPaintHelpers.ReapplyEmissive`.
+
+**Config**: server toggle `EnableGlowPaint` (default On). When off, `SprayGunGlowPatch` returns early (vanilla gun behavior restored), the slot-block patches no-op (cans re-insertable), and the `Thing.SetCustomColor` glow postfix returns early (no glow state touched).
+
+**Depends on:** [../../Research/GameClasses/ISprayer.md](../../Research/GameClasses/ISprayer.md), [../../Research/GameClasses/SprayGun.md](../../Research/GameClasses/SprayGun.md), [../../Research/GameClasses/ColorSwatch.md](../../Research/GameClasses/ColorSwatch.md), [../../Research/GameClasses/ThingRenderer.md](../../Research/GameClasses/ThingRenderer.md), [../../Research/GameSystems/RenderingPipelineAndGlow.md](../../Research/GameSystems/RenderingPipelineAndGlow.md), [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md), [../../Research/GameSystems/SaveDataRegistration.md](../../Research/GameSystems/SaveDataRegistration.md), [../../Research/Patterns/SaveDataIsinstInheritance.md](../../Research/Patterns/SaveDataIsinstInheritance.md), [../../Research/Patterns/SlotInsertionBlock.md](../../Research/Patterns/SlotInsertionBlock.md), [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md).
+
 ## 4. Multiplayer and sync
 
 ### 4.1. Messages
