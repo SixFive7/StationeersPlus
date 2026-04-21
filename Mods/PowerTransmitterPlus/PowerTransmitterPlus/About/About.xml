@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.2.0</Version>
+  <Version>1.3.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
@@ -93,6 +93,12 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.3.0: Reorganize in-game settings panel into Server - &lt;Topic&gt; groups
+- The seven settings now live in three collapsible groups: Server - Distance (Cost Factor), Server - Pulse (Stripe Wavelength, Scroll Speed, Trough Brightness), Server - Visual (Beam Color, Beam Width, Emission Intensity)
+- Entries within each group use a deliberate order instead of alphabetical (master tweaks first, secondary ones after)
+- Existing player configuration values reset to defaults on first launch after updating. The section names changed, so BepInEx treats the old stored values as orphaned and re-seeds with defaults
+- No gameplay change, no multiplayer protocol change
+
 v1.2.0: Trough Brightness now syncs from host and takes effect live
 - Host beam Trough Brightness is now broadcast alongside the other visual settings, so clients always match the host's look
 - Changing Trough Brightness on the host applies immediately to all connected clients (previously required a game restart because it was baked into a cached stripe texture)
