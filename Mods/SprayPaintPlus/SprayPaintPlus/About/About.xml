@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.4.0</Version>
+  <Version>1.5.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
@@ -125,6 +125,13 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.5.0: Reorganize in-game settings panel into Scope - &lt;Topic&gt; groups
+- The twelve settings now live in four collapsible groups: Client - Preferences (Paint Single Item By Default, Invert Color Scroll Direction), Server - Consumables (Unlimited Spray Paint Uses, Suppress Spray Paint Pollution), Server - Glow Paint (Enable Glow Paint), Server - Network Painting (Enable Network Painting, Network Paint Pipes / Cables / Chutes / Walls / Rails / Large Structures)
+- Entries within each group use a deliberate order instead of alphabetical (master toggle first, utility networks before structural networks, primary tweaks before secondary)
+- Existing player configuration values reset to defaults on first launch after updating. The section names changed, so BepInEx treats the old stored values as orphaned and re-seeds with defaults
+- No gameplay change, no multiplayer protocol change
+- REQUIRES: All players on a server must run 1.5.0 (matching-version handshake)
+
 v1.4.0: Glow paint gun
 - NEW: The Spray Paint Gun is now a self-contained glow applicator. Fire at a painted target and it gains a glow halo (emissive material, visible as a bloom halo in unlit rooms); target's existing color is preserved
 - NEW: Right-click the gun to switch between Add Glow and Remove Glow modes (repurposes the vanilla on/off toggle, with the HUD label rebranded)
