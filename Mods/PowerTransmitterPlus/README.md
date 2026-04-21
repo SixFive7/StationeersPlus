@@ -91,24 +91,29 @@ j start
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes broadcast live to all connected clients on connect and on every change.
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes broadcast live to all connected clients on connect and on every change. The in-game settings panel groups the seven entries under three headers:
 
-**Visual settings**:
-
-| Setting | Default | Description |
-|---|---|---|
-| Beam Width | 0.1 | Thickness of the beam in world meters |
-| Beam Color | 000DFF | Hex RGB color. 000DFF is the vanilla cyan-blue |
-| Emission Intensity | 10.0 | HDR brightness multiplier on the beam color |
-| Stripe Wavelength | 2.0 | Distance in world meters between one pulse and the next |
-| Scroll Speed | 25.0 | Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with `sqrt(intensity)` so low loads still move visibly |
-| Trough Brightness | 0.5 | Beam brightness between pulses, 0..1 |
-
-**Gameplay settings**:
+**Server - Distance**:
 
 | Setting | Default | Description |
 |---|---|---|
 | Cost Factor (k) | 5.0 | Per-kilometer overhead on transmitter source draw. `k = 0` disables the overhead entirely; `k = 10` doubles it compared to the default |
+
+**Server - Pulse**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Stripe Wavelength | 2.0 | Distance in world meters between one pulse and the next |
+| Scroll Speed | 25.0 | Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with `sqrt(intensity)` so low loads still move visibly |
+| Trough Brightness | 0.5 | Beam brightness between pulses, 0..1 |
+
+**Server - Visual**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Beam Color | 000DFF | Hex RGB color. 000DFF is the vanilla cyan-blue |
+| Beam Width | 0.1 | Thickness of the beam in world meters |
+| Emission Intensity | 10.0 | HDR brightness multiplier on the beam color |
 
 ## Compatibility
 

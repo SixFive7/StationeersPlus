@@ -5,6 +5,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using LaunchPadBooster;
 using System;
+using System.Collections.Generic;
 
 namespace PowerTransmitterPlus
 {
@@ -47,33 +48,54 @@ namespace PowerTransmitterPlus
         {
             Log = Logger;
 
-            BeamWidth = Config.Bind(
-                "Visual", "Beam Width", 0.1f,
-                "(Server-authoritative) Thickness of the laser beam in world units. 0.1 matches the game's built-in dish beam width. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
-
             BeamColorHex = Config.Bind(
-                "Visual", "Beam Color", "000DFF",
-                "(Server-authoritative) Hex RGB color of the beam (no '#', no alpha). Default 000DFF is the normalized cyan-blue the game actually applies to the beam material at runtime. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
+                "Server - Visual", "Beam Color", "000DFF",
+                new ConfigDescription(
+                    "(Server-authoritative) Hex RGB color of the beam (no '#', no alpha). Default 000DFF is the normalized cyan-blue the game actually applies to the beam material at runtime. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            BeamWidth = Config.Bind(
+                "Server - Visual", "Beam Width", 0.1f,
+                new ConfigDescription(
+                    "(Server-authoritative) Thickness of the laser beam in world units. 0.1 matches the game's built-in dish beam width. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
 
             EmissionIntensity = Config.Bind(
-                "Visual", "Emission Intensity", 10.0f,
-                "(Server-authoritative) HDR brightness multiplier applied to the beam color. 10.0 matches the game's built-in beam emission intensity. Raise for more glow, lower for subtlety. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
+                "Server - Visual", "Emission Intensity", 10.0f,
+                new ConfigDescription(
+                    "(Server-authoritative) HDR brightness multiplier applied to the beam color. 10.0 matches the game's built-in beam emission intensity. Raise for more glow, lower for subtlety. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 30)));
 
             StripeWavelength = Config.Bind(
-                "Pulse", "Stripe Wavelength", 2.0f,
-                "(Server-authoritative) Distance in world meters between one bright pulse and the next. Same physical spacing on 5m beams and 200m beams. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
+                "Server - Pulse", "Stripe Wavelength", 2.0f,
+                new ConfigDescription(
+                    "(Server-authoritative) Distance in world meters between one bright pulse and the next. Same physical spacing on 5m beams and 200m beams. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
 
             ScrollSpeed = Config.Bind(
-                "Pulse", "Scroll Speed", 25.0f,
-                "(Server-authoritative) Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity), so a 1 kW load runs at about 45% of this, and draws above 5 kW (possible with the distance-cost model) exceed it. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
+                "Server - Pulse", "Scroll Speed", 25.0f,
+                new ConfigDescription(
+                    "(Server-authoritative) Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity), so a 1 kW load runs at about 45% of this, and draws above 5 kW (possible with the distance-cost model) exceed it. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
 
             StripeTroughBrightness = Config.Bind(
-                "Pulse", "Trough Brightness", 0.5f,
-                "(Server-authoritative) Beam brightness between pulses, 0..1. 1 = no visible pulsing (beam flat). 0 = troughs fully dark. Default 0.5 keeps the link clearly visible between peaks. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
+                "Server - Pulse", "Trough Brightness", 0.5f,
+                new ConfigDescription(
+                    "(Server-authoritative) Beam brightness between pulses, 0..1. 1 = no visible pulsing (beam flat). 0 = troughs fully dark. Default 0.5 keeps the link clearly visible between peaks. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 30)));
 
             DistanceCostFactor = Config.Bind(
-                "Distance", "Cost Factor (k)", 5f,
-                "(Server-authoritative) Per-kilometer overhead on transmitter source draw. Source pulls (1 + k * distance_m / 1000) watts for every watt delivered. k=0 = no overhead. k=5 (default) = 1km doubles to 6:1, 5km is 26:1. k=10 = 1km is 11:1. ONLY THE HOST'S VALUE AFFECTS GAMEPLAY in multiplayer. Clients' values are ignored for simulation but used for tablet/IC10 display until the host's value is pushed at connect time. Changing this on the host live-broadcasts the new value to all clients.");
+                "Server - Distance", "Cost Factor (k)", 5f,
+                new ConfigDescription(
+                    "(Server-authoritative) Per-kilometer overhead on transmitter source draw. Source pulls (1 + k * distance_m / 1000) watts for every watt delivered. k=0 = no overhead. k=5 (default) = 1km doubles to 6:1, 5km is 26:1. k=10 = 1km is 11:1. ONLY THE HOST'S VALUE AFFECTS GAMEPLAY in multiplayer. Clients' values are ignored for simulation but used for tablet/IC10 display until the host's value is pushed at connect time. Changing this on the host live-broadcasts the new value to all clients.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
 
             MainThreadDispatcher.Init();
             DistanceConfigSync.HookHostBroadcast();
