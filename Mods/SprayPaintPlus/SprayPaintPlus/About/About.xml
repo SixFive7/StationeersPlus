@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.6.0</Version>
+  <Version>1.6.1</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
@@ -120,6 +120,12 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.6.1: Compact in-game mod description
+- Tightened the in-game mod-panel description: shorter per-line text, fewer redundant bullets, credits line at the end, and the right-click gun toggle (Add Glow / Remove Glow) called out so it is discoverable without reading the Workshop page
+- Wrapped the description body in a TMP line-height=40% tag so prose lines no longer take a full vanilla line of vertical space; the Workshop Description page is unchanged
+- No gameplay change, no multiplayer protocol change
+- REQUIRES: All players on a server must run 1.6.1 (matching-version handshake)
+
 v1.6.0: Clean uninstall for saves with glow paint
 - Glow state now persists in a side-car file (sprayplus-glow.xml) inside the save ZIP, instead of a custom ThingSaveData subclass inside world.xml
 - Removing the mod from a save is now safe: the side-car is silently ignored on load, glow is lost but the save still opens
