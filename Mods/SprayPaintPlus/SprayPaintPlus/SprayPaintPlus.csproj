@@ -59,8 +59,15 @@
       <HintPath>$(StationeersPath)\BepInEx\plugins\StationeersLaunchPad\LaunchPadBooster.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UniTask">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UniTask.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
@@ -75,6 +82,7 @@
     <Compile Include="ConsumableSyncPatch.cs" />
     <Compile Include="GlowPaintHelpers.cs" />
     <Compile Include="GlowThingSaveData.cs" />
+    <Compile Include="GlowSideCar.cs" />
     <Compile Include="GlowPaintPatches.cs" />
     <Compile Include="ThingGlowSyncPatches.cs" />
     <Compile Include="GlowSaveLoadPatches.cs" />
