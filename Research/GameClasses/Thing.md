@@ -3,13 +3,14 @@ title: Thing
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-04-22
 sources:
   - Plans/RepairPrototype/plan.md:373-383
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing
 related:
   - ./Structure.md
   - ./Entity.md
+  - ./ColorSwatch.md
 tags: [prefab, slots]
 ---
 

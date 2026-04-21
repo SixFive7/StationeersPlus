@@ -42,11 +42,53 @@ Source comment from `NetworkPainterPatch.cs:320-328`:
 /// </summary>
 ```
 
+## IsBroken property
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+
+Source: `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Structure` and `Assets.Scripts.Objects.Thing`.
+
+`Structure` has a public `IsBroken` property, overriding the base on `Thing`.
+
+Base (`Thing.IsBroken`):
+
+```csharp
+public virtual bool IsBroken
+{
+    get
+    {
+        if (DamageState != null)
+            return DamageState.Total >= DamageState.MaxDamage;
+        return false;
+    }
+}
+```
+
+Override (`Structure.IsBroken`):
+
+```csharp
+public override bool IsBroken
+{
+    get
+    {
+        if (!base.IsBroken)
+            return CurrentBuildStateIndex < 0;
+        return true;
+    }
+}
+```
+
+A `Structure` is `IsBroken` when either:
+
+- Its `DamageState.Total >= DamageState.MaxDamage` (fully damage-destroyed), OR
+- Its `CurrentBuildStateIndex < 0` (deconstructed past the first build stage, which is how the game models a wreckage / half-torn-down state).
+
+Read-only property; no setter. Use it verbatim as `thing.IsBroken` to detect "is this structure currently wreckage / destroyed." For detecting structures that have broken build states in their prefab definition (not the runtime state), use `Structure.HasBrokenBuildStates` (getter tests `BrokenBuildStates?.Count > 0`).
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0029e, F0322. No conflicts.
+- 2026-04-21: added "IsBroken property" section from direct decompile of `Assets.Scripts.Objects.Structure` and `Assets.Scripts.Objects.Thing`. Additive only; no existing content changed. Game version 0.2.6228.27061.
 
 ## Open questions
 
-None at creation.
+None.

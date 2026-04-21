@@ -3,14 +3,17 @@ title: InventoryManager
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-04-22
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:211-219
   - Plans/EquipmentPlus/EquipmentPlus/ClickCyclePatch.cs:14-30
-  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: InventoryManager
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Inventory.InventoryManager
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Item.OnUseSecondary
 related:
   - ./AdvancedTablet.md
   - ./SensorLenses.md
+  - ./CursorManager.md
+  - ./Thing.md
 tags: [equipment, slots]
 ---
 
@@ -57,10 +60,67 @@ Source comment from `ClickCyclePatch.cs:14-30`:
 /// </summary>
 ```
 
+## Secondary-use (right-click) routing
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-22 -->
+
+`InventoryManager.NormalMode` handles the secondary-action (right-click) path inline, NOT via a dedicated `HandleSecondaryUse` method (unlike the primary path which factors out into `HandlePrimaryUse`). Decompile line ~2159 (`Assets.Scripts.Inventory.InventoryManager.NormalMode`):
+
+```csharp
+if ((bool)ActiveHand.Slot.Occupant && KeyManager.GetMouseDown("Secondary"))
+{
+    DynamicThing occupant2 = ActiveHand.Slot.Occupant;
+    if (!(occupant2 is Constructor constructorItemPlacement))
+    {
+        if (!(occupant2 is MultiConstructor multiConstructorItemPlacement))
+        {
+            if (!(occupant2 is AuthoringTool))
+            {
+                if (occupant2 is Item item)
+                {
+                    Thing.DelayedActionInstance delayedActionInstance = item.OnUseSecondary();
+                    if (delayedActionInstance != null && delayedActionInstance.Duration > 0f)
+                    {
+                        ActionCoroutine = StartCoroutine(WaitUntilDone(...));
+                    }
+                    else if (GameManager.RunSimulation)
+                    {
+                        OnServer.UseItemSecondary(Parent, ActiveHand.SlotId, LastCompletedRatio);
+                    }
+                    else
+                    {
+                        NetworkClient.UseItemSecondary(Parent, ActiveHand.SlotId, LastCompletedRatio);
+                    }
+                }
+            }
+            else { /* AuthoringTool placement path */ }
+        }
+        else { SetMultiConstructorItemPlacement(multiConstructorItemPlacement); }
+    }
+    else { /* Constructor placement path */ }
+}
+```
+
+Notable differences from the primary path:
+
+- No `CursorManager.CursorThing` branch: secondary-use does NOT route through `AttackWith` on the cursor target. `OnUseSecondary()` is invoked directly on the held item with no target argument, and no `AllowSelfUse` gate exists for secondary-use.
+- `Item.OnUseSecondary(bool doAction = false, float actionCompletedRatio = 1f)` (decompile line ~399 of `Assets.Scripts.Objects.Item`) returns `null` by default. Any item that wants to react to right-click must override it; otherwise the whole `if (occupant2 is Item item) { ... }` block exits with no action dispatched.
+- `SprayCan : Consumable, ISprayer, IUsedAmount, IUsed` does NOT override `OnUseSecondary`. Vanilla right-click on a held spray can is a no-op.
+- `Constructor`, `MultiConstructor`, and `AuthoringTool` are intercepted BEFORE the `Item` branch and get placement-mode behavior instead of `OnUseSecondary`.
+- `KeyManager.GetMouseDown("Secondary")` is the frame-stable secondary-click read, analogous to `GetMouseDown("Primary")` in `HandlePrimaryUse`.
+
+Hook choices for a right-click intercept on a specific item type:
+
+1. Patch `Item.OnUseSecondary` with a filter like `if (!(__instance is SprayCan can)) return true;`. The virtual returns `null`, so a postfix that sets `__result` to a non-null `DelayedActionInstance` also flows through the `duration > 0f ? coroutine : OnServer.UseItemSecondary / NetworkClient.UseItemSecondary` branch; a prefix that returns `false` after setting `__result = null` suppresses that dispatch entirely. This is the clean choice when the intercept is per-item-type and doesn't need to inspect the cursor target before the check order described above.
+2. Patch `InventoryManager.NormalMode` (same target the existing `ColorCyclerPatch` uses) to inspect `KeyManager.GetMouseDown("Secondary")` before the vanilla block fires. This is the correct choice when the intercept needs `CursorManager.CursorThing` (secondary routing itself does not supply a target), needs to run regardless of item type, or needs to suppress the vanilla secondary-use dispatch for types that already override `OnUseSecondary`.
+
+For the spray-can eyedropper, patching at the `InventoryManager.NormalMode` layer mirrors the existing `ColorCyclerPatch` and keeps all client-side spray-can input polling in one place. Reading `CursorManager.CursorThing` at that layer gives the looked-at Thing client-side with no server round-trip, consistent with the attack-resolve path (`OnServer.AttackWith` receives a resolved `Thing`, but the client already knows the target via `CursorThing` in `HandlePrimaryUse`; the secondary path does not auto-resolve a target, so a client-side read of `CursorThing` is both the only and the correct source).
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-22 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0116, F0334. No conflicts.
+- 2026-04-22: added "Secondary-use (right-click) routing" section. Additive only; no existing content changed. Source: decompile of `Assets.Scripts.Inventory.InventoryManager.NormalMode` (line ~2159) and `Assets.Scripts.Objects.Item.OnUseSecondary` (line ~399) in game version 0.2.6228.27061. Confirmed `SprayCan` does not override `OnUseSecondary` by decompiling `Assets.Scripts.Objects.Items.SprayCan` (no `OnUseSecondary` / `AllowSelfUse` members declared).
 
 ## Open questions
 

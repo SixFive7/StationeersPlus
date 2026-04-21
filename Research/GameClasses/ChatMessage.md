@@ -57,11 +57,28 @@ Source: F0095b.
 
 `ChatCanvas` is attached to each `Human` entity and manages the floating chat bubble UI. `ChatWindow` handles the typewriter-style text animation. In `NetworkBase.DeserializeReceivedData()`, most message types log an error if processed on a non-server peer. `ChatMessage` is explicitly exempted from this check, meaning clients process it normally (print to console + show bubble). This is standard for broadcast messages.
 
+## Chat channel: there is none
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+
+Source: `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.ChatMessage`, `Util.Commands.SayCommand`.
+
+`ChatMessage` has no channel / scope field. Its only serialized fields are `HumanId`, `DisplayName`, `ChatText`. Vanilla has no notion of a private chat, squad chat, or team channel in this message type.
+
+The string `NetworkChannel` elsewhere in the codebase (enum `Assets.Scripts.Networking.NetworkChannel` with values `GeneralTraffic = 134, PlayerJoin, StateTick, Unreliable, SteamP2PConnectionRequest, SteamP2PConnectionAccepted, SteamP2PHeartbeat, NumChannels`) is the transport-layer channel, not a chat scope. `ChatMessage.Process` sends over `NetworkChannel.GeneralTraffic`, the same channel every other gameplay message uses.
+
+There is no `ChatChannel` enum. The only other chat-related message type is `ChatStatusMessage` (HumanId + bool IsTyping), which drives the chat-bubble typing indicator.
+
+Consequence for patch code: a `Harmony` postfix on `ChatMessage.Process` cannot filter "public chat only"; every chat line that goes through `ChatMessage.Process` IS the single chat stream. The only filters available are:
+
+- `HumanId == -1` (server batch message, no associated human, no bubble).
+- `HumanId == InventoryManager.Parent?.ReferenceId` (message authored by the local player) - use this to avoid self-responses.
+- `ChatText` prefix / content matching for command-style filtering.
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0071, F0095b. No conflicts.
+- 2026-04-21: added "Chat channel: there is none" section documenting the absence of a chat-channel field on `ChatMessage` and clarifying that `NetworkChannel` is a transport-layer enum, not a chat scope. Additive only; no existing content changed. Game version 0.2.6228.27061.
 
 ## Open questions
 
-None at creation.
+None.

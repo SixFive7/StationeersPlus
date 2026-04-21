@@ -31,16 +31,17 @@ The `LanderCapsule` is completely independent of the death / respawn system. The
 
 - Server-side code path (`OnServer.Create` / `OnServer.MoveToSlot` / `OnServer.Interact`).
 - A live `Human` reference with a valid `ThingTransform`.
-- `Prefab.Find<LanderCapsule>()` resolves to the capsule prefab (vanilla registers it at load).
+- `Prefab.Find<LanderCapsule>("LanderCapsule")` resolves to the capsule prefab (vanilla registers it at load).
 
 ## Steps
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
 ```csharp
 // Create capsule at player's position
 var pos = human.ThingTransform.position;
 var rot = human.ThingTransform.rotation;
-var capsule = OnServer.Create<LanderCapsule>(Prefab.Find<LanderCapsule>(), pos, rot);
+var capsule = OnServer.Create<LanderCapsule>(
+    Prefab.Find<LanderCapsule>("LanderCapsule"), pos, rot);
 
 // Move player into the seat (Slots[1])
 OnServer.MoveToSlot(human, capsule.Slots[1]);
@@ -50,6 +51,31 @@ OnServer.Interact(capsule.InteractMode, 1);
 ```
 
 Three calls. The capsule handles everything else.
+
+### API signatures
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+
+Source: `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Prefab`, `OnServer`.
+
+All four calls are public statics:
+
+```csharp
+// Assets.Scripts.Objects.Prefab
+public static T Find<T>(string prefabName) where T : Thing
+public static T Find<T>(int prefabHash) where T : Thing
+
+// OnServer (no namespace, global)
+public static T Create<T>(Thing prefab, Vector3 position, Quaternion rotation) where T : Thing
+public static void MoveToSlot(DynamicThing childThing, Slot slot)
+public static void Interact(Interactable interactable, int state, bool skipAnimation = false)
+```
+
+Important typing details:
+
+- `Prefab.Find<T>` has no parameterless overload. The original recipe snippet `Prefab.Find<LanderCapsule>()` would not compile. The parameter is either the prefab name (string) or the precomputed `Animator.StringToHash` (int). The canonical prefab name for the lander capsule matches the type name, `"LanderCapsule"`.
+- `OnServer.MoveToSlot` takes `DynamicThing`, not `Thing`. `Human : Entity : DynamicThing`, so passing a `Human` is valid.
+- `capsule.InteractMode` is an `Interactable` (inherited from `Thing.InteractMode`, a property). The `int state` parameter is the state index on `Interactable`, which for `Action == InteractableType.Mode` indexes `LanderMode`: `0 = AtRest`, `1 = Descending`, `2 = Venting`. Passing `1` triggers `LanderCapsule.OnInteractableStateChanged` with `newState == 1`, which calls `BeginDescent().Forget()`.
+- `capsule.Slots` is `public List<Slot>` (inherited from `Thing.Slots`). `Slots[0]` is the door, `Slots[1]` is the seat.
 
 ## Using as time-skip cover
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -75,10 +101,10 @@ Players are locked inside the capsule for ~13.5 seconds (descent + door open + u
 - Moving a player into the capsule's `Slots[1]` locks their interaction input. If a mod wants the player to stay inside longer, patch `WaitThenOpen()` rather than repeatedly re-moving them into the slot.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0090 and F0095p (`Plans/LLM/RESEARCH.md:471-491`).
+- 2026-04-21: corrected `Prefab.Find<LanderCapsule>()` to `Prefab.Find<LanderCapsule>("LanderCapsule")`. The parameterless form does not exist in `Assets.Scripts.Objects.Prefab`; only `Find<T>(string)` and `Find<T>(int)` overloads are defined. The original snippet would not have compiled. Added "API signatures" sub-section with full typing details. Verified in 0.2.6228.27061.
 
 ## Open questions
 
-None at creation.
+- The prefab name used with `Prefab.Find<LanderCapsule>(...)` is asserted as `"LanderCapsule"` based on the Stationeers convention that `Thing.PrefabName` equals the GameObject name (see `Prefab.cs:2297` / `:2333`: `thing2.PrefabName = thing.name;`) and the type being named `LanderCapsule`. In-game validation (call `Prefab.Find<LanderCapsule>("LanderCapsule")` and confirm non-null) is still pending.

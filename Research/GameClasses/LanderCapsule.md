@@ -83,11 +83,60 @@ Source: F0095o.
 
 `EntryEffects` component on the capsule controls re-entry fire/thruster visuals. `EnableEffects()` / `DisableEffects()` toggle linked GameObjects. `SetIntensity(lerpFactor)` scales thruster transforms using `EaseOutQuart(lerp) * 0.7` with random jitter. `SpaceSuitRespawn` visual materialization effect: `SpawnEffectTime = 5s` fade-in, `PauseTime = 1s`, `HideEffectTime = 3s` fade-out. Animates a `_cutoff` shader property.
 
+## Slots
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+
+Source: `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.LanderCapsule`.
+
+`LanderCapsule.Slots` is inherited from `Thing`:
+
+```csharp
+// Thing
+public List<Slot> Slots;
+```
+
+`LanderCapsule` defines two fixed slot accessors:
+
+```csharp
+private Slot DoorSlot => Slots[0];
+private Slot SeatSlot => Slots[1];
+```
+
+Index 0 is the door slot (the breakable door Thing occupies this). Index 1 is the seat for the human occupant. Both accessors are private, so external callers must reach into `capsule.Slots[0]` / `capsule.Slots[1]` directly.
+
+## InteractMode
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+
+Source: `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing` and `LanderCapsule`.
+
+`InteractMode` is inherited from `Thing`:
+
+```csharp
+// Thing
+public Interactable InteractMode => _interactableMode;
+```
+
+It is a property returning an `Interactable` instance whose `Action == InteractableType.Mode`. `Interactable.State` is an `int` indexed over `LanderMode` (byte-backed enum): `0 = AtRest`, `1 = Descending`, `2 = Venting`.
+
+Descent is triggered by `LanderCapsule.OnInteractableStateChanged`:
+
+```csharp
+if (GameManager.RunSimulation
+    && interactable.Action == InteractableType.Mode
+    && newState != oldState
+    && newState == 1)
+{
+    BeginDescent().Forget();
+}
+```
+
+Setting state 1 via `OnServer.Interact(capsule.InteractMode, 1)` is what spawns the descent sequence documented in the "Descent sequence" section above.
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0087, F0088, F0089, F0095m, F0095n, F0095o. No conflicts.
+- 2026-04-21: added "Slots" and "InteractMode" sections from direct decompile. Additive only; no existing content changed. Verified against `Assets.Scripts.Objects.LanderCapsule` in game version 0.2.6228.27061.
 
 ## Open questions
 
-None at creation.
+None.

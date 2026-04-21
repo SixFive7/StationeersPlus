@@ -35,7 +35,7 @@ Consciousness in Stationeers is not a standalone stat. It is driven entirely by 
 Everything required is public: `Entity.State` (public get / set), `Entity.OrganBrain` (public field), `Entity.IsSleeping` (public property), `Human.OnLifeTick()` (public override), `Brain.OnLifeTick()` (public override), `EntityDamageState.Damage()` (public override), `OnServer.SetEntityState()` (public static).
 
 ## Steps
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
 Knock a player unconscious without a sleeper:
 
@@ -51,6 +51,17 @@ Wake a player up:
 human.OrganBrain.DamageState.Damage(ChangeDamageType.Set, 0f, DamageUpdateType.Stun);
 // OnLifeTick transitions to Alive next tick (0 < 50)
 ```
+
+### Type details
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+
+Source: `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll`.
+
+- `Assets.Scripts.Objects.ChangeDamageType` (enum): `Set, Increment, Decrement`.
+- `Assets.Scripts.Objects.DamageUpdateType` (ushort, `[Flags]`): `None=0, Burn=2, Brute=4, Oxygen=8, Hydration=0x10, Radiation=0x20, Starvation=0x40, Toxic=0x80, Stun=0x100, Decay=0x200, All=ushort.MaxValue`.
+- `human.DamageState` is inherited from `Thing.DamageState`. On a `Human` / `Entity` it is typed as `Assets.Scripts.Objects.EntityDamageState` (a subclass of `OrganicDamageState`), set up in `Entity.InitializeDamageState`.
+- Method signature (`EntityDamageState.Damage`, override): `public override void Damage(ChangeDamageType change, float value, DamageUpdateType updateType)`.
+- `EntityDamageState.Damage` auto-routes `updateType == DamageUpdateType.Stun` and `DamageUpdateType.Oxygen` to `ParentEntity.OrganBrain.DamageState.Damage(change, value, updateType)`. So `human.DamageState.Damage(Set, 100f, Stun)` and `human.OrganBrain.DamageState.Damage(Set, 100f, Stun)` both write the same Stun channel on the Brain organ's damage state. Either form is correct; the shorter form is preferred and is what vanilla `Human.ForceKnockout`-style code uses (see `Human.cs:3034`: `DamageState.Damage(ChangeDamageType.Set, DamageState.MaxDamage, DamageUpdateType.Stun);`).
 
 Gradual consciousness loss (like the sleeper):
 
@@ -89,10 +100,10 @@ human.State = EntityState.Unconscious;
 - The `IsSleeping`-postfix trick halves metabolic rates and blocks stun recovery, but does NOT skip nutrition / dehydration. Those checks depend on `RootParent is ILifeSuspender`, which is separate from `IsSleeping`.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0081 (`Plans/LLM/RESEARCH.md:288-319`).
+- 2026-04-21: appended "Type details" sub-section with fully-qualified enum names, `EntityDamageState` typing, the `Damage` signature, and the auto-route-to-brain behaviour observed in `EntityDamageState.Damage`. Confirmed the existing claim ("calling `Damage(Set, v, Stun)` on `human.DamageState` hits the Brain organ's Stun channel") via direct read of `Assets.Scripts.Objects.EntityDamageState.Damage` which branches on `updateType == Stun || Oxygen` and forwards to `ParentEntity.OrganBrain.DamageState.Damage(change, value, updateType)`. Game version 0.2.6228.27061.
 
 ## Open questions
 
-None at creation.
+None.
