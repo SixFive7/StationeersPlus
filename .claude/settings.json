@@ -51,6 +51,16 @@
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "if": "Edit(**/Mods/*/*/Plugin.cs)|Write(**/Mods/*/*/Plugin.cs)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/release-hook.ps1"
+          }
+        ]
       }
     ]
   }

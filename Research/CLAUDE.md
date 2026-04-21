@@ -54,73 +54,9 @@ The hook injects the current game version every time a file under `Research/` is
 - Cosmetic edits (typo, formatting, link fix, re-wording that does not alter the factual claim): no restamp.
 - When the game version advances and a section is re-read and confirmed still correct: restamp with the new version and the current date. This is how stale-stamp staleness gets resolved.
 
-## Conflict-resolution prompt template
+## Conflict resolution
 
-Spawn a fresh sub-agent when a new finding contradicts verified content already on a central page. The calling agent copies the template below, fills in the three placeholders, and sends it as the sub-agent's entire task prompt. The fresh agent must not receive the calling agent's reasoning, conversation history, or any framing about previous research.
-
-Template:
-
-```
-Task: independently answer the question below by reading the cited sources directly. Do NOT defer to either existing claim. Return a short verdict plus a verbatim source quote that backs the verdict.
-
-Question: <bare question framed without bias. State the fact at issue. Do not reveal which of the two claims is currently on the page or which is newly proposed.>
-
-Source A (currently on the central page):
-  Claim: <verbatim claim text from the page>
-  Provenance: <DLL path plus method name, or original RESEARCH.md path with line range>
-
-Source B (newly proposed):
-  Claim: <verbatim claim text from the new finding>
-  Provenance: <DLL path plus method name, or original RESEARCH.md path with line range>
-
-Instructions:
-1. Read both provenances directly. Do not rely on the claim text.
-2. If the sources are decompiled code, read the method bodies in full including any inherited members.
-3. Reach an independent conclusion. If neither A nor B matches what the sources actually say, return the correct answer.
-4. Return exactly: "A is correct" / "B is correct" / "Neither, correct answer is <X>" plus one verbatim source quote (with provenance) backing the verdict.
-```
-
-Worked examples (for illustration only; do not copy into the spawn prompt):
-
-Example 1: Harmony inherited-method `__instance` typing. This is the most-cited pattern in the repo, appearing across six findings from four mods, and the exact scenario that would produce future conflicts as mods grow.
-
-```
-Question: when patching a method that a subclass inherits from a base class, what concrete type should [HarmonyPostfix] use for __instance in Stationeers version 0.2.6228.27061?
-
-Source A (currently on the central page):
-  Claim: "Declare __instance as the derived class (e.g. SensorLenses __instance). Harmony resolves the subclass method and the cast is safe."
-  Provenance: Research/Patterns/HarmonyInheritedMethodTrap.md section "Instance typing" citing Plans/EquipmentPlus/EquipmentPlus/SensorLensesSyncPatches.cs:17-24
-
-Source B (newly proposed):
-  Claim: "When TargetMethod() returns an inherited MethodInfo, Harmony patches the base-class method and the patch fires for every subclass instance. Declare __instance as Thing and filter with `is`; typing it as the derived class emits a castclass that throws InvalidCastException for other Thing subclasses."
-  Provenance: Plans/EquipmentPlus/RESEARCH.md:239-240 and rocketstation_Data/Managed/0Harmony.dll :: HarmonyLib.PatchFunctions
-
-Instructions: <as above>
-```
-
-Example 2: LogicType registry count. Represents the class of conflict where a new reading of the same game code adds a registry that earlier passes missed.
-
-```
-Question: how many independent LogicType registries must a mod extend to avoid mis-rendered names on every in-game UI surface in Stationeers version 0.2.6228.27061?
-
-Source A (currently on the central page):
-  Claim: "Three registries: Logicable.LogicTypes, EnumCollections.LogicTypes, and ScreenDropdownBase.LogicTypes. Extending these three covers tablet cycling, cartridge UI, and motherboard dropdowns."
-  Provenance: Research/GameSystems/LogicType.md section "Registries" citing Mods/PowerTransmitterPlus/RESEARCH.md:398-425
-
-Source B (newly proposed):
-  Claim: "Four registries. The fourth is ProgrammableChip.InternalEnums entries ScriptEnum<LogicType> and BasicEnum<LogicType>, which drives syntax highlighting on in-game screens. Without it, custom LogicType names inherit the default red 'invalid' color even though they compile and execute."
-  Provenance: Mods/PowerTransmitterPlus/RESEARCH.md:664-670 and rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip.InternalEnums
-
-Instructions: <as above>
-```
-
-After the fresh agent returns, the calling agent applies the verdict to the page and appends a Verification History entry in this form:
-
-```
-## Verification history
-
-- <YYYY-MM-DD>: conflict on "<short subject>". Previous claim: <A summary>. New finding: <B summary>. Fresh validator verdict: <verdict>. Result: <what changed on the page>.
-```
+When a new finding contradicts verified content already on a central page, spawn a fresh sub-agent using the protocol and prompt template in `Research/WORKFLOW.md` ("Rule 3: fresh-validator protocol when a new finding contradicts an existing page"). The validator's verdict is binding. Record the resolution in the page's Verification History section (see conventions below).
 
 ## Verification History and Open Questions conventions
 

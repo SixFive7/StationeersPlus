@@ -21,7 +21,7 @@ try {
 $message = @"
 [Research curation reminder] You just touched decompiled game code. Current game version: $version.
 
-Repo-root CLAUDE.md Rule 2 ("Workflow: Research curation is mandatory on every decompiled-code touch") applies: any game-internals finding you produce this turn must land in a page under Research/<category>/ in this same response, with version stamps set to $version. Do not postpone.
+Research/WORKFLOW.md Rule 2 ("curate decompiled-code findings into Research/ on every touch") applies: any game-internals finding you produce this turn must land in a page under Research/<category>/ in this same response, with version stamps set to $version. Do not postpone. Read Research/WORKFLOW.md in full if you have not yet this conversation.
 "@
 
 $payload = @{

@@ -135,39 +135,9 @@ This monorepo is licensed under **Apache License 2.0**. Required files and conte
 
 Apache 2.0 is chosen over MIT because section 4(b) requires redistributors to state significant changes they made, which discourages unmodified repackaging without attribution. Do not swap in a different license (MIT, GPL, CC, etc.) without explicit instruction.
 
-## Release workflow: version bumps, tags, and commit hygiene
+## Release workflow
 
-Every released mod in `Mods/` follows the same release workflow. `Plans/` mods do not tag releases.
-
-**Rule 1: one mod per release commit.** A release commit bumps exactly one mod's version. Never bump two mods' `<Version>` fields in the same commit. Cross-mod refactors are fine but are separate from release commits and do not bump `<Version>`. Tags point at commits, not subtrees; a commit that ships two mods cannot be tagged twice without ambiguity about what "version" the tag represents.
-
-**Rule 2: a release commit is exactly these edits, nothing else.**
-
-- `Mods/<ModName>/<ModName>/<ModName>.cs` (or `Plugin.cs`): `PluginVersion` bump.
-- `Mods/<ModName>/<ModName>/About/About.xml`: `<Version>` bump and new top-of-`<ChangeLog>` entry.
-
-Every release commit touches those two files and nothing else. Feature work goes in prior commits.
-
-**Rule 3: always tag a release commit.** After creating the release commit, tag it with an annotated tag in the format `mods/<ModName>/v<X.Y.Z>` and push the tag:
-
-```
-git tag -a mods/SprayPaintPlus/v1.4.2 -m "SprayPaintPlus 1.4.2"
-git push origin mods/SprayPaintPlus/v1.4.2
-```
-
-The tag is the source of truth for "what shipped as 1.4.2." Workshop can be rolled back or updated; tags cannot.
-
-**Rule 4: never move a pushed tag.** If a release was mis-tagged or needs a hotfix, ship a new patch version (1.4.3) rather than moving v1.4.2.
-
-**Rule 5: release commit message format.** Release commits use this exact subject line, for grep-ability:
-
-```
-<ModName> v<X.Y.Z>: <short summary>
-```
-
-Example: `SprayPaintPlus v1.4.2: fix paint bucket deprecated-property warning`.
-
-**Rule 6: tags only for Mods/, never Plans/.** `Plans/` mods are WIP. They don't get version tags until they graduate to `Mods/` with a real release. The first release of a promoted mod starts at v1.0.0.
+Release commit rules (one mod per commit, exactly Plugin.cs + About.xml touched, annotated tag `mods/<ModName>/v<X.Y.Z>`, commit-message format, no tags for `Plans/`) live in `Mods/Template/RELEASE.md`. A `PostToolUse` hook (`.claude/hooks/release-hook.ps1`) fires on `Edit|Write` of any mod's `Plugin.cs` and injects a reminder pointing there. Read `RELEASE.md` when the reminder surfaces and you are actually cutting a release; ignore the reminder on unrelated plugin-code edits.
 
 ## Style: no AI tells in committed text
 
@@ -204,46 +174,9 @@ Required setup:
 - `DEV.md` at the monorepo root is gitignored. `DEV.md.template` at the monorepo root is the committed scaffold a new contributor copies to create their own `DEV.md`.
 - No other long-form knowledge files (`plan.md`, `NOTES.md`, session logs) should accumulate in committed form inside `Mods/`. Use `RESEARCH.md` for durable knowledge, `TODO.md` for pending work, and git history / conversation for everything else. `Plans/` mods may carry such files since the work-in-progress phase is where they have value; they consolidate into `RESEARCH.md` or are deleted when a mod graduates to `Mods/`.
 
-## Workflow: read the relevant Research before touching any mod
+## Workflow: Research protocols
 
-Before doing any work on a mod (code changes, debugging, feature additions, refactors, content edits, build changes), read that mod's `RESEARCH.md` in full if it exists. The mod's `RESEARCH.md` carries mod-specific architecture, design decisions, and a pointer list into central `Research/` pages. That pointer list is the index into the wider knowledge base: each entry names a central page and the one-line reason this mod cares. Follow pointers selectively to the central pages relevant to your task.
-
-Rules:
-
-- The very first read for any mod task is that mod's `RESEARCH.md`. Paths are `Mods/<ModName>/RESEARCH.md` for released mods and `Plans/<ModName>/RESEARCH.md` for work-in-progress. Do this before grepping source, before opening `.cs` files, before planning.
-- For each pointer in the mod's `RESEARCH.md`, decide whether to follow it. If you choose not to follow a pointer, justify the skip in one sentence (forces a deliberate decision rather than a silent omission).
-- For tasks that span multiple mods, repeat the process for each affected mod.
-- If a pointer is broken, or the mod clearly depends on a topic that has no central page yet, flag it and proceed. Do not block.
-- After completing work that changes architecture, patch behavior, or invalidates the mod's own `RESEARCH.md`, update it. Game-internals changes go to central `Research/` per Rule 2, not to mod-local files.
-- This rule applies to sub-agents too. When delegating a mod task, instruct the sub-agent to read the mod's `RESEARCH.md` first and to follow its pointers as needed.
-
-## Workflow: Research curation is mandatory on every decompiled-code touch
-
-When you read decompiled game code from `$(StationeersPath)\rocketstation_Data\Managed\` (the hook will remind you) or produce a finding about game internals (class behavior, method signature, side-effect, multiplayer message format, save-format detail, Harmony pitfall, transform math, any similar fact), you MUST create or update the matching page under `Research/` in the same response. Do not postpone. Do not park the finding in a commit message or a code comment. Do not write it into a mod's `RESEARCH.md` when the fact is not mod-specific.
-
-Central pages live under `Research/<category>/<page>.md`. The category list, per-category scope, and routing rules live in `Research/CLAUDE.md`. Read it before creating a new page.
-
-The hook injects the current game version on every `Research/` read and write; use that value for the frontmatter `created_in` and `verified_in` fields and for every section-level stamp. Do not guess the version.
-
-Requirements on every touch:
-
-- If the page does not yet exist, create it with full YAML frontmatter (see `Research/CLAUDE.md` for the schema), source citations pointing at the DLL path and any originating `RESEARCH.md` line range, and section-level `<!-- verified: <version> @ <YYYY-MM-DD> -->` stamps after each H2 (and after H3 where the finer granularity matters).
-- If the page exists and a section's content changes or is re-confirmed, update that section's stamp to the current game version and date. Cosmetic edits (typos, formatting) do not restamp.
-- If the finding does not fit any of the five established categories, put it in `Research/Unsorted/<descriptive-name>.md` with full lossless content AND append an entry to the root `TODO.md` in this format: `- [ ] Research/Unsorted: classify Research/Unsorted/<filename>.md (originally from <source>)`. The Unsorted protocol and TODO format are spelled out in `Research/CLAUDE.md`.
-- The lossless principle governs every central page: verbatim code excerpts, formulas, hex layouts, and exact field / method names carry forward untouched. No summarization that drops detail. When two existing sources overlap, preserve both until explicitly reconciled.
-
-## Workflow: validate new lessons independently, then persist to central Research
-
-Decompilation and reverse-engineering are expensive. Any non-obvious finding must land in central `Research/`, not in commit messages, conversation scratch, mod-local files, or per-session planning docs.
-
-Validation protocol:
-
-- Sub-agents doing research or debugging must report every new lesson, not just their final answer. The coordinating conversation is responsible for collecting those lessons and routing them into `Research/`.
-- Adding new content to a central page does not require a second agent. Additive content cannot contradict existing content.
-- Changing or removing existing verified content on a central page DOES require a fresh validator. Before persisting a lesson that contradicts what is already on the page, spawn a fresh sub-agent with no exposure to your reasoning, conversation history, or framing. Give it the raw question and the two conflicting source extracts (decompiled code, DLL path, other mods' assemblies, original `RESEARCH.md` line ranges). Instruct it not to defer to either existing claim. Its verdict is binding. The prompt template, source-extract format, and verdict-application rules live in `Research/CLAUDE.md` under "Conflict-resolution prompt template."
-- Record every conflict and its resolution in the target page's "Verification History" section (append-only): date, what was contradicted, fresh-agent verdict, resulting change. Genuinely unresolved cases (fresh agent could not determine ground truth) go to the page's "Open Questions" section and escalate to the user.
-- Speculation and "probably" claims do not go into central pages. Only verified, sourced findings land there. Unverified hypotheses stay in conversation or in a `Plans/<Mod>/` stub, never in `Research/`.
-- This rule applies to sub-agents too. When a sub-agent produces a finding that contradicts an existing page, the calling agent spawns the fresh validator before persisting.
+Three workflow rules govern the boundary between mod work and the central `Research/` knowledge base: read the mod's `RESEARCH.md` before touching any mod, curate decompiled-code findings into `Research/<category>/` on every touch, and apply the fresh-validator protocol when a new finding conflicts with existing verified content on a page. Full rules and the conflict-resolution prompt template live in `Research/WORKFLOW.md`. The decompile hook (`.claude/hooks/research-hook-decompile.ps1`) points at it; read `WORKFLOW.md` when the reminder surfaces or when starting mod work. Structural rules for pages under `Research/` (frontmatter schema, section stamps, Verification History conventions, Unsorted protocol, tag vocabulary) live in `Research/CLAUDE.md` and auto-load when you touch a `Research/` file.
 
 ## Style: write like a human, not like an AI was here
 
