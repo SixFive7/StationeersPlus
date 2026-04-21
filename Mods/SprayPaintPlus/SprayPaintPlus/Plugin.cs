@@ -22,7 +22,7 @@ namespace SprayPaintPlus
     {
         public const string PluginGuid = "net.spraypaintplus";
         public const string PluginName = "SprayPaintPlus";
-        public const string PluginVersion = "1.5.1";
+        public const string PluginVersion = "1.5.2";
 
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
 
