@@ -1,14 +1,18 @@
 namespace MaintenanceBureauPlus
 {
+    // Public fields (not auto-properties) because UnityEngine.JsonUtility can only
+    // serialize public fields, and the LLM returns a flat JSON document that
+    // we deserialize straight into this class.
+    [System.Serializable]
     public class OfficerPersona
     {
-        public int Index { get; set; }
-        public string Name { get; set; }
-        public string Department { get; set; }
-        public string Tic { get; set; }
-        public string Voice { get; set; }
-        public string Backstory { get; set; }
-        public string Summary { get; set; }
+        public int Index;
+        public string Name;
+        public string Department;
+        public string Tic;
+        public string Voice;
+        public string Backstory;
+        public string Summary;
 
         public string ToPersonaBlock()
         {

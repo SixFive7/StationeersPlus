@@ -26,17 +26,16 @@ namespace MaintenanceBureauPlus
             var message = __instance.ChatText;
             if (string.IsNullOrWhiteSpace(message)) return;
 
-            // Debug hook: any operator-typed message containing the literal
-            // [DEBUG-APPROVE] token fires the approval event immediately in a
-            // debug build. This hook is stripped in Release.
-#if DEBUG
+            // Debug hook: any chat message containing the literal [DEBUG-APPROVE]
+            // token fires the approval event immediately. Unconditional while
+            // the mod is in playtest so it works in both Debug and Release.
+            // See TODO.md: remove this hook before v1 release.
             if (message.IndexOf("[DEBUG-APPROVE]", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 MaintenanceBureauPlusPlugin.Log.LogWarning("Debug approval hook fired by " + playerName);
                 ApprovalEvent.Start();
                 return;
             }
-#endif
 
             try
             {
@@ -123,7 +122,7 @@ namespace MaintenanceBureauPlus
                 int end = raw.LastIndexOf('}');
                 if (start < 0 || end <= start) return null;
                 var json = raw.Substring(start, end - start + 1);
-                var persona = Newtonsoft.Json.JsonConvert.DeserializeObject<OfficerPersona>(json);
+                var persona = UnityEngine.JsonUtility.FromJson<OfficerPersona>(json);
                 if (persona == null || string.IsNullOrWhiteSpace(persona.Name)) return null;
                 return persona;
             }

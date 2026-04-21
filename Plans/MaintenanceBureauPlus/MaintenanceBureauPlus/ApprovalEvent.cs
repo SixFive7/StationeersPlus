@@ -1,24 +1,32 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text;
-using Assets.Scripts;
+using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Entities;
 using UnityEngine;
 
 namespace MaintenanceBureauPlus
 {
     // Orchestrates the post-approval sequence:
-    //   1. Broadcast the approval reply (done by caller before Start() is called)
-    //   2. Full blackout: stun every connected Human to the blackout value
+    //   1. Broadcast the approval reply (done by caller before Start())
+    //   2. Full blackout: stun every connected Human to StunBlackout
     //   3. Repair sweep
     //   4. Telemetry
     //   5. Closing-message LLM call (async; returns to main thread)
-    //   6. Per-player: spawn LanderCapsule + teleport, then write Stun=80 once
+    //   6. Per-player: spawn LanderCapsule + teleport, then write Stun=StunWakeDuringDescent once
     //   7. Super-summary LLM call; persist to PersonaMemoryStore; reset conversation
     //
     // After step 6 the mod never touches stun again; the game's natural stun decay
     // wakes each player during the 13.5 s capsule descent.
+    //
+    // Game APIs are concrete (not reflected) per Research pages verified at 0.2.6228.27061:
+    //   Human enumeration           Research/GameClasses/Human.md
+    //   Stun write                  Research/Workflows/KnockPlayerUnconscious.md
+    //   Capsule spawn recipe        Research/Workflows/TriggerLanderCapsule.md
+    //   LanderCapsule slots         Research/GameClasses/LanderCapsule.md
+    // OnServer lives in the global namespace; referenced directly.
     public static class ApprovalEvent
     {
         public static bool IsRunning { get; private set; }
@@ -55,9 +63,6 @@ namespace MaintenanceBureauPlus
             }
         }
 
-        // Closing message is an async single-shot LLM call. When it returns (on the
-        // worker thread), the callback queues the broadcast + late phases onto the
-        // main thread.
         private static void EnqueueClosingMessage(Telemetry telemetry)
         {
             var conv = MaintenanceBureauPlusPlugin.Conversation;
@@ -77,8 +82,6 @@ namespace MaintenanceBureauPlus
                     try
                     {
                         var text = reply;
-                        // Strip any stray approval tag the model may have emitted
-                        // even though the closing prompt tells it not to.
                         var parsed = ApprovalTagParser.Parse(reply);
                         if (parsed.Tag != ApprovalTag.None) text = parsed.StrippedText;
 
@@ -186,253 +189,105 @@ namespace MaintenanceBureauPlus
             return sb.ToString();
         }
 
-        // ---- Game-API wrappers ----
+        // ---- Game-API wrappers (concrete calls, verified 0.2.6228.27061) ----
 
-        // Enumerate connected players. Uses reflection on a likely static
-        // collection to stay robust against namespace drift. The expected
-        // shape is Assets.Scripts.Objects.Entities.Human with a static
-        // AllHumans-like collection.
-        private static System.Collections.Generic.IEnumerable<Thing> AllConnectedHumans()
+        // Research/GameClasses/Human.md documents the enumeration + online-filter pattern.
+        private static IEnumerable<Human> AllConnectedHumans()
         {
-            // Prefer a 'Human' type with an 'AllHumans' static collection.
-            // Fall back to scanning Thing.AllThings for things whose type name ends in "Human".
-            var results = new System.Collections.Generic.List<Thing>();
-            try
+            var results = new List<Human>();
+            if (Human.AllHumans == null) return results;
+            foreach (var h in Human.AllHumans)
             {
-                var all = OcclusionManager.AllThings;
-                if (all == null) return results;
-                foreach (var thing in all.ToList())
-                {
-                    if (thing == null) continue;
-                    var typeName = thing.GetType().Name;
-                    if (typeName == "Human" || typeName.EndsWith("Human"))
-                        results.Add(thing);
-                }
-            }
-            catch (Exception ex)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogError("AllConnectedHumans failed: " + ex.Message);
+                if (h == null) continue;
+                if (h.State != EntityState.Alive) continue;
+                if (h.OrganBrain == null) continue;
+                if (!h.OrganBrain.IsOnline) continue;
+                results.Add(h);
             }
             return results;
         }
 
-        // Set stun on every connected Human by calling the DamageState.Damage
-        // method. The exact method signature comes from Research/Workflows/
-        // KnockPlayerUnconscious.md:
-        //   human.DamageState.Damage(ChangeDamageType.Set, value, DamageUpdateType.Stun)
-        // We use reflection to stay robust against exact namespace paths.
+        // Research/Workflows/KnockPlayerUnconscious.md: EntityDamageState.Damage auto-forwards
+        // Stun writes to the Brain organ, so we can call straight through human.DamageState
+        // and do not need to poke human.OrganBrain.DamageState ourselves.
         private static void SetStunForAllHumans(int value)
         {
             foreach (var human in AllConnectedHumans())
             {
                 try
                 {
-                    SetStun(human, value);
+                    human.DamageState.Damage(ChangeDamageType.Set, (float)value, DamageUpdateType.Stun);
                 }
                 catch (Exception ex)
                 {
-                    MaintenanceBureauPlusPlugin.Log.LogError("Stun write failed: " + ex.Message);
+                    MaintenanceBureauPlusPlugin.Log.LogError("Stun write failed on " +
+                        (human != null ? human.DisplayName : "<null>") + ": " + ex.Message);
                 }
             }
         }
 
-        private static void SetStun(Thing human, int value)
-        {
-            var damageStateProp = human.GetType().GetProperty("DamageState");
-            if (damageStateProp == null)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogWarning("Human has no DamageState property; cannot set stun.");
-                return;
-            }
-            var ds = damageStateProp.GetValue(human, null);
-            if (ds == null) return;
-
-            // First try direct field/property write to Stun.
-            var stunProp = ds.GetType().GetProperty("Stun");
-            if (stunProp != null && stunProp.CanWrite && stunProp.PropertyType == typeof(float))
-            {
-                stunProp.SetValue(ds, (float)value, null);
-                return;
-            }
-            var stunField = ds.GetType().GetField("Stun");
-            if (stunField != null && stunField.FieldType == typeof(float))
-            {
-                stunField.SetValue(ds, (float)value);
-                return;
-            }
-
-            // Fall back to Damage(Set, value, channel) method invocation.
-            var methods = ds.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var m in methods)
-            {
-                if (m.Name != "Damage") continue;
-                var parms = m.GetParameters();
-                if (parms.Length != 3) continue;
-                try
-                {
-                    // Resolve ChangeDamageType.Set and DamageUpdateType.Stun by reflection.
-                    var setValue = ResolveEnumValue(parms[0].ParameterType, "Set");
-                    var stunValue = ResolveEnumValue(parms[2].ParameterType, "Stun");
-                    if (setValue == null || stunValue == null) continue;
-                    m.Invoke(ds, new object[] { setValue, (float)value, stunValue });
-                    return;
-                }
-                catch { }
-            }
-
-            MaintenanceBureauPlusPlugin.Log.LogWarning("Could not set stun on " + human.GetType().Name + "; no matching API found.");
-        }
-
-        private static object ResolveEnumValue(Type enumType, string name)
-        {
-            if (enumType == null || !enumType.IsEnum) return null;
-            try { return Enum.Parse(enumType, name, true); }
-            catch { return null; }
-        }
-
-        // Per-player capsule spawn + one-time post-teleport Stun = 80.
-        // Research recipe (Research/Workflows/TriggerLanderCapsule.md):
-        //   var capsule = OnServer.Create<LanderCapsule>(Prefab.Find<LanderCapsule>(), pos, rot);
-        //   OnServer.MoveToSlot(human, capsule.Slots[1]);
-        //   OnServer.Interact(capsule.InteractMode, 1);
+        // Research/Workflows/TriggerLanderCapsule.md three-call recipe:
+        //   var prefab = Prefab.Find<LanderCapsule>("LanderCapsule");
+        //   var capsule = OnServer.Create<LanderCapsule>(prefab, pos, rot);
+        //   OnServer.MoveToSlot(human, capsule.Slots[1]);   // Slots[1] == seat per LanderCapsule.md
+        //   OnServer.Interact(capsule.InteractMode, 1);     // LanderMode state 1 == Descending
+        //
+        // The one-time post-teleport Stun=StunWakeDuringDescent write per player follows
+        // immediately, so natural stun decay (3 per life tick) wakes them during the
+        // 13.5 s descent without any further mod intervention.
         private static void SpawnCapsulesAndSetWakeStun()
         {
+            var prefab = Prefab.Find<LanderCapsule>("LanderCapsule");
+            if (prefab == null)
+            {
+                MaintenanceBureauPlusPlugin.Log.LogError("LanderCapsule prefab not found by name 'LanderCapsule'. Check the prefab name against a live game session.");
+                return;
+            }
+
             foreach (var human in AllConnectedHumans())
             {
                 try
                 {
-                    SpawnCapsuleFor(human);
-                    // After the teleport, write stun once. Do not touch it again.
-                    SetStun(human, MaintenanceBureauPlusPlugin.StunWakeDuringDescent);
+                    SpawnCapsuleFor(human, prefab);
+                    human.DamageState.Damage(
+                        ChangeDamageType.Set,
+                        (float)MaintenanceBureauPlusPlugin.StunWakeDuringDescent,
+                        DamageUpdateType.Stun);
                 }
                 catch (Exception ex)
                 {
-                    MaintenanceBureauPlusPlugin.Log.LogError("Capsule spawn / post-stun failed: " + ex.Message);
+                    MaintenanceBureauPlusPlugin.Log.LogError("Capsule spawn / post-stun failed for " +
+                        (human != null ? human.DisplayName : "<null>") + ": " + ex.Message);
                 }
             }
         }
 
-        // Reflection-based invocation of the three-call capsule recipe.
-        // TODO(verify-api): once the game's exact types are confirmed, swap the
-        // reflection calls for direct type references for clarity and performance.
-        private static void SpawnCapsuleFor(Thing human)
+        private static void SpawnCapsuleFor(Human human, LanderCapsule prefab)
         {
-            // Position + rotation of the player.
-            var thingTransformProp = human.GetType().GetProperty("ThingTransform");
-            if (thingTransformProp == null)
+            var transform = human.ThingTransform;
+            if (transform == null)
             {
-                MaintenanceBureauPlusPlugin.Log.LogWarning("Human has no ThingTransform property; cannot spawn capsule.");
+                MaintenanceBureauPlusPlugin.Log.LogWarning("Human has no ThingTransform; skipping capsule spawn.");
                 return;
             }
-            var transform = thingTransformProp.GetValue(human, null) as Transform;
-            if (transform == null) return;
             var pos = transform.position;
             var rot = transform.rotation;
 
-            // Look up the LanderCapsule type (namespace varies).
-            var landerType = FindTypeByName("LanderCapsule");
-            if (landerType == null)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogError("LanderCapsule type not found via reflection.");
-                return;
-            }
-
-            // Prefab.Find<LanderCapsule>() or similar.
-            var prefabType = FindTypeByName("Prefab");
-            if (prefabType == null)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogError("Prefab type not found.");
-                return;
-            }
-            object prefabInstance = InvokeGenericStatic(prefabType, "Find", landerType, null);
-            if (prefabInstance == null)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogError("Prefab.Find<LanderCapsule>() returned null.");
-                return;
-            }
-
-            // OnServer.Create<LanderCapsule>(prefab, pos, rot).
-            var onServerType = FindTypeByName("OnServer");
-            if (onServerType == null)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogError("OnServer type not found.");
-                return;
-            }
-
-            object capsule = InvokeGenericStatic(onServerType, "Create", landerType, new object[] { prefabInstance, pos, rot });
+            var capsule = OnServer.Create<LanderCapsule>(prefab, pos, rot);
             if (capsule == null)
             {
-                MaintenanceBureauPlusPlugin.Log.LogError("OnServer.Create<LanderCapsule> returned null.");
+                MaintenanceBureauPlusPlugin.Log.LogError("OnServer.Create<LanderCapsule> returned null for " + human.DisplayName);
                 return;
             }
 
-            // capsule.Slots[1] for the seated slot.
-            var slotsProp = capsule.GetType().GetProperty("Slots");
-            if (slotsProp == null) return;
-            var slotsVal = slotsProp.GetValue(capsule, null) as System.Collections.IList;
-            if (slotsVal == null || slotsVal.Count < 2) return;
-            var seatSlot = slotsVal[1];
-
-            // OnServer.MoveToSlot(human, slot)
-            var moveToSlot = onServerType.GetMethod("MoveToSlot", new Type[] { human.GetType().BaseType ?? typeof(object), seatSlot.GetType() })
-                ?? FindMethodByName(onServerType, "MoveToSlot");
-            if (moveToSlot != null)
+            if (capsule.Slots == null || capsule.Slots.Count < 2)
             {
-                try { moveToSlot.Invoke(null, new object[] { human, seatSlot }); }
-                catch (Exception ex) { MaintenanceBureauPlusPlugin.Log.LogError("MoveToSlot invoke failed: " + ex.Message); }
+                MaintenanceBureauPlusPlugin.Log.LogError("LanderCapsule has fewer than 2 slots; cannot seat player " + human.DisplayName);
+                return;
             }
 
-            // OnServer.Interact(capsule.InteractMode, 1)
-            var interactModeProp = capsule.GetType().GetProperty("InteractMode");
-            if (interactModeProp == null) return;
-            var interactMode = interactModeProp.GetValue(capsule, null);
-            var interactMethod = FindMethodByName(onServerType, "Interact");
-            if (interactMethod != null)
-            {
-                try { interactMethod.Invoke(null, new object[] { interactMode, 1 }); }
-                catch (Exception ex) { MaintenanceBureauPlusPlugin.Log.LogError("Interact invoke failed: " + ex.Message); }
-            }
-        }
-
-        private static Type FindTypeByName(string simpleName)
-        {
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                try
-                {
-                    foreach (var t in asm.GetTypes())
-                    {
-                        if (t.Name == simpleName) return t;
-                    }
-                }
-                catch { }
-            }
-            return null;
-        }
-
-        private static MethodInfo FindMethodByName(Type type, string name)
-        {
-            foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
-            {
-                if (m.Name == name) return m;
-            }
-            return null;
-        }
-
-        private static object InvokeGenericStatic(Type type, string methodName, Type typeArg, object[] args)
-        {
-            foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
-            {
-                if (m.Name != methodName) continue;
-                if (!m.IsGenericMethodDefinition) continue;
-                try
-                {
-                    var closed = m.MakeGenericMethod(typeArg);
-                    return closed.Invoke(null, args);
-                }
-                catch { }
-            }
-            return null;
+            OnServer.MoveToSlot(human, capsule.Slots[1]);
+            OnServer.Interact(capsule.InteractMode, 1);
         }
     }
 }

@@ -43,7 +43,13 @@ namespace MaintenanceBureauPlus
         public const int InferenceThreads = 4;
         public const int ContextSize = 4096;
         public const int PersonaMemoryCap = 200;
-        public const int StunBlackout = 100;
+        // Stun damage at blackout is deliberately well above the 100 unconscious
+        // threshold so natural stun decay (3 per life tick) does not wake the
+        // player during the LLM closing-message inference wait. The game clamps
+        // the channel internally; we never read it back. A later manual write of
+        // StunWakeDuringDescent just before the capsule teleport resets the
+        // countdown so the player wakes up groggy during the 13.5 s descent.
+        public const int StunBlackout = 1000;
         public const int StunWakeDuringDescent = 80;
         public const int TranscriptTailTurns = 20;
 

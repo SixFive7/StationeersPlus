@@ -54,10 +54,11 @@ namespace MaintenanceBureauPlus
                         continue;
                     }
 
-                    // Broken structures. `Structure.IsBroken` is the vanilla flag
-                    // per Research/GameSystems/RepairMechanics.md.
+                    // Broken structures. `Structure.IsBroken` returns true if
+                    // fully destroyed or deconstructed (CurrentBuildStateIndex < 0)
+                    // per Research/GameClasses/Structure.md.
                     var structure = thing as Structure;
-                    if (structure != null && IsBroken(structure))
+                    if (structure != null && structure.IsBroken)
                     {
                         t.WreckageCount++;
                         if (t.WreckageDetails.Count < 10)
@@ -75,23 +76,6 @@ namespace MaintenanceBureauPlus
                 MaintenanceBureauPlusPlugin.Log.LogError("TelemetryCollector failed: " + ex.Message);
             }
             return t;
-        }
-
-        // Reflection-based property access so we degrade gracefully if the
-        // exact field name differs in a given game version.
-        private static bool IsBroken(Structure s)
-        {
-            try
-            {
-                var prop = s.GetType().GetProperty("IsBroken");
-                if (prop != null)
-                {
-                    var v = prop.GetValue(s, null);
-                    return v is bool && (bool)v;
-                }
-            }
-            catch { }
-            return false;
         }
     }
 }

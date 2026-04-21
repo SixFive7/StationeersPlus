@@ -43,8 +43,7 @@ Players type normal chat. A bureau officer, a local LLM persona, reads every pub
 A Harmony postfix on `ChatMessage.Process` (pattern already in `Plans/LLMArchive/LLM/ChatPatch.cs`) filters for:
 
 - `NetworkManager.IsServer` guard.
-- `ChatChannel` equals the global channel (not private, not squad). Private chats are skipped without inference.
-- `HumanId != -1` loop guard. Every bureau reply goes out with `HumanId = -1`, so any inbound message with `HumanId = -1` is the bureau's own voice echoing back.
+- `HumanId != -1` loop guard. Every bureau reply goes out with `HumanId = -1`, so any inbound message with `HumanId = -1` is the bureau's own voice echoing back. Decompilation against 0.2.6228.27061 confirmed `ChatMessage` has no channel field (verified in `Research/GameClasses/ChatMessage.md`): every public chat line flows through the postfix, and this loop guard is sufficient.
 - `Engine != null && Engine.IsLoaded`.
 
 Every qualifying line is forwarded to the engine with the current conversation state attached.
@@ -217,7 +216,7 @@ If during implementation a client-visible effect turns out to require client-sid
 - Native `llama.dll` (from the CPU backend runtimes folder)
 - Qwen2.5-1.5B-Instruct Q4_K_M GGUF model, ~1.1 GB, shipped separately (gitignored). Filename hardcoded to `qwen2.5-1.5b-instruct-q4_k_m.gguf`.
 
-The LLM prototype's `.csproj` + `redist/` layout handles all of this correctly already; carry it forward verbatim into the new source tree.
+JSON round-trip for persona selection and the persona memory store uses `UnityEngine.JsonUtility` (built-in, ships with the UnityEngine reference). No `Newtonsoft.Json` dependency. `OfficerPersona` is `[Serializable]` with public fields so JsonUtility can round-trip it; the memory store wraps `List<string>` in a carrier class because JsonUtility will not serialize a top-level list. This matches the convention in `Mods/InspectorPlus`, which deliberately avoided Newtonsoft for the same reason.
 
 ## 8. Settings
 
@@ -234,7 +233,7 @@ Hardcoded values (intentionally not exposed; changing them requires a code edit 
 
 - Model file name: `qwen2.5-1.5b-instruct-q4_k_m.gguf`.
 - Bot name per message: the currently-active officer's name (no fixed bot name).
-- Loop guard: `HumanId == -1` (bureau messages are sent with no human entity).
+- Loop guard: `HumanId == -1` (bureau messages are sent with no human entity). `ChatMessage` has no channel field (verified against 0.2.6228.27061 in `Research/GameClasses/ChatMessage.md`); every public chat line flows through the postfix, and this loop guard is sufficient.
 - System prompt preamble: baked into a const string in code; officer-specific block is appended from the persona record.
 - Max tokens per reply: 384.
 - Closing-message max tokens: 512.
@@ -242,8 +241,8 @@ Hardcoded values (intentionally not exposed; changing them requires a code edit 
 - Inference threads: 4.
 - Context size: 4096.
 - Persona memory cap: 200 entries.
-- Stun at blackout: 100.
-- Stun one-time wake write: 80.
+- Stun at blackout: 1000. Well above the 100 unconscious threshold so natural stun decay (3 per life tick) cannot wake the player during the LLM closing-message inference wait, which may take tens of seconds.
+- Stun one-time wake write: 80. Applied per player immediately after the capsule teleport; natural decay then wakes the player roughly halfway through the 13.5 s descent.
 
 ## 9. Folder layout (current state)
 

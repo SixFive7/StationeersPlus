@@ -149,17 +149,11 @@ See `Plans/TerrainReclamation/plan.md` for the full design.
 
 - [ ] Additional bureau services beyond repair and terrain. Each gated behind its own conversational loop. Each preserving the opaque-until-discovered framing: the tagline does not mention specifics.
 
-## v1 reflection shims (tighten once playtested)
+## Playtest gate
 
-Several game-API calls are currently wired via reflection so the project compiles without me guessing concrete namespaces. Once the first playtest confirms the real types, replace each shim with a direct typed call:
+Before v1 release:
 
-- `ApprovalEvent.AllConnectedHumans()`: walks `OcclusionManager.AllThings` filtering by type name ending in "Human". Replace with a direct reference to the actual enumeration API (likely `Human.AllHumans` or `NetworkManager.Players` under a concrete namespace). Verify against decompiled `Human` class.
-- `ApprovalEvent.SetStun()`: tries `DamageState.Stun` property, then field, then a `Damage(Set, value, Stun)` method via reflection. Replace with the direct call pattern from `Research/Workflows/KnockPlayerUnconscious.md` once the exact `ChangeDamageType` / `DamageUpdateType` enum namespaces are confirmed.
-- `ApprovalEvent.SpawnCapsuleFor()`: resolves `LanderCapsule`, `Prefab`, `OnServer` types by name at runtime. Replace with direct type references once their namespaces are confirmed (likely `Assets.Scripts.Objects.Lander*` and `Assets.Scripts.Networking.OnServer`).
-- `RepairSweep.ZeroIncidentChannels()`: property/field reflection over channel names. Acceptable long-term because it handles both `ThingDamageState` (2 channels) and `OrganicDamageState` (9 channels) without a type switch, but benchmark during playtest and tighten if the overhead matters.
-- `TelemetryCollector.IsBroken()` and `RepairSweep.IsBroken()`: reflection on `Structure.IsBroken`. Replace with direct property access once confirmed.
-
-None of these shims block the first build or the first playtest; they just make the code more verbose and slightly slower than it needs to be.
+- [ ] Remove the `[DEBUG-APPROVE]` chat hook in `ChatPatch.Postfix`. It currently fires `ApprovalEvent.Start()` immediately on any chat message containing the literal token, in both Debug and Release builds. Kept unconditional during playtest so testers can trigger the event without waiting for the LLM. The hook is a 6-line block just after the loop guard; delete it, log nothing.
 
 ## Cross-cutting
 
@@ -168,3 +162,5 @@ None of these shims block the first build or the first playtest; they just make 
 - [ ] Review persona #11 (Vilhelm Orr), #14 (Lothar Schein), #28 (Rosamund Fickle), #31 (Barnabas Ulmen), #71 (Horatio Pinn), #74 (Emrys Dobbler), #91 (Pascal Umber-Vogel) for tone fit. Sub-agent flagged these as borderline against the "not magical, not supernatural, not too whimsical" constraint.
 - [ ] Update `RESEARCH.md` (mod-local) when architecture or patch behavior changes. Game-internals go to central `Research/`, not here.
 - [ ] Before every publish, verify `<Description>` under 7900 characters.
+- [x] Replace reflection shims with concrete game-API calls. Decompilation against 0.2.6228.27061 confirmed `Human.AllHumans`, `human.DamageState.Damage(ChangeDamageType.Set, v, DamageUpdateType.Stun)`, `Prefab.Find<LanderCapsule>("LanderCapsule")` (string required, no parameterless overload), `OnServer` in the global namespace, `Structure.IsBroken` property, and that `ChatMessage` has no channel field. All shims removed from `ApprovalEvent.cs`, `RepairSweep.cs`, `TelemetryCollector.cs`.
+- [x] Swap `Newtonsoft.Json` for `UnityEngine.JsonUtility`. `OfficerPersona` converted to `[Serializable]` public fields; `PersonaMemoryStore` uses a private `MemoryFile` carrier class because JsonUtility cannot serialize a top-level `List<T>`. Matches the `Mods/InspectorPlus` convention of avoiding Newtonsoft.

@@ -2,12 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Newtonsoft.Json;
+using UnityEngine;
 
 namespace MaintenanceBureauPlus
 {
+    // Persistent super-summary store. JSON round-trip via UnityEngine.JsonUtility
+    // (built-in; no extra NuGet package) wrapped in a [Serializable] carrier
+    // because JsonUtility cannot serialize a top-level List<T> directly.
     public class PersonaMemoryStore
     {
+        [System.Serializable]
+        private class MemoryFile
+        {
+            public List<string> summaries = new List<string>();
+        }
+
         private readonly string _path;
         private readonly int _cap;
         private List<string> _summaries = new List<string>();
@@ -30,7 +39,8 @@ namespace MaintenanceBureauPlus
                     return;
                 }
                 var json = File.ReadAllText(_path);
-                _summaries = JsonConvert.DeserializeObject<List<string>>(json) ?? new List<string>();
+                var file = JsonUtility.FromJson<MemoryFile>(json);
+                _summaries = (file != null && file.summaries != null) ? file.summaries : new List<string>();
                 MaintenanceBureauPlusPlugin.Log.LogInfo("PersonaMemoryStore loaded " + _summaries.Count + " entries from " + _path);
             }
             catch (Exception ex)
@@ -56,7 +66,8 @@ namespace MaintenanceBureauPlus
                 var dir = Path.GetDirectoryName(_path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                File.WriteAllText(_path, JsonConvert.SerializeObject(_summaries, Formatting.Indented));
+                var file = new MemoryFile { summaries = new List<string>(_summaries) };
+                File.WriteAllText(_path, JsonUtility.ToJson(file, true));
             }
             catch (Exception ex)
             {
