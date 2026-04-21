@@ -30,16 +30,16 @@ You can transmit any distance you like, but long-range transmission is paid for 
 [h3]Logic Readouts[/h3]
 Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
 [list]
-[*][b]MicrowaveSourceDraw[/b] (6571): watts pulled from the source cable network
-[*][b]MicrowaveDestinationDraw[/b] (6572): watts delivered to the receiver's cable network
-[*][b]MicrowaveTransmissionLoss[/b] (6573): source minus destination (watts lost to distance)
-[*][b]MicrowaveEfficiency[/b] (6574): delivered / source as a 0..1 ratio
-[*][b]MicrowaveLinkedPartner[/b] (6576): ReferenceId of the linked partner dish (0 when unlinked)
+[*][b]MicrowaveSourceDraw[/b]: watts pulled from the source cable network
+[*][b]MicrowaveDestinationDraw[/b]: watts delivered to the receiver's cable network
+[*][b]MicrowaveTransmissionLoss[/b]: source minus destination (watts lost to distance)
+[*][b]MicrowaveEfficiency[/b]: delivered / source as a 0..1 ratio
+[*][b]MicrowaveLinkedPartner[/b]: ReferenceId of the linked partner dish (0 when unlinked)
 [/list]
-The power readouts (6571-6574) return 0 when the link is down, the device is off, or no power is flowing. MicrowaveLinkedPartner returns 0 only when unlinked, regardless of power state.
+The power readouts return 0 when the link is down, the device is off, or no power is flowing. MicrowaveLinkedPartner returns 0 only when unlinked, regardless of power state.
 
 [h3]Auto-Aim[/h3]
-A writable logic type [b]MicrowaveAutoAimTarget[/b] (6575) on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. This enables IC10 patterns like switching transmit target when remote batteries fill.
+A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. This enables IC10 patterns like switching transmit target when remote batteries fill.
 
 [h3]Settings[/h3]
 
@@ -78,7 +78,7 @@ All settings are server-authoritative: the host's values control gameplay and vi
 
 [b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + PowerTransmitterPlus setup installed server-side. The distance-cost simulation runs server-authoritatively and the handshake rejects mixed installs.
 
-[b]Custom logic type range[/b] 6571-6599 is reserved by this mod. Any other mod that registers a LogicType in that range will collide. The range sits well outside the vanilla enum (0-349) and the range used by Stationeers Logic Extended (1000-1830).
+[b]Custom logic types[/b] registered by this mod sit in a reserved range outside the vanilla enum and the range used by Stationeers Logic Extended, so collisions with those are avoided. Another mod that registers a LogicType inside this mod's reserved range would collide; the exact range is documented in the source for mod authors who need it.
 
 [h2]Reporting Issues[/h2]
 If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
@@ -152,8 +152,8 @@ Adds a visible beam, scrolling pulses, a configurable distance cost, and new log
 - Visible laser beam between linked transmitter and receiver dishes
 - Scrolling energy pulses, speed scales with power throughput
 - Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
-- Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw (6571), MicrowaveDestinationDraw (6572), MicrowaveTransmissionLoss (6573), MicrowaveEfficiency (6574), MicrowaveLinkedPartner (6576)
-- Writable MicrowaveAutoAimTarget (6575): write a Thing's ReferenceId to auto-aim the dish; write 0 to disable
+- Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveLinkedPartner
+- Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable
 - Full multiplayer support with server-authoritative simulation
 
 <b>Settings:</b>

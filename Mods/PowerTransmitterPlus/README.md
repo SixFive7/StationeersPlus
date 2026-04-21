@@ -35,22 +35,22 @@ You can transmit any distance you like, but long-range transmission is paid for 
 ### Logic Readouts
 Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
 
-| Name | Value | Units |
-|---|---:|---|
-| `MicrowaveSourceDraw` | 6571 | watts pulled from the source cable network |
-| `MicrowaveDestinationDraw` | 6572 | watts delivered to the receiver's cable network |
-| `MicrowaveTransmissionLoss` | 6573 | source minus destination (watts lost to distance) |
-| `MicrowaveEfficiency` | 6574 | delivered / source as a 0..1 ratio |
-| `MicrowaveLinkedPartner` | 6576 | ReferenceId of the linked partner dish (0 when unlinked) |
+| Name | Units |
+|---|---|
+| `MicrowaveSourceDraw` | watts pulled from the source cable network |
+| `MicrowaveDestinationDraw` | watts delivered to the receiver's cable network |
+| `MicrowaveTransmissionLoss` | source minus destination (watts lost to distance) |
+| `MicrowaveEfficiency` | delivered / source as a 0..1 ratio |
+| `MicrowaveLinkedPartner` | ReferenceId of the linked partner dish (0 when unlinked) |
 
-The power readouts (6571-6574) return 0 when the link is down, the device is off, or no power is flowing. `MicrowaveLinkedPartner` returns 0 only when unlinked, regardless of power state. On a transmitter it returns the linked receiver's ReferenceId; on a receiver it returns the linked transmitter's ReferenceId.
+The power readouts return 0 when the link is down, the device is off, or no power is flowing. `MicrowaveLinkedPartner` returns 0 only when unlinked, regardless of power state. On a transmitter it returns the linked receiver's ReferenceId; on a receiver it returns the linked transmitter's ReferenceId.
 
 ### Auto-Aim
-A fifth logic type, `MicrowaveAutoAimTarget` (value 6575), is **writable** on both transmitter and receiver. Write a Thing's `ReferenceId` and the dish slews to point at it via the built-in servo; the base game's line-of-sight link raycast decides when the actual pairing forms, so obstacles in the path still take priority like in vanilla.
+A fifth logic type, `MicrowaveAutoAimTarget`, is **writable** on both transmitter and receiver. Write a Thing's `ReferenceId` and the dish slews to point at it via the built-in servo; the base game's line-of-sight link raycast decides when the actual pairing forms, so obstacles in the path still take priority like in vanilla.
 
-| Name | Value | Behavior |
-|---|---:|---|
-| `MicrowaveAutoAimTarget` | 6575 | Write: target's ReferenceId (0 disables). Read: current target id |
+| Name | Behavior |
+|---|---|
+| `MicrowaveAutoAimTarget` | Write: target's ReferenceId (0 disables). Read: current target id |
 
 Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op.
 
@@ -123,7 +123,7 @@ All settings are server-authoritative: the host's values control gameplay and vi
 
 **Dedicated servers** need the same BepInEx + StationeersLaunchPad + PowerTransmitterPlus setup installed server-side. The distance-cost simulation runs server-authoritatively and the handshake rejects mixed installs.
 
-**Custom logic type range** 6571-6599 is reserved by this mod. Any other mod that registers a LogicType in that range will collide. The range sits well outside the vanilla enum (0-349) and the range used by Stationeers Logic Extended (1000-1830).
+**Custom logic types** registered by this mod sit in a reserved range outside the vanilla enum and the range used by Stationeers Logic Extended, so collisions with those are avoided. Another mod that registers a LogicType inside this mod's reserved range would collide; the exact range is documented in the source for mod authors who need it.
 
 ## Reporting Issues
 
