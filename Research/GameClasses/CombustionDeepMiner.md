@@ -245,7 +245,23 @@ public void HandleGasOutput(PressurekPa pressurePerTick, PipeNetwork inputNetwor
 }
 ```
 
-`_targetPressure` resolves to `RunningTargetPressure` = 4000 kPa while running. Above that, up to 10% of the overpressure vents per tick (bounded by pipe transfer capacity). No damage or efficiency penalty for venting; it is pure loss of unburned mixture into the output pipe.
+`_targetPressure` resolves to `RunningTargetPressure` while running, defined verbatim as:
+
+```csharp
+// InternalCombustion class field
+private static readonly PressurekPa RunningTargetPressure = new PressurekPa(4000.0);
+```
+
+`PressurekPa` is a struct wrapper around a raw `double _value` (1.0 in `PressurekPa` space = 1 kPa; no scaling factor), so the target is 4000 kPa exactly. No sibling constants (`StartingTargetPressure`, `IdleTargetPressure`, etc.) exist; this single value governs every running-state venting decision.
+
+During shutdown, the target slides down proportional to RPM:
+
+```csharp
+// InternalCombustion.HandleShutDown
+_targetPressure = RocketMath.Lerp(PressurekPa.Zero, RunningTargetPressure, Mathf.Clamp01(Rpm / 1000f));
+```
+
+Above the target, up to 10% of the overpressure vents per tick (bounded by pipe transfer capacity). No damage or efficiency penalty for venting; it is pure loss of unburned mixture into the output pipe.
 
 ## Logic variables
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -395,6 +411,8 @@ Caveat: the pipe network delivers whatever the player puts on the input side. Th
 ## Verification history
 
 - 2026-04-20: page created. Decompile pass against `E:\Steam\steamapps\common\Stationeers\rocketstation_Data\Managed\Assembly-CSharp.dll` via ILSpy. All section stamps set to 0.2.6228.27061.
+- 2026-04-20: re-verified `RunningTargetPressure` definition. Added verbatim `private static readonly PressurekPa RunningTargetPressure = new PressurekPa(4000.0)` quote, `HandleShutDown` Lerp quote, and `PressurekPa` unit convention note to the "Gas output and venting" section. No sibling target-pressure constants exist. Section stamp unchanged (same version, same day).
+- 2026-04-20: re-verified the step-of-10 rounding claim on both lever setters. Setter bodies unchanged from the page's existing quotes; order is `Clamp([0, 100])` then `Round(value / 10f) * 10f`. `CombustionDeepMiner.SetLogicValue` is a pass-through cast from double to float with no intermediate rounding. No additional Float16 quantization on the network-serialization path for `Throttle` / `CombustionLimiter` (both only set `NetworkUpdateFlags` bits, 4096 and 8192 respectively). Unity's `Mathf.Round` uses banker's rounding per Unity docs, but the governor never writes half-values so the behavior at .5 is not exercised.
 
 ## Open questions
 
