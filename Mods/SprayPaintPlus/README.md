@@ -50,6 +50,10 @@ The **Spray Paint Gun** becomes a self-contained glow applicator. Point at any p
 - Glow state persists across save/load and syncs correctly in multiplayer; every connected player sees the same glowing targets
 - Server toggle "Enable Glow Paint" lets admins disable the feature; when off, the gun reverts to the vanilla can-accepting behavior
 
+### Safe to Uninstall
+
+You can remove Spray Paint Plus from an existing save without breaking it. Saves written by v1.6.0+ store glow state in a side-car file (`sprayplus-glow.xml`) inside the save ZIP, alongside the vanilla `world.xml`. When the mod is absent, the vanilla loader silently ignores the side-car; the world still opens, and glowing targets render as plain painted targets. Re-install later and load a save you wrote before removing the mod, and the glow is restored. Saves you wrote during an uninstalled period are fully vanilla (no glow state to recover).
+
 ### Settings
 
 All features are configurable via the mod settings panel.

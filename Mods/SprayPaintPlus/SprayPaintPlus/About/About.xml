@@ -49,6 +49,9 @@ The [b]Spray Paint Gun[/b] becomes a self-contained glow applicator. Point at an
 [*]Server toggle "Enable Glow Paint" lets admins disable the feature; when off, the gun reverts to the vanilla can-accepting behavior
 [/list]
 
+[h3]Safe to Uninstall[/h3]
+Saves written by v1.6.0+ open cleanly without this mod installed; glow state lives in a side-car the vanilla loader ignores. Re-install later and load a pre-removal save to restore glow.
+
 [h3]Settings[/h3]
 
 All features are configurable via the mod settings panel.
@@ -95,15 +98,9 @@ All features are configurable via the mod settings panel.
 [*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url] by Elmotrix
 [/list]
 
-[b]Redundant[/b] (not detected, but pointless to run alongside this mod; disable to avoid confusion):
-[list]
-[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url] by Aspct
-[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url] by Dingo
-[/list]
+[b]Redundant[/b] (disable if installed): [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url] by Aspct, [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url] by Dingo.
 
-[b]All players[/b] on a server must have Spray Paint Plus installed. Matching mod versions are enforced during the connection handshake automatically.
-
-[b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + SprayPaintPlus setup installed server-side. The paint logic runs server-authoritatively and the handshake rejects mixed installs.
+[b]All players[/b] (including dedicated-server operators) need the same BepInEx + StationeersLaunchPad + Spray Paint Plus setup. Matching versions are enforced during the connection handshake.
 
 [h2]Reporting Issues[/h2]
 If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
@@ -232,6 +229,7 @@ Combines color cycling, network painting, glow paint, and infinite spray paint i
 - Paint with the Spray Paint Gun to add glow to existing paint (ammo-less; does not change color; cans no longer loadable)
 - Hold Shift to paint single item (or swap with config)
 - Hold Ctrl for checkered pattern
+- Safe to uninstall: saves written by v1.6.0+ open without this mod installed; glow state lives in a side-car the vanilla loader ignores
 
 <b>Settings:</b>
 All features are configurable via the mod settings panel.
