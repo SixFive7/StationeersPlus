@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.3.0</Version>
+  <Version>1.4.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
@@ -115,6 +115,16 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.4.0: Glow paint gun
+- NEW: The Spray Paint Gun is now a self-contained glow applicator. Fire at a painted target and it gains a glow halo (emissive material, visible as a bloom halo in unlit rooms); target's existing color is preserved
+- NEW: Right-click the gun to switch between Add Glow and Remove Glow modes (repurposes the vanilla on/off toggle, with the HUD label rebranded)
+- CHANGE: The gun no longer accepts spray cans. The gun has no ammo requirement and its can slot is hidden in the inventory UI
+- Color and glow are orthogonal: a can paint only changes color, a gun fire only changes glow
+- Shift (single target) and Ctrl (checkered pattern) modifiers apply to gun-paint
+- Glow state persists across save/load and syncs correctly in multiplayer; works on every vanilla paint color
+- NEW: Server toggle "Enable Glow Paint" (default On); when off, the gun reverts to accepting cans and painting their color
+- REQUIRES: All players on a server must run 1.4.0 (matching-version handshake)
+
 v1.3.0: Paint whole robotic arm rail assemblies
 - NEW: Painting any rail piece, junction, bypass, or dock paints every member of the same robotic arm assembly in one stroke
 - NEW: Server toggle "Network Paint Rails" (default On)
