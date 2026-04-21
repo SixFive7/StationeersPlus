@@ -13,3 +13,7 @@
 ## Post-release follow-up
 
 - [ ] One release cycle after v1.6.0 has propagated: remove `GlowThingSaveData.cs` and the back-compat `ThingDeserializeSaveGlowPatch`. This strands any users who skipped v1.6.0 entirely when loading a v1.5.x save, so keep the back-compat path for at least one minor version.
+
+## New features
+
+- [ ] **Right-click eyedropper on spray can.** While holding a spray can, right-click the Thing under the cursor to copy its color onto the held can. Use case: right-click an existing pipe, then left-click the neighbouring pipe to paint it the same color. Ctrl+right-click and Shift+right-click are reserved (no-op for now). Hook target: `InventoryManager.NormalMode` prefix (same site as `ColorCyclerPatch`), detect `KeyManager.GetMouseDown("Secondary")`, read `CursorManager.CursorThing.CustomColor.Index`, reuse `SprayPaintHelpers.UpdateSprayCan*` + `SprayCanColorMessage` for the sync path. Skip cases: null cursor target, non-paintable Thing, unpainted (`CustomColor.Normal == PaintableMaterial`), color index < 0 (swatch not in `GameManager.CustomColors`), or same index as current. Vanilla `SprayCan` does not override `Item.OnUseSecondary`, so there is no vanilla side-effect to coexist with.

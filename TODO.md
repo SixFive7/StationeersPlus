@@ -8,6 +8,12 @@ Cross-mod and repo-wide tasks. Per-mod tasks live in each mod's own `TODO.md`.
 
 - [ ] **Move canonical preview-image reference in `CLAUDE.md` to `Mods/Template/` once real art lands there**. The "Content: preview image dimensions" section currently points at `Mods/SprayPaintPlus/Preview.source.png` as the canonical example. When `Mods/Template/Preview.source.png` and `Mods/Template/Template/About/Preview.png` / `thumb.png` are populated with actual example images (not just the `.placeholder` text files), update `CLAUDE.md` so the Template serves as the reference, matching the pattern that new mods are seeded from `Mods/Template/`.
 
+## Repo-wide audits
+
+- [ ] **Full rules and hooks compliance sweep**: walk over every rule in `CLAUDE.md` (naming, no abbreviations, no developer-specific paths, settings-panel grouping and ordering, Apache 2.0 headers, documentation layout, AI-tells style rules) and every committed hook under `.claude/hooks/`, then audit the entire repository (`Mods/`, `Plans/`, `Research/`, `tools/`, root files) for violations. Report findings per file with the specific rule broken, then fix or list as follow-up todos.
+
+- [ ] **Template vs SprayPaintPlus parity audit**: `Mods/SprayPaintPlus/` is the reference for README and About quality. Diff `Mods/Template/README.md` and `Mods/Template/Template/About/About.xml` against SprayPaintPlus to confirm the template captures the same structure, section ordering, tagline placement, ChangeLog format, Reporting Issues block, and license section. Then walk every other mod in `Mods/` and `Plans/` and bring their README and About.xml up to the same content and layout quality, flagging gaps in a per-mod checklist.
+
 ## New mods
 
 - [ ] **BatteryBackupLightPlus**: build an improved take on alliephante's "Battery Backup Light" (https://steamcommunity.com/sharedfiles/filedetails/?id=3569109044). The base mod makes the Wall Light Battery act as an emergency backup (battery kicks in when cable power is lost) with a `LogicType.Mode` toggle between `0` (battery backup) and `1` (manual override). Improvements to address:
