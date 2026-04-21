@@ -149,6 +149,18 @@ See `Plans/TerrainReclamation/plan.md` for the full design.
 
 - [ ] Additional bureau services beyond repair and terrain. Each gated behind its own conversational loop. Each preserving the opaque-until-discovered framing: the tagline does not mention specifics.
 
+## v1 reflection shims (tighten once playtested)
+
+Several game-API calls are currently wired via reflection so the project compiles without me guessing concrete namespaces. Once the first playtest confirms the real types, replace each shim with a direct typed call:
+
+- `ApprovalEvent.AllConnectedHumans()`: walks `OcclusionManager.AllThings` filtering by type name ending in "Human". Replace with a direct reference to the actual enumeration API (likely `Human.AllHumans` or `NetworkManager.Players` under a concrete namespace). Verify against decompiled `Human` class.
+- `ApprovalEvent.SetStun()`: tries `DamageState.Stun` property, then field, then a `Damage(Set, value, Stun)` method via reflection. Replace with the direct call pattern from `Research/Workflows/KnockPlayerUnconscious.md` once the exact `ChangeDamageType` / `DamageUpdateType` enum namespaces are confirmed.
+- `ApprovalEvent.SpawnCapsuleFor()`: resolves `LanderCapsule`, `Prefab`, `OnServer` types by name at runtime. Replace with direct type references once their namespaces are confirmed (likely `Assets.Scripts.Objects.Lander*` and `Assets.Scripts.Networking.OnServer`).
+- `RepairSweep.ZeroIncidentChannels()`: property/field reflection over channel names. Acceptable long-term because it handles both `ThingDamageState` (2 channels) and `OrganicDamageState` (9 channels) without a type switch, but benchmark during playtest and tighten if the overhead matters.
+- `TelemetryCollector.IsBroken()` and `RepairSweep.IsBroken()`: reflection on `Structure.IsBroken`. Replace with direct property access once confirmed.
+
+None of these shims block the first build or the first playtest; they just make the code more verbose and slightly slower than it needs to be.
+
 ## Cross-cutting
 
 - [ ] Keep `plan.md`, `README.md`, `About.xml` in sync per the monorepo's content rule.
