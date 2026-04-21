@@ -16,6 +16,7 @@ namespace PowerTransmitterPlus
         private static float _syncedEmissionIntensity;
         private static float _syncedStripeWavelength;
         private static float _syncedScrollSpeed;
+        private static float _syncedStripeTroughBrightness;
 
         private static bool UseHostValues =>
             _received && NetworkManager.IsActive && !NetworkManager.IsServer;
@@ -50,6 +51,12 @@ namespace PowerTransmitterPlus
             return PowerTransmitterPlusPlugin.ScrollSpeed?.Value ?? 25f;
         }
 
+        internal static float GetEffectiveStripeTroughBrightness()
+        {
+            if (UseHostValues) return _syncedStripeTroughBrightness;
+            return PowerTransmitterPlusPlugin.StripeTroughBrightness?.Value ?? 0.5f;
+        }
+
         internal static void OnHostConfigReceived(BeamVisualConfigMessage msg)
         {
             _received = true;
@@ -58,11 +65,12 @@ namespace PowerTransmitterPlus
             _syncedEmissionIntensity = msg.EmissionIntensity;
             _syncedStripeWavelength = msg.StripeWavelength;
             _syncedScrollSpeed = msg.ScrollSpeed;
+            _syncedStripeTroughBrightness = msg.StripeTroughBrightness;
 
             PowerTransmitterPlusPlugin.Log?.LogInfo(
                 $"Received host visual config: width={msg.BeamWidth:F2}, color={msg.BeamColorHex}, " +
                 $"emission={msg.EmissionIntensity:F1}, wavelength={msg.StripeWavelength:F2}, " +
-                $"scroll={msg.ScrollSpeed:F1}");
+                $"scroll={msg.ScrollSpeed:F1}, trough={msg.StripeTroughBrightness:F2}");
 
             BeamManager.InvalidateAllBeams();
         }
@@ -74,6 +82,7 @@ namespace PowerTransmitterPlus
             PowerTransmitterPlusPlugin.EmissionIntensity.SettingChanged += (_, __) => BroadcastIfHost();
             PowerTransmitterPlusPlugin.StripeWavelength.SettingChanged += (_, __) => BroadcastIfHost();
             PowerTransmitterPlusPlugin.ScrollSpeed.SettingChanged += (_, __) => BroadcastIfHost();
+            PowerTransmitterPlusPlugin.StripeTroughBrightness.SettingChanged += (_, __) => BroadcastIfHost();
         }
 
         internal static void BroadcastIfHost()
@@ -86,6 +95,7 @@ namespace PowerTransmitterPlus
                 EmissionIntensity = PowerTransmitterPlusPlugin.EmissionIntensity?.Value ?? 10f,
                 StripeWavelength = PowerTransmitterPlusPlugin.StripeWavelength?.Value ?? 2f,
                 ScrollSpeed = PowerTransmitterPlusPlugin.ScrollSpeed?.Value ?? 25f,
+                StripeTroughBrightness = PowerTransmitterPlusPlugin.StripeTroughBrightness?.Value ?? 0.5f,
             }.SendAll(0L);
             PowerTransmitterPlusPlugin.Log?.LogDebug("Broadcast visual config to clients");
         }

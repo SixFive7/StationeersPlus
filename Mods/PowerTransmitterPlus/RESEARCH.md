@@ -23,7 +23,7 @@ Feature pillars (server-authoritative BepInEx mod enhancing the Microwave Power 
 2. A texture-scroll pulse train along the beam whose speed scales with delivered power (`sqrt(intensity) x configured m/s`).
 3. Replacement of the vanilla distance-based capacity derate with a source-draw overhead: per watt delivered, the source pulls `1 + k x distance_km` watts (server-authoritative `k`, live-broadcast on change).
 4. Six new LogicTypes on both transmitter and receiver: `MicrowaveSourceDraw` (6571), `MicrowaveDestinationDraw` (6572), `MicrowaveTransmissionLoss` (6573), `MicrowaveEfficiency` (6574), `MicrowaveAutoAimTarget` (6575, writable), `MicrowaveLinkedPartner` (6576, read-only). Readable from configuration tablet and from IC10 by name. Auto-aim writes a target Thing's `ReferenceId` and slews the dish via the vanilla servo; `TryContactReceiver` handles link establishment. `MicrowaveLinkedPartner` returns the `ReferenceId` of the currently linked partner dish (0 when unlinked).
-5. Server-authoritative visual sync: in multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients via `BeamVisualConfigMessage`, overriding client-local config.
+5. Server-authoritative visual sync: in multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed, trough brightness) are always broadcast to all clients via `BeamVisualConfigMessage`, overriding client-local config.
 
 The mod preserves vanilla gameplay rules everywhere possible: the `TryContactReceiver` raycast still decides when pairs link (so "obstacle in the path" behavior is intact), the dish slew servo still animates rotations, `LinkedReceiver` / `LinkedPowerTransmitter` are never written directly.
 
@@ -106,7 +106,7 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 
 `DistanceConfigSync.cs` - Static class. Holds `_syncedHostK : float?` (null until first message arrives). `GetEffectiveK()` returns local config on host or single-player, synced value (or local fallback) on client. `OnHostConfigReceived(float k)` stores value and logs change. `HookHostBroadcast()` subscribes to `DistanceCostFactor.SettingChanged` to call `BroadcastIfHost()`. `BroadcastIfHost()` if `IsServer`, builds and `SendAll(0L)`s a `DistanceConfigMessage`. `[HarmonyPatch(typeof(NetworkManager), "PlayerConnected")]` postfix calls `BroadcastIfHost()` on every join.
 
-`BeamVisualConfigMessage.cs` - `INetworkMessage` carrying five fields: `BeamWidth`, `BeamColorHex`, `EmissionIntensity`, `StripeWavelength`, `ScrollSpeed`. Serialized via `RocketBinaryWriter/Reader`. `Process()` ignores on server; on client calls `BeamVisualConfigSync.OnHostConfigReceived()`.
+`BeamVisualConfigMessage.cs` - `INetworkMessage` carrying six fields: `BeamWidth`, `BeamColorHex`, `EmissionIntensity`, `StripeWavelength`, `ScrollSpeed`, `StripeTroughBrightness`. Serialized via `RocketBinaryWriter/Reader`. `Process()` ignores on server; on client calls `BeamVisualConfigSync.OnHostConfigReceived()`.
 
 `BeamVisualConfigSync.cs` - Static sync manager mirroring the `DistanceConfigSync` pattern. Stores host-pushed visual values and a `_received` flag (set on first message). `UseHostValues`: true when `_received` AND `NetworkManager.IsActive` AND NOT `IsServer`. `GetEffective*()` methods (BeamWidth, BeamColorHex, EmissionIntensity, StripeWavelength, ScrollSpeed) return synced values when on a client with host values received, local config otherwise. Called by `BeamManager`, `BeamLine`, and `BeamPulseTrain` instead of reading `Plugin` config directly. `OnHostConfigReceived()` stores values, logs, then calls `BeamManager.InvalidateAllBeams()` to force beam recreation with updated visuals. `HookHostBroadcast()` wires `SettingChanged` on all five visual config entries to call `BroadcastIfHost()`. `BroadcastIfHost()` if `IsServer`, builds and `SendAll(0L)`s a `BeamVisualConfigMessage` with current visual values.
 
@@ -164,7 +164,7 @@ All in `BepInEx/config/net.powertransmitterplus.cfg`.
 | Visual | `Emission Intensity` | `10.0` | HDR brightness multiplier. Matches game's HDR intensity |
 | Pulse | `Stripe Wavelength` | `2.0` | Meters between pulse peaks. World-space, same on 5m and 200m beams |
 | Pulse | `Scroll Speed` | `25.0` | m/s at full power (5 kW delivered). Scales with `sqrt(intensity)`; draws above 5 kW (enabled by the distance-cost patches) exceed this |
-| Pulse | `Trough Brightness` | `0.5` | 0..1, beam brightness between pulses. Affects cached stripe texture (regenerates on game restart; see pitfall below) |
+| Pulse | `Trough Brightness` | `0.5` | 0..1, beam brightness between pulses |
 | Distance | `Cost Factor (k)` | `5.0` | **Server-authoritative.** Per-km overhead on source draw |
 
 The beam shader is fixed to the fallback chain `Legacy Shaders/Particles/Additive` -> `Particles/Additive` -> `Sprites/Default` -> `Hidden/Internal-Colored` (see `BeamManager.SharedMaterial`). Not user-configurable: Stationeers ships a single Unity build, no alternative in that build looks meaningfully better than Additive, and a misconfigured value would either fall back silently or degrade the beam look.
@@ -255,7 +255,7 @@ See `Protocols/PowerTransmitterPlusNetworking.md` for the full message schema an
 | `MOD.Networking.Required = true` | LaunchPad version handshake catches clients with missing or mismatched installs |
 | Visual sync always active in multiplayer | Keeps all players on the same page visually. Simplest model: host is authoritative for visuals just like for gameplay (k). No toggle to explain, no split behavior |
 | Visual sync invalidates all beams on receipt | Beam color and width are set in the `BeamLine` constructor and not updated thereafter. Destroying and letting `SetLineIntensityOnMain` recreate them is the simplest path to apply new visuals without adding per-frame config reads to the line renderer |
-| Visual sync does not sync Trough Brightness | Baked into the cached `StripeTexture` created once at first beam. Invalidating that cache safely across all beam instances adds complexity for a setting players rarely change |
+| Visual sync invalidates the cached stripe texture on receipt | Trough Brightness is baked into `StripeTexture` at creation. Sync path destroys the cached texture alongside the beams so the next beam rebuilds it from the new value |
 | `MicrowaveLinkedPartner` is per-dish (not forwarded through the link) | A transmitter returns its receiver's id and vice versa. Forwarding through the link would require picking one side, which is ambiguous on the receiver (it could in theory be linked to multiple transmitters, though vanilla only allows one) |
 | On-the-fly readout computation, no cache | Readouts compute from `OutputNetwork.CurrentLoad` and `_linkedReceiverDistance` in the `GetLogicValue` prefix. Both are already client-synced. No `PowerStatsTracker` dictionary, no per-tick stamping, no age-out. Snap-to-zero is automatic when delivered = 0. |
 
@@ -490,10 +490,6 @@ Do not disable any one without considering the others.
 ### `0.202` is float16 quantization
 
 Network serialization quantizes floats to half-precision. `0.2` is not exactly representable; the nearest representable above is `0.2002...`, which prints as `0.202`. Useful for diagnosing "weird value just above the expected" reports. See `Patterns/Float16Quantization.md`.
-
-### Stripe trough brightness changes require game restart
-
-`BeamManager.StripeTexture` is created once and cached. Changing `Trough Brightness` only takes effect on game restart (the static `_stripeTexture` field is null then).
 
 ### Harmony attribute lookup and inherited methods
 

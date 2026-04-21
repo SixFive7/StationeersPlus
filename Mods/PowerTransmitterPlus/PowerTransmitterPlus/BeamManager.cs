@@ -31,7 +31,7 @@ namespace PowerTransmitterPlus
                     filterMode = FilterMode.Bilinear,
                     hideFlags = HideFlags.HideAndDontSave,
                 };
-                var trough = Mathf.Clamp01(PowerTransmitterPlusPlugin.StripeTroughBrightness?.Value ?? 0.5f);
+                var trough = Mathf.Clamp01(BeamVisualConfigSync.GetEffectiveStripeTroughBrightness());
                 for (int i = 0; i < width; i++)
                 {
                     float t = i / (float)width;
@@ -93,6 +93,15 @@ namespace PowerTransmitterPlus
                 if (beam != null && !beam.IsDestroyed) beam.Destroy();
             }
             Beams.Clear();
+
+            // Trough Brightness is baked into the stripe texture at creation, so
+            // drop the cache here so the next beam rebuilds it from the current
+            // (possibly just-synced) value.
+            if (_stripeTexture != null)
+            {
+                UnityEngine.Object.Destroy(_stripeTexture);
+                _stripeTexture = null;
+            }
         }
 
         // Primary signal. VisualizerIntensity (0..1) drives both on/off and

@@ -3,7 +3,7 @@ title: PowerTransmitterPlus Networking
 type: Protocols
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-04-21
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:696-711
   - Mods/PowerTransmitterPlus/RESEARCH.md:715-732
@@ -69,12 +69,13 @@ Effective k decision:
 ```
 
 ## Visual config sync
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
 ```
 Host:
   On BeamWidth/BeamColorHex/EmissionIntensity/
-     StripeWavelength/ScrollSpeed.SettingChanged -> BeamVisualConfigSync.BroadcastIfHost()
+     StripeWavelength/ScrollSpeed/
+     StripeTroughBrightness.SettingChanged -> BeamVisualConfigSync.BroadcastIfHost()
   On NetworkManager.PlayerConnected (postfix)   -> BroadcastIfHost()
   BroadcastIfHost(): if IsServer, new BeamVisualConfigMessage{...}.SendAll(0L)
 
@@ -84,6 +85,8 @@ Client:
   OnHostConfigReceived(msg):
     store all values, set _received = true
     call BeamManager.InvalidateAllBeams() to force beam recreation
+    (InvalidateAllBeams also destroys the cached stripe texture so the
+     next beam rebuilds it from the new trough brightness value)
 
 Effective value decision (per GetEffective* method):
   _received AND IsActive AND !IsServer -> synced value from host
@@ -95,9 +98,10 @@ Effective value decision (per GetEffective* method):
 Server-authoritative visual config sync. The host's beam visual settings always override client-local config in multiplayer. Mirrors the DistanceConfigSync pattern: host pushes values on connect and on every visual config change; clients store them and return them from GetEffective* methods.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
 - 2026-04-20: page created from the Research migration. Primary sources: F0056 (distance-cost k protocol) and F0057 (visual config protocol). Additional sources cited: F0311 (DistanceConfigSync.cs class header), F0317 (DistanceConfigMessage.cs class header), F0366 (BeamVisualConfigSync.cs class header).
+- 2026-04-21: visual config sync extended to carry `StripeTroughBrightness`. `BeamVisualConfigMessage` now serializes six fields (sixth float appended after `ScrollSpeed`). `BeamManager.InvalidateAllBeams` additionally destroys the cached `StripeTexture` so the next beam rebuilds it from the synced value.
 
 ## Open questions
 

@@ -13,6 +13,7 @@ namespace PowerTransmitterPlus
         public float EmissionIntensity;
         public float StripeWavelength;
         public float ScrollSpeed;
+        public float StripeTroughBrightness;
 
         public void Serialize(RocketBinaryWriter writer)
         {
@@ -21,6 +22,7 @@ namespace PowerTransmitterPlus
             writer.WriteSingle(EmissionIntensity);
             writer.WriteSingle(StripeWavelength);
             writer.WriteSingle(ScrollSpeed);
+            writer.WriteSingle(StripeTroughBrightness);
         }
 
         public void Deserialize(RocketBinaryReader reader)
@@ -30,6 +32,7 @@ namespace PowerTransmitterPlus
             EmissionIntensity = reader.ReadSingle();
             StripeWavelength = reader.ReadSingle();
             ScrollSpeed = reader.ReadSingle();
+            StripeTroughBrightness = reader.ReadSingle();
         }
 
         public void Process(long hostId)

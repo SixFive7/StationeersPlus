@@ -100,7 +100,7 @@ All features are configurable via the mod settings panel.
 | Emission Intensity | 10.0 | HDR brightness multiplier on the beam color |
 | Stripe Wavelength | 2.0 | Distance in world meters between one pulse and the next |
 | Scroll Speed | 25.0 | Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with `sqrt(intensity)` so low loads still move visibly |
-| Trough Brightness | 0.5 | Beam brightness between pulses, 0..1. Regenerates on game restart |
+| Trough Brightness | 0.5 | Beam brightness between pulses, 0..1 |
 
 **Server settings** (the host's value controls gameplay and visuals for everyone):
 
@@ -108,7 +108,7 @@ All features are configurable via the mod settings panel.
 |---|---|---|
 | Cost Factor (k) | 5.0 | Per-kilometer overhead on transmitter source draw. `k = 0` disables the overhead entirely; `k = 10` doubles it compared to the default. Live-broadcast to all connected clients when changed |
 
-In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are always broadcast to all clients on connect and on change. Clients see the host's beam appearance, not their own local config.
+In multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed, trough brightness) are always broadcast to all clients on connect and on change. Clients see the host's beam appearance, not their own local config.
 
 ## Compatibility
 
