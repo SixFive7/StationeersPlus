@@ -116,11 +116,38 @@ Hook choices for a right-click intercept on a specific item type:
 
 For the spray-can eyedropper, patching at the `InventoryManager.NormalMode` layer mirrors the existing `ColorCyclerPatch` and keeps all client-side spray-can input polling in one place. Reading `CursorManager.CursorThing` at that layer gives the looked-at Thing client-side with no server round-trip, consistent with the attack-resolve path (`OnServer.AttackWith` receives a resolved `Thing`, but the client already knows the target via `CursorThing` in `HandlePrimaryUse`; the secondary path does not auto-resolve a target, so a client-side read of `CursorThing` is both the only and the correct source).
 
+### Parallel secondary-action dispatch via KeyManager
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-22 -->
+
+Right-click has a SECOND dispatch edge independent of `NormalMode`. `KeyManager.cs` line 141: `KeyMap._SecondaryAction.Bind(InputPhase.Up, ToggleActiveHandTool, KeyInputState.Game)`. The mouse-UP edge triggers `HumanHandsBehaviour.ToggleActiveHandTool` (also bound at line 140 to `KeyMap._ToggleHandPower`).
+
+```
+public void ToggleActiveHandTool()
+{
+    if (!_human.IsUnresponsive && !_human.IsSleeping && !InputMouse.IsMouseControl && !InputWindowBase.IsInputWindow)
+    {
+        Slot slot = ActiveHand.Slot;
+        if ((bool)slot.Occupant && slot.Occupant.CheckTogglePower() && slot.Occupant.ShouldToggleOn())
+        {
+            int state = ((!slot.Occupant.OnOff) ? 1 : 0);
+            slot.Occupant.Interact(InteractableType.OnOff, state);
+            PanelHands.Instance.HandlePowerOnSwitch(slot.Display.SlotDisplayButton.IsLeftHand);
+        }
+    }
+}
+```
+
+`DynamicThing.CheckTogglePower()` (line 1085) defaults to `return CanTogglePower;`. `Tool.CheckTogglePower()` (line 50) overrides with `return base.CanTogglePower;`. `Consumable` has no override. `SprayCan : Consumable` therefore resolves to the `DynamicThing` default (returns `CanTogglePower`); on the can prefab `CanTogglePower` is false, so `ToggleActiveHandTool` early-returns at the `CheckTogglePower()` gate without calling `Interact`. The mouse-up edge is therefore a no-op for a bare can in vanilla. The gun sets the prefab flag true, which is why its right-click toggle fires (see `SprayGun.md` "OnOff state, toggle, label").
+
+Timing: `NormalMode` fires on `GetMouseDown` (edge-triggered) at line 2159; the `KeyManager` binding fires on `InputPhase.Up` (edge-triggered on release). Both edges are reachable in a single right-click gesture; they do not conflict because they fire at different phases, and both are no-ops for a bare can in vanilla. A mod that intercepts `NormalMode`'s mouse-down edge for the can does not interact with the `ToggleActiveHandTool` mouse-up edge.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-22 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0116, F0334. No conflicts.
 - 2026-04-22: added "Secondary-use (right-click) routing" section. Additive only; no existing content changed. Source: decompile of `Assets.Scripts.Inventory.InventoryManager.NormalMode` (line ~2159) and `Assets.Scripts.Objects.Item.OnUseSecondary` (line ~399) in game version 0.2.6228.27061. Confirmed `SprayCan` does not override `OnUseSecondary` by decompiling `Assets.Scripts.Objects.Items.SprayCan` (no `OnUseSecondary` / `AllowSelfUse` members declared).
+- 2026-04-22: added "Parallel secondary-action dispatch via KeyManager" subsection documenting the second right-click edge via `KeyManager.cs:141` (`KeyMap._SecondaryAction.Bind(InputPhase.Up, ToggleActiveHandTool)`) and the `CheckTogglePower` / `ShouldToggleOn` gates (`DynamicThing.cs:1085`, `Tool.cs:50`, `DynamicThing.cs:1179`) that make the mouse-up edge a no-op for a bare `SprayCan` because `Consumable` inherits the `CanTogglePower == false` default. Additive.
 
 ## Open questions
 
