@@ -16,6 +16,7 @@ Prose around excerpts (section intros, transition sentences) may be tightened fo
 
 Every central page starts with YAML frontmatter:
 
+```
 ---
 title: <human-readable name, usually matches game class or pattern>
 type: <category: GameClasses | GameSystems | Patterns | Protocols | Workflows | Unsorted>
@@ -29,6 +30,7 @@ related:
   - <relative link to related central page>
 tags: [<optional searchable terms from the canonical vocabulary>]
 ---
+```
 
 Pages in `Research/Unsorted/` still carry full frontmatter; `type: Unsorted`.
 
