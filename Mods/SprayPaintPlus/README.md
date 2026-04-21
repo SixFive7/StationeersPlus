@@ -54,27 +54,39 @@ The **Spray Paint Gun** becomes a self-contained glow applicator. Point at any p
 
 All features are configurable via the mod settings panel.
 
-**Client settings** (personal preference, each player sets independently):
+Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the twelve entries under four headers:
+
+**Client - Preferences**:
 
 | Setting | Default | Description |
 |---|---|---|
-| Invert Color Scroll Direction | Off | Reverse the scroll wheel direction |
 | Paint Single Item By Default | Off | Swap Shift behavior: single paint by default, hold Shift for network paint |
+| Invert Color Scroll Direction | Off | Reverse the scroll wheel direction |
 
-**Server settings** (the server's value controls gameplay for everyone):
+**Server - Consumables**:
 
 | Setting | Default | Description |
 |---|---|---|
 | Unlimited Spray Paint Uses | On | Infinite spray cans |
 | Suppress Spray Paint Pollution | On | No pollutant gas when spraying |
+
+**Server - Glow Paint**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Enable Glow Paint | On | The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior |
+
+**Server - Network Painting**:
+
+| Setting | Default | Description |
+|---|---|---|
 | Enable Network Painting | On | Paint entire networks at once |
 | Network Paint Pipes | On | Include pipes in network painting |
 | Network Paint Cables | On | Include cables in network painting |
 | Network Paint Chutes | On | Include chutes in network painting |
 | Network Paint Walls | On | Paint all same-type walls bounding the same room |
-| Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
 | Network Paint Rails | On | Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke |
-| Enable Glow Paint | On | The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior |
+| Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
 
 ## Compatibility
 
