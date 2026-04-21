@@ -109,6 +109,26 @@ Rules:
 - `<InGameDescription>` is wrapped in `<![CDATA[...]]>` everywhere. Unity rich text (`<size>`, `<color>`, `<b>`) inside the CDATA block is raw, not escaped.
 - When seeding a new mod from `Mods/Template/`, preserve the element order and the empty `<WorkshopHandle>` verbatim.
 
+## Content: About.xml element size caps
+
+Steam Workshop enforces per-element size limits on `About.xml`. Exceeding a cap causes Steam to truncate the value mid-BBCode on the Workshop listing page and in the in-game mod browser, which visibly breaks the rendered layout even though the underlying BBCode is valid.
+
+Caps per element:
+
+- `<Description>`: 8000 characters including BBCode markup. Count the UTF-8 content inside the element, not the wrapping `<Description>...</Description>` tags.
+- `<ChangeLog>`: 8000 characters (also stated in "Content: changelog lives in About.xml only").
+- `<InGameDescription>`: no hard cap observed, but keep it short enough to read in the tight in-game settings panel.
+
+Verify `<Description>` content size on every edit that touches it:
+
+```bash
+awk '/<Description>/{flag=1; sub(/.*<Description>/,"")} /<\/Description>/{sub(/<\/Description>.*/,""); print; flag=0; exit} flag' About.xml | wc -c
+```
+
+Target at most 7900 characters to leave room for future additions. Cap violations are invisible in a source diff; they only manifest as a broken Workshop listing, so the check must be run proactively.
+
+When `About.xml` size constraints and `README.md` clarity conflict, `README.md` is the long-form source of truth; `<Description>` is the compressed Workshop mirror per the "Content: keep README and About in sync" rule. Trim prose in the Description first (explanatory paragraphs, long parentheticals, redundant qualifiers) before cutting sections or setting entries players need.
+
 ## Content: Reporting Issues section
 
 Every mod's `README.md` and `About.xml` `<Description>` must include a "Reporting Issues" section directing users to the monorepo's GitHub issues page. Steam Workshop comment notifications are unreliable, so bug reports left as Workshop comments often go unseen. Point users at GitHub instead.
