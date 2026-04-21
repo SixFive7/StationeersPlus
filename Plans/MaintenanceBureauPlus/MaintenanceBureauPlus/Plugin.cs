@@ -1,0 +1,179 @@
+using BepInEx;
+using BepInEx.Configuration;
+using BepInEx.Logging;
+using HarmonyLib;
+using Assets.Scripts.Objects;
+using LaunchPadBooster;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+
+namespace MaintenanceBureauPlus
+{
+    [BepInDependency("stationeers.launchpad", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    public class MaintenanceBureauPlusPlugin : BaseUnityPlugin
+    {
+        public const string PluginGuid = "net.sixfive7.maintenancebureauplus";
+        public const string PluginName = "MaintenanceBureauPlus";
+        public const string PluginVersion = "0.1.0";
+
+        internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
+
+        internal static ManualLogSource Log;
+        internal static LlmEngine Engine;
+        internal static PersonaRegistry Personas;
+        internal static PersonaMemoryStore Memory;
+        internal static ConversationState Conversation;
+        internal static string PluginDir;
+
+        // User-visible settings. Everything else is hardcoded below.
+        internal static ConfigEntry<int> MinTurns;
+        internal static ConfigEntry<int> MaxTurns;
+
+        // Hardcoded constants. Change requires a code edit + new release.
+        public const string ModelFileName = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+        public const int MaxTokensPerReply = 384;
+        public const int MaxTokensForClosing = 512;
+        public const int MaxTokensForPersonaSelection = 256;
+        public const int MaxTokensForSuperSummary = 64;
+        public const float Temperature = 0.8f;
+        public const int InferenceThreads = 4;
+        public const int ContextSize = 4096;
+        public const int PersonaMemoryCap = 200;
+        public const int StunBlackout = 100;
+        public const int StunWakeDuringDescent = 80;
+        public const int TranscriptTailTurns = 20;
+
+        private volatile bool _modelReady;
+        private volatile bool _patchesApplied;
+
+        void Awake()
+        {
+            Log = Logger;
+            BindConfig();
+
+            Conversation = new ConversationState();
+
+            Personas = new PersonaRegistry();
+            Personas.LoadFromEmbeddedResource();
+
+            PluginDir = Path.GetDirectoryName(Info.Location);
+            var stateDir = Path.Combine(PluginDir, "state");
+            var memoryPath = Path.Combine(stateDir, "persona_memory.json");
+            Memory = new PersonaMemoryStore(memoryPath, PersonaMemoryCap);
+            Memory.Load();
+
+            Prefab.OnPrefabsLoaded += OnAllModsLoaded;
+        }
+
+        private void OnAllModsLoaded()
+        {
+            Prefab.OnPrefabsLoaded -= OnAllModsLoaded;
+
+            var modelsDir = Path.Combine(PluginDir, "models");
+            var modelPath = Path.Combine(modelsDir, ModelFileName);
+
+            if (!File.Exists(modelPath))
+            {
+                Log.LogError("Model file not found: " + modelPath);
+                Log.LogError("Download a GGUF model and place it at: " + modelPath);
+                Log.LogError("Expected filename: " + ModelFileName);
+                return;
+            }
+
+            Log.LogInfo("Loading model in background: " + modelPath);
+
+            var loaderThread = new Thread(() =>
+            {
+                try
+                {
+                    Engine = new LlmEngine();
+                    Engine.Load(modelPath, ContextSize, InferenceThreads);
+                    Log.LogInfo("Model loaded. Patches apply on the next frame.");
+                    _modelReady = true;
+                }
+                catch (Exception e)
+                {
+                    Log.LogFatal("Background model load failed: " + e);
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "MBP-ModelLoad",
+                Priority = System.Threading.ThreadPriority.BelowNormal
+            };
+            loaderThread.Start();
+        }
+
+        void Update()
+        {
+            if (_modelReady && !_patchesApplied)
+            {
+                _patchesApplied = true;
+                try
+                {
+                    var harmony = new Harmony(PluginGuid);
+                    harmony.PatchAll();
+                    Log.LogInfo("Maintenance Bureau is open for business.");
+                }
+                catch (Exception e)
+                {
+                    Log.LogFatal("Failed to apply patches: " + e);
+                }
+            }
+
+            MainThreadQueue.Drain();
+        }
+
+        void OnDestroy()
+        {
+            Engine?.Dispose();
+            Engine = null;
+            Memory?.Save();
+        }
+
+        private void BindConfig()
+        {
+            MinTurns = Config.Bind(
+                "Server - Bureau", "Minimum Turns", 5,
+                new ConfigDescription(
+                    "(Server-authoritative) Lower bound on conversational hoops per request cycle. The officer may approve earlier only if the player is exceptionally cooperative, never below this bound.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            MaxTurns = Config.Bind(
+                "Server - Bureau", "Maximum Turns", 15,
+                new ConfigDescription(
+                    "(Server-authoritative) Upper bound on conversational hoops per request cycle. At this turn count the officer is forced to approve.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
+        }
+    }
+
+    // Simple concurrent queue for dispatching work from worker threads onto the
+    // Unity main thread. Drained once per frame by Plugin.Update().
+    internal static class MainThreadQueue
+    {
+        private static readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
+
+        public static void Enqueue(Action a)
+        {
+            if (a != null) _queue.Enqueue(a);
+        }
+
+        public static void Drain()
+        {
+            while (_queue.TryDequeue(out var a))
+            {
+                try { a(); }
+                catch (Exception ex)
+                {
+                    MaintenanceBureauPlusPlugin.Log.LogError("MainThreadQueue action failed: " + ex.Message);
+                }
+            }
+        }
+    }
+}

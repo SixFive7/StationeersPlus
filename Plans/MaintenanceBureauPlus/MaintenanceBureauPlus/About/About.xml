@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Maintenance Bureau Plus</Name>
+  <ModID>net.sixfive7.maintenancebureauplus</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]Maintenance Bureau Plus[/h1]
+
+A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
+
+[h2]What this mod is[/h2]
+
+A local language model runs on the server and reads every public chat line. You will notice it speaking the first time something unexpected happens. What it wants from you and why becomes clear the second time. Whether you like it or not is something you will have to decide for yourself.
+
+This is a mod that you discover by playing with it, not by reading the description.
+
+[h2]Settings[/h2]
+
+Two settings, both under [b]Server - Bureau[/b] in the in-game mod settings panel.
+[list]
+[*][b]Minimum Turns[/b]: lower bound on conversational hoops per cycle. Default 5.
+[*][b]Maximum Turns[/b]: upper bound on conversational hoops per cycle. Default 15.
+[/list]
+
+Everything else is hardcoded on purpose.
+
+[h2]Installation[/h2]
+
+Server-side only. Clients do not need to install anything.
+
+[list]
+[*]Install BepInEx and StationeersLaunchPad on the server.
+[*]Copy MaintenanceBureauPlus.dll + dependencies + About/ to the server's local mods folder.
+[*]Download [b]qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] (~1 GB) from Hugging Face and place it in a [b]models/[/b] folder next to the plugin DLL.
+[*]Restart the server.
+[/list]
+
+The model file is not shipped with the mod. It sits under [b]models/qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] next to the DLL. The filename is hardcoded.
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]Server-side only.[/b] Clients see nothing but chat messages and normal server-authoritative state sync.
+
+[b]Other mods.[/b] The bureau has opinions about your save state. Mods that rely on slow-building damage or lingering state may find parts of their contribution reversed during a bureau cycle.
+
+[h2]Reporting Issues[/h2]
+
+Open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Include the mod name in the title so reports can be triaged.
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Plans/MaintenanceBureauPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v0.1.0: Initial prototype
+- Ambient chat listener on global chat
+- 100 curated officer personas rotating per request cycle
+- Five to fifteen conversational hoops per cycle, bounds configurable
+- Global incident-damage repair triggered on approval
+- Lander-capsule blackout wrapped around the sweep
+- Persona memory persisted across server restarts
+  </ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>chat</Tag>
+    <Tag>bureau</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Maintenance Bureau Plus</color></size>
+A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
+
+<b>Server-side only.</b> No GPU needed. Two settings only: Minimum Turns and Maximum Turns.
+]]></InGameDescription>
+</ModMetadata>

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{C4E7A1B2-8F39-4D28-B5C6-1A2D3E4F5067}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>MaintenanceBureauPlus</RootNamespace>
+    <AssemblyName>MaintenanceBureauPlus</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>embedded</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>$(StationeersPath)\BepInEx\core\BepInEx.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="LaunchPadBooster">
+      <HintPath>$(StationeersPath)\BepInEx\plugins\StationeersLaunchPad\LaunchPadBooster.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LLamaSharp" Version="0.19.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.19.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Plugin.cs" />
+    <Compile Include="LlmEngine.cs" />
+    <Compile Include="ChatPatch.cs" />
+    <Compile Include="ConversationState.cs" />
+    <Compile Include="OfficerPersona.cs" />
+    <Compile Include="PersonaRegistry.cs" />
+    <Compile Include="PersonaMemoryStore.cs" />
+    <Compile Include="ApprovalTagParser.cs" />
+    <Compile Include="ApprovalEvent.cs" />
+    <Compile Include="RepairSweep.cs" />
+    <Compile Include="TelemetryCollector.cs" />
+    <Compile Include="SystemPrompts.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Personas.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="About\About.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="CopyNativeLibraries" AfterTargets="Build">
+    <ItemGroup>
+      <NativeRuntime Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.19.0\runtimes\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeRuntime)"
+          DestinationFiles="@(NativeRuntime->'$(OutputPath)runtimes\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyVcRedist" AfterTargets="CopyNativeLibraries">
+    <ItemGroup>
+      <VcRedist Include="redist\vcruntime140.dll;redist\vcruntime140_1.dll;redist\msvcp140.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VcRedist)"
+          DestinationFolder="$(OutputPath)runtimes\win-x64\native"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyModelFiles" AfterTargets="Build">
+    <ItemGroup>
+      <ModelFile Include="models\*.gguf" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModelFile)"
+          DestinationFolder="$(OutputPath)models"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

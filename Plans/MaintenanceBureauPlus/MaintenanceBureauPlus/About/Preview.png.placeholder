@@ -1,0 +1,20 @@
+About/Preview.png placeholder
+==============================
+
+Replace this file with the real `Preview.png` at this exact path:
+
+    {{ModCodeName}}/About/Preview.png
+
+Requirements:
+
+- File format: PNG (RGB or RGBA).
+- Exact dimensions: 1280x720 pixels (exact 16:9).
+- This is the Steam Workshop listing image, rendered at 637x358 on the Workshop page. Non-16:9 images get letterboxed with visible black bars by Steam's `impolicy=Letterbox` renderer and look broken.
+- Derive this PNG from the `Preview.source.png` at the repo root (downscale to 1280x720).
+- Delete this `.placeholder` file once the real PNG is in place.
+
+Verification command (from any shell with Pillow available):
+
+    python -c "from PIL import Image; img = Image.open('Preview.png'); print(img.size)"
+
+Output must be exactly `(1280, 720)`. Any other size is invalid.
