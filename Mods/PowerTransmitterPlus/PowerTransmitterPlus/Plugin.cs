@@ -49,27 +49,27 @@ namespace PowerTransmitterPlus
 
             BeamWidth = Config.Bind(
                 "Visual", "Beam Width", 0.1f,
-                "(Client-side) Thickness of the laser beam in world units. 0.1 matches the game's built-in dish beam width.");
+                "(Server-authoritative) Thickness of the laser beam in world units. 0.1 matches the game's built-in dish beam width. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
 
             BeamColorHex = Config.Bind(
                 "Visual", "Beam Color", "000DFF",
-                "(Client-side) Hex RGB color of the beam (no '#', no alpha). Default 000DFF is the normalized cyan-blue the game actually applies to the beam material at runtime.");
+                "(Server-authoritative) Hex RGB color of the beam (no '#', no alpha). Default 000DFF is the normalized cyan-blue the game actually applies to the beam material at runtime. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
 
             EmissionIntensity = Config.Bind(
                 "Visual", "Emission Intensity", 10.0f,
-                "(Client-side) HDR brightness multiplier applied to the beam color. 10.0 matches the game's built-in beam emission intensity. Raise for more glow, lower for subtlety.");
+                "(Server-authoritative) HDR brightness multiplier applied to the beam color. 10.0 matches the game's built-in beam emission intensity. Raise for more glow, lower for subtlety. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
 
             StripeWavelength = Config.Bind(
                 "Pulse", "Stripe Wavelength", 2.0f,
-                "(Client-side) Distance in world meters between one bright pulse and the next. Same physical spacing on 5m beams and 200m beams.");
+                "(Server-authoritative) Distance in world meters between one bright pulse and the next. Same physical spacing on 5m beams and 200m beams. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
 
             ScrollSpeed = Config.Bind(
                 "Pulse", "Scroll Speed", 25.0f,
-                "(Client-side) Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity), so a 1 kW load runs at about 45% of this, and draws above 5 kW (possible with the distance-cost model) exceed it.");
+                "(Server-authoritative) Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity), so a 1 kW load runs at about 45% of this, and draws above 5 kW (possible with the distance-cost model) exceed it. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
 
             StripeTroughBrightness = Config.Bind(
                 "Pulse", "Trough Brightness", 0.5f,
-                "(Client-side) Beam brightness between pulses, 0..1. 1 = no visible pulsing (beam flat). 0 = troughs fully dark. Default 0.5 keeps the link clearly visible between peaks.");
+                "(Server-authoritative) Beam brightness between pulses, 0..1. 1 = no visible pulsing (beam flat). 0 = troughs fully dark. Default 0.5 keeps the link clearly visible between peaks. In multiplayer, only the host's value is used: broadcast to all clients on connect and on every change.");
 
             DistanceCostFactor = Config.Bind(
                 "Distance", "Cost Factor (k)", 5f,
