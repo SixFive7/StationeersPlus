@@ -53,15 +53,13 @@ The [b]Spray Paint Gun[/b] becomes a self-contained glow applicator. Point at an
 
 All features are configurable via the mod settings panel.
 
-Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the twelve entries under four headers:
-
-[b]Client - Preferences[/b]:
+[b]Client - Preferences[/b] (personal preference, each player sets independently):
 [list]
 [*][b]Paint Single Item By Default[/b] (default Off): Swap Shift behavior, single paint by default, hold Shift for network paint
 [*][b]Invert Color Scroll Direction[/b] (default Off): Reverse the scroll wheel direction
 [/list]
 
-[b]Server - Consumables[/b]:
+[b]Server - Consumables[/b] (the host's value controls gameplay for everyone):
 [list]
 [*][b]Unlimited Spray Paint Uses[/b] (default On): Infinite spray cans
 [*][b]Suppress Spray Paint Pollution[/b] (default On): No pollutant gas when spraying
