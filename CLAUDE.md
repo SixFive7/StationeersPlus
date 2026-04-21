@@ -140,6 +140,42 @@ Both `Preview.png` and `thumb.png` are derived from `Preview.source.png`. When r
 
 Canonical reference: `Mods/SprayPaintPlus/Preview.source.png` (source), `Mods/SprayPaintPlus/SprayPaintPlus/About/Preview.png` (1280x720), `Mods/SprayPaintPlus/SprayPaintPlus/About/thumb.png` (640x360). The three preview-image locations in `Mods/Template/` are populated with placeholder text files (`Preview.source.png.placeholder`, `About/Preview.png.placeholder`, `About/thumb.png.placeholder`) that document their required dimensions inline; replace each with the real PNG at the stated size.
 
+## Content: mod settings panel grouping and ordering
+
+Every `ConfigEntry` a mod binds via BepInEx `Config.Bind(section, key, default, description)` appears in the StationeersLaunchPad in-game mod settings panel under a collapsible header named after the `section` string. StationeersLaunchPad has no other grouping mechanism; see `Research/Patterns/SlpSettingsGrouping.md` for the decompiled internals. To keep the panel consistent across every mod in this repo, follow the conventions below.
+
+**Section naming.** Use the form `<Scope> - <Topic>`. The scope is one of:
+
+- `Client` if the player's local value takes effect. Each player sets it independently, and it is never synced.
+- `Server` if only the host's value matters in multiplayer. Clients' values are ignored or overridden. Single-player counts as host.
+
+The topic names the functional group in title case, no abbreviations: `Visual`, `Pulse`, `Consumables`, `Network Painting`, etc. Always use the compound `Scope - Topic` form, even when a mod has only one topic inside a scope (`Client - Preferences`, not bare `Client`). Consistent structure across mods outweighs saving one dash on single-topic cases.
+
+StationeersLaunchPad sorts group headers alphabetically with no author override, so `Client - *` groups cluster before `Server - *` groups naturally.
+
+**Entry ordering within a group.** Attach an `("Order", int)` tag to the `ConfigDescription` so entries appear in a deliberate order:
+
+```csharp
+EnableNetworkPainting = Config.Bind(
+    "Server - Network Painting", "Enable Network Painting", true,
+    new ConfigDescription(
+        "(Server-authoritative) ...",
+        null,
+        new KeyValuePair<string, int>("Order", 10)));
+```
+
+Use spacing of 10, 20, 30 to leave room for future insertions. Without the `Order` tag, StationeersLaunchPad falls back to alphabetical by key name; do not rely on alphabetical for anything players see.
+
+**Logical-ordering guidance.** When placing entries inside a group, follow these priorities:
+
+- Master toggles sit above their dependents. `Enable Network Painting` comes above the individual `Network Paint Pipes` / `Cables` / etc. toggles it gates.
+- Related settings cluster. Utility networks (pipes, cables, chutes) come before structural networks (walls, rails, large structures) inside `Network Painting`.
+- Primary tweaks come before secondary ones. `Beam Color` (what color) before `Beam Width` (how thick) before `Emission Intensity` (brightness multiplier).
+
+**Description scope prefix.** The description string (fourth argument to `Config.Bind`, or the first argument to `ConfigDescription`) starts with `(Client-local)` or `(Server-authoritative)` matching the section scope. BepInEx writes the description as a comment in the generated `.cfg` file, so power users editing the file directly still see the scope at a glance.
+
+**Section renames reset player values.** BepInEx treats the `(Section, Key)` pair as an entry's identity; changing the section string on an existing entry causes BepInEx to re-seed the entry with the default on next launch because the old stored value is orphaned. When a section rename is worth the UX gain despite the reset, note it in the mod's `<ChangeLog>` entry so players are not surprised. For minor cosmetic renames, prefer keeping the existing section.
+
 ## Content: no developer-specific paths
 
 Committed files must not contain filesystem paths that tie the repository to a specific developer's machine layout. Committed files are public; any path leaked here exposes the author's username, directory habits, or drive partitioning to anyone who reads the repo.
