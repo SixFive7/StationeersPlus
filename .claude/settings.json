@@ -31,6 +31,26 @@
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-write.ps1"
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "if": "Read(**/Mods/*/README.md)|Read(**/Plans/*/README.md)|Read(**/About/About.xml)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "if": "Edit(**/Mods/*/README.md)|Write(**/Mods/*/README.md)|Edit(**/Plans/*/README.md)|Write(**/Plans/*/README.md)|Edit(**/About/About.xml)|Write(**/About/About.xml)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          }
+        ]
       }
     ]
   }
