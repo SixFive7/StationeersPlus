@@ -75,23 +75,18 @@ v1.0.0: Initial release
     <Tag>multiplayer</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Equipment Plus</color></size>
-Adds dynamic multi-slot sensor lenses and advanced tablets to Stationeers, with multiplayer-safe configuration cartridge enhancements.
-
+<line-height=40%>Adds dynamic multi-slot sensor lenses and advanced tablets to Stationeers, with multiplayer-safe configuration cartridge enhancements.
 <b>How it works:</b>
 Insert a chip or cartridge and a new empty slot appears.
 Remove items and excess empty slots disappear.
 Always exactly one empty slot visible. No clutter.
-
 <b>Supported:</b>
 - Sensor Lenses (all sensor chips)
 - Advanced Tablet (all cartridges)
-
 <b>Cycling:</b> Hold Left Ctrl and left-click to cycle chips/cartridges.
-
 <b>Config Cartridge:</b> Scroll to select a line, left-click (no Ctrl) to copy read-only values or edit writable values. Works in multiplayer.
 Logic slot values are shown below the logic values (grey = writable, green = read-only). Scroll and click to read or edit slot values too.
-
-<b>Requirements:</b> BepInEx + StationeersLaunchPad
-<b>Multiplayer:</b> All players must have this mod installed.
+<b>Requires:</b> BepInEx + StationeersLaunchPad. All players must have this mod installed.
+</line-height>
 ]]></InGameDescription>
 </ModMetadata>

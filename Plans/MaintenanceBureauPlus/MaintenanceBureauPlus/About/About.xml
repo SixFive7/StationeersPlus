@@ -75,8 +75,8 @@ v0.1.0: Initial prototype
     <Tag>bureau</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Maintenance Bureau Plus</color></size>
-A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
-
+<line-height=40%>A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
 <b>Server-side only.</b> No GPU needed. Two settings only: Minimum Turns and Maximum Turns.
+</line-height>
 ]]></InGameDescription>
 </ModMetadata>

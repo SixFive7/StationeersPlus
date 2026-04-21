@@ -151,8 +151,7 @@ v1.0.0: Initial release
     <Tag>StationeersPlus</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#00aaff>Power Transmitter Plus</color></size>
-Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
-
+<line-height=40%>Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
 <b>Features:</b>
 - Visible laser beam between linked transmitter and receiver dishes
 - Scrolling energy pulses, speed scales with power throughput
@@ -160,13 +159,8 @@ Adds a visible beam, scrolling pulses, a configurable distance cost, and new log
 - Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveLinkedPartner
 - Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable
 - Full multiplayer support with server-authoritative simulation
-
-<b>Settings:</b>
-All features are configurable via the mod settings panel.
-All settings are server-authoritative: in multiplayer, the host's values control gameplay and visuals for everyone, broadcast live to all connected clients.
-
-<b>Requirements:</b> BepInEx + StationeersLaunchPad
-
-<b>Multiplayer:</b> All players must have this mod installed. Matching mod versions are enforced during the connection handshake automatically. Dedicated servers need the same setup installed server-side.
+<b>Settings:</b> Server-authoritative: the host's values control gameplay and visuals for all connected clients, broadcast live on change.
+<b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
+</line-height>
 ]]></InGameDescription>
 </ModMetadata>
