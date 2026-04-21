@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using Assets.Scripts;
 using Assets.Scripts.Objects;
 using UnityEngine;
 
@@ -37,9 +39,9 @@ namespace MaintenanceBureauPlus
             var t = new Telemetry();
             try
             {
-                var all = Thing.AllThings;
+                var all = OcclusionManager.AllThings;
                 if (all == null) return t;
-                foreach (var thing in all)
+                foreach (var thing in all.ToList())
                 {
                     if (thing == null) continue;
 

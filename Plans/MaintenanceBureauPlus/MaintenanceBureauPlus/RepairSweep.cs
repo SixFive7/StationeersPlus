@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Reflection;
+using Assets.Scripts;
 using Assets.Scripts.Objects;
 
 namespace MaintenanceBureauPlus
@@ -19,10 +21,10 @@ namespace MaintenanceBureauPlus
             int skipped = 0;
             try
             {
-                var all = Thing.AllThings;
+                var all = OcclusionManager.AllThings;
                 if (all == null) return 0;
 
-                foreach (var thing in all)
+                foreach (var thing in all.ToList())
                 {
                     if (thing == null) continue;
                     if (ShouldSkip(thing))

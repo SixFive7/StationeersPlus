@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Text;
+using Assets.Scripts;
 using Assets.Scripts.Objects;
 using UnityEngine;
 
@@ -197,9 +199,9 @@ namespace MaintenanceBureauPlus
             var results = new System.Collections.Generic.List<Thing>();
             try
             {
-                var all = Thing.AllThings;
+                var all = OcclusionManager.AllThings;
                 if (all == null) return results;
-                foreach (var thing in all)
+                foreach (var thing in all.ToList())
                 {
                     if (thing == null) continue;
                     var typeName = thing.GetType().Name;
