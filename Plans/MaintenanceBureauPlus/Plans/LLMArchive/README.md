@@ -11,7 +11,7 @@ Players type a message in chat starting with a trigger word (default `@sat`). Th
 ## Installation
 
 1. Copy `LLM.dll` and the `About/` folder into your Stationeers local mods directory on the **server**
-2. Download the GGUF model (see "Model file" below) and place it in a `models/` folder next to `LLM.dll`
+2. Download the GGUF model (see "Model file" below) and place it in a `Models/` folder next to `LLM.dll`
 3. Restart the server
 
 ### Model file
@@ -24,14 +24,14 @@ Players type a message in chat starting with a trigger word (default `@sat`). Th
 
 Place the downloaded file at one of:
 
-- `LLM/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` (inside this source tree, for `Release` builds; the MSBuild `CopyModelFiles` target copies it into `bin/Release/models/`)
-- `mods/LLM/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` (next to the deployed `LLM.dll` in the Stationeers mods folder, for a local-only install that skips the source build)
+- `LLM/Models/qwen2.5-1.5b-instruct-q4_k_m.gguf` (inside this source tree, for `Release` builds; the MSBuild `CopyModelFiles` target copies it into `bin/Release/Models/`)
+- `mods/LLM/Models/qwen2.5-1.5b-instruct-q4_k_m.gguf` (next to the deployed `LLM.dll` in the Stationeers mods folder, for a local-only install that skips the source build)
 
 A different 1.5B-class instruction-tuned GGUF model will work if you prefer; match the filename to the `Model File Name` setting in the mod's configuration panel. The `q4_k_m` quantization is the default; smaller quants (`q3_k_m`, `q2_k`) reduce memory and disk cost at the price of output quality.
 
 ## Building from source
 
-The MSBuild target `CopyModelFiles` (see `LLM/LLM.csproj`) copies any `*.gguf` under `LLM/LLM/models/` into `bin/Release/models/` during Release builds. If the folder is empty, the build still succeeds, but the mod will fail to load the model at runtime and log an error. Place the GGUF file there before a Release deploy.
+The MSBuild target `CopyModelFiles` (see `LLM/LLM.csproj`) copies any `*.gguf` under `LLM/LLM/Models/` into `bin/Release/Models/` during Release builds. If the folder is empty, the build still succeeds, but the mod will fail to load the model at runtime and log an error. Place the GGUF file there before a Release deploy.
 
 ## Features
 
@@ -53,7 +53,7 @@ All settings are server-side and configurable via the mod settings panel.
 
 | Setting | Default | Description |
 |---|---|---|
-| Model File Name | qwen2.5-1.5b-instruct-q4_k_m.gguf | GGUF file in the `models/` folder next to `LLM.dll` |
+| Model File Name | qwen2.5-1.5b-instruct-q4_k_m.gguf | GGUF file in the `Models/` folder next to `LLM.dll` |
 | Bot Name | SATCOM | Name shown in chat for the bot's messages |
 | System Prompt | (satellite relay persona) | The bot's personality and behavior instructions |
 | Trigger Prefix | @sat | Chat prefix that activates the bot |
@@ -68,7 +68,7 @@ All settings are server-side and configurable via the mod settings panel.
 
 **Server-side only.** Clients do not need this mod installed; the bot's messages appear as normal chat.
 
-**Dedicated servers** need BepInEx + StationeersLaunchPad + LLM installed and a `models/` folder with the GGUF model file next to `LLM.dll`.
+**Dedicated servers** need BepInEx + StationeersLaunchPad + LLM installed and a `Models/` folder with the GGUF model file next to `LLM.dll`.
 
 ## Reporting Issues
 

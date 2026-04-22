@@ -51,7 +51,7 @@ namespace LLM
             Prefab.OnPrefabsLoaded -= OnAllModsLoaded;
 
             var pluginDir = Path.GetDirectoryName(Info.Location);
-            var modelsDir = Path.Combine(pluginDir, "models");
+            var modelsDir = Path.Combine(pluginDir, "Models");
             var modelPath = Path.Combine(modelsDir, ModelFileName.Value);
 
             if (!File.Exists(modelPath))
@@ -125,7 +125,7 @@ namespace LLM
             ModelFileName = Config.Bind(
                 "Server", "Model File Name",
                 "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-                "(Server-side) GGUF model file name inside the models/ folder next to the plugin DLL.");
+                "(Server-side) GGUF model file name inside the Models/ folder next to the plugin DLL.");
 
             BotName = Config.Bind(
                 "Server", "Bot Name",

@@ -18,8 +18,8 @@ Covered file types (must remain gitignored, repo-wide):
 
 Where model files actually live:
 
-- Developer-local copy for source builds: `MaintenanceBureauPlus/models/<filename>` inside the mod source folder (gitignored).
-- End-user deploy: `mods/MaintenanceBureauPlus/models/<filename>` next to `MaintenanceBureauPlus.dll` in the Stationeers mods directory.
+- Developer-local copy for source builds: `MaintenanceBureauPlus/Models/<filename>` inside the mod source folder (gitignored).
+- End-user deploy: `mods/MaintenanceBureauPlus/Models/<filename>` next to `MaintenanceBureauPlus.dll` in the Stationeers mods directory.
 - Archive / backup: outside the repo entirely. Canonical source URLs documented in `README.md`.
 
 Why:

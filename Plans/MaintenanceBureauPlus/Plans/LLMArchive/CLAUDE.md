@@ -18,8 +18,8 @@ Covered file types (must remain gitignored, repo-wide):
 
 Where model files actually live:
 
-- Developer-local copy for source builds: `LLM/models/<filename>` inside the mod folder (gitignored).
-- End-user deploy: `mods/LLM/models/<filename>` next to `LLM.dll` in the Stationeers mods directory.
+- Developer-local copy for source builds: `LLM/Models/<filename>` inside the mod folder (gitignored).
+- End-user deploy: `mods/LLM/Models/<filename>` next to `LLM.dll` in the Stationeers mods directory.
 - Archive/backup: outside the repo entirely. Canonical source URLs documented in `README.md`.
 
 Why:

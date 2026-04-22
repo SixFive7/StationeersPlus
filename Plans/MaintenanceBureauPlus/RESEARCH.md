@@ -150,7 +150,7 @@ Empty for now; no implementation to observe. Fill this section as v1 implementat
 
 Source material preserved under `Plans/MaintenanceBureauPlus/Plans/`:
 
-- `LLMArchive/` prototype that seeds v1 implementation. `README.md`, `RESEARCH.md`, `TODO.md`, `CLAUDE.md`, plus full source under `LLM/` (Plugin.cs, LlmEngine.cs, ChatPatch.cs, `.csproj`, `About/`, `redist/`, gitignored `models/`). When v1 implementation starts, copy this source tree to `Plans/MaintenanceBureauPlus/MaintenanceBureauPlus/` and rename identifiers.
+- `LLMArchive/` prototype that seeds v1 implementation. `README.md`, `RESEARCH.md`, `TODO.md`, `CLAUDE.md`, plus full source under `LLM/` (Plugin.cs, LlmEngine.cs, ChatPatch.cs, `.csproj`, `About/`, `redist/`, gitignored `Models/`). When v1 implementation starts, copy this source tree to `Plans/MaintenanceBureauPlus/MaintenanceBureauPlus/` and rename identifiers.
 - `RepairArchive/plan.md` 43 KB design document for the original Bureau of Colonial Structural Integrity mod. Superseded by `plan.md` at v1 scope, but three parts stay live: Appendix B (Inspector personality samples, seeds the curated officer archetype list), Appendix A (prefab-cloning template for a potential future placed bureau device), and Section 8.X observations already lifted to central pages.
 - `TerrainReclamation/` full SaveFixPrototype body (plan.md, RESEARCH.md, terrain_reset.py). Held for v2. Six open questions block Phase 2 implementation; see `TerrainReclamation/RESEARCH.md` Section 7.
 

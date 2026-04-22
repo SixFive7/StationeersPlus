@@ -11,7 +11,7 @@
 
 ### Deployment (local dev)
 
-- [ ] Copy `LLM.dll` + all dependency DLLs + `runtimes/` folder + `About/` + `models/` to the local Stationeers mods deploy folder (see `DEV.md` / `DEV.md.template` for the path on your setup; the deploy target directory is named `LLM/` or the post-rename mod code name).
+- [ ] Copy `LLM.dll` + all dependency DLLs + `runtimes/` folder + `About/` + `Models/` to the local Stationeers mods deploy folder (see `DEV.md` / `DEV.md.template` for the path on your setup; the deploy target directory is named `LLM/` or the post-rename mod code name).
 - [ ] Verify folder contains no `.pdb`, `.deps.json`, source files, or `RESEARCH.md`
 - [ ] Add `<Local Enabled="true"><Path Value="..." /></Local>` entry to `modconfig.xml` if not present
 
@@ -31,7 +31,7 @@
 
 ### Startup (missing model file)
 
-- [ ] Remove or rename the GGUF file from `models/`
+- [ ] Remove or rename the GGUF file from `Models/`
 - [ ] Start server. Log should show three `[Error]` lines about missing model and recommended filename
 - [ ] No crash, no `[Fatal]`, server continues to function normally without the bot
 - [ ] Chat works normally without the bot intercepting anything
@@ -114,7 +114,7 @@
 - [x] Add `LICENSE` (Apache 2.0) and `NOTICE`
 - [x] Sync `About.xml` `<Description>` and `<InGameDescription>` with README
 - [x] Add Reporting Issues section to README and About.xml
-- [x] Document model download instructions. README now covers model file, quantization, and the `models/` placement requirement for source and deploy.
+- [x] Document model download instructions. README now covers model file, quantization, and the `Models/` placement requirement for source and deploy.
 - [x] Decide: ship model inside Workshop upload or separate download. Separate download chosen; model file is gitignored in the monorepo (`*.gguf` pattern). Revisit if Git LFS becomes cost-effective (tracked in the root `TODO.md`).
 - [ ] Test on a clean machine (no NuGet cache) to verify all dependencies ship correctly.
 - [x] Confirm the exact Hugging Face source URL for `qwen2.5-1.5b-instruct-q4_k_m.gguf`. README now links both the repo page (`huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF`) and the direct `resolve/main/...` download URL.

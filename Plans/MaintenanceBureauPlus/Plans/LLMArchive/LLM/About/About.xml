@@ -25,12 +25,12 @@ Inference runs on server CPU threads via LLamaSharp. Expect 2-4 GB of additional
 Generation runs on a background thread so the main server thread is not blocked while tokens are produced.
 
 [h3]Setup[/h3]
-Download [b]qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] (~950 MB) and place it in a [b]models/[/b] folder next to the LLM.dll. All settings (bot name, personality, trigger word, inference threads) are configurable via the mod settings panel.
+Download [b]qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] (~950 MB) and place it in a [b]Models/[/b] folder next to the LLM.dll. All settings (bot name, personality, trigger word, inference threads) are configurable via the mod settings panel.
 
 [h3]Settings[/h3]
 All settings are server-side.
 [list]
-[*][b]Model File Name[/b]: GGUF file in the models/ folder
+[*][b]Model File Name[/b]: GGUF file in the Models/ folder
 [*][b]Bot Name[/b]: Name shown in chat (default SATCOM)
 [*][b]System Prompt[/b]: The bot's personality and behavior instructions
 [*][b]Trigger Prefix[/b]: Chat prefix that activates the bot (default @sat)
@@ -50,7 +50,7 @@ All settings are server-side.
 
 [b]Server-side only.[/b] Clients do not need this mod installed; the bot's messages appear as normal chat.
 
-[b]Dedicated servers[/b] need BepInEx + StationeersLaunchPad + LLM installed and a [b]models/[/b] folder with the GGUF model file next to LLM.dll.
+[b]Dedicated servers[/b] need BepInEx + StationeersLaunchPad + LLM installed and a [b]Models/[/b] folder with the GGUF model file next to LLM.dll.
 
 [h2]Reporting Issues[/h2]
 If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.

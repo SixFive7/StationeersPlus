@@ -10,7 +10,7 @@ A server-side bureau listens to every public chat message on your save. What the
 
 1. Install [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) on the **server**.
 2. Copy `MaintenanceBureauPlus.dll`, the `About/` folder, and all dependency DLLs into your Stationeers local mods directory on the server.
-3. Download the GGUF model (see "Model file" below) and place it in a `models/` folder next to `MaintenanceBureauPlus.dll`.
+3. Download the GGUF model (see "Model file" below) and place it in a `Models/` folder next to `MaintenanceBureauPlus.dll`.
 4. Restart the server.
 
 ### Model file
@@ -21,7 +21,7 @@ A server-side bureau listens to every public chat message on your save. What the
 - **Source:** [Qwen/Qwen2.5-1.5B-Instruct-GGUF on Hugging Face](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
 - **Direct download:** https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
-Place the downloaded file at `mods/MaintenanceBureauPlus/models/qwen2.5-1.5b-instruct-q4_k_m.gguf` next to the deployed DLL. The filename is hardcoded; if you want a different model, rename it to match.
+Place the downloaded file at `mods/MaintenanceBureauPlus/Models/qwen2.5-1.5b-instruct-q4_k_m.gguf` next to the deployed DLL. The filename is hardcoded; if you want a different model, rename it to match.
 
 ## How it works
 
@@ -46,7 +46,7 @@ If you find either extreme painful, adjust the other end instead of reading the 
 
 **Server-side only.** Clients do not need this mod installed; the bureau's messages appear as normal chat and state changes go through the regular server-authoritative sync.
 
-**Dedicated servers** need BepInEx + StationeersLaunchPad + Maintenance Bureau Plus installed and a `models/` folder with the GGUF model file next to the DLL.
+**Dedicated servers** need BepInEx + StationeersLaunchPad + Maintenance Bureau Plus installed and a `Models/` folder with the GGUF model file next to the DLL.
 
 **Other mods.** The bureau has opinions about your save state. Other mods that rely on slow-building damage or lingering state for gameplay flavor may find parts of their contribution unexpectedly reversed during a bureau cycle. If that matters to you, disable the bureau or run a different mod.
 

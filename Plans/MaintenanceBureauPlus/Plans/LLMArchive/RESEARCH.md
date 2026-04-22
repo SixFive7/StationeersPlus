@@ -22,7 +22,7 @@ Source files under `Plans/LLM/LLM/`: `Plugin.cs` (BepInEx plugin entry, config b
 
 ### Plugin wiring
 
-`LlmPlugin.Awake()` binds config and subscribes to `Prefab.OnPrefabsLoaded`. In `OnAllModsLoaded()` the plugin resolves `BepInEx/plugins/LLM/models/<ModelFileName>`, logs an error and returns cleanly if the file is missing, then spawns a dedicated background `Thread` (not `Task`) to load the GGUF model. Config values that the loader needs (`ContextSize`, `InferenceThreads`) are read on the main thread and captured into local variables before the thread starts, so the background thread never touches `ConfigEntry` from off-main. Once load completes, `_modelReady` flips and `Update()` applies the Harmony patches on the next frame.
+`LlmPlugin.Awake()` binds config and subscribes to `Prefab.OnPrefabsLoaded`. In `OnAllModsLoaded()` the plugin resolves `BepInEx/plugins/LLM/Models/<ModelFileName>`, logs an error and returns cleanly if the file is missing, then spawns a dedicated background `Thread` (not `Task`) to load the GGUF model. Config values that the loader needs (`ContextSize`, `InferenceThreads`) are read on the main thread and captured into local variables before the thread starts, so the background thread never touches `ConfigEntry` from off-main. Once load completes, `_modelReady` flips and `Update()` applies the Harmony patches on the next frame.
 
 The loader thread runs at `ThreadPriority.BelowNormal` so the game's physics, atmospherics, and networking keep priority even when inference is active.
 
@@ -76,7 +76,7 @@ BepInEx/plugins/LLM/
   LLM.dll
   LLamaSharp.dll
   llama.dll              (native, from LLamaSharp.Backend.Cpu runtimes/)
-  models/
+  Models/
     qwen2.5-1.5b-instruct-q4_k_m.gguf
   About/
     About.xml

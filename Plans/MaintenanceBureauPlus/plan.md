@@ -269,7 +269,7 @@ Plans/MaintenanceBureauPlus/
       About.xml, Preview.png, thumb.png (placeholders pending real art)
     Properties/AssemblyInfo.cs
     redist/                           MSVC runtime DLLs for LLamaSharp native deps
-    models/                           developer-local gguf placement (gitignored)
+    Models/                           developer-local gguf placement (gitignored)
   Plans/
     TerrainReclamation/               deferred v2 work (ex-SaveFixPrototype)
     RepairArchive/                    original BCSI design for reference
