@@ -54,7 +54,6 @@ namespace MaintenanceBureauPlus
         public const int StunWakeDuringDescent = 80;
 
         private volatile bool _modelReady;
-        private volatile bool _patchesApplied;
 
         void Awake()
         {
@@ -80,6 +79,20 @@ namespace MaintenanceBureauPlus
             var memoryPath = Path.Combine(stateDir, "persona_memory.json");
             Memory = new PersonaMemoryStore(memoryPath, PersonaMemoryCap);
             Memory.Load();
+
+            // Apply Harmony patches eagerly. ChatPatch.Postfix guards on
+            // Engine != null && Engine.IsLoaded, so it's a no-op until the
+            // model finishes loading in the background.
+            try
+            {
+                var harmony = new Harmony(PluginGuid);
+                harmony.PatchAll(typeof(MaintenanceBureauPlusPlugin).Assembly);
+                Log.LogInfo("Harmony patches applied.");
+            }
+            catch (Exception e)
+            {
+                Log.LogFatal("Failed to apply Harmony patches: " + e);
+            }
 
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;
         }
@@ -169,21 +182,16 @@ namespace MaintenanceBureauPlus
             loaderThread.Start();
         }
 
+        private bool _openForBusinessLogged;
+
         void Update()
         {
-            if (_modelReady && !_patchesApplied)
+            // One-shot "ready" log so the log makes it obvious when inference
+            // can actually run. Harmony patches are already applied from Awake.
+            if (_modelReady && !_openForBusinessLogged)
             {
-                _patchesApplied = true;
-                try
-                {
-                    var harmony = new Harmony(PluginGuid);
-                    harmony.PatchAll();
-                    Log.LogInfo("Maintenance Bureau is open for business.");
-                }
-                catch (Exception e)
-                {
-                    Log.LogFatal("Failed to apply patches: " + e);
-                }
+                _openForBusinessLogged = true;
+                Log.LogInfo("Maintenance Bureau is open for business.");
             }
 
             MainThreadQueue.Drain();
