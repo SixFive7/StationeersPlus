@@ -86,16 +86,25 @@ namespace MaintenanceBureauPlus
             {
                 var pTypes = _confirmationShowRawParamTypes;
                 var args = new object[pTypes.Length];
-                // Parameter layout per the popup-research decompile:
+                // ShowRaw signature (from Assembly-CSharp decompile):
                 //   0: title (string)
                 //   1: message (string)
-                //   2: b1Text (string)   - "Continue"
-                //   3: b1OnClick (UnityAction or Action) - null = auto-dismiss only
-                //   4..7: b2/b3 text + action - all null
-                args[0] = title;
-                args[1] = message;
-                if (pTypes.Length > 2) args[2] = "Continue";
-                for (int i = 3; i < pTypes.Length; i++) args[i] = null;
+                //   2: b1Text (string)   - "Ok"
+                //   3: b1OnClick (UnityAction) - null, the panel always
+                //      auto-dismisses via CloseCurrentPanel before invoking
+                //   4..5: b2 text + action - null (button hidden)
+                //   6..7: b3 text + action - null (button hidden)
+                //   8: closeOnEscape (bool) - false, force the player to
+                //      click Ok so the bureau reply can't be dismissed
+                //      reflexively
+                for (int i = 0; i < pTypes.Length; i++)
+                {
+                    if (i == 0) args[i] = title;
+                    else if (i == 1) args[i] = message;
+                    else if (i == 2) args[i] = "Ok";
+                    else if (pTypes[i] == typeof(bool)) args[i] = false; // closeOnEscape
+                    else args[i] = null;                                  // every other text/action
+                }
 
                 _confirmationShowRaw.Invoke(_confirmationInstance, args);
                 MaintenanceBureauPlusPlugin.Log.LogInfo(
