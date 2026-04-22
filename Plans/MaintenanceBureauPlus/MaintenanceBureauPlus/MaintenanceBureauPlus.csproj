@@ -58,6 +58,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Personas.md" />
+    <EmbeddedResource Include="Resources\BusyResponses.md" />
   </ItemGroup>
 
   <ItemGroup>

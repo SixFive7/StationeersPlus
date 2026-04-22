@@ -48,6 +48,15 @@ namespace MaintenanceBureauPlus
 
         public bool IsLoaded { get { return _model != null; } }
 
+        // Number of inference requests that have been enqueued but not yet
+        // completed. Incremented in Enqueue/EnqueueInteractive, decremented
+        // in WorkerLoop after the request finishes (success or failure).
+        // Read by ChatPatch to decide whether to enqueue a new player turn
+        // or auto-respond with a busy notice. Volatile read is sufficient;
+        // we never need a totally-consistent count.
+        private int _inflight;
+        public bool IsBusy { get { return System.Threading.Volatile.Read(ref _inflight) > 0; } }
+
         public void Load(string modelPath, int contextSize, int threads)
         {
             _params = new ModelParams(modelPath)
@@ -77,6 +86,7 @@ namespace MaintenanceBureauPlus
                 return;
             }
 
+            Interlocked.Increment(ref _inflight);
             _queue.Enqueue(new InferenceRequest
             {
                 Prompt = prompt ?? string.Empty,
@@ -95,6 +105,7 @@ namespace MaintenanceBureauPlus
                 return;
             }
 
+            Interlocked.Increment(ref _inflight);
             _queue.Enqueue(new InferenceRequest
             {
                 Prompt = text ?? string.Empty,
@@ -172,6 +183,10 @@ namespace MaintenanceBureauPlus
                         sw.Stop();
                         MaintenanceBureauPlusPlugin.Log.LogError("[LlmEngine] Inference failed after " + sw.ElapsedMilliseconds + " ms: " + e);
                         request.OnComplete?.Invoke("[signal lost]");
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref _inflight);
                     }
                 }
             }

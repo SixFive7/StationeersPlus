@@ -77,6 +77,32 @@ namespace MaintenanceBureauPlus
                 return;
             }
 
+            // Linearity guard: if the LLM is still working on the prior
+            // turn, do NOT enqueue this message. The model never sees it.
+            // Instead broadcast a canned auto-reply from a non-officer
+            // bureau entity (BusyResponses.md) so the player gets a clear,
+            // in-lore signal that they were ignored, and they have to wait
+            // and re-send. This enforces strict turn-taking between the
+            // player and the model.
+            var engine = MaintenanceBureauPlusPlugin.Engine;
+            if (engine != null && engine.IsBusy)
+            {
+                var busy = MaintenanceBureauPlusPlugin.BusyResponses?.PickRandom();
+                if (busy != null)
+                {
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] Engine busy; player message dropped, sending busy reply '" +
+                        busy.Sender + "'.");
+                    BroadcastAsOfficer(busy.Sender, busy.Text);
+                }
+                else
+                {
+                    MaintenanceBureauPlusPlugin.Log.LogWarning(
+                        "[DIAG] Engine busy but BusyResponses pool is empty; player message silently dropped.");
+                }
+                return;
+            }
+
             try
             {
                 HandleIncoming(playerName, message);
@@ -406,10 +432,27 @@ namespace MaintenanceBureauPlus
             // the directive by name. AntiPrompts include "\nPHASE:" as a
             // hallucination guard, so the model can't continue the pattern
             // into a fake next turn after its reply.
+            //
+            // The (STAY IN VOICE: ...) annotation is a per-turn voice + tic
+            // refresh. The full persona block lives in the KV cache (sent
+            // once per cycle), but a fresh single-line reminder fights model
+            // drift toward generic helpful-assistant tone after a few turns.
+            // The system prompt forbids the model from echoing or addressing
+            // anything inside parentheses.
             var phase = PhaseFor(conv);
             var sb = new StringBuilder();
             sb.Append("PHASE:");
             sb.Append(phase);
+
+            if (conv.Officer != null && (!string.IsNullOrEmpty(conv.Officer.Voice) || !string.IsNullOrEmpty(conv.Officer.Tic)))
+            {
+                sb.Append("\n(STAY IN VOICE: ");
+                if (!string.IsNullOrEmpty(conv.Officer.Voice)) sb.Append(conv.Officer.Voice);
+                if (!string.IsNullOrEmpty(conv.Officer.Voice) && !string.IsNullOrEmpty(conv.Officer.Tic)) sb.Append(". ");
+                if (!string.IsNullOrEmpty(conv.Officer.Tic)) sb.Append(conv.Officer.Tic);
+                sb.Append(".)");
+            }
+
             if (phase == "FINAL")
             {
                 sb.Append("\n(This is your final turn on this cycle. You MUST close with [APPROVED] and an in-character reason for suddenly signing off that fits ");

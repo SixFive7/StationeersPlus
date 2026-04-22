@@ -28,6 +28,7 @@ namespace MaintenanceBureauPlus
         internal static LlmEngine Engine;
         internal static PersonaRegistry Personas;
         internal static PersonaMemoryStore Memory;
+        internal static BusyResponseRegistry BusyResponses;
         internal static ConversationState Conversation;
         internal static string PluginDir;
 
@@ -96,6 +97,9 @@ namespace MaintenanceBureauPlus
 
             Personas = new PersonaRegistry();
             Personas.LoadFromEmbeddedResource();
+
+            BusyResponses = new BusyResponseRegistry();
+            BusyResponses.LoadFromEmbeddedResource();
 
             var stateDir = Path.Combine(PluginDir, "state");
             var memoryPath = Path.Combine(stateDir, "persona_memory.json");
