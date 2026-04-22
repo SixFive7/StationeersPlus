@@ -200,7 +200,23 @@ namespace MaintenanceBureauPlus
             var inferenceParams = new InferenceParams
             {
                 MaxTokens = request.MaxTokens,
-                AntiPrompts = new[] { "<|im_end|>", "<|endoftext|>" },
+                // Anti-prompts:
+                //   <|im_end|>, <|endoftext|>, <|im_start|>  - Qwen chat-template
+                //     markers. If the model starts emitting a new turn block or
+                //     end-of-text, stop before the markers leak into the reply.
+                //   \n**[Turn, \n[Turn, \nPHASE:  - hallucination guards. Our
+                //     user-line format contains these markers, so the model
+                //     tries to continue the pattern by inventing fake user
+                //     turns after its assistant reply. Stop at the first sign.
+                AntiPrompts = new[]
+                {
+                    "<|im_end|>",
+                    "<|endoftext|>",
+                    "<|im_start|>",
+                    "\n**[Turn",
+                    "\n[Turn",
+                    "\nPHASE:",
+                },
                 SamplingPipeline = new DefaultSamplingPipeline
                 {
                     Temperature = MaintenanceBureauPlusPlugin.Temperature

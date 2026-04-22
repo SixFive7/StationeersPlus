@@ -1,6 +1,7 @@
 using Assets.Scripts;
 using Assets.Scripts.Networking;
 using HarmonyLib;
+using LaunchPadBooster.Networking;
 using System;
 using System.Text;
 
@@ -29,9 +30,10 @@ namespace MaintenanceBureauPlus
             // ChatMessage.PrintToConsole. If we never see this line in the log
             // after a player chats, the patch did not attach to the right method.
             MaintenanceBureauPlusPlugin.Log.LogInfo(
-                "ChatPatch.Postfix fired: HumanId=" + __instance.HumanId +
+                "[DIAG] ChatPatch.Postfix: HumanId=" + __instance.HumanId +
                 " Display=" + (__instance.DisplayName ?? "<null>") +
-                " Text=" + (__instance.ChatText ?? "<null>"));
+                " textChars=" + (__instance.ChatText != null ? __instance.ChatText.Length : 0) +
+                " text=" + Truncate(__instance.ChatText, 200));
 
             // Only the server / host runs LLM inference. Clients just see the
             // bureau's messages as normal chat via the regular broadcast.
@@ -108,6 +110,13 @@ namespace MaintenanceBureauPlus
             var prompt = BuildTurnDeltaPrompt(conv, playerName, message);
             int maxTokens = MaintenanceBureauPlusPlugin.MaxTokensPerReply;
 
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "[DIAG] Turn " + conv.TurnCount + "/" + conv.MaxTurns +
+                " phase=" + PhaseFor(conv) +
+                " officer=" + (conv.Officer != null ? conv.Officer.Name : "?") +
+                " promptChars=" + prompt.Length +
+                " promptHead=" + Truncate(prompt, 140));
+
             MaintenanceBureauPlusPlugin.Engine.EnqueueInteractive(prompt, maxTokens, rawReply =>
             {
                 MainThreadQueue.Enqueue(() => HandleReply(rawReply));
@@ -143,6 +152,14 @@ namespace MaintenanceBureauPlus
             MaintenanceBureauPlusPlugin.Engine.BeginInteractiveCycle();
 
             var prompt = BuildCycleStartPrompt(conv, playerName, openingMessage);
+
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "[DIAG] Cycle start: officer=" + (conv.Officer != null ? conv.Officer.Name : "?") +
+                " dept=" + (conv.Officer != null ? conv.Officer.Department : "?") +
+                " min=" + conv.MinTurns + " max=" + conv.MaxTurns +
+                " phase=" + PhaseFor(conv) +
+                " promptChars=" + prompt.Length);
+
             MaintenanceBureauPlusPlugin.Engine.EnqueueInteractive(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, rawTurn =>
             {
                 MainThreadQueue.Enqueue(() => HandleReply(rawTurn));
@@ -214,21 +231,41 @@ namespace MaintenanceBureauPlus
             var conv = MaintenanceBureauPlusPlugin.Conversation;
             if (conv == null || !conv.IsActive) return;
 
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "[DIAG] HandleReply: rawChars=" + (rawReply != null ? rawReply.Length : 0) +
+                " head=" + Truncate(rawReply, 160));
+
             var parsed = ApprovalTagParser.Parse(rawReply);
             var tag = parsed.Tag;
-            var text = parsed.StrippedText;
+            var text = CleanReply(parsed.StrippedText);
 
-            // Enforce bounds.
-            if (tag == ApprovalTag.Approved && conv.TurnCount < conv.MinTurns)
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "[DIAG] Parsed: tag=" + tag + " cleanedChars=" + (text != null ? text.Length : 0) +
+                " turn=" + conv.TurnCount + " min=" + conv.MinTurns + " max=" + conv.MaxTurns);
+
+            // The Bureau never refuses. If the model tries, we treat it as
+            // continuing. The system prompt forbids it, but a stubborn model
+            // occasionally emits the tag anyway.
+            if (tag == ApprovalTag.Refused)
             {
-                MaintenanceBureauPlusPlugin.Log.LogWarning("[APPROVED] before MinTurns (" +
-                    conv.TurnCount + "/" + conv.MinTurns + "); demoting to [CONTINUE]");
+                MaintenanceBureauPlusPlugin.Log.LogWarning(
+                    "[DIAG] Officer attempted [REFUSED] (not allowed); demoting to [CONTINUE].");
                 tag = ApprovalTag.Continue;
             }
-            if (tag != ApprovalTag.Refused && tag != ApprovalTag.Approved && conv.TurnCount >= conv.MaxTurns)
+
+            // Bounds enforcement.
+            if (tag == ApprovalTag.Approved && conv.TurnCount < conv.MinTurns)
             {
-                MaintenanceBureauPlusPlugin.Log.LogWarning("MaxTurns hit (" +
-                    conv.TurnCount + "/" + conv.MaxTurns + "); forcing [APPROVED]");
+                MaintenanceBureauPlusPlugin.Log.LogWarning(
+                    "[DIAG] [APPROVED] before MinTurns (" + conv.TurnCount + "/" + conv.MinTurns +
+                    "); demoting to [CONTINUE].");
+                tag = ApprovalTag.Continue;
+            }
+            if (tag != ApprovalTag.Approved && conv.TurnCount >= conv.MaxTurns)
+            {
+                MaintenanceBureauPlusPlugin.Log.LogWarning(
+                    "[DIAG] MaxTurns reached (" + conv.TurnCount + "/" + conv.MaxTurns +
+                    ") with tag=" + tag + "; forcing [APPROVED].");
                 tag = ApprovalTag.Approved;
             }
 
@@ -239,20 +276,54 @@ namespace MaintenanceBureauPlus
             switch (tag)
             {
                 case ApprovalTag.Continue:
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] Continuing cycle; awaiting next player message (turn " +
+                        conv.TurnCount + "/" + conv.MaxTurns + ").");
                     break;
                 case ApprovalTag.Approved:
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] APPROVED at turn " + conv.TurnCount +
+                        "/" + conv.MaxTurns + "; firing ApprovalEvent.");
                     MaintenanceBureauPlusPlugin.Engine.EndInteractiveCycle();
                     ApprovalEvent.Start();
                     break;
-                case ApprovalTag.Refused:
-                    MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] officer refused; ending cycle");
-                    MaintenanceBureauPlusPlugin.Engine.EndInteractiveCycle();
-                    conv.Reset();
-                    break;
                 case ApprovalTag.None:
-                    MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] reply had no approval tag; treating as [CONTINUE]");
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] No approval tag detected; treating as [CONTINUE].");
                     break;
             }
+        }
+
+        // Post-process the model's reply: strip anything after a hallucinated
+        // new-turn header (the model tends to role-play the entire chat log
+        // once it finishes its assistant turn), then trim trailing BPE
+        // artifacts. Ċ (U+010A) is the tokenizer's rendering of the newline
+        // byte, and Ġ (U+0120) is the space byte; either can leak when
+        // generation stops mid-decode on a stop-word match.
+        private static string CleanReply(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            int cut = FirstHallucinationIndex(text);
+            if (cut >= 0) text = text.Substring(0, cut);
+            return text.TrimEnd('Ċ', 'Ġ', '\n', '\r', ' ', '\t');
+        }
+
+        private static int FirstHallucinationIndex(string text)
+        {
+            int best = -1;
+            string[] markers = { "\n**[Turn", "\n[Turn", "\nPHASE:", "\n<|im_start|>", "<|im_start|>" };
+            foreach (var marker in markers)
+            {
+                var idx = text.IndexOf(marker, StringComparison.Ordinal);
+                if (idx >= 0 && (best < 0 || idx < best)) best = idx;
+            }
+            return best;
+        }
+
+        private static string Truncate(string s, int max)
+        {
+            if (s == null) return "<null>";
+            return s.Length <= max ? s : s.Substring(0, max) + "...";
         }
 
         // ---- Prompt assembly ----
@@ -297,11 +368,37 @@ namespace MaintenanceBureauPlus
 
         private static string FormatUserLine(ConversationState conv, string playerName, string playerMessage)
         {
-            // Embed turn state in the user line since the KV-cached system
-            // block can't be rewritten mid-cycle. The officer sees the turn
-            // count in every player message.
-            return "[Turn " + conv.TurnCount + " of " + conv.MaxTurns + "] [" +
-                (playerName ?? "Player") + "]: " + (playerMessage ?? string.Empty);
+            // Compact PHASE directive tells the officer which tags are
+            // permitted this turn without leaking turn numbers the model would
+            // parrot back. The system prompt (SystemPrompts.ApprovalTagRules)
+            // teaches the model what each phase means and to never reference
+            // the directive by name. AntiPrompts include "\nPHASE:" as a
+            // hallucination guard, so the model can't continue the pattern
+            // into a fake next turn after its reply.
+            var phase = PhaseFor(conv);
+            var sb = new StringBuilder();
+            sb.Append("PHASE:");
+            sb.Append(phase);
+            if (phase == "FINAL")
+            {
+                sb.Append("\n(This is your final turn on this cycle. You MUST close with [APPROVED] and an in-character reason for suddenly signing off that fits ");
+                sb.Append(conv.Officer != null && !string.IsNullOrEmpty(conv.Officer.Name)
+                    ? conv.Officer.Name
+                    : "this officer");
+                sb.Append("'s voice and backstory.)");
+            }
+            sb.Append("\n");
+            sb.Append(playerName ?? "Player");
+            sb.Append(": ");
+            sb.Append(playerMessage ?? string.Empty);
+            return sb.ToString();
+        }
+
+        private static string PhaseFor(ConversationState conv)
+        {
+            if (conv.TurnCount < conv.MinTurns) return "EARLY";
+            if (conv.TurnCount >= conv.MaxTurns) return "FINAL";
+            return "ELIGIBLE";
         }
 
         // ---- Broadcast helper (main thread) ----
@@ -315,11 +412,24 @@ namespace MaintenanceBureauPlus
             return !NetworkManager.IsClient && !NetworkManager.IsServer;
         }
 
+        // Bureau popup display duration, scaled with text length so long
+        // replies stay on screen long enough to read. Clamped to a sane
+        // window so a short reply doesn't vanish and a huge one doesn't
+        // block the screen forever.
+        private const float PopupMinSeconds = 6f;
+        private const float PopupMaxSeconds = 20f;
+        private const float PopupSecondsPerChar = 0.035f;
+
         public static void BroadcastAsOfficer(string officerName, string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
             try
             {
+                MaintenanceBureauPlusPlugin.Log.LogInfo(
+                    "[DIAG] Broadcasting: officer=" + officerName +
+                    " chars=" + text.Length +
+                    " preview=" + Truncate(text, 120));
+
                 var chatMessage = new ChatMessage
                 {
                     ChatText = text,
@@ -332,6 +442,33 @@ namespace MaintenanceBureauPlus
                 if (NetworkManager.IsServer)
                 {
                     NetworkServer.SendToClients(chatMessage, NetworkChannel.GeneralTraffic, -1L);
+                }
+
+                // Popup: shown locally on the server (SendToClients doesn't
+                // echo back), broadcast to remote clients via
+                // BureauReplyMessage.
+                float duration = System.Math.Min(PopupMaxSeconds,
+                    System.Math.Max(PopupMinSeconds, text.Length * PopupSecondsPerChar));
+                BureauPopup.Show(officerName, text, duration);
+
+                if (NetworkManager.IsServer)
+                {
+                    try
+                    {
+                        new BureauReplyMessage
+                        {
+                            OfficerName = officerName,
+                            ReplyText = text,
+                            DisplayDuration = duration,
+                        }.SendAll(0L);
+                        MaintenanceBureauPlusPlugin.Log.LogInfo(
+                            "[DIAG] BureauReplyMessage sent to remote clients.");
+                    }
+                    catch (Exception ex)
+                    {
+                        MaintenanceBureauPlusPlugin.Log.LogError(
+                            "[DIAG] BureauReplyMessage.SendAll failed: " + ex.Message);
+                    }
                 }
             }
             catch (Exception ex)

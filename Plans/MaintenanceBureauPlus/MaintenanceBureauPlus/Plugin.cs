@@ -97,6 +97,20 @@ namespace MaintenanceBureauPlus
             Memory = new PersonaMemoryStore(memoryPath, PersonaMemoryCap);
             Memory.Load();
 
+            // Register LaunchPadBooster network messages. BureauReplyMessage
+            // carries officer reply text from the server to remote clients so
+            // their UI can raise the popup locally.
+            try
+            {
+                MOD.Networking.Required = true;
+                MOD.Networking.RegisterMessage<BureauReplyMessage>();
+                Log.LogInfo("[DIAG] Registered BureauReplyMessage with LaunchPadBooster networking.");
+            }
+            catch (Exception e)
+            {
+                Log.LogError("Network-message registration failed: " + e);
+            }
+
             // Apply Harmony patches eagerly. ChatPatch.Postfix guards on
             // Engine != null && Engine.IsLoaded, so it's a no-op until the
             // model finishes loading in the background.
@@ -270,6 +284,12 @@ namespace MaintenanceBureauPlus
         private void OnAllModsLoaded()
         {
             Prefab.OnPrefabsLoaded -= OnAllModsLoaded;
+
+            // Post-load checkpoint: the first [DIAG] line you should see in
+            // F3 after the game finishes loading. If this never appears,
+            // Prefab.OnPrefabsLoaded is not firing and something else is wrong.
+            Log.LogInfo(
+                "[DIAG] Post-load checkpoint: all mods' prefabs loaded. Bureau is initializing.");
 
             var modelsDir = Path.Combine(PluginDir, "Models");
             var modelPath = ResolveModelPath(modelsDir);
