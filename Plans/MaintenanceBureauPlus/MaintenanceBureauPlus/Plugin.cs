@@ -62,6 +62,13 @@ namespace MaintenanceBureauPlus
 
             PluginDir = Path.GetDirectoryName(Info.Location);
 
+            // Force-load Microsoft.Bcl.AsyncInterfaces.dll before any type that
+            // touches IAsyncEnumerable<T> / IAsyncEnumerator<T> resolves. On
+            // Mono / Unity 2022, the JIT otherwise resolves IAsyncEnumerator<T>
+            // to a Mono-internal version that lacks MoveNextAsync(), and
+            // LLamaSharp.InferAsync() throws "Method not found" at first call.
+            PreloadBclAsyncInterfaces();
+
             // Preload LLamaSharp's native libs by absolute path before anything
             // touches LLama.Native.NativeApi. Mono's default P/Invoke probe does
             // not search our BepInEx/plugins/<ModName>/runtimes/win-x64/native/
@@ -95,10 +102,48 @@ namespace MaintenanceBureauPlus
             }
 
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;
+
+            StartWatchdog();
+
+            // Insurance: if BepInEx's BaseUnityPlugin is somehow not receiving
+            // Update() calls from Unity, attach an independent MonoBehaviour on
+            // its own DontDestroyOnLoad GameObject and drive MainThreadQueue.Drain
+            // from that. BaseUnityPlugin's Update will keep running if it works;
+            // this just adds a guaranteed-to-tick backup.
+            try
+            {
+                var tickerGO = new UnityEngine.GameObject("MBP_MainThreadTicker");
+                UnityEngine.Object.DontDestroyOnLoad(tickerGO);
+                tickerGO.AddComponent<MainThreadTicker>();
+                Log.LogInfo("MBP_MainThreadTicker GameObject created.");
+            }
+            catch (Exception e)
+            {
+                Log.LogError("Failed to create MainThreadTicker: " + e);
+            }
         }
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr LoadLibrary(string lpFileName);
+
+        private void PreloadBclAsyncInterfaces()
+        {
+            var path = Path.Combine(PluginDir, "Microsoft.Bcl.AsyncInterfaces.dll");
+            if (!File.Exists(path))
+            {
+                Log.LogWarning("Microsoft.Bcl.AsyncInterfaces.dll not found at " + path);
+                return;
+            }
+            try
+            {
+                var asm = System.Reflection.Assembly.LoadFrom(path);
+                Log.LogInfo("Force-loaded " + asm.GetName().FullName);
+            }
+            catch (Exception ex)
+            {
+                Log.LogError("Failed to force-load Microsoft.Bcl.AsyncInterfaces: " + ex.Message);
+            }
+        }
 
         private void PreloadNativeLibraries()
         {
@@ -183,11 +228,31 @@ namespace MaintenanceBureauPlus
         }
 
         private bool _openForBusinessLogged;
+        private int _updateTicks;
+        private int _fixedUpdateTicks;
+        private int _lateUpdateTicks;
+        private bool _startFired;
+
+        // Background watchdog: a separate thread that logs every 5 seconds so we
+        // know the plugin instance is alive even if Unity isn't calling any of
+        // the MonoBehaviour lifecycle methods on it. Started from Awake().
+        private Thread _watchdog;
+        private volatile bool _watchdogStop;
+
+        void Start()
+        {
+            _startFired = true;
+            Log.LogInfo("Start() fired. If this appears but Update() ticks do not, Unity is driving some lifecycle but not Update.");
+        }
 
         void Update()
         {
-            // One-shot "ready" log so the log makes it obvious when inference
-            // can actually run. Harmony patches are already applied from Awake.
+            _updateTicks++;
+            if (_updateTicks == 1 || _updateTicks == 60 || _updateTicks == 600)
+            {
+                Log.LogInfo("Update() tick #" + _updateTicks + ", _modelReady=" + _modelReady);
+            }
+
             if (_modelReady && !_openForBusinessLogged)
             {
                 _openForBusinessLogged = true;
@@ -197,8 +262,53 @@ namespace MaintenanceBureauPlus
             MainThreadQueue.Drain();
         }
 
+        void FixedUpdate()
+        {
+            _fixedUpdateTicks++;
+            if (_fixedUpdateTicks == 1)
+                Log.LogInfo("FixedUpdate() tick #1.");
+        }
+
+        void LateUpdate()
+        {
+            _lateUpdateTicks++;
+            if (_lateUpdateTicks == 1)
+                Log.LogInfo("LateUpdate() tick #1.");
+        }
+
+        private void StartWatchdog()
+        {
+            _watchdog = new Thread(() =>
+            {
+                int tick = 0;
+                while (!_watchdogStop)
+                {
+                    Thread.Sleep(5000);
+                    tick++;
+                    try
+                    {
+                        Log.LogInfo(
+                            "[Watchdog #" + tick + "] startFired=" + _startFired +
+                            " updateTicks=" + _updateTicks +
+                            " fixedTicks=" + _fixedUpdateTicks +
+                            " lateTicks=" + _lateUpdateTicks +
+                            " modelReady=" + _modelReady +
+                            " pendingMainThreadActions=" + MainThreadQueue.Count);
+                    }
+                    catch { }
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "MBP-Watchdog",
+                Priority = System.Threading.ThreadPriority.BelowNormal,
+            };
+            _watchdog.Start();
+        }
+
         void OnDestroy()
         {
+            _watchdogStop = true;
             Engine?.Dispose();
             Engine = null;
             Memory?.Save();
@@ -222,11 +332,33 @@ namespace MaintenanceBureauPlus
         }
     }
 
+    // Independent MonoBehaviour attached to a fresh GameObject, not to the
+    // BepInEx plugin host. Guaranteed to receive Unity lifecycle callbacks
+    // even if the plugin's own Update() is suppressed.
+    internal class MainThreadTicker : UnityEngine.MonoBehaviour
+    {
+        private int _ticks;
+        void Update()
+        {
+            _ticks++;
+            if (_ticks == 1 || _ticks == 60 || _ticks == 600 || _ticks == 3600)
+            {
+                MaintenanceBureauPlusPlugin.Log.LogInfo(
+                    "MainThreadTicker.Update tick #" + _ticks +
+                    " pendingActions=" + MainThreadQueue.Count);
+            }
+            MainThreadQueue.Drain();
+        }
+    }
+
     // Simple concurrent queue for dispatching work from worker threads onto the
-    // Unity main thread. Drained once per frame by Plugin.Update().
+    // Unity main thread. Drained once per frame by Plugin.Update() and by
+    // MainThreadTicker.Update() as a redundant path.
     internal static class MainThreadQueue
     {
         private static readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
+
+        public static int Count { get { return _queue.Count; } }
 
         public static void Enqueue(Action a)
         {

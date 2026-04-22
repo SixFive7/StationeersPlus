@@ -3,8 +3,10 @@ using LLama.Common;
 using LLama.Sampling;
 using System;
 using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MaintenanceBureauPlus
 {
@@ -101,18 +103,56 @@ namespace MaintenanceBureauPlus
             };
 
             var result = new StringBuilder();
+
+            // Reflection-based async-enumerator drain. Mono's JIT resolves
+            // IAsyncEnumerator<T> to a version that lacks MoveNextAsync() even
+            // with Microsoft.Bcl.AsyncInterfaces loaded, so compile-time
+            // interface calls throw "Method not found" at runtime. Calling
+            // MoveNextAsync / Current / DisposeAsync / AsTask by name on the
+            // concrete LLamaSharp state-machine type sidesteps the interface
+            // lookup and always resolves.
             var asyncEnum = executor.InferAsync(request.Prompt, inferenceParams, _cts.Token);
-            var enumerator = asyncEnum.GetAsyncEnumerator(_cts.Token);
+            var enumeratorObj = asyncEnum.GetType()
+                .GetMethod("GetAsyncEnumerator", BindingFlags.Public | BindingFlags.Instance)
+                ?.Invoke(asyncEnum, new object[] { _cts.Token });
+            if (enumeratorObj == null)
+                throw new InvalidOperationException("Could not obtain enumerator from " + asyncEnum.GetType().FullName);
+
+            var enumType = enumeratorObj.GetType();
+            var moveNextMethod = enumType.GetMethod("MoveNextAsync", BindingFlags.Public | BindingFlags.Instance);
+            var currentProp = enumType.GetProperty("Current", BindingFlags.Public | BindingFlags.Instance);
+            var disposeAsyncMethod = enumType.GetMethod("DisposeAsync", BindingFlags.Public | BindingFlags.Instance);
+            if (moveNextMethod == null || currentProp == null)
+                throw new InvalidOperationException("MoveNextAsync or Current not found on " + enumType.FullName);
+
             try
             {
-                while (enumerator.MoveNextAsync().AsTask().GetAwaiter().GetResult())
+                while (true)
                 {
-                    result.Append(enumerator.Current);
+                    var valueTask = moveNextMethod.Invoke(enumeratorObj, null);
+                    var asTask = valueTask.GetType().GetMethod("AsTask");
+                    var taskBool = (Task<bool>)asTask.Invoke(valueTask, null);
+                    bool hasNext = taskBool.GetAwaiter().GetResult();
+                    if (!hasNext) break;
+
+                    var current = currentProp.GetValue(enumeratorObj) as string;
+                    if (!string.IsNullOrEmpty(current))
+                        result.Append(current);
                 }
             }
             finally
             {
-                enumerator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                try
+                {
+                    if (disposeAsyncMethod != null)
+                    {
+                        var dvt = disposeAsyncMethod.Invoke(enumeratorObj, null);
+                        var asTask = dvt.GetType().GetMethod("AsTask");
+                        var task = (Task)asTask.Invoke(dvt, null);
+                        task.GetAwaiter().GetResult();
+                    }
+                }
+                catch { /* best effort */ }
             }
 
             var text = result.ToString().Trim();

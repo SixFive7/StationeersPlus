@@ -6,18 +6,45 @@ using System.Text;
 
 namespace MaintenanceBureauPlus
 {
-    // Harmony postfix on ChatMessage.Process. Reads every public chat line on the
-    // server and routes qualifying lines into the ConversationManager-style flow
-    // inlined in this class. Bureau replies go out via HumanId = -1 broadcasts;
-    // the same value is used as the loop-guard on inbound messages.
-    [HarmonyPatch(typeof(ChatMessage), nameof(ChatMessage.Process))]
+    // Harmony postfix on ChatMessage.PrintToConsole. Every chat line display,
+    // host outgoing + client receiving, routes through this method (see
+    // SayCommand.Say line 98484, ChatMessage.Process line 260722). Using
+    // Process instead would miss the host's own messages, which never go
+    // through Process locally. Bureau replies go out with HumanId = -1 so the
+    // same field serves as the loop guard on inbound messages.
+    [HarmonyPatch(typeof(ChatMessage), nameof(ChatMessage.PrintToConsole))]
     public static class ChatPatch
     {
         public static void Postfix(ChatMessage __instance)
         {
             if (__instance == null) return;
-            if (!NetworkManager.IsServer) return;
-            if (MaintenanceBureauPlusPlugin.Engine == null || !MaintenanceBureauPlusPlugin.Engine.IsLoaded) return;
+
+            // Emergency drain: if Plugin.Update and MainThreadTicker.Update
+            // are both dead, this is the only main-thread code we ever reach.
+            // Drain any pending LLM callbacks from previous turns before
+            // processing the new message.
+            try { MainThreadQueue.Drain(); } catch { }
+
+            // Diagnostic: prove the Harmony patch is actually wired to
+            // ChatMessage.PrintToConsole. If we never see this line in the log
+            // after a player chats, the patch did not attach to the right method.
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "ChatPatch.Postfix fired: HumanId=" + __instance.HumanId +
+                " Display=" + (__instance.DisplayName ?? "<null>") +
+                " Text=" + (__instance.ChatText ?? "<null>"));
+
+            // Only the server / host runs LLM inference. Clients just see the
+            // bureau's messages as normal chat via the regular broadcast.
+            if (!NetworkManager.IsServer && !IsStandaloneSinglePlayer())
+            {
+                MaintenanceBureauPlusPlugin.Log.LogInfo("ChatPatch: not server and not single-player, bailing.");
+                return;
+            }
+            if (MaintenanceBureauPlusPlugin.Engine == null || !MaintenanceBureauPlusPlugin.Engine.IsLoaded)
+            {
+                MaintenanceBureauPlusPlugin.Log.LogInfo("ChatPatch: engine not loaded yet, bailing.");
+                return;
+            }
 
             // Loop guard: bureau messages are sent with HumanId = -1. Skip them.
             if (__instance.HumanId == -1) return;
@@ -255,6 +282,15 @@ namespace MaintenanceBureauPlus
 
         // ---- Broadcast helper (main thread) ----
 
+        // Stationeers' SayCommand blocks in pure single-player via
+        // CommandBase.CannotInSinglePlayer, but some community mod flows still
+        // let ChatMessage.PrintToConsole fire. Treat "neither client nor server"
+        // as single-player and process bureau logic there too.
+        private static bool IsStandaloneSinglePlayer()
+        {
+            return !NetworkManager.IsClient && !NetworkManager.IsServer;
+        }
+
         public static void BroadcastAsOfficer(string officerName, string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
@@ -266,8 +302,13 @@ namespace MaintenanceBureauPlus
                     DisplayName = officerName,
                     HumanId = -1
                 };
+                // PrintToConsole also re-enters our postfix, but our HumanId == -1
+                // loop guard filters it out before any processing.
                 chatMessage.PrintToConsole();
-                NetworkServer.SendToClients(chatMessage, NetworkChannel.GeneralTraffic, -1L);
+                if (NetworkManager.IsServer)
+                {
+                    NetworkServer.SendToClients(chatMessage, NetworkChannel.GeneralTraffic, -1L);
+                }
             }
             catch (Exception ex)
             {
