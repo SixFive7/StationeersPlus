@@ -58,6 +58,11 @@ namespace MaintenanceBureauPlus
         void Awake()
         {
             Log = Logger;
+            // Mirror every Log.* call into StationeersLaunchPad's in-game F3
+            // log viewer. BepInEx's ManualLogSource pipeline doesn't reach
+            // F3 on its own; this bridge subscribes to LogEvent and forwards
+            // each line to LaunchPad's Logger via reflection.
+            LaunchPadLog.Hook(Log);
             BindConfig();
 
             PluginDir = Path.GetDirectoryName(Info.Location);
@@ -285,6 +290,12 @@ namespace MaintenanceBureauPlus
         {
             Prefab.OnPrefabsLoaded -= OnAllModsLoaded;
 
+            // By now LaunchPad has registered our LoadedMod. Upgrade the F3
+            // bridge from Logger.Global to our mod-specific Logger so the
+            // F3 filter dropdown lists "MaintenanceBureauPlus" as a separate
+            // entry, in addition to "All".
+            LaunchPadLog.TryUpgradeToModLogger();
+
             // Post-load checkpoint: the first [DIAG] line you should see in
             // F3 after the game finishes loading. If this never appears,
             // Prefab.OnPrefabsLoaded is not firing and something else is wrong.
@@ -390,8 +401,11 @@ namespace MaintenanceBureauPlus
         // Background watchdog: a separate thread that logs every 5 seconds so we
         // know the plugin instance is alive even if Unity isn't calling any of
         // the MonoBehaviour lifecycle methods on it. Started from Awake().
+        // Uses a ManualResetEvent (not Thread.Sleep) so OnDestroy can wake it
+        // immediately during shutdown instead of waiting for the next 5 s tick.
         private Thread _watchdog;
-        private volatile bool _watchdogStop;
+        private readonly System.Threading.ManualResetEventSlim _watchdogStop =
+            new System.Threading.ManualResetEventSlim(false);
 
         void Start()
         {
@@ -435,9 +449,8 @@ namespace MaintenanceBureauPlus
             _watchdog = new Thread(() =>
             {
                 int tick = 0;
-                while (!_watchdogStop)
+                while (!_watchdogStop.Wait(5000))
                 {
-                    Thread.Sleep(5000);
                     tick++;
                     try
                     {
@@ -460,12 +473,41 @@ namespace MaintenanceBureauPlus
             _watchdog.Start();
         }
 
+        // Unity calls OnApplicationQuit before tearing down GameObjects. This
+        // is the earliest hook to start cleanup so the slow paths (model
+        // ref-drop, persona memory save) finish before OnDestroy actually
+        // fires. Both methods are guarded so calling them twice is safe.
+        void OnApplicationQuit()
+        {
+            try { Log?.LogInfo("[DIAG] OnApplicationQuit fired."); } catch { }
+            ShutdownFast();
+        }
+
         void OnDestroy()
         {
-            _watchdogStop = true;
-            Engine?.Dispose();
+            try { Log?.LogInfo("[DIAG] OnDestroy fired."); } catch { }
+            ShutdownFast();
+        }
+
+        private bool _shutdownStarted;
+        private void ShutdownFast()
+        {
+            if (_shutdownStarted) return;
+            _shutdownStarted = true;
+
+            // Wake the watchdog so it stops on the next instruction instead of
+            // sitting in a 5-second wait.
+            try { _watchdogStop.Set(); } catch { }
+
+            // Save persona memory first; the model dispose runs reflection-y
+            // code that could swallow exceptions, and we want the JSON file on
+            // disk no matter what.
+            try { Memory?.Save(); } catch (Exception ex) { try { Log?.LogError("Memory.Save failed: " + ex.Message); } catch { } }
+
+            // Engine.Dispose is fire-and-forget: signals the worker, neuters
+            // native finalizers, drops references, returns immediately.
+            try { Engine?.Dispose(); } catch (Exception ex) { try { Log?.LogError("Engine.Dispose failed: " + ex.Message); } catch { } }
             Engine = null;
-            Memory?.Save();
         }
 
         private void BindConfig()

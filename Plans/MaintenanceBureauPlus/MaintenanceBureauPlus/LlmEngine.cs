@@ -285,29 +285,60 @@ namespace MaintenanceBureauPlus
         }
 
         // Called from MaintenanceBureauPlusPlugin.OnDestroy during game shutdown.
-        // Does NOT wait long for the worker to finish and does NOT dispose the
-        // native model/context — both risk hanging the game process indefinitely
-        // because the worker can be deep in native llama.cpp code that doesn't
-        // respond to cancellation quickly. The OS reclaims the native memory
-        // when the process exits.
+        // Fire-and-forget: signal the worker to stop, drop references, return
+        // immediately. Does NOT join the worker and does NOT dispose the native
+        // model/context. The worker can be deep in a multi-second native
+        // llama.cpp call that ignores cancellation; joining it (even briefly)
+        // would block Unity's shutdown for that long. Native llama_free_model
+        // can also block on a loader-lock-held thread. The OS reclaims native
+        // memory + the background worker thread when the process exits.
+        //
+        // To stop the LLamaWeights/LLamaContext finalizers from running native
+        // teardown later in the CLR shutdown path (which is what makes ALT+F4
+        // hang), reach into the LLamaSharp objects and null out their internal
+        // SafeHandles so finalization becomes a no-op. Best-effort; if
+        // reflection misses a future LLamaSharp version, we just lose a few
+        // shutdown seconds.
         public void Dispose()
         {
             MaintenanceBureauPlusPlugin.Log?.LogInfo("[LlmEngine] Dispose starting.");
             try { _cts.Cancel(); } catch { }
             try { _signal.Set(); } catch { }
 
-            if (_workerThread != null && !_workerThread.Join(500))
-                MaintenanceBureauPlusPlugin.Log?.LogWarning("[LlmEngine] Worker did not exit within 500 ms; abandoning (OS will reclaim on process exit).");
+            NeuterNativeFinalizers(_interactiveContext);
+            NeuterNativeFinalizers(_model);
 
-            // Deliberately do not dispose _model, _interactiveContext. See class-doc
-            // comment above. Drop the references so nothing else can accidentally
-            // reach into a now-reclaimed native resource if the worker thread is
-            // still alive.
             _interactiveExecutor = null;
             _interactiveContext = null;
             _model = null;
 
             MaintenanceBureauPlusPlugin.Log?.LogInfo("[LlmEngine] Dispose done.");
+        }
+
+        // Reflection-walk an LLamaSharp object and SuppressFinalize it plus
+        // any SafeHandle field it owns, so the CLR shutdown path doesn't end
+        // up calling native llama.cpp teardown that can hang the process.
+        private static void NeuterNativeFinalizers(object obj)
+        {
+            if (obj == null) return;
+            try
+            {
+                GC.SuppressFinalize(obj);
+                var fields = obj.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                foreach (var f in fields)
+                {
+                    if (typeof(System.Runtime.InteropServices.SafeHandle).IsAssignableFrom(f.FieldType))
+                    {
+                        var handle = f.GetValue(obj) as System.Runtime.InteropServices.SafeHandle;
+                        if (handle != null)
+                        {
+                            try { GC.SuppressFinalize(handle); } catch { }
+                            try { handle.SetHandleAsInvalid(); } catch { }
+                        }
+                    }
+                }
+            }
+            catch { /* best-effort */ }
         }
 
         private struct InferenceRequest
