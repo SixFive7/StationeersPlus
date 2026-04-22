@@ -104,24 +104,31 @@ namespace MaintenanceBureauPlus
 
             var result = new StringBuilder();
 
-            // Reflection-based async-enumerator drain. Mono's JIT resolves
-            // IAsyncEnumerator<T> to a version that lacks MoveNextAsync() even
-            // with Microsoft.Bcl.AsyncInterfaces loaded, so compile-time
-            // interface calls throw "Method not found" at runtime. Calling
-            // MoveNextAsync / Current / DisposeAsync / AsTask by name on the
-            // concrete LLamaSharp state-machine type sidesteps the interface
-            // lookup and always resolves.
+            // Reflection-based async-enumerator drain. The LLamaSharp state
+            // machine returned by InferAsync implements IAsyncEnumerable<T>
+            // and IAsyncEnumerator<T> as EXPLICIT interface implementations,
+            // so GetMethod("GetAsyncEnumerator", Public | Instance) returns
+            // null. We have to scan with Public | NonPublic flags and match
+            // by name suffix (explicit impls look like
+            // "System.Collections.Generic.IAsyncEnumerable<System.String>.GetAsyncEnumerator").
+            // Calling the method by reflection also sidesteps Mono's broken
+            // IAsyncEnumerator<T> interface resolution.
             var asyncEnum = executor.InferAsync(request.Prompt, inferenceParams, _cts.Token);
-            var enumeratorObj = asyncEnum.GetType()
-                .GetMethod("GetAsyncEnumerator", BindingFlags.Public | BindingFlags.Instance)
-                ?.Invoke(asyncEnum, new object[] { _cts.Token });
+
+            var getAsyncEnumerator = FindInstanceMethod(asyncEnum.GetType(), "GetAsyncEnumerator");
+            if (getAsyncEnumerator == null)
+                throw new InvalidOperationException("GetAsyncEnumerator not found on " + asyncEnum.GetType().FullName);
+
+            var getAsyncParams = getAsyncEnumerator.GetParameters();
+            var enumeratorObj = getAsyncEnumerator.Invoke(asyncEnum,
+                getAsyncParams.Length == 1 ? new object[] { _cts.Token } : null);
             if (enumeratorObj == null)
-                throw new InvalidOperationException("Could not obtain enumerator from " + asyncEnum.GetType().FullName);
+                throw new InvalidOperationException("GetAsyncEnumerator returned null");
 
             var enumType = enumeratorObj.GetType();
-            var moveNextMethod = enumType.GetMethod("MoveNextAsync", BindingFlags.Public | BindingFlags.Instance);
-            var currentProp = enumType.GetProperty("Current", BindingFlags.Public | BindingFlags.Instance);
-            var disposeAsyncMethod = enumType.GetMethod("DisposeAsync", BindingFlags.Public | BindingFlags.Instance);
+            var moveNextMethod = FindInstanceMethod(enumType, "MoveNextAsync");
+            var currentProp = FindInstanceProperty(enumType, "Current");
+            var disposeAsyncMethod = FindInstanceMethod(enumType, "DisposeAsync");
             if (moveNextMethod == null || currentProp == null)
                 throw new InvalidOperationException("MoveNextAsync or Current not found on " + enumType.FullName);
 
@@ -178,6 +185,31 @@ namespace MaintenanceBureauPlus
             public string Prompt;
             public int MaxTokens;
             public Action<string> OnComplete;
+        }
+
+        // Find a method by simple name or explicit-interface suffix.
+        // e.g. "MoveNextAsync" matches both "MoveNextAsync" and
+        // "System.Collections.Generic.IAsyncEnumerator<System.String>.MoveNextAsync".
+        private static MethodInfo FindInstanceMethod(Type t, string simpleName)
+        {
+            var methods = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var m in methods)
+            {
+                if (m.Name == simpleName || m.Name.EndsWith("." + simpleName))
+                    return m;
+            }
+            return null;
+        }
+
+        private static PropertyInfo FindInstanceProperty(Type t, string simpleName)
+        {
+            var props = t.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var p in props)
+            {
+                if (p.Name == simpleName || p.Name.EndsWith("." + simpleName))
+                    return p;
+            }
+            return null;
         }
     }
 }
