@@ -2,6 +2,133 @@
 
 Tracks the work for v1, then the deferred v1.x / v1.5 / v2 list. Conventions match the monorepo: `- [ ]` open, `- [x]` done.
 
+---
+
+## Session handoff (2026-04-22)
+
+> A fresh agent picking up this work should read this entire section, then the rest of TODO.md, then [plan.md](plan.md), then [RESEARCH.md](RESEARCH.md). The rest of the sections below this handoff describe the project's full planned scope; this handoff describes the current implementation state and exactly where to pick up.
+
+### Where we are
+
+v1 source is compiled, deployed, and the plugin loads successfully in-game. The `ping` → `pong` hotpath works end-to-end, proving chat intercept + main-thread broadcast. The first real LLM turn currently takes minutes on a CPU-only 1.5B model because of prompt-ingestion cost; the most recent commit (`2f3ba73`) rewrites this to use `InteractiveExecutor` for KV-cache reuse across turns. **That commit has not been playtested yet** — that is the next step.
+
+### Deployment layout (important, non-obvious)
+
+The mod is **not** deployed through StationeersLaunchPad. It lives at `E:\Steam\steamapps\common\Stationeers\BepInEx\plugins\MaintenanceBureauPlus\` as a plain BepInEx plugin. The `modconfig.xml` Local entry for it is `Enabled="false"`. This is because LaunchPad's mod scanner aborts the entire mod load on the first native DLL under the deploy folder; LLamaSharp ships native libraries. Full write-up: [../../Research/Workflows/LaunchPadNativeDllTrap.md](../../Research/Workflows/LaunchPadNativeDllTrap.md).
+
+Side effect: the bureau is not listed in LaunchPad's in-game mod list and F3 log-viewer does not show MBP messages. All logs go to `E:\Steam\steamapps\common\Stationeers\BepInEx\LogOutput.log` and the Unity player log at `/c/Users/jori/AppData/LocalLow/Rocketwerkz/rocketstation/Player.log`.
+
+### Build + deploy cheat sheet
+
+```bash
+# Build (from repo root)
+dotnet build "Plans/MaintenanceBureauPlus/MaintenanceBureauPlus.sln" -c Release 2>&1 | tail -5
+
+# Deploy (requires game closed — DLL is locked while game runs)
+cp "Plans/MaintenanceBureauPlus/MaintenanceBureauPlus/bin/Release/MaintenanceBureauPlus.dll" \
+   "E:/Steam/steamapps/common/Stationeers/BepInEx/plugins/MaintenanceBureauPlus/MaintenanceBureauPlus.dll"
+
+# Check the logs
+grep -nE "MaintenanceBureauPlus\]|ChatPatch|Inference|Bureau\]" \
+   "E:/Steam/steamapps/common/Stationeers/BepInEx/LogOutput.log"
+```
+
+### What works (confirmed via playtest)
+
+- Plugin loads at BepInEx Chainloader phase. `Preloaded native lib` (x6), `Force-loaded Microsoft.Bcl.AsyncInterfaces`, `PersonaRegistry loaded 100 personas`, `PersonaMemoryStore loaded 0 entries`, `Harmony patches applied`, `MBP_MainThreadTicker GameObject created` all log in that order.
+- Model load completes (~30 s on local hardware for the 1.1 GB GGUF).
+- `ChatPatch.Postfix` fires on every public chat message (host + clients) because the Harmony target is `ChatMessage.PrintToConsole`, not `Process` (which never runs locally on the host).
+- `[DEBUG-APPROVE]` in a chat message fires `ApprovalEvent.Start()`.
+- `ping` in chat replies with `pong` from `Bureau PingBot` via `BroadcastAsOfficer`, proving chat-in + chat-out.
+- `MainThreadQueue.Drain()` runs from the top of `ChatPatch.Postfix` (emergency drain), since Unity's `Update()` does not fire on our MonoBehaviour. This is why inter-turn LLM responses can land on main thread at all.
+
+### What's confirmed broken / not working yet
+
+- **Unity `Update()` never fires on our plugin.** Tried `BaseUnityPlugin.Update`, `Start`, `FixedUpdate`, `LateUpdate`, and a freshly-attached `MainThreadTicker` MonoBehaviour on a `DontDestroyOnLoad` GameObject. None of them tick. Watchdog background thread fires exactly once (5 s after Awake) then silently stops. Root cause not identified. Workaround: drain `MainThreadQueue` from inside `ChatPatch.Postfix` (runs on main thread). Every incoming chat message drains any pending callbacks. This is a latency band-aid; LLM replies to player message N broadcast when player sends message N+1.
+- **First LLM turn takes minutes.** Pre-`2f3ba73` design sent a ~2 kB system block per turn and re-tokenized it every time on the 1.5B CPU model. `2f3ba73` switches to `InteractiveExecutor` so only turn 1 pays the full ingest cost; turn 2+ send only the delta. Not playtested.
+
+### What each fix committed so far solved (in rough order)
+
+Read these commits in order if you need to understand why the code is shaped the way it is:
+
+| Commit | Purpose |
+|---|---|
+| `694809f` | Folder restructure: three prototypes collapsed into `Plans/MaintenanceBureauPlus/`. |
+| `0cecc0a` | 100 curated officer personas in `Personas.md` (human-review) + mirrored to `Resources/Personas.md` (embedded at runtime). |
+| `d1b60e6` | Scaffolded source tree from the LLM prototype. |
+| `88e1c08` | SDK-style csproj (was classic); discovered `Assets.Scripts.OcclusionManager.AllThings` is the actual iteration target, not a phantom `Thing.AllThings`. |
+| `dc90d5d` | Decompile-verified game APIs for the repair event. Added to `Research/GameClasses/{Human,LanderCapsule,Structure,ChatMessage}.md` and `Research/Workflows/{KnockPlayerUnconscious,TriggerLanderCapsule}.md`. |
+| `c716fca` | Reflection shims resolved to concrete APIs, JsonUtility replaces Newtonsoft, `StunBlackout = 1000`. |
+| `b88859b` | Documented the LaunchPad native-DLL scan trap in `Research/Workflows/LaunchPadNativeDllTrap.md`. |
+| `134781a` | Preload LLamaSharp native libs via `kernel32!LoadLibrary` so `DllImport("llama")` resolves — Mono's default probe doesn't search `BepInEx/plugins/<mod>/runtimes/win-x64/native/`. |
+| `7e82e8f` | Harmony patches apply in `Awake` (not in a deferred `Update` branch that never fired). |
+| `3d5f903` | Switched Harmony target from `ChatMessage.Process` to `ChatMessage.PrintToConsole`; `Microsoft.Bcl.AsyncInterfaces` force-loaded in Awake before LLamaSharp touches `IAsyncEnumerable<T>`. Reflection-based async-enumerator drain lands. Emergency `MainThreadQueue.Drain()` at top of `Postfix`. |
+| `d4c96e6` | Fixed the reflection lookup to handle explicit interface implementations — LLamaSharp's compiler-generated state machine exposes `GetAsyncEnumerator` / `MoveNextAsync` / `DisposeAsync` as explicit impls with qualified names. |
+| `3af06d3` | Added `[LlmEngine] Inference start:` / `Inference done:` logging and the `ping` → `pong` hotpath to isolate LLM from broadcast flow. |
+| `ff05052` | Replaced 14 kB LLM-driven persona-selection prompt with a local `PickRandomUnseenPersona()` that biases away from officers named in `PersonaMemoryStore` super-summaries. |
+| `2f3ba73` | **Most recent.** InteractiveExecutor migration for in-cycle turns. Turn 1 sends the full ~2 kB system block once and caches it; turns 2+ send ~100 char deltas. Also fixed Dispose to cap shutdown delay at 500 ms and skip native disposal. |
+
+### Gotchas that tripped us up (so a fresh agent doesn't repeat them)
+
+1. **Native DLLs in the mod folder break LaunchPad.** See the `LaunchPadNativeDllTrap` Research page. We sidestepped by deploying as a BepInEx plugin. The Workshop-ready fix (TODO below) is to ship natives as `.dll.bin` inside the mod folder and extract to a user-data dir on first launch.
+2. **Mono's `DllImport` doesn't search the mod folder.** Preload native libs with `kernel32!LoadLibrary` by absolute path in `Plugin.Awake()`.
+3. **`Microsoft.Bcl.AsyncInterfaces.dll` must be explicitly `Assembly.LoadFrom`'d** before anything touches `IAsyncEnumerable<T>`, or Mono's JIT resolves the interface to a built-in version that lacks `MoveNextAsync()`.
+4. **LLamaSharp's async-enumerator exposes `MoveNextAsync` / `Current` / `DisposeAsync` as explicit interface impls** on a compiler-generated state machine. `GetMethod("MoveNextAsync", Public | Instance)` returns null. Use `GetMethods(Public | NonPublic | Instance)` and match by suffix. See `LlmEngine.FindInstanceMethod`.
+5. **Harmony target for chat must be `ChatMessage.PrintToConsole`**, not `ChatMessage.Process`. The host's own outgoing chat does not call `Process` locally; it calls `PrintToConsole` then `NetworkServer.SendToClients`. Both host-send and client-receive paths hit `PrintToConsole`.
+6. **`Update()` does not fire on BepInEx plugins on Stationeers** (at least in our testing). Don't design any logic around Update ticking. Drain main-thread queues from Harmony postfixes on methods that DO fire.
+7. **LLamaSharp's `StatelessExecutor` re-tokenizes the full prompt every call.** For multi-turn conversations, `InteractiveExecutor` keeps the KV cache.
+8. **`Engine.Dispose()` on shutdown must not wait long** for the worker thread — native llama code can ignore cancellation for minutes. Cap Join at 500 ms and do not call native `Dispose` on the model/context; the OS reclaims on process exit.
+9. **Stun damage write**: `human.DamageState.Damage(ChangeDamageType.Set, value, DamageUpdateType.Stun)`. `EntityDamageState` auto-forwards Stun writes to the brain organ; no need to reach `human.OrganBrain.DamageState` directly.
+10. **LanderCapsule spawn recipe**: `Prefab.Find<LanderCapsule>("LanderCapsule")` — the overload REQUIRES the string argument; the older research note with a parameterless `Find<T>()` was wrong and is corrected in `Research/Workflows/TriggerLanderCapsule.md`.
+
+### Immediate next steps (pick up here)
+
+1. **Playtest commit `2f3ba73` (InteractiveExecutor).** Restart Stationeers, load save, type 3-4 chat messages spaced a few seconds apart. Check `LogOutput.log` for:
+   - Turn 1: `[LlmEngine] Inference start: mode=interactive promptChars=~2200` and an `Inference done: N ms`.
+   - Turns 2+: `promptChars` under 200, `Inference done` ms should drop significantly (ideally order of magnitude).
+   - If turn 2 `promptChars` is still ~2200, the interactive cache isn't engaging.
+   - Also confirm `[LlmEngine] Dispose starting.` → `Dispose done.` within a second when the game exits. If shutdown is still slow, report the timing.
+2. **If interactive latency is still too slow** for the UX: options listed under "What could shrink the prompt further" in the conversation on 2026-04-22 — trim `GlobalBureauPreamble` from 955 chars, trim `ApprovalTagRules` from 592 chars, or switch model to a smaller quant. Pick after seeing the turn-2 timings.
+3. **Native-DLL extraction for Workshop deploy.** See the "Playtest gate" first bullet below; this blocks publishing.
+4. **`PickRandomUnseenPersona` code review.** Six points queued below.
+5. **Remove the `[DEBUG-APPROVE]` hook** before any public release.
+6. **(Optional, non-blocking) Investigate why `Update()` doesn't fire.** Currently worked around by postfix-drain, which is sufficient for functionality but adds latency (replies land when next message arrives). Not urgent.
+
+### Key files (for orientation)
+
+| Path | Purpose |
+|---|---|
+| [`Plans/MaintenanceBureauPlus/plan.md`](plan.md) | v1 design. Scope, settings, approval event, repair sweep, persona mechanics. |
+| [`Plans/MaintenanceBureauPlus/RESEARCH.md`](RESEARCH.md) | Pointers into central `Research/` pages by subsystem. |
+| [`Plans/MaintenanceBureauPlus/Personas.md`](Personas.md) | 100 curated officer personas (human-reviewable copy). |
+| `MaintenanceBureauPlus/MaintenanceBureauPlus/Plugin.cs` | Entry point: Awake preload, PersonaRegistry, PersonaMemoryStore, MainThreadQueue, watchdog. |
+| `MaintenanceBureauPlus/MaintenanceBureauPlus/LlmEngine.cs` | LLamaSharp wrapper. Stateless + Interactive APIs, worker thread, reflection-based async drain, Dispose hang cap. |
+| `MaintenanceBureauPlus/MaintenanceBureauPlus/ChatPatch.cs` | Harmony postfix on `ChatMessage.PrintToConsole`. Conversation state machine, emergency main-thread drain, ping hotpath, cycle start/end wiring, persona local-picker. |
+| `MaintenanceBureauPlus/MaintenanceBureauPlus/ApprovalEvent.cs` | Post-approval sequence: stun, sweep, closing message, capsule spawn. |
+| `MaintenanceBureauPlus/MaintenanceBureauPlus/SystemPrompts.cs` | Prompt templates: preamble, approval rules, closing, super-summary. |
+| `MaintenanceBureauPlus/MaintenanceBureauPlus/Resources/Personas.md` | Embedded copy of Personas.md loaded at startup via PersonaRegistry. |
+| `E:/Steam/steamapps/common/Stationeers/BepInEx/plugins/MaintenanceBureauPlus/` | Deploy location. |
+| `E:/Steam/steamapps/common/Stationeers/BepInEx/LogOutput.log` | BepInEx plugin log. |
+| `/c/Users/jori/AppData/LocalLow/Rocketwerkz/rocketstation/Player.log` | Unity runtime log; stack traces and exceptions land here. |
+
+### Research pages relevant to this mod
+
+- [`Research/Workflows/LaunchPadNativeDllTrap.md`](../../Research/Workflows/LaunchPadNativeDllTrap.md) — why we deploy as a BepInEx plugin.
+- [`Research/Workflows/KnockPlayerUnconscious.md`](../../Research/Workflows/KnockPlayerUnconscious.md) — stun-on-brain mechanism for the approval event.
+- [`Research/Workflows/TriggerLanderCapsule.md`](../../Research/Workflows/TriggerLanderCapsule.md) — three-call capsule spawn recipe.
+- [`Research/GameClasses/Human.md`](../../Research/GameClasses/Human.md) — `Human.AllHumans` enumeration.
+- [`Research/GameClasses/LanderCapsule.md`](../../Research/GameClasses/LanderCapsule.md) — Slots, InteractMode, descent constants.
+- [`Research/GameClasses/Structure.md`](../../Research/GameClasses/Structure.md) — `IsBroken` property for the repair-sweep exclusion filter.
+- [`Research/GameClasses/ChatMessage.md`](../../Research/GameClasses/ChatMessage.md) — chat-channel-doesn't-exist finding and the loop guard (`HumanId == -1`).
+- [`Research/Patterns/AsyncEnumerator472.md`](../../Research/Patterns/AsyncEnumerator472.md) — manual async-enumerator drain pattern (since superseded by the reflection-based one in `LlmEngine`, but the page still explains why it's needed).
+
+### Reverting
+
+- Pure BepInEx deploy: nothing in the repo points at `BepInEx/plugins/MaintenanceBureauPlus/`; to revert, delete that folder and re-enable the modconfig Local entry. The repo tree is untouched by the deploy.
+- Local `Directory.Build.props` has the `EnsureStationeersPath` target we added. Gitignored. Delete to revert.
+
+---
+
 ## v1: first shippable release
 
 Ordered to match Section 13 of `plan.md`.
