@@ -51,7 +51,6 @@ namespace MaintenanceBureauPlus
         // countdown so the player wakes up groggy during the 13.5 s descent.
         public const int StunBlackout = 1000;
         public const int StunWakeDuringDescent = 80;
-        public const int TranscriptTailTurns = 20;
 
         private volatile bool _modelReady;
         private volatile bool _patchesApplied;

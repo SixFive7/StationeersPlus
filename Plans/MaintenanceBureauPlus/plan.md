@@ -55,11 +55,11 @@ Single global state held server-side. Not per-player. Fields:
 - `OfficerPersona` (name, department, tic, voice, backstory) selected at cycle start.
 - `TurnCount` incremented per qualifying line.
 - `MinTurns`, `MaxTurns` config-bound, read at cycle start.
-- `TranscriptTail` rolling last N turns.
-- `PersonaMemory` super-summaries of previously-visited personas (see Section 6.3).
+- `Transcript` full per-cycle conversation history. No size cap: a cycle is already bounded by `MaxTurns` (15 by default) plus the final approval / refusal reply, so the list cannot grow unbounded. Cleared on `Reset()` when the cycle ends and a new officer takes over.
+- `PersonaMemory` super-summaries of previously-visited personas (see Section 6.3). Separate from `Transcript`; persisted to disk, survives server restarts.
 - `IsActive` flag; when false the next qualifying line begins a new cycle with a fresh officer.
 
-The LLM sees: the current transcript tail, the officer persona block, a running counter `TurnCount / MaxTurns`, the persona memory super-summary list, and an instruction in the system prompt to decide between continuing, approving, or refusing this turn.
+The LLM sees: the full current-cycle transcript, the officer persona block, a running counter `TurnCount / MaxTurns`, the persona memory super-summary list, and an instruction in the system prompt to decide between continuing, approving, or refusing this turn.
 
 ### 3.3. Approval signal
 
@@ -243,6 +243,7 @@ Hardcoded values (intentionally not exposed; changing them requires a code edit 
 - Persona memory cap: 200 entries.
 - Stun at blackout: 1000. Well above the 100 unconscious threshold so natural stun decay (3 per life tick) cannot wake the player during the LLM closing-message inference wait, which may take tens of seconds.
 - Stun one-time wake write: 80. Applied per player immediately after the capsule teleport; natural decay then wakes the player roughly halfway through the 13.5 s descent.
+- Transcript: no cap. A cycle is bounded by `MaxTurns`, the transcript clears on cycle end.
 
 ## 9. Folder layout (current state)
 

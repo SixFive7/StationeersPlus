@@ -11,7 +11,12 @@ namespace MaintenanceBureauPlus
         public int MaxTurns { get; set; }
         public bool IsActive { get; set; }
         public bool IsAwaitingPersona { get; set; }
-        public List<TranscriptEntry> TranscriptTail { get; } = new List<TranscriptEntry>();
+
+        // Full per-cycle transcript. No size cap: the cycle itself is bounded
+        // by MaxTurns (default 15) plus the final approval / refusal reply, so
+        // the list cannot grow unbounded. Cleared on Reset() when the cycle
+        // ends and a new persona takes over.
+        public List<TranscriptEntry> Transcript { get; } = new List<TranscriptEntry>();
 
         public void Reset()
         {
@@ -19,14 +24,14 @@ namespace MaintenanceBureauPlus
             TurnCount = 0;
             IsActive = false;
             IsAwaitingPersona = false;
-            TranscriptTail.Clear();
+            Transcript.Clear();
         }
 
         public string RenderTranscript()
         {
-            if (TranscriptTail.Count == 0) return "(no prior messages this cycle)";
+            if (Transcript.Count == 0) return "(no prior messages this cycle)";
             var sb = new StringBuilder();
-            foreach (var entry in TranscriptTail)
+            foreach (var entry in Transcript)
             {
                 sb.Append(entry.Speaker);
                 sb.Append(": ");
@@ -37,22 +42,13 @@ namespace MaintenanceBureauPlus
 
         public void AppendPlayer(string speaker, string text)
         {
-            TranscriptTail.Add(new TranscriptEntry { Speaker = "Player (" + speaker + ")", Text = text });
-            TrimTail();
+            Transcript.Add(new TranscriptEntry { Speaker = "Player (" + speaker + ")", Text = text });
         }
 
         public void AppendOfficer(string text)
         {
             var name = Officer != null ? Officer.Name : "Officer";
-            TranscriptTail.Add(new TranscriptEntry { Speaker = "Officer " + name, Text = text });
-            TrimTail();
-        }
-
-        private void TrimTail()
-        {
-            int cap = MaintenanceBureauPlusPlugin.TranscriptTailTurns;
-            while (TranscriptTail.Count > cap)
-                TranscriptTail.RemoveAt(0);
+            Transcript.Add(new TranscriptEntry { Speaker = "Officer " + name, Text = text });
         }
 
         public struct TranscriptEntry
