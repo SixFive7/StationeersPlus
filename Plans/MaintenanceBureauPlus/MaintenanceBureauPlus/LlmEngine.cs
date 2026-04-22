@@ -216,6 +216,14 @@ namespace MaintenanceBureauPlus
                     "\n**[Turn",
                     "\n[Turn",
                     "\nPHASE:",
+                    // The model pattern-matches our PHASE:* directives (in
+                    // SystemPrompts.ApprovalTagRules) against the bracketed
+                    // [CONTINUE]/[APPROVED] tags and emits "[PHASE:FINAL]"
+                    // inline at the end of replies. Catch the bracket form
+                    // before it leaks.
+                    "[PHASE",
+                    "[Phase",
+                    "[phase",
                 },
                 SamplingPipeline = new DefaultSamplingPipeline
                 {

@@ -305,7 +305,38 @@ namespace MaintenanceBureauPlus
             if (string.IsNullOrEmpty(text)) return text;
             int cut = FirstHallucinationIndex(text);
             if (cut >= 0) text = text.Substring(0, cut);
+            // Strip any leftover bracketed PHASE marker the model leaks
+            // anywhere in the reply. AntiPrompts catch most of these but
+            // miss leading-of-line variants and any that the executor's
+            // stop-word check sees only after emitting them.
+            text = StripBracketedPhase(text);
             return text.TrimEnd('Ċ', 'Ġ', '\n', '\r', ' ', '\t');
+        }
+
+        // Remove any '[PHASE:...]' / '[Phase:...]' substring no matter where
+        // it lands. The model treats PHASE:FINAL etc. as a tag-like marker
+        // and emits it at end-of-reply (or, occasionally, mid-reply). We
+        // only ever want our own [CONTINUE]/[APPROVED] tags in user-visible
+        // text, and ApprovalTagParser already strips those.
+        private static string StripBracketedPhase(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            int searchFrom = 0;
+            while (true)
+            {
+                int open = text.IndexOf("[PHASE", searchFrom, StringComparison.OrdinalIgnoreCase);
+                if (open < 0) break;
+                int close = text.IndexOf(']', open);
+                if (close < 0)
+                {
+                    // Unterminated — chop from the marker to end-of-string.
+                    text = text.Substring(0, open);
+                    break;
+                }
+                text = text.Remove(open, close - open + 1);
+                searchFrom = open;
+            }
+            return text;
         }
 
         private static int FirstHallucinationIndex(string text)
