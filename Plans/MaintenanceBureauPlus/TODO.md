@@ -153,6 +153,18 @@ See `Plans/TerrainReclamation/plan.md` for the full design.
 
 Before v1 release:
 
+- [ ] **Native-DLL extraction on first launch** (blocks Workshop-compatible deploy). StationeersLaunchPad's recursive `*.dll` glob aborts the entire mod load on any native library in the deploy (see [../../Research/Workflows/LaunchPadNativeDllTrap.md](../../Research/Workflows/LaunchPadNativeDllTrap.md)). For the current local playtest the entire deploy lives under `BepInEx/plugins/MaintenanceBureauPlus/` to sidestep the trap, but that path does not ship to Workshop subscribers. The Workshop-compatible layout:
+  - Change the `CopyNativeLibraries` MSBuild target to emit `natives/**/*.dll.bin` inside the mod's `bin/Release/` instead of `runtimes/win-x64/native/**/*.dll`. Any non-`.dll` extension works; LaunchPad's `Directory.GetFiles(..., "*.dll", SearchOption.AllDirectories)` scan ignores it entirely.
+  - Preserve the existing nested directory structure (`avx/`, `avx2/`, `avx512/` subfolders of `natives/` for the instruction-set variants).
+  - Ship the VC++ redist DLLs the same way: `natives/msvcp140.dll.bin`, `natives/vcruntime140.dll.bin`, `natives/vcruntime140_1.dll.bin`.
+  - Add extract-on-launch code to `Plugin.Awake()` (runs on the Unity main thread before patches apply):
+    1. Determine `nativeSrc = Path.Combine(Paths.PluginPath, "MaintenanceBureauPlus", "natives")`.
+    2. Determine `nativeDst = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Stationeers", "MaintenanceBureauPlus", "natives")`. This path is Workshop-update stable and outside LaunchPad's scan.
+    3. Walk `nativeSrc` recursively. For each `*.dll.bin`, compute the mirrored target under `nativeDst` stripping the `.bin` suffix. If the target exists with the same file length, skip; otherwise `Directory.CreateDirectory` on the parent and `File.Copy` with `overwrite: true`.
+    4. P/Invoke `kernel32.SetDllDirectory(nativeDst)` so LLamaSharp's first `LoadLibrary("llama.dll")` finds the extracted natives and its transitive dependencies (`ggml.dll`, VC++ runtime).
+    5. Log the extraction result: `extracted N new, skipped M unchanged`.
+  - Test matrix: first-time install (all files extract), subsequent launches (zero extracts), Workshop update that ships a new GGUF / native version (new files extract, old remain).
+  - Once this is in place, restore the mod-folder deploy target (`mods/MaintenanceBureauPlus/`), delete the `BepInEx/plugins/MaintenanceBureauPlus/` staging copy, and re-enable the `modconfig.xml` Local entry to test the full path before Workshop publish.
 - [ ] Remove the `[DEBUG-APPROVE]` chat hook in `ChatPatch.Postfix`. It currently fires `ApprovalEvent.Start()` immediately on any chat message containing the literal token, in both Debug and Release builds. Kept unconditional during playtest so testers can trigger the event without waiting for the LLM. The hook is a 6-line block just after the loop guard; delete it, log nothing.
 
 ## Cross-cutting
