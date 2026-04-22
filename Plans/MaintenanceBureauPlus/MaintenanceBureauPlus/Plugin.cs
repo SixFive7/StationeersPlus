@@ -271,7 +271,7 @@ namespace MaintenanceBureauPlus
         {
             Prefab.OnPrefabsLoaded -= OnAllModsLoaded;
 
-            var modelsDir = Path.Combine(PluginDir, "models");
+            var modelsDir = Path.Combine(PluginDir, "Models");
             var modelPath = ResolveModelPath(modelsDir);
             if (modelPath == null)
             {

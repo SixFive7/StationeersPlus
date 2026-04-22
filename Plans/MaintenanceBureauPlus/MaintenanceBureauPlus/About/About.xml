@@ -31,11 +31,11 @@ Server-side only. Clients do not need to install anything.
 [list]
 [*]Install BepInEx and StationeersLaunchPad on the server.
 [*]Copy MaintenanceBureauPlus.dll + dependencies + About/ to the server's local mods folder.
-[*]Download [b]qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] (~1 GB) from Hugging Face and place it in a [b]models/[/b] folder next to the plugin DLL.
+[*]Download [b]qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] (~1 GB) from Hugging Face and place it in a [b]Models/[/b] folder next to the plugin DLL.
 [*]Restart the server.
 [/list]
 
-The model file is not shipped with the mod. It sits under [b]models/qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] next to the DLL. The filename is hardcoded.
+The model file is not shipped with the mod. It sits under [b]Models/qwen2.5-1.5b-instruct-q4_k_m.gguf[/b] next to the DLL. The filename is hardcoded.
 
 [h2]Compatibility[/h2]
 

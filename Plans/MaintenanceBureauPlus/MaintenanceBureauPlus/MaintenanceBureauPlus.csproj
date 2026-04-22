@@ -97,10 +97,10 @@
 
   <Target Name="CopyModelFiles" AfterTargets="Build">
     <ItemGroup>
-      <ModelFile Include="models\*.gguf" />
+      <ModelFile Include="Models\*.gguf" />
     </ItemGroup>
     <Copy SourceFiles="@(ModelFile)"
-          DestinationFolder="$(OutputPath)models"
+          DestinationFolder="$(OutputPath)Models"
           SkipUnchangedFiles="true" />
   </Target>
 </Project>
