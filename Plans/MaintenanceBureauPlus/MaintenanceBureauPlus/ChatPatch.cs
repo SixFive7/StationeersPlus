@@ -85,9 +85,11 @@ namespace MaintenanceBureauPlus
             }
         }
 
-        // Entry point for every qualifying public chat line. If no cycle is active
-        // we start one (which first asks the LLM to pick a persona). If a cycle is
-        // active we append the message to the transcript and enqueue the next turn.
+        // Entry point for every qualifying public chat line. If no cycle is
+        // active we start one (persona is picked locally, interactive LLM
+        // session opens with the full system prompt). If a cycle is active
+        // we append only the delta — one player message — to the ongoing
+        // session, reusing the KV cache from previous turns.
         private static void HandleIncoming(string playerName, string message)
         {
             var conv = MaintenanceBureauPlusPlugin.Conversation;
@@ -100,15 +102,13 @@ namespace MaintenanceBureauPlus
                 return;
             }
 
-            if (conv.IsAwaitingPersona) return;  // persona selection in flight; ignore further input briefly
-
             conv.AppendPlayer(playerName, message);
             conv.TurnCount++;
 
-            var prompt = BuildTurnPrompt(conv, playerName, message);
+            var prompt = BuildTurnDeltaPrompt(conv, playerName, message);
             int maxTokens = MaintenanceBureauPlusPlugin.MaxTokensPerReply;
 
-            MaintenanceBureauPlusPlugin.Engine.Enqueue(prompt, maxTokens, rawReply =>
+            MaintenanceBureauPlusPlugin.Engine.EnqueueInteractive(prompt, maxTokens, rawReply =>
             {
                 MainThreadQueue.Enqueue(() => HandleReply(rawReply));
             });
@@ -137,10 +137,13 @@ namespace MaintenanceBureauPlus
                 conv.Officer.Name +
                 (string.IsNullOrEmpty(conv.Officer.Department) ? "" : " (" + conv.Officer.Department + ")"));
 
-            // Immediately fire the officer's first in-cycle reply. Prompt is
-            // now just preamble + persona block + opening message (~2 kB).
-            var prompt = BuildTurnPrompt(conv, playerName, openingMessage);
-            MaintenanceBureauPlusPlugin.Engine.Enqueue(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, rawTurn =>
+            // Open a fresh interactive LLM session. The preamble + persona +
+            // approval rules are sent once here and stay in the KV cache for
+            // the rest of the cycle; subsequent turns only send the delta.
+            MaintenanceBureauPlusPlugin.Engine.BeginInteractiveCycle();
+
+            var prompt = BuildCycleStartPrompt(conv, playerName, openingMessage);
+            MaintenanceBureauPlusPlugin.Engine.EnqueueInteractive(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, rawTurn =>
             {
                 MainThreadQueue.Enqueue(() => HandleReply(rawTurn));
             });
@@ -183,46 +186,6 @@ namespace MaintenanceBureauPlus
             }
             var candidates = (unseen.Count > 0) ? (System.Collections.Generic.IList<OfficerPersona>)unseen : (System.Collections.Generic.IList<OfficerPersona>)all;
             return candidates[new Random().Next(candidates.Count)];
-        }
-
-        private static void OnPersonaSelected(string rawReply, string playerName, string openingMessage)
-        {
-            MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] OnPersonaSelected reached main thread.");
-
-            var conv = MaintenanceBureauPlusPlugin.Conversation;
-            var persona = ParsePersonaFromReply(rawReply) ?? FallbackRandomPersona();
-            conv.Officer = persona;
-            conv.IsAwaitingPersona = false;
-
-            MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] persona selected: " + persona.Name +
-                (string.IsNullOrEmpty(persona.Department) ? "" : " (" + persona.Department + ")"));
-
-            // Immediately follow with the officer's first in-cycle reply.
-            var prompt = BuildTurnPrompt(conv, playerName, openingMessage);
-            MaintenanceBureauPlusPlugin.Engine.Enqueue(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, rawTurn =>
-            {
-                MainThreadQueue.Enqueue(() => HandleReply(rawTurn));
-            });
-        }
-
-        private static OfficerPersona ParsePersonaFromReply(string raw)
-        {
-            if (string.IsNullOrWhiteSpace(raw)) return null;
-            try
-            {
-                int start = raw.IndexOf('{');
-                int end = raw.LastIndexOf('}');
-                if (start < 0 || end <= start) return null;
-                var json = raw.Substring(start, end - start + 1);
-                var persona = UnityEngine.JsonUtility.FromJson<OfficerPersona>(json);
-                if (persona == null || string.IsNullOrWhiteSpace(persona.Name)) return null;
-                return persona;
-            }
-            catch (Exception ex)
-            {
-                MaintenanceBureauPlusPlugin.Log.LogWarning("Persona JSON parse failed: " + ex.Message);
-                return null;
-            }
         }
 
         private static OfficerPersona FallbackRandomPersona()
@@ -278,10 +241,12 @@ namespace MaintenanceBureauPlus
                 case ApprovalTag.Continue:
                     break;
                 case ApprovalTag.Approved:
+                    MaintenanceBureauPlusPlugin.Engine.EndInteractiveCycle();
                     ApprovalEvent.Start();
                     break;
                 case ApprovalTag.Refused:
                     MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] officer refused; ending cycle");
+                    MaintenanceBureauPlusPlugin.Engine.EndInteractiveCycle();
                     conv.Reset();
                     break;
                 case ApprovalTag.None:
@@ -292,57 +257,51 @@ namespace MaintenanceBureauPlus
 
         // ---- Prompt assembly ----
 
-        private static string BuildTurnPrompt(ConversationState conv, string playerName, string playerMessage)
+        // First prompt of an interactive cycle. Sends the full system block
+        // (preamble + persona + approval rules + final instruction) plus the
+        // first player message. The InteractiveExecutor will tokenize and
+        // evaluate all of this, and everything except the user/assistant
+        // pair will stay in the KV cache for every subsequent turn.
+        private static string BuildCycleStartPrompt(ConversationState conv, string playerName, string playerMessage)
         {
-            var personaBlock = conv.Officer != null ? conv.Officer.ToPersonaBlock() : "(no persona yet)";
-            var turnInfo = "TurnCount=" + conv.TurnCount + " MinTurns=" + conv.MinTurns + " MaxTurns=" + conv.MaxTurns;
-            var body = SystemPrompts.InCycleTurnTemplate
-                .Replace("{PREAMBLE}", SystemPrompts.GlobalBureauPreamble)
-                .Replace("{PERSONA_BLOCK}", personaBlock)
-                .Replace("{TURN_INFO}", turnInfo)
-                .Replace("{APPROVAL_RULES}", SystemPrompts.ApprovalTagRules)
-                .Replace("{TRANSCRIPT}", conv.RenderTranscript())
-                .Replace("{PLAYER_MESSAGE}", "[" + playerName + "]: " + playerMessage);
+            var personaBlock = conv.Officer != null ? conv.Officer.ToPersonaBlock() : "(no persona)";
 
             var sb = new StringBuilder();
             sb.Append("<|im_start|>system\n");
-            sb.Append(body);
+            sb.Append(SystemPrompts.GlobalBureauPreamble);
+            sb.Append("\n\nACTIVE OFFICER:\n");
+            sb.Append(personaBlock);
+            sb.Append("\n\n");
+            sb.Append(SystemPrompts.ApprovalTagRules);
+            sb.Append("\n\nReply as the officer. Keep replies at 3-5 short paragraphs. End every reply with exactly one tag from the approval rules.");
+            sb.Append("\n<|im_end|>\n");
+            sb.Append("<|im_start|>user\n");
+            sb.Append(FormatUserLine(conv, playerName, playerMessage));
             sb.Append("\n<|im_end|>\n");
             sb.Append("<|im_start|>assistant\n");
             return sb.ToString();
         }
 
-        private static string BuildPersonaSelectionPrompt(string openingMessage)
+        // Per-turn delta prompt for a cycle already in progress. The system
+        // block is in the KV cache, so we only send the new user message and
+        // the assistant-turn header. No transcript, no preamble, no rules.
+        private static string BuildTurnDeltaPrompt(ConversationState conv, string playerName, string playerMessage)
         {
-            var pool = MaintenanceBureauPlusPlugin.Personas;
             var sb = new StringBuilder();
-            if (pool != null)
-            {
-                var all = pool.All;
-                for (int i = 0; i < all.Count; i++)
-                {
-                    sb.AppendLine(all[i].ToPoolSnippet());
-                }
-            }
-            var memoryText = MaintenanceBureauPlusPlugin.Memory != null
-                ? MaintenanceBureauPlusPlugin.Memory.RenderForPrompt(30)
-                : "(empty)";
+            sb.Append("<|im_start|>user\n");
+            sb.Append(FormatUserLine(conv, playerName, playerMessage));
+            sb.Append("\n<|im_end|>\n");
+            sb.Append("<|im_start|>assistant\n");
+            return sb.ToString();
+        }
 
-            var body = SystemPrompts.PersonaSelectionTemplate
-                .Replace("{PREAMBLE}", SystemPrompts.GlobalBureauPreamble)
-                .Replace("{POOL_SNIPPETS}", sb.ToString().TrimEnd())
-                .Replace("{MEMORY_LIST}", memoryText);
-
-            var prompt = new StringBuilder();
-            prompt.Append("<|im_start|>system\n");
-            prompt.Append(body);
-            prompt.Append("\n<|im_end|>\n");
-            prompt.Append("<|im_start|>user\n");
-            prompt.Append("Opening message from player: ");
-            prompt.Append(openingMessage);
-            prompt.Append("\n<|im_end|>\n");
-            prompt.Append("<|im_start|>assistant\n");
-            return prompt.ToString();
+        private static string FormatUserLine(ConversationState conv, string playerName, string playerMessage)
+        {
+            // Embed turn state in the user line since the KV-cached system
+            // block can't be rewritten mid-cycle. The officer sees the turn
+            // count in every player message.
+            return "[Turn " + conv.TurnCount + " of " + conv.MaxTurns + "] [" +
+                (playerName ?? "Player") + "]: " + (playerMessage ?? string.Empty);
         }
 
         // ---- Broadcast helper (main thread) ----

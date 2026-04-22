@@ -1,4 +1,5 @@
 using LLama;
+using LLama.Abstractions;
 using LLama.Common;
 using LLama.Sampling;
 using System;
@@ -11,24 +12,45 @@ using System.Threading.Tasks;
 namespace MaintenanceBureauPlus
 {
     // Wraps LLamaSharp for CPU inference on a background thread.
-    // Requests carry fully-formed prompt strings (ChatML-formatted by the caller).
-    // One request at a time; results return via the callback, which the caller is
-    // responsible for marshaling to the main thread via MainThreadQueue.
+    //
+    // Two modes:
+    //
+    //   Stateless (Enqueue)            - one-shot. Full prompt sent each call,
+    //                                    fresh StatelessExecutor each time.
+    //                                    Used for closing message, super summary.
+    //
+    //   Interactive (EnqueueInteractive) - KV-cache-reusing. BeginInteractiveCycle()
+    //                                    creates a fresh LLamaContext + InteractiveExecutor.
+    //                                    Subsequent EnqueueInteractive calls append only
+    //                                    the delta text; the preamble + persona block
+    //                                    + approval rules stay in the cache. Drops
+    //                                    per-turn ingestion cost from ~2 kB to ~50 chars.
+    //                                    Call EndInteractiveCycle() on cycle end to
+    //                                    dispose the context.
+    //
+    // One request at a time; results return via the callback on the worker thread;
+    // the caller marshals back to the main thread via MainThreadQueue.
     public class LlmEngine : IDisposable
     {
         private LLamaWeights _model;
-        private LLamaContext _context;
+        private ModelParams _params;
 
         private readonly ConcurrentQueue<InferenceRequest> _queue = new ConcurrentQueue<InferenceRequest>();
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private Thread _workerThread;
         private readonly AutoResetEvent _signal = new AutoResetEvent(false);
 
+        // Interactive cycle state. Accessed from both main thread (Begin/End) and
+        // worker thread (RunInference). Lock around reads/writes.
+        private readonly object _cycleLock = new object();
+        private LLamaContext _interactiveContext;
+        private InteractiveExecutor _interactiveExecutor;
+
         public bool IsLoaded { get { return _model != null; } }
 
         public void Load(string modelPath, int contextSize, int threads)
         {
-            var parameters = new ModelParams(modelPath)
+            _params = new ModelParams(modelPath)
             {
                 ContextSize = (uint?)contextSize,
                 GpuLayerCount = 0,
@@ -36,8 +58,7 @@ namespace MaintenanceBureauPlus
                 BatchThreads = threads,
             };
 
-            _model = LLamaWeights.LoadFromFile(parameters);
-            _context = _model.CreateContext(parameters);
+            _model = LLamaWeights.LoadFromFile(_params);
 
             _workerThread = new Thread(WorkerLoop)
             {
@@ -60,9 +81,66 @@ namespace MaintenanceBureauPlus
             {
                 Prompt = prompt ?? string.Empty,
                 MaxTokens = maxTokens,
-                OnComplete = onComplete
+                OnComplete = onComplete,
+                Interactive = false,
             });
             _signal.Set();
+        }
+
+        public void EnqueueInteractive(string text, int maxTokens, Action<string> onComplete)
+        {
+            if (!IsLoaded)
+            {
+                onComplete?.Invoke("[model not loaded]");
+                return;
+            }
+
+            _queue.Enqueue(new InferenceRequest
+            {
+                Prompt = text ?? string.Empty,
+                MaxTokens = maxTokens,
+                OnComplete = onComplete,
+                Interactive = true,
+            });
+            _signal.Set();
+        }
+
+        public void BeginInteractiveCycle()
+        {
+            lock (_cycleLock)
+            {
+                EndInteractiveCycleLocked();
+                try
+                {
+                    var ctx = _model.CreateContext(_params);
+                    _interactiveContext = ctx;
+                    _interactiveExecutor = new InteractiveExecutor(ctx);
+                    MaintenanceBureauPlusPlugin.Log.LogInfo("[LlmEngine] Interactive cycle started.");
+                }
+                catch (Exception ex)
+                {
+                    MaintenanceBureauPlusPlugin.Log.LogError("[LlmEngine] BeginInteractiveCycle failed: " + ex);
+                    _interactiveContext = null;
+                    _interactiveExecutor = null;
+                }
+            }
+        }
+
+        public void EndInteractiveCycle()
+        {
+            lock (_cycleLock)
+            {
+                if (_interactiveExecutor == null && _interactiveContext == null) return;
+                EndInteractiveCycleLocked();
+                MaintenanceBureauPlusPlugin.Log.LogInfo("[LlmEngine] Interactive cycle ended.");
+            }
+        }
+
+        private void EndInteractiveCycleLocked()
+        {
+            _interactiveExecutor = null;
+            try { _interactiveContext?.Dispose(); } catch { }
+            _interactiveContext = null;
         }
 
         private void WorkerLoop()
@@ -77,7 +155,8 @@ namespace MaintenanceBureauPlus
 
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     MaintenanceBureauPlusPlugin.Log.LogInfo(
-                        "[LlmEngine] Inference start: promptChars=" + (request.Prompt != null ? request.Prompt.Length : 0) +
+                        "[LlmEngine] Inference start: mode=" + (request.Interactive ? "interactive" : "stateless") +
+                        " promptChars=" + (request.Prompt != null ? request.Prompt.Length : 0) +
                         " maxTokens=" + request.MaxTokens);
                     try
                     {
@@ -100,7 +179,24 @@ namespace MaintenanceBureauPlus
 
         private string RunInference(InferenceRequest request)
         {
-            var executor = new StatelessExecutor(_model, _context.Params);
+            ILLamaExecutor executor;
+            if (request.Interactive)
+            {
+                lock (_cycleLock)
+                {
+                    executor = _interactiveExecutor;
+                }
+                if (executor == null)
+                {
+                    MaintenanceBureauPlusPlugin.Log.LogWarning("[LlmEngine] Interactive request with no active cycle; skipping.");
+                    return string.Empty;
+                }
+            }
+            else
+            {
+                executor = new StatelessExecutor(_model, _params);
+            }
+
             var inferenceParams = new InferenceParams
             {
                 MaxTokens = request.MaxTokens,
@@ -113,15 +209,10 @@ namespace MaintenanceBureauPlus
 
             var result = new StringBuilder();
 
-            // Reflection-based async-enumerator drain. The LLamaSharp state
-            // machine returned by InferAsync implements IAsyncEnumerable<T>
-            // and IAsyncEnumerator<T> as EXPLICIT interface implementations,
-            // so GetMethod("GetAsyncEnumerator", Public | Instance) returns
-            // null. We have to scan with Public | NonPublic flags and match
-            // by name suffix (explicit impls look like
-            // "System.Collections.Generic.IAsyncEnumerable<System.String>.GetAsyncEnumerator").
-            // Calling the method by reflection also sidesteps Mono's broken
-            // IAsyncEnumerator<T> interface resolution.
+            // Reflection-based async-enumerator drain. LLamaSharp's compiler-
+            // generated state machine implements IAsyncEnumerable<T> and
+            // IAsyncEnumerator<T> as explicit interface implementations, and
+            // Mono's JIT cannot resolve the interface at compile time.
             var asyncEnum = executor.InferAsync(request.Prompt, inferenceParams, _cts.Token);
 
             var getAsyncEnumerator = FindInstanceMethod(asyncEnum.GetType(), "GetAsyncEnumerator");
@@ -177,16 +268,30 @@ namespace MaintenanceBureauPlus
             return text;
         }
 
+        // Called from MaintenanceBureauPlusPlugin.OnDestroy during game shutdown.
+        // Does NOT wait long for the worker to finish and does NOT dispose the
+        // native model/context — both risk hanging the game process indefinitely
+        // because the worker can be deep in native llama.cpp code that doesn't
+        // respond to cancellation quickly. The OS reclaims the native memory
+        // when the process exits.
         public void Dispose()
         {
-            _cts.Cancel();
-            _signal.Set();
-            _workerThread?.Join(5000);
+            MaintenanceBureauPlusPlugin.Log?.LogInfo("[LlmEngine] Dispose starting.");
+            try { _cts.Cancel(); } catch { }
+            try { _signal.Set(); } catch { }
 
-            _context?.Dispose();
-            _model?.Dispose();
-            _context = null;
+            if (_workerThread != null && !_workerThread.Join(500))
+                MaintenanceBureauPlusPlugin.Log?.LogWarning("[LlmEngine] Worker did not exit within 500 ms; abandoning (OS will reclaim on process exit).");
+
+            // Deliberately do not dispose _model, _interactiveContext. See class-doc
+            // comment above. Drop the references so nothing else can accidentally
+            // reach into a now-reclaimed native resource if the worker thread is
+            // still alive.
+            _interactiveExecutor = null;
+            _interactiveContext = null;
             _model = null;
+
+            MaintenanceBureauPlusPlugin.Log?.LogInfo("[LlmEngine] Dispose done.");
         }
 
         private struct InferenceRequest
@@ -194,11 +299,10 @@ namespace MaintenanceBureauPlus
             public string Prompt;
             public int MaxTokens;
             public Action<string> OnComplete;
+            public bool Interactive;
         }
 
-        // Find a method by simple name or explicit-interface suffix.
-        // e.g. "MoveNextAsync" matches both "MoveNextAsync" and
-        // "System.Collections.Generic.IAsyncEnumerator<System.String>.MoveNextAsync".
+        // Find an instance method by simple name or explicit-interface suffix.
         private static MethodInfo FindInstanceMethod(Type t, string simpleName)
         {
             var methods = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
