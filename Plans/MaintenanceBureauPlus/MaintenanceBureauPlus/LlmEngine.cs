@@ -75,14 +75,23 @@ namespace MaintenanceBureauPlus
                 {
                     if (_cts.IsCancellationRequested) return;
 
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[LlmEngine] Inference start: promptChars=" + (request.Prompt != null ? request.Prompt.Length : 0) +
+                        " maxTokens=" + request.MaxTokens);
                     try
                     {
                         var result = RunInference(request);
+                        sw.Stop();
+                        MaintenanceBureauPlusPlugin.Log.LogInfo(
+                            "[LlmEngine] Inference done: " + sw.ElapsedMilliseconds + " ms, " +
+                            "resultChars=" + (result != null ? result.Length : 0));
                         request.OnComplete?.Invoke(result);
                     }
                     catch (Exception e)
                     {
-                        MaintenanceBureauPlusPlugin.Log.LogError("Inference failed: " + e.Message);
+                        sw.Stop();
+                        MaintenanceBureauPlusPlugin.Log.LogError("[LlmEngine] Inference failed after " + sw.ElapsedMilliseconds + " ms: " + e);
                         request.OnComplete?.Invoke("[signal lost]");
                     }
                 }

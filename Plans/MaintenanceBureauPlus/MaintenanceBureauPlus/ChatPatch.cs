@@ -64,6 +64,17 @@ namespace MaintenanceBureauPlus
                 return;
             }
 
+            // Diagnostic hotpath: typing literally 'ping' gets an instant
+            // 'pong' reply synthesized without touching the LLM. Proves the
+            // chat intercept + officer broadcast pipeline works end-to-end
+            // independent of inference. Remove before v1 release.
+            if (string.Equals(message.Trim(), "ping", StringComparison.OrdinalIgnoreCase))
+            {
+                MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] ping hotpath fired");
+                BroadcastAsOfficer("Bureau PingBot", "pong");
+                return;
+            }
+
             try
             {
                 HandleIncoming(playerName, message);
@@ -124,6 +135,8 @@ namespace MaintenanceBureauPlus
 
         private static void OnPersonaSelected(string rawReply, string playerName, string openingMessage)
         {
+            MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] OnPersonaSelected reached main thread.");
+
             var conv = MaintenanceBureauPlusPlugin.Conversation;
             var persona = ParsePersonaFromReply(rawReply) ?? FallbackRandomPersona();
             conv.Officer = persona;
