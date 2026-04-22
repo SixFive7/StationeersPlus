@@ -5,6 +5,7 @@ using HarmonyLib;
 using Assets.Scripts.Objects;
 using LaunchPadBooster;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -35,7 +36,6 @@ namespace MaintenanceBureauPlus
         internal static ConfigEntry<int> MaxTurns;
 
         // Hardcoded constants. Change requires a code edit + new release.
-        public const string ModelFileName = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
         public const int MaxTokensPerReply = 384;
         public const int MaxTokensForClosing = 512;
         public const int MaxTokensForPersonaSelection = 256;
@@ -69,13 +69,23 @@ namespace MaintenanceBureauPlus
             // LLamaSharp.InferAsync() throws "Method not found" at first call.
             PreloadBclAsyncInterfaces();
 
-            // Preload LLamaSharp's native libs by absolute path before anything
+            // Extract LLamaSharp's native DLLs and the VC++ redist DLLs from
+            // embedded resources to <BepInEx>/cache/MaintenanceBureauPlus/natives/.
+            // Natives are shipped inside the managed assembly so
+            // StationeersLaunchPad's recursive *.dll scan over the mod folder
+            // never sees a non-managed DLL; see
+            // Research/Workflows/LaunchPadNativeDllTrap.md. Always overwrite and
+            // prune superfluous files so the cache matches the current build
+            // exactly after every mod update.
+            var nativeDir = ExtractNativeLibraries();
+
+            // Preload the extracted native libs by absolute path before anything
             // touches LLama.Native.NativeApi. Mono's default P/Invoke probe does
-            // not search our BepInEx/plugins/<ModName>/runtimes/win-x64/native/
-            // folder, so DllImport("llama") would fail. Windows caches each
-            // preloaded module under its short file name; subsequent DllImport
-            // lookups for "llama" resolve to the already-loaded llama.dll.
-            PreloadNativeLibraries();
+            // not search the cache dir, so DllImport("llama") would otherwise
+            // fail. Windows caches each preloaded module under its short file
+            // name; subsequent DllImport lookups for "llama" resolve to the
+            // already-loaded llama.dll.
+            PreloadNativeLibraries(nativeDir);
 
             Conversation = new ConversationState();
 
@@ -145,14 +155,83 @@ namespace MaintenanceBureauPlus
             }
         }
 
-        private void PreloadNativeLibraries()
+        private const string NativeResourcePrefix = "MaintenanceBureauPlus.Natives.";
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern bool SetDllDirectory(string lpPathName);
+
+        private string ExtractNativeLibraries()
         {
-            var nativeDir = Path.Combine(PluginDir, "runtimes", "win-x64", "native");
+            var nativeDir = Path.Combine(BepInEx.Paths.CachePath, "MaintenanceBureauPlus", "natives");
+            Directory.CreateDirectory(nativeDir);
+
+            var asm = typeof(MaintenanceBureauPlusPlugin).Assembly;
+            var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var resourceName in asm.GetManifestResourceNames())
+            {
+                if (!resourceName.StartsWith(NativeResourcePrefix, StringComparison.Ordinal))
+                    continue;
+
+                var fileName = resourceName.Substring(NativeResourcePrefix.Length);
+                var destPath = Path.Combine(nativeDir, fileName);
+
+                try
+                {
+                    using (var src = asm.GetManifestResourceStream(resourceName))
+                    using (var dst = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        src.CopyTo(dst);
+                    }
+                    written.Add(fileName);
+                    Log.LogInfo("Extracted native lib: " + fileName);
+                }
+                catch (Exception ex)
+                {
+                    Log.LogError("Failed to extract " + fileName + ": " + ex.Message);
+                }
+            }
+
+            // Prune any file in the cache dir that the current build did not
+            // write. Keeps the cache aligned with the current embedded payload
+            // after a mod update that drops or renames a native.
+            try
+            {
+                foreach (var existing in Directory.GetFiles(nativeDir))
+                {
+                    var name = Path.GetFileName(existing);
+                    if (written.Contains(name)) continue;
+                    try
+                    {
+                        File.Delete(existing);
+                        Log.LogInfo("Pruned stale native lib: " + name);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.LogWarning("Could not prune " + name + ": " + ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning("Cache prune scan failed: " + ex.Message);
+            }
+
+            return nativeDir;
+        }
+
+        private void PreloadNativeLibraries(string nativeDir)
+        {
             if (!Directory.Exists(nativeDir))
             {
                 Log.LogWarning("Native library directory not found: " + nativeDir);
                 return;
             }
+
+            // Register the cache dir with the Win32 loader so any dependent
+            // DLL lookup that happens after the first P/Invoke into llama.dll
+            // can resolve transitive imports from the same folder.
+            SetDllDirectory(nativeDir);
 
             // Load order matters: the CRT shims first, then ggml, then llama, then llava.
             // llama.dll imports ggml.dll and the VC++ runtime, so their base file names
@@ -193,13 +272,10 @@ namespace MaintenanceBureauPlus
             Prefab.OnPrefabsLoaded -= OnAllModsLoaded;
 
             var modelsDir = Path.Combine(PluginDir, "models");
-            var modelPath = Path.Combine(modelsDir, ModelFileName);
-
-            if (!File.Exists(modelPath))
+            var modelPath = ResolveModelPath(modelsDir);
+            if (modelPath == null)
             {
-                Log.LogError("Model file not found: " + modelPath);
-                Log.LogError("Download a GGUF model and place it at: " + modelPath);
-                Log.LogError("Expected filename: " + ModelFileName);
+                StartCoroutine(RepeatModelErrorWarning());
                 return;
             }
 
@@ -225,6 +301,64 @@ namespace MaintenanceBureauPlus
                 Priority = System.Threading.ThreadPriority.BelowNormal
             };
             loaderThread.Start();
+        }
+
+        // Summary of the current model-configuration failure (missing folder,
+        // zero .gguf, multiple .gguf). Set by ResolveModelPath; read by
+        // RepeatModelErrorWarning to surface the reason in every log line.
+        private string _modelErrorMessage;
+
+        // Returns the single .gguf path in modelsDir, or null if the folder is
+        // missing, empty, or contains more than one .gguf. Does not throw; the
+        // caller renders the plugin inert and starts a repeat-warning
+        // coroutine so the problem keeps surfacing in the log. Pattern
+        // mirrored from Mods/SprayPaintPlus.
+        private string ResolveModelPath(string modelsDir)
+        {
+            if (!Directory.Exists(modelsDir))
+            {
+                _modelErrorMessage =
+                    "Models directory not found: " + modelsDir +
+                    ". Create this folder and place exactly one .gguf model in it.";
+                Log.LogFatal(_modelErrorMessage);
+                return null;
+            }
+
+            var ggufFiles = Directory.GetFiles(modelsDir, "*.gguf");
+
+            if (ggufFiles.Length == 0)
+            {
+                _modelErrorMessage =
+                    "No .gguf model found in " + modelsDir +
+                    ". Place exactly one .gguf file here " +
+                    "(e.g. qwen2.5-1.5b-instruct-q4_k_m.gguf from HuggingFace).";
+                Log.LogFatal(_modelErrorMessage);
+                return null;
+            }
+
+            if (ggufFiles.Length > 1)
+            {
+                var names = new string[ggufFiles.Length];
+                for (int i = 0; i < ggufFiles.Length; i++)
+                    names[i] = Path.GetFileName(ggufFiles[i]);
+                _modelErrorMessage =
+                    "Multiple .gguf files found in " + modelsDir +
+                    " (" + string.Join(", ", names) + "). Keep exactly one.";
+                Log.LogFatal(_modelErrorMessage);
+                return null;
+            }
+
+            return ggufFiles[0];
+        }
+
+        private IEnumerator RepeatModelErrorWarning()
+        {
+            var wait = new UnityEngine.WaitForSeconds(5f);
+            while (true)
+            {
+                Log.LogError("[MaintenanceBureauPlus] NOT LOADED: " + _modelErrorMessage);
+                yield return wait;
+            }
         }
 
         private bool _openForBusinessLogged;

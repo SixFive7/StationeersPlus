@@ -49,7 +49,9 @@
 
   <ItemGroup>
     <PackageReference Include="LLamaSharp" Version="0.19.0" />
-    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.19.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.19.0">
+      <ExcludeAssets>native</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>
@@ -64,23 +66,34 @@
     </Content>
   </ItemGroup>
 
-  <Target Name="CopyNativeLibraries" AfterTargets="Build">
-    <ItemGroup>
-      <NativeRuntime Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.19.0\runtimes\**\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(NativeRuntime)"
-          DestinationFiles="@(NativeRuntime->'$(OutputPath)runtimes\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyVcRedist" AfterTargets="CopyNativeLibraries">
-    <ItemGroup>
-      <VcRedist Include="redist\vcruntime140.dll;redist\vcruntime140_1.dll;redist\msvcp140.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(VcRedist)"
-          DestinationFolder="$(OutputPath)runtimes\win-x64\native"
-          SkipUnchangedFiles="true" />
-  </Target>
+  <!--
+    Embed LLamaSharp's native DLLs and the VC++ redist DLLs directly into the
+    managed assembly. At runtime Plugin.Awake extracts them to
+    <BepInEx>/cache/MaintenanceBureauPlus/natives/ and SetDllDirectory's that
+    path. This keeps the mod's deploy folder free of non-managed DLLs, which
+    StationeersLaunchPad's recursive Assembly.LoadFrom scan would otherwise
+    abort on. See Research/Workflows/LaunchPadNativeDllTrap.md.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.19.0\runtimes\win-x64\native\ggml.dll">
+      <LogicalName>MaintenanceBureauPlus.Natives.ggml.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.19.0\runtimes\win-x64\native\llama.dll">
+      <LogicalName>MaintenanceBureauPlus.Natives.llama.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(NuGetPackageRoot)llamasharp.backend.cpu\0.19.0\runtimes\win-x64\native\llava_shared.dll">
+      <LogicalName>MaintenanceBureauPlus.Natives.llava_shared.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="redist\vcruntime140.dll">
+      <LogicalName>MaintenanceBureauPlus.Natives.vcruntime140.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="redist\vcruntime140_1.dll">
+      <LogicalName>MaintenanceBureauPlus.Natives.vcruntime140_1.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="redist\msvcp140.dll">
+      <LogicalName>MaintenanceBureauPlus.Natives.msvcp140.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <Target Name="CopyModelFiles" AfterTargets="Build">
     <ItemGroup>
