@@ -22,6 +22,12 @@ All features work correctly for every player, host and clients alike. Late-joini
 ### Color Cycling
 Scroll your mouse wheel while holding a spray can to cycle through all available paint colors. No more carrying twelve cans in a backpack.
 
+### Color Picking (Eyedropper)
+Right-click any paintable object while holding a spray can to copy that object's color onto the can. Left-click the next item to match, no hunting for the right color in the scroll cycle.
+- **Ctrl+right-click** picks the *as-built* color the target would have coming out of its kit / build flow, independent of any later repaint. Useful when a structure has been repainted and you want to restore its original kit color
+- **Shift+right-click** is reserved for future use (currently no-op)
+- Works on any paintable object: pipes, cables, chutes, rails, walls, large structures, placed kits
+
 ### Infinite Spray Paint
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
 
