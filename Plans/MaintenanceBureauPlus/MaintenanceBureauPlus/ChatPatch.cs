@@ -119,18 +119,70 @@ namespace MaintenanceBureauPlus
             var conv = MaintenanceBureauPlusPlugin.Conversation;
             conv.Reset();
             conv.IsActive = true;
-            conv.IsAwaitingPersona = true;
+            conv.IsAwaitingPersona = false;   // resolved synchronously below
             conv.MinTurns = MaintenanceBureauPlusPlugin.MinTurns.Value;
             conv.MaxTurns = MaintenanceBureauPlusPlugin.MaxTurns.Value;
             conv.TurnCount = 1;
             conv.AppendPlayer(playerName, openingMessage);
 
-            var prompt = BuildPersonaSelectionPrompt(openingMessage);
-            int maxTokens = MaintenanceBureauPlusPlugin.MaxTokensForPersonaSelection;
-            MaintenanceBureauPlusPlugin.Engine.Enqueue(prompt, maxTokens, rawReply =>
+            // Persona selection used to be an LLM call over a prompt listing
+            // all 100 personas in full, which is ~14 kB and takes minutes on
+            // a 1.5B CPU model to ingest before the first token is produced.
+            // Pick deterministically in-process instead, biasing away from
+            // recently-seen names. The LLM's job is to PLAY the character,
+            // not pick one; the picking is cheap local logic.
+            conv.Officer = PickRandomUnseenPersona();
+
+            MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] persona selected (local): " +
+                conv.Officer.Name +
+                (string.IsNullOrEmpty(conv.Officer.Department) ? "" : " (" + conv.Officer.Department + ")"));
+
+            // Immediately fire the officer's first in-cycle reply. Prompt is
+            // now just preamble + persona block + opening message (~2 kB).
+            var prompt = BuildTurnPrompt(conv, playerName, openingMessage);
+            MaintenanceBureauPlusPlugin.Engine.Enqueue(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, rawTurn =>
             {
-                MainThreadQueue.Enqueue(() => OnPersonaSelected(rawReply, playerName, openingMessage));
+                MainThreadQueue.Enqueue(() => HandleReply(rawTurn));
             });
+        }
+
+        private static OfficerPersona PickRandomUnseenPersona()
+        {
+            var pool = MaintenanceBureauPlusPlugin.Personas;
+            if (pool == null || pool.Count == 0)
+                return FallbackRandomPersona();
+
+            var memory = MaintenanceBureauPlusPlugin.Memory;
+            var seenNames = new System.Collections.Generic.HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+            if (memory != null)
+            {
+                // Parse names out of recent super-summary entries. Each entry
+                // begins 'Officer <Name>, <Department>: ...'.
+                foreach (var line in memory.Summaries)
+                {
+                    if (string.IsNullOrEmpty(line)) continue;
+                    const string prefix = "Officer ";
+                    int start = line.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
+                    if (start < 0) continue;
+                    int nameStart = start + prefix.Length;
+                    int comma = line.IndexOf(',', nameStart);
+                    if (comma < 0) continue;
+                    var name = line.Substring(nameStart, comma - nameStart).Trim();
+                    if (!string.IsNullOrEmpty(name)) seenNames.Add(name);
+                }
+            }
+
+            var all = pool.All;
+            var unseen = new System.Collections.Generic.List<OfficerPersona>();
+            foreach (var p in all)
+            {
+                if (p == null) continue;
+                if (!seenNames.Contains(p.Name ?? string.Empty))
+                    unseen.Add(p);
+            }
+            var candidates = (unseen.Count > 0) ? (System.Collections.Generic.IList<OfficerPersona>)unseen : (System.Collections.Generic.IList<OfficerPersona>)all;
+            return candidates[new Random().Next(candidates.Count)];
         }
 
         private static void OnPersonaSelected(string rawReply, string playerName, string openingMessage)
