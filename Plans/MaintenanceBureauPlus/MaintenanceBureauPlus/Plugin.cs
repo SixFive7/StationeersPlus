@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace MaintenanceBureauPlus
@@ -60,18 +61,73 @@ namespace MaintenanceBureauPlus
             Log = Logger;
             BindConfig();
 
+            PluginDir = Path.GetDirectoryName(Info.Location);
+
+            // Preload LLamaSharp's native libs by absolute path before anything
+            // touches LLama.Native.NativeApi. Mono's default P/Invoke probe does
+            // not search our BepInEx/plugins/<ModName>/runtimes/win-x64/native/
+            // folder, so DllImport("llama") would fail. Windows caches each
+            // preloaded module under its short file name; subsequent DllImport
+            // lookups for "llama" resolve to the already-loaded llama.dll.
+            PreloadNativeLibraries();
+
             Conversation = new ConversationState();
 
             Personas = new PersonaRegistry();
             Personas.LoadFromEmbeddedResource();
 
-            PluginDir = Path.GetDirectoryName(Info.Location);
             var stateDir = Path.Combine(PluginDir, "state");
             var memoryPath = Path.Combine(stateDir, "persona_memory.json");
             Memory = new PersonaMemoryStore(memoryPath, PersonaMemoryCap);
             Memory.Load();
 
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern IntPtr LoadLibrary(string lpFileName);
+
+        private void PreloadNativeLibraries()
+        {
+            var nativeDir = Path.Combine(PluginDir, "runtimes", "win-x64", "native");
+            if (!Directory.Exists(nativeDir))
+            {
+                Log.LogWarning("Native library directory not found: " + nativeDir);
+                return;
+            }
+
+            // Load order matters: the CRT shims first, then ggml, then llama, then llava.
+            // llama.dll imports ggml.dll and the VC++ runtime, so their base file names
+            // must already be registered by the time llama.dll's dependencies resolve.
+            var loadOrder = new[]
+            {
+                "vcruntime140.dll",
+                "vcruntime140_1.dll",
+                "msvcp140.dll",
+                "ggml.dll",
+                "llama.dll",
+                "llava_shared.dll",
+            };
+
+            foreach (var name in loadOrder)
+            {
+                var path = Path.Combine(nativeDir, name);
+                if (!File.Exists(path))
+                {
+                    Log.LogInfo("Native lib not present (skipping): " + name);
+                    continue;
+                }
+                var handle = LoadLibrary(path);
+                if (handle == IntPtr.Zero)
+                {
+                    var err = Marshal.GetLastWin32Error();
+                    Log.LogError("Failed to preload " + name + " (Win32 error: " + err + ")");
+                }
+                else
+                {
+                    Log.LogInfo("Preloaded native lib: " + name);
+                }
+            }
         }
 
         private void OnAllModsLoaded()
