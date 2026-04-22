@@ -3,12 +3,10 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.6.1</Version>
+  <Version>1.7.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
-Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
-
-Builds on the excellent work of [b]Elmotrix[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url], [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url]) and [b]Aspct[/b] ([url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url]), whose original mods inspired this project. The multiplayer networking code in Color Cycler was contributed by [b]SubHobo[/b] (bls220). Spray Paint Plus combines their ideas and fixes the multiplayer issues that affected clients in those mods.
+Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod. See the Credits section below for attribution to the original mods this one builds on.
 
 [h2]Features[/h2]
 
@@ -17,6 +15,14 @@ All features work correctly for every player, host and clients alike. Late-joini
 
 [h3]Color Cycling[/h3]
 Scroll your mouse wheel while holding a spray can to cycle through all available paint colors. No more carrying twelve cans in a backpack.
+
+[h3]Color Picking (Eyedropper)[/h3]
+Right-click any paintable object while holding a spray can to copy its color onto the can. Left-click the next item to match.
+[list]
+[*][b]Ctrl+right-click[/b] picks the as-built color the target would have coming out of its kit, independent of any later repaint
+[*][b]Shift+right-click[/b] is reserved (currently no-op)
+[*]Works on any paintable object
+[/list]
 
 [h3]Infinite Spray Paint[/h3]
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
@@ -120,6 +126,13 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.7.0: Right-click color eyedropper on the spray can
+- NEW: Right-click any paintable object with a spray can in hand to copy that object's color onto the can. Left-click the next item to match.
+- NEW: Ctrl+right-click picks the as-built color the target would have coming out of its kit / build flow, independent of any later repaint. Useful when a structure has been repainted and you want to restore the original kit color.
+- Shift+right-click is reserved for future use (currently no-op).
+- The eyedropper only changes the held can's color; painting behavior itself is unchanged. Single-player, host, and remote client all take the same client-local code path; no new network messages.
+- REQUIRES: All players on a server must run 1.7.0 (matching-version handshake)
+
 v1.6.1: Compact in-game mod description
 - Tightened the in-game mod-panel description: shorter per-line text, fewer redundant bullets, credits line at the end, and the right-click gun toggle (Add Glow / Remove Glow) called out so it is discoverable without reading the Workshop page
 - Wrapped the description body in a TMP line-height=40% tag so prose lines no longer take a full vanilla line of vertical space; the Workshop Description page is unchanged
@@ -196,22 +209,7 @@ v1.2.0: Paint whole rooms and whole frame grids
 - NEW: Server toggles "Network Paint Walls" and "Network Paint Large Structures" (both default on)
 - Shift still restricts to the single targeted item; Ctrl still produces a checkered pattern
 
-v1.1.1: Modifier keys for clients
-- FIX: Shift / Ctrl modifiers now apply correctly when remote clients paint. Previously the server read the host's keyboard for every client's paint action, so clients' modifiers were ignored (always behaved as if nothing was held)
-- Skip redundant client-side network-paint prefix for non-spray paint paths (cosmetic-only, did not propagate)
-- REQUIRES: All players on a server must run 1.1.1 (wire format change in the modifier message)
-
-v1.1.0: LaunchPadBooster Networking V2
-- CHANGE: Migrated to the new Networking V2 API (dedicated channel, automatic compression, multi-packet splitting)
-- CHANGE: Explicitly enforce matching mod versions during the multiplayer handshake
-- REQUIRES: StationeersLaunchPad with LaunchPadBooster v0.2.0 or newer
-
-v1.0.0: Initial release
-- Combines Color Cycler, Network Painter, and Infinite Spray Paint into one multiplayer-safe mod
-- Scroll to cycle spray can colors; hold Shift to paint a single item; hold Ctrl for checkered pattern
-- Network painting for pipes, cables, and chutes with per-type toggles
-- Infinite spray paint uses and pollution suppression (server-side toggles)
-- Conflict detection against the three original mods
+(Older versions v1.0.0 through v1.1.1 trimmed to stay within Workshop's 8000-character ChangeLog cap; see the git tag history at github.com/SixFive7/StationeersPlus for the full log.)
   </ChangeLog>
   <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
@@ -224,6 +222,7 @@ v1.0.0: Initial release
 <line-height=40%>Combines color cycling, network painting, glow paint, and infinite spray paint into one multiplayer-safe Stationeers mod.
 <b>Features:</b>
 - Scroll wheel cycles spray can colors
+- Right-click a target with a can to copy its color; Ctrl+right-click picks the as-built kit color
 - Infinite spray paint, no pollution (both configurable)
 - One-stroke paint for pipe / cable / chute networks, rooms of same-type walls, connected large structures, and robotic arm rail assemblies
 - Spray Paint Gun adds glow to painted targets (ammo-less, preserves color); right-click the gun to toggle Add Glow / Remove Glow mode
