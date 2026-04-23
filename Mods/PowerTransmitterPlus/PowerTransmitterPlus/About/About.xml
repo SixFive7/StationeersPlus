@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.3.1</Version>
+  <Version>1.4.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
@@ -100,6 +100,13 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.4.0: Enable Auto-Aim server toggle with join-time handshake
+- New server-authoritative setting Enable Auto-Aim (default on) under Server - Features. When off at game start, MicrowaveAutoAimTarget (LogicType 6575) is not registered at all: no IC10 constant, no tablet dropdown entry, no Stationpedia page, no screen syntax highlighting, no Harmony patches. Feature surface disappears rather than being hidden
+- Changing Enable Auto-Aim requires a full Stationeers restart to take effect. The main-menu settings panel shows a crimson "Changes in configuration require a restart to apply" banner on change
+- In multiplayer, clients whose Enable Auto-Aim value does not match the host's are rejected at join time via LaunchPadBooster IJoinValidator with a readable error. The join handshake runs before world entry, so a mismatched client never loads the server's world
+- All players on a server must be on v1.4.0 or newer; the LaunchPadBooster version handshake rejects mixed installs before the feature-parity handshake runs
+- Existing player configs gain the new entry with default value true on first launch after updating. No gameplay change for anyone who does not toggle the setting
+
 v1.3.1: Drop LogicType numeric values from user-facing docs
 - Logic Readouts and Auto-Aim tables in the Workshop description no longer show per-name numeric IDs (6571-6576). The ID numbers are implementation detail; players write IC10 against the names, not the numbers
 - Simplified the "Custom logic type range" Compatibility note to describe the collision avoidance without spelling out the exact range

@@ -17,7 +17,7 @@ namespace PowerTransmitterPlus
     {
         public const string PluginGuid = "net.powertransmitterplus";
         public const string PluginName = "PowerTransmitterPlus";
-        public const string PluginVersion = "1.3.1";
+        public const string PluginVersion = "1.4.0";
 
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
         internal static ManualLogSource Log;
