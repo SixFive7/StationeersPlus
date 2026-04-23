@@ -54,6 +54,8 @@ A fifth logic type, `MicrowaveAutoAimTarget`, is **writable** on both transmitte
 
 Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op.
 
+The host can disable auto-aim entirely via the `Enable Auto-Aim` server setting. When disabled, `MicrowaveAutoAimTarget` is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and nothing responds to writes at that LogicType. Clients whose local `Enable Auto-Aim` value does not match the host's are rejected at join time with a clear error message, so mixed installs cannot enter the same world.
+
 Combine with `MicrowaveLinkedPartner` for closed-loop IC10 automation: aim at a target, confirm the link formed, and fall back if it did not. Example switching transmit target when remote batteries fill up:
 
 ```
@@ -91,7 +93,13 @@ j start
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes broadcast live to all connected clients on connect and on every change. The in-game settings panel groups the seven entries under three headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. `Enable Auto-Aim` is a restart-gated toggle, not a live-broadcast setting: changing it requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the eight entries under four headers:
+
+**Server - Features**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Enable Auto-Aim | true | Master toggle for the auto-aim feature. When off, `MicrowaveAutoAimTarget` and its IC10 / tablet / screen UI surface are not registered at all. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected |
 
 **Server - Distance**:
 

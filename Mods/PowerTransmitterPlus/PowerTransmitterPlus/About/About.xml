@@ -41,11 +41,18 @@ The power readouts return 0 when the link is down, the device is off, or no powe
 [h3]Auto-Aim[/h3]
 A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. This enables IC10 patterns like switching transmit target when remote batteries fill.
 
+The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
+
 [h3]Settings[/h3]
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes broadcast live to all connected clients on connect and on every change. The in-game settings panel groups the seven entries under three headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. Enable Auto-Aim is a restart-gated toggle, not a live-broadcast setting: changing it requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the eight entries under four headers:
+
+[b]Server - Features[/b]:
+[list]
+[*][b]Enable Auto-Aim[/b] (default true): Master toggle for MicrowaveAutoAimTarget. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected
+[/list]
 
 [b]Server - Distance[/b]:
 [list]
@@ -157,7 +164,7 @@ v1.0.0: Initial release
 - Scrolling energy pulses, speed scales with power throughput
 - Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
 - Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveLinkedPartner
-- Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable
+- Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable. Host can disable the feature entirely via Enable Auto-Aim; join handshake rejects mismatched clients
 - Full multiplayer support with server-authoritative simulation
 <b>Settings:</b> Server-authoritative: the host's values control gameplay and visuals for all connected clients, broadcast live on change.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.

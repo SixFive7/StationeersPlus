@@ -147,10 +147,15 @@ namespace PowerTransmitterPlus
     }
 
     // Intercept writes to MicrowaveAutoAimTarget. Everything else passes through
-    // to vanilla SetLogicValue.
+    // to vanilla SetLogicValue. Gated whole-class on AutoAimPatched: when the
+    // feature is off at boot, this patch is never applied and vanilla handles
+    // the write (which no-ops for an unregistered LogicType).
     [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.SetLogicValue))]
     public static class WirelessPowerSetLogicValuePatch
     {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
         [UsedImplicitly]
         public static bool Prefix(WirelessPower __instance, LogicType logicType, double value)
         {
@@ -160,10 +165,16 @@ namespace PowerTransmitterPlus
         }
     }
 
-    // Mark MicrowaveAutoAimTarget writable on transmitter and receiver.
+    // Mark MicrowaveAutoAimTarget writable on transmitter and receiver. Gated
+    // with the same Prepare so the writable bit is not advertised when the
+    // feature is disabled (tablet and IC10 treat it as an ordinary unknown
+    // LogicType and refuse the write).
     [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.CanLogicWrite))]
     public static class WirelessPowerCanLogicWritePatch
     {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
         [UsedImplicitly]
         public static void Postfix(WirelessPower __instance, LogicType logicType, ref bool __result)
         {
@@ -175,10 +186,14 @@ namespace PowerTransmitterPlus
     // Any non-auto-aim write to the dish's target horizontal or vertical
     // (player action, IC10 s d0 Horizontal, tablet adjustment, etc.) clears
     // the cached target so auto-aim relinquishes control. Our own writes set
-    // a thread-static suppression flag so this postfix skips them.
+    // a thread-static suppression flag so this postfix skips them. Gated on
+    // AutoAimPatched: no cache exists to invalidate when the feature is off.
     [HarmonyPatch(typeof(RotatableBehaviour), nameof(RotatableBehaviour.TargetHorizontal), MethodType.Setter)]
     public static class RotatableTargetHorizontalResetPatch
     {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
         [UsedImplicitly]
         public static void Postfix(RotatableBehaviour __instance)
         {
@@ -190,6 +205,9 @@ namespace PowerTransmitterPlus
     [HarmonyPatch(typeof(RotatableBehaviour), nameof(RotatableBehaviour.TargetVertical), MethodType.Setter)]
     public static class RotatableTargetVerticalResetPatch
     {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
         [UsedImplicitly]
         public static void Postfix(RotatableBehaviour __instance)
         {

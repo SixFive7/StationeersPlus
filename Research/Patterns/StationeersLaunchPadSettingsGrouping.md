@@ -8,6 +8,9 @@ sources:
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: SortedConfigFile
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: SortedConfigCategory
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigPanel.DrawConfigFile
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigPanel.DrawConfigEntry
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigPanel.DrawConfigEditor
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigEntryWrapper
 related:
   - ../Patterns/ConflictDetection.md
 tags: [launchpad, ui]
@@ -159,9 +162,81 @@ Rendered order: Client, Server.
 - If deterministic group ordering matters (for example, to make a "Server" group appear before a "Client" group), there is no clean solution. Section strings are sorted alphabetically. Naming workarounds (`"1. Server"`, `"A. Server"`) are possible but visible to players.
 - Scope labels (Client / Server / etc.) work well as section names because they partition the entry set by who controls the value, which is the most common question a player asks when looking at a settings screen.
 
+## `RequireRestart` rendering behavior
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-23 -->
+
+The `RequireRestart` tag is a cosmetic UI signal. It does not disable the entry, does not defer the config write, and does not affect `ConfigEntry<T>.Value` at all. The value is written to disk by BepInEx immediately when the user edits the widget, exactly like any other entry. The only effect is a per-mod editor banner that appears while the settings panel is open.
+
+`ConfigEntryWrapper` (constructor, approximately lines 29-95) reads the tag from `ConfigDescription.Tags`:
+
+```csharp
+else if (obj3 is KeyValuePair<string, bool> keyValuePair2)
+{
+    switch (keyValuePair2.Key)
+    {
+    case "RequireRestart":
+    {
+        bool value2 = keyValuePair2.Value;
+        RequireRestart = value2;
+        break;
+    }
+    ...
+    }
+}
+```
+
+`ConfigPanel.DrawConfigEntry<T>` (approximately lines 208-275) tracks changes. `flag` is true when the user interacted with the widget this frame; `value` is the pre-draw `ConfigEntry<T>.Value`; `value2` is the post-draw value:
+
+```csharp
+if (wrapper.RequireRestart && flag)
+{
+    T value2 = val.Value;
+    if (!Equals(value, value2))
+    {
+        if (requireRestartOriginalValues.TryGetValue(wrapper.Entry, out var value3))
+        {
+            if (Equals(value2, value3))
+            {
+                requireRestartOriginalValues.Remove(wrapper.Entry);
+            }
+        }
+        else
+        {
+            requireRestartOriginalValues.Add(wrapper.Entry, value);
+        }
+    }
+}
+```
+
+`requireRestartOriginalValues` is a `private static readonly Dictionary<ConfigEntryBase, object>` (approximately line 63). It persists for the process lifetime, not the panel lifetime.
+
+`ConfigPanel.DrawConfigEditor` (approximately lines 154-161) renders one of two banners at the top of each mod's editor based on the dictionary's population:
+
+```csharp
+if (requireRestartOriginalValues.Count > 0)
+{
+    ImGuiHelper.TextColored("Changes in configuration require a restart to apply", new Color(0.863f, 0.078f, 0.235f));
+}
+else
+{
+    ImGuiHelper.TextDisabled("These configurations may require a restart to apply");
+}
+```
+
+The crimson banner (RGB `0.863, 0.078, 0.235`) displays once any `RequireRestart: true` entry has been changed in this process session. If the user reverts the entry to its original value (`Equals(value2, value3)` on line 254), the dictionary entry is removed and the banner reverts to the greyed-out "may require a restart" text.
+
+Implications:
+
+- The banner is only visible while the settings panel is open. Closing the panel does not dismiss the dictionary tracking, but the visual cue is gone. A player who makes a change, closes the panel, and loads a save receives no further prompt.
+- The tag does not gate, delay, or warn about loading a world. It only annotates the settings UI.
+- "Original" means "value when the player first changed it in this process session," not "value at plugin boot." The two coincide only if nobody has touched the entry in the panel since process start.
+- Mods that want runtime enforcement (reject joins, refuse save load, etc.) must implement their own mechanism; `RequireRestart` is advisory only.
+
 ## Verification history
 
 - 2026-04-21: page created. Verified against `StationeersLaunchPad.dll` in game version 0.2.6228.27061 by decompilation of `SortedConfigFile`, `SortedConfigCategory`, and `ConfigPanel.DrawConfigFile`.
+- 2026-04-23: added "RequireRestart rendering behavior" section. Verified against `StationeersLaunchPad.dll` in game version 0.2.6228.27061 by decompilation of `ConfigEntryWrapper`, `ConfigPanel.DrawConfigEntry`, and `ConfigPanel.DrawConfigEditor`. `sources:` frontmatter extended with the three new decompile targets.
 
 ## Open questions
 

@@ -1,9 +1,11 @@
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using LaunchPadBooster;
+using LaunchPadBooster.Networking;
 using System;
 using System.Collections.Generic;
 
@@ -11,7 +13,7 @@ namespace PowerTransmitterPlus
 {
     [BepInDependency("stationeers.launchpad", BepInDependency.DependencyFlags.HardDependency)]
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    public class PowerTransmitterPlusPlugin : BaseUnityPlugin
+    public class PowerTransmitterPlusPlugin : BaseUnityPlugin, IJoinValidator
     {
         public const string PluginGuid = "net.powertransmitterplus";
         public const string PluginName = "PowerTransmitterPlus";
@@ -42,6 +44,15 @@ namespace PowerTransmitterPlus
         // a source-draw multiplier. See DistanceCostPatches for the math + the
         // four Harmony patches that implement it. Server-authoritative.
         internal static ConfigEntry<float> DistanceCostFactor;
+
+        // Master toggle for the auto-aim feature. Captured into AutoAimPatched at
+        // boot; that bool is what every gated surface reads. Changing the config
+        // value mid-process does not flip the patched state (Harmony Prepare and
+        // the LogicTypeRegistry filter run once), hence RequireRestart. In
+        // multiplayer, mismatches between client and host are caught at join
+        // time by the IJoinValidator implementation below.
+        internal static ConfigEntry<bool> EnableAutoAim;
+        internal static bool AutoAimPatched;
 
 
         void Awake()
@@ -97,6 +108,20 @@ namespace PowerTransmitterPlus
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
+            EnableAutoAim = Config.Bind(
+                "Server - Features", "Enable Auto-Aim", true,
+                new ConfigDescription(
+                    "(Server-authoritative) Master toggle for the auto-aim feature (MicrowaveAutoAimTarget). When off, the writable LogicType, its IC10 named constant, its tablet dropdown entry, Stationpedia page, and screen syntax highlighting are not registered at all: the feature is not just hidden, it does not exist in the process. Requires a full Stationeers restart to take effect: toggling in the settings panel while running does not re-apply Harmony patches. In multiplayer, clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error message.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10),
+                    new KeyValuePair<string, bool>("RequireRestart", true)));
+
+            // Capture once, here, before any code path reads LogicTypeRegistry.
+            // AutoAimPatched is the authoritative flag for the rest of the
+            // process; the ConfigEntry itself can still be toggled in the
+            // main-menu settings panel but toggles only affect the NEXT run.
+            AutoAimPatched = EnableAutoAim.Value;
+
             MainThreadDispatcher.Init();
             DistanceConfigSync.HookHostBroadcast();
             BeamVisualConfigSync.HookHostBroadcast();
@@ -114,6 +139,15 @@ namespace PowerTransmitterPlus
                 MOD.Networking.RegisterMessage<DistanceConfigMessage>();
                 MOD.Networking.RegisterMessage<BeamVisualConfigMessage>();
 
+                // Reject joins where the client's and host's boot-time AutoAim
+                // patched state disagree. RequireRestart on the ConfigEntry
+                // prompts the host visually in the main-menu settings panel,
+                // but nothing enforces that on the remote-join path; this
+                // validator is what prevents a mismatched client from entering
+                // a world where the LogicType / IC10 constant / tablet UI
+                // surface does not match what the host has loaded.
+                MOD.Networking.JoinValidator = this;
+
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
 
@@ -127,6 +161,31 @@ namespace PowerTransmitterPlus
             {
                 Log.LogFatal($"Failed to apply patches: {e}");
             }
+        }
+
+        // IJoinValidator: per-mod handshake invoked by LaunchPadBooster's
+        // VerifyPlayer / VerifyPlayerRequest postfixes on the remote-join path.
+        // Both sides serialize their AutoAimPatched value; the read side rejects
+        // the connection with a readable error if the values disagree. Does NOT
+        // fire for single-player or host-own-world load; those paths rely on
+        // the RequireRestart banner + boot-time capture instead.
+        public void SerializeJoinValidate(RocketBinaryWriter writer)
+        {
+            writer.WriteBoolean(AutoAimPatched);
+        }
+
+        public bool ProcessJoinValidate(RocketBinaryReader reader, out string error)
+        {
+            var remote = reader.ReadBoolean();
+            if (remote == AutoAimPatched)
+            {
+                error = null;
+                return true;
+            }
+            error = remote
+                ? "PowerTransmitterPlus: server has Enable Auto-Aim on, your game has it off. Enable it in the mod settings panel and restart Stationeers before joining."
+                : "PowerTransmitterPlus: server has Enable Auto-Aim off, your game has it on. Disable it in the mod settings panel and restart Stationeers before joining.";
+            return false;
         }
     }
 }
