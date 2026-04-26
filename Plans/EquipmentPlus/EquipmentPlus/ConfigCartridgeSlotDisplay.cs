@@ -152,7 +152,7 @@ namespace EquipmentPlus
                         string colorOpen = writable ? ColorWritable : ColorReadOnly;
 
                         double rawValue = ____scannedDevice.GetLogicValue(lst, slotIdx);
-                        string valueStr = Math.Round(rawValue, 2).ToString();
+                        string valueStr = Math.Round(rawValue, 3, MidpointRounding.AwayFromZero).ToString();
 
                         // \n{typeName} ... {colorOpen}{value}</color>
                         sb.AppendFormat(SlotLogicLineFmt, typeName, colorOpen, valueStr, ColorClose);

@@ -69,14 +69,6 @@ Today, `WriteLogicSlotValue` applies on host / single-player and logs a warning 
 - [ ] **Remove the existing host-only warning entirely.** No "slot writes are host-only" log line, no greyed-out InputWindow on remote clients, no caveats in any user-visible text. The mod does not ship until this works for every client; warnings about partial functionality are dead code by release time.
 - [ ] Update test regime note 5 above to drop the host-only caveat and describe the unified multiplayer-working behavior. Update README and About.xml to describe the slot-write feature unconditionally.
 
-### F. Slot logic value precision: match base-game display convention
-
-`ConfigCartridgeSlotDisplay.cs:155` currently does `Math.Round(rawValue, 2).ToString()`, displaying slot logic values to 2 decimals. Slot Configuration Cartridge used 3. Neither of those is necessarily the right answer; the right answer is to mirror however the base game itself formats logic values everywhere it displays one (logic readers, Stationpedia entries, tooltips, the non-slot ConfigCartridge output, item tooltips). Players see consistent precision regardless of which surface is showing the value.
-
-- [ ] **Decompilation research first, 100% coverage before changing the format.** Identify every base-game site that formats a `LogicType` or `LogicSlotType` numeric value for display. Cover at minimum: `LogicableExtensions`, `LogicReader`, `Stationpedia`, `ConfigCartridge.ReadLogicText` (the non-slot path), `Cartridge` subclasses that print values, tooltip generators, and any custom `ToString()` overrides on `Logicable` / `Device` / readout widgets. Determine the format spec actually used: `Math.Round(value, N)`, `.ToString("F2")` / `"F3"` / `"G"`, culture handling (invariant vs. current), trailing-zero behavior, exponent suppression. The expected outcome is a single canonical format spec used across the game; if the base game itself is inconsistent, document the inconsistency in `RESEARCH.md` and pick the format used by `ConfigCartridge.ReadLogicText` for non-slot values, since visual continuity inside one cartridge surface matters more than cross-surface uniformity.
-- [ ] Apply the discovered format to `ConfigCartridgeSlotDisplay.cs:155`. One-line change once the format is known.
-- [ ] Curate the finding to a page under `Research/` per `Research/WORKFLOW.md` Rule 2. Stamp `verified_in: 0.2.6228.27061` (current game version at the time of writing this TODO; bump to whatever is current at implementation time).
-
 ## Test regime
 
 Run each test from an active in-game save with the built DLL deployed and the game restarted (StationeersLaunchPad autoloads the folder, but patches only bind at plugin Awake).
