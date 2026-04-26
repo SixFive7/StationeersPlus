@@ -17,11 +17,7 @@ Working notes for the ConfigCartridge click + scroll fixes. Verification is pend
 
 ## Planned features
 
-Scope items identified from a gap analysis vs other tablet, lens, and headlamp mods (Better Advanced Tablet, ImprovedConfiguration, Slot Configuration Cartridge, Inventory Tweaks, Fixing The Controls, Better Headlamp). Implement after the in-flight click+scroll fix is verified and shipped. Implement A first (blocks B), then B and C in either order, then D.
-
-### A. Add Better Headlamp to the incompatibility list
-
-- [x] Append `("betterheadlampmod", "Better Headlamp")` to `ConflictingMods` in `Plugin.cs`. The assembly-name scan is the authoritative path (StationeersLaunchPad bypasses `[BepInIncompatibility]`); follow the Slot Configuration Cartridge pattern of assembly-only entry, no attribute. Reason: EquipmentPlus absorbs Better Headlamp's beam-adjust feature under a different binding (Ctrl+Shift+scroll); leaving it loaded would double-handle scroll input on equipped helmets.
+Scope items identified from a gap analysis vs other tablet, lens, and headlamp mods (Better Advanced Tablet, ImprovedConfiguration, Slot Configuration Cartridge, Inventory Tweaks, Fixing The Controls, Better Headlamp). Implement after the in-flight click+scroll fix is verified and shipped. Implement B and C in either order, then D.
 
 ### B. Rebind cycling from click to scroll, integrate Better Headlamp beam control
 
