@@ -89,8 +89,6 @@
     <Compile Include="AutoAimPatches.cs" />
     <Compile Include="AutoAimSideCar.cs" />
     <Compile Include="AutoAimSaveLoadPatches.cs" />
-    <Compile Include="AutoAimSnapshotMessage.cs" />
-    <Compile Include="AutoAimSnapshotSync.cs" />
     <Compile Include="PlacementPatcher.cs" />
     <Compile Include="LinkPatch.cs" />
     <Compile Include="LinkVisibilityPatch.cs" />

@@ -1,5 +1,6 @@
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -13,7 +14,7 @@ namespace PowerTransmitterPlus
 {
     [BepInDependency("stationeers.launchpad", BepInDependency.DependencyFlags.HardDependency)]
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    public class PowerTransmitterPlusPlugin : BaseUnityPlugin, IJoinValidator
+    public class PowerTransmitterPlusPlugin : BaseUnityPlugin, IJoinValidator, IJoinSuffixSerializer
     {
         public const string PluginGuid = "net.powertransmitterplus";
         public const string PluginName = "PowerTransmitterPlus";
@@ -157,7 +158,6 @@ namespace PowerTransmitterPlus
                 MOD.Networking.Required = true;
                 MOD.Networking.RegisterMessage<DistanceConfigMessage>();
                 MOD.Networking.RegisterMessage<BeamVisualConfigMessage>();
-                MOD.Networking.RegisterMessage<AutoAimSnapshotMessage>();
 
                 // Reject joins where the client's and host's boot-time AutoAim
                 // patched state disagree. RequireRestart on the ConfigEntry
@@ -167,6 +167,18 @@ namespace PowerTransmitterPlus
                 // a world where the LogicType / IC10 constant / tablet UI
                 // surface does not match what the host has loaded.
                 MOD.Networking.JoinValidator = this;
+
+                // Embed the per-dish auto-aim cache in the world-snapshot
+                // transmission to joining clients. NetworkManager.PlayerConnected
+                // fires before NetworkBase.AddClient runs (the joiner is added
+                // only after VerifyConnection succeeds), so an INetworkMessage
+                // broadcast from a PlayerConnected postfix never reaches the
+                // joiner. IJoinSuffixSerializer injects directly into the join
+                // payload between ProcessThings and AtmosphericsManager.DeserializeOnJoin
+                // on the client side, so all Things are already deserialized
+                // and Thing.Find resolves. See
+                // Research/Protocols/PlayerConnectedThingFindTiming.md.
+                MOD.Networking.JoinSuffixSerializer = this;
 
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
@@ -228,6 +240,54 @@ namespace PowerTransmitterPlus
 
             error = null;
             return true;
+        }
+
+        // IJoinSuffixSerializer: writes (and reads) the auto-aim cache as part
+        // of the world-snapshot transmission to a joining client. Runs on the
+        // server inside NetworkServer.PackageJoinData (LPB-injected into the
+        // join writer per Research/Protocols/PlayerConnectedThingFindTiming.md);
+        // runs on the client inside NetworkClient.ProcessJoinData at the
+        // position of the original AtmosphericsManager.DeserializeOnJoin call,
+        // which is AFTER ProcessThings, so Thing.Find resolves dish ids.
+        //
+        // LaunchPadBooster's SectionedWriter/Reader length-prefixes our payload
+        // per-mod, so a future schema change won't desync neighboring mods'
+        // sections. When the auto-aim feature is disabled at boot,
+        // SnapshotEntries() returns empty and we write a count of 0; symmetric
+        // on the receiver.
+        public void SerializeJoinSuffix(RocketBinaryWriter writer)
+        {
+            var entries = new List<KeyValuePair<long, long>>();
+            foreach (var pair in AutoAimState.SnapshotEntries())
+            {
+                entries.Add(pair);
+            }
+            writer.WriteInt32(entries.Count);
+            foreach (var entry in entries)
+            {
+                writer.WriteInt64(entry.Key);
+                writer.WriteInt64(entry.Value);
+            }
+        }
+
+        public void DeserializeJoinSuffix(RocketBinaryReader reader)
+        {
+            int count = reader.ReadInt32();
+            int applied = 0, missing = 0;
+            for (int i = 0; i < count; i++)
+            {
+                long dishId = reader.ReadInt64();
+                long targetId = reader.ReadInt64();
+                var dish = Thing.Find(dishId) as WirelessPower;
+                if (dish == null) { missing++; continue; }
+                AutoAimState.RestoreCache(dish, targetId);
+                applied++;
+            }
+            if (count > 0)
+            {
+                Log?.LogInfo(
+                    $"Restored auto-aim cache from host join: {applied} applied, {missing} dishes not found locally");
+            }
         }
     }
 }
