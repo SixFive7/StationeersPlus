@@ -82,6 +82,7 @@
     <Compile Include="AutoAimPatches.cs" />
     <Compile Include="PlacementPatcher.cs" />
     <Compile Include="LinkPatch.cs" />
+    <Compile Include="LinkVisibilityPatch.cs" />
     <Compile Include="BeamVisualConfigMessage.cs" />
     <Compile Include="BeamVisualConfigSync.cs" />
     <Compile Include="StationpediaPatches.cs" />

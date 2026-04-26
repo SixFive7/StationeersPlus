@@ -14,7 +14,7 @@ Adds a visible beam, scrolling pulses, a configurable distance cost, new logic r
 ## Features
 
 ### Visible Laser Beam
-A colored beam is drawn between a linked transmitter and receiver whenever the link is up and powered. The beam is at full brightness at all times while visible, so you can see at a glance which dishes are actually connected.
+A colored beam is drawn between a linked transmitter and receiver whenever the link is up, regardless of whether power is flowing. The beam is at full brightness at all times while visible, so you can see at a glance which dishes are actually connected. Power flow is shown by the pulse train (see below): when no power is flowing, the stripes freeze in place.
 
 ### Scrolling Pulse Train
 Energy pulses scroll along the beam from transmitter to receiver. Stripe spacing is constant in world meters (same look on a 5m link or a 500m link). Scroll speed scales with power throughput, so a lightly-loaded link is clearly distinguishable from a heavily-loaded one at a glance.

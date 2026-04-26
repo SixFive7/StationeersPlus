@@ -53,6 +53,11 @@ namespace PowerTransmitterPlus
             // sits at 0.001-0.05 during modest transmission. sqrt(0.002)=0.045,
             // sqrt(0.01)=0.1, sqrt(1)=1. Preserves high/low differentiation
             // while making low-end pulses perceptible.
+            //
+            // At intensity == 0 the offset goes to 0 and the stripes freeze in
+            // place — the beam shows a stationary "standing wave" pattern that
+            // visually reads as "linked but no power flowing", distinct from
+            // both moving pulses (linked + power) and a hidden beam (unlinked).
             var effective = _intensity > 0f ? Mathf.Sqrt(_intensity) : 0f;
 
             var tiles = distance / wavelength;

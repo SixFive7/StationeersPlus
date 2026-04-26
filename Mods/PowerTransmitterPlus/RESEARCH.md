@@ -73,7 +73,7 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 
 | Family | Files | Purpose |
 |---|---|---|
-| Visual on/off | `VisualiserPatches.cs`, `RotationPatches.cs` | Show/hide beam tied to game's `VisualizerIntensity` setter; refresh endpoints when dish rotates |
+| Visual on/off | `LinkVisibilityPatch.cs`, `VisualiserPatches.cs`, `RotationPatches.cs` | Show/hide beam tied to game's `LinkedReceiver` property setter (visible iff linked); pulse-train scroll speed tied to `VisualizerIntensity` setter (stripes freeze in place at intensity 0); refresh endpoints when dish rotates |
 | Power-flow simulation | `DistanceCostPatches.cs` | 4 patches replacing vanilla distance derate with source-draw multiplier |
 | Logic readout (UI/IC10) | `LogicReadoutPatches.cs` | `CanLogicRead` postfix + `GetLogicValue` prefix on `WirelessPower` (base class); branches on instance type inside |
 | Auto-aim logic write | `AutoAimPatches.cs` | `SetLogicValue` prefix intercepts `MicrowaveAutoAimTarget`; aim solve is a fixed-point iteration that aims `dish.RayTransform.position` -> the OTHER dish's actual ray endpoint (`PowerReceiver.DishTarget`, `PowerTransmitter.RayTransform`), capped at 10 iterations with 1 cm convergence tolerance. `RotatableBehaviour` target setter postfixes clear the cache on manual override. Per-dish cache via `ConditionalWeakTable` |
@@ -96,7 +96,9 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 
 `BeamPulseTrain.cs` - MonoBehaviour on the BeamLine GameObject. In `Awake`: sets `textureMode = Stretch`, clones material via `_lr.material`, sets `mainTexture = BeamManager.StripeTexture`. In `Update`: reads positions, computes `tiles = distance / wavelength` and `offset = -Time.time * sqrt(intensity) * scrollMps / wavelength`, writes `mainTextureScale` and `mainTextureOffset`. `OnDestroy` destroys the cloned material.
 
-`VisualiserPatches.cs` - Single Harmony patch on `WirelessPower.VisualizerIntensity` setter. Postfix: if `__instance is PowerTransmitter`, call `BeamManager.SetLineIntensity(...)`. This fires from the ThreadPool worker; safe because `SetLineIntensity` enqueues to the dispatcher.
+`VisualiserPatches.cs` - Single Harmony patch on `WirelessPower.VisualizerIntensity` setter. Postfix: if `__instance is PowerTransmitter`, call `BeamManager.SetLineIntensity(...)`. This fires from the ThreadPool worker; safe because `SetLineIntensity` enqueues to the dispatcher. Drives pulse-train scroll speed only; no longer drives show/hide (see `LinkVisibilityPatch.cs`).
+
+`LinkVisibilityPatch.cs` - Single Harmony Postfix on `PowerTransmitter.LinkedReceiver` property setter. Calls `BeamManager.SetLinked(__instance, value != null)` on every transition. Vanilla's setter body is gated by `value != _linkedReceiver` so it only runs once per actual change, but Harmony postfixes fire unconditionally, so `BeamManager.SetLinked` is idempotent. Fires on both server (via `TryContactReceiver`, `OnDestroy`) and client (via `ProcessUpdate`, which assigns through the property when the `NetworkUpdateType.WirelessPower.Receiver` bit is set), so one Postfix covers all link-transition paths.
 
 `RotationPatches.cs` - Harmony postfixes on `WirelessPower.Horizontal` and `Vertical` setters. If dish is a `PowerTransmitter` and currently visible, call `BeamManager.RefreshIfVisible` to re-cache beam endpoints.
 
@@ -294,7 +296,8 @@ Every patch lists its target method, patch type, and a one-to-two-sentence effec
 
 | Patch class | Target method | Type | Effect |
 |---|---|---|---|
-| `VisualizerIntensitySetterPatch` | `WirelessPower.VisualizerIntensity` (setter) | Postfix | Cast to `PowerTransmitter`; `BeamManager.SetLineIntensity`. Drives beam show/hide and current intensity. |
+| `LinkedReceiverSetterPatch` | `PowerTransmitter.LinkedReceiver` (setter) | Postfix | `BeamManager.SetLinked(__instance, value != null)`. Drives beam show/hide off link state. |
+| `VisualizerIntensitySetterPatch` | `WirelessPower.VisualizerIntensity` (setter) | Postfix | Cast to `PowerTransmitter`; `BeamManager.SetLineIntensity`. Drives pulse-train scroll speed only (no show/hide). |
 | `WirelessPowerHorizontalSetterPatch` | `WirelessPower.Horizontal` (setter) | Postfix | If `PowerTransmitter` and beam visible, refresh endpoints. |
 | `WirelessPowerVerticalSetterPatch` | `WirelessPower.Vertical` (setter) | Postfix | Same. |
 

@@ -4,8 +4,15 @@ using UnityEngine;
 
 namespace PowerTransmitterPlus
 {
-    // Public surface: SetLineIntensity, RefreshIfVisible. Both are safe from
-    // any thread; work is enqueued onto the main thread dispatcher.
+    // Public surface: SetLinked, SetLineIntensity, RefreshIfVisible. All are
+    // safe from any thread; work is enqueued onto the main thread dispatcher.
+    //
+    // Show/hide is driven by SetLinked (LinkedReceiver setter postfix), NOT by
+    // SetLineIntensity. Beam visibility tracks "is there a link" rather than
+    // "is power flowing." The pulse train carries the power-level information:
+    // scrolling stripes at speed sqrt(intensity) when power is flowing, the
+    // same stripes frozen in place (standing waves) when the link is up but
+    // power is zero.
     internal static class BeamManager
     {
         private static readonly Dictionary<PowerTransmitter, BeamLine> Beams =
@@ -104,8 +111,17 @@ namespace PowerTransmitterPlus
             }
         }
 
-        // Primary signal. VisualizerIntensity (0..1) drives both on/off and
-        // the beam's alpha-based dimming, matching vanilla's power-level fade.
+        // Link-state signal. Show the beam iff the transmitter has a linked
+        // receiver. Idempotent: re-publishing the same value is a no-op.
+        internal static void SetLinked(PowerTransmitter transmitter, bool isLinked)
+        {
+            if (transmitter == null) return;
+            MainThreadDispatcher.Enqueue(() => SetLinkedOnMain(transmitter, isLinked));
+        }
+
+        // Pulse-speed signal. VisualizerIntensity (0..1) drives the pulse train
+        // scroll speed; intensity == 0 swaps the pulse train to a solid texture
+        // for a smooth beam. Does NOT drive show/hide.
         internal static void SetLineIntensity(PowerTransmitter transmitter, float intensity)
         {
             if (transmitter == null) return;
@@ -118,22 +134,20 @@ namespace PowerTransmitterPlus
             MainThreadDispatcher.Enqueue(() => RefreshIfVisibleOnMain(transmitter));
         }
 
-        private static void SetLineIntensityOnMain(PowerTransmitter transmitter, float intensity)
+        private static void SetLinkedOnMain(PowerTransmitter transmitter, bool isLinked)
         {
             if (transmitter == null) return;
 
-            if (intensity <= 0f)
+            if (!isLinked)
             {
-                if (Beams.TryGetValue(transmitter, out var existing) && existing != null && !existing.IsDestroyed)
-                    existing.Hide();
+                HideBeamOnMain(transmitter);
                 return;
             }
 
             var receiver = transmitter.LinkedReceiver;
             if (receiver == null || transmitter.RayTransform == null || receiver.RayTransform == null)
             {
-                if (Beams.TryGetValue(transmitter, out var existing) && existing != null && !existing.IsDestroyed)
-                    existing.Hide();
+                HideBeamOnMain(transmitter);
                 return;
             }
 
@@ -143,8 +157,20 @@ namespace PowerTransmitterPlus
                 Beams[transmitter] = beam;
             }
 
-            beam.SetIntensity(intensity);
             if (!beam.IsVisible) beam.Show();
+        }
+
+        private static void HideBeamOnMain(PowerTransmitter transmitter)
+        {
+            if (Beams.TryGetValue(transmitter, out var existing) && existing != null && !existing.IsDestroyed)
+                existing.Hide();
+        }
+
+        private static void SetLineIntensityOnMain(PowerTransmitter transmitter, float intensity)
+        {
+            if (transmitter == null) return;
+            if (Beams.TryGetValue(transmitter, out var beam) && beam != null && !beam.IsDestroyed)
+                beam.SetIntensity(intensity);
         }
 
         private static void RefreshIfVisibleOnMain(PowerTransmitter transmitter)
