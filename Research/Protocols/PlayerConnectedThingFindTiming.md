@@ -247,9 +247,66 @@ By the source evidence above, neither broadcast reaches the joining client. Exis
 
 For PowerTransmitterPlus this is mostly invisible because the values are display-only on clients (the simulation runs server-authoritatively with the host's values). For the v1.6.0 auto-aim cache delivery to a joining client, the same pattern would be a real defect: the joining client's `MicrowaveAutoAimTarget` reads would return 0 until someone re-writes the LogicType. The fix is to switch that path to `IJoinSuffixSerializer`.
 
+## Cache survival post-join: delta-state setter writes can wipe per-dish caches
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+
+`IJoinSuffixSerializer` populates a per-dish cache on the joining client correctly at join time, but vanilla's per-tick delta-state replication can wipe specific entries afterwards. Relevant decompile:
+
+```csharp
+// WirelessPower.cs:143
+public override void ProcessUpdate(RocketBinaryReader reader, ushort networkUpdateType)
+{
+    base.ProcessUpdate(reader, networkUpdateType);
+    if (Thing.IsNetworkUpdateRequired(256u, networkUpdateType))
+    {
+        float num = reader.ReadFloatHalf();
+        float num2 = reader.ReadFloatHalf();
+        if (RotatableBehaviour != null)
+        {
+            RotatableBehaviour.TargetVertical = num;
+            RotatableBehaviour.TargetHorizontal = num2;
+        }
+    }
+}
+```
+
+```csharp
+// Thing.cs:5594  (SerializeDeltaState body)
+if ((bool)thing && thing.ReferenceId != 0L && !thing.IsBeingDestroyed && thing.IsNetworkUpdate())
+{
+    ushort networkUpdateType = thing.NetworkUpdateFlags;
+    ...
+    thing.BuildUpdate(writer, networkUpdateType);
+    thing.NetworkUpdateFlags = 0;
+}
+```
+
+Mechanism:
+
+- The host's `RotatableBehaviour.TargetHorizontal` / `TargetVertical` setters (RotatableBehaviour.cs servo state) set `NetworkUpdateFlags |= 256`. After `BuildUpdate` runs on the host's next tick, the flag clears. So a stable host (no setter writes) emits no delta and the joiner's cache survives indefinitely.
+- When the host's auto-aim target changes (player adjust, IC10 `s d0 MicrowaveAutoAimTarget`, IC10 `s d0 Horizontal`, tablet, etc.), flag 256 is set on the host. Next tick the delta is emitted. The client's `ProcessUpdate` writes the targets through the setters, and any Harmony postfix on those setters that does NOT consult a cross-peer suppression flag will fire on the client even though the write is server-driven, not local input.
+
+For PowerTransmitterPlus's `RotatableTargetHorizontalResetPatch` / `RotatableTargetVerticalResetPatch` (`AutoAimPatches.cs:244-270`), this means: the host's `HandleWrite` correctly sets `[ThreadStatic] _suppressReset` to prevent the reset postfix from firing during its own setter writes, but the client has no equivalent because the client never enters `HandleWrite` (`WirelessPower.SetLogicValue` is server-authoritative). So delta-state-driven setter writes on the client clear the per-dish cache that `IJoinSuffixSerializer` had populated.
+
+Net effect for v1.6.1's auto-aim cache:
+
+- Stable host scenario: cache survives indefinitely on the joiner. IC10 reads return correct ReferenceId.
+- Dynamic host scenario (any setter write on a dish): the joiner's cache for that specific dish is wiped on the next tick, IC10 reads revert to 0 until the host writes again.
+
+Vanilla's delta carries only `TargetHorizontal` and `TargetVertical` (half-precision floats); it does not carry the auto-aim target's ReferenceId, so the joiner cannot re-derive the target id from the delta alone.
+
+Two fixes:
+
+1. Wrap `WirelessPower.ProcessUpdate` with a Harmony Prefix/Postfix pair on the client that toggles `_suppressReset = true/false` around the call. Prevents the cache from being cleared, but the value stays at whatever was last populated (becomes stale when the host changes target). IC10 scripts read a stale id rather than 0; arguably worse than current behaviour because 0 honestly signals "I don't know."
+
+2. Piggyback the target ReferenceId onto each `WirelessPower`'s delta-state via an unused `NetworkUpdateFlags` bit. Set the bit in `HandleWrite` alongside the standard 256 flag; extend `BuildUpdate` Postfix to write the cached target id when the bit is set; extend `ProcessUpdate` Postfix to read it and call `AutoAimState.RestoreCache(__instance, targetId)`. Closes the dynamic-case gap end-to-end. The pattern is documented in `Research/Protocols/EquipmentPlusNetworking.md` (sensor-lens `0x4000` flag).
+
+Option 2 is the canonical Stationeers way and the recommended path for any future v1.7+ that needs full target-id sync.
+
 ## Verification history
 
 - 2026-04-26: page created. Originally fabricated by a sub-agent (Explore subagent that wrote a research page via Bash redirection without any actual decompile reads, citing only mod-source files in this repo as "evidence"). Replaced wholesale with verbatim decompile excerpts from `NetworkManager.cs`, `NetworkServer.cs`, `NetworkBase.cs`, `NetworkClient.cs`, and LaunchPadBooster's `ModNetworking.cs` and `ConnectionState.cs`. Game version 0.2.6228.27061. Decompile produced via `ilspycmd -p Assembly-CSharp.dll` and `ilspycmd -p LaunchPadBooster.dll`.
+- 2026-04-26: added "Cache survival post-join: delta-state setter writes can wipe per-dish caches" section. Sourced from `WirelessPower.cs` ProcessUpdate decompile and `Thing.cs` SerializeDeltaState decompile (NetworkUpdateFlags reset to 0 after each BuildUpdate). Documents that v1.6.1's IJoinSuffixSerializer fix is sufficient for static-host scenarios but the per-dish cache erodes on the joiner whenever the host writes a target. The asymmetry comes from `_suppressReset` being a `[ThreadStatic]` flag set only inside `HandleWrite` (server-authoritative), with no equivalent on the client side. Game version 0.2.6228.27061.
 
 ## Open questions
 
