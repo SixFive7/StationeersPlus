@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.6.1</Version>
+  <Version>1.6.2</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
@@ -110,14 +110,17 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.6.2: Auto-aim cache stays in sync mid-session for joined multiplayer clients
+- v1.6.1's cache only synced at join. v1.6.2 piggybacks the target ReferenceId onto each WirelessPower's per-tick delta via an unused NetworkUpdateFlags bit, so host-side target changes re-sync clients on the next tick
+- All players on a server must be on v1.6.2 or newer; the LaunchPad version handshake rejects mixed installs
+
 v1.6.1: Auto-aim cache now reaches joining multiplayer clients
-- The v1.6.0 join broadcast missed the joiner because NetworkManager.PlayerConnected fires before the new client enters the broadcast list. Switched to IJoinSuffixSerializer so the cache ships with the world snapshot
+- v1.6.0's join broadcast fired before the joiner entered the broadcast list. v1.6.1 switched to IJoinSuffixSerializer so the cache ships with the world snapshot
 - All players on a server must be on v1.6.1 or newer; the LaunchPad version handshake rejects mixed installs
 
-v1.6.0: Auto-aim targets persist across save/load and multiplayer join
-- MicrowaveAutoAimTarget now reads the correct ReferenceId after loading a save and after a remote client joins. Previously the value reset to 0 on every save load and every fresh client connect, even though the dish was still aimed correctly and the link still worked
+v1.6.0: Auto-aim targets persist across save/load
+- MicrowaveAutoAimTarget now reads the correct ReferenceId after loading a save. Previously the value reset to 0 on every save load even though the dish was still aimed correctly and the link still worked
 - Persistence is implemented as a side-car XML file (pwrxmplus-autoaim.xml) inside the save ZIP. world.xml stays vanilla; uninstalling the mod after a save leaves no broken save state
-- Multiplayer: on every client connect the host broadcasts the current cache, so a joining client's IC10 reads match the host's. The existing IJoinValidator handshake is unchanged; this is a separate per-mod message on the established sync channel
 - All players on a server must be on v1.6.0 or newer; the LaunchPad version handshake rejects mixed installs
 
 v1.5.1: Beam visibility now follows link state, not power flow
