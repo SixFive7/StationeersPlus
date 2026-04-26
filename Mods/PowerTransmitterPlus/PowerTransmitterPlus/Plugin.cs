@@ -242,21 +242,30 @@ namespace PowerTransmitterPlus
             return true;
         }
 
-        // IJoinSuffixSerializer: writes (and reads) the auto-aim cache as part
-        // of the world-snapshot transmission to a joining client. Runs on the
-        // server inside NetworkServer.PackageJoinData (LPB-injected into the
-        // join writer per Research/Protocols/PlayerConnectedThingFindTiming.md);
-        // runs on the client inside NetworkClient.ProcessJoinData at the
-        // position of the original AtmosphericsManager.DeserializeOnJoin call,
-        // which is AFTER ProcessThings, so Thing.Find resolves dish ids.
+        // IJoinSuffixSerializer: writes (and reads) two payloads as part of the
+        // world-snapshot transmission to a joining client:
+        //   1. Per-dish auto-aim cache (since v1.6.1).
+        //   2. Seven host-authoritative config values (since v1.7.0): Cost Factor
+        //      (k), Beam Width, Beam Color, Emission Intensity, Stripe Wavelength,
+        //      Scroll Speed, Trough Brightness. Earlier versions tried to push
+        //      these via a NetworkManager.PlayerConnected rebroadcast which fired
+        //      before the joiner entered NetworkBase.Clients; the rebroadcast was
+        //      removed in v1.7.0.
+        //
+        // Runs on the server inside NetworkServer.PackageJoinData (LPB-injected
+        // into the join writer per Research/Protocols/PlayerConnectedThingFindTiming.md);
+        // runs on the client inside NetworkClient.ProcessJoinData at the position
+        // of the original AtmosphericsManager.DeserializeOnJoin call, which is
+        // AFTER ProcessThings, so Thing.Find resolves dish ids.
         //
         // LaunchPadBooster's SectionedWriter/Reader length-prefixes our payload
         // per-mod, so a future schema change won't desync neighboring mods'
-        // sections. When the auto-aim feature is disabled at boot,
-        // SnapshotEntries() returns empty and we write a count of 0; symmetric
-        // on the receiver.
+        // sections. Field order MUST match between Serialize and Deserialize.
         public void SerializeJoinSuffix(RocketBinaryWriter writer)
         {
+            // 1. Auto-aim cache. Empty when AutoAimPatched is false at boot
+            // because SnapshotEntries() returns no entries; receiver reads count=0
+            // and skips the loop.
             var entries = new List<KeyValuePair<long, long>>();
             foreach (var pair in AutoAimState.SnapshotEntries())
             {
@@ -268,10 +277,22 @@ namespace PowerTransmitterPlus
                 writer.WriteInt64(entry.Key);
                 writer.WriteInt64(entry.Value);
             }
+
+            // 2. Host config snapshot. Same defaults as DistanceConfigSync /
+            // BeamVisualConfigSync use as their fallbacks so the wire format
+            // stays predictable when the BepInEx config has not been bound yet.
+            writer.WriteSingle(DistanceCostFactor?.Value ?? 5f);
+            writer.WriteSingle(BeamWidth?.Value ?? 0.1f);
+            writer.WriteString(BeamColorHex?.Value ?? "000DFF");
+            writer.WriteSingle(EmissionIntensity?.Value ?? 10f);
+            writer.WriteSingle(StripeWavelength?.Value ?? 2f);
+            writer.WriteSingle(ScrollSpeed?.Value ?? 25f);
+            writer.WriteSingle(StripeTroughBrightness?.Value ?? 0.5f);
         }
 
         public void DeserializeJoinSuffix(RocketBinaryReader reader)
         {
+            // 1. Auto-aim cache.
             int count = reader.ReadInt32();
             int applied = 0, missing = 0;
             for (int i = 0; i < count; i++)
@@ -288,6 +309,27 @@ namespace PowerTransmitterPlus
                 Log?.LogInfo(
                     $"Restored auto-aim cache from host join: {applied} applied, {missing} dishes not found locally");
             }
+
+            // 2. Host config snapshot. Apply via the existing OnHostConfigReceived
+            // helpers so live SettingChanged updates and join-time updates take
+            // the same code branch (logging, BeamManager.InvalidateAllBeams, etc.).
+            var k = reader.ReadSingle();
+            var beamWidth = reader.ReadSingle();
+            var beamColorHex = reader.ReadString();
+            var emissionIntensity = reader.ReadSingle();
+            var stripeWavelength = reader.ReadSingle();
+            var scrollSpeed = reader.ReadSingle();
+            var stripeTroughBrightness = reader.ReadSingle();
+            DistanceConfigSync.OnHostConfigReceived(k);
+            BeamVisualConfigSync.OnHostConfigReceived(new BeamVisualConfigMessage
+            {
+                BeamWidth = beamWidth,
+                BeamColorHex = beamColorHex,
+                EmissionIntensity = emissionIntensity,
+                StripeWavelength = stripeWavelength,
+                ScrollSpeed = scrollSpeed,
+                StripeTroughBrightness = stripeTroughBrightness,
+            });
         }
     }
 }

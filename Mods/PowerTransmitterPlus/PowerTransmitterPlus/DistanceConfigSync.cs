@@ -1,6 +1,4 @@
 using Assets.Scripts.Networking;
-using HarmonyLib;
-using JetBrains.Annotations;
 using LaunchPadBooster.Networking;
 
 namespace PowerTransmitterPlus
@@ -8,10 +6,21 @@ namespace PowerTransmitterPlus
     // Server-authoritative distance-cost (k) sync.
     //
     // - Local config value is the source of truth ON THE HOST (and in single-player).
-    // - On a multiplayer client, the host's value is pushed via DistanceConfigMessage
-    //   on connect and on every subsequent SettingChanged event.
+    // - On a multiplayer client, the host's value is delivered via two paths:
+    //     1. Join-time snapshot via PowerTransmitterPlusPlugin.SerializeJoinSuffix /
+    //        DeserializeJoinSuffix (so a fresh joiner has the right value before any
+    //        IC10 read or tablet display fires).
+    //     2. Live updates via DistanceConfigMessage on every SettingChanged event
+    //        while a client is connected (host changes the setting in the in-game
+    //        settings panel; clients adopt immediately).
     // - GetEffectiveK() returns the right value for the current side: host config
     //   on host or single-player; synced (or local fallback) on client.
+    //
+    // Earlier versions also rebroadcast on a NetworkManager.PlayerConnected postfix,
+    // but per Research/Protocols/PlayerConnectedThingFindTiming.md that hook fires
+    // BEFORE the joiner is in NetworkBase.Clients, so the broadcast went to existing
+    // clients only and never reached the new joiner. Removed in v1.7.0; the
+    // IJoinSuffixSerializer payload covers the joiner case correctly.
     //
     // The simulation patches (UsePower / GetUsedPower / ReceivePower / GetGeneratedPower)
     // run only on the server, so the gameplay number is always the host's. Clients
@@ -63,20 +72,4 @@ namespace PowerTransmitterPlus
         }
     }
 
-    // Hook the existing game event for "a client just finished connecting" so we
-    // can push the current k to them. LaunchPadBooster has no public event for
-    // this. The documented pattern (per LaunchPadBooster authors) is to Harmony-postfix
-    // NetworkManager.PlayerConnected. We re-broadcast to everyone on each
-    // connect rather than chase the new client's connectionId; the cost is one
-    // tiny float message per existing client per join, which is negligible.
-    [HarmonyPatch(typeof(NetworkManager), "PlayerConnected")]
-    public static class PlayerConnectedSyncPatch
-    {
-        [UsedImplicitly]
-        public static void Postfix()
-        {
-            DistanceConfigSync.BroadcastIfHost();
-            BeamVisualConfigSync.BroadcastIfHost();
-        }
-    }
 }

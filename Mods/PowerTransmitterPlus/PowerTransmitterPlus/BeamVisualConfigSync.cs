@@ -4,10 +4,16 @@ using LaunchPadBooster.Networking;
 namespace PowerTransmitterPlus
 {
     // Server-authoritative visual config sync. The host's beam visual settings
-    // always override client-local config in multiplayer. Mirrors the
-    // DistanceConfigSync pattern: host pushes values on connect and on every
-    // visual config change; clients store them and return them from
-    // GetEffective* methods.
+    // always override client-local config in multiplayer. Two delivery paths,
+    // mirroring DistanceConfigSync:
+    //   1. Join-time snapshot via PowerTransmitterPlusPlugin.SerializeJoinSuffix /
+    //      DeserializeJoinSuffix, so a fresh joiner sees the host's visuals from
+    //      the first beam render.
+    //   2. Live BeamVisualConfigMessage broadcasts on every SettingChanged event
+    //      while a client is connected.
+    // Clients store the received values and return them from GetEffective*. The
+    // earlier NetworkManager.PlayerConnected rebroadcast hook was removed in
+    // v1.7.0 (see DistanceConfigSync.cs class doc for the timing rationale).
     internal static class BeamVisualConfigSync
     {
         private static bool _received;
