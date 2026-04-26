@@ -4,6 +4,8 @@
 
 {{Tagline: one sentence describing the mod in its current feature-complete state. Identical wording (allowing for markup differences) to the GitHub repo description, the About.xml <Description> opening line, and the <InGameDescription> subtitle.}}
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
 {{Optional credits paragraph: when the mod builds on prior work, name the predecessors and what they contributed, with Steam Workshop links. Delete this paragraph entirely if the mod is original.}}

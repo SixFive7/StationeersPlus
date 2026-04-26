@@ -2,6 +2,8 @@
 
 A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
 > **WARNING:** This mod is work-in-progress under `Plans/`. Not released, not tagged, not on the Workshop. The README below describes the intended v1 shape, not a shipping product.

@@ -8,6 +8,8 @@
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod. See the Credits section below for attribution to the original mods this one builds on.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 [h2]Features[/h2]
 
 [h3]Full Multiplayer Support[/h3]
@@ -220,6 +222,7 @@ v1.2.0: Paint whole rooms and whole frame grids
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Spray Paint Plus</color></size>
 <line-height=40%>Combines color cycling, network painting, glow paint, and infinite spray paint into one multiplayer-safe Stationeers mod.
+Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Features:</b>
 - Scroll wheel cycles spray can colors
 - Right-click a target with a can to copy its color; Ctrl+right-click picks the as-built kit color

@@ -2,6 +2,8 @@
 
 Adds dynamic multi-slot sensor lenses and advanced tablets to Stationeers, with multiplayer-safe configuration cartridge enhancements.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 Slots appear as you fill them and disappear as you empty them. The UI always shows exactly one empty slot, never a wall of boxes.
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.

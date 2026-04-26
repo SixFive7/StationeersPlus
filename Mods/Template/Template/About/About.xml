@@ -8,6 +8,8 @@
 
 {{Tagline: same sentence as the GitHub repo description and README intro paragraph, in BBCode. One sentence describing the mod in its feature-complete state.}}
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 [h2]Features[/h2]
 
 [h3]{{Feature 1 Title}}[/h3]
@@ -63,6 +65,7 @@ v0.1.0: Initial release
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>{{Mod Display Name}}</color></size>
 <line-height=40%>{{Tagline: same sentence as GitHub description and About.xml <Description> opener, in Unity rich text.}}
+Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Features:</b>
 - {{Feature 1}}
 - {{Feature 2}}

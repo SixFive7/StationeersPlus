@@ -8,6 +8,8 @@
 
 A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 [h2]What this mod is[/h2]
 
 A local language model runs on the server and reads every public chat line. You will notice it speaking the first time something unexpected happens. What it wants from you and why becomes clear the second time. Whether you like it or not is something you will have to decide for yourself.
@@ -76,6 +78,7 @@ v0.1.0: Initial prototype
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Maintenance Bureau Plus</color></size>
 <line-height=40%>A server-side bureau listens to every public chat message on your save. What the bureau does and who answers is for you to find out.
+Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Server-side only.</b> No GPU needed. Two settings only: Minimum Turns and Maximum Turns.
 </line-height>
 ]]></InGameDescription>

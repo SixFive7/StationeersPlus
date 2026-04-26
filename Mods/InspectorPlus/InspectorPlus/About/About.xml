@@ -8,6 +8,8 @@
 
 Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 Not intended for end-user gameplay. Subscribe only if you are writing or debugging a Stationeers mod.
 
 [h2]Features[/h2]
@@ -61,6 +63,7 @@ v0.1.0: Initial release
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Inspector Plus</color></size>
 <line-height=40%>Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
+Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Usage:</b> Press F8 in-game for a full MonoBehaviour dump, or drop a request JSON into BepInEx/inspector/requests/ for a targeted snapshot. Output lands in BepInEx/inspector/snapshots/.
 <b>Not intended for end-user gameplay.</b> For modders only.
 </line-height>

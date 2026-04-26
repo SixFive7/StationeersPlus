@@ -4,6 +4,8 @@
 
 Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
 Not intended for end-user gameplay. Subscribe only if you are writing or debugging a Stationeers mod. The plugin reads field and property values from live scene objects and writes them to JSON snapshots on disk, so a developer can diff runtime state across frames or game events without adding one-off logging.

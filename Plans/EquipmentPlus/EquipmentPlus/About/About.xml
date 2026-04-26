@@ -8,6 +8,8 @@
 
 Adds dynamic multi-slot sensor lenses and advanced tablets to Stationeers, with multiplayer-safe configuration cartridge enhancements.
 
+Full multiplayer compatibility. Safe to remove from existing savegames.
+
 Slots appear as you fill them and disappear as you empty them. The UI always shows exactly one empty slot, never a wall of boxes.
 
 [h2]Features[/h2]
@@ -76,6 +78,7 @@ v1.0.0: Initial release
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Equipment Plus</color></size>
 <line-height=40%>Adds dynamic multi-slot sensor lenses and advanced tablets to Stationeers, with multiplayer-safe configuration cartridge enhancements.
+Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>How it works:</b>
 Insert a chip or cartridge and a new empty slot appears.
 Remove items and excess empty slots disappear.
