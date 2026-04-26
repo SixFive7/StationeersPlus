@@ -7,6 +7,7 @@ verified_at: 2026-04-26
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (parser switch, _L_Operation, _LD_Operation, _S_Operation, _SD_Operation, _Operation._MakeDeviceVariable, _Operation_I, syntax-help formatter)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_BRDSE_Operation, _BRDNS_Operation, _BDSE_Operation, _BDNS_Operation, _SDSE_Operation, _SDNS_Operation)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_PUSH_Operation, _POP_Operation, _StackPointerIndex, RETURN_ADDRESS_STRING / STACK_POINTER_STRING auto-aliases)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.CircuitHousing.GetLogicableFromId
 related:
   - ./LogicType.md
@@ -223,6 +224,43 @@ In practice: `define BasePowerTransmitter $39FA7` then `brdns BasePowerTransmitt
 
 The asymmetry exists because `_MakeDeviceVariable` was written for the original device-operand triad (pin / register / alias-of-pin-or-register), and the ReferenceId form was bolted on later without extending the alias-resolution branch to consult `_Defines`. The dedicated `*d` opcodes (`ld`, `sd`, `getd`, `putd`, `clrd`) sidestep this by skipping `_MakeDeviceVariable` entirely.
 
+## Stack-driven iteration over a list of ReferenceIds
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+
+For scripts that link N pairs of devices identically (the "auto-aim every transmitter to its receiver" pattern, repeated per-network with at most one pair physically present), the cleanest extensibility is to push every ReferenceId onto the IC10 stack at the top of the script, then pop two at a time and link them. Each pair becomes two `push` lines at the top with no further structural changes.
+
+Relevant primitives, all in `ProgrammableChip`:
+
+- `_StackPointerIndex = 16`. The chip reserves `r16` as the stack pointer; `r17` is the return-address register.
+- `STACK_POINTER_STRING = "sp"` and `RETURN_ADDRESS_STRING = "ra"`. At chip startup `OnPrefabsLoaded` runs `new _ALIAS_Operation(this, 0, "sp", "r16").Execute(0)` and the equivalent for `ra`, so `sp` and `ra` are pre-registered aliases visible to every script.
+- `_PUSH_Operation` writes the value to `_Stack[sp]` then increments `sp` by 1. `_POP_Operation` decrements `sp` by 1 then reads `_Stack[sp]`. Stack starts at `sp = 0`.
+- `_Chip._Stack.Length` defaults to 512, so up to 512 push-without-pop is safe; overflow throws `StackOverFlow`.
+
+Idiom (the extensibility win is that `push $hex # name` is the only line a future user adds per ReferenceId):
+
+```ic10
+push $39FA7   # BasePowerTransmitter
+push $3A124   # BasePowerReceiver
+push $1DB99   # SiliconPowerTransmitter
+push $236B7   # SiliconPowerReceiver
+
+link_loop:
+beqz sp link_end
+pop r1
+pop r0
+brdns r0 2
+sd r0 MicrowaveAutoAimTarget r1
+brdns r1 2
+sd r1 MicrowaveAutoAimTarget r0
+j link_loop
+link_end:
+```
+
+Pair semantics: pushing `(TX1, RX1, TX2, RX2)` leaves the stack as `[TX1, RX1, TX2, RX2]`. LIFO popping gives `RX2, TX2, RX1, TX1`, so each two-pop window is a coherent (TX, RX) pair, processed in reverse insertion order. The `brdns rN 2` guard inside the loop preserves the data-network-membership semantics already documented for `sd`: pairs whose dishes are not on this IC10's network silently skip without throwing.
+
+This pattern also resolves the `define`-vs-`alias` asymmetry from the previous section. `push <token>` constructs a `DoubleValueVariable`, which consults `_Defines`, so `push BasePowerTransmitter` works after a `define BasePowerTransmitter $39FA7` if the user prefers to keep a separate defines block. The trade-off is two parallel lists to maintain (defines and pushes) versus one annotated push list with names in comments.
+
 ## Batch-op safety for missing devices
 
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
@@ -234,6 +272,7 @@ Note the asymmetry: batch instructions (`sb`, `sbn`, `sbs`, `lb`, `lbn`, `lbs`, 
 - 2026-04-26: Page created from decompiled `Assembly-CSharp.dll` (game version 0.2.6228.27061). Replaces an earlier draft of this page that cited a Steam Community forum post and contained a fabricated `sbns` opcode and an inaccurate description of `ld`/`sd` arity. Source for every claim is now the DLL paths in the frontmatter `sources` block.
 - 2026-04-26: Added "Existence-check opcodes for guarding ReferenceId addressing" and "Batch-op safety for missing devices" sections from `_BRDSE_Operation` / `_BRDNS_Operation` / `_BDSE_Operation` / `_BDNS_Operation` / `_SDSE_Operation` / `_SDNS_Operation` decompiles. Documents that all six existence checks route through `GetLogicableFromId` and therefore inherit the data-network membership constraint.
 - 2026-04-26: Added "`define` names work for `sd` but NOT for `brdns` / `bdns` / `bdse` / `brdse` / `sdse` / `sdns`" section. Discovered while debugging a real `brdns BasePowerTransmitter 2` failure ("incorrect variable") in a user script that used `define` to name device IDs. Root cause: `_MakeDeviceVariable` falls through to `DeviceAliasVariable`, whose `GetDevice` calls `GetAliasType` which only consults `_Aliases`, never `_Defines`. The dedicated `*d` opcodes (`ld`/`sd`/`getd`/`putd`) bypass `_MakeDeviceVariable` and use `IntValuedVariable` directly, which does consult `_Defines`, so `define` works there.
+- 2026-04-26: Added "Stack-driven iteration over a list of ReferenceIds" section from `_PUSH_Operation`, `_POP_Operation`, `_StackPointerIndex = 16`, and the `STACK_POINTER_STRING = "sp"` / `RETURN_ADDRESS_STRING = "ra"` constants plus the `_ALIAS_Operation(this, 0, "sp", "r16").Execute(0)` startup wiring. Documents the extensibility pattern (one `push $hex # name` line per ReferenceId at the top, fixed `pop`-loop below) for IC10 scripts that link N pairs of devices identically across networks.
 
 ## Open Questions
 
