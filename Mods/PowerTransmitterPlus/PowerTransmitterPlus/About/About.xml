@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.5.0</Version>
+  <Version>1.5.1</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
@@ -11,7 +11,7 @@ Adds a visible beam, scrolling pulses, a configurable distance cost, new logic r
 [h2]Features[/h2]
 
 [h3]Visible Laser Beam[/h3]
-A colored beam is drawn between a linked transmitter and receiver whenever the link is up and powered. The beam is at full brightness at all times while visible, so you can see at a glance which dishes are actually connected.
+A colored beam is drawn between a linked transmitter and receiver whenever the link is up, regardless of whether power is flowing. The beam is at full brightness at all times while visible, so you can see at a glance which dishes are actually connected. Power flow is shown by the pulse train (see below): when no power is flowing, the stripes freeze in place.
 
 [h3]Scrolling Pulse Train[/h3]
 Energy pulses scroll along the beam from transmitter to receiver. Stripe spacing is constant in world meters (same look on a 5m link or a 500m link). Scroll speed scales with power throughput, so a lightly-loaded link is clearly distinguishable from a heavily-loaded one at a glance.
@@ -110,6 +110,11 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.5.1: Beam visibility now follows link state, not power flow
+- The beam between linked dishes is now drawn whenever the link is up, regardless of whether power is flowing. Previously the beam only appeared while power was being delivered, so a freshly-formed link with no load looked like no link at all
+- The pulse train continues to indicate power flow: scrolling stripes when power is moving, stationary "standing waves" when the link is up but no power is moving
+- All players on a server must be on v1.5.1 or newer; the LaunchPad version handshake rejects mixed installs
+
 v1.5.0: Wall and ceiling placement for transmitter and receiver dishes
 - Transmitter and receiver dishes can now be built on walls and ceilings as well as on the floor. The placement cursor accepts every face the player aims at, and the rotate hotkeys cover yaw, pitch, and roll once the cursor is on a non-floor face. Any combination of mount surfaces can form a link as long as the two dishes point at each other
 - Auto-Aim accuracy improved across orientations so a single MicrowaveAutoAimTarget write reliably forms the link on non-floor pairs
