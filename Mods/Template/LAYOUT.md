@@ -94,7 +94,7 @@ Caps per element:
 
 - `<Description>`: 8000 characters including BBCode markup. Count the UTF-8 content inside the element, not the wrapping `<Description>...</Description>` tags.
 - `<ChangeLog>`: 8000 characters (also stated in "Changelog lives in About.xml only").
-- `<InGameDescription>`: no hard cap observed, but keep it short enough to read in the tight in-game settings panel.
+- `<InGameDescription>`: approximately 1450 characters of CDATA content (markup included) before the body overflows the visible window of the StationeersLaunchPad in-game settings panel. Calibrated empirically against PowerTransmitterPlus: 1545 chars / 15 source lines overshot by one visible line; 1428 chars / 14 source lines fit. The effective ceiling depends on TMP rendering, panel dimensions, and per-bullet wrapping (long bullets that wrap to two visual lines burn the budget twice as fast as short ones), so treat as a guidance number not a hard byte limit. Verify in-game after every edit that adds or grows a bullet.
 
 Verify `<Description>` content size on every edit that touches it:
 

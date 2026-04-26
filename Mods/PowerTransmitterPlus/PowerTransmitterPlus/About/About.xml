@@ -211,7 +211,6 @@ Full multiplayer compatibility. Safe to remove from existing savegames.
 - Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveLinkedPartner
 - Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable. Host can disable the feature entirely via Enable Auto-Aim; join handshake rejects mismatched clients
 - Wall and ceiling placement for transmitter and receiver dishes. Host can revert to vanilla floor-only via Allow Non-Floor Placement; join handshake rejects mismatched clients
-- Full multiplayer support with server-authoritative simulation
 <b>Settings:</b> Server-authoritative: the host's values control gameplay and visuals for all connected clients, broadcast live on change.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
 </line-height>
