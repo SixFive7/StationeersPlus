@@ -62,6 +62,9 @@ DEV.md
 *.bak.*
 *~
 
+## Scratch / working directory (see CLAUDE.md "Workflow: scratch and working files in .work/")
+.work/
+
 ## Test / benchmark / coverage output
 TestResults/
 coverage/

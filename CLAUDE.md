@@ -8,6 +8,7 @@ Shared conventions for all Stationeers mods under this monorepo. `Mods/<ModName>
 - `Plans/` contains mods that are in progress and prototypes not yet released. They follow the same shape as released mods but are not tagged or published. Plans/ mods may carry design documents (`PLAN.md`, `plan.md`, `NOTES.md`) that are not permitted in released mods; these documents consolidate into `RESEARCH.md` or are deleted when the mod graduates to `Mods/`.
 - `tools/` contains repository-wide utility scripts.
 - `Mods/Template/` is the seed scaffold for creating new mods.
+- `.work/` at the monorepo root is the gitignored scratch directory. All temp, prototype, and throwaway files written during a work session live here. See "Workflow: scratch and working files in .work/" below.
 - Root files: `LICENSE` (Apache 2.0), `NOTICE`, `README.md`, `TODO.md` (cross-mod and repo-wide todos), `Directory.Build.props.template` (MSBuild inheritance, filled-in `Directory.Build.props` is gitignored), `DEV.md.template` (developer environment scaffold, filled-in `DEV.md` is gitignored), `.gitignore`, `.gitattributes`, `CLAUDE.md` (this file).
 
 ## Seed new mods from Mods/Template/
@@ -177,6 +178,20 @@ Required setup:
 ## Workflow: Research protocols
 
 Three workflow rules govern the boundary between mod work and the central `Research/` knowledge base: read the mod's `RESEARCH.md` before touching any mod, curate decompiled-code findings into `Research/<category>/` on every touch, and apply the fresh-validator protocol when a new finding conflicts with existing verified content on a page. Full rules and the conflict-resolution prompt template live in `Research/WORKFLOW.md`. The decompile hook (`.claude/hooks/research-hook-decompile.ps1`) points at it; read `WORKFLOW.md` when the reminder surfaces or when starting mod work. Structural rules for pages under `Research/` (frontmatter schema, section stamps, Verification History conventions, Unsorted protocol, tag vocabulary) live in `Research/CLAUDE.md` and auto-load when you touch a `Research/` file.
+
+## Workflow: scratch and working files in .work/
+
+All scratch, temp, prototype, and throwaway files written during a work session live under `.work/` at the monorepo root. The directory is gitignored (see the `.work/` entry in `.gitignore`) so nothing inside is committed. Clustering scratch in one place keeps the repo root tidy, prevents stray artifacts from leaking into commits, and gives a single place to clean out at the end of a session.
+
+Required practice:
+
+- Create `.work/` if it does not exist (`mkdir -p .work/`). It is not tracked, so a fresh clone will not have it.
+- Anything an AI assistant or a developer writes that is not part of the released codebase lands inside `.work/`. Examples: throwaway IL dumps, decompile snippets pulled out of `Research/` for ad-hoc inspection, exploratory `.cs` files used to test a hypothesis, request and response captures, scratch scripts, ad-hoc notes that are not destined for `RESEARCH.md` or `TODO.md`.
+- Do not write `.tmp_*.cs`, `scratch.txt`, `notes.md`, or other loose temp files at the repo root, inside any `Mods/<Mod>/` subtree, or inside any `Plans/<Plan>/` subtree. If a temp file needs to evoke the source it relates to, name it descriptively inside `.work/` (`.work/PowerTransmitterPlus_pc_dump.cs`, `.work/CombustionDeepMiner_il.txt`).
+- `.work/` is not a substitute for the curation rules. Findings about game internals still belong in `Research/<category>/`; durable mod knowledge still belongs in the mod's `RESEARCH.md`. Use `.work/` only for material that is genuinely throwaway.
+- Clean up `.work/` at the end of a session, or at least at the end of a coherent task. The directory should not become a graveyard of stale scratch from months ago.
+
+The existing `*.tmp`, `*.bak`, `*.orig` patterns in `.gitignore` continue to catch stray throwaway files anywhere in the tree as a safety net, but `.work/` is the intended home, not a fallback. If you find yourself reaching for `*.tmp` at the repo root, route it through `.work/` instead.
 
 ## Style: write like a human, not like an AI was here
 
