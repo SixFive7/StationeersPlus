@@ -6,6 +6,7 @@ verified_in: 0.2.6228.27061
 verified_at: 2026-04-26
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (parser switch, _L_Operation, _LD_Operation, _S_Operation, _SD_Operation, _Operation._MakeDeviceVariable, _Operation_I, syntax-help formatter)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_BRDSE_Operation, _BRDNS_Operation, _BDSE_Operation, _BDNS_Operation, _SDSE_Operation, _SDNS_Operation)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.CircuitHousing.GetLogicableFromId
 related:
   - ./LogicType.md
@@ -156,9 +157,83 @@ ld r1 $AD4F Setting         # equivalent via the dedicated `ld` opcode
 
 The pragmatic difference between `l <reg> <refid> <type>` and `ld <reg> <refid> <type>` is the parse path (and the `ld` null-guard gap above), not the addressing capability.
 
+## Existence-check opcodes for guarding ReferenceId addressing
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+
+`ld` / `sd` (and `getd` / `putd` / `clrd`) throw `DeviceNotFound` (or NRE in `_LD_Operation`'s case) when the supplied id resolves to null. To guard against this, IC10 has six existence-check opcodes that all share the same null-check semantics as the underlying read/write path:
+
+| Opcode | Form | Behavior |
+|---|---|---|
+| `bdse <device> <addr>` | absolute branch | Branch to `addr` if device exists. |
+| `bdns <device> <addr>` | absolute branch | Branch to `addr` if device does NOT exist. |
+| `brdse <device> <offset>` | relative branch | Same as `bdse` but `offset` is a signed PC delta. |
+| `brdns <device> <offset>` | relative branch | Same as `bdns` but `offset` is a signed PC delta. |
+| `bdseal <device> <addr>` / `bdnsal <device> <addr>` | branch + link | Variants that also write `ra` (link register) on the taken branch. |
+| `sdse <register> <device>` | set register | Writes `1` to register if device exists, `0` if not. |
+| `sdns <register> <device>` | set register | Writes `1` to register if device does NOT exist, `0` if so. |
+
+All six accept the same device-operand forms that `_MakeDeviceVariable` produces (pin / register / `$hex` / alias), so a literal ReferenceId works directly:
+
+```csharp
+// _BRDSE_Operation.Execute (covers bdse/brdse via wrapper)
+if (_DeviceIndex.GetDevice(_Chip.CircuitHousing) == null) {
+    hasJumped = false;
+    return index + 1;
+}
+hasJumped = true;
+return index + offset + _JumpIndex.GetVariableValue(_AliasTarget.Register);
+```
+
+`_DeviceIndex.GetDevice` for the numeric/register form ultimately routes through `CircuitHousing.GetLogicableFromId`, which means **the existence check enforces the same data-network membership constraint as the addressing itself**: a device that exists in the world but is not on `InputNetwork1.DataDeviceList` reads as "not set" through `bdse` / `bdns` / `sdse` / `sdns`. This is the correct guard, not a partial check.
+
+`sdse` / `sdns` are the right tool for non-branching one-shot guards (set up a flag in a register, use it later); `bdse` / `bdns` jump straight to a labeled handler when the existence question gates a code path.
+
+## `define` names work for `sd` but NOT for `brdns` / `bdns` / `bdse` / `brdse` / `sdse` / `sdns`
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+
+`define <name> <value>` (`_DEFINE_Operation`) writes the name into `ProgrammableChip._Defines` (a `Dictionary<string, double>`). `alias <name> <register-or-pin>` (`_ALIAS_Operation`) writes the name into `ProgrammableChip._Aliases` (a `Dictionary<string, _AliasValue>`). The two dictionaries are entirely separate, and per-opcode resolvers consult one or the other, not both.
+
+The asymmetry that bites scripts:
+
+- `sd <devCode> <type> <value>` constructs `_DeviceId = new IntValuedVariable(...)`. `IntValuedVariable.GetVariableValue` consults `_Defines` (visible at line 1958 / 2038 in `ProgrammableChip` decompile via the `InstructionInclude.Define` flag inside `MaskDoubleValue = 0x6F`). A `define`'d hex literal therefore resolves correctly: `define BasePowerTransmitter $39FA7` followed by `sd BasePowerTransmitter MicrowaveAutoAimTarget 0` works.
+- `brdns <devCode> <offset>` (and `bdns`, `bdse`, `brdse`, `sdse`, `sdns`, `bdnsal`, `bdseal`) constructs `_DeviceIndex = _Operation._MakeDeviceVariable(...)`, whose fallback path is `DeviceAliasVariable`. `DeviceAliasVariable.GetDevice` calls `GetAliasType(_Alias)`:
+
+  ```csharp
+  protected _AliasTarget GetAliasType(string alias, bool throwException = true)
+  {
+      if (string.IsNullOrEmpty(_Alias) || !_Chip._Aliases.TryGetValue(alias, out var value))
+      {
+          if (throwException)
+              throw new ProgrammableChipException(ICExceptionType.IncorrectVariable, _LineNumber);
+          return _AliasTarget.None;
+      }
+      return value.Target;
+  }
+  ```
+
+  This checks `_Aliases` only; `_Defines` is never consulted. A token resolved by `_MakeDeviceVariable` to a `DeviceAliasVariable` therefore throws `IncorrectVariable` on a `define`'d name even though the same name resolves correctly when the same opcode receives it via `IntValuedVariable`.
+
+In practice: `define BasePowerTransmitter $39FA7` then `brdns BasePowerTransmitter 2` raises "incorrect variable" at the `brdns` line. Workarounds, in order of preference:
+
+- Use the `$hex` literal directly: `brdns $39FA7 2`. Loses the `define` readability for the guard line but is otherwise free.
+- Pre-load the id into a register: `move r0 BasePowerTransmitter` (where `IntValuedVariable` resolves the define) then `brdns r0 2`. The `r0` form routes through `DirectDeviceVariable`, which calls `GetLogicableFromId(int)` directly instead of `GetAliasType`.
+- Replace the `define` with `alias`. `alias` only accepts a register or a pin (`r0..r17`, `d0..d5`, `dr*`, `db`) per the syntax-help formatter (`alias` row: `STRING, REGISTER + DEVICE_INDEX`); it does not accept a numeric ReferenceId. So this is only an option after the value is already in a register.
+
+The asymmetry exists because `_MakeDeviceVariable` was written for the original device-operand triad (pin / register / alias-of-pin-or-register), and the ReferenceId form was bolted on later without extending the alias-resolution branch to consult `_Defines`. The dedicated `*d` opcodes (`ld`, `sd`, `getd`, `putd`, `clrd`) sidestep this by skipping `_MakeDeviceVariable` entirely.
+
+## Batch-op safety for missing devices
+
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+
+Note the asymmetry: batch instructions (`sb`, `sbn`, `sbs`, `lb`, `lbn`, `lbs`, `lbns`) are **silent no-ops on empty result sets**. `sb PowerTransmitters On 1` with zero matching transmitters on the network does not throw; it just iterates an empty list. Reads (`lb`, `lbn`) with no match return `0` rather than throwing, controlled by the `BATCH_MODE` operand (Average / Sum / Minimum / Maximum). So the only addressing path that needs runtime existence guards is the `*d` family and `l`/`s`/`ls`/`ss`/`lr`/`get`/`put` when fed a numeric/register form (which dispatches to `GetLogicableFromId` and throws `DeviceNotFound` on null).
+
 ## Verification History
 
 - 2026-04-26: Page created from decompiled `Assembly-CSharp.dll` (game version 0.2.6228.27061). Replaces an earlier draft of this page that cited a Steam Community forum post and contained a fabricated `sbns` opcode and an inaccurate description of `ld`/`sd` arity. Source for every claim is now the DLL paths in the frontmatter `sources` block.
+- 2026-04-26: Added "Existence-check opcodes for guarding ReferenceId addressing" and "Batch-op safety for missing devices" sections from `_BRDSE_Operation` / `_BRDNS_Operation` / `_BDSE_Operation` / `_BDNS_Operation` / `_SDSE_Operation` / `_SDNS_Operation` decompiles. Documents that all six existence checks route through `GetLogicableFromId` and therefore inherit the data-network membership constraint.
+- 2026-04-26: Added "`define` names work for `sd` but NOT for `brdns` / `bdns` / `bdse` / `brdse` / `sdse` / `sdns`" section. Discovered while debugging a real `brdns BasePowerTransmitter 2` failure ("incorrect variable") in a user script that used `define` to name device IDs. Root cause: `_MakeDeviceVariable` falls through to `DeviceAliasVariable`, whose `GetDevice` calls `GetAliasType` which only consults `_Aliases`, never `_Defines`. The dedicated `*d` opcodes (`ld`/`sd`/`getd`/`putd`) bypass `_MakeDeviceVariable` and use `IntValuedVariable` directly, which does consult `_Defines`, so `define` works there.
 
 ## Open Questions
 
