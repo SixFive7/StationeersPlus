@@ -3,7 +3,7 @@ title: PowerTransmitter
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-04-26
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:251-271
   - Mods/PowerTransmitterPlus/RESEARCH.md:273-333
@@ -166,7 +166,13 @@ H       = (atan2(d_local.x, d_local.z) / (2π) + 1) mod 1
 ```
 At the poles (`|d_local.y| ≈ 1`), `H` is undefined. Keep the current value.
 
-Placement: floor-only, four cardinal rotations. `root.up = world.up` always. The math is frame-agnostic via `InverseTransformDirection`, so any future placement orientation continues to work without changes.
+Placement: floor-only in vanilla (the dish prefab's serialized `AllowedRotations` value gates the cursor; see `./AllowedRotations.md`), four cardinal rotations, `root.up = world.up` always. The aim math is frame-agnostic via `InverseTransformDirection`, so a non-floor placement (achieved by mutating `AllowedRotations` on the prefab or the construction cursor) continues to compute correct (H, V) without changes - the dish-local sphere of reachable directions rotates with the parent.
+
+Caveats for non-floor placement:
+
+- The `OnRegistered` reset to `(H=0, V=1)` (zenith of the dish-local frame) is a fresh-place default. For a ceiling-mounted dish, V=1 points world-down, which is the side facing away from the mount and therefore the natural "default" orientation. For a wall-mounted dish, V=1 points horizontally outward, also natural.
+- The TX-RX link raycast checks `Vector3.Angle(RayTransform.forward, rx.RayTransform.forward) ~ 180` AND `Vector3.Angle(RayTransform.right, rx.RayTransform.right) ~ 180` within 7 deg. Both vectors are dish-local; the check works regardless of root orientation as long as the two dishes face each other along `RayTransform.forward`.
+- The vertical-input clamps (`SetLogicValue` and the interaction increment/decrement handlers) keep V in [0..1] = [+90 deg, -90 deg] dish-local pitch. The reachable hemisphere is always the dish-local upper hemisphere; "world directions" reachable depends entirely on root orientation.
 
 ### Head-child drift trap (F0053)
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -217,16 +223,42 @@ Sources: F0052, F0053.
 
 The `VisualizerIntensity` setter on `WirelessPower` fires from a ThreadPool worker during `PowerTick`. Any Unity API from that call path hard-crashes the player. Route work to the main thread via `MainThreadDispatcher`. See `../GameSystems/PowerTickThreading.md`.
 
+## Auto-aim accuracy under non-floor mounts
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+
+A mod that auto-aims the dish at a target by setting `Horizontal` / `Vertical` from the world direction between two transforms inherits the offset between those transforms and the actual ray endpoints. Specifically, the link raycast in `TryContactReceiver` originates from `RayTransform.position` (a child of the rotating `Head`) and tests against `rx.DishTarget` (also a child of the receiver's rotating `Head`). Pivot-to-pivot aim (TX root -> RX root) is convenient because both pivots are rotation-invariant, but it leaves a residual angular error equal to the perpendicular component of the root-to-RayTransform offset against the aim direction.
+
+For floor-mounted dishes the offset is mostly along world up, which is mostly perpendicular to the (mostly horizontal) aim direction; at link distances of several tens of meters that perpendicular component is small in angular terms (a fraction of a degree). For non-floor mounts (wall, ceiling, sideways) the offset maps to non-vertical world directions and the perpendicular component can dominate: empirically, a wall-mounted TX with offset magnitude 1.937 m aimed at an RX 42 m away showed a 2.51 deg residual aim error after one slew (1.84 m off-axis at the receiver), enough to make a narrow `Physics.Raycast` miss the small `DishTarget` collider entirely.
+
+The fix is a fixed-point iteration that converges to a pose where the predicted `RayTransform.position` and the chosen `(Horizontal, Vertical)` are mutually consistent:
+
+```
+origin = current RayTransform.position
+for i in 1..N:
+    direction = (DishTarget - origin).normalized
+    (H, V) = solve_dish_local(direction)
+    origin = predict(H, V)        # apply candidate H / V to AxleTransform /
+                                  # DishTransform localRotation, read
+                                  # RayTransform.position, restore
+    if step delta < 1 cm: break
+set TargetHorizontal = H, TargetVertical = V
+```
+
+The contraction factor is approximately `k = |root-to-RayTransform offset| / link_distance`. For our 42 m wall + ceiling case `k = 1.94 / 42 = 0.046`, which converges to mm precision in 2-3 iterations. The contraction degrades at short range: at `D = |offset|` (~ 2 m) the iteration does not converge meaningfully, but a 1.9 m dish-to-dish placement is pathological. PowerTransmitterPlus caps at 10 iterations as a safety net and breaks early at the 1 cm tolerance, with the cache check on the public auto-aim entry preventing redundant solves on rewrites of the same target.
+
 ## Mod extensions
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
 
 - PowerTransmitterPlus extends this class; see [../../Mods/PowerTransmitterPlus/RESEARCH.md](../../Mods/PowerTransmitterPlus/RESEARCH.md) for distance-cost patches, AutoAim, and related extensions.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0035, F0036, F0037, F0038, F0039, F0042, F0044, F0050, F0052, F0053, F0219z, F0300, F0301. No conflicts.
 - 2026-04-20: removed PowerTransmitterPlus-specific subsections per Phase 6 Pass B editorial decision (GameClasses pages are strictly vanilla). Added mod-extensions pointer.
+- 2026-04-25: refined the "Placement" line in "Transforms and geometry" to clarify the floor-only restriction comes from the prefab's serialized `AllowedRotations` value (the gate is in `InventoryManager.UpdatePlacement`, not hardcoded to `PowerTransmitter`), and added caveats covering `OnRegistered` H/V reset, TX-RX link raycast frame-invariance, and vertical clamp behavior under non-upright placement. Source: deep decompile pass producing `Research/GameClasses/AllowedRotations.md`, `Research/GameSystems/PlacementOrientation.md`, `Research/GameClasses/WirelessPower.md`. No existing factual claim was contradicted; the new wording disambiguates the previously implicit assumption.
+- 2026-04-26: added "Auto-aim accuracy under non-floor mounts" section after empirical testing of wall TX + ceiling RX showed pivot-to-pivot aim leaves a 2.51 deg residual at 42 m (1.84 m off-axis at the receiver), enough to miss the narrow `Physics.Raycast` against `DishTarget`. Documents the contraction-factor analysis (`k ~ |root-to-RayTransform offset| / link_distance`) and the iterative `RayTransform` -> `DishTarget` solve template that PowerTransmitterPlus now uses. Source: empirical InspectorPlus snapshots of `RayTransform.position` / `DishTarget.position` / forwards / rights vectors during the wall+ceiling test, plus direct reads of `PowerTransmitter.TryContactReceiver` and `WirelessPower.Vertical` / `Horizontal` setters. Additive: previously the page documented only the floor-only frame-invariance argument; this section covers what changes when one or both endpoints are mounted on non-floor surfaces.
+- 2026-04-26: noted in mod-extensions context that the vanilla `TryContactReceiver` right-axis antiparallel check (condition 5) is geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis. Empirically on wall TX + ceiling RX: forwards angle 178.92 deg (within 7 deg of 180), rights angle 56.01 deg (124 deg outside tolerance). For floor-only pairs the rights are GEOMETRICALLY FORCED antiparallel once forwards are antiparallel (both axles spin around world up), making the check a redundant tautology. Documented in the mod's `LinkPatch.cs` rationale; no change to the central page's vanilla description, since vanilla is unchanged.
 
 ## Open questions
 

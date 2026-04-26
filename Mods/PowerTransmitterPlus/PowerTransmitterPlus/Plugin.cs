@@ -54,6 +54,16 @@ namespace PowerTransmitterPlus
         internal static ConfigEntry<bool> EnableAutoAim;
         internal static bool AutoAimPatched;
 
+        // Master toggle for ceiling and wall placement of the dish prefabs. Captured
+        // into NonFloorPlacementPatched at boot; PlacementPatcher reads that flag and
+        // mutates AllowedRotations on the SourcePrefab and any already-cloned
+        // ConstructionCursor entries. RequireRestart because Harmony Prepare and the
+        // prefab-mutation pass run once at OnAllModsLoaded; flipping the toggle mid-
+        // process would not undo or redo either side. Mismatches between client and
+        // host are caught at join time by the IJoinValidator implementation below.
+        internal static ConfigEntry<bool> EnableNonFloorPlacement;
+        internal static bool NonFloorPlacementPatched;
+
 
         void Awake()
         {
@@ -116,11 +126,20 @@ namespace PowerTransmitterPlus
                     new KeyValuePair<string, int>("Order", 10),
                     new KeyValuePair<string, bool>("RequireRestart", true)));
 
+            EnableNonFloorPlacement = Config.Bind(
+                "Server - Placement", "Allow Non-Floor Placement", true,
+                new ConfigDescription(
+                    "(Server-authoritative) When on, the Microwave Power Transmitter and Receiver dishes can be built on walls and ceilings as well as on the floor; the placement cursor cycles through every face the player aims at and the post-placement rotate keys cover all axes. When off, vanilla floor-only placement is preserved. Requires a full Stationeers restart to take effect; the prefab's AllowedRotations field is mutated once at boot. In multiplayer, clients whose Allow Non-Floor Placement value does not match the host's are rejected at join time with a clear error message.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10),
+                    new KeyValuePair<string, bool>("RequireRestart", true)));
+
             // Capture once, here, before any code path reads LogicTypeRegistry.
             // AutoAimPatched is the authoritative flag for the rest of the
             // process; the ConfigEntry itself can still be toggled in the
             // main-menu settings panel but toggles only affect the NEXT run.
             AutoAimPatched = EnableAutoAim.Value;
+            NonFloorPlacementPatched = EnableNonFloorPlacement.Value;
 
             MainThreadDispatcher.Init();
             DistanceConfigSync.HookHostBroadcast();
@@ -155,6 +174,13 @@ namespace PowerTransmitterPlus
                 // so MIPS source can refer to MicrowaveSourceDraw etc. by name.
                 Ic10ConstantsPatcher.Apply();
 
+                // Lift the dish prefabs' floor-only AllowedRotations to All so the
+                // construction cursor cycles between every face and the placed
+                // Structure's post-placement Rotate covers every axis. No-op when
+                // the toggle is off; client/host mismatches are caught above by the
+                // join validator.
+                if (NonFloorPlacementPatched) PlacementPatcher.Apply();
+
                 Log.LogInfo("Patches applied successfully");
             }
             catch (Exception e)
@@ -165,27 +191,42 @@ namespace PowerTransmitterPlus
 
         // IJoinValidator: per-mod handshake invoked by LaunchPadBooster's
         // VerifyPlayer / VerifyPlayerRequest postfixes on the remote-join path.
-        // Both sides serialize their AutoAimPatched value; the read side rejects
-        // the connection with a readable error if the values disagree. Does NOT
-        // fire for single-player or host-own-world load; those paths rely on
-        // the RequireRestart banner + boot-time capture instead.
+        // Both sides serialize their boot-time RequireRestart toggles in the same
+        // order; the read side rejects the connection with a per-toggle readable
+        // error on the first mismatch. Does NOT fire for single-player or
+        // host-own-world load; those paths rely on the RequireRestart banner +
+        // boot-time capture instead. Wire format additions go at the END to keep
+        // the read order stable for older builds (LaunchPadBooster's mod-version
+        // handshake rejects truly old builds first; this is belt-and-suspenders).
         public void SerializeJoinValidate(RocketBinaryWriter writer)
         {
             writer.WriteBoolean(AutoAimPatched);
+            writer.WriteBoolean(NonFloorPlacementPatched);
         }
 
         public bool ProcessJoinValidate(RocketBinaryReader reader, out string error)
         {
-            var remote = reader.ReadBoolean();
-            if (remote == AutoAimPatched)
+            var remoteAutoAim = reader.ReadBoolean();
+            var remoteNonFloorPlacement = reader.ReadBoolean();
+
+            if (remoteAutoAim != AutoAimPatched)
             {
-                error = null;
-                return true;
+                error = remoteAutoAim
+                    ? "PowerTransmitterPlus: server has Enable Auto-Aim on, your game has it off. Enable it in the mod settings panel and restart Stationeers before joining."
+                    : "PowerTransmitterPlus: server has Enable Auto-Aim off, your game has it on. Disable it in the mod settings panel and restart Stationeers before joining.";
+                return false;
             }
-            error = remote
-                ? "PowerTransmitterPlus: server has Enable Auto-Aim on, your game has it off. Enable it in the mod settings panel and restart Stationeers before joining."
-                : "PowerTransmitterPlus: server has Enable Auto-Aim off, your game has it on. Disable it in the mod settings panel and restart Stationeers before joining.";
-            return false;
+
+            if (remoteNonFloorPlacement != NonFloorPlacementPatched)
+            {
+                error = remoteNonFloorPlacement
+                    ? "PowerTransmitterPlus: server has Allow Non-Floor Placement on, your game has it off. Enable it in the mod settings panel and restart Stationeers before joining."
+                    : "PowerTransmitterPlus: server has Allow Non-Floor Placement off, your game has it on. Disable it in the mod settings panel and restart Stationeers before joining.";
+                return false;
+            }
+
+            error = null;
+            return true;
         }
     }
 }

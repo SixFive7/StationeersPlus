@@ -2,7 +2,7 @@
 
 ![Power Transmitter Plus](PowerTransmitterPlus/About/Preview.png)
 
-Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
+Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
 
 > **WARNING:** This is a StationeersLaunchPad mod. It requires [BepInEx](https://docs.bepinex.dev/) and [StationeersLaunchPad](https://github.com/StationeersLaunchPad/StationeersLaunchPad) to be installed.
 
@@ -89,17 +89,34 @@ yield
 j start
 ```
 
+### Wall and Ceiling Placement
+
+The Microwave Power Transmitter and Receiver dishes can be built on walls and ceilings as well as on the floor. While placing a dish, aim at any face the cursor would normally cycle through (floor, wall, or ceiling) and the placement preview snaps to that face automatically; rotation hotkeys cover all three axes once the cursor is on a non-floor face, so the dish can be oriented freely. A wall-mounted transmitter can link to a ceiling-mounted receiver as long as their dishes face each other.
+
+Two link-side adjustments make this work alongside non-floor placement:
+
+- The vanilla TX-RX link condition's right-axis-antiparallel check is dropped because it is geometrically unsatisfiable for two dishes mounted on different surface classes. The forward-axis-antiparallel check (within 7 degrees) still gates linking.
+- `MicrowaveAutoAimTarget` aims the dish using iterative `RayTransform -> DishTarget` convergence rather than pivot-to-pivot, which keeps single-shot auto-aim precise enough on non-floor mounts that the narrow link raycast hits the receiver's `DishTarget` collider directly.
+
+The host can revert to vanilla floor-only placement via the `Allow Non-Floor Placement` server setting. Like `Enable Auto-Aim` this is restart-gated, and clients whose value disagrees with the host's are rejected at join time with a clear error message.
+
 ### Settings
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. `Enable Auto-Aim` is a restart-gated toggle, not a live-broadcast setting: changing it requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the eight entries under four headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. `Enable Auto-Aim` and `Allow Non-Floor Placement` are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the nine entries under five headers:
 
 **Server - Features**:
 
 | Setting | Default | Description |
 |---|---|---|
 | Enable Auto-Aim | true | Master toggle for the auto-aim feature. When off, `MicrowaveAutoAimTarget` and its IC10 / tablet / screen UI surface are not registered at all. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected |
+
+**Server - Placement**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Allow Non-Floor Placement | true | When on, transmitter and receiver dishes can be built on walls and ceilings as well as floors. When off, vanilla floor-only placement is preserved. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected |
 
 **Server - Distance**:
 

@@ -58,10 +58,33 @@ namespace PowerTransmitterPlus
             return dish != null;
         }
 
-        // Write path. Redundant writes short-circuit on the cache-hit check.
-        // Unresolved ids leave cache untouched so a subsequent rewrite of the
-        // same id will retry the lookup (covers the "id referred to a thing
-        // that did not yet exist at first write" case).
+        // Write path. Redundant writes to the same target ID short-circuit on
+        // the cache-hit check at the top. Unresolved ids leave cache untouched
+        // so a subsequent rewrite of the same id will retry the lookup (covers
+        // the "id referred to a thing that did not yet exist at first write"
+        // case).
+        //
+        // The aim solve is a fixed-point iteration: the (H, V) we want depends
+        // on RayTransform.position, which itself depends on (H, V) (RayTransform
+        // is a child of the rotating dish hierarchy). One-shot aim leaves a
+        // residual error proportional to the perpendicular component of the
+        // root-to-RayTransform offset against the aim direction; for non-floor
+        // mounts that residual is enough at typical link distances to make
+        // vanilla's narrow Physics.Raycast miss the receiver's small DishTarget
+        // collider. We iterate until convergence: at each step compute the aim
+        // direction from a candidate origin, solve (H, V), then predict where
+        // RayTransform would actually be at that pose by temporarily writing
+        // the local rotations and reading RayTransform.position. The contraction
+        // factor of this iteration is approximately |root-to-RayTransform offset|
+        // / link_distance, so for D = 42 m and offset ~= 1.94 m, k ~= 0.046:
+        // 2-3 iterations reach mm precision. Cap at 10 iterations covers
+        // distances down to ~5 m comfortably; below ~|offset| (~ 2 m) the
+        // iteration mathematically does not converge but that placement is
+        // pathological. Early-break when origin moves less than 1 cm between
+        // iterations keeps the steady-state cost at one iteration.
+        internal const int MaxAimIterations = 10;
+        internal const float AimConvergenceTolerance = 0.01f; // 1 cm
+
         internal static void HandleWrite(WirelessPower dish, long newId)
         {
             if (dish == null) return;
@@ -78,55 +101,56 @@ namespace PowerTransmitterPlus
             var target = Thing.Find(newId);
             if (target == null || target == dish) return;
 
-            // Use pivot-to-pivot geometry. Both our origin and the target
-            // point must be invariant under dish rotation; otherwise the
-            // aim we compute depends on the current (wrong) pose of either
-            // dish and drifts as dishes rotate.
-            //
-            //   Origin: dish.transform.position is the TX/RX root, fixed.
-            //           (RayTransform / DishTransform are children of the
-            //           rotating Head, so they move.)
-            //   Target: target.transform.position is the target's root,
-            //           fixed. For a PowerReceiver, its DishTarget collider
-            //           is a Head child that swings with the RX's current
-            //           aim; aiming at DishTarget would lock us onto the
-            //           RX's current (possibly wrong) aim and fail to track
-            //           when the RX subsequently moves to correct.
-            //
-            // With pivot-to-pivot, when BOTH dishes auto-aim at each other's
-            // root, the forward axes become anti-parallel along the pivot-
-            // pivot line; the base-game TryContactReceiver raycast from
-            // TX.RayTransform then passes through RX.DishTarget because the
-            // latter ends up on that same line once RX is correctly aimed.
-            var from = dish.transform.position;
-            var toTransform = target.transform;
-            if (toTransform == null) return;
-
-            Vector3 diff = toTransform.position - from;
-            if (diff.sqrMagnitude < 1e-6f) return;
-
-            Vector3 dWorld = diff.normalized;
-            Vector3 dLocal = dish.transform.InverseTransformDirection(dWorld);
-
-            double sinA = -dLocal.y;
-            if (sinA > 1.0) sinA = 1.0;
-            else if (sinA < -1.0) sinA = -1.0;
-            double alpha = Math.Asin(sinA);              // [-pi/2, pi/2]
-            double v = 0.5 - alpha / Math.PI;            // [0, 1]
-
-            double cosA = Math.Cos(alpha);
-            double h;
-            if (cosA > 1e-6)
-            {
-                double theta = Math.Atan2(dLocal.x, dLocal.z);
-                h = theta / (2.0 * Math.PI);
-                if (h < 0.0) h += 1.0;
-            }
+            // Target: the OTHER dish's actual ray endpoint:
+            //   - PowerReceiver: DishTarget (the collider TryContactReceiver tests
+            //     for hit.transform == rx.DishTarget). Pointing TX.RayTransform.forward
+            //     directly at this point is what makes the raycast actually hit.
+            //   - PowerTransmitter: RayTransform (when an RX auto-aims at a TX).
+            //   - other Thing types: fall back to root.
+            Vector3 toPos;
+            if (target is PowerReceiver targetRx && targetRx.DishTarget != null)
+                toPos = targetRx.DishTarget.position;
+            else if (target is PowerTransmitter targetTx && targetTx.RayTransform != null)
+                toPos = targetTx.RayTransform.position;
             else
+                toPos = target.transform.position;
+
+            if (dish.RayTransform == null || dish.AxleTransform == null || dish.DishTransform == null)
+                return;
+
+            Vector3 origin = dish.RayTransform.position;
+            double h = dish.RotatableBehaviour != null ? dish.RotatableBehaviour.TargetHorizontal : 0.0;
+            double v = dish.RotatableBehaviour != null ? dish.RotatableBehaviour.TargetVertical : 1.0;
+
+            for (int iter = 0; iter < MaxAimIterations; iter++)
             {
-                // Target is along the dish's local up/down axis; azimuth is
-                // undefined. Keep the current horizontal target.
-                h = dish.RotatableBehaviour != null ? dish.RotatableBehaviour.TargetHorizontal : 0.0;
+                Vector3 diff = toPos - origin;
+                if (diff.sqrMagnitude < 1e-6f) return;
+
+                Vector3 dWorld = diff.normalized;
+                Vector3 dLocal = dish.transform.InverseTransformDirection(dWorld);
+
+                double sinA = -dLocal.y;
+                if (sinA > 1.0) sinA = 1.0;
+                else if (sinA < -1.0) sinA = -1.0;
+                double alpha = Math.Asin(sinA);              // [-pi/2, pi/2]
+                v = 0.5 - alpha / Math.PI;                   // [0, 1]
+
+                double cosA = Math.Cos(alpha);
+                if (cosA > 1e-6)
+                {
+                    double theta = Math.Atan2(dLocal.x, dLocal.z);
+                    h = theta / (2.0 * Math.PI);
+                    if (h < 0.0) h += 1.0;
+                }
+                // else: target is along dish-local up/down axis, azimuth undefined;
+                // keep h from previous iteration.
+
+                Vector3 newOrigin = PredictRayPosition(dish, h, v);
+                Vector3 delta = newOrigin - origin;
+                origin = newOrigin;
+
+                if (delta.sqrMagnitude < AimConvergenceTolerance * AimConvergenceTolerance) break;
             }
 
             SetCache(dish, newId);
@@ -142,6 +166,35 @@ namespace PowerTransmitterPlus
             finally
             {
                 _suppressReset = false;
+            }
+        }
+
+        // Predict where RayTransform.position would land if the dish were posed
+        // at the given (H, V), without committing to the slew. Temporarily
+        // writes the local rotations on AxleTransform / DishTransform, reads
+        // RayTransform.position (Unity recomputes the world chain on read),
+        // and restores the saved rotations.
+        //
+        // Side-effect-free at the game level: direct Transform.localRotation
+        // writes do not flow through the WirelessPower.Horizontal / Vertical
+        // property setters, so they do not set NetworkUpdateFlags |= 256, do
+        // not call BeamManager.RefreshIfVisible, and do not invalidate the
+        // RotatableBehaviour servo state. This is purely a synchronous Unity
+        // transform recomputation.
+        private static Vector3 PredictRayPosition(WirelessPower dish, double h, double v)
+        {
+            var savedAxle = dish.AxleTransform.localRotation;
+            var savedDish = dish.DishTransform.localRotation;
+            try
+            {
+                dish.AxleTransform.localRotation = Quaternion.Euler(0f, (float)(h * dish.MaximumHorizontal), 0f);
+                dish.DishTransform.localRotation = Quaternion.Euler(Mathf.Lerp(90f, -90f, (float)v), 0f, 0f);
+                return dish.RayTransform.position;
+            }
+            finally
+            {
+                dish.AxleTransform.localRotation = savedAxle;
+                dish.DishTransform.localRotation = savedDish;
             }
         }
     }

@@ -76,11 +76,13 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 | Visual on/off | `VisualiserPatches.cs`, `RotationPatches.cs` | Show/hide beam tied to game's `VisualizerIntensity` setter; refresh endpoints when dish rotates |
 | Power-flow simulation | `DistanceCostPatches.cs` | 4 patches replacing vanilla distance derate with source-draw multiplier |
 | Logic readout (UI/IC10) | `LogicReadoutPatches.cs` | `CanLogicRead` postfix + `GetLogicValue` prefix on `WirelessPower` (base class); branches on instance type inside |
-| Auto-aim logic write | `AutoAimPatches.cs` | `SetLogicValue` prefix intercepts `MicrowaveAutoAimTarget`; `RotatableBehaviour` target setter postfixes clear the cache on manual override. Per-dish cache via `ConditionalWeakTable` |
+| Auto-aim logic write | `AutoAimPatches.cs` | `SetLogicValue` prefix intercepts `MicrowaveAutoAimTarget`; aim solve is a fixed-point iteration that aims `dish.RayTransform.position` -> the OTHER dish's actual ray endpoint (`PowerReceiver.DishTarget`, `PowerTransmitter.RayTransform`), capped at 10 iterations with 1 cm convergence tolerance. `RotatableBehaviour` target setter postfixes clear the cache on manual override. Per-dish cache via `ConditionalWeakTable` |
+| Link condition | `LinkPatch.cs` | Harmony Prefix on `PowerTransmitter.TryContactReceiver` that drops the vanilla right-axis antiparallel check (geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis). Forwards-axis check (within 7 degrees) is preserved, so vanilla obstacle behaviour is intact. Gated on `NonFloorPlacementPatched`; floor-only worlds run vanilla unchanged |
 | Logic system bootstrap | `Ic10ConstantsPatcher.cs`, `LogicableInitializePatch.cs`, `EnumNamePatches.cs`, `StationpediaPatches.cs` | Teach the game about our `LogicType` values 6571-6576 everywhere the game looks them up by name: compiler constants, tablet arrays, enum name resolution, screen syntax highlighting, Stationpedia |
 | Multiplayer sync (k) | `DistanceConfigMessage.cs`, `DistanceConfigSync.cs` | Server-authoritative `k` push to clients via LaunchPadBooster networking |
 | Multiplayer sync (visuals) | `BeamVisualConfigMessage.cs`, `BeamVisualConfigSync.cs` | Server-authoritative beam visual config push to clients via LaunchPadBooster networking |
 | Foundation | `Plugin.cs`, `MainThreadDispatcher.cs`, `LogicTypeRegistry.cs`, `BeamManager.cs`, `BeamLine.cs`, `BeamPulseTrain.cs` | Wiring, registry, beam GameObjects |
+| Non-floor placement | `PlacementPatcher.cs` | One-shot reflection writes that flip the dish prefabs' `AllowedRotations` and `RotationAxis` from the inspector-baked floor-only / yaw-only values to `All`, then re-run vanilla `SmartRotate.AutomaticSetup` on each rotatable to resize `OpenEndsPermutation` from `int[4]` to `int[6]{0,1,2,3,4,5}` and re-pick `ConnectionType.Exhaustive`. Mutates both the SourcePrefab (so newly-instantiated Structures inherit the new values) and any already-cloned `InventoryManager._constructionCursors` entry (so the live preview reflects the new shape regardless of `OnPrefabsLoaded` vs `ManagerAwake` ordering). Vanilla SmartRotate then handles the C-key autoplace and scroll cycling without any Harmony patch on `_GetNext`. Gated on `EnableNonFloorPlacement`; mismatches are caught by `IJoinValidator` |
 
 ### File walkthrough
 
@@ -135,21 +137,29 @@ No caching, no per-tick state. Snap-to-zero is automatic when delivered is 0.
 `AutoAimState` (static):
 - `ConditionalWeakTable<WirelessPower, StrongBox<long>> _target`: per-dish cache. Lifetime-tied to the dish instance, self-cleans on GC.
 - `[ThreadStatic] bool _suppressReset`: re-entry flag set during our own servo writes.
+- `MaxAimIterations = 10`, `AimConvergenceTolerance = 0.01f` (1 cm).
 - `HandleWrite(dish, newId)`:
   - Cache hit -> early return.
   - `newId == 0` -> cache 0, no aim change.
   - `Thing.Find(newId) == null || target == dish` -> return WITHOUT updating cache (so a later rewrite of the same id re-attempts lookup).
-  - Otherwise: pivot-to-pivot geometry -> set `RotatableBehaviour.TargetHorizontal` / `TargetVertical` under suppression flag.
+  - Pick `toPos`: `target.DishTarget.position` for `PowerReceiver`, `target.RayTransform.position` for `PowerTransmitter`, `target.transform.position` otherwise.
+  - Iterate up to 10 times: from a candidate `origin`, solve (H, V) toward `toPos`, then call `PredictRayPosition(dish, h, v)` to read where `RayTransform.position` would land at that pose, replace `origin`, break when `origin` moves less than 1 cm.
+  - Commit (H, V) to `RotatableBehaviour.TargetHorizontal` / `TargetVertical` under the suppression flag.
 
-Geometry, both endpoints are rotation-invariant:
-- `from = dish.transform.position` (the placed-structure root; NOT `RayTransform`, which moves with H/V)
-- `to = target.transform.position` (NOT `RayTransform` / `DishTarget`: those are `Head` children and swing with the target's current aim)
-- `d_local = dish.transform.InverseTransformDirection((to - from).normalized)`
-- `V = 0.5 + asin(d_local.y) / pi` in `[0, 1]`
-- `H = (atan2(d_local.x, d_local.z) / (2 pi) + 1) mod 1`
-- At the poles (`|d_local.y| ~ 1`), `H` is undefined. Keep the current value.
+`PredictRayPosition(dish, h, v)`: temporarily writes `dish.AxleTransform.localRotation` and `dish.DishTransform.localRotation` to the candidate pose, reads `dish.RayTransform.position` (Unity recomputes the world chain on read), then restores the saved rotations in a `finally`. Side-effect-free at the game level: direct `Transform.localRotation` writes do not flow through the `WirelessPower.Horizontal` / `Vertical` property setters, so they do not set `NetworkUpdateFlags |= 256`, do not call `BeamManager.RefreshIfVisible`, and do not invalidate the servo state. Synchronous Unity transform recomputation only.
+
+Geometry per iteration:
+- `origin` starts at `dish.RayTransform.position`; `toPos` is the OTHER dish's actual ray endpoint.
+- `d_local = dish.transform.InverseTransformDirection((toPos - origin).normalized)`
+- `V = 0.5 - asin(-d_local.y) / pi` in `[0, 1]`
+- `H = (atan2(d_local.x, d_local.z) / (2 pi)) mod 1`
+- At the poles (`|d_local.y| ~ 1`), `H` is undefined. Keep the previous-iteration value.
+
+Why iterate: `dish.RayTransform.position` is a child of the rotating dish hierarchy, so it moves when (H, V) change. Pivot-to-pivot (root-to-root) aim leaves a residual error proportional to the perpendicular component of the root-to-RayTransform offset against the aim direction. On floor-mounted dishes the vanilla right-axis check (which we drop in `LinkPatch.cs`) hid this residual; on non-floor mounts it grows large enough to miss the receiver's narrow `DishTarget` collider with the vanilla `Physics.Raycast`. The fixed-point iteration has contraction factor `k ~ |root-to-RayTransform offset| / link_distance`, so for the 42 m wall+ceiling test case (offset 1.94 m) `k ~ 0.046`; 2-3 iterations reach mm precision. The 10-iteration cap covers down to about 5 m link distance comfortably; below `|offset|` (around 2 m) the iteration mathematically does not converge but that placement is pathological. Steady-state cost is one iteration (cache short-circuit on redundant writes).
 
 Reading `MicrowaveAutoAimTarget` is handled in `LogicReadoutPatches.cs` (per-dish lookup on `__instance`).
+
+`LinkPatch.cs` - Single Harmony Prefix on `PowerTransmitter.TryContactReceiver` (gated whole-class with `Prepare()` returning `NonFloorPlacementPatched`). Replicates conditions 1-4 of the vanilla check (raycast hit, collider belongs to a `Thing`, `Thing` is a `PowerReceiver`, `hit.transform == rx.DishTarget`, forwards antiparallel within 7 deg). Drops condition 5 (rights antiparallel within 7 deg). On success writes `LinkedReceiver`, `rx.LinkedPowerTransmitter`, and `_linkedReceiverDistance` (cached `AccessTools.Field` setter; the leading underscore on the field name makes Harmony's `___field` parameter convention unreliable). Returns `false` to skip the vanilla body in either direction. Floor-only worlds (toggle off) preserve vanilla behaviour exactly.
 
 `StationpediaPatches.cs` - Best-effort Stationpedia integration via `AccessTools.TypeByName` and `TargetMethod()`+`Prepare()`. Adds in-game wiki entries for each custom LogicType. Failure is non-fatal.
 
@@ -248,7 +258,8 @@ See `Protocols/PowerTransmitterPlusNetworking.md` for the full message schema an
 | LogicType values `6571 - 6575` (reserved `6571 - 6599`) | Safely outside vanilla (0-349) and Stationeers Logic Extended (1000-1830) |
 | `MicrowaveDestinationDraw` added (redundant with `PowerActual`) | Clearer naming on receiver side |
 | `MicrowaveEfficiency` as a fourth readout | Ratio of delivered/source purely derivable from distance and `k`, but convenient to expose directly rather than requiring an IC10 division every tick |
-| Pivot-to-pivot aim geometry, NOT `RayTransform` or `DishTarget` | `RayTransform` / `DishTarget` are `Head` children. Their world positions swing with dish rotation. Aiming from or at them produces self-referential error and locks aim onto the target's CURRENT pose. `dish.transform.position` -> `target.transform.position` makes both endpoints rotation-invariant, so a dish targets correctly even when the other side is still pointing the wrong way |
+| Iterative `RayTransform` -> `DishTarget` aim, fixed-point convergence | Pivot-to-pivot (root-to-root) aim leaves a residual error proportional to the perpendicular component of the root-to-RayTransform offset against the aim direction. On floor-mounted dishes that residual is hidden by the vanilla right-axis antiparallel check (which our LinkPatch drops). On non-floor mounts the residual is enough at typical link distances (observed 2.51 deg at 42 m on wall TX + ceiling RX) to make vanilla's narrow `Physics.Raycast` miss the receiver's small `DishTarget` collider. Switching to RayTransform -> DishTarget single-shot creates a self-referential dependency (the RayTransform position depends on the (H,V) we are computing), so we iterate: solve (H,V), `PredictRayPosition` reads where RayTransform would land at that pose without committing to the slew, repeat until origin moves less than 1 cm. Contraction factor approximates `\|root-to-RayTransform offset\| / link_distance` (= 0.046 at the 42 m / 1.94 m offset case); 2-3 iterations reach mm precision. Cap at 10 iterations covers distances down to about 5 m comfortably |
+| Drop the vanilla right-axis antiparallel link check | Vanilla `TryContactReceiver` requires `Vector3.Angle(TX.RayTransform.right, RX.RayTransform.right) ~ 180` (within 7 deg) on top of the forwards check. For two floor-mounted dishes the rights are GEOMETRICALLY FORCED antiparallel once forwards are antiparallel (both axles spin around world up), so the check is a redundant tautology. For non-floor pairs the two root frames have different world-up axes; even when auto-aim drives forwards within 7 deg the rights end up dozens of degrees apart because H/V only control aim direction, not roll around the forward axis. Empirically on wall TX + ceiling RX: forwards angle 178.92 deg (within tolerance), rights angle 56.01 deg (124 deg outside tolerance). Patch drops condition 5; conditions 1-4 (raycast + collider lookup + DishTarget identity + forwards-antiparallel) are sufficient to confirm aim and line-of-sight reachability |
 | Don't touch `LinkedReceiver` / `LinkedPowerTransmitter` from auto-aim | The vanilla `TryContactReceiver` raycast handles link/unlink based on alignment, including the "obstacle C in the path" case. Writing link fields directly bypasses the physics check |
 | Auto-aim via servo setter writes under a `[ThreadStatic]` suppression flag | Re-uses existing servo delta-state for multiplayer sync; no new network message needed for aim |
 | Four-patch power-tick quartet treated as an atomic set | Disabling any one produces observable breakage. See Pitfalls section below. |
@@ -392,14 +403,24 @@ All `WirelessPower` patches target the base class directly (not `PowerTransmitte
 
 | # | Patch class | Target | Type |
 |---|---|---|---|
-| 15 | `WirelessPowerSetLogicValuePatch` | `WirelessPower.SetLogicValue` | Prefix (false for `MicrowaveAutoAimTarget`; passes through for everything else) |
+| 15 | `WirelessPowerSetLogicValuePatch` | `WirelessPower.SetLogicValue` | Prefix (false for `MicrowaveAutoAimTarget`; passes through for everything else). Iterative aim solve, 10-iteration cap, 1 cm convergence tolerance, `PredictRayPosition` helper |
 | 16 | `WirelessPowerCanLogicWritePatch` | `WirelessPower.CanLogicWrite` | Postfix (marks 6575 writable on TX and RX) |
 | 17 | `RotatableTargetHorizontalResetPatch` | `RotatableBehaviour.TargetHorizontal` (setter) | Postfix (clears auto-aim cache on any external override) |
 | 18 | `RotatableTargetVerticalResetPatch` | `RotatableBehaviour.TargetVertical` (setter) | Postfix (same) |
 
 `AutoAimState._target` is a `ConditionalWeakTable<WirelessPower, StrongBox<long>>`. The reset postfixes catch manual aim writes from every source (tablet, IC10 `s d0 Horizontal ...`, dish UI buttons, scroll-wheel) because they all funnel through `RotatableBehaviour.TargetHorizontal` / `TargetVertical`.
 
-**Depends on:** [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) (pivot-to-pivot aim geometry, dish transform hierarchy, `TryContactReceiver` raycast, Head-child transforms move with rotation), [../../Research/GameClasses/RotatableBehaviour.md](../../Research/GameClasses/RotatableBehaviour.md) (`TargetHorizontal` / `TargetVertical` setters and the servo delta-state that Auto-aim rides), [../../Research/Patterns/ConditionalWeakTableCache.md](../../Research/Patterns/ConditionalWeakTableCache.md) (per-dish cache lifecycle tied to GC).
+**Depends on:** [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) (iterative `RayTransform` -> `DishTarget` aim geometry, dish transform hierarchy, `TryContactReceiver` raycast, Head-child transforms move with rotation), [../../Research/GameClasses/RotatableBehaviour.md](../../Research/GameClasses/RotatableBehaviour.md) (`TargetHorizontal` / `TargetVertical` setters and the servo delta-state that Auto-aim rides), [../../Research/Patterns/ConditionalWeakTableCache.md](../../Research/Patterns/ConditionalWeakTableCache.md) (per-dish cache lifecycle tied to GC).
+
+### Link condition patch
+
+| # | Patch class | Target | Type |
+|---|---|---|---|
+| 19 | `TryContactReceiverPatch` | `PowerTransmitter.TryContactReceiver` | Prefix (returns false; replaces vanilla body with a forwards-antiparallel-only variant). Gated on `NonFloorPlacementPatched` |
+
+Vanilla `TryContactReceiver` requires both forwards-antiparallel and rights-antiparallel within 7 deg. The rights check is geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis. Patch drops the rights check; conditions 1-4 (raycast + collider lookup + DishTarget identity + forwards-antiparallel) are sufficient to confirm aim and line-of-sight reachability. Vanilla obstacle behaviour is intact. With `EnableNonFloorPlacement = false` the patch does not apply and vanilla runs unchanged.
+
+**Depends on:** [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) (vanilla `TryContactReceiver` body, the five link conditions, the right-axis tautology argument for floor-only pairs).
 
 ### StationpediaPatches.cs stub
 
@@ -504,12 +525,22 @@ Rule: the dish's true aim direction is the raycast's direction vector. Check the
 
 ### Transforms under `Head` move with dish rotation
 
-`Line` (`RayTransform`), `DishTarget`, and `Transmitter` are all children of `Head`, which rotates via `DishTransform.localRotation = Euler(Lerp(90, -90, V), 0, 0)`. Their world positions therefore change as the dish rotates. Any aim algorithm that treats them as fixed produces:
+`Line` (`RayTransform`), `DishTarget`, and `Transmitter` are all children of `Head`, which rotates via `DishTransform.localRotation = Euler(Lerp(90, -90, V), 0, 0)`. Their world positions therefore change as the dish rotates. Two failure modes:
 
-- Self-referential error when used as RAY ORIGIN: aim computed from current `RayTransform` position goes stale once the dish rotates and the `RayTransform` moves. Observed as ~0.3 degree drift that prevented link-raycast hits.
-- Pose-lock-in when used as RAY TARGET: aiming at the other dish's `RayTransform` / `DishTarget` locks onto that dish's CURRENT pose. When the target later rotates to a correct aim, your aim is pointing at empty space.
+- Self-referential error when `RayTransform` is the RAY ORIGIN: the (H, V) we want depends on `RayTransform.position`, which itself depends on (H, V). One-shot solve leaves a residual error proportional to the perpendicular component of the root-to-RayTransform offset against the aim direction.
+- Pose-lock-in when the OTHER dish's `RayTransform` / `DishTarget` is the RAY TARGET while it is still aiming the wrong way: aim locks onto the target's CURRENT pose, and when the target later swings to a correct aim, your aim is pointing at empty space.
 
-Rule: use `dish.transform.position` (the placement-anchored root) as both origin and target for aim computation. Invariant under all dish rotation.
+Earlier versions of `AutoAimPatches.cs` solved both by using `dish.transform.position` -> `target.transform.position` (root to root). That makes both endpoints rotation-invariant, but the pivot-to-pivot residual bites on non-floor mounts: the link raycast originates at `RayTransform`, not the root, so the offset shows up at the receiver end as missed hits on the narrow `DishTarget` collider (observed 2.51 deg residual at 42 m on wall TX + ceiling RX, just enough to miss).
+
+Current approach is iterative `RayTransform` -> `DishTarget` aim:
+- Origin is `dish.RayTransform.position`, target is `target.DishTarget.position` (or `target.RayTransform.position` for TX targets).
+- Each iteration solves (H, V) from a candidate origin, then `PredictRayPosition` reads where `RayTransform` would land at that pose by temporarily writing `AxleTransform` / `DishTransform` `localRotation` and reading `RayTransform.position` (Unity recomputes the world chain on read), then restores.
+- Loop until the origin moves less than 1 cm or 10 iterations elapse.
+- Contraction factor `k ~ |root-to-RayTransform offset| / link_distance` makes 2-3 iterations reach mm precision in practice.
+
+Pose-lock-in on the target side is still a real concern, so we use `DishTarget` (the receiver's locked-down geometric ray endpoint, NOT swept by H/V on the receiver beyond what auto-aim is already trying to converge) only after the receiver has been independently auto-aimed at the transmitter. In a typical IC10 loop both dishes call `MicrowaveAutoAimTarget` against each other; both iterative solves converge to a mutually consistent fixed point.
+
+Rule: when the link raycast originates at a Head-child transform, aim must originate from that same transform; iterate to handle the self-referential dependency.
 
 ### There are four separate LogicType registries
 
