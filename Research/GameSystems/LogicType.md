@@ -3,7 +3,7 @@ title: LogicType
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-04-25
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:664-670
   - Mods/PowerTransmitterPlus/RESEARCH.md:398-425
@@ -66,6 +66,183 @@ All three are populated from `Enum.GetValues(typeof(LogicType))` at class load. 
 `EnumCollection<T1, T2>` lives in `Assets.Scripts`, NOT `Assets.Scripts.Util`. `ProgrammableChip` lives in `Assets.Scripts.Objects.Electrical`, NOT `Motherboards`; `ProgrammableChip.Constant` is a nested `public readonly struct`.
 
 The MIPS compiler resolves name tokens against `ProgrammableChip.AllConstants` directly: verified in-game for both `l r0 d0 MicrowaveSourceDraw` and `lbn ... MicrowaveSourceDraw 0`. The `Hash` field on `Constant` is for the `#hash` MIPS directive, not pure name lookups.
+
+## Atmospheric gas-ratio LogicType members
+<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+
+Every combustion-relevant gas (fuels and oxidisers) has a chamber-scoped `Ratio*` LogicType member, plus per-network `Input` / `Input2` / `Output` / `Output2` variants. Verbatim from `Assets/Scripts/Objects/Motherboards/LogicType.cs` (decompile of `Assembly-CSharp.dll`, source order, with assigned integer values):
+
+```csharp
+RatioOxygen = 14,
+RatioCarbonDioxide = 15,
+RatioNitrogen = 16,
+RatioPollutant = 17,
+RatioMethane = 18,
+RatioWater = 19,
+Ratio = 24,
+RatioNitrousOxide = 83,
+RatioOxygenInput = 108,
+RatioCarbonDioxideInput = 109,
+RatioNitrogenInput = 110,
+RatioPollutantInput = 111,
+RatioMethaneInput = 112,
+RatioWaterInput = 113,
+RatioNitrousOxideInput = 114,
+RatioOxygenInput2 = 118,
+RatioCarbonDioxideInput2 = 119,
+RatioNitrogenInput2 = 120,
+RatioPollutantInput2 = 121,
+RatioMethaneInput2 = 122,
+RatioWaterInput2 = 123,
+RatioNitrousOxideInput2 = 124,
+RatioOxygenOutput = 128,
+RatioCarbonDioxideOutput = 129,
+RatioNitrogenOutput = 130,
+RatioPollutantOutput = 131,
+RatioMethaneOutput = 132,
+RatioWaterOutput = 133,
+RatioNitrousOxideOutput = 134,
+RatioOxygenOutput2 = 138,
+RatioCarbonDioxideOutput2 = 139,
+RatioNitrogenOutput2 = 140,
+RatioPollutantOutput2 = 141,
+RatioMethaneOutput2 = 142,
+RatioWaterOutput2 = 143,
+RatioNitrousOxideOutput2 = 144,
+RatioLiquidNitrogen = 177,
+RatioLiquidNitrogenInput = 178,
+RatioLiquidNitrogenInput2 = 179,
+RatioLiquidNitrogenOutput = 180,
+RatioLiquidNitrogenOutput2 = 181,
+RatioLiquidOxygen = 183,
+RatioLiquidOxygenInput = 184,
+RatioLiquidOxygenInput2 = 185,
+RatioLiquidOxygenOutput = 186,
+RatioLiquidOxygenOutput2 = 187,
+RatioLiquidMethane = 188,
+RatioLiquidMethaneInput = 189,
+RatioLiquidMethaneInput2 = 190,
+RatioLiquidMethaneOutput = 191,
+RatioLiquidMethaneOutput2 = 192,
+RatioSteam = 193,
+RatioSteamInput = 194,
+RatioSteamInput2 = 195,
+RatioSteamOutput = 196,
+RatioSteamOutput2 = 197,
+RatioLiquidCarbonDioxide = 199,
+RatioLiquidCarbonDioxideInput = 200,
+RatioLiquidCarbonDioxideInput2 = 201,
+RatioLiquidCarbonDioxideOutput = 202,
+RatioLiquidCarbonDioxideOutput2 = 203,
+RatioLiquidPollutant = 204,
+RatioLiquidPollutantInput = 205,
+RatioLiquidPollutantInput2 = 206,
+RatioLiquidPollutantOutput = 207,
+RatioLiquidPollutantOutput2 = 208,
+RatioLiquidNitrousOxide = 209,
+RatioLiquidNitrousOxideInput = 210,
+RatioLiquidNitrousOxideInput2 = 211,
+RatioLiquidNitrousOxideOutput = 212,
+RatioLiquidNitrousOxideOutput2 = 213,
+RatioHydrogen = 252,
+RatioLiquidHydrogen = 253,
+RatioPollutedWater = 254,
+RatioHydrazine = 283,
+RatioLiquidHydrazine = 284,
+RatioLiquidAlcohol = 285,
+RatioHelium = 286,
+RatioLiquidSodiumChloride = 287,
+RatioSilanol = 288,
+RatioLiquidSilanol = 289,
+RatioHydrochloricAcid = 290,
+RatioLiquidHydrochloricAcid = 291,
+RatioOzone = 292,
+RatioLiquidOzone = 293,
+RatioHydrogenInput = 294,
+RatioHydrogenInput2 = 295,
+RatioHydrogenOutput = 296,
+RatioHydrogenOutput2 = 297,
+RatioLiquidHydrogenInput = 298,
+RatioLiquidHydrogenInput2 = 299,
+RatioLiquidHydrogenOutput = 300,
+RatioLiquidHydrogenOutput2 = 301,
+RatioPollutedWaterInput = 302,
+RatioPollutedWaterInput2 = 303,
+RatioPollutedWaterOutput = 304,
+RatioPollutedWaterOutput2 = 305,
+RatioHydrazineInput = 306,
+RatioHydrazineInput2 = 307,
+RatioHydrazineOutput = 308,
+RatioHydrazineOutput2 = 309,
+RatioLiquidHydrazineInput = 310,
+RatioLiquidHydrazineInput2 = 311,
+RatioLiquidHydrazineOutput = 312,
+RatioLiquidHydrazineOutput2 = 313,
+RatioLiquidAlcoholInput = 314,
+RatioLiquidAlcoholInput2 = 315,
+RatioLiquidAlcoholOutput = 316,
+RatioLiquidAlcoholOutput2 = 317,
+RatioHeliumInput = 318,
+RatioHeliumInput2 = 319,
+RatioHeliumOutput = 320,
+RatioHeliumOutput2 = 321,
+RatioLiquidSodiumChlorideInput = 322,
+RatioLiquidSodiumChlorideInput2 = 323,
+RatioLiquidSodiumChlorideOutput = 324,
+RatioLiquidSodiumChlorideOutput2 = 325,
+RatioSilanolInput = 326,
+RatioSilanolInput2 = 327,
+RatioSilanolOutput = 328,
+RatioSilanolOutput2 = 329,
+RatioLiquidSilanolInput = 330,
+RatioLiquidSilanolInput2 = 331,
+RatioLiquidSilanolOutput = 332,
+RatioLiquidSilanolOutput2 = 333,
+RatioHydrochloricAcidInput = 334,
+RatioHydrochloricAcidInput2 = 335,
+RatioHydrochloricAcidOutput = 336,
+RatioHydrochloricAcidOutput2 = 337,
+RatioLiquidHydrochloricAcidInput = 338,
+RatioLiquidHydrochloricAcidInput2 = 339,
+RatioLiquidHydrochloricAcidOutput = 340,
+RatioLiquidHydrochloricAcidOutput2 = 341,
+RatioOzoneInput = 342,
+RatioOzoneInput2 = 343,
+RatioOzoneOutput = 344,
+RatioOzoneOutput2 = 345,
+RatioLiquidOzoneInput = 346,
+RatioLiquidOzoneInput2 = 347,
+RatioLiquidOzoneOutput = 348,
+RatioLiquidOzoneOutput2 = 349,
+```
+
+The bare `Ratio = 24` member is the generic ratio readout (used by some non-atmosphere devices for proportional state), unrelated to gas content.
+
+Notably absent: there is no `RatioVolatiles` member in the current enum. Hydrogen is exposed as `RatioHydrogen = 252`. Older Stationeers IC10 references that mention `RatioVolatiles` are from a previous enum revision. Use `RatioHydrogen` in scripts written against this game version.
+
+For atmosphere-readable devices (those with `HasReadableAtmosphere => true`, e.g. `CombustionDeepMiner`), the bare-name members (no `Input` / `Output` suffix) read the **chamber's internal atmosphere**, not any pipe network. The `Input` / `Input2` / `Output` / `Output2` variants read the corresponding pipe networks on devices that expose them.
+
+### Gas / fuel relevance for combustion
+
+Cross-reference with `Mole.Enthalpy` and `EnthalpyMultiplier` (verbatim tables in `../GameClasses/CombustionDeepMiner.md`):
+
+| Role | Gas | Chamber LogicType | Enthalpy / Multiplier |
+|---|---|---|---|
+| Fuel | Hydrogen | `RatioHydrogen` | 306,000 J/mol |
+| Fuel | LiquidHydrogen | `RatioLiquidHydrogen` | 306,000 J/mol |
+| Fuel | Methane | `RatioMethane` | 286,000 J/mol |
+| Fuel | LiquidMethane | `RatioLiquidMethane` | 286,000 J/mol |
+| Fuel | Hydrazine | `RatioHydrazine` | 306,000 J/mol |
+| Fuel | LiquidHydrazine | `RatioLiquidHydrazine` | 306,000 J/mol |
+| Fuel | LiquidAlcohol | `RatioLiquidAlcohol` | 566,000 J/mol |
+| Oxidiser | Oxygen | `RatioOxygen` | ×1.0 |
+| Oxidiser | LiquidOxygen | `RatioLiquidOxygen` | ×1.0 |
+| Oxidiser | NitrousOxide | `RatioNitrousOxide` | ×2.0 |
+| Oxidiser | LiquidNitrousOxide | `RatioLiquidNitrousOxide` | ×2.0 |
+| Oxidiser | Ozone | `RatioOzone` | ×2.0 |
+| Oxidiser | LiquidOzone | `RatioLiquidOzone` | ×2.0 |
+
+This is the full set of IC10-readable gases that contribute to `Atmosphere.CombustionEnergy` accumulation.
 
 ## Reserved bands
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -149,6 +326,7 @@ Given all four of those, `AddLogicTypeInfo` naturally discovers and emits native
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; F0054 is the primary source per MigrationMap §5.1. Additional sources: F0040, F0219a, F0219b, F0244, F0245, F0247 (primary for "why custom LogicTypes don't appear without patches"; F0219v is a duplicate extraction that merges here), F0305, F0316.
+- 2026-04-25: added "Atmospheric gas-ratio LogicType members" section. Verbatim list of all 130+ `Ratio*` enum members (chamber + per-network variants) decompiled from `Assets/Scripts/Objects/Motherboards/LogicType.cs` at v0.2.6228.27061. Cross-references combustion-relevant gases against `Mole.Enthalpy` and `EnthalpyMultiplier` from `../GameClasses/CombustionDeepMiner.md`. Verified via `ilspycmd` against `E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll`. Confirms `RatioMethane`, `RatioHydrazine`, `RatioLiquidAlcohol`, `RatioOzone`, `RatioLiquidOzone`, `RatioLiquidHydrazine` all exist and are IC10-readable; no `RatioVolatiles` member in the current enum (Hydrogen exposed as `RatioHydrogen = 252`).
 
 ## Open questions
 
