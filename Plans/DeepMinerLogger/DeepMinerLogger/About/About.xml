@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Deep Miner Logger</Name>
+  <ModID>net.deepminerlogger</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.1</Version>
+  <Description>Diagnostic mod. Writes a CSV row to BepInEx/DeepMinerLogger/logs/ on every atmospheric tick where any tracked Combustion Deep Miner state changes. Temporary. Not for Workshop.</Description>
+  <ChangeLog>v0.1.1: Fixed chamber gas-ratio reads (use GasMixture.GetGasTypeRatio method) and CombustionEnergy read (it is a field, not a property). Dropped rVolatiles column.
+v0.1.0: Initial build.</ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size=30><color=#ffa500>Deep Miner Logger</color></size>
+<line-height=40%>Diagnostic telemetry for Combustion Deep Miner. Writes CSV rows to BepInEx/DeepMinerLogger/logs/ whenever state changes.
+</line-height>
+]]></InGameDescription>
+</ModMetadata>
