@@ -15,6 +15,72 @@ Working notes for the ConfigCartridge click + scroll fixes. Verification is pend
 - [ ] Once click is confirmed working, flip `ConfigCartridgeState.ClickTrace` to `false` and rebuild. The extra log lines are noisy on a long cartridge scan.
 - [ ] Consider S2 (viewport-aware scroll that only snaps `SetScrollPosition` when the selected line would leave the visible area) if S1's instant snap feels abrupt. S2 requires measuring `_displayTextMesh.preferredHeight` vs the `ScrollPanel` viewport height via reflection.
 
+## Planned features
+
+Scope items identified from a gap analysis vs other tablet, lens, and headlamp mods (Better Advanced Tablet, ImprovedConfiguration, Slot Configuration Cartridge, Inventory Tweaks, Fixing The Controls, Better Headlamp). Implement after the in-flight click+scroll fix is verified and shipped. Implement A first (blocks B), then B and C in either order, then D.
+
+### A. Add Better Headlamp to the incompatibility list
+
+- [ ] Append `("betterheadlampmod", "Better Headlamp")` to `ConflictingMods` in `Plugin.cs`. The assembly-name scan is the authoritative path (StationeersLaunchPad bypasses `[BepInIncompatibility]`); follow the Slot Configuration Cartridge pattern of assembly-only entry, no attribute. Reason: EquipmentPlus absorbs Better Headlamp's beam-adjust feature under a different binding (Ctrl+Shift+scroll); leaving it loaded would double-handle scroll input on equipped helmets.
+
+### B. Rebind cycling from click to scroll, integrate Better Headlamp beam control
+
+Replaces Ctrl+left-click on cartridges and worn lenses with a unified scroll-modifier scheme. Plain left-click on a cartridge line keeps its current role (writable line opens `InputWindow`, read-only line copies to clipboard); only the cycling moves off click.
+
+Input bindings:
+
+| Input | Behavior |
+|---|---|
+| Plain left-click on cartridge line | Unchanged. Writable opens `InputWindow`; read-only copies to clipboard. |
+| Ctrl + scroll | Cycle tablet cartridges. Up = next in insertion order; down = previous. Down past first turns the tablet OFF. Up from OFF returns to the last-active cartridge and turns the tablet ON; the selection is preserved across OFF / ON, not reset to cartridge 1. No wrap on either end. Empty slots skipped. Active hand must hold the tablet. |
+| Shift + scroll | Cycle the active sensor chip inside the worn lens (the chip slots inside the GlassesSlot lens, analogous to cartridges in the tablet). Up = next; down = previous. Down past first turns the lens OFF. Up from OFF returns to the last-active chip and turns the lens ON; the selection is preserved across OFF / ON, not reset to chip 1. No wrap on either end. Empty slots skipped. A lens must be worn in GlassesSlot. |
+| Ctrl + Shift + scroll | Adjust helmet beam (Better Headlamp logic). Up tightens (smaller spot angle, brighter, longer range); down widens. Continuous, no discrete positions, no OFF in the cycle. Helmet on/off remains independent of beam width. See item C for default and persistence. |
+
+Tasks:
+
+- [ ] Drop the existing chip-in-held-lens cycle entirely. Held-lens Ctrl+click no longer cycles chips. Worn-lens chip cycling moves to Shift+scroll per the table above.
+- [ ] Implement scroll capture (model after Better Headlamp's `InventoryManager.NormalMode` prefix) with modifier-key disambiguation between Ctrl, Shift, and Ctrl+Shift.
+- [ ] Confirm the existing `Cartridge.OnScroll` patch (current line-select scroll on the cartridge UI) does not double-fire when Ctrl or Shift is held. Ctrl/Shift/Ctrl+Shift+scroll suppress the line-select scroll; plain scroll still selects lines.
+- [ ] **Suppress native inventory scroll** (vanilla hotbar / inventory selection on scroll wheel) whenever Ctrl, Shift, or Ctrl+Shift is held. Plain scroll continues to drive the vanilla inventory selection unchanged. Better Headlamp does NOT do this and it bleeds inventory selection into beam-adjust input, which is annoying; our scroll-capture prefix must consume the event so the vanilla inventory handler does not see it. Implementation: return false from the scroll-capture prefix on a modifier-active match (or otherwise zero out the scroll delta before vanilla reads it).
+- [ ] Active-hand and worn-slot scope checks: Ctrl+scroll fires only with tablet in active hand; Shift+scroll fires only with a lens worn in GlassesSlot. Mirror the existing click-handler scope gates.
+- [ ] **State preservation across OFF / ON.** Scrolling down past the first cartridge / chip turns the device OFF without erasing the last-active selection. Scrolling up from OFF re-engages at that preserved position, not at index 1. Reuse EquipmentPlus's existing persistent-active-cartridge (`Interactable.State`-based, canonical feature 16) and persistent-active-sensor-chip (canonical feature 14) state. The OFF state is the same selection state with `OnOff` cleared; do not introduce a parallel "remembered position" field. Reasoning: this matches save/load behavior, which already preserves selection across the heaviest possible state break, and is also the least-code path because EquipmentPlus already tracks the active state.
+- [ ] Update README and `About.xml` Description / InGameDescription to document the new bindings (per `Mods/Template/LAYOUT.md`).
+
+### C. Helmet beam: most-wide default, per-player saved setting
+
+- [ ] Default beam is most-wide on first observation: spot angle = MaxAngle (90 degrees), intensity = MinIntensity, range = MinRange (Better Headlamp's config values at the wide end). Vanilla starts wider than narrowest; we want the explicit wide preset.
+- [ ] Persistence scope is per-character per-save (NOT a BepInEx machine config). Saved value lives on the Human / player save data, persists across save/load, applies across every helmet that player equips.
+- [ ] **Before implementing C, read [PowerTransmitterPlus](../../Mods/PowerTransmitterPlus/) and [SprayPaintPlus](../../Mods/SprayPaintPlus/) to study their save-data extension pattern.** Likely uses LaunchPadBooster's `MOD.AddSaveDataType<>()` plus direct `XmlSaveLoad.ExtraTypes` injection and `Serializers._worldData` invalidation, mirroring what `Plugin.cs` already does for `EquipmentPlusTabletSaveData` and `SensorLensesSaveData`. The mod-removal-safe extension pattern is mandatory: uninstalling EquipmentPlus must not break saves with embedded helmet-beam state.
+- [ ] Apply the saved value to the active helmet light every frame (Better Headlamp-style postfix in `Human.LateUpdate` or equivalent).
+- [ ] Ctrl+Shift+scroll updates the saved per-player value, then the per-frame apply path picks it up. Use Better Headlamp's existing config keys (Step, MinAngle, MaxAngle, MinIntensity, MaxIntensity, MinRange, MaxRange, AutoBrightness) ported into EquipmentPlus's BepInEx config under a new `Client - Helmet Beam` section (per the section-naming rule in root `CLAUDE.md`).
+- [ ] No-op conditions for Ctrl+Shift+scroll. In all three cases, do nothing and do not update the saved value:
+  - No helmet equipped on the player.
+  - Helmet light is off.
+  - Helmet has no power.
+
+### D. Future: Ctrl + scroll-up auto-equips a tablet when none in hand
+
+- [ ] Defer until A, B, C are landed. If the player Ctrl+scrolls up while the active hand is empty (or holds something other than a tablet), find the first tablet in inventory and equip it to the active hand before applying the cartridge cycle. Analogous to Fixing The Controls' Tablet hotkey, but on the Ctrl+scroll surface introduced in B.
+
+### E. Multiplayer slot-logic write (replace today's host-only stub)
+
+Today, `WriteLogicSlotValue` applies on host / single-player and logs a warning on remote clients (per the in-flight section's test regime note 5). Slot Configuration Cartridge had no multiplayer path either; remote-client writes silently desynced. End state: any client clicks a writable slot logic line, the value lands on every client.
+
+- [ ] **Decompilation research first, 100% coverage before code.** Before writing any custom network message, decompile and read every game path that touches slot-logic writes. Cover at minimum: `Device`, `Logicable`, `LogicableExtensions`, `Slot`, `LogicSlotType`, `LogicableSlot`, anything matching `*FromClient` or `*Slot*Set*` patterns. Goal: confirm or refute the existence of a vanilla `SetLogicSlotFromClient` (or equivalent client-to-server slot-write path). If it exists, route through it. Implementation collapses to a one-line change. If it doesn't exist, only then build a custom message. Record the decompilation findings in `RESEARCH.md` (per the curation rule in root `CLAUDE.md` and `Research/WORKFLOW.md`) so future contributors and audits can verify the conclusion.
+- [ ] **If a vanilla path exists**, route `WriteLogicSlotValue` on remote clients through it instead of the warning branch. Done.
+- [ ] **If no vanilla path exists**, register a new LaunchPadBooster message modeled on the existing `SetActiveSensorMessage` (`Plugin.cs:73`). Message carries: device `ReferenceId` (long), slot index (int), `LogicSlotType` (enum), value (double).
+- [ ] **Authority model: option A (any client can request, server validates).** Server receives, re-checks `CanLogicSlotWrite` for the (slot, LogicSlotType) pair, applies via the slot's existing logic-set entry point. Game state-sync handles propagation back to all clients on the next tick. Matches the game's existing `SetLogicFromClient` convention so slot writes feel identical to non-slot writes.
+- [ ] **Remove the existing host-only warning entirely.** No "slot writes are host-only" log line, no greyed-out InputWindow on remote clients, no caveats in any user-visible text. The mod does not ship until this works for every client; warnings about partial functionality are dead code by release time.
+- [ ] Update test regime note 5 above to drop the host-only caveat and describe the unified multiplayer-working behavior. Update README and About.xml to describe the slot-write feature unconditionally.
+
+### F. Slot logic value precision: match base-game display convention
+
+`ConfigCartridgeSlotDisplay.cs:155` currently does `Math.Round(rawValue, 2).ToString()`, displaying slot logic values to 2 decimals. Slot Configuration Cartridge used 3. Neither of those is necessarily the right answer; the right answer is to mirror however the base game itself formats logic values everywhere it displays one (logic readers, Stationpedia entries, tooltips, the non-slot ConfigCartridge output, item tooltips). Players see consistent precision regardless of which surface is showing the value.
+
+- [ ] **Decompilation research first, 100% coverage before changing the format.** Identify every base-game site that formats a `LogicType` or `LogicSlotType` numeric value for display. Cover at minimum: `LogicableExtensions`, `LogicReader`, `Stationpedia`, `ConfigCartridge.ReadLogicText` (the non-slot path), `Cartridge` subclasses that print values, tooltip generators, and any custom `ToString()` overrides on `Logicable` / `Device` / readout widgets. Determine the format spec actually used: `Math.Round(value, N)`, `.ToString("F2")` / `"F3"` / `"G"`, culture handling (invariant vs. current), trailing-zero behavior, exponent suppression. The expected outcome is a single canonical format spec used across the game; if the base game itself is inconsistent, document the inconsistency in `RESEARCH.md` and pick the format used by `ConfigCartridge.ReadLogicText` for non-slot values, since visual continuity inside one cartridge surface matters more than cross-surface uniformity.
+- [ ] Apply the discovered format to `ConfigCartridgeSlotDisplay.cs:155`. One-line change once the format is known.
+- [ ] Curate the finding to a page under `Research/` per `Research/WORKFLOW.md` Rule 2. Stamp `verified_in: 0.2.6228.27061` (current game version at the time of writing this TODO; bump to whatever is current at implementation time).
+
 ## Test regime
 
 Run each test from an active in-game save with the built DLL deployed and the game restarted (StationeersLaunchPad autoloads the folder, but patches only bind at plugin Awake).
