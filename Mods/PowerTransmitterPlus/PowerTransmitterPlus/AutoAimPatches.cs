@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Assets.Scripts;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
@@ -34,6 +35,22 @@ namespace PowerTransmitterPlus
         private static readonly Dictionary<long, WeakReference<WirelessPower>> _tracked =
             new Dictionary<long, WeakReference<WirelessPower>>();
 
+        // Custom NetworkUpdateFlags bit reserved for per-tick auto-aim target id
+        // sync. Vanilla's WirelessPower hierarchy uses 1, 2, 4, 8, 16, 32, 64,
+        // 128, 256, 512 across Thing -> Structure -> Device -> ElectricalInputOutput
+        // -> WirelessPower; 0x2000 is free here. Mirrors EquipmentPlus's 0x4000
+        // pattern on SensorLenses (see Research/Protocols/EquipmentPlusNetworking.md
+        // and Research/GameSystems/NetworkUpdateFlags.md).
+        //
+        // Setting this flag on a dish causes the host's next SerializeDeltaState
+        // tick to call WirelessPower.BuildUpdate, where our postfix appends the
+        // cached target ReferenceId. The receiving client's ProcessUpdate postfix
+        // reads it back and updates its cache. Without this, vanilla's per-tick
+        // delta (bit 256) carries only TargetHorizontal/TargetVertical, and the
+        // setter writes on the client fire our reset postfix which wipes the
+        // cache entry the join-time IJoinSuffixSerializer populated.
+        internal const ushort AutoAimUpdateFlag = 0x2000;
+
         [ThreadStatic] private static bool _suppressReset;
 
         internal static bool SuppressReset
@@ -51,6 +68,13 @@ namespace PowerTransmitterPlus
         {
             if (_target.TryGetValue(dish, out var box)) box.Value = id;
             else _target.Add(dish, new StrongBox<long>(id));
+
+            // Mark the dish for per-tick delta sync. Has no effect on clients
+            // because only the host's SerializeDeltaState reads NetworkUpdateFlags;
+            // setting the flag on a client-side instance is a harmless no-op.
+            // Set BEFORE the zero-id early-return so that explicit clears
+            // (HandleWrite(dish, 0L) on the host) propagate to clients too.
+            dish.NetworkUpdateFlags |= AutoAimUpdateFlag;
 
             // Skip tracking for explicit clears: the CWT keeps the entry but
             // _tracked exists only to enumerate non-zero-targeted dishes. Live
@@ -75,10 +99,30 @@ namespace PowerTransmitterPlus
         // restore has already aimed the dish at the saved pose by the time
         // this runs); we only need to put the target ReferenceId back into
         // the cache so GetLogicValue(MicrowaveAutoAimTarget) returns it.
+        //
+        // Skips zero ids because the side-car serializer only emits non-zero
+        // entries; a zero on this path means "no auto-aim was active for this
+        // dish at save time", which is the default state and needs no action.
         internal static void RestoreCache(WirelessPower dish, long targetId)
         {
             if (dish == null || targetId == 0L) return;
             SetCache(dish, targetId);
+        }
+
+        // Apply an authoritative target-id update received from the host's
+        // per-tick delta. Unlike RestoreCache (which is for snapshot restore
+        // and ignores zero), this writes the value verbatim including 0 so
+        // a host-side "auto-aim cleared" propagates to clients and IC10
+        // reads on both peers stay coherent.
+        //
+        // Called only from WirelessPowerProcessUpdateAutoAimPatch on clients.
+        // The flag set inside SetCache is harmless on clients (no
+        // SerializeDeltaState runs there), so we do not need to suppress it.
+        internal static void ApplyDeltaUpdate(WirelessPower dish, long targetId)
+        {
+            if (dish == null) return;
+            if (targetId == 0L) ClearCache(dish);
+            else SetCache(dish, targetId);
         }
 
         // Yields (dishReferenceId, targetReferenceId) pairs for every dish
@@ -328,6 +372,50 @@ namespace PowerTransmitterPlus
         {
             if (AutoAimState.SuppressReset) return;
             if (AutoAimState.TryGetOwner(__instance, out var dish)) AutoAimState.ClearCache(dish);
+        }
+    }
+
+    // Per-tick auto-aim target sync (host-side write). Whenever HandleWrite
+    // updates the cache on the host, SetCache sets AutoAimUpdateFlag on the
+    // dish's NetworkUpdateFlags. The next SerializeDeltaState tick calls
+    // BuildUpdate; vanilla writes its own bit-conditional payloads (256:
+    // TargetH/V; 512: VisualizerIntensity), then our postfix appends the
+    // cached target ReferenceId when our bit is set.
+    //
+    // Order matters: Postfix runs strictly after vanilla's body so our 8 bytes
+    // append to the end of the dish's per-Thing slice in the delta stream. The
+    // matching ProcessUpdate Postfix on clients reads in the same order.
+    [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.BuildUpdate))]
+    public static class WirelessPowerBuildUpdateAutoAimPatch
+    {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
+        [UsedImplicitly]
+        public static void Postfix(WirelessPower __instance, RocketBinaryWriter writer, ushort networkUpdateType)
+        {
+            if (!Thing.IsNetworkUpdateRequired(AutoAimState.AutoAimUpdateFlag, networkUpdateType)) return;
+            writer.WriteInt64(AutoAimState.GetCachedTarget(__instance));
+        }
+    }
+
+    // Per-tick auto-aim target sync (client-side read). Counterpart to the
+    // BuildUpdate postfix above. Runs after vanilla's ProcessUpdate body, so
+    // by the time we read our 8 bytes the vanilla setter writes for bits 256
+    // and 512 have already fired. Those setter writes triggered the reset
+    // postfix on the client which cleared the cache entry; this postfix
+    // immediately re-populates it with the host's authoritative value.
+    [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.ProcessUpdate))]
+    public static class WirelessPowerProcessUpdateAutoAimPatch
+    {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
+        [UsedImplicitly]
+        public static void Postfix(WirelessPower __instance, RocketBinaryReader reader, ushort networkUpdateType)
+        {
+            if (!Thing.IsNetworkUpdateRequired(AutoAimState.AutoAimUpdateFlag, networkUpdateType)) return;
+            AutoAimState.ApplyDeltaUpdate(__instance, reader.ReadInt64());
         }
     }
 }
