@@ -44,7 +44,7 @@ A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and rece
 The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
 
 [h3]Wall and Ceiling Placement[/h3]
-The transmitter and receiver dishes can be built on walls and ceilings as well as on the floor. The placement cursor cycles through every face the player aims at, and rotation hotkeys cover all three axes on non-floor faces. A wall-mounted transmitter can link to a ceiling-mounted receiver as long as their dishes face each other.
+The transmitter and receiver dishes can be built on walls and ceilings as well as on the floor. The placement cursor cycles through every face the player aims at, and rotation hotkeys cover all three axes on non-floor faces. Any combination of mount surfaces can form a link, including floor-to-wall, wall-to-ceiling, and ceiling-to-ceiling, as long as the two dishes point at each other.
 
 The host can revert to vanilla floor-only placement via the [b]Allow Non-Floor Placement[/b] server setting. Like Enable Auto-Aim it is restart-gated, and mismatched clients are rejected at join time.
 
@@ -111,7 +111,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v1.5.0: Wall and ceiling placement for transmitter and receiver dishes
-- Transmitter and receiver dishes can now be built on walls and ceilings as well as on the floor. The placement cursor accepts every face the player aims at, and the rotate hotkeys cover yaw, pitch, and roll once the cursor is on a non-floor face. A wall-mounted transmitter can link to a ceiling-mounted receiver as long as their dishes face each other
+- Transmitter and receiver dishes can now be built on walls and ceilings as well as on the floor. The placement cursor accepts every face the player aims at, and the rotate hotkeys cover yaw, pitch, and roll once the cursor is on a non-floor face. Any combination of mount surfaces can form a link as long as the two dishes point at each other
 - Auto-Aim accuracy improved across orientations so a single MicrowaveAutoAimTarget write reliably forms the link on non-floor pairs
 - New server-authoritative setting Allow Non-Floor Placement (default on) under Server - Placement. When off, vanilla floor-only placement is preserved
 - Allow Non-Floor Placement requires a full Stationeers restart to take effect. Mismatches between client and host are caught at join time with a readable error

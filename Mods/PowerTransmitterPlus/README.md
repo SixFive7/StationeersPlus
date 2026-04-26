@@ -91,7 +91,7 @@ j start
 
 ### Wall and Ceiling Placement
 
-The Microwave Power Transmitter and Receiver dishes can be built on walls and ceilings as well as on the floor. While placing a dish, aim at any face the cursor would normally cycle through (floor, wall, or ceiling) and the placement preview snaps to that face automatically; rotation hotkeys cover all three axes once the cursor is on a non-floor face, so the dish can be oriented freely. A wall-mounted transmitter can link to a ceiling-mounted receiver as long as their dishes face each other.
+The Microwave Power Transmitter and Receiver dishes can be built on walls and ceilings as well as on the floor. While placing a dish, aim at any face the cursor would normally cycle through (floor, wall, or ceiling) and the placement preview snaps to that face automatically; rotation hotkeys cover all three axes once the cursor is on a non-floor face, so the dish can be oriented freely. Any combination of mount surfaces can form a link, including floor-to-wall, wall-to-ceiling, and ceiling-to-ceiling, as long as the two dishes point at each other.
 
 Two link-side adjustments make this work alongside non-floor placement:
 
