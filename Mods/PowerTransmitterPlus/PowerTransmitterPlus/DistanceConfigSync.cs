@@ -77,6 +77,7 @@ namespace PowerTransmitterPlus
         {
             DistanceConfigSync.BroadcastIfHost();
             BeamVisualConfigSync.BroadcastIfHost();
+            AutoAimSnapshotSync.BroadcastIfHost();
         }
     }
 }

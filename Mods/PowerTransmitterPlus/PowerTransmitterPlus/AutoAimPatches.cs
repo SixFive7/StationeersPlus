@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Assets.Scripts;
@@ -23,6 +24,16 @@ namespace PowerTransmitterPlus
         private static readonly ConditionalWeakTable<WirelessPower, StrongBox<long>> _target =
             new ConditionalWeakTable<WirelessPower, StrongBox<long>>();
 
+        // Parallel id-keyed tracking for enumeration at save / join-sync time.
+        // _target's CWT is the source of truth for instance-keyed lookups;
+        // _tracked duplicates the key set by ReferenceId so SnapshotEntries
+        // can yield stable (dishId, targetId) pairs without depending on the
+        // CWT's enumerator (inconsistent across Unity Mono builds). Dead
+        // entries (dish destroyed) self-clean during SnapshotEntries via
+        // WeakReference.TryGetTarget; no explicit OnDestroy patch needed.
+        private static readonly Dictionary<long, WeakReference<WirelessPower>> _tracked =
+            new Dictionary<long, WeakReference<WirelessPower>>();
+
         [ThreadStatic] private static bool _suppressReset;
 
         internal static bool SuppressReset
@@ -40,11 +51,62 @@ namespace PowerTransmitterPlus
         {
             if (_target.TryGetValue(dish, out var box)) box.Value = id;
             else _target.Add(dish, new StrongBox<long>(id));
+
+            // Skip tracking for explicit clears: the CWT keeps the entry but
+            // _tracked exists only to enumerate non-zero-targeted dishes. Live
+            // ClearCache calls bypass SetCache entirely; this guard handles
+            // the HandleWrite(dish, 0) path.
+            if (id == 0L) return;
+
+            var refId = dish.ReferenceId;
+            if (refId != 0L && !_tracked.ContainsKey(refId))
+            {
+                _tracked[refId] = new WeakReference<WirelessPower>(dish);
+            }
         }
 
         internal static void ClearCache(WirelessPower dish)
         {
             if (_target.TryGetValue(dish, out var box)) box.Value = 0L;
+        }
+
+        // Public restore entry point for the side-car save load and the MP
+        // join snapshot. Bypasses HandleWrite's geometry solve (vanilla servo
+        // restore has already aimed the dish at the saved pose by the time
+        // this runs); we only need to put the target ReferenceId back into
+        // the cache so GetLogicValue(MicrowaveAutoAimTarget) returns it.
+        internal static void RestoreCache(WirelessPower dish, long targetId)
+        {
+            if (dish == null || targetId == 0L) return;
+            SetCache(dish, targetId);
+        }
+
+        // Yields (dishReferenceId, targetReferenceId) pairs for every dish
+        // with a non-zero cached target. Used by AutoAimSideCar at save time
+        // and AutoAimSnapshotSync at MP join time. Walks _tracked, resolves
+        // the WeakReference, reads _target via the live dish instance, drops
+        // dead-ref entries inline. Materialises into a list so the caller can
+        // enumerate freely without holding a reference into _tracked.
+        internal static IEnumerable<KeyValuePair<long, long>> SnapshotEntries()
+        {
+            List<long> dead = null;
+            var entries = new List<KeyValuePair<long, long>>(_tracked.Count);
+            foreach (var kv in _tracked)
+            {
+                if (!kv.Value.TryGetTarget(out var dish) || dish == null)
+                {
+                    if (dead == null) dead = new List<long>();
+                    dead.Add(kv.Key);
+                    continue;
+                }
+                if (!_target.TryGetValue(dish, out var box) || box.Value == 0L) continue;
+                entries.Add(new KeyValuePair<long, long>(dish.ReferenceId, box.Value));
+            }
+            if (dead != null)
+            {
+                foreach (var k in dead) _tracked.Remove(k);
+            }
+            return entries;
         }
 
         private static readonly FieldInfo ParentRotatableField =

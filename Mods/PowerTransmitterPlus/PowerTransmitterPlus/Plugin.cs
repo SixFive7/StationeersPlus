@@ -157,6 +157,7 @@ namespace PowerTransmitterPlus
                 MOD.Networking.Required = true;
                 MOD.Networking.RegisterMessage<DistanceConfigMessage>();
                 MOD.Networking.RegisterMessage<BeamVisualConfigMessage>();
+                MOD.Networking.RegisterMessage<AutoAimSnapshotMessage>();
 
                 // Reject joins where the client's and host's boot-time AutoAim
                 // patched state disagree. RequireRestart on the ConfigEntry

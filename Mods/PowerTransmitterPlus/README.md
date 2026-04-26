@@ -52,7 +52,7 @@ A fifth logic type, `MicrowaveAutoAimTarget`, is **writable** on both transmitte
 |---|---|
 | `MicrowaveAutoAimTarget` | Write: target's ReferenceId (0 disables). Read: current target id |
 
-Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op.
+Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op. Cached targets persist across save/load and multiplayer join, so `MicrowaveAutoAimTarget` reads stay consistent across sessions.
 
 The host can disable auto-aim entirely via the `Enable Auto-Aim` server setting. When disabled, `MicrowaveAutoAimTarget` is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and nothing responds to writes at that LogicType. Clients whose local `Enable Auto-Aim` value does not match the host's are rejected at join time with a clear error message, so mixed installs cannot enter the same world.
 

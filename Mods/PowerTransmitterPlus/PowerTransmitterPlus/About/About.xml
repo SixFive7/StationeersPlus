@@ -39,7 +39,7 @@ Five read-only logic types are available on both the transmitter and the receive
 The power readouts return 0 when the link is down, the device is off, or no power is flowing. MicrowaveLinkedPartner returns 0 only when unlinked, regardless of power state.
 
 [h3]Auto-Aim[/h3]
-A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. This enables IC10 patterns like switching transmit target when remote batteries fill.
+A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. Cached targets persist across save/load and multiplayer join.
 
 The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
 
