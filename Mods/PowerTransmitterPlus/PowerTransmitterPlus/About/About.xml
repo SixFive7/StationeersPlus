@@ -3,10 +3,10 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.4.0</Version>
+  <Version>1.5.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
-Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
+Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
 
 [h2]Features[/h2]
 
@@ -43,15 +43,25 @@ A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and rece
 
 The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
 
+[h3]Wall and Ceiling Placement[/h3]
+The transmitter and receiver dishes can be built on walls and ceilings as well as on the floor. The placement cursor cycles through every face the player aims at, and rotation hotkeys cover all three axes on non-floor faces. A wall-mounted transmitter can link to a ceiling-mounted receiver as long as their dishes face each other.
+
+The host can revert to vanilla floor-only placement via the [b]Allow Non-Floor Placement[/b] server setting. Like Enable Auto-Aim it is restart-gated, and mismatched clients are rejected at join time.
+
 [h3]Settings[/h3]
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. Enable Auto-Aim is a restart-gated toggle, not a live-broadcast setting: changing it requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the eight entries under four headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. Enable Auto-Aim and Allow Non-Floor Placement are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the nine entries under five headers:
 
 [b]Server - Features[/b]:
 [list]
 [*][b]Enable Auto-Aim[/b] (default true): Master toggle for MicrowaveAutoAimTarget. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected
+[/list]
+
+[b]Server - Placement[/b]:
+[list]
+[*][b]Allow Non-Floor Placement[/b] (default true): Build transmitter and receiver dishes on walls and ceilings as well as floors. Off restores vanilla floor-only. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected
 [/list]
 
 [b]Server - Distance[/b]:
@@ -100,6 +110,13 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.5.0: Wall and ceiling placement for transmitter and receiver dishes
+- Transmitter and receiver dishes can now be built on walls and ceilings as well as on the floor. The placement cursor accepts every face the player aims at, and the rotate hotkeys cover yaw, pitch, and roll once the cursor is on a non-floor face. A wall-mounted transmitter can link to a ceiling-mounted receiver as long as their dishes face each other
+- Auto-Aim accuracy improved across orientations so a single MicrowaveAutoAimTarget write reliably forms the link on non-floor pairs
+- New server-authoritative setting Allow Non-Floor Placement (default on) under Server - Placement. When off, vanilla floor-only placement is preserved
+- Allow Non-Floor Placement requires a full Stationeers restart to take effect. Mismatches between client and host are caught at join time with a readable error
+- All players on a server must be on v1.5.0 or newer; the LaunchPad version handshake rejects mixed installs
+
 v1.4.0: Enable Auto-Aim server toggle with join-time handshake
 - New server-authoritative setting Enable Auto-Aim (default on) under Server - Features. When off at game start, MicrowaveAutoAimTarget (LogicType 6575) is not registered at all: no IC10 constant, no tablet dropdown entry, no Stationpedia page, no screen syntax highlighting, no Harmony patches. Feature surface disappears rather than being hidden
 - Changing Enable Auto-Aim requires a full Stationeers restart to take effect. The main-menu settings panel shows a crimson "Changes in configuration require a restart to apply" banner on change
@@ -165,13 +182,14 @@ v1.0.0: Initial release
     <Tag>StationeersPlus</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#00aaff>Power Transmitter Plus</color></size>
-<line-height=40%>Adds a visible beam, scrolling pulses, a configurable distance cost, and new logic readouts to the Microwave Power Transmitter.
+<line-height=40%>Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
 <b>Features:</b>
 - Visible laser beam between linked transmitter and receiver dishes
 - Scrolling energy pulses, speed scales with power throughput
 - Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
 - Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveLinkedPartner
 - Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable. Host can disable the feature entirely via Enable Auto-Aim; join handshake rejects mismatched clients
+- Wall and ceiling placement for transmitter and receiver dishes. Host can revert to vanilla floor-only via Allow Non-Floor Placement; join handshake rejects mismatched clients
 - Full multiplayer support with server-authoritative simulation
 <b>Settings:</b> Server-authoritative: the host's values control gameplay and visuals for all connected clients, broadcast live on change.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
