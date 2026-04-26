@@ -36,6 +36,7 @@ namespace EquipmentPlus
             // Slot Configuration Cartridge (Workshop 3578912665) by Otis B., absorbed into BES.
             // Its GUID is uk.org.marginal.stationeers.SlotConfigurationCartridge.
             ("slotconfigurationcartridge", "Slot Configuration Cartridge"),
+            ("betterheadlampmod", "Better Headlamp"),
         };
 
         void Awake()
