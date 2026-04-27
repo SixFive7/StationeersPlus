@@ -62,6 +62,98 @@ namespace EquipmentPlus
     }
 
     /// <summary>
+    /// Viewport-aware scroll-position snap for ScrollPanel.
+    ///
+    /// Vanilla SetScrollPosition unconditionally re-anchors the panel,
+    /// causing a visible jolt every wheel-tick even when the highlighted
+    /// line is already on screen. This helper inspects the panel's private
+    /// scroll/viewport/content state and only snaps when the selection
+    /// would otherwise be off screen, then snaps to the nearest edge
+    /// instead of the proportional center for a less-abrupt result.
+    ///
+    /// Reflection fail-safe: if any private field read fails, we fall back
+    /// to the unconditional snap (current behavior) so the selection stays
+    /// in view at the cost of a jolt. ScrollPanel field names are pinned
+    /// in Research/GameClasses/CustomScrollPanel.md.
+    /// </summary>
+    internal static class ScrollPanelVisibility
+    {
+        // Snap with viewport awareness. selFrac is the normalized position
+        // of the selected line in [0..1]. If the selection is already visible
+        // on screen, no-op. Otherwise snap so the selection sits at the
+        // nearest viewport edge (top if scrolling up, bottom if down).
+        internal static void EnsureSelectionVisible(ScrollPanel panel, float selFrac)
+        {
+            if (panel == null) return;
+            selFrac = Mathf.Clamp01(selFrac);
+
+            if (!TryGetVisibleRange(panel, out float topFrac, out float bottomFrac, out float viewportFrac))
+            {
+                // Reflection fail-safe: keep selection visible by snapping
+                // unconditionally (previous behavior).
+                panel.SetScrollPosition(selFrac);
+                return;
+            }
+
+            if (selFrac >= topFrac && selFrac <= bottomFrac)
+                return;
+
+            // Off screen. Snap to nearest edge: selection at top of viewport
+            // if it was above, at bottom if below. The mapping derives from
+            // SetContentPosition: with _scrollActualPosition == p, the visible
+            // window covers content fraction [p*(1-vf), p*(1-vf) + vf]. Solving
+            // for "selection at top edge" gives p = selFrac / (1 - vf); for
+            // "selection at bottom edge" gives p = (selFrac - vf) / (1 - vf).
+            float denominator = 1f - viewportFrac;
+            if (denominator <= 0f)
+            {
+                // Content fully fits; nothing to snap.
+                return;
+            }
+
+            float target = selFrac < topFrac
+                ? selFrac / denominator
+                : (selFrac - viewportFrac) / denominator;
+            panel.SetScrollPosition(Mathf.Clamp01(target));
+        }
+
+        // Reads ScrollPanel private fields and computes the currently-visible
+        // normalized line range. Returns false if any field read fails.
+        // viewportFrac out-param is the visible fraction of total content
+        // (== 1 when content fits entirely; in [0..1) otherwise).
+        private static bool TryGetVisibleRange(
+            ScrollPanel panel, out float topFrac, out float bottomFrac, out float viewportFrac)
+        {
+            topFrac = 0f;
+            bottomFrac = 1f;
+            viewportFrac = 1f;
+
+            if (!ReflectionUtils.TryGetField<float>(panel, "_scrollActualPosition", out float actualPos))
+                return false;
+            if (!ReflectionUtils.TryGetField<float>(panel, "_viewportHeight", out float viewportH))
+                return false;
+            if (!ReflectionUtils.TryGetField<float>(panel, "_contentHeight", out float contentH))
+                return false;
+
+            if (contentH <= 0f || viewportH <= 0f)
+                return false;
+            if (contentH <= viewportH)
+            {
+                // Everything fits; selection is always visible.
+                topFrac = 0f;
+                bottomFrac = 1f;
+                viewportFrac = 1f;
+                return true;
+            }
+
+            viewportFrac = viewportH / contentH;
+            topFrac = Mathf.Clamp01(actualPos) * (1f - viewportFrac);
+            bottomFrac = topFrac + viewportFrac;
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Scroll wheel steps the selected-line index one position per notch and
     /// snaps the ScrollPanel viewport to keep the selected line in view.
     ///
@@ -118,7 +210,7 @@ namespace EquipmentPlus
                 && scrollPanel != null)
             {
                 float pos = lineCount > 1 ? (float)current / (lineCount - 1) : 0f;
-                scrollPanel.SetScrollPosition(pos);
+                ScrollPanelVisibility.EnsureSelectionVisible(scrollPanel, pos);
             }
 
             return false;
@@ -161,14 +253,17 @@ namespace EquipmentPlus
             if (textMesh.text != newText)
                 textMesh.text = newText;
 
-            // Drive the viewport to follow selection. Re-applied every frame so
-            // selection tracking survives text-length changes, cartridge swaps,
-            // and ConfigCartridge's own `_needTopScroll` snap-to-top.
+            // Drive the viewport to follow selection only when selection
+            // would otherwise be off screen. This skips the snap on every
+            // benign frame (selection already visible) so the panel does not
+            // jolt continuously, but still re-anchors after a vanilla
+            // _needTopScroll reset or any other path that drifts the panel
+            // away from the highlight.
             if (ReflectionUtils.TryGetField<ScrollPanel>(__instance, "_scrollPanel", out var scrollPanel)
                 && scrollPanel != null)
             {
                 float pos = lines.Count > 1 ? (float)selected / (lines.Count - 1) : 0f;
-                scrollPanel.SetScrollPosition(pos);
+                ScrollPanelVisibility.EnsureSelectionVisible(scrollPanel, pos);
             }
 
             // Only respond to left-click without Ctrl (Ctrl+click is reserved for cycling).

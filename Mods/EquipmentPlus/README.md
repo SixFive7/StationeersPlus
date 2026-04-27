@@ -39,7 +39,7 @@ Scroll wheel selects a line in the Config Cartridge display. Left-click (without
 - **Writable value**: opens an input dialog to edit the value. Changes are properly synchronized through the server so they take effect for all players, fixing a longstanding multiplayer limitation of ImprovedConfiguration.
 
 ### Built-in Logic Slot Display (absorbed from Slot Configuration Cartridge)
-The Config Cartridge screen also lists per-slot logic values (`Slot 0 / Occupant`, etc.). Writable slots render in grey, read-only slots in green. Scroll-select and click to copy or edit just like the main logic values.
+The Config Cartridge screen also lists per-slot logic values (`Slot 0 / Occupant`, etc.). Writable slots render in green, read-only slots in grey. Scroll-select and click to copy or edit just like the main logic values.
 
 ### Persistent Active Sensor Chip
 The currently-active sensor chip survives save/load and late-joining clients. Cycling on a client is routed through the server so every player sees the same active chip. Without this fix, the active chip is reconstructed as "whichever chip landed in a slot last," which with multiple chips becomes non-deterministic.
@@ -55,6 +55,7 @@ All features work correctly for every player. Matching mod versions are enforced
 - [Better Advanced Tablet](https://steamcommunity.com/sharedfiles/filedetails/?id=3134483503) by Serialtasted, spacebuilder2020, Erik(NL), *replaced*
 - [ImprovedConfiguration](https://steamcommunity.com/sharedfiles/filedetails/?id=3651839114) by Doggo, *replaced with multiplayer support*
 - [Slot Configuration Cartridge](https://steamcommunity.com/sharedfiles/filedetails/?id=3578912665) by Otis B., *absorbed*
+- [Better Headlamp](https://steamcommunity.com/sharedfiles/filedetails/?id=3616788907), *replaced by the Ctrl+LeftShift+scroll helmet beam binding*
 
 These mods touch the same prefabs or UI paths. Disable any that are installed before enabling Equipment Plus. The conflict check runs after StationeersLaunchPad finishes loading all mods, so conflicts are detected even when StationeersLaunchPad bypasses BepInEx's own incompatibility system.
 
@@ -95,10 +96,10 @@ These mods touch the same prefabs or UI paths. Disable any that are installed be
 |---|---|---|
 | Shows per-slot logic values on Config Cartridge | Yes | Yes |
 | Works on the advanced tablet | Yes | Yes |
-| Edit writable slot values | Yes (single-player) | Yes (server-side; host or listen-server hosts only, see below) |
+| Edit writable slot values | Yes (single-player) | **Yes, fully multiplayer-compatible** |
 | Required as a separate install | Yes | No (built in) |
 
-**Multiplayer caveat for slot writes:** Vanilla provides a `SetLogicFromClient` network message for `LogicType` writes, but no equivalent exists for `(LogicSlotType, slotIndex)` writes. Slot writes therefore require the server or a listen-server host. A remote client attempting a slot write gets a warning in the BepInEx log; read-only slot values and clipboard copy work everywhere.
+**Multiplayer slot writes:** Vanilla provides `SetLogicFromClient` for `LogicType` writes but has no equivalent for `(LogicSlotType, slotIndex)` writes, so Slot Configuration Cartridge's slot edits silently no-op'd on remote clients. Equipment Plus ships a custom `SetLogicSlotFromClient` message: any client clicks a writable slot logic line, the server validates and applies, vanilla state-sync replicates the result to everyone.
 
 ### Active sensor persistence and sync
 
@@ -106,13 +107,21 @@ Vanilla Stationeers does not network `SensorLenses.Sensor` (the currently-select
 
 - **Live cycling**: client-side cycles are forwarded to the server via a custom `SetActiveSensorMessage`, validated, and broadcast to all clients via a dedicated `NetworkUpdateFlag` (0x4000).
 - **Late-join**: the active chip's `ReferenceId` is appended to the lenses' join payload.
-- **Save/load**: a `SensorLensesSaveData` subclass extends the vanilla XML save format with `ActiveSensorReferenceId` and is registered via `XmlSaveLoad.AddExtraTypes`. Older saves (made before the mod was installed) fall back to the first chip in slot order.
+- **Save/load**: the active sensor and active cartridge ids are written to a side-car file (`equipmentplus-active-slots.xml`) inside the save ZIP. World.xml stays vanilla, so uninstalling Equipment Plus does not break the save (see "Uninstalling cleanly" below). Per-character helmet beam preferences ride in their own side-car (`equipmentplus-beam.xml`) the same way.
 
 ## Installation
 
 1. Copy `EquipmentPlus.dll` and the `About/` folder into your Stationeers local mods directory
-2. Disable Better Advanced Tablet, ImprovedConfiguration, and Slot Configuration Cartridge if any are installed
+2. Disable Better Advanced Tablet, ImprovedConfiguration, Slot Configuration Cartridge, and Better Headlamp if any are installed
 3. Restart the game
+
+## Uninstalling cleanly
+
+The save format is designed to survive uninstalling Equipment Plus. World.xml stays vanilla, and the mod's own data lives in side-car files inside the save ZIP (`equipmentplus-active-slots.xml`, `equipmentplus-beam.xml`) that vanilla silently ignores on load. Loading a save without Equipment Plus does **not** corrupt the world.
+
+One limitation is unavoidable. Equipment Plus extends the Sensor Lenses (2 vanilla slots → 102) and Advanced Tablet (4 vanilla slots → 104) at runtime. If you've placed cartridges in tablet slots 5+ or chips in lens slots 3+ and then uninstall, vanilla's load path cannot place those extras back into slots that don't exist; it prints a red console error per item ("Slot N does not exist on thing Advanced Tablet ..."), and the items go missing from the device. Re-installing Equipment Plus restores them: the slot index and parent reference are still in the save, only the runtime slot extension was missing.
+
+To uninstall cleanly: move any extras (more than 4 cartridges per tablet, more than 2 chips per lens) into your inventory or a storage container before disabling Equipment Plus.
 
 ## Credits
 

@@ -1,6 +1,8 @@
+using Assets.Scripts;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Entities;
+using Assets.Scripts.Objects.Items;
 using HarmonyLib;
 using JetBrains.Annotations;
 using LaunchPadBooster.Networking;
@@ -108,6 +110,19 @@ namespace EquipmentPlus
                 // Light off: any scroll direction turns it on at the preserved
                 // beam (per spec C=iii). Scroll never turns the light off; the
                 // existing helmet-toggle binding is the only off path.
+                //
+                // Power gate: vanilla Helmet/GasMask flip OnOff=true silently
+                // even with no/empty battery; the visual update path then
+                // suppresses the light without telling the player. Surface
+                // the failure via the in-game console so the player knows
+                // why the scroll did nothing.
+                if (!HelmetHasPower(helmet))
+                {
+                    if (ScrollDispatchState.ScrollTrace)
+                        EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] headlamp: OFF + scroll -> blocked, no power");
+                    ConsoleWindow.PrintError("[EquipmentPlus] Helmet has no power.");
+                    return;
+                }
                 if (ScrollDispatchState.ScrollTrace)
                     EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] headlamp: OFF + scroll -> ON at preserved beam (angle={settings.SpotAngle:F1})");
                 helmet.OnOff = true;
@@ -153,28 +168,38 @@ namespace EquipmentPlus
 
             HelmetBeamState.Set(human, settings);
             ApplyToLight(light, settings);
-            PushSettingsToHost(human, settings);
+            PushSettingsToPeers(human, settings);
 
             if (ScrollDispatchState.ScrollTrace)
                 EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] headlamp: angle -> {settings.SpotAngle:F1}, intensity -> {settings.Intensity:F2}, range -> {settings.Range:F0}");
         }
 
-        // Forward the local player's new beam settings to the host so the
-        // host's PerCharacter dict reflects this character at save-snapshot
-        // time. On host (single-player or listen server's own character) the
-        // dict was already mutated by HelmetBeamState.Set above; sending
-        // would be a self-loop.
-        internal static void PushSettingsToHost(Human human, BeamSettings settings)
+        // Forward the local player's new beam settings so every peer that
+        // renders this character's helmet sees the change.
+        //   - Client: send to host. The host's Process handler updates its
+        //     PerCharacter dict and rebroadcasts to all other clients.
+        //   - Host:   broadcast directly to every connected client. The host's
+        //     own dict was already mutated by HelmetBeamState.Set above, so
+        //     no self-loop. Each client's Process applies the update locally;
+        //     they do not rebroadcast (GameManager.RunSimulation is false).
+        //   - Single-player: no peers, nothing to send.
+        internal static void PushSettingsToPeers(Human human, BeamSettings settings)
         {
             if (human == null) return;
-            if (!NetworkManager.IsClient) return;
-            new SetBeamSettingsMessage
+            if (!NetworkManager.IsActive) return;
+
+            var msg = new SetBeamSettingsMessage
             {
                 HumanReferenceId = human.ReferenceId,
                 SpotAngle = settings.SpotAngle,
                 Intensity = settings.Intensity,
                 Range     = settings.Range,
-            }.SendToHost();
+            };
+
+            if (NetworkManager.IsServer)
+                msg.SendAll(0L);
+            else
+                msg.SendToHost();
         }
 
         // Per-Human cache of the helmet's controllable Light so
@@ -191,6 +216,29 @@ namespace EquipmentPlus
         }
         private static readonly Dictionary<long, LightCacheEntry> _lightCache =
             new Dictionary<long, LightCacheEntry>();
+
+        // Two helmet families expose the battery via different paths:
+        //   - Helmet (the standard EVA / atmosphere helmet): own BatterySlot,
+        //     accessed as Helmet.Battery (returns BatteryCell or null).
+        //   - GasMask and its subclasses (HarmSuitHelmet, ...): read the
+        //     suit's battery via GasMask.ParentBattery (= ParentHuman.Suit.Battery).
+        // For unknown helmet types the gate is permissive (assume powered) so
+        // mod-added helmets do not silently fail to scroll-turn-on.
+        // See Research/GameClasses/HelmetBattery.md for the API source.
+        internal static bool HelmetHasPower(DynamicThing helmet)
+        {
+            if (helmet is Helmet h)
+            {
+                var battery = h.Battery;
+                return battery != null && !battery.IsEmpty;
+            }
+            if (helmet is GasMask gm)
+            {
+                var battery = gm.ParentBattery;
+                return battery != null && !battery.IsEmpty;
+            }
+            return true;
+        }
 
         internal static bool TryGetActiveHelmet(Human human, out DynamicThing helmet, out Light light)
         {

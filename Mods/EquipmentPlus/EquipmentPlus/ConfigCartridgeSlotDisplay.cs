@@ -66,8 +66,8 @@ namespace EquipmentPlus
         /// {0}=type name, {1}=color-open tag, {2}=value string, {3}="&lt;/color&gt;".</summary>
         private const string SlotLogicLineFmt = "\n{0} ... {1}{2}{3}";
 
-        private const string ColorWritable  = "<color=grey>";
-        private const string ColorReadOnly  = "<color=green>";
+        private const string ColorWritable  = "<color=green>";
+        private const string ColorReadOnly  = "<color=grey>";
         private const string ColorClose     = "</color>";
 
         // -----------------------------------------------------------------------

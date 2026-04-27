@@ -117,6 +117,14 @@ namespace EquipmentPlus
         private static void DispatchTablet(int direction)
         {
             var held = InventoryManager.Instance?.ActiveHand?.Slot?.Get();
+            if (ScrollDispatchState.ScrollTrace)
+            {
+                string role = NetworkManager.IsServer ? "HOST"
+                            : NetworkManager.IsClient ? "CLIENT"
+                            : "SP";
+                EquipmentPlusPlugin.Log.LogInfo(
+                    $"[EquipmentPlus.scroll] tablet dispatch role={role} active={DescribeSlot(InventoryManager.Instance?.ActiveHand?.Slot)} inactive={DescribeSlot(InventoryManager.Instance?.InactiveHand?.Slot)}");
+            }
             if (held is AdvancedTablet tablet)
             {
                 CycleTablet(tablet, direction);
@@ -129,6 +137,27 @@ namespace EquipmentPlus
             // a subsequent scroll after the tablet lands in active hand
             // cycles via the held-AdvancedTablet branch above.
             TryAutoEquipTablet(held);
+        }
+
+        // Diagnostic-only: returns a one-line tag describing the slot
+        // identity. Format: "[parent#netId/slotIdx hand=L|R|? occupant=Type]"
+        // Used by the auto-equip trace to capture which physical slot we are
+        // sending things to vs from on a remote client.
+        private static string DescribeSlot(Slot s)
+        {
+            if (s == null) return "null";
+            string hand = "?";
+            try
+            {
+                if (s.StringHash == Slot.LeftHandHash) hand = "L";
+                else if (s.StringHash == Slot.RightHandHash) hand = "R";
+                else hand = "n/a";
+            }
+            catch { }
+            string parentName = s.Parent != null ? s.Parent.GetType().Name : "(null parent)";
+            long parentId = s.Parent != null ? s.Parent.ReferenceId : 0L;
+            string occ = s.Get() != null ? s.Get().GetType().Name : "(empty)";
+            return $"[{parentName}#{parentId}/{s.SlotIndex} hand={hand} occ={occ}]";
         }
 
         // Phase 2: when active hand does NOT hold a tablet, try to put one
@@ -191,14 +220,18 @@ namespace EquipmentPlus
             if (currentlyHeld == null)
             {
                 if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] tablet auto-equip: active hand empty, equipping {tablet.GetType().Name}");
+                    EquipmentPlusPlugin.Log.LogInfo(
+                        $"[EquipmentPlus.scroll] tablet auto-equip: active hand empty, sending tablet={tablet.GetType().Name}#{tablet.ReferenceId} from src={DescribeSlot(sourceSlot)} -> activeHandSlot={DescribeSlot(activeHandSlot)}");
                 OnServer.MoveToSlot(tablet, activeHandSlot);
+                EquipmentPlusPlugin.Instance?.StartCoroutine(
+                    PostMoveSanityCoroutine(activeHandSlot, tablet, "direct-equip"));
                 return;
             }
 
             // Step 4: active hand occupied -> SmartStow then deferred-check.
             if (ScrollDispatchState.ScrollTrace)
-                EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] tablet auto-equip: stowing {currentlyHeld.GetType().Name}, equipping {tablet.GetType().Name}");
+                EquipmentPlusPlugin.Log.LogInfo(
+                    $"[EquipmentPlus.scroll] tablet auto-equip: active hand occupied, src={DescribeSlot(sourceSlot)} active={DescribeSlot(activeHandSlot)} stowing {currentlyHeld.GetType().Name} then equipping {tablet.GetType().Name}#{tablet.ReferenceId}");
             // SmartStow(Slot) is a static method on InventoryManager (NOT
             // InventoryWindowManager — that's the instance no-arg overload
             // bound to the SmartStow keybind which finds the currently
@@ -241,6 +274,37 @@ namespace EquipmentPlus
                 }
             }
             return false;
+        }
+
+        // Diagnostic-only: after a direct OnServer.MoveToSlot fires from the
+        // client, poll the target slot for several frames and log when the
+        // tablet actually lands. This pins down whether (a) it lands in the
+        // expected slot eventually, (b) it lands in some other slot, or
+        // (c) it never lands. Compare against the activeHandSlot we sent
+        // and the inactive-hand slot side-by-side.
+        private static IEnumerator PostMoveSanityCoroutine(
+            Slot expectedSlot, DynamicThing tablet, string label)
+        {
+            if (!ScrollDispatchState.ScrollTrace) yield break;
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+                var actualParent = tablet?.ParentSlot?.Parent;
+                var actualSlotIdx = tablet?.ParentSlot?.SlotIndex;
+                if (actualParent == expectedSlot.Parent && actualSlotIdx == expectedSlot.SlotIndex)
+                {
+                    EquipmentPlusPlugin.Log.LogInfo(
+                        $"[EquipmentPlus.scroll] tablet post-move ({label}): tablet#{tablet.ReferenceId} landed in EXPECTED slot {DescribeSlot(expectedSlot)} after {i + 1} frame(s)");
+                    yield break;
+                }
+                if (i == 5 || i == 15 || i == 29)
+                {
+                    var localActive = InventoryManager.Instance?.ActiveHand?.Slot;
+                    var localInactive = InventoryManager.Instance?.InactiveHand?.Slot;
+                    EquipmentPlusPlugin.Log.LogInfo(
+                        $"[EquipmentPlus.scroll] tablet post-move ({label}) frame {i + 1}: tablet#{tablet?.ReferenceId} actualParent={(actualParent != null ? actualParent.GetType().Name + "#" + actualParent.ReferenceId : "null")} slotIdx={actualSlotIdx} | localActive={DescribeSlot(localActive)} localInactive={DescribeSlot(localInactive)} | expected={DescribeSlot(expectedSlot)}");
+                }
+            }
         }
 
         // Multiplayer-safe deferred-check sequence after SmartStow. On the
@@ -578,5 +642,53 @@ namespace EquipmentPlus
             if (NetworkManager.IsServer)
                 lens.NetworkUpdateFlags |= SensorLensesSync.ActiveSensorFlag;
         }
+    }
+
+    // Suppress the vanilla scroll-driven hotbar advance whenever a modifier is
+    // held. The hotbar advance is what makes a Ctrl+scroll or Shift+scroll
+    // bleed into "next inventory slot" alongside our modifier-scroll dispatch
+    // (tablet / lens / headlamp). Vanilla calls
+    // InventoryWindowManager.NextButton / PreviousButton from
+    // InventoryManager.CheckDisplaySlotInput when newScrollData != 0, BEFORE
+    // our NormalMode prefix runs (Research/GameSystems/ScrollInputHandling.md
+    // "InventoryManager.NormalMode is NOT a scroll consumer"), so a false
+    // return from NormalMode cannot suppress it. Patching the destination
+    // methods is the surgical fix.
+    //
+    // Caller-distinguishing trick: NextButton / PreviousButton are also
+    // called by KeyMap.NextItem / KeyMap.PreviousItem keyboard hotkeys.
+    // We only want to suppress the scroll-driven path. When the call is
+    // scroll-driven this frame, Input.mouseScrollDelta.y != 0; when it is
+    // keyboard-driven, mouseScrollDelta.y == 0. The check below uses that
+    // signal so keyboard hotbar navigation still works even with a modifier
+    // held. See Research/GameSystems/ScrollInputHandling.md
+    // "Caller-distinguishing trick for selective suppression".
+    internal static class InventoryScrollSuppressHelper
+    {
+        // Shared gate: returns true (suppress) only when this call is on the
+        // scroll-driven path AND any of (Ctrl, LeftShift, RightShift) is held.
+        internal static bool ShouldSuppressInventoryScroll()
+        {
+            if (Input.mouseScrollDelta.y == 0f) return false;
+            bool ctrl       = KeyManager.GetButton(KeyCode.LeftControl)
+                           || KeyManager.GetButton(KeyCode.RightControl);
+            bool leftShift  = KeyManager.GetButton(KeyCode.LeftShift);
+            bool rightShift = KeyManager.GetButton(KeyCode.RightShift);
+            return ctrl || leftShift || rightShift;
+        }
+    }
+
+    [HarmonyPatch(typeof(InventoryWindowManager), nameof(InventoryWindowManager.NextButton))]
+    public class InventoryNextButtonScrollSuppressPatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix() => !InventoryScrollSuppressHelper.ShouldSuppressInventoryScroll();
+    }
+
+    [HarmonyPatch(typeof(InventoryWindowManager), nameof(InventoryWindowManager.PreviousButton))]
+    public class InventoryPreviousButtonScrollSuppressPatch
+    {
+        [UsedImplicitly]
+        public static bool Prefix() => !InventoryScrollSuppressHelper.ShouldSuppressInventoryScroll();
     }
 }
