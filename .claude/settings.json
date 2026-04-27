@@ -4,60 +4,110 @@
     "PostToolUse": [
       {
         "matcher": "Read|Grep|Glob",
-        "if": "Read(**/rocketstation_Data/Managed/**)",
         "hooks": [
           {
             "type": "command",
+            "if": "Read(*\\rocketstation_Data\\Managed\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Grep(*\\rocketstation_Data\\Managed\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Glob(*\\rocketstation_Data\\Managed\\\\\\\\*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           }
         ]
       },
       {
         "matcher": "Read",
-        "if": "Read(**/Research/**)",
         "hooks": [
           {
             "type": "command",
+            "if": "Read(*\\Research\\\\\\\\*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-read.ps1"
           }
         ]
       },
       {
         "matcher": "Edit|Write",
-        "if": "Edit(**/Research/**)",
         "hooks": [
           {
             "type": "command",
+            "if": "Edit(*\\Research\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-write.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Research\\\\\\\\*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-write.ps1"
           }
         ]
       },
       {
-        "matcher": "Read",
-        "if": "Read(**/Mods/*/README.md)|Read(**/Plans/*/README.md)|Read(**/About/About.xml)",
+        "matcher": "Read|Edit|Write",
         "hooks": [
           {
             "type": "command",
+            "if": "Read(*\\Mods\\\\\\\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\Plans\\\\\\\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\About\\About.xml)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Mods\\\\\\\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Plans\\\\\\\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\About\\About.xml)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Mods\\\\\\\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Plans\\\\\\\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\About\\About.xml)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
           }
         ]
       },
       {
         "matcher": "Edit|Write",
-        "if": "Edit(**/Mods/*/README.md)|Write(**/Mods/*/README.md)|Edit(**/Plans/*/README.md)|Write(**/Plans/*/README.md)|Edit(**/About/About.xml)|Write(**/About/About.xml)",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "if": "Edit(**/Mods/*/*/Plugin.cs)|Write(**/Mods/*/*/Plugin.cs)",
-        "hooks": [
+            "if": "Edit(*\\Mods\\\\\\\\*\\\\\\\\*\\Plugin.cs)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/release-hook.ps1"
+          },
           {
             "type": "command",
+            "if": "Write(*\\Mods\\\\\\\\*\\\\\\\\*\\Plugin.cs)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/release-hook.ps1"
           }
         ]
