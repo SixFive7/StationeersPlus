@@ -13,23 +13,15 @@ namespace MaintenanceBureauPlus
 {
     // Wraps LLamaSharp for CPU inference on a background thread.
     //
-    // Two modes:
+    // Single mode: stateless. Every Enqueue is a fresh StatelessExecutor over
+    // the model and a brand-new prompt. No KV cache is reused between calls;
+    // every classifier and reply prompt is re-tokenized in full. The user-
+    // visible cycle (StartNewCycle / mid-cycle classify-then-reply) builds
+    // its own conversation transcript and re-renders it as proper chat-
+    // template blocks each turn (see ChatPatch.BuildReplyPrompt).
     //
-    //   Stateless (Enqueue)            - one-shot. Full prompt sent each call,
-    //                                    fresh StatelessExecutor each time.
-    //                                    Used for closing message, super summary.
-    //
-    //   Interactive (EnqueueInteractive) - KV-cache-reusing. BeginInteractiveCycle()
-    //                                    creates a fresh LLamaContext + InteractiveExecutor.
-    //                                    Subsequent EnqueueInteractive calls append only
-    //                                    the delta text; the preamble + persona block
-    //                                    + approval rules stay in the cache. Drops
-    //                                    per-turn ingestion cost from ~2 kB to ~50 chars.
-    //                                    Call EndInteractiveCycle() on cycle end to
-    //                                    dispose the context.
-    //
-    // One request at a time; results return via the callback on the worker thread;
-    // the caller marshals back to the main thread via MainThreadQueue.
+    // One request at a time; results return via the callback on the worker
+    // thread; the caller marshals back to the main thread via MainThreadQueue.
     public class LlmEngine : IDisposable
     {
         private LLamaWeights _model;
@@ -39,12 +31,6 @@ namespace MaintenanceBureauPlus
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private Thread _workerThread;
         private readonly AutoResetEvent _signal = new AutoResetEvent(false);
-
-        // Interactive cycle state. Accessed from both main thread (Begin/End) and
-        // worker thread (RunInference). Lock around reads/writes.
-        private readonly object _cycleLock = new object();
-        private LLamaContext _interactiveContext;
-        private InteractiveExecutor _interactiveExecutor;
 
         public bool IsLoaded { get { return _model != null; } }
 
@@ -92,66 +78,8 @@ namespace MaintenanceBureauPlus
                 Prompt = prompt ?? string.Empty,
                 MaxTokens = maxTokens,
                 OnComplete = onComplete,
-                Interactive = false,
             });
             _signal.Set();
-        }
-
-        public void EnqueueInteractive(string text, int maxTokens, Action<string> onComplete)
-        {
-            if (!IsLoaded)
-            {
-                onComplete?.Invoke("[model not loaded]");
-                return;
-            }
-
-            Interlocked.Increment(ref _inflight);
-            _queue.Enqueue(new InferenceRequest
-            {
-                Prompt = text ?? string.Empty,
-                MaxTokens = maxTokens,
-                OnComplete = onComplete,
-                Interactive = true,
-            });
-            _signal.Set();
-        }
-
-        public void BeginInteractiveCycle()
-        {
-            lock (_cycleLock)
-            {
-                EndInteractiveCycleLocked();
-                try
-                {
-                    var ctx = _model.CreateContext(_params);
-                    _interactiveContext = ctx;
-                    _interactiveExecutor = new InteractiveExecutor(ctx);
-                    MaintenanceBureauPlusPlugin.Log.LogInfo("[LlmEngine] Interactive cycle started.");
-                }
-                catch (Exception ex)
-                {
-                    MaintenanceBureauPlusPlugin.Log.LogError("[LlmEngine] BeginInteractiveCycle failed: " + ex);
-                    _interactiveContext = null;
-                    _interactiveExecutor = null;
-                }
-            }
-        }
-
-        public void EndInteractiveCycle()
-        {
-            lock (_cycleLock)
-            {
-                if (_interactiveExecutor == null && _interactiveContext == null) return;
-                EndInteractiveCycleLocked();
-                MaintenanceBureauPlusPlugin.Log.LogInfo("[LlmEngine] Interactive cycle ended.");
-            }
-        }
-
-        private void EndInteractiveCycleLocked()
-        {
-            _interactiveExecutor = null;
-            try { _interactiveContext?.Dispose(); } catch { }
-            _interactiveContext = null;
         }
 
         private void WorkerLoop()
@@ -166,8 +94,8 @@ namespace MaintenanceBureauPlus
 
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     MaintenanceBureauPlusPlugin.Log.LogInfo(
-                        "[LlmEngine] Inference start: mode=" + (request.Interactive ? "interactive" : "stateless") +
-                        " promptChars=" + (request.Prompt != null ? request.Prompt.Length : 0) +
+                        "[LlmEngine] Inference start: promptChars=" +
+                        (request.Prompt != null ? request.Prompt.Length : 0) +
                         " maxTokens=" + request.MaxTokens);
                     try
                     {
@@ -194,23 +122,7 @@ namespace MaintenanceBureauPlus
 
         private string RunInference(InferenceRequest request)
         {
-            ILLamaExecutor executor;
-            if (request.Interactive)
-            {
-                lock (_cycleLock)
-                {
-                    executor = _interactiveExecutor;
-                }
-                if (executor == null)
-                {
-                    MaintenanceBureauPlusPlugin.Log.LogWarning("[LlmEngine] Interactive request with no active cycle; skipping.");
-                    return string.Empty;
-                }
-            }
-            else
-            {
-                executor = new StatelessExecutor(_model, _params);
-            }
+            ILLamaExecutor executor = new StatelessExecutor(_model, _params);
 
             var inferenceParams = new InferenceParams
             {
@@ -328,11 +240,7 @@ namespace MaintenanceBureauPlus
             try { _cts.Cancel(); } catch { }
             try { _signal.Set(); } catch { }
 
-            NeuterNativeFinalizers(_interactiveContext);
             NeuterNativeFinalizers(_model);
-
-            _interactiveExecutor = null;
-            _interactiveContext = null;
             _model = null;
 
             MaintenanceBureauPlusPlugin.Log?.LogInfo("[LlmEngine] Dispose done.");
@@ -369,7 +277,6 @@ namespace MaintenanceBureauPlus
             public string Prompt;
             public int MaxTokens;
             public Action<string> OnComplete;
-            public bool Interactive;
         }
 
         // Find an instance method by simple name or explicit-interface suffix.

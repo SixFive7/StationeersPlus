@@ -41,6 +41,9 @@ namespace MaintenanceBureauPlus
         public const int MaxTokensForClosing = 512;
         public const int MaxTokensForPersonaSelection = 256;
         public const int MaxTokensForSuperSummary = 64;
+        // Classifier output is a single label (COOPERATIVE / STALLING / etc.).
+        // 16 tokens is generous; the model often emits the label in 1-2.
+        public const int MaxTokensForClassification = 16;
         public const float Temperature = 0.8f;
         public const int InferenceThreads = 4;
         public const int ContextSize = 4096;

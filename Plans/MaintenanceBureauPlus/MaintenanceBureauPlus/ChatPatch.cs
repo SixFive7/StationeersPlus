@@ -4,6 +4,7 @@ using HarmonyLib;
 using LaunchPadBooster.Networking;
 using System;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MaintenanceBureauPlus
 {
@@ -84,8 +85,19 @@ namespace MaintenanceBureauPlus
             // in-lore signal that they were ignored, and they have to wait
             // and re-send. This enforces strict turn-taking between the
             // player and the model.
+            //
+            // Two checks:
+            //   Engine.IsBusy           - an inference is currently queued
+            //                             or running on the worker thread.
+            //   Conversation.PendingTurn - bridges the microsecond gap
+            //                             between classifier completion and
+            //                             reply enqueue, where IsBusy briefly
+            //                             returns false. Set at the start of
+            //                             each turn, cleared in HandleReply
+            //                             after broadcast.
             var engine = MaintenanceBureauPlusPlugin.Engine;
-            if (engine != null && engine.IsBusy)
+            var convForBusy = MaintenanceBureauPlusPlugin.Conversation;
+            if (engine != null && (engine.IsBusy || (convForBusy != null && convForBusy.PendingTurn)))
             {
                 var busy = MaintenanceBureauPlusPlugin.BusyResponses?.PickRandom();
                 if (busy != null)
@@ -113,11 +125,12 @@ namespace MaintenanceBureauPlus
             }
         }
 
-        // Entry point for every qualifying public chat line. If no cycle is
-        // active we start one (persona is picked locally, interactive LLM
-        // session opens with the full system prompt). If a cycle is active
-        // we append only the delta — one player message — to the ongoing
-        // session, reusing the KV cache from previous turns.
+        // Entry point for every qualifying public chat line. If no cycle
+        // is active, start one (single LLM call, no classifier needed).
+        // If a cycle is active, run the two-step classifier-then-reply
+        // pipeline: classify the player's message, decide a directive
+        // from (turn, classification), then generate the reply with the
+        // chosen directive embedded in the system block.
         private static void HandleIncoming(string playerName, string message)
         {
             var conv = MaintenanceBureauPlusPlugin.Conversation;
@@ -127,69 +140,158 @@ namespace MaintenanceBureauPlus
             if (!conv.IsActive)
             {
                 StartNewCycle(playerName, message);
-                return;
             }
-
-            conv.AppendPlayer(playerName, message);
-            conv.TurnCount++;
-
-            var prompt = BuildTurnDeltaPrompt(conv, playerName, message);
-            int maxTokens = MaintenanceBureauPlusPlugin.MaxTokensPerReply;
-
-            MaintenanceBureauPlusPlugin.Log.LogInfo(
-                "[DIAG] Turn " + conv.TurnCount + "/" + conv.MaxTurns +
-                " phase=" + PhaseFor(conv) +
-                " officer=" + (conv.Officer != null ? conv.Officer.Name : "?") +
-                " promptChars=" + prompt.Length +
-                " promptHead=" + Truncate(prompt, 140));
-
-            MaintenanceBureauPlusPlugin.Engine.EnqueueInteractive(prompt, maxTokens, rawReply =>
+            else
             {
-                MainThreadQueue.Enqueue(() => HandleReply(rawReply));
-            });
+                ClassifyThenReply(playerName, message);
+            }
         }
 
+        // Cycle start: pick officer locally, append the opening message,
+        // skip the classifier (no prior turn to classify), default the
+        // directive to StallSoft, fire one stateless reply call.
         private static void StartNewCycle(string playerName, string openingMessage)
         {
             var conv = MaintenanceBureauPlusPlugin.Conversation;
             conv.Reset();
             conv.IsActive = true;
-            conv.IsAwaitingPersona = false;   // resolved synchronously below
+            conv.IsAwaitingPersona = false;
             conv.MinTurns = MaintenanceBureauPlusPlugin.MinTurns.Value;
             conv.MaxTurns = MaintenanceBureauPlusPlugin.MaxTurns.Value;
             conv.TurnCount = 1;
             conv.AppendPlayer(playerName, openingMessage);
-
-            // Persona selection used to be an LLM call over a prompt listing
-            // all 100 personas in full, which is ~14 kB and takes minutes on
-            // a 1.5B CPU model to ingest before the first token is produced.
-            // Pick deterministically in-process instead, biasing away from
-            // recently-seen names. The LLM's job is to PLAY the character,
-            // not pick one; the picking is cheap local logic.
             conv.Officer = PickRandomUnseenPersona();
-
-            MaintenanceBureauPlusPlugin.Log.LogInfo("[Bureau] persona selected (local): " +
-                conv.Officer.Name +
-                (string.IsNullOrEmpty(conv.Officer.Department) ? "" : " (" + conv.Officer.Department + ")"));
-
-            // Open a fresh interactive LLM session. The preamble + persona +
-            // approval rules are sent once here and stay in the KV cache for
-            // the rest of the cycle; subsequent turns only send the delta.
-            MaintenanceBureauPlusPlugin.Engine.BeginInteractiveCycle();
-
-            var prompt = BuildCycleStartPrompt(conv, playerName, openingMessage);
+            conv.PendingTurn = true;
 
             MaintenanceBureauPlusPlugin.Log.LogInfo(
                 "[DIAG] Cycle start: officer=" + (conv.Officer != null ? conv.Officer.Name : "?") +
                 " dept=" + (conv.Officer != null ? conv.Officer.Department : "?") +
-                " min=" + conv.MinTurns + " max=" + conv.MaxTurns +
-                " phase=" + PhaseFor(conv) +
+                " min=" + conv.MinTurns + " max=" + conv.MaxTurns);
+
+            // Turn 1: model can't approve yet (turn < min), so directive is
+            // always StallSoft. No classifier call needed; classification
+            // would be "Fresh" with no prior context to evaluate.
+            var directive = TurnDirective.StallSoft;
+            var prompt = BuildReplyPrompt(conv, directive);
+
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "[DIAG] Reply enqueue (cycle start): directive=" + directive +
                 " promptChars=" + prompt.Length);
 
-            MaintenanceBureauPlusPlugin.Engine.EnqueueInteractive(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, rawTurn =>
+            MaintenanceBureauPlusPlugin.Engine.Enqueue(prompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, raw =>
             {
-                MainThreadQueue.Enqueue(() => HandleReply(rawTurn));
+                MainThreadQueue.Enqueue(() => HandleReply(raw, directive));
             });
+        }
+
+        // Mid-cycle: ask the model to classify the player's MOST RECENT
+        // message, parse the label, decide a directive, then enqueue the
+        // reply. The append-and-bump happens BETWEEN the two calls so the
+        // classifier sees the new message as separate context, while the
+        // reply prompt sees it as the most-recent turn in History.
+        private static void ClassifyThenReply(string playerName, string message)
+        {
+            var conv = MaintenanceBureauPlusPlugin.Conversation;
+            conv.PendingTurn = true;
+
+            var classifierPrompt = BuildClassifierPrompt(conv, playerName, message);
+            MaintenanceBureauPlusPlugin.Log.LogInfo(
+                "[DIAG] Classifier enqueue: promptChars=" + classifierPrompt.Length);
+
+            MaintenanceBureauPlusPlugin.Engine.Enqueue(classifierPrompt, MaintenanceBureauPlusPlugin.MaxTokensForClassification, classifierRaw =>
+            {
+                MainThreadQueue.Enqueue(() =>
+                {
+                    var classification = ParseClassification(classifierRaw);
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] Classifier raw=" + Truncate(classifierRaw, 80) +
+                        " parsed=" + classification);
+
+                    conv.AppendPlayer(playerName, message);
+                    conv.TurnCount++;
+
+                    var directive = DecideDirective(
+                        conv.TurnCount, conv.MinTurns, conv.MaxTurns, classification);
+
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] Turn " + conv.TurnCount + "/" + conv.MaxTurns +
+                        " classification=" + classification + " directive=" + directive);
+
+                    var replyPrompt = BuildReplyPrompt(conv, directive);
+                    MaintenanceBureauPlusPlugin.Log.LogInfo(
+                        "[DIAG] Reply enqueue: directive=" + directive +
+                        " promptChars=" + replyPrompt.Length);
+
+                    MaintenanceBureauPlusPlugin.Engine.Enqueue(replyPrompt, MaintenanceBureauPlusPlugin.MaxTokensPerReply, replyRaw =>
+                    {
+                        MainThreadQueue.Enqueue(() => HandleReply(replyRaw, directive));
+                    });
+                });
+            });
+        }
+
+        // Five-state directive set chosen by decide_directive(turn, classification).
+        // Each maps to a prose INSTRUCTION block in SystemPrompts that the
+        // model reads silently and acts on; the system prompt forbids the
+        // model from echoing the instruction back in its reply.
+        internal enum TurnDirective { StallHard, StallSoft, ExtractDetail, MayAgree, MustAgreeClosing }
+
+        // Classifier output. Throwaway per-turn signal used only to pick
+        // the next directive; never persisted.
+        internal enum PlayerClassification { Cooperative, Stalling, Hostile, Confused, OffTopic, Fresh }
+
+        private static TurnDirective DecideDirective(int turn, int min, int max, PlayerClassification cls)
+        {
+            // Hard ceiling: the very last turn must approve, regardless of
+            // how the player behaves on it. The LLM is told to spin an
+            // in-character closing reason in this slot.
+            if (turn >= max) return TurnDirective.MustAgreeClosing;
+
+            // Eligible band: model may approve if the player has earned it,
+            // or extract one more detail / continue stalling if not.
+            if (turn >= min)
+            {
+                switch (cls)
+                {
+                    case PlayerClassification.Cooperative: return TurnDirective.MayAgree;
+                    case PlayerClassification.Stalling:    return TurnDirective.ExtractDetail;
+                    case PlayerClassification.Hostile:     return TurnDirective.StallHard;
+                    case PlayerClassification.Confused:    return TurnDirective.StallSoft;
+                    case PlayerClassification.OffTopic:    return TurnDirective.StallSoft;
+                    default:                                return TurnDirective.StallSoft;
+                }
+            }
+
+            // Early band (turn < min): no approval ever. Stalling vs hard-
+            // stalling depends on the player's tone.
+            switch (cls)
+            {
+                case PlayerClassification.Hostile:     return TurnDirective.StallHard;
+                case PlayerClassification.Stalling:    return TurnDirective.ExtractDetail;
+                default:                                return TurnDirective.StallSoft;
+            }
+        }
+
+        // Match the first occurrence of any known label in the classifier's
+        // output. The model is supposed to emit exactly one label, but a
+        // tired model will sometimes preface it with a sentence; we tolerate
+        // that. Order matters: HOSTILE before OFF_TOPIC (which contains "T")
+        // is no problem since we match by IndexOf, not StartsWith. Default
+        // to Cooperative on parse failure (benign, model will still get a
+        // reasonable directive).
+        private static PlayerClassification ParseClassification(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return PlayerClassification.Cooperative;
+            var s = raw.ToUpperInvariant();
+            if (s.IndexOf("HOSTILE", StringComparison.Ordinal) >= 0) return PlayerClassification.Hostile;
+            if (s.IndexOf("STALLING", StringComparison.Ordinal) >= 0) return PlayerClassification.Stalling;
+            if (s.IndexOf("CONFUSED", StringComparison.Ordinal) >= 0) return PlayerClassification.Confused;
+            if (s.IndexOf("OFF_TOPIC", StringComparison.Ordinal) >= 0
+                || s.IndexOf("OFF-TOPIC", StringComparison.Ordinal) >= 0
+                || s.IndexOf("OFFTOPIC", StringComparison.Ordinal) >= 0)
+                return PlayerClassification.OffTopic;
+            if (s.IndexOf("COOPERATIVE", StringComparison.Ordinal) >= 0) return PlayerClassification.Cooperative;
+            return PlayerClassification.Cooperative;
         }
 
         private static OfficerPersona PickRandomUnseenPersona()
@@ -252,13 +354,18 @@ namespace MaintenanceBureauPlus
             };
         }
 
-        private static void HandleReply(string rawReply)
+        private static void HandleReply(string rawReply, TurnDirective directive)
         {
             var conv = MaintenanceBureauPlusPlugin.Conversation;
-            if (conv == null || !conv.IsActive) return;
+            if (conv == null || !conv.IsActive)
+            {
+                if (conv != null) conv.PendingTurn = false;
+                return;
+            }
 
             MaintenanceBureauPlusPlugin.Log.LogInfo(
-                "[DIAG] HandleReply: rawChars=" + (rawReply != null ? rawReply.Length : 0) +
+                "[DIAG] HandleReply: directive=" + directive +
+                " rawChars=" + (rawReply != null ? rawReply.Length : 0) +
                 " head=" + Truncate(rawReply, 160));
 
             var parsed = ApprovalTagParser.Parse(rawReply);
@@ -269,17 +376,36 @@ namespace MaintenanceBureauPlus
                 "[DIAG] Parsed: tag=" + tag + " cleanedChars=" + (text != null ? text.Length : 0) +
                 " turn=" + conv.TurnCount + " min=" + conv.MinTurns + " max=" + conv.MaxTurns);
 
-            // The Bureau never refuses. If the model tries, we treat it as
-            // continuing. The system prompt forbids it, but a stubborn model
-            // occasionally emits the tag anyway.
+            // [REFUSED] is not a real tag in this design; demote to CONTINUE.
             if (tag == ApprovalTag.Refused)
             {
                 MaintenanceBureauPlusPlugin.Log.LogWarning(
-                    "[DIAG] Officer attempted [REFUSED] (not allowed); demoting to [CONTINUE].");
+                    "[DIAG] Officer attempted [REFUSED]; demoting to [CONTINUE].");
                 tag = ApprovalTag.Continue;
             }
 
-            // Bounds enforcement.
+            // Defensive directive enforcement: the directive selects which
+            // tags are legal this turn. The model is told this in the
+            // INSTRUCTION block, but small models occasionally ignore the
+            // directive. We enforce here as a backstop.
+            if (directive == TurnDirective.MustAgreeClosing && tag != ApprovalTag.Approved)
+            {
+                MaintenanceBureauPlusPlugin.Log.LogWarning(
+                    "[DIAG] Directive=MustAgreeClosing but model emitted " + tag +
+                    "; forcing [APPROVED].");
+                tag = ApprovalTag.Approved;
+            }
+            if ((directive == TurnDirective.StallHard
+                || directive == TurnDirective.StallSoft
+                || directive == TurnDirective.ExtractDetail)
+                && tag == ApprovalTag.Approved)
+            {
+                MaintenanceBureauPlusPlugin.Log.LogWarning(
+                    "[DIAG] Directive=" + directive + " (stall) but model emitted [APPROVED]; demoting to [CONTINUE].");
+                tag = ApprovalTag.Continue;
+            }
+
+            // Hard bound: never approve before MinTurns regardless of directive.
             if (tag == ApprovalTag.Approved && conv.TurnCount < conv.MinTurns)
             {
                 MaintenanceBureauPlusPlugin.Log.LogWarning(
@@ -287,6 +413,8 @@ namespace MaintenanceBureauPlus
                     "); demoting to [CONTINUE].");
                 tag = ApprovalTag.Continue;
             }
+            // Hard bound: at MaxTurns, force approval. Caught above for
+            // MustAgreeClosing too, but defensive belt-and-suspenders.
             if (tag != ApprovalTag.Approved && conv.TurnCount >= conv.MaxTurns)
             {
                 MaintenanceBureauPlusPlugin.Log.LogWarning(
@@ -298,6 +426,7 @@ namespace MaintenanceBureauPlus
             var officerName = conv.Officer != null ? conv.Officer.Name : "Bureau";
             BroadcastAsOfficer(officerName, text);
             conv.AppendOfficer(text);
+            conv.PendingTurn = false;
 
             switch (tag)
             {
@@ -310,7 +439,6 @@ namespace MaintenanceBureauPlus
                     MaintenanceBureauPlusPlugin.Log.LogInfo(
                         "[DIAG] APPROVED at turn " + conv.TurnCount +
                         "/" + conv.MaxTurns + "; firing ApprovalEvent.");
-                    MaintenanceBureauPlusPlugin.Engine.EndInteractiveCycle();
                     ApprovalEvent.Start();
                     break;
                 case ApprovalTag.None:
@@ -321,54 +449,38 @@ namespace MaintenanceBureauPlus
         }
 
         // Post-process the model's reply: strip anything after a hallucinated
-        // new-turn header (the model tends to role-play the entire chat log
-        // once it finishes its assistant turn), then trim trailing BPE
+        // new-turn header (the model tends to role-play the next user turn
+        // once it finishes its assistant turn), strip any stray bracketed
+        // tokens that aren't [CONTINUE]/[APPROVED] (the model invents
+        // things like [PHASE:FINAL], [INSTRUCTION], [STALL_HARD] when it
+        // pattern-matches our internal labels), and trim trailing BPE
         // artifacts. Ċ (U+010A) is the tokenizer's rendering of the newline
-        // byte, and Ġ (U+0120) is the space byte; either can leak when
+        // byte and Ġ (U+0120) the space byte; either can leak when
         // generation stops mid-decode on a stop-word match.
         private static string CleanReply(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
             int cut = FirstHallucinationIndex(text);
             if (cut >= 0) text = text.Substring(0, cut);
-            // Strip any leftover bracketed PHASE marker the model leaks
-            // anywhere in the reply. AntiPrompts catch most of these but
-            // miss leading-of-line variants and any that the executor's
-            // stop-word check sees only after emitting them.
-            text = StripBracketedPhase(text);
+            text = StrayBracketRegex.Replace(text, string.Empty);
             return text.TrimEnd('Ċ', 'Ġ', '\n', '\r', ' ', '\t');
         }
 
-        // Remove any '[PHASE:...]' / '[Phase:...]' substring no matter where
-        // it lands. The model treats PHASE:FINAL etc. as a tag-like marker
-        // and emits it at end-of-reply (or, occasionally, mid-reply). We
-        // only ever want our own [CONTINUE]/[APPROVED] tags in user-visible
-        // text, and ApprovalTagParser already strips those.
-        private static string StripBracketedPhase(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return text;
-            int searchFrom = 0;
-            while (true)
-            {
-                int open = text.IndexOf("[PHASE", searchFrom, StringComparison.OrdinalIgnoreCase);
-                if (open < 0) break;
-                int close = text.IndexOf(']', open);
-                if (close < 0)
-                {
-                    // Unterminated — chop from the marker to end-of-string.
-                    text = text.Substring(0, open);
-                    break;
-                }
-                text = text.Remove(open, close - open + 1);
-                searchFrom = open;
-            }
-            return text;
-        }
+        // Match any `[ALL_CAPS_TOKEN]` or `[ALL_CAPS_TOKEN:anything]` that
+        // is NOT [CONTINUE] or [APPROVED]. ApprovalTagParser already strips
+        // the legitimate tags before CleanReply runs, so by the time we
+        // hit this regex the only acceptable bracketed content is in-prose
+        // flavour like [REDACTED], which is mixed-case and won't match.
+        // The negative lookahead exempts CONTINUE/APPROVED for safety in
+        // case the parser missed one. Compiled once at type init.
+        private static readonly Regex StrayBracketRegex = new Regex(
+            @"\[(?!CONTINUE\]|APPROVED\])[A-Z_][A-Z0-9_]*(?::[^\]]*)?\]",
+            RegexOptions.Compiled);
 
         private static int FirstHallucinationIndex(string text)
         {
             int best = -1;
-            string[] markers = { "\n**[Turn", "\n[Turn", "\nPHASE:", "\n<|im_start|>", "<|im_start|>" };
+            string[] markers = { "\n**[Turn", "\n[Turn", "\n<|im_start|>", "<|im_start|>" };
             foreach (var marker in markers)
             {
                 var idx = text.IndexOf(marker, StringComparison.Ordinal);
@@ -383,14 +495,36 @@ namespace MaintenanceBureauPlus
             return s.Length <= max ? s : s.Substring(0, max) + "...";
         }
 
-        // ---- Prompt assembly ----
+        // ---- Prompt assembly (stateless) ----
 
-        // First prompt of an interactive cycle. Sends the full system block
-        // (preamble + persona + approval rules + final instruction) plus the
-        // first player message. The InteractiveExecutor will tokenize and
-        // evaluate all of this, and everything except the user/assistant
-        // pair will stay in the KV cache for every subsequent turn.
-        private static string BuildCycleStartPrompt(ConversationState conv, string playerName, string playerMessage)
+        // Full reply prompt rebuilt from scratch every turn. Layout:
+        //
+        //   <|im_start|>system
+        //   {GlobalBureauPreamble}        (lore + few-shot + anti-reintro)
+        //   ACTIVE OFFICER: {persona}
+        //   {ApprovalTagRules}            ([CONTINUE]/[APPROVED] only)
+        //   INSTRUCTION FOR THIS RESPONSE:
+        //   {directive prose}             (one of the 5 directives)
+        //   Reply as the officer. ...
+        //   <|im_end|>
+        //   <|im_start|>user
+        //   {playerName}: {turn 1 player text}
+        //   <|im_end|>
+        //   <|im_start|>assistant
+        //   {turn 1 officer text}
+        //   <|im_end|>
+        //   ...
+        //   <|im_start|>user
+        //   {playerName}: {turn N player text}    <- most recent
+        //   <|im_end|>
+        //   <|im_start|>assistant
+        //   ^^ model continues from here.
+        //
+        // Renders the full conversation transcript as proper chat-template
+        // user/assistant blocks; the model sees its own prior replies as
+        // structured assistant turns (improvement 5 from the prompt list).
+        // No KV cache reuse; every turn is re-tokenized in full.
+        private static string BuildReplyPrompt(ConversationState conv, TurnDirective directive)
         {
             var personaBlock = conv.Officer != null ? conv.Officer.ToPersonaBlock() : "(no persona)";
 
@@ -401,78 +535,88 @@ namespace MaintenanceBureauPlus
             sb.Append(personaBlock);
             sb.Append("\n\n");
             sb.Append(SystemPrompts.ApprovalTagRules);
+            sb.Append("\n\nINSTRUCTION FOR THIS RESPONSE:\n");
+            sb.Append(DirectiveText(directive));
             sb.Append("\n\nReply as the officer. Keep replies at 3-5 short paragraphs. End every reply with exactly one tag from the approval rules.");
             sb.Append("\n<|im_end|>\n");
-            sb.Append("<|im_start|>user\n");
-            sb.Append(FormatUserLine(conv, playerName, playerMessage));
+
+            foreach (var entry in conv.Transcript)
+            {
+                bool isPlayer = entry.Speaker != null
+                    && entry.Speaker.StartsWith("Player ", StringComparison.Ordinal);
+                if (isPlayer)
+                {
+                    sb.Append("<|im_start|>user\n");
+                    sb.Append(ExtractPlayerName(entry.Speaker));
+                    sb.Append(": ");
+                    sb.Append(entry.Text ?? string.Empty);
+                }
+                else
+                {
+                    sb.Append("<|im_start|>assistant\n");
+                    sb.Append(entry.Text ?? string.Empty);
+                }
+                sb.Append("\n<|im_end|>\n");
+            }
+
+            sb.Append("<|im_start|>assistant\n");
+            return sb.ToString();
+        }
+
+        // Classifier prompt: small system block, full transcript so far
+        // (prior to the new message), then the new player message as the
+        // input to classify. Model is asked to emit one label.
+        private static string BuildClassifierPrompt(ConversationState conv, string playerName, string newMessage)
+        {
+            var transcriptSb = new StringBuilder();
+            if (conv.Transcript.Count == 0)
+            {
+                transcriptSb.Append("(no prior messages)");
+            }
+            else
+            {
+                foreach (var e in conv.Transcript)
+                {
+                    transcriptSb.Append(e.Speaker).Append(": ").Append(e.Text).Append('\n');
+                }
+            }
+
+            var body = SystemPrompts.ClassifierTemplate
+                .Replace("{TRANSCRIPT}", transcriptSb.ToString().TrimEnd())
+                .Replace("{NEW_MESSAGE}", (playerName ?? "Player") + ": " + (newMessage ?? string.Empty));
+
+            var sb = new StringBuilder();
+            sb.Append("<|im_start|>system\n");
+            sb.Append(body);
             sb.Append("\n<|im_end|>\n");
             sb.Append("<|im_start|>assistant\n");
             return sb.ToString();
         }
 
-        // Per-turn delta prompt for a cycle already in progress. The system
-        // block is in the KV cache, so we only send the new user message and
-        // the assistant-turn header. No transcript, no preamble, no rules.
-        private static string BuildTurnDeltaPrompt(ConversationState conv, string playerName, string playerMessage)
+        // ConversationState.AppendPlayer formats Speaker as "Player (<name>)".
+        // Strip the "Player (" / ")" wrapper so the user-block content shows
+        // just "<name>: <text>" — matches the chat-template convention the
+        // model expects.
+        private static string ExtractPlayerName(string speaker)
         {
-            var sb = new StringBuilder();
-            sb.Append("<|im_start|>user\n");
-            sb.Append(FormatUserLine(conv, playerName, playerMessage));
-            sb.Append("\n<|im_end|>\n");
-            sb.Append("<|im_start|>assistant\n");
-            return sb.ToString();
+            const string prefix = "Player (";
+            if (speaker == null) return "Player";
+            if (speaker.StartsWith(prefix, StringComparison.Ordinal) && speaker.EndsWith(")", StringComparison.Ordinal))
+                return speaker.Substring(prefix.Length, speaker.Length - prefix.Length - 1);
+            return speaker;
         }
 
-        private static string FormatUserLine(ConversationState conv, string playerName, string playerMessage)
+        private static string DirectiveText(TurnDirective d)
         {
-            // Compact PHASE directive tells the officer which tags are
-            // permitted this turn without leaking turn numbers the model would
-            // parrot back. The system prompt (SystemPrompts.ApprovalTagRules)
-            // teaches the model what each phase means and to never reference
-            // the directive by name. AntiPrompts include "\nPHASE:" as a
-            // hallucination guard, so the model can't continue the pattern
-            // into a fake next turn after its reply.
-            //
-            // The (STAY IN VOICE: ...) annotation is a per-turn voice + tic
-            // refresh. The full persona block lives in the KV cache (sent
-            // once per cycle), but a fresh single-line reminder fights model
-            // drift toward generic helpful-assistant tone after a few turns.
-            // The system prompt forbids the model from echoing or addressing
-            // anything inside parentheses.
-            var phase = PhaseFor(conv);
-            var sb = new StringBuilder();
-            sb.Append("PHASE:");
-            sb.Append(phase);
-
-            if (conv.Officer != null && (!string.IsNullOrEmpty(conv.Officer.Voice) || !string.IsNullOrEmpty(conv.Officer.Tic)))
+            switch (d)
             {
-                sb.Append("\n(STAY IN VOICE: ");
-                if (!string.IsNullOrEmpty(conv.Officer.Voice)) sb.Append(conv.Officer.Voice);
-                if (!string.IsNullOrEmpty(conv.Officer.Voice) && !string.IsNullOrEmpty(conv.Officer.Tic)) sb.Append(". ");
-                if (!string.IsNullOrEmpty(conv.Officer.Tic)) sb.Append(conv.Officer.Tic);
-                sb.Append(".)");
+                case TurnDirective.StallHard:        return SystemPrompts.DirectiveStallHard;
+                case TurnDirective.StallSoft:        return SystemPrompts.DirectiveStallSoft;
+                case TurnDirective.ExtractDetail:    return SystemPrompts.DirectiveExtractDetail;
+                case TurnDirective.MayAgree:         return SystemPrompts.DirectiveMayAgree;
+                case TurnDirective.MustAgreeClosing: return SystemPrompts.DirectiveMustAgreeClosing;
+                default:                              return SystemPrompts.DirectiveStallSoft;
             }
-
-            if (phase == "FINAL")
-            {
-                sb.Append("\n(This is your final turn on this cycle. You MUST close with [APPROVED] and an in-character reason for suddenly signing off that fits ");
-                sb.Append(conv.Officer != null && !string.IsNullOrEmpty(conv.Officer.Name)
-                    ? conv.Officer.Name
-                    : "this officer");
-                sb.Append("'s voice and backstory.)");
-            }
-            sb.Append("\n");
-            sb.Append(playerName ?? "Player");
-            sb.Append(": ");
-            sb.Append(playerMessage ?? string.Empty);
-            return sb.ToString();
-        }
-
-        private static string PhaseFor(ConversationState conv)
-        {
-            if (conv.TurnCount < conv.MinTurns) return "EARLY";
-            if (conv.TurnCount >= conv.MaxTurns) return "FINAL";
-            return "ELIGIBLE";
         }
 
         // ---- Broadcast helper (main thread) ----

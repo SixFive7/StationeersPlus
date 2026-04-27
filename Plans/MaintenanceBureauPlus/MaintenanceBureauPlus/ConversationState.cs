@@ -12,6 +12,15 @@ namespace MaintenanceBureauPlus
         public bool IsActive { get; set; }
         public bool IsAwaitingPersona { get; set; }
 
+        // True from the moment we kick off the classifier (or the cycle's
+        // opening reply) until the officer's reply has broadcast. Bridges
+        // the gap between Engine.IsBusy decrementing after the classifier
+        // call finishes and the reply call's Increment running on the next
+        // main-thread drain. ChatPatch's busy guard checks both flags so a
+        // player message arriving in that microsecond window is still routed
+        // to a busy response instead of slipping through.
+        public bool PendingTurn { get; set; }
+
         // Full per-cycle transcript. No size cap: the cycle itself is bounded
         // by MaxTurns (default 15) plus the final approval / refusal reply, so
         // the list cannot grow unbounded. Cleared on Reset() when the cycle
@@ -24,6 +33,7 @@ namespace MaintenanceBureauPlus
             TurnCount = 0;
             IsActive = false;
             IsAwaitingPersona = false;
+            PendingTurn = false;
             Transcript.Clear();
         }
 
