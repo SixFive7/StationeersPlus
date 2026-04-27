@@ -75,8 +75,15 @@
       <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UniTask">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UniTask.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
@@ -85,17 +92,22 @@
     <Compile Include="PrefabPatch.cs" />
     <Compile Include="ReflectionUtils.cs" />
     <Compile Include="ActiveSlotPersistence.cs" />
-    <Compile Include="AdvancedTabletSaveData.cs" />
-    <Compile Include="ClickCyclePatch.cs" />
+    <Compile Include="ActiveSlotSideCar.cs" />
+    <Compile Include="ActiveSlotSideCarPatches.cs" />
     <Compile Include="SensorLensesPatches.cs" />
     <Compile Include="SlotTypeIconPatch.cs" />
-    <Compile Include="SensorLensesSaveData.cs" />
     <Compile Include="SensorLensesSyncPatches.cs" />
     <Compile Include="SetActiveSensorMessage.cs" />
+    <Compile Include="SetLogicSlotFromClientMessage.cs" />
     <Compile Include="AdvancedTabletPatches.cs" />
     <Compile Include="ConfigCartridgePatches.cs" />
     <Compile Include="ConfigCartridgeSlotDisplay.cs" />
     <Compile Include="WindowOpenRefreshPatch.cs" />
+    <Compile Include="ScrollDispatchPatches.cs" />
+    <Compile Include="HelmetBeamPatches.cs" />
+    <Compile Include="HelmetBeamSideCar.cs" />
+    <Compile Include="HelmetBeamSaveLoadPatches.cs" />
+    <Compile Include="SetBeamSettingsMessage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

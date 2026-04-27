@@ -3,7 +3,7 @@ title: LogicType
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-25
+verified_at: 2026-04-27
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:664-670
   - Mods/PowerTransmitterPlus/RESEARCH.md:398-425
@@ -14,6 +14,8 @@ sources:
   - Plans/StationpediaPlus/PLAN.md:3483-3506
   - Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs:55-71
   - Mods/PowerTransmitterPlus/PowerTransmitterPlus/EnumNamePatches.cs:9-16
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.EnumCollection`2
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.EnumCollections
 related:
   - ./IC10SyntaxHighlighting.md
   - ./StationpediaPageRendering.md
@@ -313,6 +315,73 @@ From `EnumNamePatches.cs`:
 // Pattern lifted from Stationeers Logic Extended (ThunderDuck).
 ```
 
+## EnumCollection<TEnum, TInt> public API
+<!-- verified: 0.2.6228.27061 @ 2026-04-27 -->
+
+`Assets.Scripts.EnumCollection<T1, T2>` is the generic wrapper that backs every entry in the static `Assets.Scripts.EnumCollections` class (`LogicTypes`, `LogicSlotTypes`, `DeviceModes`, etc.). Verbatim public surface from the decompile of `Assets.Scripts.EnumCollection`2`:
+
+```csharp
+public class EnumCollection<T1, T2> : IEnumCollection
+    where T1 : Enum, IConvertible, new()
+    where T2 : IConvertible, IEquatable<T2>
+{
+    public T1[]  Values;
+    public T2[]  ValuesAsInts;
+    public readonly string[] Names;
+    public readonly string[] PaddedNames;
+    public readonly string   LongestName;
+    public T1 this[int index] => Values[index];
+    public int Length { get; }
+
+    public static implicit operator string[](EnumCollection<T1, T2> c);
+    public static implicit operator T2[]   (EnumCollection<T1, T2> c);
+
+    public EnumCollection(bool toProper = true);
+
+    public virtual string GetNameFromIndex(int index, bool padded = false);
+    public T1[]   GetValues();
+    public string GetName(T1 value, bool padded = false);
+    public string GetEnumTypeName();
+    public string GetNameFromValue(int value, bool padded = false);
+    public int    GetIndexFromValue(T1 value);     // throws IndexOutOfRangeException on miss
+    public int    GetIntFromIndex(int i);
+    public string PrintAll(string begin = "", string end = "");
+    public T1     Get(string name);                 // case-insensitive name -> value lookup
+}
+```
+
+Lookup directions and miss behavior:
+
+| Direction         | Method                              | Miss behavior                          |
+|---|---|---|
+| name -> enum      | `Get(string name)`                  | Returns `default(T1)` (NOT exception)  |
+| enum -> name      | `GetName(T1 value, bool padded)`    | Returns `string.Empty`                 |
+| int -> name       | `GetNameFromValue(int, bool)`       | Returns `string.Empty`                 |
+| index -> name     | `GetNameFromIndex(int, bool)`       | Throws (array bounds)                  |
+| enum -> index     | `GetIndexFromValue(T1)`             | Throws `IndexOutOfRangeException`      |
+| index -> int      | `GetIntFromIndex(int)`              | Throws (array bounds)                  |
+| index -> enum     | indexer `this[int]`                 | Throws (array bounds)                  |
+
+`Get(string)` body, verbatim:
+
+```csharp
+public T1 Get(string name)
+{
+    for (int i = 0; i < Length; i++)
+    {
+        if (Names[i].Equals(name, StringComparison.InvariantCultureIgnoreCase))
+        {
+            return Values[i];
+        }
+    }
+    return default(T1);
+}
+```
+
+Caller pitfall: `Get` returning `default(T1)` is indistinguishable from a real hit on whichever enum member maps to the zero value. For unambiguous not-found detection, scan `Names` directly with `Array.FindIndex(coll.Names, n => string.Equals(n, name, StringComparison.InvariantCultureIgnoreCase))` and check for `-1`, then index `coll.Values[i]`.
+
+The constructor populates `Values`, `ValuesAsInts`, `Names`, and `PaddedNames` from `Enum.GetValues(typeof(T1))` / `Enum.GetNames(typeof(T1))` exactly once at static class load, so custom enum values added later by `(T1)cast` are invisible to `Get` / `GetName` / `GetNameFromValue` until those arrays are resized via reflection. `Values` and `ValuesAsInts` are not `readonly`; `Names` and `PaddedNames` are `readonly` references whose array contents must be replaced via reflection (the `valuesField.SetValue(collection, newValues)` pattern in [`LogicableInitializePatch.ExtendEnumCollection`](../../Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs)).
+
 ## Why custom LogicTypes don't appear without patches
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -327,6 +396,7 @@ Given all four of those, `AddLogicTypeInfo` naturally discovers and emits native
 
 - 2026-04-20: page created from the Research migration; F0054 is the primary source per MigrationMap §5.1. Additional sources: F0040, F0219a, F0219b, F0244, F0245, F0247 (primary for "why custom LogicTypes don't appear without patches"; F0219v is a duplicate extraction that merges here), F0305, F0316.
 - 2026-04-25: added "Atmospheric gas-ratio LogicType members" section. Verbatim list of all 130+ `Ratio*` enum members (chamber + per-network variants) decompiled from `Assets/Scripts/Objects/Motherboards/LogicType.cs` at v0.2.6228.27061. Cross-references combustion-relevant gases against `Mole.Enthalpy` and `EnthalpyMultiplier` from `../GameClasses/CombustionDeepMiner.md`. Verified via `ilspycmd` against `E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll`. Confirms `RatioMethane`, `RatioHydrazine`, `RatioLiquidAlcohol`, `RatioOzone`, `RatioLiquidOzone`, `RatioLiquidHydrazine` all exist and are IC10-readable; no `RatioVolatiles` member in the current enum (Hydrogen exposed as `RatioHydrogen = 252`).
+- 2026-04-27: added "EnumCollection<TEnum, TInt> public API" section. Verbatim public surface (fields, indexer, constructor, all methods) of `Assets.Scripts.EnumCollection`2` decompiled at v0.2.6228.27061 via `ilspycmd` against `E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll`. Documents the `Get(string name)` case-insensitive name-to-value lookup (returns `default(T1)` on miss, NOT exception), the value-to-name `GetName` / `GetNameFromValue` (return `string.Empty` on miss), the indexer / `GetIndexFromValue` / `GetIntFromIndex` (throw on miss), the implicit operators to `string[]` and `T2[]`, and the constructor's one-shot `Enum.GetValues` / `Enum.GetNames` snapshot that explains why custom enum values added via `(T1)cast` are invisible until the arrays are resized via reflection. No conflicts with prior page content; section is purely additive.
 
 ## Open questions
 

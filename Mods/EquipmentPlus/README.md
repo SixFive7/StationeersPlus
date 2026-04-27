@@ -15,8 +15,23 @@ This mod builds on and replaces the work of **Serialtasted, spacebuilder2020, Er
 ### Dynamic Slot Growth: Sensor Lenses and Advanced Tablet
 Insert a sensor chip or cartridge: a new empty slot appears. Remove one: the excess empty slot disappears. You always see exactly one empty slot inviting the next item, never a grid of empty boxes.
 
-### Left Ctrl + Click to Cycle
-Holding Left Ctrl and left-clicking switches to the next loaded sensor chip (on powered lenses) or the next loaded cartridge (on a powered tablet). Ctrl is required specifically to avoid collisions with other click-based mods and plain-click behaviors.
+### Scroll-Modifier Bindings
+
+Each modifier+scroll combination targets a different piece of equipment. Plain scroll keeps its vanilla "advance hotbar / inventory selection" behavior; modifier+scroll layers on top.
+
+| Input | Behavior |
+|---|---|
+| Plain scroll | Vanilla. Advances the hotbar / inventory selection. |
+| Ctrl + scroll | **Tablet.** Cycles cartridges on the held Advanced Tablet. If no tablet is in the active hand, EquipmentPlus auto-equips one from the off-hand, toolbelt, backpack, or suit (in that order). If the active hand holds an item, it is stowed first; if no slot accepts it, EquipmentPlus uses the off-hand as a temp slot to swap. If neither path works, an in-game console message explains the abort. |
+| LeftShift + scroll | **Lens.** Cycles sensor chips on the worn `SensorLenses`. No auto-equip (lenses must already be worn). |
+| Ctrl + LeftShift + scroll | **Helmet beam.** Tightens (wheel-up) or widens (wheel-down) the worn helmet's spotlight. If the light is off, the first scroll turns it on at the last beam value. Scrolling never turns the light off. Auto-brightness scales intensity and range with angle. Configurable via `Client - Helmet Beam` settings (step, min/max angle, min/max intensity, min/max range, auto-brightness). |
+| RightShift + scroll | **Vanilla camera.** Zoom and first/third-person toggle. EquipmentPlus auto-rebinds this from the vanilla default (LeftShift) on first launch (see callout below). |
+
+For tablets and lenses, wheel-down past the first occupied slot turns the device OFF without changing the active index, and wheel-up from OFF turns it back on at the preserved index (not reset to slot 0).
+
+### Vanilla camera-zoom key auto-rebind
+
+Stationeers binds first/third-person camera zoom to `KeyMap.ThirdPersonControl`, which defaults to LeftShift. This conflicts with the LeftShift+scroll lens binding. On first launch, EquipmentPlus rebinds `ThirdPersonControl` from LeftShift to RightShift and saves the change to your settings file. **Hold the RIGHT shift, not the left, for camera zoom.** If you have already customized this binding to anything other than LeftShift, EquipmentPlus leaves it alone.
 
 ### Multiplayer-Safe Configuration Cartridge
 Scroll wheel selects a line in the Config Cartridge display. Left-click (without Ctrl):
@@ -70,7 +85,7 @@ These mods touch the same prefabs or UI paths. Disable any that are installed be
 | Scroll to select a line | Yes | Yes |
 | Copy read-only values | Yes | Yes |
 | Edit writable values | Yes (single-player only) | **Yes, fully multiplayer-compatible** |
-| Click disambiguation | None (any click triggers it) | Plain click only (Ctrl+click is reserved for cycling) |
+| Cycling input | Ctrl + click on the device | Ctrl + scroll (tablet), LeftShift + scroll (lens), no modifier needed in the cartridge UI |
 
 **The multiplayer fix:** In ImprovedConfiguration, editing a writable value from a client sets it only on that client's local copy. The server never finds out, and the change is silently overwritten by the next state sync. Equipment Plus routes all edits through the server's authoritative path, so writes from any player are applied correctly and visible to everyone.
 

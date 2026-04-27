@@ -58,8 +58,9 @@ namespace EquipmentPlus
         // Format strings: identical to the original mod's US[121], US[203], etc.
         // -----------------------------------------------------------------------
 
-        /// <summary>Slot header line: newline + yellow "Slot {0} ... {1}" block.</summary>
-        private const string SlotHeaderFmt = "\n<color=yellow>Slot {0} ... {1}</color>";
+        /// <summary>Slot header block: blank separator line + yellow "Slot {0} ... {1}" header,
+        /// matching the original Slot Configuration Cartridge spacing (\n\n prefix).</summary>
+        private const string SlotHeaderFmt = "\n\n<color=yellow>Slot {0} ... {1}</color>";
 
         /// <summary>Logic-type line: newline + "{0} ... {1}{2}{3}" where
         /// {0}=type name, {1}=color-open tag, {2}=value string, {3}="&lt;/color&gt;".</summary>
@@ -130,12 +131,14 @@ namespace EquipmentPlus
                     if (slot == null)
                         continue;
 
-                    // Header: \n<color=yellow>Slot N ... SlotDisplayName</color>
+                    // Header: \n\n<color=yellow>Slot N ... SlotDisplayName</color>
                     sb.AppendFormat(SlotHeaderFmt, slotIdx, slot.DisplayName);
-                    // The header line itself occupies line index (baseLineIndex + appendedLines).
-                    // It's a slot-header (not a logic-value line), so we don't register it as
-                    // clickable (there's nothing to read/write on the header itself).
-                    appendedLines++;
+                    // The format starts with two newlines: the first creates an empty separator
+                    // line above the slot block (matching the original Slot Configuration Cartridge
+                    // visual spacing), the second begins the header line. Both occupy their own
+                    // line indices, but neither is a clickable logic-value line, so we don't register
+                    // them. Bump appendedLines by 2 to keep subsequent logic-line indices aligned.
+                    appendedLines += 2;
 
                     // Logic types for this slot
                     for (int typeIdx = 0; typeIdx < logicSlotTypes.Length; typeIdx++)

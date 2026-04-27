@@ -7,6 +7,7 @@ using Assets.Scripts.UI;
 using Assets.Scripts.UI.CustomScrollPanel;
 using HarmonyLib;
 using JetBrains.Annotations;
+using LaunchPadBooster.Networking;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -52,7 +53,7 @@ namespace EquipmentPlus
         internal const bool ClickTrace = true;
 
         // Either control key cycles cartridges and suppresses the edit click.
-        // Uses the game's input layer (KeyManager) for parity with ClickCyclePatch
+        // Uses the game's input layer (KeyManager) for parity with ScrollDispatchPatches
         // so a remapped Ctrl or an input-focused UI state behaves identically on
         // both paths; otherwise one would fire on physical keys while the other
         // respects rebinds, and RightCtrl-cycle would double-fire the input panel.
@@ -81,6 +82,21 @@ namespace EquipmentPlus
                 return true;
             if (scrollDelta == Vector2.zero)
                 return true;
+
+            // If any modifier we care about (Ctrl, LeftShift, RightShift) is
+            // held, ScrollDispatchPatch in InventoryManager.NormalMode handles
+            // the scroll event (or it falls through to vanilla camera under
+            // RightShift). Either way, suppress the cartridge line-select so
+            // we don't double-fire. Plain scroll still selects lines normally.
+            // ALT is NOT checked here: vanilla captures ALT for its own mode
+            // toggle so it never reaches us as a scroll modifier anyway.
+            if (KeyManager.GetButton(KeyCode.LeftControl)
+                || KeyManager.GetButton(KeyCode.RightControl)
+                || KeyManager.GetButton(KeyCode.LeftShift)
+                || KeyManager.GetButton(KeyCode.RightShift))
+            {
+                return false;
+            }
 
             if (!ReflectionUtils.TryGetField<TextMeshProUGUI>(cc, "_displayTextMesh", out var textMesh))
                 return true;
@@ -260,13 +276,26 @@ namespace EquipmentPlus
                 return;
 
             string typeName = parts[0].Trim();
-            if (!Enum.TryParse(typeName, out LogicType logicType))
+
+            // Look up the LogicType by name in EnumCollections.LogicTypes (the runtime
+            // registry the cartridge display itself reads from). Enum.TryParse only sees
+            // the compile-time vanilla members, so it bails on mod-added types like
+            // PowerTransmitterPlus's MicrowaveAutoAimTarget that are runtime-cast from
+            // ushort. Array.FindIndex returns -1 on miss; EnumCollection<,>.Get(string)
+            // would return default(T1), which is indistinguishable from a real hit on the
+            // zero-valued enum member. See Research/GameSystems/LogicType.md "EnumCollection
+            // <TEnum, TInt> public API" for the lookup-direction table.
+            var logicNames = EnumCollections.LogicTypes.Names;
+            int logicIdx = Array.FindIndex(logicNames, n =>
+                string.Equals(n, typeName, StringComparison.InvariantCultureIgnoreCase));
+            if (logicIdx < 0)
             {
                 if (ConfigCartridgeState.ClickTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EquipmentPlus.click] bail: '{typeName}' is not a LogicType (likely header/ReferenceId)");
+                        $"[EquipmentPlus.click] bail: '{typeName}' is not a registered LogicType (likely header/ReferenceId-style line)");
                 return;
             }
+            LogicType logicType = EnumCollections.LogicTypes.Values[logicIdx];
 
             double currentValue = device.GetLogicValue(logicType);
             string currentValueStr = currentValue.ToString();
@@ -341,12 +370,12 @@ namespace EquipmentPlus
 
         /// <summary>
         /// Multiplayer-safe logic slot value write.
-        ///
-        /// Vanilla has SetLogicFromClient for LogicType writes, but NO equivalent network
-        /// message exists for (LogicSlotType, slotIndex) writes.  Therefore:
-        ///   - Server: call Device.SetLogicValue(LogicSlotType, slotId, value) directly.
-        ///   - Client: log a warning and skip.  This is a known limitation; a proper
-        ///             fix would require a custom NetworkMessage or a mod-specific packet.
+        /// On the server: call Device.SetLogicValue directly (we are authoritative).
+        /// On a client: send our custom SetLogicSlotFromClientMessage to the server,
+        /// which validates and applies. Broadcast is implicit: SetLogicValue routes
+        /// through OnServer.Interact on the slot occupant, vanilla state-sync
+        /// replicates the occupant's interactable state, and the cartridge re-derives
+        /// the slot value on next read.
         /// </summary>
         private static void WriteLogicSlotValue(
             Assets.Scripts.Objects.Pipes.Device device,
@@ -358,11 +387,13 @@ namespace EquipmentPlus
             }
             else if (NetworkManager.IsClient)
             {
-                EquipmentPlusPlugin.Log.LogWarning(
-                    $"[EquipmentPlus] Cannot write slot logic value " +
-                    $"(slot {slotIndex} / {logicSlotType}) from a client: " +
-                    "no SetLogicSlotFromClient message exists in vanilla. " +
-                    "Connect to a listen server or host the game to use slot writes.");
+                new SetLogicSlotFromClientMessage
+                {
+                    DeviceId = device.ReferenceId,
+                    SlotIndex = slotIndex,
+                    LogicSlotTypeInt = (int)logicSlotType,
+                    Value = value,
+                }.SendToHost();
             }
         }
     }

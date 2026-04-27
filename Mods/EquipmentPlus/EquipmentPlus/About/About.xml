@@ -23,12 +23,26 @@ Supported items:
 [list]
 [*]Dynamic slot growth: insert a chip/cartridge, a new empty slot appears
 [*]Dynamic slot shrink: remove items, excess empty slots disappear
-[*]Left Ctrl + click to cycle through loaded chips/cartridges
 [*]Configuration Cartridge enhancements: scroll to select a line, left-click to copy read-only values or edit writable values (multiplayer-safe)
 [*]Logic slot display: appends per-slot logic values to the Config Cartridge screen (writable slots in grey, read-only in green), absorbing Slot Configuration Cartridge (Workshop 3578912665)
 [*]No config needed, it just works
 [*]Full multiplayer support
 [/list]
+
+[h2]Scroll-Modifier Bindings[/h2]
+Modifier+scroll layers equipment shortcuts on top of vanilla scroll behavior.
+[list]
+[*][b]Plain scroll[/b]: vanilla. Advances the hotbar / inventory selection.
+[*][b]Ctrl + scroll[/b]: cycles cartridges on the held Advanced Tablet. Auto-equips a tablet from off-hand, toolbelt, backpack, or suit if none is in the active hand.
+[*][b]LeftShift + scroll[/b]: cycles sensor chips on the worn Sensor Lenses (no auto-equip).
+[*][b]Ctrl + LeftShift + scroll[/b]: tightens (wheel-up) or widens (wheel-down) the worn helmet's spotlight. Configurable under [b]Client - Helmet Beam[/b] settings.
+[*][b]RightShift + scroll[/b]: vanilla camera zoom + first/third-person toggle. Auto-rebound from LeftShift (see below).
+[/list]
+
+For tablets and lenses, wheel-down past the first occupied slot turns the device OFF without losing the active index, and wheel-up from OFF restores the last selection.
+
+[h2]Camera-zoom key auto-rebind[/h2]
+Stationeers binds first/third-person camera zoom to LeftShift by default, which conflicts with the LeftShift+scroll lens binding. On first launch, EquipmentPlus rebinds the camera-zoom key to RightShift and saves the change to your settings file. [b]Hold the RIGHT shift, not the left, for camera zoom.[/b] If you have already customized this binding to anything other than LeftShift, EquipmentPlus leaves it alone.
 
 [h2]Compatibility[/h2]
 
@@ -55,20 +69,24 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]Credits[/h2]
 Inspired by [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3134483503]Better Advanced Tablet[/url] by Serialtasted and spacebuilder2020 and [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3651839114]ImprovedConfiguration[/url] by Doggo.
 
-[url=https://github.com/SixFive7/StationeersPlus/tree/master/Plans/EquipmentPlus]Source Code on GitHub[/url]
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/EquipmentPlus]Source Code on GitHub[/url]
 
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v1.0.0: Initial release
 - Dynamic multi-slot support for Sensor Lenses and the Advanced Tablet (slots grow as you fill them, shrink as you empty them; exactly one empty slot visible at all times)
-- Left Ctrl + left-click cycles loaded chips/cartridges on powered lenses/tablets
-- Multiplayer-safe Configuration Cartridge editing (scroll-select, click to copy read-only or edit writable values, routed through the server via vanilla SetLogicFromClient)
+- Multiplayer-safe Configuration Cartridge editing (scroll to select a line, left-click to copy read-only values or edit writable values; both LogicType and per-slot LogicSlotType writes work from any client via vanilla SetLogicFromClient and a custom SetLogicSlotFromClient message)
 - Built-in logic slot display on the Config Cartridge screen (writable in grey, read-only in green), absorbing Slot Configuration Cartridge
-- Active sensor chip persists across save/load (custom SensorLensesSaveData registered via XmlSaveLoad.AddExtraTypes) and syncs across peers in multiplayer (custom NetworkUpdateFlag 0x4000 + SerializeOnJoin/DeserializeOnJoin + client SetActiveSensorMessage)
-- Startup conflict detection for Better Advanced Tablet, ImprovedConfiguration, and Slot Configuration Cartridge; the mod refuses to load if any of those are enabled and logs an ongoing warning
+- Scroll-modifier equipment shortcuts: Ctrl + scroll cycles tablet cartridges (auto-equips a tablet from off-hand, toolbelt, backpack, or suit when the active hand is empty); LeftShift + scroll cycles worn sensor chips; Ctrl + LeftShift + scroll tightens/widens the worn helmet's spotlight (auto-brightness scales intensity and range; configurable via Client - Helmet Beam settings)
+- Vanilla camera zoom auto-rebound from LeftShift to RightShift on first launch to free LeftShift for the lens cycle binding (custom bindings are respected; only the LeftShift default is replaced). Hold the RIGHT shift for camera zoom.
+- Active sensor chip and active tablet cartridge persist across save/load and sync across peers in multiplayer
+- Per-character helmet beam preferences persist across save/load (each player's spot angle, intensity, and range survive a reload; on join, the host pushes the current beam map to the connecting client)
+- Save persistence uses side-car files inside the save ZIP (no xsi:type extension to world.xml), so uninstalling EquipmentPlus never breaks an existing save
+- Full multiplayer support; matching mod versions enforced during the connection handshake
+- Startup conflict detection for Better Advanced Tablet, ImprovedConfiguration, Slot Configuration Cartridge, and Better Headlamp; the mod refuses to load if any of those are enabled and logs an ongoing warning
   </ChangeLog>
-  <WorkshopHandle></WorkshopHandle>
+  <WorkshopHandle>0</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>
@@ -86,8 +104,12 @@ Always exactly one empty slot visible. No clutter.
 <b>Supported:</b>
 - Sensor Lenses (all sensor chips)
 - Advanced Tablet (all cartridges)
-<b>Cycling:</b> Hold Left Ctrl and left-click to cycle chips/cartridges.
-<b>Config Cartridge:</b> Scroll to select a line, left-click (no Ctrl) to copy read-only values or edit writable values. Works in multiplayer.
+<b>Scroll modifiers:</b>
+- Ctrl + scroll: cycle tablet cartridges (auto-equips a tablet from your inventory)
+- LeftShift + scroll: cycle worn lens chips
+- Ctrl + LeftShift + scroll: tighten/widen helmet spotlight
+- RightShift + scroll: vanilla camera zoom (auto-rebound from LeftShift on first launch; hold the RIGHT shift)
+<b>Config Cartridge:</b> Scroll to select a line, left-click to copy read-only values or edit writable values. Works in multiplayer.
 Logic slot values are shown below the logic values (grey = writable, green = read-only). Scroll and click to read or edit slot values too.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players must have this mod installed.
 </line-height>

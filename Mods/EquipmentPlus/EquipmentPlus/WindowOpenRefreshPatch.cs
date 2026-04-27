@@ -50,6 +50,18 @@ namespace EquipmentPlus
 
             DynamicSlots.RefreshSlotsNoRebuild(parent, activeType);
             _handleOccupantChange?.Invoke(__instance, null);
+
+            // HandleOccupantChange asymmetry: ClearSlots/ClearInteractions
+            // call Deregister (which removes buttons from
+            // InventoryWindowManager._visibleSlots, the plain-scroll cycle
+            // target), but the rebuild only calls Register (adds to
+            // AllButtons, not _visibleSlots). After our refresh the new
+            // SlotDisplayButtons are orphaned from the plain-scroll cycle
+            // until SetVisible(true) is invoked again. Re-register here so
+            // a player can plain-scroll into the open tablet/lens window's
+            // contents. See Research/GameSystems/ScrollInputHandling.md
+            // "HandleOccupantChange teardown semantics".
+            InventoryWindowManager.Instance?.RegisterVisibleSlots(__instance);
         }
     }
 }
