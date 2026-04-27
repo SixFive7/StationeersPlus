@@ -183,6 +183,8 @@ Three workflow rules govern the boundary between mod work and the central `Resea
 
 All scratch, temp, prototype, and throwaway files written during a work session live under `.work/` at the monorepo root. The directory is gitignored (see the `.work/` entry in `.gitignore`) so nothing inside is committed. Clustering scratch in one place keeps the repo root tidy, prevents stray artifacts from leaking into commits, and gives a single place to clean out at the end of a session.
 
+**This rule supersedes any user-global temporary-directory convention when working inside this repository.** Other instructions (for example, a personal `~/.claude/CLAUDE.md` that names a different scratch location such as a Downloads folder) do not apply inside this repo's working tree. Use `.work/` here, full stop. The user-global rule applies only when working outside this repository.
+
 Required practice:
 
 - Create `.work/` if it does not exist (`mkdir -p .work/`). It is not tracked, so a fresh clone will not have it.
@@ -192,6 +194,32 @@ Required practice:
 - Clean up `.work/` at the end of a session, or at least at the end of a coherent task. The directory should not become a graveyard of stale scratch from months ago.
 
 The existing `*.tmp`, `*.bak`, `*.orig` patterns in `.gitignore` continue to catch stray throwaway files anywhere in the tree as a safety net, but `.work/` is the intended home, not a fallback. If you find yourself reaching for `*.tmp` at the repo root, route it through `.work/` instead.
+
+### Decompilation artifacts: .work/decomp/<game-version>/
+
+Any `.cs` file produced by decompiling a Stationeers DLL or any other binary lives at exactly:
+
+`.work/decomp/<game-version>/<source-assembly-name>.decompiled.cs`
+
+Three rules apply, all firm:
+
+1. **Path layout**: the first segment after `decomp/` is the game version string at the time of decompilation (for example, `0.2.5095.21641`, sourced from `version.txt` in the Stationeers install). The next segment is the file name. Encoding the version in the path makes staleness obvious: when the game updates, the old folder is visibly out of date and an agent reading from it knows to re-decompile rather than treat the contents as current.
+2. **Suffix**: the file MUST end in `.decompiled.cs`. The `.decompiled.` infix distinguishes derived artifacts from authored source and lets the research-curation hook (`.claude/hooks/research-hook-decompile.ps1`) detect decompiled-content reads anywhere in the tree as a safety net. A bare `.cs` extension is not acceptable for decompiled output.
+3. **One version at a time**: when a session detects the game has updated, delete the old `.work/decomp/<old-version>/` folder before producing new decompiles. Do not let multiple version folders accumulate. Past decompiles can always be regenerated from the new DLLs.
+
+Examples (correct):
+
+- `.work/decomp/0.2.5095.21641/Assembly-CSharp.decompiled.cs`
+- `.work/decomp/0.2.5095.21641/UnityEngine.UI.decompiled.cs`
+
+Examples (forbidden):
+
+- `C:\Users\jori\Downloads\tmp-dedserv\decomp\Assembly-CSharp.cs` (wrong location, missing version, missing suffix)
+- `.work/decomp/Assembly-CSharp.decompiled.cs` (missing version subfolder)
+- `.work/decomp/0.2.5095.21641/Assembly-CSharp.cs` (missing `.decompiled.` infix)
+- `Mods/SomeMod/Assembly-CSharp.decompiled.cs` (outside `.work/decomp/`)
+
+The decompile-content curation hook fires on Read, Grep, and Glob against any file under `.work/decomp/` (canonical-path matcher) and against any file ending in `.decompiled.cs` anywhere in the tree (suffix-safety matcher). It also fires on Bash commands that invoke a decompiler (`ilspycmd`, `ICSharpCode.Decompiler`). All three matchers inject the same Rule 2 reminder pointing at `Research/WORKFLOW.md`. Reading derived `.cs` content from anywhere else (a Downloads folder, an ad-hoc workspace, any path outside `.work/decomp/`) bypasses curation and is forbidden.
 
 ## Style: write like a human, not like an AI was here
 

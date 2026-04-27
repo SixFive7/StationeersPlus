@@ -19,6 +19,51 @@
             "type": "command",
             "if": "Glob(*\\rocketstation_Data\\Managed\\\\\\\\*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\\\.work\\\\decomp\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Grep(*\\\\.work\\\\decomp\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Glob(*\\\\.work\\\\decomp\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*.decompiled.cs)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Grep(*.decompiled.cs)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Glob(*.decompiled.cs)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(*ilspycmd*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*ICSharpCode.Decompiler*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           }
         ]
       },
