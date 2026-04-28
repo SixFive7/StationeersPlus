@@ -283,9 +283,41 @@ These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Th
 
 - 2026-04-28: page created from a fresh decompile of `Assembly-CSharp.dll` and the four StationeersLaunchPad-suite DLLs at game version 0.2.6228.27061 (decompile output at `.work/decomp/0.2.6228.27061/*.decompiled.cs`). The Export Mod Package code, `LocalModSource.ListMods`, `ModList.ApplyConfig`, `WorkshopMenu.ConfigPath`, `ServerPlatform.PlatformInitLoadState`, and the SLP server-zip contents (downloaded from `https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/v0.3.1/StationeersLaunchPad-server-v0.3.1.zip`) are all directly cited above with line numbers and sha256 hashes. Failure mode "verbatim modconfig.xml copy yields zero mods loaded" was observed end-to-end on a running dedicated server at this game version.
 - 2026-04-28: corrected the local-mods-folder location finding. Initial decompile-side reading said `<DefaultPath>/mods/`; runtime probe at game version 0.2.6228.27061 with `-settings SavePath <DataDir>` produced `enabled mod not found at <DataDir>/mods/<modname>` errors, proving `WorkshopUtils.GetLocalDirInfo(WorkshopType.Mod)` resolves to `<SavePath>/mods/` (which honours the SavePath override), not `<DefaultPath>/mods/`. Procedure section updated; auto-add behaviour subsection added based on the same end-to-end test (56 mods loaded, Luna save deserialized successfully, RakNet hosted on 27016).
+- 2026-04-28: resolved both prior open questions. (1) `ApplyConfig` primary-loop matching: a clean run with `data/mods/` wiped and a fresh `-SyncMods` produced 0 "new mod added" and 0 "enabled mod not found" log lines, proving the primary loop does match relative-path entries cleanly; the earlier 56 auto-adds were a state-corruption artefact from interleaved debug steps. (2) `RG.ImGui.dll`: the SLP source's ImGui calls are all gated on `!Platform.IsServer` (via `EssentialPatches.SplashDraw`) and the lazy-JIT model means missing ImGui types do not block server-side mod loading; an earlier test confirmed SLP's full stage pipeline ran without `RG.ImGui.dll` present. Both findings curated into dedicated H2 sections above.
 
-## Open questions
+## ApplyConfig matching: clean state matches relative paths cleanly
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
-- Why `ApplyConfig`'s primary loop fails to match the modconfig entries we write (forcing every mod through the auto-add path) is unconfirmed. Suspect path normalization difference between `Path.Combine(<localDir>, relativeName)` and `LocalModDefinition.DirectoryPath` (e.g. trailing-slash, casing, forward-vs-back-slash). The end-to-end behaviour is correct because auto-add picks them up; worth confirming what makes the primary loop match and adopting that format if it matters for load-order or disable semantics.
-- Whether `RG.ImGui.dll` is strictly required for SLP's server-side mod loader to function (versus only being required for the SLP debug console UI) was not isolated; we ship it because the official server zip ships it.
+Resolution of the prior open question. Empirical test on a clean server install (data/mods/ wiped, fresh `-SyncMods`, fresh `-Start -New Lunar`) at game version 0.2.6228.27061 produced:
+
+```
+'enabled mod not found' count: 0
+'new mod added' count:         0
+'Mod has empty path' count:    0
+'Invalid path in mod config' count: 0
+```
+
+Every modconfig entry matched in `ApplyConfig`'s primary loop (decompile lines 13441-13478). No auto-add fallback fired. NormalizePath behaviour (`path?.Replace("\\", "/").Trim().ToLowerInvariant()` at line 13709) on both sides is consistent. The primary-loop comparison succeeds when:
+
+- `Path.IsPathRooted` returns false on the relative `<Path Value>`, so it gets prefixed with `<localDir>` (= `<SavePath>/mods/`);
+- the resulting path normalizes identically to the discovered mod's `LocalModDefinition.DirectoryPath` (set from `<modDir>5__11.FullName` in `LocalModSource.ListMods`).
+
+The earlier "56 new mod added at <abs-path>" observation that prompted the open question was an artefact of an interleaved debug state: mods had been physically moved between `install/mods/` and `data/mods/` mid-debug, modconfig.xml had been rewritten by SLP's `SaveConfig` after a previously-failed-load run (changing relative paths to absolute paths pointing at the old install/mods/ location, then later not aligning with the new data/mods/ location), and the launcher's `-SyncMods` had run at least once with the stale `install/mods/` target. Once `data/mods/` was wiped and `-SyncMods` re-ran cleanly, the primary loop matched.
+
+Practical consequence: the launcher's `-SyncMods` writes a working modconfig.xml. No path-format change is required. The auto-add fallback exists to gracefully handle drop-in mods that aren't listed in modconfig, but in normal operation it is not relied on.
+
+## RG.ImGui.dll is not required on the dedicated server
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+Resolution of the prior open question. The SLP-suite DLL `RG.ImGui.dll` ships with the StationeersLaunchPad server-zip release but is not present in client installs. We add it via `-Bootstrap` to match the official server-zip layout. The dedicated server's mod-loading pipeline does NOT depend on it.
+
+Evidence:
+
+- Source-side: every `using ImGuiNET` / `ImGui.*` / `ImGuiHelper.Draw` call in `StationeersLaunchPad.decompiled.cs` is reachable only from UI draw paths. The two relevant sites:
+  - `EssentialPatches.SplashDraw` (line 3548) gates `LaunchPadConfig.Draw()` on `if (!Platform.IsServer && !GameStarted)`. On a server, `Platform.IsServer == true`, so the guarded `LaunchPadConfig.Draw()` (which is the entry point for ImGui rendering) is never invoked.
+  - The Mod Configuration / LaunchPad Configuration draw functions (lines 7536, 7855, 7876, 9745, 10034) are only called from `LaunchPadConfig.Draw()`'s subtree.
+- The `LaunchPadConfig.Run()` async pipeline (`StageInitializing` -> `StageUpdating` -> `StageSearching` -> `StageConfiguring` -> `StageLoading` -> `StageFinal` -> `StartGame`, lines 3190-3213) reaches none of those draw paths.
+- Lazy JIT means a method that is never called on the server doesn't have its referenced types resolved. Even though SLP's compiled assembly imports `ImGuiNET`, missing `RG.ImGui.dll` does not produce a type-load exception until a method that mentions ImGui types is actually invoked.
+- Empirical: in the first test pass (before we overlaid `RG.ImGui.dll`), SLP's full stage pipeline ran successfully. The server log showed every `[Global]:` stage transition through `Took 0:00.005 to load mods.` (zero mods because the local mods folder was empty at that point), with no JIT or assembly-resolve errors.
+
+Practical consequence: `RG.ImGui.dll` is the safe default to ship (the official server zip does, and a future SLP version might invoke ImGui from a non-UI path), but its absence does not block mod loading on a server. If a server-zip download fails during `-Bootstrap`, the server still loads mods; a warning rather than an error is appropriate.
