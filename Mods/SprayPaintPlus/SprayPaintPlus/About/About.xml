@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.7.0</Version>
+  <Version>1.7.1</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod. See the Credits section below for attribution to the original mods this one builds on.
@@ -128,6 +128,13 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.7.1: Fix wall flood painting across visual wall types
+- FIX: Painting a wall now stays within the same visual wall type. Wall, Wall Flat, Wall Arched, Wall Iron, Wall Padded, etc. each flood as their own group. Previously they shared one C# class, so a Wall Flat stroke also repainted any Wall, Wall Arched, etc. bounding the same room.
+- Floor visual variants get the same fix (one floor type no longer spills onto another in the same room).
+- Large structures (frames, girders, etc.) keep the old behavior: visual variants still flood together, which is usually what is wanted on a connected build.
+- Multiplayer-safe; no protocol or save-format changes.
+- REQUIRES: All players on a server must run 1.7.1 (matching-version handshake)
+
 v1.7.0: Right-click color eyedropper on the spray can
 - NEW: Right-click any paintable object with a spray can in hand to copy that object's color onto the can. Left-click the next item to match.
 - NEW: Ctrl+right-click picks the as-built color the target would have coming out of its kit / build flow, independent of any later repaint. Useful when a structure has been repainted and you want to restore the original kit color.
@@ -183,20 +190,6 @@ v1.3.0: Paint whole robotic arm rail assemblies
 - Shift still restricts to the single targeted piece; Ctrl still produces a checkered pattern
 - REQUIRES: All players on a server must run 1.3.0 (matching-version handshake)
 
-v1.2.5: Repoint Reporting Issues and Source Code URLs at the StationeersPlus monorepo
-- The Reporting Issues link in the About description now points at github.com/SixFive7/StationeersPlus/issues
-- The Source Code link now points at github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus
-- No gameplay changes
-- REQUIRES: All players on a server must run 1.2.5 (matching-version handshake)
-
-v1.2.4: Patch release
-- REQUIRES: All players on a server must run 1.2.4 (matching-version handshake)
-
-v1.2.3: Refreshed Steam Workshop preview art
-- Replaced the preview and thumbnail images with a new 16:9 key art that showcases the mod's features (color cycling, infinite paint, network painting, Shift/Ctrl modifiers, multiplayer)
-- No gameplay changes
-- REQUIRES: All players on a server must run 1.2.3 (matching-version handshake)
-
 v1.2.2: Infinite spray fix for single-player
 - FIX: Infinite spray paint now works in solo play. The server-only guard was also catching single-player (which the game reports as neither server nor client), so the infinite/suppress logic was silently skipped outside multiplayer.
 - REQUIRES: All players on a server must run 1.2.2 (matching-version handshake)
@@ -211,7 +204,7 @@ v1.2.0: Paint whole rooms and whole frame grids
 - NEW: Server toggles "Network Paint Walls" and "Network Paint Large Structures" (both default on)
 - Shift still restricts to the single targeted item; Ctrl still produces a checkered pattern
 
-(Older versions v1.0.0 through v1.1.1 trimmed to stay within Workshop's 8000-character ChangeLog cap; see the git tag history at github.com/SixFive7/StationeersPlus for the full log.)
+(Older versions v1.0.0 through v1.1.1 and patch releases v1.2.3 through v1.2.5 trimmed to stay within Workshop's 8000-character ChangeLog cap; see the git tag history at github.com/SixFive7/StationeersPlus for the full log.)
   </ChangeLog>
   <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
