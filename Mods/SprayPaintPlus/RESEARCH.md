@@ -80,8 +80,8 @@ Core network/room/grid paint logic. Only runs on the server (or in single-player
 2. **Cables**: Floods `CableNetwork.CableList`.
 3. **Chutes**: Floods `ChuteNetwork.StructureList`.
 4. **Rails**: Dispatches off `INetworkedRoboticArm` (the interface that exposes `RoboticArmNetwork`) and enumerates `RoboticArmNetwork.RailList`. One traversal covers every member of the assembly: rail pieces, junctions, bypass, and docks. No grid walk needed; the network object is maintained server-side and rebuilt on topology change.
-5. **Walls**: Floods by `Room` membership. Scans `room.Grids` plus one orthogonal-neighbor expansion layer (walls sit on room boundaries, not inside). Filters to exact type match and same `GetRoom()` result.
-6. **Large structures**: BFS flood-fill on the world grid using 6-neighbor (cardinal) adjacency. `Cell.NeighborCells` returns all 26 neighbors (including diagonals); `IsOrthogonalNeighbor` filters to axis-aligned only by checking that exactly one axis of the `Grid3` difference is nonzero.
+5. **Walls**: Floods by `Room` membership. Scans `room.Grids` plus one orthogonal-neighbor expansion layer (walls sit on room boundaries, not inside). Filters by `PrefabHash` equality (so visual wall variants like Wall, Wall Flat, Wall Arched stay separate; same logic separates Floor visual variants since `Floor : Wall` flows through this branch) and same `GetRoom()` result.
+6. **Large structures**: BFS flood-fill on the world grid using 6-neighbor (cardinal) adjacency. `Cell.NeighborCells` returns all 26 neighbors (including diagonals); `IsOrthogonalNeighbor` filters to axis-aligned only by checking that exactly one axis of the `Grid3` difference is nonzero. Filters by `GetType()` equality, not `PrefabHash`, so visual variants of `Frame` (frames, web frames, girders, etc.) flood together as one group.
 
 **Wall branch must precede Large Structure** because `Wall` derives from `LargeStructure`. A wall with walls-painting disabled returns early and does not fall through to the grid flood.
 

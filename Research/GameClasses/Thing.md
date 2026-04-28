@@ -3,7 +3,7 @@ title: Thing
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-22
+verified_at: 2026-04-28
 sources:
   - Plans/RepairPrototype/plan.md:373-383
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing
@@ -208,12 +208,35 @@ The feature wants the "as it rolls out of the printer" color, which for a placed
 
 Feasibility verdict: **100% faithful recovery is possible for any vanilla kit-built Structure** via `ElectronicReader.GetAllConstructors`, because the registration is prefab-deterministic at load time. The only lossy case is a Structure placed by a non-kit path (vanilla code has no such placements; modded code could), where the helper falls back to `target.PaintableMaterial`. In that fallback case the feature is "as faithful as possible given no kit metadata exists."
 
+## PrefabName and PrefabHash visual-variant identity
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+`Thing` carries two fields under `[Header("Thing")]` that identify the source prefab of every spawned instance:
+
+```csharp
+[Header("Thing")]
+[ReadOnly]
+public string PrefabName;
+
+[ReadOnly]
+public int PrefabHash;
+```
+
+`PrefabHash` is the canonical per-prefab integer identity. Every Unity prefab variant has its own value: `StructureWall`, `StructureWallFlat`, `StructureWallArched`, `StructureWallIron`, `StructureWallPadded`, etc. all map to distinct hashes even though they share the same C# class (`Wall`). Same for the `Frame` family (open frame, web frame, girder), the `Floor` family (visual floor variants), and every other class with multiple visual prefabs.
+
+`PrefabName` is the matching string identifier (also the value passed to `Prefab.Find<T>(name)`). It is a one-to-one alias of `PrefabHash` via `Animator.StringToHash(name)` at registration time; reads of either are equivalent for identity comparison, but `PrefabHash` is cheaper (int compare vs string compare).
+
+Implication for type-keyed flood-fill or selection code: filtering candidates by `s.GetType() == origin.GetType()` collapses every visual variant of a given C# class into one bucket. To distinguish visual variants (e.g. paint only Flat Walls when sprayed on a Flat Wall, leaving Arched Walls untouched), use `s.PrefabHash == origin.PrefabHash`. The reverse direction also holds: when code intends to treat all visual variants of a class as one group, the type filter is correct and the prefab-hash filter would be too narrow.
+
+`PrefabHash` is set during prefab registration and never reassigned at runtime; it is identical on the live instance and on the source prefab asset (Unity prefab instantiation copies the serialized field). It is server-authoritative in the sense that every connected peer has the same value for the same Thing (the value is part of the prefab itself, not part of any networked state).
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-22 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0223. No conflicts.
 - 2026-04-22: added "CustomColor field and IsPaintable gate" section. Additive only; no existing content changed. Sources: decompile of `Assets.Scripts.Objects.Thing` fields at line ~360 (`PaintableMaterial`, `CustomColor`), `IsPaintable` at line ~1772, `SetCustomColor(int, bool)` at line ~5265, save round-trip at line ~4667 / ~4692, all in game version 0.2.6228.27061.
 - 2026-04-22: added "Initial CustomColor by spawn path" and "Printer-default color lookup" sections. Additive; no existing content changed. Sources: `Thing.Awake` lines 3619-3748 (CustomColor initializer at 3745-3748), `Thing.Create<T>` line ~2320, `GameManager.GetColorSwatch(Material)` line 539-554, `GameManager.GetColorIndex(Material)` line 467, `Util.Commands.ThingCommand.Execute` `"spawn"` case, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu.SpawnDynamicThing` line 196, `Assets.Scripts.Inventory.InventoryManager.SpawnDynamicThing` line 937-952, `OnServer.SpawnDynamicThingMaxStack` line 675-735, `Assets.Scripts.Objects.Electrical.SimpleFabricatorBase.SpawnCreatedItems` line 894-908, `Assets.Scripts.Objects.Constructor.Construct` / `SpawnConstruct`, `Assets.Scripts.Objects.MultiConstructor.Construct`, `Assets.Scripts.Objects.Items.DynamicThingConstructor.OnUseItem`, `Assets.Scripts.Objects.Structure.SetStructureData` line 2239-2247. All in game version 0.2.6228.27061. No conflict with existing content.
+- 2026-04-28: added "PrefabName and PrefabHash visual-variant identity" section after a SprayPaintPlus bug report ("wall painting spills across visual wall variants"). Additive; no existing content contradicted. Sources: `Assets.Scripts.Objects.Thing` fields at decompile line 297860-297865 (`[Header("Thing")] [ReadOnly] public string PrefabName; [ReadOnly] public int PrefabHash;`), in game version 0.2.6228.27061.
 - 2026-04-22: refined "Initial CustomColor by spawn path" and rewrote "Printer-default color lookup" after user reported a yellow-kit-vs-orange-structure color asymmetry on a placed Ladder. Prior opening sentence "console/creative/fabricator/constructor all end at the same default" was misleading: it was true that Awake sets a default, but omitted that the Constructor path always re-overwrites that default with the KIT's color (not the target Structure's), and it failed to note that no vanilla path lets a raw Structure reach the world without going through a kit. Additions: (a) new subsection "Kit / Structure color asymmetry" explaining the two PaintableMaterial slots on a built structure, (b) new subsection "Per-spawn-path behavior" with the Authoring Tool / placement-click path (`OnServer.UseItemPrimaryAuthoring` line 948-956 substitutes `Prefab.Find<Constructor>(spawnPrefab.SpawnId)` for the held `AuthoringTool`), (c) documentation of the `_constructKitLookup` reverse-lookup registered in `Prefab.OnLoad` line 244-247 and read via `ElectronicReader.GetAllConstructors(Thing)` line 642-646, (d) rewrote `PrinterDefaultColorIndex` into a kit-aware `AsBuiltColorIndex` helper. No verified claim was removed — the `Constructor` bullet at original line 120 already carried the `instance.CustomColor` detail correctly; this pass promotes that detail to the top of the section and adds the reverse-lookup primitive. No fresh validator required: refinement/addition, not contradiction of previously-verified claims. Sources additionally consulted: `Constructor.Construct` line 23-34, `MultiConstructor.Construct` line 47-61, `CreateStructureInstance(Structure, Grid3, Quaternion, ulong, int = -1)` ctor line 35-43, `Structure.SetStructureData` line 2239-2248, `OnServer.UseItemPrimary` / `UseItemPrimaryAuthoring` line 938-956, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu` line 58-64 + 166-200, `InventoryManager.SpawnDynamicThing(ICreativeSpawnable)` line 937-947, `Prefab.OnLoad` kit-registration line 244-247, `ElectronicReader._constructKitLookup` line 89 and `GetAllConstructors` line 642-646, `ElectronicReader.AddToLookup(IConstructionKit)` line 529-539 and 599-614, `DynamicThingConstructor.OnUseItem` at game-DLL line ~323731. All in game version 0.2.6228.27061.
 
 ## Open questions

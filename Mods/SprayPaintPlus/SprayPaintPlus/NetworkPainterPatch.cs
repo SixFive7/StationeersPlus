@@ -231,7 +231,12 @@ namespace SprayPaintPlus
             if (targetRoom == null)
                 return;
 
-            Type targetType = originalWall.GetType();
+            // Filter by PrefabHash, not GetType(). Visual wall variants
+            // (Wall vs Wall Flat vs Wall Arched vs Wall Iron, etc.) all share
+            // the same Wall C# class, so a GetType() filter would treat them
+            // as equivalent and flood across visual variants. PrefabHash is
+            // per-prefab and keeps the variants separate.
+            int targetPrefabHash = originalWall.PrefabHash;
 
             // The room's interior cells are in room.Grids; walls sit on the
             // boundary, so expand one layer to cover both sides.
@@ -255,7 +260,7 @@ namespace SprayPaintPlus
             {
                 foreach (Structure s in cell.AllStructures)
                 {
-                    if (s == null || s.GetType() != targetType)
+                    if (s == null || s.PrefabHash != targetPrefabHash)
                         continue;
                     if (ReferenceEquals(s, originalWall))
                         continue;
