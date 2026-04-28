@@ -1,13 +1,37 @@
 ﻿# research-hook-decompile.ps1
-# Hook A: fires after Read | Grep | Glob against (a) any file under
-# rocketstation_Data/Managed/ (direct DLL reads), (b) any file under
-# .work/decomp/ (canonical decompile output location), (c) any file ending
-# in *.decompiled.cs (suffix safety net for derived artifacts anywhere in
-# the tree), and after Bash commands invoking a decompiler (ilspycmd,
-# ICSharpCode.Decompiler). Reminds the agent about Rule 2 (curate findings
-# into Research/ on every decompiled-code touch) and injects the current
-# game version so the agent has the right stamp value for any subsequent
-# Research/ write.
+# Curation reminder hook for decompiled-content access. Fires on:
+#   (a) Glob against rocketstation_Data/Managed/ (direct DLL listings).
+#   (b) Read or Glob against .work/decomp/ (canonical decompile output).
+#   (c) Read or Glob of any *.decompiled.cs file (suffix safety net).
+#   (d) Bash commands containing ilspycmd or ICSharpCode.Decompiler.
+#   (e) Bash commands whose text contains .work/decomp/, *.decompiled.cs,
+#       or rocketstation_Data/Managed/ (catches cat/grep/rg/head/xxd/etc.
+#       inspection of decompile content without enumerating tools).
+#
+# Reminds the agent about Rule 2 (curate findings into Research/) and
+# injects the current game version so the agent has the right stamp
+# value for any subsequent Research/ write.
+#
+# Source-confirmed gaps (do not try to "fix" with extra if rules):
+#   * Grep matchers are intentionally NOT registered. Per the Claude Code
+#     source (src/tools/GrepTool/GrepTool.ts preparePermissionMatcher),
+#     Grep `if` rules match against the search regex argument, not the
+#     path or glob. There is no settings.json syntax to make Grep fire
+#     on path-based criteria. If Grep coverage is required later, the
+#     only fix is in-script stdin filtering (the hook script reads the
+#     full tool_input from stdin and decides for itself).
+#   * Read against rocketstation_Data/Managed/ is also NOT registered.
+#     All files there are binary; the Read tool rejects binaries
+#     pre-flight, so PostToolUse never fires. Glob covers the realistic
+#     access pattern for that directory.
+#   * Bash matchers fail OPEN for compound commands. Per
+#     src/tools/BashTool/BashTool.tsx preparePermissionMatcher, when the
+#     bash AST parser cannot represent the command (pipes, &&, loops,
+#     heredocs), the matcher returns () => true and every Bash `if` rule
+#     fires. This is intentional security-favouring behaviour (so a
+#     compound can't bypass Bash(git push *) deny rules). Result: the
+#     decompile reminder also fires on every "too-complex" shell call;
+#     ignore it on non-decompile work.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

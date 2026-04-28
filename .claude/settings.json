@@ -56,6 +56,31 @@
             "type": "command",
             "if": "Bash(*ICSharpCode.Decompiler*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*.work/decomp/*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*\\\\.work\\\\decomp\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*.decompiled.cs*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*rocketstation_Data/Managed/*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*\\rocketstation_Data\\Managed\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           }
         ]
       },
