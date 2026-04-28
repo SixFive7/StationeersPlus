@@ -37,7 +37,8 @@
     Save name to load (must exist under DedicatedServer/data/saves/).
 
 .PARAMETER Map
-    Map id (Moon, Mars, Europa, Vulcan, Loulan, Venus, Mimas, ...).
+    World id. Verified valid ids in 0.2.6228.27061: Lunar, Mars2, Europa3,
+    MimasHerschel, Venus, Vulcan2 (and Vulcan, marked deprecated).
 
 .PARAMETER New
     Create a new world on the given map.

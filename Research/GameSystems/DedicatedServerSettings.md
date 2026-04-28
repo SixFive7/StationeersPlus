@@ -348,7 +348,19 @@ public override string[] Arguments =>
 public override bool IsLaunchCmd => true;
 ```
 
-Defaults: world = `"Moon"`, difficulty = `"Normal"`, startcondition = `"Default"`. Validates each against `WorldSetting.Find` / `DifficultySetting.Find` / `DataCollection.Get<StartConditionData>`. Calls `World.StartNewWorld(worldId)` then prints `Started new game in world <worldName>`.
+Source-side defaults: world = `"Moon"`, difficulty = `"Normal"`, startcondition = `"Default"`. Validates each against `WorldSetting.Find` / `DifficultySetting.Find` / `DataCollection.Get<StartConditionData>`. Calls `World.StartNewWorld(worldId)` then prints `Started new game in world <worldName>`.
+
+Critical caveat: the source's `"Moon"` default is stale. The runtime's actual valid world ids (verified 2026-04-28 by passing `-new Moon` and reading the error message) are:
+
+- `Lunar` (this is the moon)
+- `Mars2`
+- `Europa3`
+- `MimasHerschel`
+- `Venus`
+- `Vulcan2`
+- `Vulcan` (marked Deprecated)
+
+`WorldSetting.Find("Moon")` returns null because the world ids live in JSON / data files that were updated past the source's hardcoded default; `WorldSetting.Find` looks them up by id from the data store. So `-new Moon` (or no world arg, which falls back to "Moon") fails with `No such world name: Moon. Valid worlds: Europa3, Lunar, Mars2, MimasHerschel, Venus, Vulcan (Deprecated), Vulcan2`. Always pass an explicit valid id.
 
 ### `save <name>` / `save delete <name>` / `save list` (SaveCommand, line 96400)
 
@@ -486,7 +498,7 @@ So `serverrun` is the closest in-game equivalent to RCON. Both client and server
 ## Defaults summary
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
-If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Moon` with no other flags and no pre-existing `setting.xml`, you get:
+If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Lunar` with no other flags and no pre-existing `setting.xml`, you get:
 
 - ServerName: `Stationeers`
 - Open server (no `ServerPassword`)
@@ -540,6 +552,7 @@ Optional refinement not currently applied:
 
 - 2026-04-28: page created from a fresh decompile of `Assembly-CSharp.dll` at game version `0.2.6228.27061` (ilspycmd output at `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`). All Settings field defaults are verbatim from `Settings.SettingData` (decompile lines 248236-248577). Command dispatch dictionary verbatim from `CommandLine` static constructor (lines 94942-95038). HelpText / Arguments / IsLaunchCmd values for the lifecycle commands (Save, Quit, LoadGame, LoadLatest, NewGame, Settings, SettingsPath, ServerRun, Ban) are verbatim from each command's class declaration.
 - 2026-04-28: launcher relocated from `tools/dedicated-server.ps1` to `DedicatedServer/dedicated-server.ps1` (un-ignored alongside `DedicatedServer/CLAUDE.md`). Flag set updated: `StartLocalHost true` removed (confirmed unnecessary on the dedicated build's load path), `ServerAuthSecret x` added (enables `serverrun` from a connected client). Path references and the "Notes for DedicatedServer/dedicated-server.ps1" section updated to match. Game-internals claims unchanged.
+- 2026-04-28: corrected world-id list in the `-new` deep-dive. NewGameCommand source declares `"Moon"` as the default but `WorldSetting.Find("Moon")` returns null at runtime; valid ids verified by runtime probe are `Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2, Vulcan (Deprecated)`. Defaults summary updated to use `-new Lunar` as the example.
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
