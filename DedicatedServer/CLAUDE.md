@@ -53,7 +53,25 @@ DedicatedServer/dedicated-server.ps1 -Bootstrap
 3. Mirror the client's `BepInEx/` tree into the server install. The destination `BepInEx/` is wiped first so a plugin removed on the client is removed on the server too. Also copies `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, and `changelog.txt` from the client install root when present.
 4. Report the mirrored BepInEx version.
 
-### Deploy mods
+### Sync mods from the client (for tests against the user's full mod set)
+
+```
+DedicatedServer/dedicated-server.ps1 -SyncMods [-FromModConfig <path>]
+```
+
+Mirrors every enabled mod from the user's `modconfig.xml` (default: `%USERPROFILE%\Documents\My Games\Stationeers\modconfig.xml`) onto the server. For each enabled `<Workshop>` or `<Local>` entry:
+
+- Source path comes from the entry's `<Path Value>` (already absolute on the user's machine).
+- Destination name follows StationeersLaunchPad's Export Mod Package convention: `Workshop_<PublishedFileId>` for Workshop entries, `Local_<DirName>` for Local entries.
+- Recursively copy the source folder's contents into `DedicatedServer/data/mods/<DestinationName>/`.
+
+Then writes a baked `DedicatedServer/install/modconfig.xml` with one `<Local Enabled="true"><Path Value="<DestinationName>" /></Local>` per copied mod, plus `<Core Enabled="true">`. This replicates Export Mod Package without driving the client UI.
+
+The source `modconfig.xml` and the user's mod folders are read-only. Per the repo-wide save-touch policy, ask before re-running `-SyncMods` if mods may have been deliberately staged or hand-edited on the server.
+
+The local mods directory is `DedicatedServer/data/mods/` (under SavePath), NOT `DedicatedServer/install/mods/`. The full mechanism is documented in `Research/Workflows/StationeersLaunchPadDedicatedServer.md`.
+
+### Deploy mods built from this repo
 
 ```
 DedicatedServer/dedicated-server.ps1 -DeployMods [-Mod <name>] [-Configuration Release|Debug]
@@ -64,6 +82,8 @@ Copies built mod DLLs from `Mods/<X>/<X>/bin/<Configuration>/<X>.dll` into `Dedi
 The launcher does not build for you. Build first via the developer's normal MSBuild flow (see `DEV.md`), then run `-DeployMods`.
 
 This step is per-invocation and explicit so the agent driving the test always controls which mods at which build configuration are present on the server. Whenever code changes, re-run `-DeployMods` before `-Start`.
+
+**Important**: `-SyncMods` and `-DeployMods` deploy via different mechanisms. `-SyncMods` writes to `data/mods/<Source>_<DirName>/` (loaded by SLP's `LocalModSource`). `-DeployMods` writes to `install/BepInEx/plugins/<X>/<X>.dll` (loaded by BepInEx's Chainloader). Running both for the same mod can produce duplicate-load conflicts (see the StationeersLaunchPad duplicate-load fatal documented in `DEV.md.template`). When testing this repo's own mods against the user's full Workshop set, prefer `-SyncMods` alone (the user's modconfig already lists this repo's mods as Workshop or Local, so they get the user's chosen version) and skip `-DeployMods` unless you specifically want to override one of them with a freshly-built variant.
 
 ### Start
 

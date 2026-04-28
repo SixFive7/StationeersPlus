@@ -82,6 +82,18 @@
 .PARAMETER Grep
     With -Logs: filter the log by a regex.
 
+.PARAMETER SyncMods
+    Mirror the client's mod set onto the server install. Reads the user's
+    modconfig.xml (read-only on the source), copies each enabled Workshop /
+    Local mod into <install>/mods/<Source>_<DirName>/, and writes a baked
+    <install>/modconfig.xml with Local entries pointing at the copies. This
+    replicates StationeersLaunchPad's "Export Mod Package" feature without
+    needing the UI. See Research/Workflows/StationeersLaunchPadDedicatedServer.md.
+
+.PARAMETER FromModConfig
+    With -SyncMods: path to the source modconfig.xml. Default
+    %USERPROFILE%\Documents\My Games\Stationeers\modconfig.xml.
+
 .PARAMETER HostMode
     Internal: run as the host wrapper. Invoked by -Start via Start-Process.
     Do not invoke directly.
@@ -116,6 +128,9 @@ param(
     [switch] $Logs,
     [int]    $Tail = 50,
     [string] $Grep,
+
+    [switch] $SyncMods,
+    [string] $FromModConfig,
 
     [switch] $HostMode
 )
@@ -234,7 +249,47 @@ function Invoke-Bootstrap {
         Write-Host "[Bootstrap] BepInEx mirrored, version $version."
     }
 
-    Write-Host "[Bootstrap] Done. Next: DedicatedServer/dedicated-server.ps1 -DeployMods, then -Start."
+    # Overlay the StationeersLaunchPad server-zip release. Adds RG.ImGui.dll
+    # which is in the server zip but not the client install. Other DLLs are
+    # byte-identical so the overlay is a no-op for them.
+    Write-Host "[Bootstrap] Overlaying StationeersLaunchPad server-zip release..."
+    $slpVersion = $null
+    $slpDll     = Join-Path $dstBepInEx 'plugins\StationeersLaunchPad\StationeersLaunchPad.dll'
+    if (Test-Path $slpDll) {
+        $slpVersion = (Get-Item $slpDll).VersionInfo.ProductVersion
+    }
+    if (-not $slpVersion) {
+        Write-Warning "[Bootstrap] StationeersLaunchPad.dll not found at $slpDll; skipping server-zip overlay. Mods will not load until SLP is installed."
+    }
+    else {
+        $slpReleaseUrl = "https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/v$slpVersion/StationeersLaunchPad-server-v$slpVersion.zip"
+        $slpZipDir     = Join-Path $RepoRoot ".work\slp-server"
+        $slpZipPath    = Join-Path $slpZipDir "StationeersLaunchPad-server-v$slpVersion.zip"
+        $slpExtractDir = Join-Path $slpZipDir "extracted-v$slpVersion"
+        if (-not (Test-Path $slpZipDir)) { New-Item -ItemType Directory -Path $slpZipDir -Force | Out-Null }
+        if (-not (Test-Path $slpZipPath)) {
+            Write-Host "[Bootstrap]   downloading $slpReleaseUrl"
+            try {
+                Invoke-WebRequest -Uri $slpReleaseUrl -OutFile $slpZipPath -UseBasicParsing
+            }
+            catch {
+                Write-Warning "[Bootstrap]   download failed: $_. Skipping overlay; mod loading may be missing RG.ImGui."
+                $slpZipPath = $null
+            }
+        }
+        if ($slpZipPath -and (Test-Path $slpZipPath)) {
+            if (Test-Path $slpExtractDir) { Remove-Item -Recurse -Force $slpExtractDir }
+            Expand-Archive -Path $slpZipPath -DestinationPath $slpExtractDir -Force
+            $srcDir = Join-Path $slpExtractDir "StationeersLaunchPad"
+            $dstDir = Split-Path -Parent $slpDll
+            foreach ($f in (Get-ChildItem -File -Path $srcDir)) {
+                Copy-Item -Path $f.FullName -Destination (Join-Path $dstDir $f.Name) -Force
+            }
+            Write-Host "[Bootstrap]   overlaid $((Get-ChildItem -File -Path $srcDir).Count) files from server zip into $dstDir"
+        }
+    }
+
+    Write-Host "[Bootstrap] Done. Next: DedicatedServer/dedicated-server.ps1 -SyncMods, then -DeployMods, then -Start."
 }
 
 # ---- deploy mods ----------------------------------------------------------
@@ -595,11 +650,105 @@ function Invoke-Logs {
     }
 }
 
+# ---- sync mods ------------------------------------------------------------
+
+function Invoke-SyncMods {
+    if (-not (Test-Path $ServerExe)) {
+        throw "Server not bootstrapped. Run -Bootstrap first."
+    }
+    if (-not $FromModConfig) {
+        $FromModConfig = Join-Path $env:USERPROFILE "Documents\My Games\Stationeers\modconfig.xml"
+    }
+    if (-not (Test-Path $FromModConfig)) {
+        throw "Source modconfig not found at $FromModConfig. Pass -FromModConfig <path> to override."
+    }
+
+    Write-Host "[SyncMods] Source: $FromModConfig"
+    $xml = [xml](Get-Content -Raw $FromModConfig)
+
+    # Walk child nodes in document order to preserve load order intent.
+    $entries = New-Object System.Collections.Generic.List[hashtable]
+    foreach ($node in $xml.ModConfig.ChildNodes) {
+        if ($node.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
+        if ($node.Enabled -ne 'true') { continue }
+        switch ($node.LocalName) {
+            'Core' {
+                # Core is implicit; we always emit a Core entry in the output. Skip here.
+            }
+            'Workshop' {
+                $srcPath = $node.Path.Value
+                $wid     = $node.WorkshopId.Value
+                if (-not $wid) { Write-Warning "[SyncMods] Workshop entry without WorkshopId; using basename of $srcPath"; $wid = Split-Path -Leaf $srcPath }
+                $entries.Add(@{
+                    Source   = $srcPath
+                    DestName = "Workshop_$wid"
+                    Type     = 'Workshop'
+                })
+            }
+            'Local' {
+                $srcPath  = $node.Path.Value
+                if (-not $srcPath) { continue }
+                $dirName  = Split-Path -Leaf $srcPath
+                $entries.Add(@{
+                    Source   = $srcPath
+                    DestName = "Local_$dirName"
+                    Type     = 'Local'
+                })
+            }
+            default { Write-Warning "[SyncMods] Unknown modconfig entry type '$($node.LocalName)'; ignoring" }
+        }
+    }
+
+    # Local mods are scanned from <SavePath>/mods/ (= <DataDir>/mods/), NOT <install>/mods/.
+    # See Research/Workflows/StationeersLaunchPadDedicatedServer.md for the resolution.
+    $modsDir = Join-Path $DataDir 'mods'
+    if (Test-Path $modsDir) {
+        Write-Host "[SyncMods] Wiping $modsDir"
+        Remove-Item -Recurse -Force $modsDir
+    }
+    New-Item -ItemType Directory -Path $modsDir -Force | Out-Null
+
+    $copied  = 0
+    $skipped = 0
+    foreach ($e in $entries) {
+        if (-not (Test-Path $e.Source)) {
+            Write-Warning "[SyncMods] [$($e.DestName)] source missing: $($e.Source) (skipping)"
+            $skipped++
+            continue
+        }
+        $dest = Join-Path $modsDir $e.DestName
+        Copy-Item -Recurse -Path $e.Source -Destination $dest
+        Write-Host "[SyncMods] $($e.DestName) <- $($e.Source)"
+        $copied++
+    }
+
+    # Write the baked modconfig.xml at <install>/modconfig.xml.
+    $configPath = Join-Path $InstallDir 'modconfig.xml'
+    $sb = [System.Text.StringBuilder]::new()
+    [void]$sb.AppendLine('<?xml version="1.0" encoding="utf-8"?>')
+    [void]$sb.AppendLine('<ModConfig xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">')
+    [void]$sb.AppendLine('  <Core Enabled="true">')
+    [void]$sb.AppendLine('    <Path />')
+    [void]$sb.AppendLine('  </Core>')
+    foreach ($e in $entries) {
+        if (-not (Test-Path (Join-Path $modsDir $e.DestName))) { continue }   # don't write entries for missing sources
+        [void]$sb.AppendLine('  <Local Enabled="true">')
+        [void]$sb.AppendLine("    <Path Value=`"$($e.DestName)`" />")
+        [void]$sb.AppendLine('  </Local>')
+    }
+    [void]$sb.AppendLine('</ModConfig>')
+    Set-Content -Path $configPath -Value $sb.ToString() -Encoding utf8
+
+    Write-Host "[SyncMods] Wrote $configPath with $copied Local entries (Core + $copied)."
+    Write-Host "[SyncMods] $copied copied, $skipped skipped (missing source)."
+}
+
 # ---- dispatch -------------------------------------------------------------
 
 if ($HostMode)    { Invoke-HostMode;    return }
 if ($Bootstrap)   { Invoke-Bootstrap;   return }
 if ($DeployMods)  { Invoke-DeployMods;  return }
+if ($SyncMods)    { Invoke-SyncMods;    return }
 if ($Start)       { Invoke-Start;       return }
 if ($Stop)        { Invoke-Stop;        return }
 if ($SendCommand) { Invoke-SendCommand; return }
@@ -614,6 +763,7 @@ Operations manual: DedicatedServer/CLAUDE.md
 
 Setup:
   DedicatedServer/dedicated-server.ps1 -Bootstrap
+  DedicatedServer/dedicated-server.ps1 -SyncMods [-FromModConfig <path>]
   DedicatedServer/dedicated-server.ps1 -DeployMods [-Mod <name>] [-Configuration Release|Debug]
 
 Lifecycle (agent-driven, all non-blocking unless noted):
