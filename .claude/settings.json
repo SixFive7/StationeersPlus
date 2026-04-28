@@ -1,20 +1,22 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "hooks": {
-    "PostToolUse": [
+    "PreToolUse": [
       {
-        "matcher": "Read|Grep|Glob",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "if": "Read(*\\rocketstation_Data\\Managed\\\\\\\\*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
-          },
-          {
-            "type": "command",
-            "if": "Grep(*\\rocketstation_Data\\Managed\\\\\\\\*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
-          },
+            "if": "Bash(*git commit*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-commit-hook.ps1"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
           {
             "type": "command",
             "if": "Glob(*\\rocketstation_Data\\Managed\\\\\\\\*)",
@@ -27,22 +29,12 @@
           },
           {
             "type": "command",
-            "if": "Grep(*\\\\.work\\\\decomp\\\\\\\\*)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
-          },
-          {
-            "type": "command",
             "if": "Glob(*\\\\.work\\\\decomp\\\\\\\\*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           },
           {
             "type": "command",
             "if": "Read(*.decompiled.cs)",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
-          },
-          {
-            "type": "command",
-            "if": "Grep(*.decompiled.cs)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-hook-decompile.ps1"
           },
           {

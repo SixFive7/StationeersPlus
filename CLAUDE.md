@@ -179,6 +179,32 @@ Required setup:
 
 Three workflow rules govern the boundary between mod work and the central `Research/` knowledge base: read the mod's `RESEARCH.md` before touching any mod, curate decompiled-code findings into `Research/<category>/` on every touch, and apply the fresh-validator protocol when a new finding conflicts with existing verified content on a page. Full rules and the conflict-resolution prompt template live in `Research/WORKFLOW.md`. The decompile hook (`.claude/hooks/research-hook-decompile.ps1`) points at it; read `WORKFLOW.md` when the reminder surfaces or when starting mod work. Structural rules for pages under `Research/` (frontmatter schema, section stamps, Verification History conventions, Unsorted protocol, tag vocabulary) live in `Research/CLAUDE.md` and auto-load when you touch a `Research/` file.
 
+## Workflow: research commits are autonomous, code commits are not
+
+Additions or revisions inside `Research/` (the central knowledge base at the repo root) should be committed without asking, in logical groups, as soon as the research is done and validated per `Research/WORKFLOW.md` and `Research/CLAUDE.md`. This is a deliberate exception to the default "never commit unless explicitly asked" rule, because research findings are durable knowledge that loses value sitting in a working tree: other agents and the user lose access, and branch switches or stash discards can erase it.
+
+Code and other non-research changes are not covered. The user's deliverable in any given session is whatever they asked for outside `Research/`, and the user decides commit boundaries and timing for it. Never commit anything outside `Research/` autonomously, even when it sits in the same working tree as a research commit.
+
+Rules for an autonomous research commit:
+
+- Every staged path is under the central `Research/` directory. All other paths are off-limits to autonomous commits.
+- Content satisfies the curation rules in `Research/WORKFLOW.md` (validated, fresh-validator protocol applied where existing verified content is overwritten) and the structural rules in `Research/CLAUDE.md` (frontmatter, section stamps, Verification History, tag vocabulary).
+- The validation bar is the same as the section-stamp bar: do not commit a page or section unless you would, at this moment, stamp it as verified. If you would hesitate to stamp it, the commit is premature.
+- One coherent unit per commit: a single page, or a closely related set produced together. Not one omnibus commit at session end.
+- Stage by explicit paths. Never `git add -A` or `git add .`. Verify with `git status` and `git diff --cached` before each commit that no path outside `Research/` has slipped in.
+- Commit message prefix: `Research: <topic>`. Example: `Research: Patterns/StationeersLaunchPadSettingsGrouping initial writeup`.
+- Announce each commit in user-facing text (the path(s) committed and the resulting SHA). Autonomous commits are never silent.
+- Local only. Do not push.
+
+Session-end flush: before ending a turn that produced validated `Research/` additions, commit them per the rules above. Do not leave validated research uncommitted across the end of a turn. If a finding is not yet ready (incomplete validation, unresolved conflict against existing verified content), say so explicitly in the user-facing wrap-up.
+
+Scope and delegation:
+
+- This rule covers the central `Research/` directory only; `RESEARCH.md` files elsewhere are not central research.
+- Sub-agents do not commit. When a sub-agent produces additions under `Research/`, the main agent is responsible for reviewing, packaging into logical groups, and committing them.
+
+A `PreToolUse` hook (`.claude/hooks/research-commit-hook.ps1`, wired in `.claude/settings.json`) matches `git commit` invocations whose message starts with `Research:` and blocks the commit if any staged path is outside `Research/`. The hook turns the "explicit paths only" rule from convention into enforcement.
+
 ## Workflow: scratch and working files in .work/
 
 All scratch, temp, prototype, and throwaway files written during a work session live under `.work/` at the monorepo root. The directory is gitignored (see the `.work/` entry in `.gitignore`) so nothing inside is committed. Clustering scratch in one place keeps the repo root tidy, prevents stray artifacts from leaking into commits, and gives a single place to clean out at the end of a session.
@@ -219,7 +245,7 @@ Examples (forbidden):
 - `.work/decomp/0.2.5095.21641/Assembly-CSharp.cs` (missing `.decompiled.` infix)
 - `Mods/SomeMod/Assembly-CSharp.decompiled.cs` (outside `.work/decomp/`)
 
-The decompile-content curation hook fires on Read, Grep, and Glob against any file under `.work/decomp/` (canonical-path matcher) and against any file ending in `.decompiled.cs` anywhere in the tree (suffix-safety matcher). It also fires on Bash commands that invoke a decompiler (`ilspycmd`, `ICSharpCode.Decompiler`). All three matchers inject the same Rule 2 reminder pointing at `Research/WORKFLOW.md`. Reading derived `.cs` content from anywhere else (a Downloads folder, an ad-hoc workspace, any path outside `.work/decomp/`) bypasses curation and is forbidden.
+The decompile-content curation hook fires on Read or Glob against any file under `.work/decomp/` (canonical-path matcher) and against any file ending in `.decompiled.cs` anywhere in the tree (suffix-safety matcher). It also fires on Bash commands that invoke a decompiler (`ilspycmd`, `ICSharpCode.Decompiler`). All matchers inject the same Rule 2 reminder pointing at `Research/WORKFLOW.md`. Grep is intentionally not hooked: per the Claude Code source (`GrepTool.preparePermissionMatcher`), Grep `if` rules match against the search regex argument, not the path or glob, so a path-shaped `if` rule on Grep can never fire for normal usage. Reading derived `.cs` content from anywhere else (a Downloads folder, an ad-hoc workspace, any path outside `.work/decomp/`) bypasses curation and is forbidden.
 
 ## Style: write like a human, not like an AI was here
 
