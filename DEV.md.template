@@ -216,6 +216,34 @@ Project-specific / technical-depth preferences that layer on top of the global `
 
 ---
 
+## Dedicated server (multiplayer test rig)
+
+A self-contained Stationeers Dedicated Server install lives at `<REPO_CLONE_PATH>/DedicatedServer/`. The directory tree is gitignored except for `DedicatedServer/CLAUDE.md`, which holds the bootstrap, deploy, launch, and shutdown procedures and the exact CLI flag set the launcher applies. Read it before running any dedicated-server step.
+
+The launcher script is `DedicatedServer/dedicated-server.ps1`. It depends on two externally-rooted paths, both of which it expects the developer (this file) to provide:
+
+1. **Stationeers client install** (`$(StationeersPath)` in `Directory.Build.props`). The launcher reads it directly from `Directory.Build.props` at the repo root, the same property the mod builds use. No env var needed; if `Directory.Build.props` is set up for builds, the launcher works.
+
+2. **SteamCMD executable** (`STEAMCMD_PATH` environment variable). Used during `-Bootstrap` to install Steam app `600760` (`Stationeers Dedicated Server`) into `DedicatedServer/install/`. Set this in the environment:
+
+   ```powershell
+   # Permanent (current user; new shells pick it up):
+   [Environment]::SetEnvironmentVariable('STEAMCMD_PATH', '<STEAMCMD_PATH>', 'User')
+   ```
+
+   If SteamCMD is not yet installed, download it from https://developer.valvesoftware.com/wiki/SteamCMD, extract it to a folder of your choice, and point `STEAMCMD_PATH` at the resulting `steamcmd.exe`.
+
+### Stationeers user-data paths (informational)
+
+The dedicated server, even with its install rooted inside the repo, shares two user-account-scoped artifacts with the client. Neither contains world data; both are documented here so the developer knows what is and is not isolated:
+
+- `%USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\PlayerCookie-v2.xml` is read and may be written by the dedicated server. Carries player ID, dismissed-popup flags. Shared with the client.
+- `HKCU\Software\Rocketwerkz Limited\rocketstation` is the Unity PlayerPrefs registry key. Shared with the client. Cosmetic state.
+
+Save data is fully isolated. The dedicated server reads and writes only `DedicatedServer/data/saves/`. The client's save folder at `<USER_DOCUMENTS>\My Games\Stationeers\saves\` is never touched by the dedicated server. By repository-wide policy (see root `CLAUDE.md`, "Workflow: never touch save files"), agents must never copy, move, rename, delete, or modify save files in either folder; the developer manages saves manually.
+
+---
+
 ## InspectorPlus: live runtime state snapshots
 
 **Purpose:** Read actual field and property values out of the running game without reloading saves or adding one-off logging. When a developer is running the game and needs to see what state the game is in at that moment, InspectorPlus dumps the relevant objects to JSON so the data can be read back.

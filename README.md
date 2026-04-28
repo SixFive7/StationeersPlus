@@ -14,6 +14,7 @@ Mods for the game Stationeers, developed by SixFive7.
 - `Mods/` contains released mods. Each subdirectory is a standalone mod that ships to the Steam Workshop, with its own README, RESEARCH notes, source project, and `About/` folder for Workshop metadata. Each mod's version history is captured in `About/About.xml` `<ChangeLog>`.
 - `Plans/` contains mods in progress and early-stage prototypes that are not yet released. Subdirectories here follow the same shape as released mods once they mature, but are not tagged or published.
 - `tools/` contains repository-wide utility scripts that serve more than one mod.
+- `DedicatedServer/` holds a self-contained Stationeers Dedicated Server install used for multiplayer testing. Everything inside is gitignored except `DedicatedServer/CLAUDE.md`, the operating manual.
 - `Mods/Template/` is the seed scaffold for creating new mods. Copy it, rename to the new mod's name, and edit.
 
 Local build configuration is documented in `CLAUDE.md` (shared conventions) and `DEV.md.template` (developer-specific paths; copy to `DEV.md` and fill in).

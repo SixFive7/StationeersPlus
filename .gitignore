@@ -65,6 +65,12 @@ DEV.md
 ## Scratch / working directory (see CLAUDE.md "Workflow: scratch and working files in .work/")
 .work/
 
+## Dedicated server tree (see DedicatedServer/CLAUDE.md)
+## Everything inside DedicatedServer/ is local-only except CLAUDE.md and the launcher script.
+/DedicatedServer/*
+!/DedicatedServer/CLAUDE.md
+!/DedicatedServer/dedicated-server.ps1
+
 ## Test / benchmark / coverage output
 TestResults/
 coverage/

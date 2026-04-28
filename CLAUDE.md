@@ -221,6 +221,20 @@ Required practice:
 
 The existing `*.tmp`, `*.bak`, `*.orig` patterns in `.gitignore` continue to catch stray throwaway files anywhere in the tree as a safety net, but `.work/` is the intended home, not a fallback. If you find yourself reaching for `*.tmp` at the repo root, route it through `.work/` instead.
 
+## Workflow: never touch save files
+
+Save files are managed exclusively by the developer. Agents must never copy, move, rename, delete, modify, or overwrite save data. The developer provides initial saves and manages every subsequent change.
+
+Scope:
+
+- The client's save folder, the `saves/` subdirectory of the developer's Stationeers user-data folder. Absolute path documented in `DEV.md`.
+- The dedicated server's save folder at `DedicatedServer/data/saves/` (see `DedicatedServer/CLAUDE.md`).
+- Any other save folder on the machine.
+
+The `DedicatedServer/dedicated-server.ps1` launcher is deliberately built without any save-management actions (no seed, no copy, no rename, no delete) for this reason. If a test needs a save the developer has not provided yet, ask the developer to place it; do not stage one programmatically. Starting a fresh world via `-Start -New <Map>` is fine because the dedicated server creates that file itself; reaching across folders to seed an existing save is not.
+
+Reading a save's contents for diagnostic purposes when the developer explicitly asks is acceptable. Mutating, moving, or duplicating a save file is not.
+
 ### Decompilation artifacts: .work/decomp/<game-version>/
 
 Any `.cs` file produced by decompiling a Stationeers DLL or any other binary lives at exactly:
@@ -265,6 +279,14 @@ Legitimate exceptions where naming AI tools is fine:
 - `CLAUDE.md` (this file) and `DEV.md` (gitignored) are exempt; they describe internal development workflow and may reference AI tools, sub-agents, or automation as needed.
 
 Rule of thumb: if a human modder would naturally write the same sentence because the topic genuinely requires it, it is fine. If the sentence only exists because an AI likes that phrasing, rewrite it.
+
+## Tool: DedicatedServer for multiplayer testing
+
+`DedicatedServer/` at the repo root holds a self-contained Stationeers Dedicated Server install used for multiplayer playtests of these mods. The directory is gitignored except for `DedicatedServer/CLAUDE.md` (the operating manual: bootstrap, mod deploy, launch, the exact CLI flag set) and `DedicatedServer/dedicated-server.ps1` (the launcher script itself).
+
+Read `DedicatedServer/CLAUDE.md` before running, modifying, or proposing changes that touch the dedicated server. The folder doc auto-loads when you touch any path inside the folder, including the launcher script.
+
+The launcher reads `<StationeersPath>` from `Directory.Build.props` and `STEAMCMD_PATH` from the environment (placeholder documented in `DEV.md.template`). It contains no developer-specific paths.
 
 ## Tool: InspectorPlus for live runtime state
 

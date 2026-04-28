@@ -367,7 +367,7 @@ Confirmation log line on success (line 96453):
 ConsoleWindow.Print("Saved " + stationName);
 ```
 
-This is the line `tools/dedicated-server.ps1 -Save -Name <X>` polls for in `data/server.log` to confirm completion.
+This is the line `DedicatedServer/dedicated-server.ps1 -Save -Name <X>` polls for in `data/server.log` to confirm completion.
 
 Refuses to save when `GameState != Running && != Paused`. Refuses on remote clients via `CommandBase.CannotAsClient("save")`.
 
@@ -501,7 +501,7 @@ If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Moo
 - SavePath: empty, falling back to `StationSaveUtils.DefaultPath`. In batch mode that resolves to the directory containing `rocketstation_DedicatedServer.exe`. Worlds, scripts, and mods all live under that root.
 - `setting.xml` written to `<SavePath>/setting.xml` on first save, which (with empty SavePath) is the exe directory.
 
-## Notes for tools/dedicated-server.ps1
+## Notes for DedicatedServer/dedicated-server.ps1
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 The launcher's current `-Start` flag set:
@@ -511,7 +511,6 @@ The launcher's current `-Start` flag set:
 -settingspath  <DedicatedServer>/data/setting.xml
 -logFile       <DedicatedServer>/data/server.log
 -settings SavePath           <DedicatedServer>/data
--settings StartLocalHost     true
 -settings GamePort           27016
 -settings UpdatePort         27015
 -settings AutoSave           true
@@ -519,6 +518,7 @@ The launcher's current `-Start` flag set:
 -settings ServerName         "Local Test"
 -settings ServerMaxPlayers   4
 -settings ServerPassword     x
+-settings ServerAuthSecret   x
 -load <SaveName> <Map>   OR   -new <Map>
 ```
 
@@ -526,21 +526,20 @@ Verified against the source:
 
 - `UPNPEnabled false` is correct for a local-only test rig; the default `true` would advertise via UPnP.
 - `ServerPassword x` is correct; clients enter `x` in Direct Connect.
-- `StartLocalHost true` is harmless but not required: `-load` and `-new` both run `IsLaunchCmd = true` paths that hand off to `World.StartNewWorld` / `LoadHelper.LoadGame`, which in turn start the network listener. This setting governs the client's main-menu "host on launch" flow, not the dedicated build's load path. Could be removed without behaviour change.
+- `ServerAuthSecret x` is correct; matching value on the client unlocks `serverrun` for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).
 - `ServerMaxPlayers 4` is below the default of 10. No clamping is visible at the SettingData level; the source-of-truth for upper bound (1-30 in public docs) was not located this pass.
 - `AutoSave true` matches the default; passing it explicitly is documentation, not a state change.
 - `GamePort 27016` / `UpdatePort 27015` match the defaults; explicit for the same reason.
 
-Recommendations the launcher could adopt without breaking the current model:
+Optional refinement not currently applied:
 
-- Set `-settings AutoPauseServer false` for tests that need world-time progression even with no client connected (e.g. atmospheric simulation over time without a human in-world). The default is true.
-- Set `-settings ServerAuthSecret <token>` (and document the same on the client) to enable richer agent control via `serverrun`. The agent could then run admin commands on the running server (kick, ban, settings, save, status) from a client without typing on the server's stdin.
-- Consider removing `-settings StartLocalHost true` since it has no observed effect on the dedicated-server load path.
+- `-settings AutoPauseServer false` for tests that need world-time progression even with no client connected (atmospheric simulation, growth, decay). The default is `true`, which pauses the world when nobody is connected.
 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 - 2026-04-28: page created from a fresh decompile of `Assembly-CSharp.dll` at game version `0.2.6228.27061` (ilspycmd output at `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`). All Settings field defaults are verbatim from `Settings.SettingData` (decompile lines 248236-248577). Command dispatch dictionary verbatim from `CommandLine` static constructor (lines 94942-95038). HelpText / Arguments / IsLaunchCmd values for the lifecycle commands (Save, Quit, LoadGame, LoadLatest, NewGame, Settings, SettingsPath, ServerRun, Ban) are verbatim from each command's class declaration.
+- 2026-04-28: launcher relocated from `tools/dedicated-server.ps1` to `DedicatedServer/dedicated-server.ps1` (un-ignored alongside `DedicatedServer/CLAUDE.md`). Flag set updated: `StartLocalHost true` removed (confirmed unnecessary on the dedicated build's load path), `ServerAuthSecret x` added (enables `serverrun` from a connected client). Path references and the "Notes for DedicatedServer/dedicated-server.ps1" section updated to match. Game-internals claims unchanged.
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
