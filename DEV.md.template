@@ -69,6 +69,22 @@ Common default for Windows: `%USERPROFILE%\Documents\My Games\Stationeers\` (for
 - **Never copy**: `.pdb` files, `.deps.json`, `.runtimeconfig.json`, `obj/` leftovers, source files, `RESEARCH.md`, `README.md`, `TODO.md`, `LICENSE`, `NOTICE`, or any other repo file. None of those belong on the Workshop.
 - **Verify before publishing**: `ls` the deploy folder and confirm it contains only the DLL and `About/`. If anything else is present, remove it before uploading.
 
+### Workshop vs. Local: disable Workshop before testing a local build
+
+StationeersLaunchPad does not deduplicate mods by `<ModID>`. A mod enabled as both a Workshop subscription AND a `<Local>` entry loads twice; both `Awake` calls fire. The second to register LaunchPadBooster network messages hits `An item with the same key has already been added` from the message dictionary, logs a fatal, and aborts before applying Harmony patches. Whichever copy loaded first wins; the other one's patches are silently inactive. There is no UI hint that one copy lost.
+
+Symptoms: the freshly-deployed code seems to do nothing. `BepInEx/LogOutput.log` shows two `[<ModName>]` plugin lines, one `Patches applied successfully` and one `Failed to apply patches: ... Key: <ModName>.<MessageType>`.
+
+Before launching the game with a fresh local build of any mod that also exists on the Workshop:
+
+1. In the StationeersLaunchPad launcher (or in `<USER_DOCUMENTS>/My Games/Stationeers/modconfig.xml` directly), **disable** the `<Workshop>` entry for the mod under test. Do not delete or unsubscribe; just flip `Enabled="true"` to `Enabled="false"`. The subscription stays so re-enabling restores the published version cleanly.
+2. Confirm only the `<Local>` entry for that mod is enabled.
+3. Start the game.
+4. After load, confirm `<STATIONEERS_INSTALL>/BepInEx/LogOutput.log` shows exactly one `[<ModName>]` `Patches applied successfully` line and no duplicate-key fatal for that mod's messages.
+5. After the test session, re-enable the `<Workshop>` entry. Shipping a release on the Workshop also resolves the duplicate (the published version becomes equal to the local version), but until then keep one of the two disabled.
+
+This applies to every mod in `Mods/<ModName>/` that has a Workshop counterpart. Mods that exist only as Local (e.g. `InspectorPlus`) are immune.
+
 ## Steam Workshop downloads
 
 Third-party mod installations from Workshop subscriptions:
