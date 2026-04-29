@@ -3,7 +3,7 @@ title: StationeersLaunchPad on a Dedicated Server
 type: Workflows
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-28
+verified_at: 2026-04-29
 sources:
   - DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: WorkshopMenu (decompile lines 38373-38491)
@@ -284,6 +284,7 @@ These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Th
 - 2026-04-28: page created from a fresh decompile of `Assembly-CSharp.dll` and the four StationeersLaunchPad-suite DLLs at game version 0.2.6228.27061 (decompile output at `.work/decomp/0.2.6228.27061/*.decompiled.cs`). The Export Mod Package code, `LocalModSource.ListMods`, `ModList.ApplyConfig`, `WorkshopMenu.ConfigPath`, `ServerPlatform.PlatformInitLoadState`, and the SLP server-zip contents (downloaded from `https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/v0.3.1/StationeersLaunchPad-server-v0.3.1.zip`) are all directly cited above with line numbers and sha256 hashes. Failure mode "verbatim modconfig.xml copy yields zero mods loaded" was observed end-to-end on a running dedicated server at this game version.
 - 2026-04-28: corrected the local-mods-folder location finding. Initial decompile-side reading said `<DefaultPath>/mods/`; runtime probe at game version 0.2.6228.27061 with `-settings SavePath <DataDir>` produced `enabled mod not found at <DataDir>/mods/<modname>` errors, proving `WorkshopUtils.GetLocalDirInfo(WorkshopType.Mod)` resolves to `<SavePath>/mods/` (which honours the SavePath override), not `<DefaultPath>/mods/`. Procedure section updated; auto-add behaviour subsection added based on the same end-to-end test (56 mods loaded, Luna save deserialized successfully, RakNet hosted on 27016).
 - 2026-04-28: resolved both prior open questions. (1) `ApplyConfig` primary-loop matching: a clean run with `data/mods/` wiped and a fresh `-SyncMods` produced 0 "new mod added" and 0 "enabled mod not found" log lines, proving the primary loop does match relative-path entries cleanly; the earlier 56 auto-adds were a state-corruption artefact from interleaved debug steps. (2) `RG.ImGui.dll`: the SLP source's ImGui calls are all gated on `!Platform.IsServer` (via `EssentialPatches.SplashDraw`) and the lazy-JIT model means missing ImGui types do not block server-side mod loading; an earlier test confirmed SLP's full stage pipeline ran without `RG.ImGui.dll` present. Both findings curated into dedicated H2 sections above.
+- 2026-04-29: documented RakNet's wildcard-fallback hosting behaviour when the dedicated server tries to bind a port already held by another process on the same machine. Empirical test (client in-session at `10.20.30.200:27016`, server started with default `GamePort 27016`) showed the server's specific-IP bind fails, falls back to `0.0.0.0:27016` (wildcard), and reports "RakNet successfully hosted" despite the conflict. The two processes coexist but route ambiguously. Recommended workaround: pass non-default `GamePort` / `UpdatePort` settings when both run on one machine.
 
 ## ApplyConfig matching: clean state matches relative paths cleanly
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -305,6 +306,34 @@ Every modconfig entry matched in `ApplyConfig`'s primary loop (decompile lines 1
 The earlier "56 new mod added at <abs-path>" observation that prompted the open question was an artefact of an interleaved debug state: mods had been physically moved between `install/mods/` and `data/mods/` mid-debug, modconfig.xml had been rewritten by SLP's `SaveConfig` after a previously-failed-load run (changing relative paths to absolute paths pointing at the old install/mods/ location, then later not aligning with the new data/mods/ location), and the launcher's `-SyncMods` had run at least once with the stale `install/mods/` target. Once `data/mods/` was wiped and `-SyncMods` re-ran cleanly, the primary loop matched.
 
 Practical consequence: the launcher's `-SyncMods` writes a working modconfig.xml. No path-format change is required. The auto-add fallback exists to gracefully handle drop-in mods that aren't listed in modconfig, but in normal operation it is not relied on.
+
+## Port-binding behaviour with a running client on the same machine
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+
+When a client and the dedicated server try to bind the same `GamePort` on one machine, the server does NOT crash. RakNet attempts a specific-IP bind first; on failure it falls back to a wildcard (`0.0.0.0`) bind, and the OS accepts the combination. The result is two simultaneous bindings on the same port that route by destination address.
+
+Empirical at game version 0.2.6228.27061: client running and in-session (specific bind on `10.20.30.200:27016`, the LAN IPv4), dedicated server started with the launcher's default `-settings GamePort 27016`. Server log:
+
+```
+22:46:50: Attempting to host at 10.20.30.200:27016
+22:46:51: Hosting failed. Attempting fallback behaviour
+22:46:51: RakNet successfully hosted with Address: 10.20.30.200:27016
+```
+
+The "Address" reported in the second success line is the LAN IP the server intended (not what it actually bound). UDP endpoint inspection:
+
+```
+LocalAddress    LocalPort   OwningProcess
+10.20.30.200    27016       <client PID>     ← specific bind, exclusive on that IP
+0.0.0.0         27016       <server PID>     ← wildcard bind, catches everything else
+```
+
+Routing rules on Windows: specific-IP binds win over wildcard binds for traffic matching that specific IP. So:
+
+- A remote peer connecting to `10.20.30.200:27016` reaches the client (the more-specific bind wins).
+- Connections to `127.0.0.1:27016` or other interface IPs hit the server's wildcard catch-all.
+
+This is technically not a crash and not an OS-level conflict, but it is unreliable: the dedicated server is unreachable at the LAN IP it logged, and which process actually serves a given client is determined by the client's exact destination IP. For clean coexistence, the dedicated server should bind a different port via `-settings GamePort <other> -settings UpdatePort <other>`. Defaults that avoid the conflict in normal Stationeers MP setups: `GamePort 27018, UpdatePort 27017`.
 
 ## RG.ImGui.dll is not required on the dedicated server
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
