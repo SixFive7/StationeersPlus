@@ -100,8 +100,8 @@ Validates args, refuses if a server or host wrapper is already alive (use `-Stop
 -settingspath  <DedicatedServer>/data/setting.xml
 -logFile       <DedicatedServer>/data/server.log
 -settings SavePath          <DedicatedServer>/data
--settings GamePort          27016
--settings UpdatePort        27015
+-settings GamePort          28016     (override with -GamePort N)
+-settings UpdatePort        28015     (override with -UpdatePort N)
 -settings AutoSave          true
 -settings UPNPEnabled       false
 -settings ServerName        "Local Test"
@@ -164,7 +164,9 @@ If nothing is running, the call is a no-op (cleans stale state files defensively
 
 ## Joining as a client
 
-The developer launches the regular Stationeers client and uses Direct Connect to `127.0.0.1:27016` with password `x`. There is no `-connect` command-line flag on the client; this step is manual.
+The developer launches the regular Stationeers client and uses Direct Connect to `127.0.0.1:28016` with password `x`. There is no `-connect` command-line flag on the client; this step is manual.
+
+The default `28016` for the dedicated server's `GamePort` is offset by +1000 from the Stationeers client default `27016`, so the dedicated server runs alongside a hosting client on the same machine without RakNet's port-binding fallback (see `Research/Workflows/StationeersLaunchPadDedicatedServer.md` "Port-binding behaviour with a running client on the same machine"). To override, pass `-GamePort N -UpdatePort N` to `-Start`.
 
 The password is hardcoded to `x` in the launcher's flag set so the server is never exposed unauthenticated, even if it accidentally binds a public interface. The same value is also set as `ServerAuthSecret`, which lets a connected client run admin commands on the server via the in-game `serverrun` command without writing to the server's stdin (see `Research/GameSystems/DedicatedServerSettings.md` for the full mechanic). To rotate either value, edit the corresponding `'-settings', '...', 'x'` line in `DedicatedServer/dedicated-server.ps1` and restart the server.
 

@@ -43,6 +43,14 @@
 .PARAMETER New
     Create a new world on the given map.
 
+.PARAMETER GamePort
+    Server's UDP GamePort. Default 28016 (offset by +1000 from the
+    Stationeers client default 27016 so the dedicated server can run
+    alongside a client on the same machine without binding conflicts).
+
+.PARAMETER UpdatePort
+    Server's UDP UpdatePort. Default 28015 (paired with GamePort).
+
 .PARAMETER Stop
     Send 'quit' to a running server, wait for clean exit, then force-kill if
     the timeout elapses. Pair with -SaveAs to save first.
@@ -111,6 +119,8 @@ param(
     [string] $Load,
     [string] $Map,
     [string] $New,
+    [int]    $GamePort   = 28016,
+    [int]    $UpdatePort = 28015,
 
     [switch] $Stop,
     [string] $SaveAs,
@@ -366,7 +376,8 @@ function Invoke-Start {
     }
 
     $pwsh = (Get-Process -Id $PID).Path
-    $wrapperArgs = @('-NoProfile', '-NonInteractive', '-File', $PSCommandPath, '-HostMode')
+    $wrapperArgs = @('-NoProfile', '-NonInteractive', '-File', $PSCommandPath, '-HostMode',
+                     '-GamePort', $GamePort, '-UpdatePort', $UpdatePort)
     if ($Load) { $wrapperArgs += @('-Load', $Load, '-Map', $Map) }
     else       { $wrapperArgs += @('-New', $New) }
 
@@ -410,8 +421,8 @@ function Invoke-HostMode {
         '-settingspath', $settingPath
         '-logFile',      $LogFile
         '-settings', 'SavePath',         $DataDir
-        '-settings', 'GamePort',         '27016'
-        '-settings', 'UpdatePort',       '27015'
+        '-settings', 'GamePort',         "$GamePort"
+        '-settings', 'UpdatePort',       "$UpdatePort"
         '-settings', 'AutoSave',         'true'
         '-settings', 'UPNPEnabled',      'false'
         '-settings', 'ServerName',       'Local Test'
@@ -767,8 +778,8 @@ Setup:
   DedicatedServer/dedicated-server.ps1 -DeployMods [-Mod <name>] [-Configuration Release|Debug]
 
 Lifecycle (agent-driven, all non-blocking unless noted):
-  DedicatedServer/dedicated-server.ps1 -Start  -Load <SaveName> -Map <Map>
-  DedicatedServer/dedicated-server.ps1 -Start  -New <Map>
+  DedicatedServer/dedicated-server.ps1 -Start  -Load <SaveName> -Map <Map>  [-GamePort N -UpdatePort N]
+  DedicatedServer/dedicated-server.ps1 -Start  -New <Map>                    [-GamePort N -UpdatePort N]
   DedicatedServer/dedicated-server.ps1 -Status
   DedicatedServer/dedicated-server.ps1 -Logs [-Tail N] [-Grep pattern]
   DedicatedServer/dedicated-server.ps1 -Save -Name <SaveName>           (waits for log confirmation)
