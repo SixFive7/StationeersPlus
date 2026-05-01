@@ -205,6 +205,42 @@ The four shared DLLs are byte-identical (sha256-confirmed) to the client install
 
 Practically: mirroring the client's `BepInEx/plugins/StationeersLaunchPad/` to a dedicated server is sufficient for SLP to bootstrap and load mods, but it is missing `RG.ImGui.dll`. Add the file from the server zip alongside the other DLLs to keep the server identical to a fresh server-zip install.
 
+## Why a "headless client" is not a supported mode
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+
+A natural follow-up question for automated multiplayer testing: can we run a second Stationeers instance headlessly that acts as a *client* (connects out to a server, executes scripted actions) without a human at a UI? The answer hinges on `Platform.CheckIsServer()` (StationeersLaunchPad.decompiled.cs line 4433):
+
+```csharp
+private static bool CheckIsServer()
+{
+    bool isBatchMode = Application.isBatchMode;
+    bool flag = isBatchMode;
+    if (!flag)
+    {
+        RuntimePlatform platform = Application.platform;
+        bool flag2 = platform - 43 <= 1;  // matches WindowsServer / LinuxServer
+        flag = flag2;
+    }
+    return flag;
+}
+```
+
+Two paths put SLP into `ServerPlatform`: either (1) the executable is the dedicated-server build (Unity reports `Application.platform` as `WindowsServer` (44) or `LinuxServer` (43)), or (2) the instance was launched with `-batchmode`, which sets `Application.isBatchMode == true`. So:
+
+- Running a second `rocketstation_DedicatedServer.exe` in batch mode does NOT produce a client; the binary's `Application.platform` is hardcoded by Unity's "server" build target. The dedicated server is wired to host (`IsServer=true, IsClient=false, SteamDisabled=true`) and has no outbound-connect path.
+- Running the regular `rocketstation.exe` with `-batchmode -nographics` to suppress the UI ALSO enters `ServerPlatform` in SLP, because the `isBatchMode` short-circuit in `CheckIsServer` fires before the platform check. And `Application.isBatchMode` propagates to the engine's `GameManager.IsBatchMode`, which gates 50+ UI/audio/visual paths across `Assembly-CSharp` (e.g. `Assembly-CSharp.decompiled.cs` lines 32391, 33719, 38883, 39875, 46383, etc.) plus the `AutoPauseServer` setting (lines 38883, 38891).
+
+So neither "headless mode" produces a client-mode runtime. Practical options for actually automating a client surface are:
+
+- **A. Real client with full UI + UI-automation tooling** (AutoHotkey, pyautogui, Windows UI Automation API). Drives the actual game with synthetic input. Brittle to UI updates but exercises the real network and rendering pipelines end-to-end.
+- **B. Server-side test harness mod**: a BepInEx mod on the dedicated server that scripts player-agent actions in-engine (move avatar, trigger attacks, etc.). Bypasses the network entirely, so it does NOT exercise the client/server message flow that is usually the point of an MP test.
+- **C. Custom "test client" BepInEx mod loaded on a real client**: on a trigger (file drop, log event, time-based), the mod calls the same internal Direct Connect, movement, interaction code paths that the UI calls. Real network, real protocol, real client; no human at the keyboard except for launching the client and the trigger drop. Requires identifying the right entry points to call without invoking UI elements that depend on rendering state.
+- **D. Two separate client instances on one machine**. Requires two Steam logins; `PlayerCookie-v2.xml`, the Unity PlayerPrefs registry key under `HKCU\Software\Rocketwerkz Limited\rocketstation`, and the Steam runtime are shared per Windows account; family sharing prevents simultaneous use of the same game; running one Steam-authenticated and one with a Steam emulator (Goldberg) is theoretically possible but unsupported and likely breaks the SLP / Workshop handshake.
+
+Running a second dedicated-server instance to act as a client is NOT among the options: dedicated servers always run with `IsServer=true, IsClient=false` and never initiate outbound connections.
+
+For the StationeersPlus repo's purposes, the realistic ranking is **C > A > B > D**. **C** has the best fidelity-to-effort ratio (real protocol exercise, no UI fragility, modest implementation effort against a known internal API). **A** is the fallback when a feature can only be exercised through the UI. **B** is useful only for tests that don't depend on the network. **D** has too many friction points for a single-developer setup.
+
 ## Why a verbatim copy of the client's modconfig.xml does NOT work
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
@@ -286,6 +322,7 @@ These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Th
 - 2026-04-28: resolved both prior open questions. (1) `ApplyConfig` primary-loop matching: a clean run with `data/mods/` wiped and a fresh `-SyncMods` produced 0 "new mod added" and 0 "enabled mod not found" log lines, proving the primary loop does match relative-path entries cleanly; the earlier 56 auto-adds were a state-corruption artefact from interleaved debug steps. (2) `RG.ImGui.dll`: the SLP source's ImGui calls are all gated on `!Platform.IsServer` (via `EssentialPatches.SplashDraw`) and the lazy-JIT model means missing ImGui types do not block server-side mod loading; an earlier test confirmed SLP's full stage pipeline ran without `RG.ImGui.dll` present. Both findings curated into dedicated H2 sections above.
 - 2026-04-29: documented RakNet's wildcard-fallback hosting behaviour when the dedicated server tries to bind a port already held by another process on the same machine. Empirical test (client in-session at `10.20.30.200:27016`, server started with default `GamePort 27016`) showed the server's specific-IP bind fails, falls back to `0.0.0.0:27016` (wildcard), and reports "RakNet successfully hosted" despite the conflict. The two processes coexist but route ambiguously. Recommended workaround: pass non-default `GamePort` / `UpdatePort` settings when both run on one machine.
 - 2026-04-29: empirical confirmation of the workaround. Launcher gained `-GamePort` / `-UpdatePort` parameters with new defaults `28016` / `28015` (offset by +1000 from the Stationeers client defaults). Re-test with same client in-session (`10.20.30.200:27016`): server log shows clean "Attempting to host at 10.20.30.200:28016" -> "RakNet successfully hosted with Address: 10.20.30.200:28016", no "Hosting failed. Attempting fallback behaviour" line. UDP endpoints show both processes own distinct, exclusive specific-IP binds (`10.20.30.200:27016` for the client, `10.20.30.200:28016` for the server). Clean coexistence.
+- 2026-04-29: documented why a "headless client" is not a supported automation mode. `Platform.CheckIsServer()` (line 4433) routes any `Application.isBatchMode` instance into `ServerPlatform`, which is `IsServer=true, IsClient=false, SteamDisabled=true` and has no outbound-connect path. Both batch-mode regular-client and any dedicated-server build land on the server side. Practical options A-D listed for client-side automation; recommended ranking C > A > B > D.
 
 ## ApplyConfig matching: clean state matches relative paths cleanly
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
