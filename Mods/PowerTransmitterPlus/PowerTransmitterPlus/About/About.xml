@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.7.0</Version>
+  <Version>1.7.1</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
@@ -113,6 +113,12 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.7.1: Long-distance auto-aim pairs now establish links reliably
+- Two dishes auto-aimed at each other now solve a joint mutual-aim geometry instead of each chasing the other's stale pose. Long-range pairs (150 m+) that previously slewed close but never linked now establish on the first servo settle
+- The link probe between transmitter and receiver was widened from a hairline raycast to a 0.5 m sphere cast filtered to receiver dish targets, so any sub-degree aim residual or mid-slew jitter still establishes the link
+- A post-load auto-aim pass re-solves every cached pair after each save load, so existing saves pick up the joint-solve improvement without players having to clear and reset auto-aim, and any cached target whose Thing has been deconstructed is cleared cleanly
+- All players on a server must be on v1.7.1 or newer; the LaunchPad version handshake rejects mixed installs
+
 v1.7.0: Joining multiplayer clients now receive host config at join time
 - The seven host-authoritative settings (Cost Factor, Beam Color, Beam Width, Emission Intensity, Stripe Wavelength, Scroll Speed, Trough Brightness) now ride the IJoinSuffixSerializer payload alongside the auto-aim cache. The earlier rebroadcast on NetworkManager.PlayerConnected fired before the joiner entered the broadcast list and silently missed them; live SettingChanged updates were never affected and still flow as before
 - All players on a server must be on v1.7.0 or newer; the LaunchPad version handshake rejects mixed installs
@@ -162,37 +168,19 @@ v1.2.0: Trough Brightness now syncs from host and takes effect live
 - Changing Trough Brightness on the host applies immediately to all connected clients (previously required a game restart because it was baked into a cached stripe texture)
 - All players on a server must have v1.2.0; the LaunchPad handshake rejects mixed versions automatically
 
-v1.1.5: Fix About.xml parse error that caused the mod to load as [Invalid About.xml]
-- The v1.1.1 changelog entry contained a literal &lt;WorkshopHandle&gt; tag which the XML parser read as a child element inside &lt;ChangeLog&gt;, breaking About.xml deserialization
-- Escaped the angle brackets so the tag renders as plain text in Workshop change notes
-- No gameplay changes
+v1.1.5: Fix About.xml parse error caused by an unescaped &lt;WorkshopHandle&gt; tag inside the v1.1.1 changelog entry
 
-v1.1.4: Repoint Reporting Issues and Source Code URLs at the StationeersPlus monorepo
-- The Reporting Issues link in the About description now points at github.com/SixFive7/StationeersPlus/issues
-- The Source Code link now points at github.com/SixFive7/StationeersPlus/tree/master/Mods/PowerTransmitterPlus
-- No gameplay changes
+v1.1.4: Repoint Reporting Issues and Source Code links to the StationeersPlus monorepo
 
-v1.1.3: Screen syntax highlighting fix
-- Fixed custom LogicType names rendering red on in-game computer and laptop screen previews
+v1.1.3: Fix custom LogicType names rendering red in the on-screen syntax highlighter on computer and laptop screens
 
-v1.1.2: Remove Shader Name config entry
-- Removed the Shader Name config entry. The beam shader is now fixed to the built-in fallback chain (Legacy Shaders/Particles/Additive with three fallbacks).
+v1.1.2: Remove the Shader Name config entry; beam shader is now a fixed Legacy Shaders/Particles/Additive fallback chain
 
-v1.1.1: Patch release (Workshop preview images in build output)
-- Added &lt;WorkshopHandle&gt; to About.xml and ensured Preview.png / thumb.png copy to the build output for the Workshop upload pipeline.
+v1.1.1: Workshop preview pipeline (added &lt;WorkshopHandle&gt; to About.xml and Preview.png / thumb.png copy to build output)
 
-v1.1.0: Link-partner logic and host-broadcast beam visuals
-- Added MicrowaveLinkedPartner (6576): read-only LogicType returning the ReferenceId of the currently linked partner dish on both transmitter and receiver
-- Host beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed) are now always synced to all clients in multiplayer
+v1.1.0: New MicrowaveLinkedPartner readout returning the linked partner ReferenceId on both transmitter and receiver. Host beam visual settings now always sync to all clients in multiplayer
 
-v1.0.0: Initial release
-- Draws a visible laser beam between linked microwave transmitter and receiver dishes
-- Scrolling energy pulses along the beam, speed proportional to power throughput
-- Replaces vanilla distance-based capacity derate with a configurable source-draw overhead (k factor, server-authoritative)
-- Adds MicrowaveSourceDraw / MicrowaveDestinationDraw / MicrowaveTransmissionLoss / MicrowaveEfficiency logic readouts on both transmitter and receiver (LogicType values 6571-6574)
-- Writable MicrowaveAutoAimTarget (6575): IC10 can aim the dish at any Thing by ReferenceId
-- IC10 name resolution for all five new LogicTypes
-- Full multiplayer support with server-authoritative simulation and live config broadcast
+v1.0.0: Initial release. Visible beam between linked microwave dishes; scrolling pulses scaled by throughput; source-draw overhead replacing vanilla distance derate (k factor, server-authoritative); four power readouts (Source / Destination / TransmissionLoss / Efficiency) on both ends; writable MicrowaveAutoAimTarget for IC10 aim; full multiplayer-authoritative simulation
   </ChangeLog>
   <WorkshopHandle>3707677512</WorkshopHandle>
   <Tags>
