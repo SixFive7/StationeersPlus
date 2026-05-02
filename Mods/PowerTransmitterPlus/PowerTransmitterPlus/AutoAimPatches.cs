@@ -125,6 +125,44 @@ namespace PowerTransmitterPlus
             else SetCache(dish, targetId);
         }
 
+        // Re-run the aim solve for an already-cached target, bypassing the
+        // cache-hit short-circuit in HandleWrite. Used by the post-load
+        // re-solve pass: walks every dish with a cached target and recomputes
+        // (H, V) under the current solver. If the cached target id no longer
+        // resolves to a Thing, clears the cache as if the user had cleared it.
+        //
+        // Must run on the host (single-player or server). On a client joining
+        // a remote host, IJoinSuffixSerializer.DeserializeJoinSuffix already
+        // restores authoritative cache values; the host's re-solve pass has
+        // recomputed (H, V) and the client receives those via the existing
+        // flag-256 delta, so no client-side pass is needed.
+        internal static void ResolveCachedTarget(WirelessPower dish, long targetId)
+        {
+            if (dish == null) return;
+            if (targetId == 0L)
+            {
+                SetCache(dish, 0L);
+                return;
+            }
+
+            var target = Thing.Find(targetId);
+            if (target == null || target == dish)
+            {
+                // Stale or self-referential target. Clear the cache as if the
+                // user manually cleared MicrowaveAutoAimTarget. SetCache(0)
+                // also flags the dish for per-tick sync so connected clients
+                // observe the cleared value.
+                SetCache(dish, 0L);
+                return;
+            }
+
+            // Force HandleWrite to take the full solve path: clear the cached
+            // box value (without firing the network flag, which HandleWrite
+            // will set when it succeeds), then re-enter HandleWrite.
+            if (_target.TryGetValue(dish, out var box)) box.Value = 0L;
+            HandleWrite(dish, targetId);
+        }
+
         // Yields (dishReferenceId, targetReferenceId) pairs for every dish
         // with a non-zero cached target. Used by AutoAimSideCar at save time
         // and AutoAimSnapshotSync at MP join time. Walks _tracked, resolves
@@ -177,18 +215,36 @@ namespace PowerTransmitterPlus
         // root-to-RayTransform offset against the aim direction; for non-floor
         // mounts that residual is enough at typical link distances to make
         // vanilla's narrow Physics.Raycast miss the receiver's small DishTarget
-        // collider. We iterate until convergence: at each step compute the aim
-        // direction from a candidate origin, solve (H, V), then predict where
-        // RayTransform would actually be at that pose by temporarily writing
-        // the local rotations and reading RayTransform.position. The contraction
-        // factor of this iteration is approximately |root-to-RayTransform offset|
-        // / link_distance, so for D = 42 m and offset ~= 1.94 m, k ~= 0.046:
-        // 2-3 iterations reach mm precision. Cap at 10 iterations covers
-        // distances down to ~5 m comfortably; below ~|offset| (~ 2 m) the
-        // iteration mathematically does not converge but that placement is
-        // pathological. Early-break when origin moves less than 1 cm between
-        // iterations keeps the steady-state cost at one iteration.
+        // collider.
+        //
+        // For dish-to-dish targets (the partner is itself a WirelessPower whose
+        // own DishTarget moves with its pose), a single-side iteration treats
+        // the partner's pose as static and ends up aimed at where the partner's
+        // DishTarget WAS at solve time, not where it ends up after both dishes
+        // slew. At long range that residual exceeds the partner's small
+        // DishTarget collider and the link raycast fails. The fix is a JOINT
+        // mutual-aim solve: solve simultaneously for both dishes' (H, V) at the
+        // unique fixed point where each dish's RayTransform.forward passes
+        // through the other's DishTarget. This fixed point depends only on the
+        // two roots' (rotation-invariant) positions and orientations, so each
+        // dish independently arrives at the same shared answer when configured.
+        // The partner does not need to have us cached as its target for this to
+        // work; if the partner is later configured (or already is), it runs the
+        // same joint solve and lands on the same fixed point. We write only our
+        // own half of the pose; the partner's predicted (H, V) stays virtual.
+        //
+        // Both inner and outer iterations seed from a canonical pivot-to-pivot
+        // pose computed from the immutable root positions, so the result is
+        // invariant under the dish's prior aim history. A dish switching
+        // between multiple targets always converges to the same answer for any
+        // given pairing.
+        //
+        // Combined contraction factor for the joint solve is approximately
+        // (|self_offset| / D) * (|partner_offset| / D), so at D = 200 m the
+        // residual drops by ~10000x per outer iteration. One outer pass reaches
+        // sub-mm precision; the cap is a safety net.
         internal const int MaxAimIterations = 10;
+        internal const int MaxOuterIterations = 5;
         internal const float AimConvergenceTolerance = 0.01f; // 1 cm
 
         internal static void HandleWrite(WirelessPower dish, long newId)
@@ -207,56 +263,69 @@ namespace PowerTransmitterPlus
             var target = Thing.Find(newId);
             if (target == null || target == dish) return;
 
-            // Target: the OTHER dish's actual ray endpoint:
-            //   - PowerReceiver: DishTarget (the collider TryContactReceiver tests
-            //     for hit.transform == rx.DishTarget). Pointing TX.RayTransform.forward
-            //     directly at this point is what makes the raycast actually hit.
-            //   - PowerTransmitter: RayTransform (when an RX auto-aims at a TX).
-            //   - other Thing types: fall back to root.
-            Vector3 toPos;
-            if (target is PowerReceiver targetRx && targetRx.DishTarget != null)
-                toPos = targetRx.DishTarget.position;
-            else if (target is PowerTransmitter targetTx && targetTx.RayTransform != null)
-                toPos = targetTx.RayTransform.position;
-            else
-                toPos = target.transform.position;
-
             if (dish.RayTransform == null || dish.AxleTransform == null || dish.DishTransform == null)
                 return;
 
-            Vector3 origin = dish.RayTransform.position;
-            double h = dish.RotatableBehaviour != null ? dish.RotatableBehaviour.TargetHorizontal : 0.0;
-            double v = dish.RotatableBehaviour != null ? dish.RotatableBehaviour.TargetVertical : 1.0;
+            // Pick the partner's ray endpoint (the point our forward should
+            // pass through). Mirrors the constraint TryContactReceiver enforces
+            // when target is a PowerReceiver, and the natural pivot when target
+            // is a PowerTransmitter (an RX auto-aiming back at a TX).
+            //   - PowerReceiver: DishTarget (the collider tested for hit.transform).
+            //   - PowerTransmitter: RayTransform.
+            //   - other Thing types: fall back to root, single-side solve.
+            var partner = target as WirelessPower;
+            Transform partnerEndpoint = ResolveEndpoint(target);
+            Transform myEndpoint = ResolveEndpoint(dish);
 
-            for (int iter = 0; iter < MaxAimIterations; iter++)
+            // Canonical seed: aim from each dish's root toward the other's
+            // root. Depends only on rotation-invariant positions. Both dishes
+            // computing the joint solve seed the same way for any given pair,
+            // so the result is independent of prior aim history and the order
+            // in which the two dishes were configured.
+            (double h, double v) = SeedFromRootDirection(dish, target.transform.position);
+            (double ph, double pv) = partner != null
+                ? SeedFromRootDirection(partner, dish.transform.position)
+                : (0.0, 0.0);
+
+            Vector3 toPos;
+            if (partner != null && partnerEndpoint != null)
             {
-                Vector3 diff = toPos - origin;
-                if (diff.sqrMagnitude < 1e-6f) return;
-
-                Vector3 dWorld = diff.normalized;
-                Vector3 dLocal = dish.transform.InverseTransformDirection(dWorld);
-
-                double sinA = -dLocal.y;
-                if (sinA > 1.0) sinA = 1.0;
-                else if (sinA < -1.0) sinA = -1.0;
-                double alpha = Math.Asin(sinA);              // [-pi/2, pi/2]
-                v = 0.5 - alpha / Math.PI;                   // [0, 1]
-
-                double cosA = Math.Cos(alpha);
-                if (cosA > 1e-6)
+                // Joint mutual-aim solve. We virtually predict the partner at
+                // (ph, pv) to read where its DishTarget/RayTransform would land,
+                // then solve our (h, v) against that virtual point. We update
+                // (ph, pv) by predicting the partner aiming back at our virtual
+                // (h, v), and iterate. Always run regardless of the partner's
+                // own cache: the fixed point is symmetric and the partner's
+                // eventual solve (or current pose, when configured) lands on
+                // the same answer.
+                toPos = PredictEndpoint(partner, partnerEndpoint, ph, pv);
+                for (int outer = 0; outer < MaxOuterIterations; outer++)
                 {
-                    double theta = Math.Atan2(dLocal.x, dLocal.z);
-                    h = theta / (2.0 * Math.PI);
-                    if (h < 0.0) h += 1.0;
+                    var mine = SolveAim(dish, toPos, h, v);
+                    h = mine.H; v = mine.V;
+
+                    // Where would partner's forward need to point to hit our
+                    // current virtual ray endpoint? Predict our endpoint at
+                    // (h, v) to feed the partner solve.
+                    Vector3 partnerToPos = myEndpoint != null
+                        ? PredictEndpoint(dish, myEndpoint, h, v)
+                        : dish.transform.position;
+                    var theirs = SolveAim(partner, partnerToPos, ph, pv);
+                    ph = theirs.H; pv = theirs.V;
+
+                    Vector3 newToPos = PredictEndpoint(partner, partnerEndpoint, ph, pv);
+                    Vector3 delta = newToPos - toPos;
+                    toPos = newToPos;
+                    if (delta.sqrMagnitude < AimConvergenceTolerance * AimConvergenceTolerance) break;
                 }
-                // else: target is along dish-local up/down axis, azimuth undefined;
-                // keep h from previous iteration.
-
-                Vector3 newOrigin = PredictRayPosition(dish, h, v);
-                Vector3 delta = newOrigin - origin;
-                origin = newOrigin;
-
-                if (delta.sqrMagnitude < AimConvergenceTolerance * AimConvergenceTolerance) break;
+            }
+            else
+            {
+                // Non-dish target: partner is static, single-side solve is
+                // exact. Aim at the target's root.
+                toPos = target.transform.position;
+                var mine = SolveAim(dish, toPos, h, v);
+                h = mine.H; v = mine.V;
             }
 
             SetCache(dish, newId);
@@ -275,11 +344,100 @@ namespace PowerTransmitterPlus
             }
         }
 
-        // Predict where RayTransform.position would land if the dish were posed
-        // at the given (H, V), without committing to the slew. Temporarily
-        // writes the local rotations on AxleTransform / DishTransform, reads
-        // RayTransform.position (Unity recomputes the world chain on read),
-        // and restores the saved rotations.
+        // Pick the dish's "ray endpoint" for joint-solve constraints:
+        //   PowerReceiver -> DishTarget (link raycast tests hit.transform == DishTarget)
+        //   PowerTransmitter -> RayTransform (the ray origin)
+        //   anything else -> null (caller falls back to root)
+        private static Transform ResolveEndpoint(Thing thing)
+        {
+            if (thing is PowerReceiver rx && rx.DishTarget != null) return rx.DishTarget;
+            if (thing is PowerTransmitter tx && tx.RayTransform != null) return tx.RayTransform;
+            return null;
+        }
+
+        // Canonical seed: solve (H, V) from the dish-local direction of
+        // (targetRoot - dishRoot). Both arguments are rotation-invariant, so
+        // every call with the same (dish, target) pair produces the same seed
+        // regardless of prior aim history. Used for both dish and partner in
+        // the joint solve so both sides start from the same canonical pose.
+        private static (double H, double V) SeedFromRootDirection(WirelessPower dish, Vector3 targetWorld)
+        {
+            Vector3 diff = targetWorld - dish.transform.position;
+            if (diff.sqrMagnitude < 1e-6f) return (0.0, 1.0);
+
+            Vector3 dLocal = dish.transform.InverseTransformDirection(diff.normalized);
+            return SolveLocal(dLocal, 0.0, 1.0);
+        }
+
+        // Inverse of dish-local Euler: world unit direction (in dish-local
+        // frame) -> (H, V). At the dish-local pole (|dLocal.y| ~= 1) azimuth
+        // is undefined; keep the supplied prior H. V always solvable from
+        // the y-component alone.
+        private static (double H, double V) SolveLocal(Vector3 dLocal, double priorH, double priorV)
+        {
+            double sinA = -dLocal.y;
+            if (sinA > 1.0) sinA = 1.0;
+            else if (sinA < -1.0) sinA = -1.0;
+            double alpha = Math.Asin(sinA);          // [-pi/2, pi/2]
+            double v = 0.5 - alpha / Math.PI;        // [0, 1]
+
+            double h = priorH;
+            double cosA = Math.Cos(alpha);
+            if (cosA > 1e-6)
+            {
+                double theta = Math.Atan2(dLocal.x, dLocal.z);
+                h = theta / (2.0 * Math.PI);
+                if (h < 0.0) h += 1.0;
+            }
+            return (h, v);
+        }
+
+        internal struct AimSolution
+        {
+            public double H;
+            public double V;
+        }
+
+        // Inner fixed-point solve: given a fixed target position, iterate
+        // (H, V) on `dish` until its predicted RayTransform.position is
+        // self-consistent with its (H, V). The aim direction is recomputed at
+        // each step from the virtually-posed RayTransform, so the iteration
+        // converges to a pose where RayTransform.forward points exactly at
+        // the target. Caller seeds (h, v); for the joint solve this is the
+        // canonical pivot-to-pivot seed, not the dish's current pose, so the
+        // result is independent of prior aim history.
+        internal static AimSolution SolveAim(WirelessPower dish, Vector3 toPos, double h, double v)
+        {
+            if (dish.RayTransform == null || dish.AxleTransform == null || dish.DishTransform == null)
+                return new AimSolution { H = h, V = v };
+
+            // Prime the origin from the canonical seed pose, not the dish's
+            // current RayTransform.position, so the iteration is order-
+            // independent.
+            Vector3 origin = PredictEndpoint(dish, dish.RayTransform, h, v);
+            for (int iter = 0; iter < MaxAimIterations; iter++)
+            {
+                Vector3 diff = toPos - origin;
+                if (diff.sqrMagnitude < 1e-6f) break;
+
+                Vector3 dLocal = dish.transform.InverseTransformDirection(diff.normalized);
+                (h, v) = SolveLocal(dLocal, h, v);
+
+                Vector3 newOrigin = PredictEndpoint(dish, dish.RayTransform, h, v);
+                Vector3 delta = newOrigin - origin;
+                origin = newOrigin;
+                if (delta.sqrMagnitude < AimConvergenceTolerance * AimConvergenceTolerance) break;
+            }
+            return new AimSolution { H = h, V = v };
+        }
+
+        // Predict where `endpoint`.position would land if `dish` were posed at
+        // (h, v), without committing to the slew. Temporarily writes the local
+        // rotations on AxleTransform / DishTransform, reads endpoint.position
+        // (Unity recomputes the world chain on read), and restores the saved
+        // rotations. `endpoint` is any descendant of dish.AxleTransform: pass
+        // dish.RayTransform to predict the ray origin, or rx.DishTarget to
+        // predict the partner's link-raycast target point.
         //
         // Side-effect-free at the game level: direct Transform.localRotation
         // writes do not flow through the WirelessPower.Horizontal / Vertical
@@ -287,15 +445,18 @@ namespace PowerTransmitterPlus
         // not call BeamManager.RefreshIfVisible, and do not invalidate the
         // RotatableBehaviour servo state. This is purely a synchronous Unity
         // transform recomputation.
-        private static Vector3 PredictRayPosition(WirelessPower dish, double h, double v)
+        internal static Vector3 PredictEndpoint(WirelessPower dish, Transform endpoint, double h, double v)
         {
+            if (dish.AxleTransform == null || dish.DishTransform == null || endpoint == null)
+                return Vector3.zero;
+
             var savedAxle = dish.AxleTransform.localRotation;
             var savedDish = dish.DishTransform.localRotation;
             try
             {
                 dish.AxleTransform.localRotation = Quaternion.Euler(0f, (float)(h * dish.MaximumHorizontal), 0f);
                 dish.DishTransform.localRotation = Quaternion.Euler(Mathf.Lerp(90f, -90f, (float)v), 0f, 0f);
-                return dish.RayTransform.position;
+                return endpoint.position;
             }
             finally
             {

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Assets.Scripts;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Serialization;
@@ -145,6 +147,86 @@ namespace PowerTransmitterPlus
             if (!cache.TryGetValue(dish.ReferenceId, out var targetId)) return;
             if (targetId == 0L) return;
             AutoAimState.RestoreCache(dish, targetId);
+        }
+    }
+
+    // Post-load auto-aim re-solve pass. Fires after every Thing's
+    // OnFinishedLoad has run (see Research/GameClasses/GameManager.md "Load
+    // finalize chain"). At that point all dishes have their saved poses
+    // restored and the auto-aim cache has been repopulated by the per-Thing
+    // RestoreCache postfix above. We walk every cached entry and recompute
+    // (H, V) under the current solver. The pass serves three purposes:
+    //
+    //   - Re-applies the current solver to every cached pair, so a save made
+    //     under an older solver picks up improvements without player action.
+    //   - Repairs aim after save-file edits that moved dish positions.
+    //   - Prunes cache entries whose target ReferenceId no longer resolves to
+    //     a Thing, as if the user had cleared MicrowaveAutoAimTarget on that
+    //     dish. Dangling targets do not accumulate across loads.
+    //
+    // Hooks GameManager.UpdateThingsOnGameStart rather than the async StartGame
+    // body to keep Postfix semantics unambiguous (UpdateThingsOnGameStart is
+    // synchronous, void). The cleared/recomputed values flow to clients via
+    // the existing per-tick AutoAimUpdateFlag (0x2000) and TargetH/V (256)
+    // deltas, so this pass is host-side only.
+    //
+    // Joining clients receive authoritative cache values from
+    // IJoinSuffixSerializer.DeserializeJoinSuffix and the host's already-
+    // resolved H/V from the live tick stream; no client-side pass is needed.
+    [HarmonyPatch(typeof(GameManager), nameof(GameManager.UpdateThingsOnGameStart))]
+    public class GameManagerUpdateThingsOnGameStartAutoAimResolvePatch
+    {
+        [UsedImplicitly]
+        public static bool Prepare() => PowerTransmitterPlusPlugin.AutoAimPatched;
+
+        [UsedImplicitly]
+        public static void Postfix()
+        {
+            try
+            {
+                // Run only on the authoritative side: single-player, MP host,
+                // or dedicated server. Pure remote clients receive cache and
+                // aim from the host via IJoinSuffixSerializer + tick deltas.
+                // Per Research/GameSystems/NetworkRoles.md the remote-client
+                // case is uniquely (IsActive && !IsServer); negating that
+                // covers every other scenario including single-player (where
+                // IsActive is false at this hook point because NetworkServer
+                // .Host() has not run yet).
+                if (Assets.Scripts.Networking.NetworkManager.IsActive
+                    && !Assets.Scripts.Networking.NetworkManager.IsServer)
+                {
+                    return;
+                }
+
+                // Materialise the snapshot before mutating; ResolveCachedTarget
+                // calls SetCache which mutates _tracked through ResolveCachedTarget's
+                // SetCache(0) branch on stale targets.
+                var entries = new List<KeyValuePair<long, long>>();
+                foreach (var pair in AutoAimState.SnapshotEntries()) entries.Add(pair);
+
+                int resolved = 0, cleared = 0;
+                foreach (var entry in entries)
+                {
+                    var dish = Thing.Find(entry.Key) as WirelessPower;
+                    if (dish == null) continue;
+                    long before = AutoAimState.GetCachedTarget(dish);
+                    AutoAimState.ResolveCachedTarget(dish, entry.Value);
+                    long after = AutoAimState.GetCachedTarget(dish);
+                    if (after == 0L && before != 0L) cleared++;
+                    else if (after != 0L) resolved++;
+                }
+
+                if (entries.Count > 0)
+                {
+                    PowerTransmitterPlusPlugin.Log?.LogInfo(
+                        $"Auto-aim post-load: {resolved} re-solved, {cleared} stale target(s) cleared (out of {entries.Count})");
+                }
+            }
+            catch (Exception e)
+            {
+                PowerTransmitterPlusPlugin.Log?.LogWarning(
+                    $"Auto-aim post-load pass failed: {e.Message}");
+            }
         }
     }
 }

@@ -19,13 +19,13 @@ A colored beam is drawn between a linked transmitter and receiver whenever the l
 Energy pulses scroll along the beam from transmitter to receiver. Stripe spacing is constant in world meters (same look on a 5m link or a 500m link). Scroll speed scales with power throughput, so a lightly-loaded link is clearly distinguishable from a heavily-loaded one at a glance.
 
 [h3]Distance Cost[/h3]
-Vanilla Stationeers caps microwave transmission capacity based on distance and hard-stops at 500m. This mod removes that cap entirely and replaces it with a source-draw overhead: the transmitter pulls more from its source cable network per watt delivered, proportional to link distance. Formula: for every watt delivered, the source pulls (1 + k * distance_km) watts. With the default k = 5:
+Vanilla Stationeers caps microwave transmission capacity based on distance and hard-stops at 500m. This mod removes that cap and replaces it with a source-draw overhead: the transmitter pulls more from its source cable network per watt delivered, proportional to link distance. Formula: source pulls (1 + k * distance_km) watts per watt delivered. With the default k = 5:
 [list]
-[*]0 m: 1.0 watts drawn per watt delivered
-[*]100 m: 1.5 watts drawn per watt delivered
-[*]500 m: 3.5 watts drawn per watt delivered
-[*]1 km: 6.0 watts drawn per watt delivered
-[*]5 km: 26.0 watts drawn per watt delivered
+[*]0 m: 1.0 watts in per watt out
+[*]100 m: 1.5
+[*]500 m: 3.5
+[*]1 km: 6.0
+[*]5 km: 26.0
 [/list]
 
 [h3]Logic Readouts[/h3]
@@ -41,6 +41,8 @@ The power readouts return 0 when the link is down, the device is off, or no powe
 
 [h3]Auto-Aim[/h3]
 A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. Cached targets persist across save/load and multiplayer join.
+
+Two dishes auto-aimed at each other converge on a shared geometric fixed point regardless of mount orientation or distance. The post-load pass also re-solves cached pairs every save load and clears entries whose target has been deconstructed.
 
 The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
 

@@ -56,6 +56,8 @@ A fifth logic type, `MicrowaveAutoAimTarget`, is **writable** on both transmitte
 
 Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op. Cached targets persist across save/load and multiplayer join, so `MicrowaveAutoAimTarget` reads stay consistent across sessions.
 
+When the target is itself a transmitter or receiver dish, auto-aim solves the joint mutual-aim geometry rather than treating the partner as a fixed point. The two dishes converge on a shared geometric fixed point regardless of which side was configured first or what either was aimed at before. The seed is canonical (root-to-root direction), so the result is invariant to prior aim history. After every save load, the post-load pass re-solves every cached pair and clears any cache entry whose target has been deconstructed, so existing saves repair themselves automatically.
+
 The host can disable auto-aim entirely via the `Enable Auto-Aim` server setting. When disabled, `MicrowaveAutoAimTarget` is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and nothing responds to writes at that LogicType. Clients whose local `Enable Auto-Aim` value does not match the host's are rejected at join time with a clear error message, so mixed installs cannot enter the same world.
 
 Combine with `MicrowaveLinkedPartner` for closed-loop IC10 automation: aim at a target, confirm the link formed, and fall back if it did not. Example switching transmit target when remote batteries fill up:
@@ -98,7 +100,7 @@ The Microwave Power Transmitter and Receiver dishes can be built on walls and ce
 Two link-side adjustments make this work alongside non-floor placement:
 
 - The vanilla TX-RX link condition's right-axis-antiparallel check is dropped because it is geometrically unsatisfiable for two dishes mounted on different surface classes. The forward-axis-antiparallel check (within 7 degrees) still gates linking.
-- `MicrowaveAutoAimTarget` aims the dish using iterative `RayTransform -> DishTarget` convergence rather than pivot-to-pivot, which keeps single-shot auto-aim precise enough on non-floor mounts that the narrow link raycast hits the receiver's `DishTarget` collider directly.
+- `MicrowaveAutoAimTarget` aims the dish via a joint mutual-aim solve over both dishes, so a paired transmitter and receiver converge on a shared geometric fixed point regardless of mount orientation or distance. The link probe is a 0.5 m sphere cast filtered to receiver dish targets, so any sub-degree aim residual or mid-slew jitter still establishes the link cleanly.
 
 The host can revert to vanilla floor-only placement via the `Allow Non-Floor Placement` server setting. Like `Enable Auto-Aim` this is restart-gated, and clients whose value disagrees with the host's are rejected at join time with a clear error message.
 

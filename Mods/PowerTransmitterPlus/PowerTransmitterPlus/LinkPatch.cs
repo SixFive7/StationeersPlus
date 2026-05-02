@@ -59,6 +59,18 @@ namespace PowerTransmitterPlus
         private static readonly FieldInfo LinkedReceiverDistanceField =
             AccessTools.Field(typeof(PowerTransmitter), "_linkedReceiverDistance");
 
+        // Static buffer for the swept hit list. Sized for "every collider
+        // along a 200 m beam through a busy base"; sphere broadphase typically
+        // returns 5-20 hits, occasionally more in dense interiors. 64 leaves
+        // generous headroom while staying small enough to keep the per-hit
+        // walk cheap. Static (not [ThreadStatic]) because TryContactReceiver
+        // is called from Unity's main thread; PowerTick threading concerns
+        // the WirelessPower.VisualizerIntensity setter only (see
+        // Research/GameSystems/PowerTickThreading.md).
+        private const int HitBufferSize = 64;
+        private const float SphereCastRadius = 0.5f;
+        private static readonly RaycastHit[] HitBuffer = new RaycastHit[HitBufferSize];
+
 
         [UsedImplicitly]
         public static bool Prefix(PowerTransmitter __instance)
@@ -75,27 +87,60 @@ namespace PowerTransmitterPlus
             var rayT = __instance.RayTransform;
             if (rayT == null) return false;
 
-            // Vanilla narrow Raycast. With the auto-aim improvement that
-            // iterates RayTransform -> DishTarget to a fixed point, the aim is
-            // precise enough for the narrow ray to hit the receiver's
-            // DishTarget collider directly, even on non-floor mounts. Avoids
-            // the false-positive obstacle problem a SphereCast would bring
-            // (catching cables / pipes the narrow ray naturally passes by).
-            if (!Physics.Raycast(rayT.position, rayT.TransformDirection(Vector3.forward), out var hit, float.PositiveInfinity))
-                return false;
-            if (hit.transform == null) return false;
-            if (!Thing._colliderLookup.TryGetValue(hit.collider, out var thing)) return false;
-            if (!(thing is PowerReceiver rx)) return false;
-            if (hit.transform != rx.DishTarget) return false;
-            if (!RocketMath.Approximately(Vector3.Angle(rayT.forward, rx.RayTransform.forward), 180f, 7f))
+            // SphereCast with a 0.5 m radius tolerates any sub-degree aim
+            // residual or mid-slew jitter that a narrow Raycast would miss.
+            // Filter post-hit: accept the FIRST swept hit (closest to origin
+            // by hit.distance) whose collider belongs to a PowerReceiver and
+            // whose transform is that receiver's DishTarget. Walls, pipes,
+            // cables, the dish's own arm geometry, etc. all fail this filter
+            // and are silently skipped, so the broadened ray cannot link to
+            // anything that is not actually a receiver dish.
+            //
+            // Stationeers exposes no content-typed Physics layer (see
+            // Research/GameClasses/Layers.md), so we cannot pre-filter the
+            // cast; the post-hit walk is the only correct mechanism.
+            Vector3 origin = rayT.position;
+            Vector3 direction = rayT.TransformDirection(Vector3.forward);
+            int hitCount = Physics.SphereCastNonAlloc(
+                origin, SphereCastRadius, direction, HitBuffer, float.PositiveInfinity);
+            if (hitCount <= 0) return false;
+
+            // SphereCastNonAlloc does not guarantee distance-sorted output;
+            // walk every hit and pick the smallest-distance match.
+            PowerReceiver bestRx = null;
+            float bestDistance = float.PositiveInfinity;
+            for (int i = 0; i < hitCount; i++)
+            {
+                var hit = HitBuffer[i];
+                if (hit.transform == null) continue;
+                if (!Thing._colliderLookup.TryGetValue(hit.collider, out var thing)) continue;
+                if (!(thing is PowerReceiver rx)) continue;
+                if (hit.transform != rx.DishTarget) continue;
+                if (hit.distance >= bestDistance) continue;
+                bestRx = rx;
+                bestDistance = hit.distance;
+            }
+            if (bestRx == null) return false;
+
+            // Forwards-antiparallel gate (vanilla condition 4). Preserved as a
+            // sanity check: rejects cases where a stale autoaim cache pointed
+            // at the right receiver but the dish has been manually slewed
+            // partway off-axis. The right-axis antiparallel gate (vanilla
+            // condition 5) stays dropped because non-floor pairs cannot
+            // satisfy it geometrically (see header comment).
+            if (!RocketMath.Approximately(Vector3.Angle(rayT.forward, bestRx.RayTransform.forward), 180f, 7f))
                 return false;
 
-            // Vanilla also requires the right-axis antiparallel check; we skip
-            // it because non-floor pairs cannot satisfy it geometrically.
+            // Use the exact ray-origin to DishTarget distance for
+            // _linkedReceiverDistance instead of SphereCast's contact distance,
+            // which underestimates by up to SphereCastRadius. The exact
+            // distance feeds PowerTransmitterPlus's overridden distance-cost
+            // curve cleanly.
+            float linkDistance = Vector3.Distance(origin, bestRx.DishTarget.position);
 
-            __instance.LinkedReceiver = rx;
-            rx.LinkedPowerTransmitter = __instance;
-            LinkedReceiverDistanceField?.SetValue(__instance, hit.distance);
+            __instance.LinkedReceiver = bestRx;
+            bestRx.LinkedPowerTransmitter = __instance;
+            LinkedReceiverDistanceField?.SetValue(__instance, linkDistance);
             return false;
         }
     }
