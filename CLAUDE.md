@@ -221,19 +221,19 @@ Required practice:
 
 The existing `*.tmp`, `*.bak`, `*.orig` patterns in `.gitignore` continue to catch stray throwaway files anywhere in the tree as a safety net, but `.work/` is the intended home, not a fallback. If you find yourself reaching for `*.tmp` at the repo root, route it through `.work/` instead.
 
-## Workflow: never touch save files
+## Workflow: save file access tiers
 
-Save files are managed exclusively by the developer. Agents must never copy, move, rename, delete, modify, or overwrite save data. The developer provides initial saves and manages every subsequent change.
+Save files fall into three tiers with different access rules:
 
-Scope:
+**Tier 1: Client save folder, NEVER touch.** The `saves/` subdirectory of the developer's Stationeers user-data folder (absolute path in `DEV.md`). Agents must never read, copy, move, rename, delete, modify, or overwrite anything inside it. This is the developer's working game state and is off-limits unconditionally. There is no diagnostic exception: if a save needs investigating, the developer copies it to a tier-2 location first.
 
-- The client's save folder, the `saves/` subdirectory of the developer's Stationeers user-data folder. Absolute path documented in `DEV.md`.
-- The dedicated server's save folder at `DedicatedServer/data/saves/` (see `DedicatedServer/CLAUDE.md`).
-- Any other save folder on the machine.
+**Tier 2: Developer-provided source saves, READ-ONLY.** Saves the developer explicitly hands over for testing, typically dropped under `C:\Users\jori\Downloads\` or a comparable scratch path. Agents may read these files freely (diagnostics, hex dumps, listing folder contents), and may copy them OUT into a tier-3 location, but must never write into the source folder, never overwrite the source files, never rename them in place, and never delete them. Treat these like a read-only mirror.
 
-The `DedicatedServer/dedicated-server.ps1` launcher is deliberately built without any save-management actions (no seed, no copy, no rename, no delete) for this reason. If a test needs a save the developer has not provided yet, ask the developer to place it; do not stage one programmatically. Starting a fresh world via `-Start -New <Map>` is fine because the dedicated server creates that file itself; reaching across folders to seed an existing save is not.
+**Tier 3: Dedicated-server saves, FREE TO EDIT.** Anything under `DedicatedServer/data/saves/`. The whole point of the dedicated server folder is autonomous test driving, so agents may copy in, overwrite, rename, delete, or hand-edit save folders here as freely as any other working file. Restoring a save under test means: copy from a tier-2 source over the corresponding tier-3 folder, optionally pruning stale `autosave/manualsave/quicksave/` siblings first.
 
-Reading a save's contents for diagnostic purposes when the developer explicitly asks is acceptable. Mutating, moving, or duplicating a save file is not.
+`DedicatedServer/dedicated-server.ps1` does not currently have a `-CopyInSave` or `-WipeSave` action; copy save trees in directly with the standard file tools. Starting a fresh world via `-Start -New <Map>` remains the way to get a brand-new save when no source is provided.
+
+Reading a save's contents for diagnostic purposes is always acceptable for tier 2 and tier 3 (the developer providing it implies consent), and never acceptable for tier 1.
 
 ### Decompilation artifacts: .work/decomp/<game-version>/
 

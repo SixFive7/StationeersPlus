@@ -9,11 +9,19 @@ The folder is gitignored except for this file. Anything that lands in `install/`
 - `install/` (gitignored): the SteamCMD-managed binary install (`rocketstation_DedicatedServer.exe` plus `rocketstation_DedicatedServer_Data/`), the BepInEx loader (`winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`), and the `BepInEx/` tree mirrored from the developer's client install (BepInEx core plus StationeersLaunchPad and its sibling plugins).
 - `data/` (gitignored): the dedicated server's `setting.xml`, the streaming log, the `saves/` folder, the `scripts/` folder, and the engine-managed `mods/` folder. State is split out of the install tree so binaries can be wiped and re-bootstrapped without losing test worlds.
 
-## Saves are the developer's responsibility
+## Saves: tier-3 free-to-edit, plus the client folder remains off-limits
 
-NEVER copy, move, rename, delete, modify, or overwrite anything inside `data/saves/`, and NEVER reach into the client's save folder (path documented in `DEV.md`) to seed or harvest saves. The developer is the sole manager of every save file. This rule is also stated repository-wide in the root `CLAUDE.md`; it is repeated here so an agent reading only this file understands the constraint.
+`data/saves/` is the dedicated server's working save tree and is **tier-3 free-to-edit** under the repository-wide save-tier rule (root `CLAUDE.md` "Workflow: save file access tiers"). Agents may copy save trees in, overwrite existing folders, rename, delete, hand-edit. The whole reason this folder exists is autonomous test driving.
 
-If the developer has not placed a save in `data/saves/` and a test asks for `-Start -Load <name>`, that command will fail. That is expected. Either ask the developer to provide the save, or use `-Start -New <Map>` to start a fresh world (the dedicated server itself creates that file inside `data/saves/`).
+The **client save folder** (path in `DEV.md`) remains tier-1 off-limits unconditionally. NEVER reach into it to seed or harvest saves; the developer copies any client save out to a tier-2 location (typically a Downloads scratch path) before agents may read from it. Tier-2 sources are read-only: copy out from them into `data/saves/`, never write back.
+
+Restoring a save under test, end-to-end:
+
+1. Developer drops the source save tree under, for example, `C:\Users\jori\Downloads\<SaveName>\`.
+2. Agent copies that folder into `DedicatedServer/data/saves/<SaveName>/`, overwriting the existing destination if any.
+3. Agent runs `-Start -Load <SaveName> -Map <Map>`.
+
+If the developer has not placed a save anywhere and a test asks for `-Start -Load`, that command will fail. Either ask the developer to provide the save, or use `-Start -New <Map>` to start a fresh world (the dedicated server creates that file inside `data/saves/` itself).
 
 ## Version coupling with the client
 
@@ -111,7 +119,7 @@ Validates args, refuses if a server or host wrapper is already alive (use `-Stop
 -load <SaveName> <Map>      OR    -new <Map>
 ```
 
-If `-Load <SaveName>` references a save that does not exist under `data/saves/`, the call fails. Saves are placed by the developer; never seed one programmatically. Use `-Start -New <Map>` instead when no save has been provided.
+If `-Load <SaveName>` references a save that does not exist under `data/saves/`, the call fails. Either copy a tier-2 source save into `data/saves/<SaveName>/` first, or use `-Start -New <Map>` for a fresh world.
 
 ### Status
 
@@ -184,7 +192,7 @@ The password is hardcoded to `x` in the launcher's flag set so the server is nev
 There is no `-Clean` action. Cleaning is the developer's call:
 
 - To wipe binaries and start a fresh bootstrap, delete `install/` and re-run `-Bootstrap`. Saves and settings under `data/` survive.
-- To wipe state (settings, log, scripts), delete `data/setting.xml`, `data/server.log`, `data/scripts/`, but NEVER touch `data/saves/`. Saves are the developer's. If a save needs to go, the developer deletes it.
+- To wipe state (settings, log, scripts), delete `data/setting.xml`, `data/server.log`, `data/scripts/`. `data/saves/` is also free to delete or rebuild as part of a test cleanup; per the tier-3 rule above, the dedicated-server save tree is agent-managed.
 - To wipe everything including saves, the developer does that manually with explorer or rm. An agent must not.
 
 ## Notes for agents
