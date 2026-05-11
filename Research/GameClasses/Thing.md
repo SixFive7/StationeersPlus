@@ -3,7 +3,7 @@ title: Thing
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-28
+verified_at: 2026-04-29
 sources:
   - Plans/RepairPrototype/plan.md:373-383
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing
@@ -11,6 +11,9 @@ related:
   - ./Structure.md
   - ./Entity.md
   - ./ColorSwatch.md
+  - ./OnServer.md
+  - ../GameSystems/DamageState.md
+  - ../GameSystems/Explosions.md
 tags: [prefab, slots]
 ---
 
@@ -230,13 +233,67 @@ Implication for type-keyed flood-fill or selection code: filtering candidates by
 
 `PrefabHash` is set during prefab registration and never reassigned at runtime; it is identical on the live instance and on the source prefab asset (Unity prefab instantiation copies the serialized field). It is server-authoritative in the sense that every connected peer has the same value for the same Thing (the value is part of the prefab itself, not part of any networked state).
 
+## Delete(Thing sourceItem) and the destruction entry points
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+
+`Thing.Delete(Thing sourceItem)` is `virtual`. It is the "a tool deleted me" path -- the creative Authoring Tool's destroy-click reaches it (via `Thing.AttackWith` / `Structure.AttackWith` when `attack.IsDestroy`), and the `DestroyThingRequest` network message re-enters it on the receiving side:
+
+```csharp
+public virtual void Delete(Thing sourceItem)
+{
+    if (sourceItem == null) return;
+    if (Slots.Count > 0)
+        foreach (Slot slot in Slots)
+            if ((bool)slot.Occupant && GameManager.RunSimulation)
+                slot.Occupant.Delete(sourceItem);          // recursively deletes everything in slots
+    if (GameManager.RunSimulation)
+    {
+        if (ThreadedManager.IsThread) DestroyFromThread().Forget();
+        else OnServer.Destroy(this);
+    }
+    else
+    {
+        NetworkServer.SendToClients(new DestroyThingRequest { ThingId = netId, SourceItemId = sourceItem.NetworkId }, ...);
+    }
+}
+```
+
+Notes:
+
+- Requires a non-null `sourceItem` (the Thing that "did it"). A mod can pass any Thing; an `AuthoringTool` instance gives creative semantics.
+- Recursively `Delete`s slot occupants (so contained items vanish too) rather than dropping them. `DynamicThing` overrides `Delete`: if the source is an `AuthoringTool` it calls `base.Delete` and then moves slot occupants to the world via `OnServer.MoveToWorld` (so a deleted container spills its contents to the floor). `Structure` does not override `Delete`; it uses this base version.
+- On the server (`RunSimulation`): ends in `OnServer.Destroy(this)` (see `./OnServer.md`). On a pure client: sends a `DestroyThingRequest` to the server, which re-runs `thing.Delete(source)` server-side.
+- There is no type gate (works on any Thing including structures) and no living-player guard inside `Delete`; the "can't delete a conscious Human" guard lives upstream in `Thing.AttackWith` (`if (this is Human h && h.OrganBrain) return null;`).
+
+The full set of ways a Thing leaves the world: `OnServer.Destroy(Thing)` (low-level GameObject destroy; see `./OnServer.md`), `Thing.Delete(Thing)` (this method), `Structure.OnDamageDestroyed()` (the damage-maxed-out path with wreckage + construction event; see `./Structure.md`), letting `DamageState.Total` reach `MaxDamage` (the async `ThingDamageState.Destroy()` chain; see `../GameSystems/DamageState.md` and `./Structure.md`), and the `DestroyThingRequest` network message (the wire format that funnels back into `Thing.Delete`). The deconstruct-by-tool flow walks `Structure.CurrentBuildStateIndex` down stage by stage and only removes the object when it deconstructs build state 0; there is no `OnDeconstructPrimary` / `OnDeconstructSecondary` method (those names do not exist in this version).
+
+### Enumerating Things near a point
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+
+Two canonical patterns:
+
+- **Collider-based spatial query** (what `Explosion` and rocket-landing damage use): `Physics.OverlapSphereNonAlloc(pos, radius, buffer)` then `Thing.Find(collider)` for each hit. `Thing.Find(Collider)` is a static `Dictionary<Collider, Thing>` lookup (`Thing._colliderLookup`, populated by `Thing.CacheColliders()`, entries removed in `Thing.OnDestroy()`); returns null for colliders not owned by a Thing (raw scenery, terrain). One Thing can have several colliders, so dedupe by Thing. Cheaper for small radii but limited to the buffer size and only catches Things with colliders on a queried layer.
+- **Global pool iteration** (what `WorldManager.DeleteOutOfBoundsObjects` uses): `OcclusionManager.AllThings` is a `ConcurrentDensePool<Thing>` holding every non-cursor Thing (registered in `OcclusionManager.Register`, removed in `Deregister`). Iterate via `AllThings.ForEach(t => ...)` or snapshot with `AllThings.ToList()` (snapshot before iterating if you will destroy entries mid-loop). Filter by `Vector3.Distance(t.Position, center) <= radius`. Catches collider-less Things and is not limited by a fixed buffer; iterates the whole pool. `WorldManager.DeleteOutOfBoundsObjects` is the precedent for "iterate all Things, `OnServer.Destroy` the ones matching a predicate":
+
+```csharp
+private static Action<Thing> _destroyOutOfBounds = delegate(Thing thing)
+{
+    if (!(thing == null) && !thing.IsBeingDestroyed && thing.WorldGrid.OutOfBounds())
+    {
+        OnServer.Destroy(thing);
+        ConsoleWindow.PrintAction("Deleting " + thing.DisplayName + "...");
+    }
+};
+```
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0223. No conflicts.
 - 2026-04-22: added "CustomColor field and IsPaintable gate" section. Additive only; no existing content changed. Sources: decompile of `Assets.Scripts.Objects.Thing` fields at line ~360 (`PaintableMaterial`, `CustomColor`), `IsPaintable` at line ~1772, `SetCustomColor(int, bool)` at line ~5265, save round-trip at line ~4667 / ~4692, all in game version 0.2.6228.27061.
 - 2026-04-22: added "Initial CustomColor by spawn path" and "Printer-default color lookup" sections. Additive; no existing content changed. Sources: `Thing.Awake` lines 3619-3748 (CustomColor initializer at 3745-3748), `Thing.Create<T>` line ~2320, `GameManager.GetColorSwatch(Material)` line 539-554, `GameManager.GetColorIndex(Material)` line 467, `Util.Commands.ThingCommand.Execute` `"spawn"` case, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu.SpawnDynamicThing` line 196, `Assets.Scripts.Inventory.InventoryManager.SpawnDynamicThing` line 937-952, `OnServer.SpawnDynamicThingMaxStack` line 675-735, `Assets.Scripts.Objects.Electrical.SimpleFabricatorBase.SpawnCreatedItems` line 894-908, `Assets.Scripts.Objects.Constructor.Construct` / `SpawnConstruct`, `Assets.Scripts.Objects.MultiConstructor.Construct`, `Assets.Scripts.Objects.Items.DynamicThingConstructor.OnUseItem`, `Assets.Scripts.Objects.Structure.SetStructureData` line 2239-2247. All in game version 0.2.6228.27061. No conflict with existing content.
 - 2026-04-28: added "PrefabName and PrefabHash visual-variant identity" section after a SprayPaintPlus bug report ("wall painting spills across visual wall variants"). Additive; no existing content contradicted. Sources: `Assets.Scripts.Objects.Thing` fields at decompile line 297860-297865 (`[Header("Thing")] [ReadOnly] public string PrefabName; [ReadOnly] public int PrefabHash;`), in game version 0.2.6228.27061.
+- 2026-04-29: added "Delete(Thing sourceItem) and the destruction entry points" section (and "Enumerating Things near a point" subsection) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: `Thing.Delete`, `DynamicThing.Delete`, `Thing.AttackWith` / `Structure.AttackWith`, `DestroyThingRequest`, `Thing.Find(Collider)` / `Thing._colliderLookup`, `OcclusionManager.AllThings` / `Register` / `Deregister`, `WorldManager.DeleteOutOfBoundsObjects` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
 - 2026-04-22: refined "Initial CustomColor by spawn path" and rewrote "Printer-default color lookup" after user reported a yellow-kit-vs-orange-structure color asymmetry on a placed Ladder. Prior opening sentence "console/creative/fabricator/constructor all end at the same default" was misleading: it was true that Awake sets a default, but omitted that the Constructor path always re-overwrites that default with the KIT's color (not the target Structure's), and it failed to note that no vanilla path lets a raw Structure reach the world without going through a kit. Additions: (a) new subsection "Kit / Structure color asymmetry" explaining the two PaintableMaterial slots on a built structure, (b) new subsection "Per-spawn-path behavior" with the Authoring Tool / placement-click path (`OnServer.UseItemPrimaryAuthoring` line 948-956 substitutes `Prefab.Find<Constructor>(spawnPrefab.SpawnId)` for the held `AuthoringTool`), (c) documentation of the `_constructKitLookup` reverse-lookup registered in `Prefab.OnLoad` line 244-247 and read via `ElectronicReader.GetAllConstructors(Thing)` line 642-646, (d) rewrote `PrinterDefaultColorIndex` into a kit-aware `AsBuiltColorIndex` helper. No verified claim was removed — the `Constructor` bullet at original line 120 already carried the `instance.CustomColor` detail correctly; this pass promotes that detail to the top of the section and adds the reverse-lookup primitive. No fresh validator required: refinement/addition, not contradiction of previously-verified claims. Sources additionally consulted: `Constructor.Construct` line 23-34, `MultiConstructor.Construct` line 47-61, `CreateStructureInstance(Structure, Grid3, Quaternion, ulong, int = -1)` ctor line 35-43, `Structure.SetStructureData` line 2239-2248, `OnServer.UseItemPrimary` / `UseItemPrimaryAuthoring` line 938-956, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu` line 58-64 + 166-200, `InventoryManager.SpawnDynamicThing(ICreativeSpawnable)` line 937-947, `Prefab.OnLoad` kit-registration line 244-247, `ElectronicReader._constructKitLookup` line 89 and `GetAllConstructors` line 642-646, `ElectronicReader.AddToLookup(IConstructionKit)` line 529-539 and 599-614, `DynamicThingConstructor.OnUseItem` at game-DLL line ~323731. All in game version 0.2.6228.27061.
 
 ## Open questions
