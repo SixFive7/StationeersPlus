@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.7.1</Version>
+  <Version>1.7.2</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
@@ -113,6 +113,10 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v1.7.2: Beam pulse position no longer jumps when power flow rate updates
+- Pulse stripes now integrate position incrementally each frame instead of multiplying total elapsed time by the current speed, so a speed change only affects future motion. Previously every speed change retroactively rescaled the stripes' world position, producing visible position jumps. Most noticeable with mods that update source-draw rates frequently, such as Re-Volt's proportional power sharing
+- No multiplayer protocol change; v1.7.1 and v1.7.2 clients are wire-compatible
+
 v1.7.1: Long-distance auto-aim pairs now establish links reliably
 - Two dishes auto-aimed at each other now solve a joint mutual-aim geometry instead of each chasing the other's stale pose. Long-range pairs (150 m+) that previously slewed close but never linked now establish on the first servo settle
 - The link probe between transmitter and receiver was widened from a hairline raycast to a 0.5 m sphere cast filtered to receiver dish targets, so any sub-degree aim residual or mid-slew jitter still establishes the link
