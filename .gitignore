@@ -65,6 +65,10 @@ DEV.md
 ## Scratch / working directory (see CLAUDE.md "Workflow: scratch and working files in .work/")
 .work/
 
+## Playwright MCP runtime dirs (see playwright/README.md; config.json and README.md stay tracked)
+playwright/profile/
+playwright/output/
+
 ## Dedicated server tree (see DedicatedServer/CLAUDE.md)
 ## Everything inside DedicatedServer/ is local-only except CLAUDE.md and the launcher script.
 /DedicatedServer/*

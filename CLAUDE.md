@@ -9,7 +9,8 @@ Shared conventions for all Stationeers mods under this monorepo. `Mods/<ModName>
 - `tools/` contains repository-wide utility scripts.
 - `Mods/Template/` is the seed scaffold for creating new mods.
 - `.work/` at the monorepo root is the gitignored scratch directory. All temp, prototype, and throwaway files written during a work session live here. See "Workflow: scratch and working files in .work/" below.
-- Root files: `LICENSE` (Apache 2.0), `NOTICE`, `README.md`, `TODO.md` (cross-mod and repo-wide todos), `Directory.Build.props.template` (MSBuild inheritance, filled-in `Directory.Build.props` is gitignored), `DEV.md.template` (developer environment scaffold, filled-in `DEV.md` is gitignored), `.gitignore`, `.gitattributes`, `CLAUDE.md` (this file).
+- `playwright/` holds the Playwright MCP configuration (`config.json`, `README.md`); its `profile/` and `output/` subdirectories are gitignored browser runtime state. See "Tool: Playwright MCP for web browsing" below.
+- Root files: `LICENSE` (Apache 2.0), `NOTICE`, `README.md`, `TODO.md` (cross-mod and repo-wide todos), `Directory.Build.props.template` (MSBuild inheritance, filled-in `Directory.Build.props` is gitignored), `DEV.md.template` (developer environment scaffold, filled-in `DEV.md` is gitignored), `.mcp.json` (project-scoped MCP servers, see "Tool: Playwright MCP for web browsing"), `.gitignore`, `.gitattributes`, `CLAUDE.md` (this file).
 
 ## Seed new mods from Mods/Template/
 
@@ -324,3 +325,21 @@ Default posture for any change that affects runtime behavior:
 8. **Clean up after yourself.** After a test session, delete the snapshot files read from `BepInEx\inspector\snapshots\` and any stray request files still sitting in `BepInEx\inspector\requests\`. Snapshots have timestamped filenames and no automatic rotation. Stray request files are worse: if the plugin failed to process one, it will still be picked up the next time the game launches. Leave both folders empty at the end of every session unless a specific snapshot is being preserved for later review.
 
 The target: the developer loads a save, performs whatever minimum in-game actions the test requires, and reports "done." Everything else, observing state, diffing before/after, confirming the hypothesis, is off the snapshot files. Treat any test plan that puts the developer in charge of reading values or describing behavior as a failure of planning and rewrite it.
+
+## Tool: Playwright MCP for web browsing
+
+A project-scoped Playwright MCP server is configured in `.mcp.json`. It launches a persistent headless Chrome and exposes the standard `browser_*` tools so the agent can navigate, read rendered pages, screenshot, and download files directly. Runtime state lives under `playwright/` (`profile/` for the Chrome profile, `output/` for downloads, screenshots, session traces, and HAR captures); both subdirectories are gitignored.
+
+Configuration is split across three files with a strict separation of concerns:
+
+- `.mcp.json` bootstraps the server (only `--config` plus the CLI-only flag `--output-mode file`). Keep it minimal.
+- `playwright/config.json` holds every config-schema setting we deviate from upstream defaults on. Canonical source for Playwright-level configuration.
+- `playwright/README.md` is the single source of truth for the rules (HAR archive convention, screenshot filename discipline, single-instance-per-repo, profile reset, debugging pointers, upgrade procedure) and the full per-setting reference table, including settings left at default and the reasoning for leaving them there.
+
+Read `playwright/README.md` before changing any of those three files or before relying on the browser for anything non-trivial. A `PreToolUse` hook (`.claude/hooks/playwright-config-hook.ps1`, wired in `.claude/settings.json`) fires on Read/Edit/Write of the config trio and injects the same pointer. When you change a value in `config.json` or `.mcp.json`, update the matching row in `playwright/README.md` in the same commit; motivation lives only in the markdown.
+
+Downloads land in `playwright/output/` (gitignored). If a downloaded file needs to be reviewed or kept, move it into `.work/` per the scratch-files rule above.
+
+### steamcommunity.com lookups must go through Playwright
+
+Any lookup against `https://steamcommunity.com` (Steam Workshop item pages, changelogs, comment threads, file details, collection pages) MUST be done by driving the Playwright MCP browser: navigate to the URL, then read the values from the rendered DOM or accessibility snapshot. Do NOT use the `WebFetch` tool, and do not quote the model's built-in browsing or training knowledge, for `steamcommunity.com` content; Anthropic's fetch infrastructure receives bogus or stale data from that host (wrong item metadata, missing or outdated descriptions and changelogs, garbled comments). The live browser sees the real page. This applies to every `steamcommunity.com` URL, including ones that look like simple static pages.

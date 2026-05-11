@@ -1,0 +1,28 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "userDataDir": "playwright/profile",
+    "launchOptions": {
+      "headless": true,
+      "channel": "chrome"
+    },
+    "contextOptions": {
+      "viewport": { "width": 1920, "height": 1080 },
+      "locale": "nl-NL",
+      "timezoneId": "Europe/Amsterdam",
+      "ignoreHTTPSErrors": true,
+      "permissions": ["clipboard-read", "clipboard-write"],
+      "recordHar": {
+        "path": "playwright/output/network.har",
+        "mode": "full",
+        "content": "embed"
+      }
+    }
+  },
+  "capabilities": ["vision", "devtools"],
+  "outputDir": "playwright/output",
+  "saveSession": true,
+  "console": { "level": "warning" },
+  "codegen": "none",
+  "allowUnrestrictedFileAccess": true
+}

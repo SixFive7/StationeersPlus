@@ -11,6 +11,56 @@
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-commit-hook.ps1"
           }
         ]
+      },
+      {
+        "matcher": "Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Read(*\\.mcp.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\playwright\\config.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\playwright\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\.mcp.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\playwright\\config.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\playwright\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\.mcp.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\playwright\\config.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\playwright\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          }
+        ]
       }
     ],
     "PostToolUse": [
