@@ -424,6 +424,7 @@ function Invoke-HostMode {
         '-settings', 'GamePort',         "$GamePort"
         '-settings', 'UpdatePort',       "$UpdatePort"
         '-settings', 'AutoSave',         'true'
+        '-settings', 'AutoPauseServer',  'false'
         '-settings', 'UPNPEnabled',      'false'
         '-settings', 'ServerName',       'Local Test'
         '-settings', 'ServerMaxPlayers', '4'
