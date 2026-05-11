@@ -55,17 +55,20 @@ namespace PowerTransmitterPlus
             // sqrt(0.01)=0.1, sqrt(1)=1. Preserves high/low differentiation
             // while making low-end pulses perceptible.
             //
-            // At intensity == 0 the offset goes to 0 and the stripes freeze in
-            // place — the beam shows a stationary "standing wave" pattern that
-            // visually reads as "linked but no power flowing", distinct from
-            // both moving pulses (linked + power) and a hidden beam (unlinked).
+            // At intensity == 0 the phase stops advancing and the stripes
+            // freeze in place: the beam shows a stationary "standing wave"
+            // pattern that reads as "linked but no power flowing", distinct
+            // from both moving pulses (linked + power) and a hidden beam
+            // (unlinked).
             var effective = _intensity > 0f ? Mathf.Sqrt(_intensity) : 0f;
 
             var tiles = distance / wavelength;
 
-            // Integrate phase per frame so a speed change advances future motion
-            // without retroactively re-scaling Time.time, which would teleport
-            // the stripes by Δspeed * Time.time on every intensity update.
+            // Integrate phase per frame so a speed change only affects future
+            // motion. Computing the offset as Time.time * speed instead would
+            // make every speed change retroactively rescale the whole
+            // accumulated distance, teleporting the stripes by (speed delta) *
+            // Time.time on each VisualizerIntensity update.
             _phase += Time.deltaTime * effective * scrollMps / wavelength;
             _phase -= Mathf.Floor(_phase);
 
