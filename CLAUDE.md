@@ -215,10 +215,11 @@ All scratch, temp, prototype, and throwaway files written during a work session 
 Required practice:
 
 - Create `.work/` if it does not exist (`mkdir -p .work/`). It is not tracked, so a fresh clone will not have it.
-- Anything an AI assistant or a developer writes that is not part of the released codebase lands inside `.work/`. Examples: throwaway IL dumps, decompile snippets pulled out of `Research/` for ad-hoc inspection, exploratory `.cs` files used to test a hypothesis, request and response captures, scratch scripts, ad-hoc notes that are not destined for `RESEARCH.md` or `TODO.md`.
-- Do not write `.tmp_*.cs`, `scratch.txt`, `notes.md`, or other loose temp files at the repo root, inside any `Mods/<Mod>/` subtree, or inside any `Plans/<Plan>/` subtree. If a temp file needs to evoke the source it relates to, name it descriptively inside `.work/` (`.work/PowerTransmitterPlus_pc_dump.cs`, `.work/CombustionDeepMiner_il.txt`).
+- **Each session or coherent task gets its own dated subdirectory: `.work/<YYYY-MM-DD>-<short-task-slug>/`.** The date is when the work started; the slug is a short kebab-case description (`.work/2026-05-12-battery-light-occlusion/`, `.work/2026-04-28-equipmentplus-friend-test/`). Never write files directly into `.work/` itself. The date prefix makes stale scratch obvious at a glance, and the per-task folder keeps parallel sessions from stepping on each other. The one standing exception is `.work/decomp/<game-version>/` (see "Decompilation artifacts" below): decompiles are a regenerable shared cache keyed by game version, not per-session scratch, so they keep that fixed layout instead of a dated folder.
+- Anything an AI assistant or a developer writes that is not part of the released codebase lands inside the current session folder. Examples: throwaway IL dumps, decompile snippets pulled out of `Research/` for ad-hoc inspection, exploratory `.cs` files used to test a hypothesis, request and response captures, scratch scripts, ad-hoc notes that are not destined for `RESEARCH.md` or `TODO.md`.
+- Do not write `.tmp_*.cs`, `scratch.txt`, `notes.md`, or other loose temp files at the repo root, inside any `Mods/<Mod>/` subtree, or inside any `Plans/<Plan>/` subtree. Put them in the current session folder under `.work/`, named descriptively (`.work/2026-05-12-pwt-research/PowerTransmitterPlus_pc_dump.cs`, `.work/2026-04-27-deepminer/CombustionDeepMiner_il.txt`).
 - `.work/` is not a substitute for the curation rules. Findings about game internals still belong in `Research/<category>/`; durable mod knowledge still belongs in the mod's `RESEARCH.md`. Use `.work/` only for material that is genuinely throwaway.
-- Clean up `.work/` at the end of a session, or at least at the end of a coherent task. The directory should not become a graveyard of stale scratch from months ago.
+- Clean up your session folder at the end of a session, or at least at the end of a coherent task. The dated layout makes month-old leftovers easy to spot and sweep; `.work/` should not become a graveyard of stale scratch.
 
 The existing `*.tmp`, `*.bak`, `*.orig` patterns in `.gitignore` continue to catch stray throwaway files anywhere in the tree as a safety net, but `.work/` is the intended home, not a fallback. If you find yourself reaching for `*.tmp` at the repo root, route it through `.work/` instead.
 
@@ -241,6 +242,8 @@ Reading a save's contents for diagnostic purposes is always acceptable for tier 
 Any `.cs` file produced by decompiling a Stationeers DLL or any other binary lives at exactly:
 
 `.work/decomp/<game-version>/<source-assembly-name>.decompiled.cs`
+
+This path is fixed and is the one exception to the dated-session-folder rule above: decompiles are a regenerable shared cache keyed by game version, not per-session scratch, so they do not go in a `.work/<YYYY-MM-DD>-<slug>/` folder.
 
 Three rules apply, all firm:
 
