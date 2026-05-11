@@ -13,6 +13,7 @@ namespace PowerTransmitterPlus
         private LineRenderer _lr;
         private Material _instanceMaterial;
         private float _intensity;
+        private float _phase;
 
         private void Awake()
         {
@@ -61,10 +62,15 @@ namespace PowerTransmitterPlus
             var effective = _intensity > 0f ? Mathf.Sqrt(_intensity) : 0f;
 
             var tiles = distance / wavelength;
-            var offset = -Time.time * effective * scrollMps / wavelength;
+
+            // Integrate phase per frame so a speed change advances future motion
+            // without retroactively re-scaling Time.time, which would teleport
+            // the stripes by Δspeed * Time.time on every intensity update.
+            _phase += Time.deltaTime * effective * scrollMps / wavelength;
+            _phase -= Mathf.Floor(_phase);
 
             _instanceMaterial.mainTextureScale = new Vector2(tiles, 1f);
-            _instanceMaterial.mainTextureOffset = new Vector2(offset, 0f);
+            _instanceMaterial.mainTextureOffset = new Vector2(-_phase, 0f);
         }
 
         private void OnDestroy()
