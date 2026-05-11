@@ -1,7 +1,9 @@
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using HarmonyLib;
 using System;
+using System.Collections;
 using System.IO;
 using UnityEngine;
 
@@ -38,15 +40,46 @@ namespace InspectorPlus
             StartFileWatcher();
 
             Log.LogInfo($"InspectorPlus {PluginVersion} loaded. Watching: {_watchDir}");
+            Log.LogInfo("InspectorPlus[POLL] build with polling fallback active");
+
+            try
+            {
+                var harmony = new Harmony(PluginGuid);
+                harmony.PatchAll(typeof(InspectorPlusPlugin).Assembly);
+                Log.LogInfo("InspectorPlus[PROBE] Harmony patches applied (DishProbe)");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"InspectorPlus[PROBE] Harmony patch failed: {ex}");
+            }
+
+            // The Plugin's own Update() does not appear to fire inside the
+            // dedicated server's headless main loop. Coroutines, however, run
+            // on a separate driver and remain reliable. Run polling from a
+            // coroutine on the long-lived MainThreadDispatcher GameObject.
+            try
+            {
+                MainThreadDispatcher.StartPollingCoroutine(_watchDir, ProcessRequestFileInline);
+                Log.LogInfo("InspectorPlus[POLL] coroutine polling started");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"InspectorPlus[POLL] coroutine start failed: {ex}");
+            }
         }
 
         void Update()
         {
-            if (SnapshotKey.Value.IsDown())
+            try
             {
-                Log.LogInfo("Snapshot key pressed, taking full snapshot...");
-                TakeSnapshot(null);
+                if (SnapshotKey.Value.IsDown())
+                {
+                    Log.LogInfo("Snapshot key pressed, taking full snapshot...");
+                    TakeSnapshot(null);
+                }
             }
+            catch { }
+            Poll();
         }
 
         void OnDestroy()
@@ -70,6 +103,66 @@ namespace InspectorPlus
             catch (Exception ex)
             {
                 Log.LogError($"Failed to start file watcher: {ex.Message}");
+            }
+
+            // Headless / Mono FileSystemWatcher is unreliable. Always do an
+            // initial scan and then poll the directory in Update(). Process
+            // inline on the main thread (no dispatcher hop) so a non-running
+            // dispatcher Update can't swallow the work.
+            try
+            {
+                var initial = Directory.GetFiles(_watchDir, "*.json");
+                Log.LogInfo($"InspectorPlus[POLL] StartFileWatcher: initial scan found {initial.Length} pending request(s)");
+                foreach (var existing in initial)
+                {
+                    ProcessRequestFileInline(existing);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"InspectorPlus[POLL] initial scan failed: {ex}");
+            }
+        }
+
+        private void ProcessRequestFileInline(string fullPath)
+        {
+            try
+            {
+                Log.LogInfo($"InspectorPlus[POLL] processing: {Path.GetFileName(fullPath)}");
+                var requestJson = File.ReadAllText(fullPath);
+                var request = SnapshotRequest.Parse(requestJson);
+                TakeSnapshot(request);
+                File.Delete(fullPath);
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"InspectorPlus[POLL] processing {Path.GetFileName(fullPath)} failed: {ex}");
+            }
+        }
+
+        private float _pollAccum;
+        private const float PollIntervalSeconds = 2f;
+
+        private void Poll()
+        {
+            _pollAccum += Time.unscaledDeltaTime;
+            if (_pollAccum < PollIntervalSeconds) return;
+            _pollAccum = 0f;
+            try
+            {
+                var files = Directory.GetFiles(_watchDir, "*.json");
+                if (files.Length > 0)
+                {
+                    Log.LogInfo($"InspectorPlus[POLL] tick: found {files.Length} request(s)");
+                    foreach (var existing in files)
+                    {
+                        ProcessRequestFileInline(existing);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"InspectorPlus[POLL] tick failed: {ex}");
             }
         }
 
