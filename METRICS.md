@@ -43,6 +43,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 
 | Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
 |---|---|---|---|---|---|---|---|
+| 2026-05-12 | 2 | 8 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-12) |
 
 ## Not yet published
 
