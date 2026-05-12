@@ -292,8 +292,17 @@ namespace EquipmentPlus
             if (tablet.ParentSlot != InventoryManager.ActiveHandSlot)
             {
                 if (ConfigCartridgeState.ClickTrace)
+                {
+                    var ahs = InventoryManager.ActiveHandSlot;
+                    var tps = tablet.ParentSlot;
+                    string ahsDesc = ahs == null ? "null"
+                        : $"[{(ahs.Parent != null ? ahs.Parent.GetType().Name + "#" + ahs.Parent.ReferenceId : "null")}/{ahs.SlotIndex} occ={(ahs.Get() != null ? ahs.Get().GetType().Name : "(empty)")}]";
+                    string tpsDesc = $"[{(tps.Parent != null ? tps.Parent.GetType().Name + "#" + tps.Parent.ReferenceId : "null")}/{tps.SlotIndex} occ={(tps.Get() != null ? tps.Get().GetType().Name : "(empty)")}]";
+                    bool sameRef = object.ReferenceEquals(tps, ahs);
+                    bool sameId = ahs != null && tps.Parent == ahs.Parent && tps.SlotIndex == ahs.SlotIndex;
                     EquipmentPlusPlugin.Log.LogInfo(
-                        "[EquipmentPlus.click] bail: tablet not in ActiveHandSlot");
+                        $"[EquipmentPlus.click] bail: tablet#{tablet.ReferenceId} not in ActiveHandSlot. tablet.ParentSlot={tpsDesc} ActiveHandSlot={ahsDesc} sameRef={sameRef} sameLogical={sameId}");
+                }
                 return;
             }
             if (tablet.Cartridge != __instance)

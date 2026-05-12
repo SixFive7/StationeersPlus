@@ -160,26 +160,37 @@ namespace EquipmentPlus
             return $"[{parentName}#{parentId}/{s.SlotIndex} hand={hand} occ={occ}]";
         }
 
+        // Hand-slot interactable types SmartStow excludes when stowing FROM a
+        // hand (mirrors InventoryManager._excludeHandSlots). We reuse the same
+        // exclusion when probing "is there inventory room for this occupant?"
+        // so the probe agrees with what SmartStow will actually do.
+        private static readonly List<InteractableType> ExcludeHandSlots =
+            new List<InteractableType> { InteractableType.Slot1, InteractableType.Slot2 };
+
         // Phase 2: when active hand does NOT hold a tablet, try to put one
-        // there. Decision tree per Plans/EquipmentPlus/TODO.md section B
-        // Phase 2:
-        //   1. Off-hand has tablet -> SwapHands (no item moves; subsequent
-        //      scroll cycles on the now-active tablet).
+        // there. Decision tree:
+        //   1. Off-hand has tablet -> SwapHands (no item moves; the now-active
+        //      tablet cycles on the next scroll).
         //   2. Search inventory (Toolbelt -> Backpack -> Suit, no nested) for
-        //      first AdvancedTablet.
-        //   3. If found AND active hand empty -> OnServer.MoveToSlot(tablet,
-        //      activeHandSlot). Done.
-        //   4. If found AND active hand occupied -> SmartStow(activeHandSlot)
-        //      and start AutoEquipTabletCoroutine to check after one yield
-        //      whether stow succeeded (then equip) or failed (then try swap;
-        //      if swap also fails, ConsoleWindow.PrintError to local F3).
-        //   5. No tablet anywhere -> silent no-op (log only).
+        //      the first AdvancedTablet. None found -> no-op.
+        //   3. Active hand empty -> OnServer.MoveToSlot(tablet, activeHand).
+        //   4. Active hand occupied -> fire TWO ordered moves: stow the
+        //      occupant, then put the tablet in the freed hand. The server
+        //      processes a client's messages in send order, so the stow lands
+        //      before the equip; on the host both are synchronous and still
+        //      ordered. No wait, no poll, no coroutine. Stow target:
+        //        a. an inventory slot via SmartStow (which keeps its
+        //           "put it back" bookkeeping), if the occupant has somewhere
+        //           to go that isn't a hand;
+        //        b. else the off-hand if it's empty (SmartStow never uses a
+        //           hand slot when stowing from a hand);
+        //        c. else nothing fits -> tell the player.
         //
         // Multiplayer correctness: every move goes through OnServer.MoveToSlot
-        // (universal entry point per Research/Patterns/InventoryAutoEquip.md).
-        // The coroutine yields one frame between each act and check so server
-        // round-trips on remote clients have time to land before we read the
-        // resulting state.
+        // (universal entry point per Research/Patterns/InventoryAutoEquip.md),
+        // which is a direct call on the host and an ordered network request on
+        // a client. Two such calls in sequence therefore execute in order on
+        // the authoritative side, which is all the ordering this needs.
         private static void TryAutoEquipTablet(DynamicThing currentlyHeld)
         {
             var human = InventoryManager.ParentHuman;
@@ -221,25 +232,44 @@ namespace EquipmentPlus
             {
                 if (ScrollDispatchState.ScrollTrace)
                     EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EquipmentPlus.scroll] tablet auto-equip: active hand empty, sending tablet={tablet.GetType().Name}#{tablet.ReferenceId} from src={DescribeSlot(sourceSlot)} -> activeHandSlot={DescribeSlot(activeHandSlot)}");
+                        $"[EquipmentPlus.scroll] tablet auto-equip: active hand empty, equipping {tablet.GetType().Name}#{tablet.ReferenceId} from src={DescribeSlot(sourceSlot)} -> active={DescribeSlot(activeHandSlot)}");
                 OnServer.MoveToSlot(tablet, activeHandSlot);
-                EquipmentPlusPlugin.Instance?.StartCoroutine(
-                    PostMoveSanityCoroutine(activeHandSlot, tablet, "direct-equip"));
                 return;
             }
 
-            // Step 4: active hand occupied -> SmartStow then deferred-check.
-            if (ScrollDispatchState.ScrollTrace)
-                EquipmentPlusPlugin.Log.LogInfo(
-                    $"[EquipmentPlus.scroll] tablet auto-equip: active hand occupied, src={DescribeSlot(sourceSlot)} active={DescribeSlot(activeHandSlot)} stowing {currentlyHeld.GetType().Name} then equipping {tablet.GetType().Name}#{tablet.ReferenceId}");
-            // SmartStow(Slot) is a static method on InventoryManager (NOT
-            // InventoryWindowManager — that's the instance no-arg overload
-            // bound to the SmartStow keybind which finds the currently
-            // hovered slot). For a specific slot, call InventoryManager
-            // statically.
-            InventoryManager.SmartStow(activeHandSlot);
-            EquipmentPlusPlugin.Instance?.StartCoroutine(
-                AutoEquipTabletCoroutine(activeHandSlot, sourceSlot, tablet, currentlyHeld));
+            // Step 4: active hand occupied -> stow occupant, then equip tablet.
+            var offHandSlot   = InventoryManager.Instance?.InactiveHand?.Slot;
+            bool offHandFree  = offHandSlot != null && offHandSlot.Get() == null;
+            bool inventoryRoom = human.GetFreeSlot(currentlyHeld.SlotType, ExcludeHandSlots) != null;
+
+            if (inventoryRoom)
+            {
+                if (ScrollDispatchState.ScrollTrace)
+                    EquipmentPlusPlugin.Log.LogInfo(
+                        $"[EquipmentPlus.scroll] tablet auto-equip: active occupied by {currentlyHeld.GetType().Name}; SmartStow to inventory then equip {tablet.GetType().Name}#{tablet.ReferenceId} (active={DescribeSlot(activeHandSlot)})");
+                // SmartStow(Slot) is the static InventoryManager method (NOT
+                // the no-arg InventoryWindowManager overload bound to the
+                // keybind). It resolves a destination slot client-side,
+                // records the "put it back" original-slot mapping, and fires
+                // one OnServer.MoveToSlot. We then fire the tablet equip; the
+                // authoritative side runs the stow first, freeing the hand.
+                InventoryManager.SmartStow(activeHandSlot);
+                OnServer.MoveToSlot(tablet, activeHandSlot);
+            }
+            else if (offHandFree)
+            {
+                if (ScrollDispatchState.ScrollTrace)
+                    EquipmentPlusPlugin.Log.LogInfo(
+                        $"[EquipmentPlus.scroll] tablet auto-equip: inventory full, parking {currentlyHeld.GetType().Name} in off-hand {DescribeSlot(offHandSlot)} then equip {tablet.GetType().Name}#{tablet.ReferenceId}");
+                OnServer.MoveToSlot(currentlyHeld, offHandSlot);
+                OnServer.MoveToSlot(tablet, activeHandSlot);
+            }
+            else
+            {
+                if (ScrollDispatchState.ScrollTrace)
+                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: no room to stow occupant (inventory full, off-hand occupied)");
+                ConsoleWindow.PrintError("[EquipmentPlus] No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
+            }
         }
 
         // Inventory search helper. Scans the slots inside the player's
@@ -274,137 +304,6 @@ namespace EquipmentPlus
                 }
             }
             return false;
-        }
-
-        // Diagnostic-only: after a direct OnServer.MoveToSlot fires from the
-        // client, poll the target slot for several frames and log when the
-        // tablet actually lands. This pins down whether (a) it lands in the
-        // expected slot eventually, (b) it lands in some other slot, or
-        // (c) it never lands. Compare against the activeHandSlot we sent
-        // and the inactive-hand slot side-by-side.
-        private static IEnumerator PostMoveSanityCoroutine(
-            Slot expectedSlot, DynamicThing tablet, string label)
-        {
-            if (!ScrollDispatchState.ScrollTrace) yield break;
-            for (int i = 0; i < 30; i++)
-            {
-                yield return null;
-                var actualParent = tablet?.ParentSlot?.Parent;
-                var actualSlotIdx = tablet?.ParentSlot?.SlotIndex;
-                if (actualParent == expectedSlot.Parent && actualSlotIdx == expectedSlot.SlotIndex)
-                {
-                    EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EquipmentPlus.scroll] tablet post-move ({label}): tablet#{tablet.ReferenceId} landed in EXPECTED slot {DescribeSlot(expectedSlot)} after {i + 1} frame(s)");
-                    yield break;
-                }
-                if (i == 5 || i == 15 || i == 29)
-                {
-                    var localActive = InventoryManager.Instance?.ActiveHand?.Slot;
-                    var localInactive = InventoryManager.Instance?.InactiveHand?.Slot;
-                    EquipmentPlusPlugin.Log.LogInfo(
-                        $"[EquipmentPlus.scroll] tablet post-move ({label}) frame {i + 1}: tablet#{tablet?.ReferenceId} actualParent={(actualParent != null ? actualParent.GetType().Name + "#" + actualParent.ReferenceId : "null")} slotIdx={actualSlotIdx} | localActive={DescribeSlot(localActive)} localInactive={DescribeSlot(localInactive)} | expected={DescribeSlot(expectedSlot)}");
-                }
-            }
-        }
-
-        // Multiplayer-safe deferred-check sequence after SmartStow. On the
-        // host / single-player, SmartStow's MoveToSlot applies in-frame, so
-        // the yield is harmless. On remote clients, SmartStow's MoveToSlot
-        // is a network request; yielding one frame lets the server's
-        // broadcast arrive before we read activeHandSlot.Get() to decide
-        // what happened.
-        private static IEnumerator AutoEquipTabletCoroutine(
-            Slot activeHandSlot, Slot sourceSlot, DynamicThing tablet, DynamicThing prevOccupant)
-        {
-            yield return null;
-
-            if (activeHandSlot.Get() == null)
-            {
-                if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: stow succeeded after yield, equipping");
-                OnServer.MoveToSlot(tablet, activeHandSlot);
-                yield break;
-            }
-
-            // Stow failed. Try 3-way swap via the off-hand as temporary
-            // location. Pure 2-step swap (prevOccupant -> sourceSlot, then
-            // tablet -> activeHandSlot) doesn't work because OnServer.MoveToSlot
-            // does NOT auto-swap when the target is occupied — the tablet is
-            // still in sourceSlot when we try to put prevOccupant there, so
-            // the move is rejected. See Research/Patterns/InventoryAutoEquip.md
-            // "OnServer.MoveToSlot" for the verbatim no-swap behavior.
-            //
-            // Sequence: (1) tablet -> off-hand (temp), (2) prevOccupant ->
-            // sourceSlot, (3) tablet -> activeHandSlot. Each step has a yield
-            // for multiplayer correctness. If any step fails, restore prior
-            // state where possible and notify the player.
-            if (prevOccupant == null)
-            {
-                if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: prevOccupant became null during yield, aborting swap");
-                yield break;
-            }
-
-            var inactiveHandSlot = InventoryManager.Instance?.InactiveHand?.Slot;
-            if (inactiveHandSlot == null || inactiveHandSlot.Get() != null)
-            {
-                if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: 3-way swap blocked, off-hand also occupied (or unavailable)");
-                ConsoleWindow.PrintError("[EquipmentPlus] No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
-                yield break;
-            }
-
-            // Step 1: park tablet in off-hand.
-            if (ScrollDispatchState.ScrollTrace)
-                EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] tablet auto-equip: 3-way swap step 1/3 — tablet -> off-hand (temp)");
-            OnServer.MoveToSlot(tablet, inactiveHandSlot);
-            yield return null;
-
-            if (inactiveHandSlot.Get() != tablet)
-            {
-                if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: step 1 failed, off-hand rejected tablet");
-                ConsoleWindow.PrintError("[EquipmentPlus] No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
-                yield break;
-            }
-
-            // Step 2: move prevOccupant into the freed sourceSlot.
-            if (ScrollDispatchState.ScrollTrace)
-                EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] tablet auto-equip: 3-way swap step 2/3 — {prevOccupant.GetType().Name} -> source slot");
-            OnServer.MoveToSlot(prevOccupant, sourceSlot);
-            yield return null;
-
-            if (sourceSlot.Get() != prevOccupant)
-            {
-                // Source slot rejected prevOccupant (slot-type mismatch).
-                // Restore tablet to its source slot so the player's inventory
-                // returns to the pre-attempt state.
-                if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: step 2 failed, source slot rejected prevOccupant; restoring tablet");
-                OnServer.MoveToSlot(tablet, sourceSlot);
-                ConsoleWindow.PrintError("[EquipmentPlus] No room to swap. Manually stow or drop the item in your active hand to equip the tablet.");
-                yield break;
-            }
-
-            // Step 3: pull tablet from off-hand to active hand.
-            if (ScrollDispatchState.ScrollTrace)
-                EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: 3-way swap step 3/3 — tablet -> active hand");
-            OnServer.MoveToSlot(tablet, activeHandSlot);
-            yield return null;
-
-            if (activeHandSlot.Get() != tablet)
-            {
-                // Shouldn't happen — active hand is empty (we moved prevOccupant
-                // out in step 2) and the slot accepts the tablet by construction.
-                // Defensive notice if it does.
-                if (ScrollDispatchState.ScrollTrace)
-                    EquipmentPlusPlugin.Log.LogInfo("[EquipmentPlus.scroll] tablet auto-equip: step 3 failed unexpectedly, active hand did not receive tablet");
-                ConsoleWindow.PrintError("[EquipmentPlus] Tablet equip failed unexpectedly — please report this.");
-                yield break;
-            }
-
-            if (ScrollDispatchState.ScrollTrace)
-                EquipmentPlusPlugin.Log.LogInfo($"[EquipmentPlus.scroll] tablet auto-equip: 3-way swap complete — tablet in active hand, {prevOccupant.GetType().Name} in source slot");
         }
 
         private static void DispatchLens(int direction)
