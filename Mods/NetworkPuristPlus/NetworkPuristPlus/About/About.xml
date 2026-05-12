@@ -78,7 +78,7 @@ v1.0.0: Initial release
 - Compatible with ZoopMod (zooping a long stretch produces single-tile pieces) and NetworkUpgrader.
 - Known limitations: a rebuilt pipe run starts empty; an item physically in transit inside a long chute segment is lost when that segment is rebuilt.
   </ChangeLog>
-  <WorkshopHandle>0</WorkshopHandle>
+  <WorkshopHandle>3724874914</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>

@@ -98,7 +98,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 
 ## Changelog
 
-Version history lives in [`NetworkPuristPlus/About/About.xml`](NetworkPuristPlus/About/About.xml) under `<ChangeLog>` and is published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/0) with every release.
+Version history lives in [`NetworkPuristPlus/About/About.xml`](NetworkPuristPlus/About/About.xml) under `<ChangeLog>` and is published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3724874914) with every release.
 
 ## License
 
