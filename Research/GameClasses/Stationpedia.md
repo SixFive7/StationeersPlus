@@ -3,7 +3,7 @@ title: Stationpedia
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-05-12
 sources:
   - Plans/StationpediaPlus/PLAN.md:424-432
   - Plans/StationpediaPlus/PLAN.md:534-562
@@ -12,6 +12,7 @@ sources:
   - Plans/StationpediaPlus/PLAN.md:873-886
   - Plans/StationpediaPlus/PLAN.md:980-1003
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.UI.Stationpedia
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: SPDADataHandler (global namespace)
 related:
   - ./StationpediaPage.md
   - ./UniversalPage.md
@@ -125,10 +126,49 @@ Source: F0219k (back-stack portion).
 
 `Stationpedia` maintains a private `_pageHistory` list for the back-button navigation state. Our `SixFive7LinkHandler` routes clicks to `SetPage`, so cross-page navigation participates normally in the back stack.
 
+## SPDADataHandler and HandleThingPageOverrides (HideInStationpedia application)
+<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+
+Source: decompiled `Assembly-CSharp.dll`, game version 0.2.6228.27061.
+
+`Stationpedia` owns a `public static SPDADataHandler DataHandler = new SPDADataHandler();` field (game.cs:230341). `SPDADataHandler` is a **global-namespace** class (no `namespace` block in the decompile, unlike `Stationpedia` which is in `Assets.Scripts.UI`); `Stationpedia.DataHandler` is the static instance. Relevant members (game.cs:47678-47744):
+
+```csharp
+public class SPDADataHandler
+{
+    public Dictionary<string, Dictionary<string, List<StationCategoryInsert>>> _listDictionary = ...;
+    public List<string> ListOfAllListOfObjects = ...;
+    public Dictionary<string, List<SPDAThingOverideData>> ThingOverrideData = ...;
+    public Dictionary<string, bool> HiddenInPedia = ...;
+
+    public void HandleThingPageOverrides()
+    {
+        foreach (List<SPDAThingOverideData> value in ThingOverrideData.Values)
+        {
+            foreach (SPDAThingOverideData item in value)
+            {
+                Thing thing = Prefab.Find(item.ThingName);
+                if ((bool)thing)
+                {
+                    HiddenInPedia[thing.PrefabName] = item.HideInSPDA;
+                    thing.HideInStationpedia = item.HideInSPDA;
+                }
+            }
+        }
+    }
+    // ClearAll(), AddToAllLists(string), AddNewListItem(string, string, StationCategoryInsert) ...
+}
+```
+
+`HandleThingPageOverrides()` is a parameterless `public void` instance method, called once from `Stationpedia.PopulateLists()` (game.cs:231991), immediately after a long block of `GetPage(...)` template lookups and immediately *before* the `foreach (Thing allPrefab in Prefab.AllPrefabs)` loop that builds one `StationpediaPage` per prefab. That per-prefab loop skips a prefab when `allPrefab.HideInStationpedia || value` is true, where `value` is `DataHandler.HiddenInPedia.TryGetValue(allPrefab.PrefabName, out var value)` (game.cs:231995-231998). So a prefab is hidden from the Stationpedia if EITHER `Thing.HideInStationpedia` is set OR `SPDADataHandler.HiddenInPedia[prefabName]` is true.
+
+`ThingOverrideData` is populated from loaded XML page-overrides earlier in the load (game.cs:193982-193990 fills it from `SPDAThingOverideData` entries; `SPDAThingOverideData` carries `ThingName`, `ParentListKey`, `HideInSPDA`). Vanilla ships overrides only for a small set; the practical implication for a mod that sets `Thing.HideInStationpedia = true` on a prefab during prefab-load is that a *later-loading* mod's page-override for the same prefab with `HideInSPDA = false` would clear the flag when `HandleThingPageOverrides()` runs (it does an unconditional `thing.HideInStationpedia = item.HideInSPDA`). A Harmony postfix on `HandleThingPageOverrides` is the place to re-assert the flag (and re-write `HiddenInPedia[prefabName] = true`, since `PopulateLists` consults both) after that pass and before the per-prefab page build. Used by NetworkPuristPlus (`HideLongVariantsStationpediaPatch`) as belt-and-suspenders over its imperative `HideInStationpedia` writes.
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0200, F0203, F0217, F0219d, F0219e, F0219k. No conflicts.
+- 2026-05-12: added "SPDADataHandler and HandleThingPageOverrides" section. Verified against decompiled `Assembly-CSharp.dll` in game version 0.2.6228.27061: `Stationpedia.DataHandler` is a `static SPDADataHandler` field (game.cs:230341), `SPDADataHandler` is a global-namespace class (game.cs:47678), `HandleThingPageOverrides()` is a parameterless `public void` instance method (game.cs:47693) called from `Stationpedia.PopulateLists` (game.cs:231991) right before the per-prefab page-build loop; the loop skips a prefab when `HideInStationpedia || HiddenInPedia[name]`. Additive (the page did not previously mention `SPDADataHandler`); no conflict, no fresh validator needed.
 
 ## Open questions
 
