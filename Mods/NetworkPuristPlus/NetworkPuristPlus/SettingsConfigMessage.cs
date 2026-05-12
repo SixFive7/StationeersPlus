@@ -15,16 +15,22 @@ namespace NetworkPuristPlus
     // needed for that. The world-rebuild on load is host-authoritative regardless.)
     //
     // Process() runs on the receiving side; on a client receiving from the host, hostId is the host's
-    // connection ID. Field order MUST match between Serialize and Deserialize.
+    // connection ID. Field order MUST match between Serialize and Deserialize. Wire-format additions go
+    // at the END to keep the read order stable -- RemoveLongInsulatedLiquidPipes (the 8th bool) was
+    // appended last in v1.1, after AlignStraightCables, even though it groups logically with the other
+    // pipe toggles. (The v1.1-polish rename of RemoveLongPipes -> RemoveLongGasPipes and
+    // RemoveLongInsulatedPipes -> RemoveLongInsulatedGasPipes did NOT move any position -- the renamed
+    // entries keep their slots in the read order; only the names changed.)
     public class SettingsConfigMessage : INetworkMessage
     {
         public bool Enabled;
-        public bool RemoveLongGasPipes;
+        public bool RemoveLongGasPipes;              // the basic pipe ("Gas Pipe") -- StructurePipeStraight*
         public bool RemoveLongLiquidPipes;
-        public bool RemoveLongInsulatedPipes;
+        public bool RemoveLongInsulatedGasPipes;     // insulated gas pipe only ("Insulated Gas Pipe") -- StructureInsulatedPipeStraight*
         public bool RemoveLongChutes;
         public bool RemoveLongSuperHeavyCables;
         public bool AlignStraightCables;
+        public bool RemoveLongInsulatedLiquidPipes;  // StructureInsulatedPipeLiquidStraight* -- appended at the END (8th bool)
 
         // Build a message from the local config (host side).
         internal static SettingsConfigMessage FromLocalConfig() => new SettingsConfigMessage
@@ -32,10 +38,11 @@ namespace NetworkPuristPlus
             Enabled = Settings.Enabled?.Value ?? true,
             RemoveLongGasPipes = Settings.RemoveLongGasPipes?.Value ?? true,
             RemoveLongLiquidPipes = Settings.RemoveLongLiquidPipes?.Value ?? true,
-            RemoveLongInsulatedPipes = Settings.RemoveLongInsulatedPipes?.Value ?? true,
+            RemoveLongInsulatedGasPipes = Settings.RemoveLongInsulatedGasPipes?.Value ?? true,
             RemoveLongChutes = Settings.RemoveLongChutes?.Value ?? true,
             RemoveLongSuperHeavyCables = Settings.RemoveLongSuperHeavyCables?.Value ?? true,
             AlignStraightCables = Settings.AlignStraightCables?.Value ?? true,
+            RemoveLongInsulatedLiquidPipes = Settings.RemoveLongInsulatedLiquidPipes?.Value ?? true,
         };
 
         public void Serialize(RocketBinaryWriter writer)
@@ -43,10 +50,11 @@ namespace NetworkPuristPlus
             writer.WriteBoolean(Enabled);
             writer.WriteBoolean(RemoveLongGasPipes);
             writer.WriteBoolean(RemoveLongLiquidPipes);
-            writer.WriteBoolean(RemoveLongInsulatedPipes);
+            writer.WriteBoolean(RemoveLongInsulatedGasPipes);
             writer.WriteBoolean(RemoveLongChutes);
             writer.WriteBoolean(RemoveLongSuperHeavyCables);
             writer.WriteBoolean(AlignStraightCables);
+            writer.WriteBoolean(RemoveLongInsulatedLiquidPipes);   // 8th bool -- appended at the END
         }
 
         public void Deserialize(RocketBinaryReader reader)
@@ -54,10 +62,11 @@ namespace NetworkPuristPlus
             Enabled = reader.ReadBoolean();
             RemoveLongGasPipes = reader.ReadBoolean();
             RemoveLongLiquidPipes = reader.ReadBoolean();
-            RemoveLongInsulatedPipes = reader.ReadBoolean();
+            RemoveLongInsulatedGasPipes = reader.ReadBoolean();
             RemoveLongChutes = reader.ReadBoolean();
             RemoveLongSuperHeavyCables = reader.ReadBoolean();
             AlignStraightCables = reader.ReadBoolean();
+            RemoveLongInsulatedLiquidPipes = reader.ReadBoolean();   // 8th bool -- appended at the END
         }
 
         public void Process(long hostId)

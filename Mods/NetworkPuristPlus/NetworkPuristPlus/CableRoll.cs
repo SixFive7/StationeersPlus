@@ -15,24 +15,38 @@ namespace NetworkPuristPlus
     // / the merge system / save-load are all roll-blind), and the cable mesh follows transform.rotation
     // 1:1 (there is no dynamic re-skin like pipes have), so re-rolling a placed straight cable is safe.
     //
-    // Canonical roll = the "Straight" set: one rotation per run axis, the same set SmartRotate uses for
-    // ConnectionType.Straight (RotationsList[Straight] == [RotX, RotY, RotZ]):
-    //   Z run -> Euler(0,0,90)  (forward +Z;  == SmartRotate.RotZ.Rotation; also what ZoopMod uses for Z)
-    //   X run -> Euler(0,90,0)  (forward +X;  == SmartRotate.RotY.Rotation)
-    //   Y run -> Euler(90,0,0)  (forward -Y;  == SmartRotate.RotX.Rotation)
-    // This matches ZoopMod's Z-run roll and the build cursor once it is switched to ConnectionType.Straight
-    // (see LongVariantRegistry.AlignCableCursors), so ZoopMod-placed Z cables come out already canonical.
+    // Canonical roll = the orientation a vanilla fresh-cursor straight cable comes out at (Z run -> identity,
+    // band on top), with the X/Y-axis members chosen to mate with the largest number of corner pieces:
+    //   Z run -> Quaternion.identity        (forward +Z, band/local-up on world +Y -- a fresh-cursor Z straight)
+    //   X run -> Euler(0,90,0)              (forward +X, band on world +Y)
+    //   Y run -> Euler(270,0,90)            (forward +Y, band on world -X)
+    // The X and Y members are the per-axis plurality optimum over a 12k-thing test save: of the per-run-axis
+    // canonical rolls, these put the band on the world face the largest single share of corner cables exposes
+    // their band to at that leg. See Research/GameSystems/PlacementOrientation.md
+    // ("Why straight-cable roll normalisation does not fix the band-seam at a corner cable").
+    //
+    // IMPORTANT -- this does NOT fully eliminate the band-seam at corner cables. Corner pieces have a fixed
+    // band orientation that the mod does not touch (re-rolling a corner is connectivity-relevant, not cosmetic
+    // -- its open ends are off the run axis), and no single canonical roll per run axis mates with every
+    // corner: a corner's band-exit face is per-corner-rotation (not even a function of its leg-direction pair
+    // -- the "L flipped over" cases), and a straight that runs between two corners with contradictory band
+    // faces can match at one end only. This choice mates with the most corners; a full corner-seam fix is a
+    // larger, separate feature (re-roll each corner-adjacent straight per its specific corner) -- see TODO.md.
     //
     // Long-variant cables (StructureCableSuperHeavyStraight3 / 5 / 10) are NOT touched here: they are
     // handled by the long-piece rebuild (ReplaceLongPiecesOnLoadPatch) and the build-time rewrite
     // (RewriteLongVariantOnConstructPatch); their single-tile replacements are born canonical and then
     // pass through the on-register normalisation like any other freshly built cable.
+    //
+    // (Changing these constants means the next world load re-rolls every straight cable to the new canonical
+    // -- one more one-time conversion, expected and cosmetic-only.)
     internal static class CableRoll
     {
-        // One canonical rotation per run axis. These are exactly RotationsList[SmartRotate.ConnectionType.Straight].
-        private static readonly Quaternion CanonZ = Quaternion.Euler(0f, 0f, 90f);
-        private static readonly Quaternion CanonX = Quaternion.Euler(0f, 90f, 0f);
-        private static readonly Quaternion CanonY = Quaternion.Euler(90f, 0f, 0f);
+        // One canonical rotation per run axis: a fresh-cursor straight for the Z run (identity), and the
+        // per-axis plurality corner-mating optimum for the X and Y runs (see the class comment).
+        private static readonly Quaternion CanonZ = Quaternion.identity;            // Z run: forward +Z, band (local up) on world +Y
+        private static readonly Quaternion CanonX = Quaternion.Euler(0f, 90f, 0f);  // X run: forward +X, band on world +Y
+        private static readonly Quaternion CanonY = Quaternion.Euler(270f, 0f, 90f); // Y run: forward +Y, band on world -X
 
         // The canonical rotation for the run axis implied by `rotation` -- i.e. whichever world axis the
         // local forward (the cable run direction) maps to. Rotations on placed pieces are always 90-deg

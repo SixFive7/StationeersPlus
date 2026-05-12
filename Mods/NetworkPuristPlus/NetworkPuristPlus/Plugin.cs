@@ -6,8 +6,9 @@ using HarmonyLib;
 using LaunchPadBooster;
 using LaunchPadBooster.Networking;
 using System;
-using System.Linq;
-using System.Reflection;
+using ConsoleWindow = Assets.Scripts.ConsoleWindow;   // the in-game `~` console (Assets.Scripts.ConsoleWindow).
+                                                      // alias, not `using Assets.Scripts;`, because that namespace
+                                                      // also has a `Settings` type that would clash with NetworkPuristPlus.Settings (CS0104).
 
 namespace NetworkPuristPlus
 {
@@ -44,41 +45,11 @@ namespace NetworkPuristPlus
         // The plugin's MonoBehaviour instance (for StartCoroutine).
         internal static NetworkPuristPlusPlugin Instance;
 
-        // --- In-game `~` console (Util.Commands.ConsoleWindow) ---------------------------------------
+        // --- In-game `~` console (Assets.Scripts.ConsoleWindow, aliased above) -----------------------
         // The in-game console does NOT show plain UnityEngine.Debug.Log output -- only ConsoleWindow.Print*
-        // calls. We resolve ConsoleWindow.PrintAction / PrintError by reflection so the build does not
-        // depend on the exact namespace and it degrades gracefully if the type ever moves.
-        private static bool _consoleResolved;
-        private static MethodInfo _consolePrintAction;   // PrintAction(string output, bool aged)
-        private static MethodInfo _consolePrintError;    // PrintError(string output, bool suppressStacktrace)
-
-        private static void ResolveConsole()
-        {
-            if (_consoleResolved) return;
-            _consoleResolved = true;
-            try
-            {
-                Type t = AccessTools.TypeByName("Util.Commands.ConsoleWindow")
-                      ?? AccessTools.TypeByName("Assets.Scripts.ConsoleWindow")
-                      ?? AccessTools.TypeByName("ConsoleWindow")
-                      ?? AppDomain.CurrentDomain.GetAssemblies()
-                           .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
-                           .FirstOrDefault(x => x.Name == "ConsoleWindow" && x.IsClass && x.IsAbstract && x.IsSealed); // static class
-                if (t == null) return;
-                _consolePrintAction = AccessTools.Method(t, "PrintAction", new[] { typeof(string), typeof(bool) })
-                                   ?? AccessTools.Method(t, "PrintAction", new[] { typeof(string) });
-                _consolePrintError = AccessTools.Method(t, "PrintError", new[] { typeof(string), typeof(bool) })
-                                  ?? AccessTools.Method(t, "PrintError", new[] { typeof(string) });
-            }
-            catch { }
-        }
-
-        private static void ConsolePrint(MethodInfo m, string text, bool flag)
-        {
-            if (m == null) return;
-            try { m.Invoke(null, m.GetParameters().Length >= 2 ? new object[] { text, flag } : new object[] { text }); }
-            catch { }
-        }
+        // calls. We call ConsoleWindow.PrintAction / PrintError directly via the alias; the try/catch is
+        // because some of these fire from OnPrefabsLoaded, before the console UI is fully up (ConsoleWindow
+        // has an internal PrematureLog queue, so it should be fine, but the catch costs nothing).
 
         // A "player-visible" log line. Three channels:
         //   - BepInEx log (BepInEx\LogOutput.log; StationeersLaunchPad also mirrors it into Player.log)
@@ -88,24 +59,21 @@ namespace NetworkPuristPlus
         {
             Log?.LogInfo(message);
             UnityEngine.Debug.Log($"[{PluginName}] {message}");
-            ResolveConsole();
-            ConsolePrint(_consolePrintAction, $"[{PluginName}] {message}", false);
+            try { ConsoleWindow.PrintAction($"[{PluginName}] {message}", aged: false); } catch { }
         }
 
         internal static void PlayerWarn(string message)
         {
             Log?.LogWarning(message);
             UnityEngine.Debug.LogWarning($"[{PluginName}] {message}");
-            ResolveConsole();
-            ConsolePrint(_consolePrintError, $"[{PluginName}] {message}", true);
+            try { ConsoleWindow.PrintError($"[{PluginName}] {message}", suppressStacktrace: true); } catch { }
         }
 
         internal static void PlayerError(string message)
         {
             Log?.LogError(message);
             UnityEngine.Debug.LogError($"[{PluginName}] {message}");
-            ResolveConsole();
-            ConsolePrint(_consolePrintError, $"[{PluginName}] {message}", true);
+            try { ConsoleWindow.PrintError($"[{PluginName}] {message}", suppressStacktrace: true); } catch { }
         }
 
         private void Awake()
@@ -179,26 +147,29 @@ namespace NetworkPuristPlus
             writer.WriteBoolean(Settings.Enabled?.Value ?? true);
             writer.WriteBoolean(Settings.RemoveLongGasPipes?.Value ?? true);
             writer.WriteBoolean(Settings.RemoveLongLiquidPipes?.Value ?? true);
-            writer.WriteBoolean(Settings.RemoveLongInsulatedPipes?.Value ?? true);
+            writer.WriteBoolean(Settings.RemoveLongInsulatedGasPipes?.Value ?? true);
             writer.WriteBoolean(Settings.RemoveLongChutes?.Value ?? true);
             writer.WriteBoolean(Settings.RemoveLongSuperHeavyCables?.Value ?? true);
             writer.WriteBoolean(Settings.AlignStraightCables?.Value ?? true);
+            writer.WriteBoolean(Settings.RemoveLongInsulatedLiquidPipes?.Value ?? true);   // 8th bool -- appended at the END
         }
 
         public bool ProcessJoinValidate(RocketBinaryReader reader, out string error)
         {
             bool remoteEnabled = reader.ReadBoolean();
-            bool remoteGas = reader.ReadBoolean();
+            bool remoteGasPipes = reader.ReadBoolean();
             bool remoteLiquid = reader.ReadBoolean();
-            bool remoteInsulated = reader.ReadBoolean();
+            bool remoteInsulatedGas = reader.ReadBoolean();
             bool remoteChutes = reader.ReadBoolean();
             bool remoteSuperHeavy = reader.ReadBoolean();
             bool remoteAlign = reader.ReadBoolean();
+            bool remoteInsulatedLiquid = reader.ReadBoolean();   // 8th bool -- appended at the END
 
             if ((error = Mismatch("Enable Network Purist Plus", remoteEnabled, Settings.Enabled?.Value ?? true)) != null) return false;
-            if ((error = Mismatch("Remove Long Gas Pipes", remoteGas, Settings.RemoveLongGasPipes?.Value ?? true)) != null) return false;
+            if ((error = Mismatch("Remove Long Gas Pipes", remoteGasPipes, Settings.RemoveLongGasPipes?.Value ?? true)) != null) return false;
             if ((error = Mismatch("Remove Long Liquid Pipes", remoteLiquid, Settings.RemoveLongLiquidPipes?.Value ?? true)) != null) return false;
-            if ((error = Mismatch("Remove Long Insulated Pipes", remoteInsulated, Settings.RemoveLongInsulatedPipes?.Value ?? true)) != null) return false;
+            if ((error = Mismatch("Remove Long Insulated Gas Pipes", remoteInsulatedGas, Settings.RemoveLongInsulatedGasPipes?.Value ?? true)) != null) return false;
+            if ((error = Mismatch("Remove Long Insulated Liquid Pipes", remoteInsulatedLiquid, Settings.RemoveLongInsulatedLiquidPipes?.Value ?? true)) != null) return false;
             if ((error = Mismatch("Remove Long Chutes", remoteChutes, Settings.RemoveLongChutes?.Value ?? true)) != null) return false;
             if ((error = Mismatch("Remove Long Super-Heavy Cables", remoteSuperHeavy, Settings.RemoveLongSuperHeavyCables?.Value ?? true)) != null) return false;
             if ((error = Mismatch("Align Straight Cables", remoteAlign, Settings.AlignStraightCables?.Value ?? true)) != null) return false;

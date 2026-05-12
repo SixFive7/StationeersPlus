@@ -35,18 +35,19 @@ namespace NetworkPuristPlus
                 || _hostSettings.Enabled != msg.Enabled
                 || _hostSettings.RemoveLongGasPipes != msg.RemoveLongGasPipes
                 || _hostSettings.RemoveLongLiquidPipes != msg.RemoveLongLiquidPipes
-                || _hostSettings.RemoveLongInsulatedPipes != msg.RemoveLongInsulatedPipes
+                || _hostSettings.RemoveLongInsulatedGasPipes != msg.RemoveLongInsulatedGasPipes
+                || _hostSettings.RemoveLongInsulatedLiquidPipes != msg.RemoveLongInsulatedLiquidPipes
                 || _hostSettings.RemoveLongChutes != msg.RemoveLongChutes
                 || _hostSettings.RemoveLongSuperHeavyCables != msg.RemoveLongSuperHeavyCables
                 || _hostSettings.AlignStraightCables != msg.AlignStraightCables;
             _hostSettings = msg;
             if (changed)
                 NetworkPuristPlusPlugin.Log?.LogInfo(
-                    $"received host settings: master={msg.Enabled}, gas={msg.RemoveLongGasPipes}, liquid={msg.RemoveLongLiquidPipes}, insulated={msg.RemoveLongInsulatedPipes}, chutes={msg.RemoveLongChutes}, superHeavyCable={msg.RemoveLongSuperHeavyCables}, alignCables={msg.AlignStraightCables}. (Prefab-time effects already applied at load; restart with matching settings if these differ from yours -- the join check normally prevents that.)");
+                    $"received host settings: master={msg.Enabled}, gasPipes={msg.RemoveLongGasPipes}, liquidPipes={msg.RemoveLongLiquidPipes}, insulatedGasPipes={msg.RemoveLongInsulatedGasPipes}, insulatedLiquidPipes={msg.RemoveLongInsulatedLiquidPipes}, chutes={msg.RemoveLongChutes}, superHeavyCable={msg.RemoveLongSuperHeavyCables}, alignCables={msg.AlignStraightCables}. (Prefab-time effects already applied at load; restart with matching settings if these differ from yours -- the join check normally prevents that.)");
         }
 
         // Called from Plugin.Awake after Settings.Bind. Wires the host-side broadcast: any live change to
-        // any of the seven entries pushes a fresh snapshot to all connected clients.
+        // any of the eight entries pushes a fresh snapshot to all connected clients.
         internal static void HookHostBroadcast()
         {
             void Hook(BepInEx.Configuration.ConfigEntryBase entry)
@@ -56,7 +57,8 @@ namespace NetworkPuristPlus
             Hook(Settings.Enabled);
             Hook(Settings.RemoveLongGasPipes);
             Hook(Settings.RemoveLongLiquidPipes);
-            Hook(Settings.RemoveLongInsulatedPipes);
+            Hook(Settings.RemoveLongInsulatedGasPipes);
+            Hook(Settings.RemoveLongInsulatedLiquidPipes);
             Hook(Settings.RemoveLongChutes);
             Hook(Settings.RemoveLongSuperHeavyCables);
             Hook(Settings.AlignStraightCables);
