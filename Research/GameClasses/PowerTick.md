@@ -6,8 +6,8 @@ verified_in: 0.2.6228.27061
 verified_at: 2026-05-12
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 253668-253681 (CableNetwork.OnPowerTick)
-  - Plans/PowerGridPlus/PLAN.md (PGP-3 research); Mods/.../revolt-source/Assets/Scripts/RevoltTick.cs (RevoltTick : PowerTick)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState)
+  - Mods/PowerGridPlus/RESEARCH.md (voltage-tier research); .work/revolt-source/Assets/Scripts/RevoltTick.cs (RevoltTick : PowerTick); Mods/PowerGridPlus (PowerGridTick : PowerTick, reverse-patches CacheState + CheckForRecursiveProviders)
 related:
   - ./CableNetwork.md
   - ./Cable.md
@@ -162,9 +162,12 @@ public void ApplyState()
 
 Vanilla cable burn is **instantaneous** and **per-cable**: any cable whose `MaxVoltage < _actual` (where `_actual = min(Potential, Required)`) is a burn candidate this tick; `BreakableCables.Pick()` picks one at random and `Break()`s it (after a fuse, if any fuse's `PowerBreak < _actual`, blows first). Re-Volt replaces this whole class (`RevoltTick : PowerTick`) with a probabilistic, sliding-window model. A mod that wants e.g. heavy cables to never burn must intercept `GetBreakableCables` (private; `AccessTools.Method(typeof(PowerTick), "GetBreakableCables")`) or `BreakSingleCable`, or guard `Cable.Break()` -- and must account for Re-Volt having swapped the instance if both are installed.
 
+`CalculateState` calls a private `CheckForRecursiveProviders()` (declared at decompile line 254613, called at line 254610) -- this is the "force-burn cables when the grid loops through multiple transformers/batteries" check that walks `_networkTraversalRecord`. `CacheState()` is private at line 254656. Both are private instance methods on `PowerTick`; a subclass-replacement tick that wants the vanilla behaviour back can reach them via Harmony reverse patches (`[HarmonyReversePatch, HarmonyPatch("CacheState")] static void CacheState(PowerTick _)`), which is what Re-Volt and Power Grid Plus do for `CacheState` (always) and `CheckForRecursiveProviders` (only when the recursive-network-limits option is on).
+
 ## Verification history
 
-- 2026-05-12: page created. Sourced from a PGP-3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 254512-254760 and 253668-253681; verbatim excerpts of the `PowerTick` field block, `CableNetwork.OnPowerTick`, `CacheState`, `GetBreakableFuses`, `GetBreakableCables`, `BreakSingleFuse`, `BreakSingleCable`, `ApplyState`. Reconciles the class-attribution imprecision on [CableNetwork](./CableNetwork.md) (those `ConsumePower`/`CalculateState` bodies are `PowerTick` members). Re-Volt mod source (`RevoltTick : PowerTick`, reverse-patches `PowerTick.Initialise`/`CalculateState`/`ApplyState`) independently corroborates ownership.
+- 2026-05-12: page created. Sourced from a voltage-tier research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 254512-254760 and 253668-253681; verbatim excerpts of the `PowerTick` field block, `CableNetwork.OnPowerTick`, `CacheState`, `GetBreakableFuses`, `GetBreakableCables`, `BreakSingleFuse`, `BreakSingleCable`, `ApplyState`. Reconciles the class-attribution imprecision on [CableNetwork](./CableNetwork.md) (those `ConsumePower`/`CalculateState` bodies are `PowerTick` members). Re-Volt mod source (`RevoltTick : PowerTick`, reverse-patches `PowerTick.Initialise`/`CalculateState`/`ApplyState`) independently corroborates ownership.
+- 2026-05-12: while building Power Grid Plus, confirmed `PowerTick.CheckForRecursiveProviders()` is a private instance method (decompile line 254613, called from `CalculateState` at 254610) and `CacheState()` is private at line 254656; added a note that both are reachable via Harmony reverse patches (Power Grid Plus, like Re-Volt, reverse-patches `CacheState` unconditionally and `CheckForRecursiveProviders` when its recursive-network-limits option is on). Also: `PowerTick` and `PowerProvider` are in namespace `Assets.Scripts.Networks`; the `Pick<T>(this List<T>)` / `Pick<T>(this List<T>, System.Random)` extension used by `BreakSingleCable`/`BreakSingleFuse` lives in `Assets.Scripts.Util` (decompile ~line 214049).
 
 ## Open questions
 
