@@ -1,8 +1,10 @@
-# Power Grid Plus -- Mod Plan
+# Power Grid Plus -- Design Brief and Decision Log
 
-Status: Plans-stage. Not built, not published, no Workshop handle. This document is the design brief. It is a derivative-work plan: most of the simulation code is lifted from Sukasa's Re-Volt (MIT licensed), trimmed to a subset, plus three original features layered on top.
+Status: in development. The mod compiles; it has not been play-tested. Not published, no Workshop handle. This document is the design brief and decision log (D1-D13 below); the implementation state as of the first build pass and every deviation from this brief are recorded in `TODO.md`. It is a derivative work: most of the simulation code is lifted from Sukasa's Re-Volt (MIT licensed), trimmed to a subset, plus three original features layered on top.
 
-Reference upstream: https://github.com/sukasa/revolt (MIT, Copyright (c) 2025 Sukasa). A read-only clone lives at `.work/revolt-source/` during planning; treat it as the authoritative source for the inherited behaviour until it is ported.
+This file is not yet in the proper `RESEARCH.md` shape (architecture / file walkthrough / patch catalog with formulas / game internals / pitfalls). It still reads like a forward-looking plan in places, and the "Work phases" section is now stale. A rewrite is owed (see `TODO.md`). Until then, treat the decision log (D1-D13), the requirements rollup, the config surface, and the appendices as the durable parts.
+
+Reference upstream: https://github.com/sukasa/revolt (MIT, Copyright (c) 2025 Sukasa). A read-only clone lives at `.work/revolt-source/`.
 
 ---
 
@@ -215,7 +217,7 @@ Gone vs. Re-Volt: `Heavy Breaker Maximum Trip Setting`, `Enable Custom Objects`.
 
 ## 7. Work phases
 
-1. **Scaffold.** Copy `Mods/Template/` to `Plans/PowerGridPlus/PowerGridPlus/` (the build project lives one level down, matching `DeepMinerLogger`), rename project/namespace, fill placeholders, wire `Directory.Build.props` `$(StationeersPath)`. No `About.xml` Workshop handle yet.
+1. **Scaffold.** Copy `Mods/Template/` to `Mods/PowerGridPlus/PowerGridPlus/` (the build project lives one level down, matching `DeepMinerLogger`), rename project/namespace, fill placeholders, wire `Directory.Build.props` `$(StationeersPath)`. No `About.xml` Workshop handle yet.
 2. **Port the inherited core.** Bring over R-1..R-10 from `.work/revolt-source/`, renamespaced. Strip breaker/load-center/prefab code as it comes. Get a clean build against the current game DLLs. Smoke-test in the dedicated server: power flows, batteries share load, cables burn probabilistically, transformers behave, APCs do not leak.
 3. **Config + grouping.** Implement section 6 exactly. Verify the StationeersLaunchPad panel shows the groups in the intended order.
 4. **NEW-1.** Unlimited heavy cables. Cheap, do it early; it is mostly a filter in the tick.

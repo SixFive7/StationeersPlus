@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Power Grid Plus</Name>
+  <ModID>net.powergridplus</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]Power Grid Plus[/h1]
+
+Reworks the Stationeers power simulation and turns the three cable tiers into three separate transmission voltages.
+
+A pure-patch mod: no new craftable devices, no asset bundle. The simulation half is derived from Sukasa's Re-Volt (MIT); the three-tier voltage backbone is new. Full multiplayer compatibility. Safe to remove from existing savegames.
+
+This is an early build. The reactive enforcement works; the build-time placement warnings, the transformer tier mapping, and the recipe cost change are still being wired up.
+
+[h2]Features[/h2]
+
+[h3]Reworked power simulation (from Re-Volt)[/h3]
+[list]
+[*]Electrical load is shared proportionally across every source on a network, and split proportionally across every load.
+[*]Cables burn out gradually and probabilistically when overloaded, based on a short rolling average of throughput, instead of instantly. Fuses still blow instantly and always blow before a cable does.
+[*]Recursive and looped power networks are allowed (the vanilla force-burn check is off by default; re-enable it in settings).
+[*]Stationary batteries are charge- and discharge-rate limited, with an optional charge-efficiency setting, and expose their rate limits as logic values.
+[*]Transformers no longer leak free power and charge their own quiescent draw upstream; they expose throughput as the Power Actual logic value.
+[*]Area Power Controllers no longer leak a small amount of power or slowly drain their battery when nothing downstream is drawing.
+[/list]
+Re-Volt's circuit breakers and Load Center are not included; this is the pure-simulation subset.
+
+[h3]Three-tier transmission voltages (new)[/h3]
+[list]
+[*]Super-heavy cable never burns out -- it is the long-haul backbone. Normal and heavy cable keep their ratings.
+[*]Super-heavy cable costs twice as much to craft (configurable; 1.0 = vanilla). Recipe patching still in progress.
+[*]The three cable tiers are three separate voltages. A cable network must be all one tier; joining two tiers burns the lower-tier cable at the junction and splits the network apart. The only legal bridge is a transformer.
+[*]Electrical generators belong on heavy cable. A generator on a normal or super-heavy network produces no power. Step generation down through a transformer.
+[/list]
+
+[h3]Settings[/h3]
+All settings are server-authoritative: in multiplayer the host's value controls gameplay for everyone. Highlights:
+[list]
+[*][b]Cable Burn Factor[/b] (default 1.0): scales the per-tick cable burn chance; 0.0 disables gradual burnout.
+[*][b]Enable Unlimited Super-Heavy Cables[/b] (default true), [b]Super-Heavy Cable Cost Multiplier[/b] (default 2.0).
+[*][b]Enable Voltage Tiers[/b] (default true), [b]Generators Require Heavy Cable[/b] (default true).
+[*][b]Enable Battery Limits[/b] / [b]Max Battery Charge Rate[/b] / [b]Max Battery Discharge Rate[/b] / [b]Battery Charge Efficiency[/b].
+[*][b]Enable Transformer Exploit Mitigation[/b], [b]Enable APC Power Fix[/b].
+[/list]
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[/list]
+
+[b]All players[/b] on a server must have Power Grid Plus installed. Matching mod versions are enforced during the connection handshake automatically. [b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + Power Grid Plus setup installed server-side.
+
+Re-Volt itself swaps the power tick the same way this mod does, so running both is not supported.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[h2]Credits[/h2]
+[list]
+[*]Built on the power-simulation work in [url=https://github.com/sukasa/revolt]Re-Volt[/url] by Sukasa, used under the MIT License. The Re-Volt-derived portions retain their MIT notice; see the repository NOTICE.
+[/list]
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/PowerGridPlus]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v0.1.0: First build (work in progress)
+- Reworked cable-network power tick from Re-Volt: proportional load sharing, gradual probabilistic cable burnout on a rolling throughput average, NaN-power guard.
+- Stationary battery charge/discharge-rate limits + optional charge efficiency + rate-limit logic values.
+- Transformer free-power exploit fix + quiescent-draw restore + Power Actual logic value.
+- Area Power Controller power-leak / idle-drain fix.
+- Recursive and looped networks allowed by default.
+- New: super-heavy cable never burns; the three cable tiers are separate transmission voltages (mixing them burns the boundary cable and splits the network); generators only produce power on heavy cable.
+- Not finished yet: build-time placement warnings, small/medium/large transformer tier mapping, super-heavy cable coil recipe cost change.
+  </ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>power</Tag>
+    <Tag>multiplayer</Tag>
+    <Tag>StationeersPlus</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Power Grid Plus</color></size>
+<line-height=40%>Reworks the Stationeers power simulation and turns the three cable tiers into three separate transmission voltages.
+A pure-patch mod (no new prefabs). Simulation half derived from Re-Volt (MIT). Full multiplayer compatibility. Safe to remove from existing savegames. Early build -- some pieces still in progress.
+<b>From Re-Volt:</b>
+- Proportional load sharing across sources and loads.
+- Gradual probabilistic cable burnout on a rolling throughput average; fuses still blow first.
+- Recursive/looped networks allowed; battery charge/discharge limits + logic values; transformer exploit fix + Power Actual logic value; APC power-leak fix.
+<b>New:</b>
+- Super-heavy cable never burns; it is the long-haul backbone.
+- The three cable tiers are separate voltages; mixing them burns the boundary cable. Bridge tiers with a transformer.
+- Generators only produce power on heavy cable.
+<b>Settings:</b> Server-authoritative; the host's values control gameplay for everyone.
+<b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
+</line-height>
+]]></InGameDescription>
+</ModMetadata>
