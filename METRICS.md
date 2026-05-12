@@ -36,10 +36,17 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 |---|---|---|---|---|---|---|---|
 | 2026-05-12 | 161 | 653 | 27 | 18 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
 
+## Network Purist Plus
+
+- Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3724874914
+- Published: 2026-05-12
+
+| Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
+|---|---|---|---|---|---|---|---|
+
 ## Not yet published
 
 These live under `Mods/` or `Plans/` but are not on the Steam Workshop yet. Promote each to its own section above when it goes live.
 
 - Equipment Plus
-- Network Purist Plus
 - Inspector Plus (local-only developer tool; may never be published)
