@@ -43,3 +43,17 @@ Example: `SprayPaintPlus v1.4.2: fix paint bucket deprecated-property warning`.
 ## Rule 6: tags only for Mods/, never Plans/
 
 `Plans/` mods are WIP. They don't get version tags until they graduate to `Mods/` with a real release. The first release of a promoted mod starts at v1.0.0.
+
+## Rule 7: after the Workshop upload, verify deployment and update metrics
+
+The release commit and tag cover the source side. Uploading the new build to the Steam Workshop is a separate manual step (the in-game StationeersLaunchPad publish flow). Once that upload is done, finish the release with a verification and bookkeeping pass:
+
+1. **Verify the Workshop item updated correctly.** Open the mod's Workshop page through the Playwright browser (see "steamcommunity.com lookups must go through Playwright" in the repo `CLAUDE.md`) and confirm:
+   - "Updated" date is today and the changenote count went up by one.
+   - The top `<ChangeLog>` entry on the page matches the new `v<X.Y.Z>` and its notes.
+   - Description, preview image, and tags still render correctly (no broken BBCode, no missing image) per `Mods/Template/LAYOUT.md`.
+   If anything is wrong, fix it and re-upload before considering the release done. Do not move the tag (Rule 4); a content-only re-upload does not need a new version, a code fix does.
+
+2. **Update the metrics tracker for every published mod.** While you are already looking at the Workshop, append a fresh dated row to each mod's table in the repo-root `METRICS.md` (not just the mod you released). Follow the column instructions in `METRICS.md`'s "Updating" section. Doing every mod at once keeps the snapshot dates aligned so the trend lines stay comparable.
+
+The `METRICS.md` change is an ordinary doc change, not part of the release commit (Rule 2): commit it separately, with the verification, after the release commit and tag.

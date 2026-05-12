@@ -10,7 +10,7 @@ Shared conventions for all Stationeers mods under this monorepo. `Mods/<ModName>
 - `Mods/Template/` is the seed scaffold for creating new mods.
 - `.work/` at the monorepo root is the gitignored scratch directory. All temp, prototype, and throwaway files written during a work session live here. See "Workflow: scratch and working files in .work/" below.
 - `playwright/` holds the Playwright MCP configuration (`config.json`, `README.md`); its `profile/` and `output/` subdirectories are gitignored browser runtime state. See "Tool: Playwright MCP for web browsing" below.
-- Root files: `LICENSE` (Apache 2.0), `NOTICE`, `README.md`, `TODO.md` (cross-mod and repo-wide todos), `Directory.Build.props.template` (MSBuild inheritance, filled-in `Directory.Build.props` is gitignored), `DEV.md.template` (developer environment scaffold, filled-in `DEV.md` is gitignored), `.mcp.json` (project-scoped MCP servers, see "Tool: Playwright MCP for web browsing"), `.gitignore`, `.gitattributes`, `CLAUDE.md` (this file).
+- Root files: `LICENSE` (Apache 2.0), `NOTICE`, `README.md`, `TODO.md` (cross-mod and repo-wide todos), `METRICS.md` (dated Steam Workshop adoption snapshots, updated as the final release step), `Directory.Build.props.template` (MSBuild inheritance, filled-in `Directory.Build.props` is gitignored), `DEV.md.template` (developer environment scaffold, filled-in `DEV.md` is gitignored), `.mcp.json` (project-scoped MCP servers, see "Tool: Playwright MCP for web browsing"), `.gitignore`, `.gitattributes`, `CLAUDE.md` (this file).
 
 ## Seed new mods from Mods/Template/
 
@@ -169,6 +169,7 @@ These rules do not apply to `DEV.md` (gitignored) or any conversational scratch 
 | `RESEARCH.md` | Each mod's folder root (committed) | Someone picking up the mod for the first time | Durable, project-scoped internals: architecture, file walkthroughs, patch catalog with formulas, decompiled game internals, multiplayer protocol, pitfalls, design decisions with rationale. No session state, no developer-specific paths. |
 | `DEV.md` | Monorepo root, gitignored | The developer | Machine-specific paths (game install, deploy target, MSBuild location, log paths, sibling-mod source dirs), workflow recipes, tooling inventory, per-developer collaboration preferences. Shared across every mod. |
 | `DEV.md.template` | Monorepo root, committed | A new contributor | Scaffold for `DEV.md`. Structure and section headers filled in; machine-specific values are placeholders. Copy to `DEV.md` and fill in. |
+| `METRICS.md` | Monorepo root, committed | The developer / maintainer | Dated snapshots of each published mod's Steam Workshop numbers (subscribers, unique visitors, favorites, collection inclusions, comments, rating, shipped version). Append a row per check; never edit old rows. Updated for every published mod as the final step of the release workflow (`Mods/Template/RELEASE.md` Rule 7). |
 
 Required setup:
 
