@@ -2,9 +2,21 @@
 
 Pending work for the in-progress mod. The design brief and decision log (D1-D13) live in `RESEARCH.md`; game internals live in the central `Research/` knowledge base.
 
-## Decisions and deviations from the 2026-05-12 overnight build session
+## Decisions and deviations from the 2026-05-12 / 05-13 build sessions
 
-This is the record of choices made and corners cut during the first build pass (the user asked for the mod to be carried as far as possible overnight, with every deviation logged here for review). The mod **compiles** (`dotnet build -c Release` is green) but has **not been run in-game yet**. Nothing here has been play-tested.
+This is the record of choices made and corners cut while building the mod (the user asked for it to be carried as far as possible, with every deviation logged here for review). The mod **compiles** (`dotnet build -c Release` is green) and **loads cleanly on the dedicated server** (all Harmony patches apply, no errors) but has **not had its runtime behaviour play-tested** -- the actual power sim, cable burns, voltage-tier enforcement, and the battery/transformer/APC fixes are unverified.
+
+### Round 2 (2026-05-13): the previously-stubbed/deferred items, now resolved
+
+After the first pass the user asked for everything stubbed/deferred/needing-a-call to be finished. Their answers (and what was done):
+
+- **Retroactive enforcement on load**: keep the D11 design -- the first power tick after load burns the lowest-tier boundary cable of each mixed-tier network, splitting it. No grace period, no opt-out toggle. (Already implemented; unchanged. Still a sharp edge on first install -- see the NEW-3 note below -- but it's what was asked for.)
+- **APCs (and transformers) in the tier scheme**: no per-device tier restriction and no per-prefab tier mapping -- they bridge whatever they're wired to. The single universal rule is the cable one (two cable tiers in one network -> burn the smaller); a transformer's / APC's input and output are always separate networks, so they never trigger it. This **supersedes the old D9/D10** (Small=heavy<->normal, Medium=heavy<->heavy, Large=superHeavy<->heavy, bidirectional rewrite) -- none of that was implemented and it isn't going to be; the universal rule does the job. Implemented: `Transformer`, `AreaPowerControl`, `WirelessPower`/`PowerReceiver`/`PowerTransmitter`, `PowerTransmitterOmni` are all tier-exempt in `VoltageTier.IsAllowedOnTier`.
+- **Heavy-cable device list (D8)**: a built-in whitelist of the community-known high-draw machines -- `CarbonSequester`, `FurnaceBase` (covers `Furnace` + `AdvancedFurnace`), `ArcFurnace`, `Centrifuge`, `Recycler`, `IceCrusher`, `HydraulicPipeBender`, `DeepMiner` (covers `CombustionDeepMiner`) -- plus a `Extra Heavy-Cable Devices` config string (comma-separated PrefabNames) for modded machines. These may use heavy *or* normal cable, not super-heavy. (I did not exhaustively verify each one's draw exceeds 5 kW against the game data this session; `CarbonSequester`/`AdvancedFurnace`/`ArcFurnace` are verified from the decompile, the rest are the well-known set. If one shouldn't be there, drop it from `VoltageTier.IsHighDrawMachine`.)
+- **Ordinary device on heavy/super-heavy = hard reject + no power if it slips through**: the "no power if it slips through" half is implemented (`PowerGridTick.CalculateState_New` zeroes a device's used and generated power when it's on a tier `VoltageTier.IsAllowedOnTier` rejects). The "hard reject at build time" half is **NOT done** -- it needs a device-to-adjacent-cable lookup at placement-preview time (`Device.CanConstruct`), which wasn't worked out. So today: an ordinary device placed on heavy/super-heavy cable places fine but receives no power; same for a generator/battery on the wrong tier. The build-time rejection (red cursor + message) for devices is the one remaining NEW-3 gap. (Cable-on-cable build-time rejection IS in, best-effort, via `Cable.CanConstruct` + `CableNetwork.ConnectedNetworks`.)
+- Also dropped: the `Generators Require Heavy Cable` sub-toggle. There's now one toggle, `Enable Voltage Tiers`, for the whole NEW-3 feature. Added: the `Extra Heavy-Cable Devices` config string. Both under `Server - Voltage Tiers`.
+
+### First-pass record (2026-05-12)
 
 ### Structure / scaffolding
 

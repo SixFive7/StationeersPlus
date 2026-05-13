@@ -19,7 +19,7 @@ namespace PowerGridPlus
 
         // --- Server - Voltage Tiers ---
         internal static ConfigEntry<bool> EnableVoltageTiers;
-        internal static ConfigEntry<bool> EnableGeneratorHeavyCableRequirement;
+        internal static ConfigEntry<string> ExtraHeavyCableDevices;
 
         // --- Server - Batteries ---
         internal static ConfigEntry<bool> EnableBatteryLimits;
@@ -74,13 +74,20 @@ namespace PowerGridPlus
             // --- Server - Voltage Tiers ---
             EnableVoltageTiers = config.Bind("Server - Voltage Tiers", "Enable Voltage Tiers", true,
                 Desc("(Server-authoritative) When true, the three cable tiers (normal, heavy, super-heavy) are treated as " +
-                     "three separate transmission voltages: they cannot be wired together directly, and joining two tiers " +
-                     "burns the lower-tier cable at the junction. The only legal bridge between tiers is a transformer.", 10));
+                     "three separate transmission voltages. A cable network must be all one tier; joining two tiers burns " +
+                     "the lower-tier cable at the junction and splits the network. Generators and stationary batteries " +
+                     "belong on heavy cable, the high-draw machines may use heavy or normal, super-heavy is the long-haul " +
+                     "backbone (cables and transformers only), and everything else belongs on normal cable -- a device on " +
+                     "the wrong tier is rejected at build time and receives no power if it slips through. Transformers and " +
+                     "Area Power Controllers are exempt: they bridge whatever they are wired to.", 10));
 
-            EnableGeneratorHeavyCableRequirement = config.Bind("Server - Voltage Tiers", "Generators Require Heavy Cable", true,
-                Desc("(Server-authoritative) When true (and voltage tiers are enabled), all electrical generators must be " +
-                     "connected to heavy cable. A generator wired to a normal or super-heavy network produces no power. " +
-                     "Step generation down to normal cable through a transformer.", 20));
+            ExtraHeavyCableDevices = config.Bind("Server - Voltage Tiers", "Extra Heavy-Cable Devices", "",
+                Desc("(Server-authoritative) Comma-separated list of extra device prefab names that should be allowed on " +
+                     "heavy cable, on top of the built-in high-draw machines (Carbon Sequester, Furnace, Advanced Furnace, " +
+                     "Arc Furnace, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner). Use this for " +
+                     "modded high-draw machines. Names are matched against the device's PrefabName. Example: " +
+                     "StructureBigMachine,StructureAnotherMachine", 20));
+            ExtraHeavyCableDevices.SettingChanged += (_, __) => VoltageTier.RefreshConfig();
 
             // --- Server - Batteries ---
             EnableBatteryLimits = config.Bind("Server - Batteries", "Enable Battery Limits", true,

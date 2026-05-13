@@ -20,11 +20,11 @@ Re-Volt's circuit breakers, smart breakers, heavy breakers and the Load Center a
 Added by this mod (the three-tier voltage backbone):
 
 - **Super-heavy cable never burns out.** It is the long-haul backbone. Normal and heavy cable keep their ratings.
-- **Super-heavy cable costs twice as much to craft** (configurable; set the multiplier to 1.0 for vanilla cost). *(Recipe patching is still being wired up; see `TODO.md`.)*
-- **The three cable tiers are three separate transmission voltages.** A cable network must be all one tier. Joining two tiers burns the lower-tier cable at the junction, which splits the network back apart. The only legal bridge between tiers is a transformer.
-- **Electrical generators belong on heavy cable.** A generator wired to a normal or super-heavy network produces no power. Step generation down to normal cable through a transformer.
+- **Super-heavy cable costs twice as much to craft** (configurable via the multiplier; 1.0 = vanilla cost).
+- **The three cable tiers are three separate transmission voltages.** A cable network must be all one tier. Joining two tiers burns the lower-tier cable at the junction, which splits the network back apart. The only legal bridge between tiers is a transformer (or an Area Power Controller) -- its input and output sit on separate networks, so it's free to step between voltages.
+- **Devices belong on the right tier.** Generators and stationary batteries go on heavy cable. The high-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner -- and any extra ones you list in the config) may use heavy or normal. Super-heavy is the long-haul backbone: only cables and transformers. Everything else runs on normal cable. A device on the wrong tier receives no power. (Transformers, Area Power Controllers and wireless power devices are exempt -- they work on whatever they're wired to.)
 
-This is an early build: the build-time placement warnings, the small/medium/large transformer tier mapping, and the recipe cost change are still in progress (see `TODO.md`). The reactive enforcement -- burn the boundary cable, suppress generator output on the wrong tier -- works.
+This is an early build, not yet play-tested. The cable-tier rule is fully enforced (the boundary cable burns reactively, and a best-effort build-time check rejects mixing them at the cursor). The device-tier rule is enforced at the simulation level (no power on the wrong tier); the build-time *cursor* rejection for misplaced devices isn't wired up yet (see `TODO.md`).
 
 ## Settings
 
@@ -36,8 +36,8 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Cable Simulation | Enable Unlimited Super-Heavy Cables | true | Super-heavy cable never burns. |
 | Cable Simulation | Enable Recursive Network Limits | false | Restores the vanilla force-burn of looped grids. |
 | Cable Costs | Super-Heavy Cable Cost Multiplier | 2.0 | Multiplies the super-heavy cable coil recipe cost. 1.0 = vanilla. |
-| Voltage Tiers | Enable Voltage Tiers | true | The three cable tiers are separate voltages; mixing them burns a cable. |
-| Voltage Tiers | Generators Require Heavy Cable | true | Generators on non-heavy networks produce no power. |
+| Voltage Tiers | Enable Voltage Tiers | true | The three cable tiers are separate voltages; mixing them burns the lower-tier cable; devices belong on their tier (no power otherwise). |
+| Voltage Tiers | Extra Heavy-Cable Devices | (empty) | Comma-separated prefab names of extra devices allowed on heavy cable (for modded high-draw machines). |
 | Batteries | Enable Battery Limits | true | Charge/discharge-rate limit stationary batteries. |
 | Batteries | Max Battery Charge Rate | 0.002 | Max charge per tick, as a fraction of capacity. |
 | Batteries | Max Battery Discharge Rate | 0.007 | Max discharge per tick, as a fraction of capacity. |

@@ -57,10 +57,9 @@ namespace PowerGridPlus.Power
         private float _powerUsageWindow;
         private List<PowerProvider> _powerProviders;
 
-        // NEW-3: true iff the network contains at least one cable and every cable in it is heavy.
-        // Used to decide whether generators on this network are allowed to produce power.
-        private bool _hasAnyCable;
-        private bool _allHeavy;
+        // NEW-3: the cable tier of this network (it is single-tier once the burn-on-join backstop has run;
+        // during the brief mixed-tier window this is whichever tier was seen first). Null if cableless.
+        private Cable.Type? _networkTier;
         // NEW-1: true iff the weakest cable in this network is super-heavy (so the whole network is super-heavy).
         private bool _weakestCableIsSuperHeavy;
         // NEW-3: a mixed-tier network has been detected; we have asked for a cable burn to split it. Guards
@@ -127,10 +126,8 @@ namespace PowerGridPlus.Power
                 }
             }
 
-            _hasAnyCable = false;
-            _allHeavy = true;
+            _networkTier = null;
             bool mixedTier = false;
-            Cable.Type? firstCableType = null;
             lock (CableNetwork.CableList)
             {
                 foreach (var cable in CableNetwork.CableList.Where(x => x != null))
@@ -140,19 +137,12 @@ namespace PowerGridPlus.Power
                     else
                         _allCables[cable.MaxVoltage].Add(cable);
 
-                    _hasAnyCable = true;
-                    if (cable.CableType != Cable.Type.heavy)
-                        _allHeavy = false;
-
-                    if (firstCableType == null)
-                        firstCableType = cable.CableType;
-                    else if (cable.CableType != firstCableType.Value)
+                    if (_networkTier == null)
+                        _networkTier = cable.CableType;
+                    else if (cable.CableType != _networkTier.Value)
                         mixedTier = true;
                 }
             }
-
-            if (!_hasAnyCable)
-                _allHeavy = false;
 
             _weakestCableIsSuperHeavy = _allCables.Count > 0
                                         && _allCables.Values[0].Count > 0
@@ -218,13 +208,14 @@ namespace PowerGridPlus.Power
                 _powerData[idx].PowerUsed = SanitizePower(currentDevice.GetUsedPower(CableNetwork));
                 _powerData[idx].PowerProvided = SanitizePower(currentDevice.GetGeneratedPower(CableNetwork));
 
-                // NEW-3: a generator only contributes power if every cable on its network is heavy.
-                if (_powerData[idx].PowerProvided != 0.0f
-                    && Settings.EnableVoltageTiers.Value
-                    && Settings.EnableGeneratorHeavyCableRequirement.Value
-                    && !_allHeavy
-                    && VoltageTier.IsGenerator(currentDevice))
+                // NEW-3: a device on a cable tier it doesn't belong on receives and produces no power.
+                // (It should have been rejected at build time; this is the simulation-level backstop for
+                // mods, runtime cable-type switchers, and migrated saves.)
+                if (Settings.EnableVoltageTiers.Value
+                    && _networkTier.HasValue
+                    && !VoltageTier.IsAllowedOnTier(currentDevice, _networkTier.Value))
                 {
+                    _powerData[idx].PowerUsed = 0.0f;
                     _powerData[idx].PowerProvided = 0.0f;
                 }
 
