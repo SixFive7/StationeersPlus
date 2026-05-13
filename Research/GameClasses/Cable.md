@@ -3,7 +3,7 @@ title: Cable
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-12
+verified_at: 2026-05-13
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Cable
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 293196-293256 (NetworkType / ConnectionRole / Connection), 371283-371673 (Cable)
@@ -210,11 +210,57 @@ public void Break()
 
 The vanilla over-current check that decides whether a cable ruptures is `PowerTick.GetBreakableCables` (`cable.MaxVoltage < _actual`) -- documented on [PowerTick](./PowerTick.md). A mod that wants heavy cables to never burn must intercept that (or `BreakSingleCable`, or guard `Break()` for `CableType >= heavy`). Re-Volt replaces the whole `PowerTick` with its `RevoltTick : PowerTick` (its `CableNetworkPatches.Inject` postfixes the `CableNetwork` constructors and assigns `CableNetwork.PowerTick = new RevoltTick()`), and `RevoltTick.TestBurnCable` reads `cable.MaxVoltage` from a `SortedList<float, List<Cable>>` keyed by `MaxVoltage`; a mod-compat concern is that with both installed, a `PowerTick.GetBreakableCables` patch never fires.
 
+## Wreckage: CableRuptured
+<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+
+The structure spawned by `Break()` is `Cable.RupturedPrefab`, typed as `CableRuptured` (decompile line 371300: `public CableRuptured RupturedPrefab;`). The class itself:
+
+```csharp
+public class CableRuptured : SmallGrid                                      // line 371821
+{
+    public static List<CableRuptured> AllCableRuptured = new List<CableRuptured>();
+    public static readonly int CableSparkHash = Animator.StringToHash("CableSpark");
+    private static readonly int NUMBER_OF_SPARKS = 100;
+
+    public override void Awake()
+    {
+        base.Awake();
+        if (GameManager.GameState == GameState.Running && !IsCursor && !GameManager.IsBatchMode)
+        {
+            ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams { position = base.ThingTransformPosition };
+            WorldManager.Instance.Sparker.Emit(emitParams, NUMBER_OF_SPARKS);
+            Singleton<AudioManager>.Instance.PlayAudioClipsData(CableSparkHash, base.ThingTransformPosition);
+        }
+    }
+
+    public override void OnRegistered(Cell cell)
+    {
+        base.OnRegistered(cell);
+        AllCableRuptured.Add(this);
+    }
+
+    public override void OnDeregistered()
+    {
+        base.OnDeregistered();
+        AllCableRuptured.Remove(this);
+    }
+}
+```
+
+`CableRuptured` is in `Assets.Scripts.Objects.Electrical` (same namespace as `Cable`). It is a `SmallGrid`, not a `Cable` -- it does NOT participate in a `CableNetwork` and does NOT carry over the original cable's `CableType` / `MaxVoltage`. It exists purely as a one-cell visual+audio wreckage marker that the player has to weld with a welding torch (`AttackWith` on the base) to clear.
+
+Implication for the spawn-sequence inside `Break()`: `Constructor.SpawnConstruct(instance)` is called synchronously after `OnServer.Destroy(this)`. Inside `SpawnConstruct` -> `Thing.Create` -> `OnRegistered(cell)`, the new wreckage is registered at the cable's old cell BEFORE `Break()` returns. So any postfix on `Cable.Break()` or `CableRuptured.OnRegistered` runs with the wreckage already in `AllCableRuptured` and queryable via `GridController.GetSmallCell(cell).Other` (the wreckage occupies a cell's `Other` slot because it is `SmallGrid` not `Cable`/`Device`/`Pipe`/`Chute`/`Rail`).
+
+`CableRuptured` does **not override `GetPassiveTooltip`**. The hover-text method it inherits is the base `Thing.GetPassiveTooltip(Collider hitCollider) -> PassiveTooltip` (line 300658, virtual). `PassiveTooltip` is a struct (line 288582) with public string fields `Title`, `Action`, `State`, `Extended`, `RepairString`, `DeconstructString`, `ConstructString`, `PlacementString`, `BuildStateIndexMessage` (+ a few booleans for UI hints); `GetExtendedText()` simply returns `Extended`. A mod that wants to annotate the wreckage's hover tooltip with a reason patches `Thing.GetPassiveTooltip` with a postfix filtered to `__instance is CableRuptured` and mutates `__result.Extended` (or `__result.State` for prominence). Power Grid Plus uses this pattern to differentiate cable-burn reasons (overload vs. tier-mismatch vs. device-tier-mismatch); see `Mods/PowerGridPlus/PowerGridPlus/Patches/BurnReasonPatches.cs` once landed.
+
+To attach a per-wreckage reason from the caller side (where it is known), the caller records the dying cable's cell in a `ConcurrentDictionary<Grid3, string>` (the PowerTick runs on worker threads, so plain `Dictionary` is not safe), and a postfix on `CableRuptured.OnRegistered(Cell cell)` reads + removes the entry using `__instance.LocalGrid` and stores the reason on the wreckage in a `ConditionalWeakTable<Thing, string>` sidecar.
+
 ## Verification history
 
 - 2026-05-12: page created. Sourced from a PGP-3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 293196-293256 and 371283-371673; verbatim excerpts of `NetworkType`/`ConnectionRole`/`Connection`, `Cable` class header + `Type` enum + `MaxVoltage`, `Cable._IsCollision`/`CanReplace`/`WillMergeWhenPlaced`, `Cable.OnRegistered`/`CanConstruct`/`Break`. The `superHeavy` tier and the `StructureCableSuperHeavyStraight3/5/10` long pieces corroborate the existing [MultiMergeConstructor](./MultiMergeConstructor.md) page. Re-Volt mod source (`RevoltTick : PowerTick`) corroborates `MaxVoltage` as the burn threshold.
+- 2026-05-13: added the **Wreckage: CableRuptured** section. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 371300 (`Cable.RupturedPrefab : CableRuptured`), 371821-371851 (full `CableRuptured` class body), 288582-288610+ (`PassiveTooltip` struct), 300658 (`Thing.GetPassiveTooltip` base signature). Resolves one open question (the super-heavy coil prefab name is `ItemCableCoilSuperHeavy`, found in `$(StationeersPath)\rocketstation_Data\StreamingAssets\Data\electronics.xml` while wiring NEW-2's cost overlay -- entry already shipped in `Mods/PowerGridPlus/PowerGridPlus/GameData/cable-recipes.xml`). Sourced from a Power Grid Plus burn-reason-tooltip research pass.
 
 ## Open questions
 
 - Real `MaxVoltage` values for the `heavy` and `superHeavy` cable prefabs (prefab serialized data, not in the decompile). Need InspectorPlus or a prefab extract.
-- Code names of the heavy / super-heavy / insulated coil items (`ItemCableCoilHeavy`? something for `superHeavy`? the insulated variant's prefab name) and how the insulated cable avoids burning (a separate prefab with a very high `MaxVoltage`, or a flag not visible in the decompile?). Verify against `Prefab.AllPrefabs` / the Stationpedia / the prefab list.
+- Code names of the heavy / insulated coil items (`ItemCableCoilHeavy`? the insulated variant's prefab name) and how the insulated cable avoids burning (a separate prefab with a very high `MaxVoltage`, or a flag not visible in the decompile?). Super-heavy coil is `ItemCableCoilSuperHeavy` (confirmed 2026-05-13). Verify the rest against `Prefab.AllPrefabs` / the Stationpedia / the prefab list.
