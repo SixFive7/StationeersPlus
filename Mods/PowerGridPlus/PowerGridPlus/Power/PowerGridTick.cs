@@ -65,6 +65,13 @@ namespace PowerGridPlus.Power
         // NEW-3: a mixed-tier network has been detected; we have asked for a cable burn to split it. Guards
         // against requesting another burn before the first one takes effect (the split replaces this tick).
         private bool _tierResolutionPending;
+        // NEW-3: cached during Initialize_New (cheap, only on dirty rebuild). The actual burn fires from
+        // ApplyState_New gated on the network having real power flow (_actual > 0).
+        private bool _mixedTierDetected;
+        // NEW-3: recorded during CalculateState_New (once per tick). Reset to null at the top of each tick.
+        // First device this tick that's on a cable tier it isn't allowed on; ApplyState_New burns the cable
+        // adjacent to it (if there's power flow). The device itself is never destroyed.
+        private Device _misplacedDeviceForBurn;
 
         static PowerGridTick()
         {
@@ -151,14 +158,11 @@ namespace PowerGridPlus.Power
             if (_powerData == null || _powerData.Length != Devices.Count)
                 _powerData = Devices.Select(x => new PowerUsage { Device = x }).ToArray();
 
-            // NEW-3 backstop: a network that ended up holding more than one cable tier (an old save with a
-            // pre-existing illegal junction, or anything the build-time check missed). Burn one lowest-tier
-            // cable; the re-flood splits the network and the next rebuild re-checks until it is single-tier.
-            if (mixedTier && Settings.EnableVoltageTiers.Value && !_tierResolutionPending)
-            {
-                _tierResolutionPending = true;
-                VoltageTier.ResolveMixedTierNetwork(CableNetwork);
-            }
+            // NEW-3 detection: a network that ended up holding more than one cable tier (an old save with a
+            // pre-existing illegal junction, or anything the build-time check missed). Record the fact here
+            // (cheap, only on dirty rebuild); ApplyState_New fires the actual burn IF the network has real
+            // power flow, so an idle / off network never destroys cables.
+            _mixedTierDetected = mixedTier;
         }
 
         public Cable TestBurnCable(float powerUsed, float slidingWindow)
@@ -198,6 +202,8 @@ namespace PowerGridPlus.Power
         {
             bool dirtyProviderList = false;
             int provIdx = 0;
+            // NEW-3: record at most one misplaced device per tick; ApplyState_New uses it AFTER the power-flow gate.
+            _misplacedDeviceForBurn = null;
             int idx = Devices.Count;
             while (idx-- > 0)
             {
@@ -208,15 +214,14 @@ namespace PowerGridPlus.Power
                 _powerData[idx].PowerUsed = SanitizePower(currentDevice.GetUsedPower(CableNetwork));
                 _powerData[idx].PowerProvided = SanitizePower(currentDevice.GetGeneratedPower(CableNetwork));
 
-                // NEW-3: a device on a cable tier it doesn't belong on receives and produces no power.
-                // (It should have been rejected at build time; this is the simulation-level backstop for
-                // mods, runtime cable-type switchers, and migrated saves.)
+                // NEW-3: don't suppress power here. Just record the first device that's on a tier it isn't
+                // allowed on; ApplyState_New will burn its adjacent cable IF actual power is flowing.
                 if (Settings.EnableVoltageTiers.Value
                     && _networkTier.HasValue
+                    && _misplacedDeviceForBurn == null
                     && !VoltageTier.IsAllowedOnTier(currentDevice, _networkTier.Value))
                 {
-                    _powerData[idx].PowerUsed = 0.0f;
-                    _powerData[idx].PowerProvided = 0.0f;
+                    _misplacedDeviceForBurn = currentDevice;
                 }
 
                 Required += _powerData[idx].PowerUsed;
@@ -281,11 +286,37 @@ namespace PowerGridPlus.Power
             bool power = false;
 
             if (burnFuse != null)
+            {
                 burnFuse.Break();
+            }
             else if (burnCable != null)
+            {
+                BurnReasonRegistry.RegisterPending(burnCable,
+                    $"Overloaded -- sustained network throughput exceeded this cable's rating ({burnCable.MaxVoltage:0} W)");
                 burnCable.Break();
+            }
             else
+            {
                 power = true;
+
+                // NEW-3: tier burns are gated on real power flow this tick. An idle / off network never
+                // destroys cables, even if it's mixed-tier or has a misplaced device. Mixed-tier takes
+                // precedence over misplaced-device (it's the root cause; resolving it cleans up the
+                // device check on the next tick's fresh network).
+                if (powerFlow > 0f && Settings.EnableVoltageTiers.Value && !_tierResolutionPending)
+                {
+                    if (_mixedTierDetected)
+                    {
+                        _tierResolutionPending = true;
+                        VoltageTier.ResolveMixedTierNetwork(CableNetwork);
+                    }
+                    else if (_misplacedDeviceForBurn != null)
+                    {
+                        _tierResolutionPending = true;
+                        VoltageTier.BurnCableForMisplacedDevice(_misplacedDeviceForBurn, CableNetwork);
+                    }
+                }
+            }
 
             if (!power)
             {

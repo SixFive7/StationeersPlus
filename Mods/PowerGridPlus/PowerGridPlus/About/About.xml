@@ -10,7 +10,7 @@ Reworks the Stationeers power simulation and turns the three cable tiers into th
 
 A pure-patch mod: no new craftable devices, no asset bundle. The simulation half is derived from Sukasa's Re-Volt (MIT); the three-tier voltage backbone is new. Full multiplayer compatibility. Safe to remove from existing savegames.
 
-This is an early build, not yet play-tested. The simulation, the cable-tier rule and the device-tier rule are all in; the only gap is the build-time cursor warning when you place a device on the wrong cable tier (the sim still refuses it power).
+This is an early build, not yet play-tested. The simulation, the cable-tier rule and the device-tier rule are all in. Devices are free to place anywhere -- a misplaced device burns the cable it's hooked into on the next power tick (as long as the network has actual power flow). Placing the wrong-tier cable next to an existing device is blocked at the cursor with a "Wrong voltage" message. Burned cables show why they burned in their hover tooltip.
 
 [h2]Features[/h2]
 
@@ -29,8 +29,10 @@ Re-Volt's circuit breakers and Load Center are not included; this is the pure-si
 [list]
 [*]Super-heavy cable never burns out -- it is the long-haul backbone. Normal and heavy cable keep their ratings.
 [*]Super-heavy cable costs twice as much to craft (configurable via the multiplier; 1.0 = vanilla).
-[*]The three cable tiers are three separate voltages. A cable network must be all one tier; joining two tiers burns the lower-tier cable at the junction and splits the network apart. The only legal bridge between tiers is a transformer or an Area Power Controller (its input and output are separate networks).
-[*]Devices belong on the right tier: generators and stationary batteries on heavy, the high-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner, plus any you add in the config) on heavy or normal, super-heavy is cables-and-transformers only, and everything else on normal. A device on the wrong tier receives no power. Transformers, APCs and wireless power devices are exempt.
+[*]The three cable tiers are three separate voltages. A cable network must be all one tier; a wrong-tier cable burns on the next power tick (only when the network actually has power flowing -- an idle off network destroys nothing). The only legal bridge between tiers is a transformer or an Area Power Controller (its input and output are separate networks).
+[*]Devices belong on the right tier: generators and stationary batteries on heavy, the high-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner, plus any you add in the config) on heavy or normal, super-heavy is cables-and-transformers only, and everything else on normal. A device on the wrong tier is allowed to place -- but when power flows, the cable next to it burns and the device becomes orphaned (never the device itself). Transformers, APCs and wireless power devices are exempt.
+[*]Placement UX: placing the wrong-tier cable next to an existing device shows a red ghost with a "Wrong voltage" tooltip; same for placing a wrong-tier cable next to an existing cable network of another tier. Device placement is never blocked at the cursor -- you find out by watching the cable burn.
+[*]Burned cables explain why: hover over a ruptured cable for "Burned: overloaded" / "Burned: wrong voltage -- adjacent [device]" / "Burned: wrong voltage -- bridging different tiers".
 [/list]
 
 [h3]Settings[/h3]
@@ -75,7 +77,7 @@ v0.1.0: First build (work in progress)
 - Area Power Controller power-leak / idle-drain fix.
 - Recursive and looped networks allowed by default.
 - New: super-heavy cable never burns; the three cable tiers are separate transmission voltages (mixing them burns the lower-tier boundary cable and splits the network); devices belong on their tier (generators and batteries on heavy, high-draw machines on heavy or normal, super-heavy is cables-and-transformers only, everything else on normal) and a device on the wrong tier gets no power; super-heavy cable coil costs 2x to craft (configurable via the multiplier).
-- Not finished yet: the build-time cursor warning when placing a device on the wrong cable tier (the simulation still refuses it power).
+- Reactive tier enforcement: a wrong-tier cable burns on the next power tick if the network has actual power flow (an idle/off network destroys nothing). Wrong-tier cable placement is blocked at the cursor with a "Wrong voltage" tooltip; device placement is never blocked. Burned cables explain why they burned in their hover tooltip.
   </ChangeLog>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>
@@ -95,7 +97,7 @@ A pure-patch mod (no new prefabs). Simulation half derived from Re-Volt (MIT). F
 <b>New:</b>
 - Super-heavy cable never burns; it is the long-haul backbone.
 - The three cable tiers are separate voltages; mixing them burns the lower-tier boundary cable. Bridge tiers with a transformer or APC.
-- Devices belong on their tier (generators/batteries on heavy, high-draw machines on heavy or normal, everything else on normal); a misplaced device gets no power.
+- Devices belong on their tier (generators/batteries on heavy, high-draw machines on heavy or normal, everything else on normal); a misplaced device burns its cable on the next power tick (only when power is actually flowing). Wrong-tier cable placement is cursor-blocked. Burned cables explain why.
 <b>Settings:</b> Server-authoritative; the host's values control gameplay for everyone.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
 </line-height>

@@ -199,8 +199,46 @@ namespace PowerGridPlus
             if (victim != null)
             {
                 Plugin.Log?.LogInfo($"Voltage tiers: burning a {victim.CableType} cable to split a mixed-tier network ({network.ReferenceId}).");
+                BurnReasonRegistry.RegisterPending(victim,
+                    $"Wrong voltage -- {victim.CableType} cable was bridging into a different cable tier");
                 victim.Break();
             }
+        }
+
+        /// <summary>
+        ///     A device on this network is not allowed on its tier; burn the cable that connects the device
+        ///     to this specific <paramref name="network"/> so the network shrinks away from the device.
+        /// </summary>
+        internal static void BurnCableForMisplacedDevice(Device device, CableNetwork network)
+        {
+            if (device == null || network == null || !GameManager.RunSimulation)
+                return;
+
+            Cable victim = null;
+            // device.PowerCable is the primary; check it first.
+            if (device.PowerCable != null && device.PowerCable.CableNetwork == network)
+                victim = device.PowerCable;
+            else if (device.PowerCables != null)
+            {
+                foreach (var c in device.PowerCables)
+                {
+                    if (c != null && c.CableNetwork == network)
+                    {
+                        victim = c;
+                        break;
+                    }
+                }
+            }
+
+            if (victim == null)
+                return;
+
+            string label = string.IsNullOrEmpty(device.DisplayName) ? device.PrefabName : device.DisplayName;
+            Plugin.Log?.LogInfo(
+                $"Voltage tiers: burning a {victim.CableType} cable adjacent to misplaced {label} (network {network.ReferenceId}).");
+            BurnReasonRegistry.RegisterPending(victim,
+                $"Wrong voltage -- the adjacent {label} doesn't accept {victim.CableType} cable");
+            victim.Break();
         }
     }
 }
