@@ -3,7 +3,7 @@ title: RecipeData loading and GameData XML overlay
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-12
+verified_at: 2026-05-15
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:58351-58364 (RecipeData class)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:58394-58449 (GameData class, recipe list fields)
@@ -256,9 +256,32 @@ Only the recipe lists that need changes need to appear in the file. Other lists 
 
 The `PrefabName` value must match the prefab's hash-name exactly (case-sensitive after hash; verify against `Prefab.Find` behavior). The heavy cable coil prefab name was not found in a grep of the decompile under the search terms tried; verify in-game or against a GameData dump.
 
+## Pitfall: XML comments cannot contain a double-hyphen (XmlSerializer is strict)
+<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+
+`WorldManager.LoadXmlFileData` deserializes each GameData file via `XmlSerializer`, which enforces XML 1.0 strictly. The XML 1.0 spec forbids the sequence `--` anywhere inside a comment (because `-->` is reserved as the comment terminator) and forbids ending a comment with `-`. A `GameData/*.xml` file whose `<!-- ... -->` header contains `--` anywhere (e.g. `<!-- Power Grid Plus -- super-heavy cable costs more -->`) makes the whole file fail to deserialize and the recipe overlay is silently NOT applied.
+
+Symptom in the Unity Player log (`%LOCALAPPDATA%Low/Rocketwerkz/rocketstation/Player.log`):
+
+```
+An error occurred while deserializing a file!: <path>\GameData\<file>.xml
+  - There is an error in XML document (<line>, <col>). : An XML comment cannot contain '--', and '-'
+  cannot be the last character. Line <line>, position <col>.
+Failed to load <path>\GameData\<file>.xml
+```
+
+Stack trace ends in `System.Xml.XmlTextReaderImpl.Throw` -> `XmlException` -> `Rethrow as InvalidOperationException`. The error is logged via `StationeersLaunchPad.LogWrapper.LogException` but does NOT abort the rest of the mod load. Other GameData files in the same mod still load. The mod's DLL still applies its Harmony patches. Only the failing recipe overlay is dropped.
+
+Important: BepInEx LogOutput.log does NOT surface this error -- the failure happens in the Unity main-thread Mono runtime and is logged via Unity's `Debug.LogException`, which routes to Player.log, not BepInEx. Diagnosing it requires reading Player.log directly. A mod that ships a `GameData/` overlay with this bug will look clean in the BepInEx log (plugin loaded, patches applied) while silently failing to apply its overlay.
+
+**Fix**: use a single hyphen, colon, semicolon, or period instead of `--` inside any `<!-- ... -->` block in a GameData XML file. The repo-wide style rule that prefers `--` as a sentence connector (see root `CLAUDE.md` "no AI tells in committed text") does not extend into XML comments; the parser cannot accept it. Inside `<RecipeData>` content (text between tags) `--` is fine; only the comment body is restricted.
+
+Note: `XmlReaderSettings.CheckCharacters` would let the loader tolerate this if `WorldManager` were calling `XmlReader.Create` with that override, but it uses `XmlSerializer.Deserialize(Stream)` directly, which always uses the strict defaults.
+
 ## Verification history
 
 - 2026-05-12: page created from reading Assembly-CSharp.decompiled.cs (version 0.2.6228.27061) and Re-Volt source at .work/revolt-source. No prior page existed. All sections new.
+- 2026-05-15: added "Pitfall: XML comments cannot contain a double-hyphen (XmlSerializer is strict)" section after a real-world hit in Power Grid Plus's `GameData/cable-recipes.xml`. Sourced from the user's Player.log error message ("An XML comment cannot contain '--'") plus the XML 1.0 spec for `<!-- ... -->` comment content. The finding generalises to every mod that ships a GameData XML overlay; this is the only failure mode that the BepInEx log does not surface.
 
 ## Open questions
 
