@@ -436,6 +436,34 @@ So under vanilla mechanics, two consecutive runs of `cable.ConnectedCables()` on
 
 `ConnectedCables(NetworkType networkType)` at line 294319 is a separate overload that uses a fresh `new List<Cable>(4)` per call. Mods filtering by `NetworkType.Power` (e.g. our `VoltageTier.HasHigherTierNeighbour`) use this overload and cannot corrupt `FoundCables`.
 
+**Calls inside `Add()` that could re-enter the cable graph** (decompile line 253923):
+
+```csharp
+public void Add(Cable cable)
+{
+    ...
+    foreach (Device item in cable.ConnectedDevices())   // returns static FoundDevices-equivalent
+    {
+        AddDevice(cable, item);
+        item.FindDataCable();        // -> ConnectedCables(NetworkType.Data)  -- safe overload
+    }
+    cable.CableNetworkId = ReferenceId;
+    if (CableNetwork.OnNetworkChanged != null) CableNetwork.OnNetworkChanged();
+}
+```
+
+`Device.FindDataCable()` (decompile line 350763) uses the **fresh-list** `ConnectedCables(NetworkType.Data)` overload, so it does NOT touch the static `FoundCables`:
+
+```csharp
+public void FindDataCable()
+{
+    DataCables = ConnectedCables(NetworkType.Data);   // fresh new List<Cable>(4)
+    ...
+}
+```
+
+Same for `Device.FindPowerCable()` (line 350778, uses `ConnectedCables(NetworkType.Power)`) and `Device.InitializeDataConnection()` (line 350794, which calls both Find methods then dirties both networks). So the `Add()` walk done by `Merge` cannot reentrantly clobber the outer caller's `FoundCables` -- the only path from inside `Merge` that re-touches the cable graph goes through the safe overload.
+
 `RebuildCableNetworkServer` at line 254050 (called from the destruction side of the lifecycle) is explicitly server-only by name. `RebuildNetwork` (private, line 254016) is the BFS used to re-fold cables into a target network after a split or a forced rebuild; both calls fire `OnNetworkChanged`.
 
 ## Split is authoritative; merge is not. Asymmetric multiplayer sync
@@ -519,7 +547,9 @@ A neighbour is considered "connected" if **any** of its OpenEnds shares a Networ
 - 2026-05-15: expanded the multiplayer-relevance section with the verbatim `Cable.DeserializeOnJoin` body (line 371405). Documents that `Cable.OnRegistered`'s merge is server-only (`GameManager.RunSimulation` gate) while the client's runtime merge happens in `DeserializeOnJoin` (gated by `GameManager.GameState != GameState.Joining` -- merge is skipped during the initial join handshake, runs during normal runtime updates). Both sides therefore run their own `Merge(ConnectedNetworks(cable))` independently. Implications: a desync that depends on `ConnectedCables` ordering between sides cannot be resolved by "the server is authoritative" because the client is making its own merge decision at runtime.
 - 2026-05-15: added the verbatim `SmallGrid.ConnectedCables()` body (decompile line 294267) with notes on `FoundCables` being a shared static reusable list, OpenEnds-iteration ordering, and the four mechanisms by which two sides could produce different orderings (different OpenEnds, different `smallCell.Cable`, different `IsConnected` result, or `FoundCables` corruption by a concurrent caller). Notes that `ConnectedCables(NetworkType)` at line 294319 is a different overload using a fresh per-call list.
 - 2026-05-15: added "Split is authoritative; merge is not. Asymmetric multiplayer sync" section, sourced from decompile lines 254050-254076 (`RebuildCableNetworkServer` and `RebuildCableNetworkClient`), 371477-371491 (`Cable.OnRegistered`), 371405-371416 (`Cable.DeserializeOnJoin`), 294154-294188 (both `SmallGrid.IsConnected(Connection)` overloads). Documents that `RebuildCableNetworkEvent` carries the server's chosen `newNetwork.ReferenceId` + `oldNetwork.ReferenceId` to the client (splits are id-authoritative), while merges have no equivalent event and the client always re-runs `Merge(ConnectedNetworks(this))` locally after `GameState != Joining`. This is the structural source of a stable cable-network-id desync after a merge: each side's loser network instance is still alive on the OTHER side, so the discrepancy persists indefinitely. Notes `Cable.OnRegistered`'s `base.OnRegistered(cell)`-after-merge ordering means the new cable is not yet in its own SmallCell at the moment of `ConnectedNetworks(this)` on the server, while the equivalent guarantee for the client's `DeserializeOnJoin` path is not yet established.
+- 2026-05-15: extended the ConnectedCables-iteration-order section with verification that the `Add()` walk's `cable.ConnectedDevices()` and `item.FindDataCable()` calls do NOT re-enter the static `FoundCables`. `Device.FindDataCable` (decompile line 350763), `Device.FindPowerCable` (line 350778), and `Device.InitializeDataConnection` (line 350794) all use the `ConnectedCables(NetworkType)` overload (line 294319) which allocates a fresh `new List<Cable>(4)` per call. So the only path from inside `Merge -> Add` that re-touches the cable graph is via the safe overload; the static `FoundCables` cannot be reentrantly clobbered by the merge's own internal walks.
 
 ## Open questions
 
 - Is the `DataDeviceList.get` accessor checking `PowerDeviceListDirty` instead of `DataDeviceListDirty` a vanilla bug or an intentional optimization tied to the fact that power dirties typically co-occur with data dirties? Recommend treating it as a bug and refreshing explicitly when only the data flag is set.
+- Why does Power Grid Plus cause a stable cable-network-id desync after a cut-then-merge in multiplayer? Observed 2026-05-15: server and client read different `Cable.CableNetwork.ReferenceId` for the same cable after the friend (client) reconnected a previously-cut wire, holds across many ticks, disappears when Power Grid Plus is disabled. The decompile pass confirms (a) splits use `RebuildCableNetworkEvent` to sync ids while merges do not; (b) both sides re-run `Merge(ConnectedNetworks(cable))` locally; (c) `Merge` picks `list[0]` based on `cable.ConnectedCables()` iteration order; (d) `Device.FindDataCable/FindPowerCable/InitializeDataConnection` inside `Add` use the safe `ConnectedCables(NetworkType)` overload, so they cannot clobber `FoundCables`; (e) of Power Grid Plus's 15 patches, only `VoltageTierPatches.Cable_CanConstruct_Postfix` calls `CableNetwork.ConnectedNetworks(__instance)` (which DOES touch `FoundCables`) -- but it runs only on the cursor ghost during placement preview and `ConnectedCables` always clears `FoundCables` at the top, so a frame-level clobber before the wire-deserialized cable's `DeserializeOnJoin` runs would not survive the next call. Unresolved: what specific Power Grid Plus side effect on the client perturbs the new cable's `OpenEnds` iteration result at the exact moment of `Cable.DeserializeOnJoin`'s `Merge(ConnectedNetworks(this))` call so that the surviving network's `ReferenceId` differs from the server's. Candidates worth probing next: (1) timing of when `Cable.DeserializeOnJoin`'s `base.DeserializeOnJoin(reader)` writes `smallCell.Cable` for the new cable vs the `Merge` call's `ConnectedCables` walk (whether base-registration races the merge differently on client than server); (2) whether our `CableNetworkPatches.Constructor_*` postfix's `TickField.SetValue(__instance, new PowerGridTick())` runs at a different point in the constructor chain on client (where the `(long)` constructor is invoked via `SyncList<CableNetwork>.DeserializeNew`) vs server (the `(Cable)` or `()` constructor); (3) whether the friend's `Cable.CanConstruct` cursor evaluation on the placement frame itself produces a `FoundCables` write whose contents persist into the SyncList delivery of the new cable on the same frame, ordering-wise. Diagnostic next-step: instrument `Cable.DeserializeOnJoin` with a Harmony postfix that logs the survivor `ReferenceId` plus the full `ConnectedNetworks(this)` list ordering on both server and client, run the same test, diff the two log lines for the offending cable.
