@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Power Grid Plus -- super-heavy cable coil costs more to craft.
-  The game's recipe loader patch-replaces a vanilla <RecipeData> when a mod ships one with a matching
-  <PrefabName> (see Research/GameSystems/RecipeDataLoading.md). Vanilla ItemCableCoilSuperHeavy
+  Power Grid Plus: super-heavy cable coil costs more to craft.
+  The game's recipe loader patch-replaces a vanilla RecipeData when a mod ships one with a matching
+  PrefabName (see Research/GameSystems/RecipeDataLoading.md). Vanilla ItemCableCoilSuperHeavy
   (rocketstation_Data/StreamingAssets/Data/electronics.xml) is Time 8, Energy 800, Constantan 0.5,
-  Electrum 0.5; this doubles the metals (the default "Super-Heavy Cable Cost Multiplier" of 2.0). To use
-  a different multiplier, set that config value -- the runtime patch in CableCostPatches re-applies it on
-  top of this overlay.
+  Electrum 0.5; this doubles the metals (the default "Super-Heavy Cable Cost Multiplier" of 2.0). To
+  use a different multiplier, set that config value: the runtime patch in CableCostPatches re-applies
+  it on top of this overlay.
+
+  Important: XML comments cannot contain a double-hyphen anywhere, and cannot end with a single
+  hyphen. Stationeers parses GameData files via XmlSerializer, which enforces XML 1.0 strictly and
+  throws on a comment that violates the rule. Use a single hyphen, a colon, or a period instead.
 -->
 <GameData xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <ElectronicsPrinterRecipes>
