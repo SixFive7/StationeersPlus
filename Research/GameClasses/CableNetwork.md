@@ -399,7 +399,42 @@ public override void DeserializeOnJoin(RocketBinaryReader reader)
 
 `DeserializeOnJoin` here is the per-cable wire deserialise. The `!Joining` gate means: during initial join, accept the server's network id verbatim; during normal runtime, re-derive the merge survivor locally via `ConnectedNetworks`. Both sides therefore run their OWN `Merge(ConnectedNetworks(cable))` on the placed cable. If `cable.ConnectedCables()` returns adjacent cables in a different order on server vs client at the moment of merge, the chosen survivors differ. The two pre-merge ids both still resolve to live `CableNetwork` instances on the side that did NOT consume them (`Merge` only destroys the non-survivors LOCALLY on each side), producing a stable "server sees id X, client sees id Y" desync that persists indefinitely until a future merge reconciles via a different cable registration.
 
-**ConnectedCables order depends on the cable's OpenEnds and the grid-adjacency lookup.** Anything that mutates grid-adjacency state (registration timing, OpenEnd assignment) or that runs between `cable.ConnectedCables()` calls on the two sides differently could perturb the order. The vanilla code path is deterministic; any Harmony patch that runs in the cable-registration window and is server-only OR that mutates shared cable / network state between the server's `OnRegistered` and the client's `OnRegistered` is a candidate for breaking the symmetry.
+**ConnectedCables iteration order (verified verbatim).** `Cable.ConnectedCables()` at decompile line 294267 (in `SmallGrid`):
+
+```csharp
+public List<Cable> ConnectedCables()
+{
+    FoundCables.Clear();
+    foreach (Connection openEnd in OpenEnds)
+    {
+        Grid3 localGrid = base.GridController.WorldToLocalGrid(
+            openEnd.Transform.position, SmallGridSize, SmallGridOffset);
+        SmallCell smallCell = base.GridController.GetSmallCell(localGrid);
+        if (smallCell != null && smallCell.Cable != null
+            && smallCell.Cable != this
+            && smallCell.Cable.IsConnected(openEnd))
+        {
+            FoundCables.Add(smallCell.Cable);
+        }
+    }
+    return FoundCables;
+}
+```
+
+Key facts:
+
+- `FoundCables` is a **shared static reusable list** -- cleared at the top, populated and returned by value-share. Calling `ConnectedCables()` twice on different cables in rapid succession overwrites the previous result. Worker-thread access from outside the game thread would corrupt it.
+- The result order is the `OpenEnds` iteration order: for each OpenEnd in declaration order, the cable at the cell adjacent to that OpenEnd is appended (if any, and if it agrees via `smallCell.Cable.IsConnected(openEnd)`).
+- `OpenEnds` itself is the prefab-serialised list of connection points on the cable; identical on both sides for the same prefab orientation.
+
+So under vanilla mechanics, two consecutive runs of `cable.ConnectedCables()` on the same cable from the same logical game-state point should produce identical orderings on both server and client. Any divergence implies one of:
+
+- A different physical OpenEnds list (different cable prefab rotation/orientation on the two sides, which would also cause many other visible discrepancies -- unlikely without a much louder symptom).
+- A different `smallCell.Cable` at the same grid position on the two sides (e.g. one side has already updated the cell to point at the new cable, the other hasn't).
+- A different return value from `smallCell.Cable.IsConnected(openEnd)` for one of the neighbours (e.g. that neighbour's network/state hasn't been refreshed on one side).
+- `FoundCables` being overwritten by a concurrent caller between the two sides' runs (only matters if a thread other than the game thread calls `ConnectedCables` -- the host's power tick runs on a worker but the client never runs the tick).
+
+`ConnectedCables(NetworkType networkType)` at line 294319 is a separate overload that uses a fresh `new List<Cable>(4)` per call. Mods filtering by `NetworkType.Power` (e.g. our `VoltageTier.HasHigherTierNeighbour`) use this overload and cannot corrupt `FoundCables`.
 
 `RebuildCableNetworkServer` at line 254050 (called from the destruction side of the lifecycle) is explicitly server-only by name. `RebuildNetwork` (private, line 254016) is the BFS used to re-fold cables into a target network after a split or a forced rebuild; both calls fire `OnNetworkChanged`.
 
@@ -412,6 +447,7 @@ public override void DeserializeOnJoin(RocketBinaryReader reader)
 - 2026-05-15: added "Lifecycle: three constructors + pool registration + multiplayer sync" section, sourced from decompile lines 253430 (`ConcurrentDensePool<CableNetwork> AllCableNetworks`), 253491 (`SyncList<CableNetwork> NewToSend`), 253735-253764 (the three constructors), 254162 (`DeserializeNew` factory), 254055 (`Cable.OnRegistered` `new CableNetwork(cable)` call site), and 371386 (`Cable.Add` `(Referencable.Find<CableNetwork>(cableNetworkId) ?? new CableNetwork(cableNetworkId))`). Documents the server-only ReferenceId counter, the client's exclusive use of the `(long)` constructor via `DeserializeNew`, and the implication that mod-driven server-side network creation between replicated states advances the server's counter past the client's id horizon.
 - 2026-05-15: added "Merge: `cableNetworks[0]` wins, ConnectedNetworks defines the order" section, sourced from decompile lines 253979 (instance `Merge`), 253998 (static `Merge`), 254110 (`ConnectedNetworks`), 254016 (private `RebuildNetwork`), 254050 (`RebuildCableNetworkServer`), 371413 (`Cable.OnRegistered` merge call site). Documents that merge survivor is list-index-zero, that list order comes from `cable.ConnectedCables()`, and the multiplayer implication that any perturbation of `ConnectedCables` ordering between server and client produces a stable id desync that persists across many ticks (both pre-merge ids stay live, one on each side).
 - 2026-05-15: expanded the multiplayer-relevance section with the verbatim `Cable.DeserializeOnJoin` body (line 371405). Documents that `Cable.OnRegistered`'s merge is server-only (`GameManager.RunSimulation` gate) while the client's runtime merge happens in `DeserializeOnJoin` (gated by `GameManager.GameState != GameState.Joining` -- merge is skipped during the initial join handshake, runs during normal runtime updates). Both sides therefore run their own `Merge(ConnectedNetworks(cable))` independently. Implications: a desync that depends on `ConnectedCables` ordering between sides cannot be resolved by "the server is authoritative" because the client is making its own merge decision at runtime.
+- 2026-05-15: added the verbatim `SmallGrid.ConnectedCables()` body (decompile line 294267) with notes on `FoundCables` being a shared static reusable list, OpenEnds-iteration ordering, and the four mechanisms by which two sides could produce different orderings (different OpenEnds, different `smallCell.Cable`, different `IsConnected` result, or `FoundCables` corruption by a concurrent caller). Notes that `ConnectedCables(NetworkType)` at line 294319 is a different overload using a fresh per-call list.
 
 ## Open questions
 
