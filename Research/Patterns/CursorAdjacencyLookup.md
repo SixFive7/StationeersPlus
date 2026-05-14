@@ -296,7 +296,7 @@ Notes:
 
 ## Verification history
 
-- 2026-05-13: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 268641-268712 (InventoryManager.HandleStructurePrefab cursor instantiation), 274718-274830 (SmallCell type + lookups), 293285-293400 (Connection.GetSmallGridOccupant + SetGrids), 294267-294390 (SmallGrid.ConnectedCables / ConnectedDevices / ConnectedPipes), 294426-294439 (IsConnectingToUmbilical), 298489 (Thing.GridController), 350778-350821 (Device.FindPowerCable + CanConstruct), 371598-371673 (Cable.CanConstruct / CanReplace). Cross-referenced against the existing Cable.md, Cell.md, Grid3.md pages and the prior PGP-3 spike on StructurePlacementValidation.md. The postfix skeleton in the last section is unverified pseudocode (it has not been compiled or play-tested) but every API it calls is verified valid on the cursor ghost.
+- 2026-05-13: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 268641-268712 (InventoryManager.HandleStructurePrefab cursor instantiation), 274718-274830 (SmallCell type + lookups), 293285-293400 (Connection.GetSmallGridOccupant + SetGrids), 294267-294390 (SmallGrid.ConnectedCables / ConnectedDevices / ConnectedPipes), 294426-294439 (IsConnectingToUmbilical), 298489 (Thing.GridController), 350778-350821 (Device.FindPowerCable + CanConstruct), 371598-371673 (Cable.CanConstruct / CanReplace). Cross-referenced against the existing Cable.md, Cell.md, Grid3.md pages and the prior phase 3 spike on StructurePlacementValidation.md. The postfix skeleton in the last section is unverified pseudocode (it has not been compiled or play-tested) but every API it calls is verified valid on the cursor ghost.
 
 ## Open questions
 

@@ -1,6 +1,6 @@
 # SaveFixPrototype (Plans): Research Reference
 
-SaveFixPrototype is an in-progress prototype. Phase 1 is `terrain_reset.py`, a Python CLI that rewrites `.save` files offline to selectively reset terrain while preserving sealed rooms. Phase 2 ports the same logic to a runtime C# mod that calls `VoxelTerrain.Octree.SetDensity()` during a live multiplayer session. Durable game-internals research (terrain.dat format, dual-octree system, TerrainChunkChecksums algorithm, Room grid coordinate scale, AtmosphereSaveData schema, the live-MP reset recipe) has been lifted to central pages; this file holds only mod-local content: the test-save inventory used to validate the prototype, the concrete numbers from the tested-against run, and the open questions that still need answering before Phase 2 implementation starts.
+SaveFixPrototype is an in-progress prototype. Phase 1 is `terrain_reset.py`, a Python CLI that rewrites `.save` files offline to selectively reset terrain while preserving sealed rooms. Phase 2 ports the same logic to a runtime C# mod that calls `VoxelTerrain.Octree.SetDensity()` during a live multiplayer session. Durable game-internals research (terrain.dat format, dual-octree system, TerrainChunkChecksums algorithm, Room grid coordinate scale, AtmosphereSaveData schema, the live-multiplayer reset recipe) has been lifted to central pages; this file holds only mod-local content: the test-save inventory used to validate the prototype, the concrete numbers from the tested-against run, and the open questions that still need answering before Phase 2 implementation starts.
 
 ## 1. Architecture
 
@@ -91,7 +91,7 @@ None at prototype stage. Phase 1 is a Python CLI; Phase 2 will install patches w
 ### 5.3. Workflows
 
 - [../../Research/Workflows/ResetTerrainOffline.md](../../Research/Workflows/ResetTerrainOffline.md) - `terrain_reset.py` algorithm and design decisions; the Phase 1 reference.
-- [../../Research/Workflows/ResetTerrainLive.md](../../Research/Workflows/ResetTerrainLive.md) - Live-MP runtime reset recipe; the Phase 2 reference (`SetDensity` per-voxel approach, tick-budget considerations).
+- [../../Research/Workflows/ResetTerrainLive.md](../../Research/Workflows/ResetTerrainLive.md) - Live-multiplayer runtime reset recipe; the Phase 2 reference (`SetDensity` per-voxel approach, tick-budget considerations).
 
 ## 6. Pitfalls / dead ends
 

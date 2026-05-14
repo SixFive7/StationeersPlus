@@ -231,7 +231,7 @@ namespace MaintenanceBureauPlus
 
         // Map BepInEx LogLevel flags to StationeersLaunchPad.LogSeverity by
         // case-insensitive name (Debug, Information, Warning, Error, Fatal).
-        // Several BepInEx levels share names with SLP severities; for the
+        // Several BepInEx levels share names with StationeersLaunchPad severities; for the
         // ones that don't (None) we default to Information.
         private static object MapSeverity(LogLevel level)
         {

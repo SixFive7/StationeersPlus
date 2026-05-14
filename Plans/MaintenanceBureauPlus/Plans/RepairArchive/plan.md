@@ -379,7 +379,7 @@ Default 50% -- only repairs damage below this percentage of max health. Above th
 | Nanite Atmospheric Suspension (#1) | Feasible as simplified version (no custom gas). Could be v2 lore wrapper. |
 | Pressurized Sealant Fog (#4) | Hard (needs custom gas). Repurposing Pollutant gas is easy but sacrifices identity. |
 | Sympathetic Resonance Field (#5) | Medium-hard (custom device). Logic interference mechanic is compelling. |
-| Temporal Micro-Regression (#8) | Fun but risky (side effects involve runtime thing replacement -- MP bugs). |
+| Temporal Micro-Regression (#8) | Fun but risky (side effects involve runtime thing replacement -- multiplayer bugs). |
 
 ---
 

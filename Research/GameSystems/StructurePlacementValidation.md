@@ -7,7 +7,7 @@ verified_at: 2026-05-12
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Inventory.InventoryManager (placement preview), Assets.Scripts.Objects.Structure / Cable / Device (CanConstruct), Assets.Scripts.Objects.Constructor (SpawnConstruct), CanConstructInfo
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines ~270692-270760 (placement preview loop), 276780-276796 (CanConstructInfo), 276940-276953 (Constructor.SpawnConstruct), 371598-371645 (Cable.CanConstruct / CanReplace)
-  - Plans/PowerGridPlus/PLAN.md (PGP-3 research)
+  - Plans/PowerGridPlus/PLAN.md (phase 3 research)
 related:
   - ../GameClasses/Cable.md
   - ../GameClasses/Constructor.md
@@ -104,7 +104,7 @@ public static Structure SpawnConstruct(CreateStructureInstance instance)   // on
 
 ## Verification history
 
-- 2026-05-12: page created. Sourced from a PGP-3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines ~270692-270760, 276780-276796, 276940-276953, 371598-371645; verbatim excerpts of the placement-preview `CanConstruct`/`CanReplace` block, `CanConstructInfo`, `Constructor.SpawnConstruct`, and `Cable.CanConstruct`/`CanReplace`. Consistent with [Constructor](../GameClasses/Constructor.md) ("authoring mode bypasses item-cost only, NOT placement gates") and [AllowedRotations](../GameClasses/AllowedRotations.md) (the same loop auto-corrects the cursor face).
+- 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines ~270692-270760, 276780-276796, 276940-276953, 371598-371645; verbatim excerpts of the placement-preview `CanConstruct`/`CanReplace` block, `CanConstructInfo`, `Constructor.SpawnConstruct`, and `Cable.CanConstruct`/`CanReplace`. Consistent with [Constructor](../GameClasses/Constructor.md) ("authoring mode bypasses item-cost only, NOT placement gates") and [AllowedRotations](../GameClasses/AllowedRotations.md) (the same loop auto-corrects the cursor face).
 
 ## Open questions
 

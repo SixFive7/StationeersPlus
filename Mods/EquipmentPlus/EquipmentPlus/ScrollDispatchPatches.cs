@@ -121,7 +121,7 @@ namespace EquipmentPlus
             {
                 string role = NetworkManager.IsServer ? "HOST"
                             : NetworkManager.IsClient ? "CLIENT"
-                            : "SP";
+                            : "SINGLEPLAYER";
                 EquipmentPlusPlugin.Log.LogInfo(
                     $"[EquipmentPlus.scroll] tablet dispatch role={role} active={DescribeSlot(InventoryManager.Instance?.ActiveHand?.Slot)} inactive={DescribeSlot(InventoryManager.Instance?.InactiveHand?.Slot)}");
             }

@@ -23,7 +23,7 @@ There are three separate "log" surfaces in a BepInEx-modded Stationeers, and the
 | Unity `Player.log` (`%USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\Player.log`, rotated to `Player-prev.log` on each launch) | `UnityEngine.Debug.Log/LogWarning/LogError`, plus (via StationeersLaunchPad's mirror) BepInEx mod log lines. | Occasionally. |
 | The in-game `~` console (`ConsoleWindow`) | **Only** `ConsoleWindow.Print* ` calls and console-command output. **Not** `UnityEngine.Debug.Log`, and **not** BepInEx `Logger.Log*`. | Yes -- this is the one a player sees while playing. |
 
-**Key gotcha:** `UnityEngine.Debug.Log(...)` writes to `Player.log` but does **not** appear in the in-game `~` console (Stationeers' `ConsoleWindow` does not subscribe to `Application.logMessageReceived`). And BepInEx `Logger.LogInfo(...)` goes to `LogOutput.log` (and `Player.log` via the SLP mirror) but also not the in-game console. So a mod whose only output is `Logger.LogInfo` / `Debug.Log` will look "silent" to a player who checks the `~` console. To show up there, call `ConsoleWindow.Print*`.
+**Key gotcha:** `UnityEngine.Debug.Log(...)` writes to `Player.log` but does **not** appear in the in-game `~` console (Stationeers' `ConsoleWindow` does not subscribe to `Application.logMessageReceived`). And BepInEx `Logger.LogInfo(...)` goes to `LogOutput.log` (and `Player.log` via the StationeersLaunchPad mirror) but also not the in-game console. So a mod whose only output is `Logger.LogInfo` / `Debug.Log` will look "silent" to a player who checks the `~` console. To show up there, call `ConsoleWindow.Print*`.
 
 ## ConsoleWindow API
 <!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
@@ -50,7 +50,7 @@ For a message the player should actually see, emit it on all three channels (gre
 using ConsoleWindow = Assets.Scripts.ConsoleWindow;   // top of the file, with the other usings
 
 internal static void PlayerLog(string msg) {
-    Plugin.Log?.LogInfo(msg);                          // -> LogOutput.log (+ Player.log via SLP mirror)
+    Plugin.Log?.LogInfo(msg);                          // -> LogOutput.log (+ Player.log via StationeersLaunchPad mirror)
     UnityEngine.Debug.Log($"[ModName] {msg}");          // -> Player.log
     try { ConsoleWindow.PrintAction($"[ModName] {msg}", aged: false); } catch { }   // -> in-game ~ console
 }

@@ -74,7 +74,7 @@ Rule of thumb when writing any network-aware guard:
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; F0029g primary, F0324 confirming with a regression narrative.
-- 2026-04-20: removed derivative NetworkRole matrix that had drifted (said MP host IsClient=false; authoritative F0017 says true). Replaced with link to GameSystems/NetworkRoles.md per Phase 6 Pass B flag.
+- 2026-04-20: removed derivative NetworkRole matrix that had drifted (said multiplayer host IsClient=false; authoritative F0017 says true). Replaced with link to GameSystems/NetworkRoles.md per Phase 6 Pass B flag.
 
 ## Open questions
 

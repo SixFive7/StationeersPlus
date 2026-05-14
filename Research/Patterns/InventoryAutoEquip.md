@@ -43,7 +43,7 @@ Returns: `void`. To detect success/failure from the caller:
 - Call `InventoryManager.SmartStow(activeHandSlot)`.
 - If `activeHandSlot.Occupant != stowed` (typically null after success), the move worked. Otherwise it failed (item stayed in hand; the fail sound was played).
 
-**Multiplayer behavior**: SmartStow internally calls `OnServer.MoveToSlot` which wraps a network request on clients. So the active-hand state on a remote client may not reflect the move until the server's broadcast arrives a tick later. For in-frame success detection on clients, consider deferring the next operation by a frame OR running auto-equip only on host/SP for the first cut.
+**Multiplayer behavior**: SmartStow internally calls `OnServer.MoveToSlot` which wraps a network request on clients. So the active-hand state on a remote client may not reflect the move until the server's broadcast arrives a tick later. For in-frame success detection on clients, consider deferring the next operation by a frame OR running auto-equip only on host/single-player for the first cut.
 
 ## HumanHandsBehaviour.SwapHands
 <!-- verified: 0.2.6228.27061 @ 2026-04-27 -->
@@ -191,7 +191,7 @@ OnServer.MoveToSlot(prevOccupant, foundSlot);
 OnServer.MoveToSlot(found, active.Slot);
 ```
 
-Multiplayer note: each `OnServer.MoveToSlot` on a remote client is async. The recipe above is correct on host/SP (each move applies before the next runs); on remote clients, the moves are queued network requests, so step 5 (success detection) can produce a false-negative in the same frame the SmartStow request was sent. For tighter detection, gate the auto-equip on `NetworkManager.IsServer` and require a vanilla manual equip on remote clients, OR run a coroutine that waits one tick before checking.
+Multiplayer note: each `OnServer.MoveToSlot` on a remote client is async. The recipe above is correct on host/single-player (each move applies before the next runs); on remote clients, the moves are queued network requests, so step 5 (success detection) can produce a false-negative in the same frame the SmartStow request was sent. For tighter detection, gate the auto-equip on `NetworkManager.IsServer` and require a vanilla manual equip on remote clients, OR run a coroutine that waits one tick before checking.
 
 ## Verification history
 

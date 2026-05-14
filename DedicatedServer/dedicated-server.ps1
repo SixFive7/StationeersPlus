@@ -263,35 +263,35 @@ function Invoke-Bootstrap {
     # which is in the server zip but not the client install. Other DLLs are
     # byte-identical so the overlay is a no-op for them.
     Write-Host "[Bootstrap] Overlaying StationeersLaunchPad server-zip release..."
-    $slpVersion = $null
-    $slpDll     = Join-Path $dstBepInEx 'plugins\StationeersLaunchPad\StationeersLaunchPad.dll'
-    if (Test-Path $slpDll) {
-        $slpVersion = (Get-Item $slpDll).VersionInfo.ProductVersion
+    $launchPadVersion = $null
+    $launchPadDll     = Join-Path $dstBepInEx 'plugins\StationeersLaunchPad\StationeersLaunchPad.dll'
+    if (Test-Path $launchPadDll) {
+        $launchPadVersion = (Get-Item $launchPadDll).VersionInfo.ProductVersion
     }
-    if (-not $slpVersion) {
-        Write-Warning "[Bootstrap] StationeersLaunchPad.dll not found at $slpDll; skipping server-zip overlay. Mods will not load until SLP is installed."
+    if (-not $launchPadVersion) {
+        Write-Warning "[Bootstrap] StationeersLaunchPad.dll not found at $launchPadDll; skipping server-zip overlay. Mods will not load until StationeersLaunchPad is installed."
     }
     else {
-        $slpReleaseUrl = "https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/v$slpVersion/StationeersLaunchPad-server-v$slpVersion.zip"
-        $slpZipDir     = Join-Path $RepoRoot ".work\slp-server"
-        $slpZipPath    = Join-Path $slpZipDir "StationeersLaunchPad-server-v$slpVersion.zip"
-        $slpExtractDir = Join-Path $slpZipDir "extracted-v$slpVersion"
-        if (-not (Test-Path $slpZipDir)) { New-Item -ItemType Directory -Path $slpZipDir -Force | Out-Null }
-        if (-not (Test-Path $slpZipPath)) {
-            Write-Host "[Bootstrap]   downloading $slpReleaseUrl"
+        $launchPadReleaseUrl = "https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/v$launchPadVersion/StationeersLaunchPad-server-v$launchPadVersion.zip"
+        $launchPadZipDir     = Join-Path $RepoRoot ".work\launchpad-server"
+        $launchPadZipPath    = Join-Path $launchPadZipDir "StationeersLaunchPad-server-v$launchPadVersion.zip"
+        $launchPadExtractDir = Join-Path $launchPadZipDir "extracted-v$launchPadVersion"
+        if (-not (Test-Path $launchPadZipDir)) { New-Item -ItemType Directory -Path $launchPadZipDir -Force | Out-Null }
+        if (-not (Test-Path $launchPadZipPath)) {
+            Write-Host "[Bootstrap]   downloading $launchPadReleaseUrl"
             try {
-                Invoke-WebRequest -Uri $slpReleaseUrl -OutFile $slpZipPath -UseBasicParsing
+                Invoke-WebRequest -Uri $launchPadReleaseUrl -OutFile $launchPadZipPath -UseBasicParsing
             }
             catch {
                 Write-Warning "[Bootstrap]   download failed: $_. Skipping overlay; mod loading may be missing RG.ImGui."
-                $slpZipPath = $null
+                $launchPadZipPath = $null
             }
         }
-        if ($slpZipPath -and (Test-Path $slpZipPath)) {
-            if (Test-Path $slpExtractDir) { Remove-Item -Recurse -Force $slpExtractDir }
-            Expand-Archive -Path $slpZipPath -DestinationPath $slpExtractDir -Force
-            $srcDir = Join-Path $slpExtractDir "StationeersLaunchPad"
-            $dstDir = Split-Path -Parent $slpDll
+        if ($launchPadZipPath -and (Test-Path $launchPadZipPath)) {
+            if (Test-Path $launchPadExtractDir) { Remove-Item -Recurse -Force $launchPadExtractDir }
+            Expand-Archive -Path $launchPadZipPath -DestinationPath $launchPadExtractDir -Force
+            $srcDir = Join-Path $launchPadExtractDir "StationeersLaunchPad"
+            $dstDir = Split-Path -Parent $launchPadDll
             foreach ($f in (Get-ChildItem -File -Path $srcDir)) {
                 Copy-Item -Path $f.FullName -Destination (Join-Path $dstDir $f.Name) -Force
             }

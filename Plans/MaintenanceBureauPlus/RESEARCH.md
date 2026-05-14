@@ -85,7 +85,7 @@ Deferred; pointers repeated here so v2 readers do not need to walk into the arch
 - [../../Research/Protocols/WorldXml.md](../../Research/Protocols/WorldXml.md) `<Rooms>` / `<Grids>` schema, 10x grid coord scale, `<DifficultySetting>` enum.
 - [../../Research/Protocols/AtmosphereSaveData.md](../../Research/Protocols/AtmosphereSaveData.md) pipe-network gas-species list.
 - [../../Research/Workflows/ResetTerrainOffline.md](../../Research/Workflows/ResetTerrainOffline.md) `terrain_reset.py` algorithm, CLI, design decisions.
-- [../../Research/Workflows/ResetTerrainLive.md](../../Research/Workflows/ResetTerrainLive.md) live-MP runtime reset recipe.
+- [../../Research/Workflows/ResetTerrainLive.md](../../Research/Workflows/ResetTerrainLive.md) live-multiplayer runtime reset recipe.
 
 ## 4. Harmony patches catalog (planned)
 

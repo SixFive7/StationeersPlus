@@ -221,7 +221,7 @@ A device whose `PowerCable` is null (no adjacent power cable) silently returns `
 
 ## Verification history
 
-- 2026-05-13: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct, GetGeneratedPower/GetUsedPower/AllowSetPower) and 253820-253850 (CableNetwork.AddDevice). Cross-checked against the Power Grid Plus PGP-3 research dive (Mods/PowerGridPlus/RESEARCH.md). Single-write-site finding for `PowerCable` confirmed by exhaustive grep against `set_PowerCable` and `PowerCable = ` in the decomp (only matches: lines 350786, 350790 in `FindPowerCable`).
+- 2026-05-13: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct, GetGeneratedPower/GetUsedPower/AllowSetPower) and 253820-253850 (CableNetwork.AddDevice). Cross-checked against the Power Grid Plus phase 3 research dive (Mods/PowerGridPlus/RESEARCH.md). Single-write-site finding for `PowerCable` confirmed by exhaustive grep against `set_PowerCable` and `PowerCable = ` in the decomp (only matches: lines 350786, 350790 in `FindPowerCable`).
 
 ## Open questions
 

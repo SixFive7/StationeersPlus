@@ -87,7 +87,7 @@ public static void VerifyConnection(long hostId, NetworkMessages.VerifyPlayer ms
 }
 ```
 
-LaunchPadBooster transpiles `VerifyPlayer.Process` to redirect this `VerifyConnection` call through its own join-validate handshake (`ModNetworking.cs:227-237`). The handshake adds another round-trip; only after the LPB validate exchange completes does `ConnectionState` call `NetworkServer.VerifyConnection(GetHostId(), VerifyPlayer)`:
+LaunchPadBooster transpiles `VerifyPlayer.Process` to redirect this `VerifyConnection` call through its own join-validate handshake (`ModNetworking.cs:227-237`). The handshake adds another round-trip; only after the LaunchPadBooster validate exchange completes does `ConnectionState` call `NetworkServer.VerifyConnection(GetHostId(), VerifyPlayer)`:
 
 ```csharp
 // LaunchPadBooster.Networking.ConnectionState.cs:330-342
@@ -146,7 +146,7 @@ public static void AddClient(Client client)
 
 And `AddClient` is called only from `NetworkServer.VerifyConnection`, which fires after the verify-handshake round-trip, well after `PlayerConnected`. So at the moment a Harmony postfix on `NetworkManager.PlayerConnected` runs and calls `SendAll(0L)`, the joining client is NOT in `NetworkBase.Clients`. The broadcast goes only to peers that connected earlier; the new joiner is not among them.
 
-Even if a message did reach the joiner before its connection was validated, the LPB receive path would drop it:
+Even if a message did reach the joiner before its connection was validated, the LaunchPadBooster receive path would drop it:
 
 ```csharp
 // LaunchPadBooster.Networking.ConnectionState.cs:603-621
@@ -164,7 +164,7 @@ internal void ReceiveMessage()
 }
 ```
 
-`ConnectionStatus.Ready` is set at the end of `ReceiveJoinValidateData` (`ConnectionState.cs:332`), which runs during the LPB validate handshake. That happens after both sides exchange validate data, which is after `PlayerConnected` on the host but before world snapshot transmission begins.
+`ConnectionStatus.Ready` is set at the end of `ReceiveJoinValidateData` (`ConnectionState.cs:332`), which runs during the LaunchPadBooster validate handshake. That happens after both sides exchange validate data, which is after `PlayerConnected` on the host but before world snapshot transmission begins.
 
 ## The correct hook: IJoinSuffixSerializer
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
@@ -182,7 +182,7 @@ public interface IJoinSuffixSerializer
 
 It is wired through `IModNetworking.JoinSuffixSerializer { get; set; }`. Mods set `MOD.Networking.JoinSuffixSerializer = ...` in `OnAllModsLoaded` (alongside `JoinValidator`).
 
-Host side: LPB Harmony-prefix `NetworkServer.PackageJoinData` then calls `WriteJoinSuffix(_joinWriter)` to write each registered mod's section, framed by `SectionedWriter` per-mod hash:
+Host side: LaunchPadBooster Harmony-prefix `NetworkServer.PackageJoinData` then calls `WriteJoinSuffix(_joinWriter)` to write each registered mod's section, framed by `SectionedWriter` per-mod hash:
 
 ```csharp
 // LaunchPadBooster.Networking.ModNetworking.cs:794
@@ -203,7 +203,7 @@ internal static void WriteJoinSuffix(RocketBinaryWriter writer)
 }
 ```
 
-Client side: LPB transpiles `NetworkClient.ProcessJoinData` to replace the `AtmosphericsManager.DeserializeOnJoin(reader)` call with `ReadJoinSuffix(reader)`. The replacement reads each mod's sectioned data, then internally calls `AtmosphericsManager.DeserializeOnJoin` to preserve vanilla.
+Client side: LaunchPadBooster transpiles `NetworkClient.ProcessJoinData` to replace the `AtmosphericsManager.DeserializeOnJoin(reader)` call with `ReadJoinSuffix(reader)`. The replacement reads each mod's sectioned data, then internally calls `AtmosphericsManager.DeserializeOnJoin` to preserve vanilla.
 
 The position in `ProcessJoinData` matters: the suffix runs after `ProcessThings`, so all Things are already deserialized and `Thing.Find` will resolve. Verbatim sequence:
 
@@ -214,7 +214,7 @@ private static async UniTask ProcessJoinData()
     // ...
     GameManager.DeserializeGameTime(reader);
     GameManager.DeserializeTerrainSeed(reader);
-    // ... LPB ReadJoinPrefix injected here ...
+    // ... LaunchPadBooster ReadJoinPrefix injected here ...
     WorldManager.DeserializeOnJoin(reader);
     await VoxelTerrain.LoadTerrain(...);
     // ... Vein, OrbitalSimulation, TerraForming, VoxelTerrain ...
@@ -224,7 +224,7 @@ private static async UniTask ProcessJoinData()
     await ProcessThings(reader)...                        // ← every Thing deserialized
     await RocketLog.DeserializeOnJoin(reader)...
     RoomController.DeserializeOnJoin(reader);
-    await AtmosphericsManager.DeserializeOnJoin(reader)... // ← LPB transpile replaces this with ReadJoinSuffix; mod suffix sections then vanilla atmospherics
+    await AtmosphericsManager.DeserializeOnJoin(reader)... // ← LaunchPadBooster transpile replaces this with ReadJoinSuffix; mod suffix sections then vanilla atmospherics
     StructureNetwork.StructureNetworksOnFinishedLoad();
     // ... GameManager.OnReadyToPlay, UpdateThingsOnGameStart (calls OnFinishedLoad on all Things) ...
     UpdateHandshakeState(HandshakeType.ClientReady);
@@ -233,7 +233,7 @@ private static async UniTask ProcessJoinData()
 
 Net: `IJoinSuffixSerializer.DeserializeJoinSuffix` runs after `ProcessThings` and before `Thing.OnFinishedLoad`. `Thing.Find(referenceId)` resolves at this point.
 
-`IJoinPrefixSerializer` is the symmetric option that runs BEFORE `GameManager.DeserializeGameTime` (LPB transpile inserts it there). Use prefix when the mod data must precede the world snapshot; use suffix when the mod data must follow it (i.e. when Things must already exist for resolution).
+`IJoinPrefixSerializer` is the symmetric option that runs BEFORE `GameManager.DeserializeGameTime` (LaunchPadBooster transpile inserts it there). Use prefix when the mod data must precede the world snapshot; use suffix when the mod data must follow it (i.e. when Things must already exist for resolution).
 
 ## Practical implications for the StationeersPlus monorepo
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->

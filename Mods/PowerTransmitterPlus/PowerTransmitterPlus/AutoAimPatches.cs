@@ -94,7 +94,7 @@ namespace PowerTransmitterPlus
             if (_target.TryGetValue(dish, out var box)) box.Value = 0L;
         }
 
-        // Public restore entry point for the side-car save load and the MP
+        // Public restore entry point for the side-car save load and the multiplayer
         // join snapshot. Bypasses HandleWrite's geometry solve (vanilla servo
         // restore has already aimed the dish at the saved pose by the time
         // this runs); we only need to put the target ReferenceId back into
@@ -165,7 +165,7 @@ namespace PowerTransmitterPlus
 
         // Yields (dishReferenceId, targetReferenceId) pairs for every dish
         // with a non-zero cached target. Used by AutoAimSideCar at save time
-        // and AutoAimSnapshotSync at MP join time. Walks _tracked, resolves
+        // and AutoAimSnapshotSync at multiplayer join time. Walks _tracked, resolves
         // the WeakReference, reads _target via the live dish instance, drops
         // dead-ref entries inline. Materialises into a list so the caller can
         // enumerate freely without holding a reference into _tracked.

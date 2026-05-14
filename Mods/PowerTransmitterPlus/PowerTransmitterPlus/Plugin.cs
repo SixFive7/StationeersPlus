@@ -252,7 +252,7 @@ namespace PowerTransmitterPlus
         //      before the joiner entered NetworkBase.Clients; the rebroadcast was
         //      removed in v1.7.0.
         //
-        // Runs on the server inside NetworkServer.PackageJoinData (LPB-injected
+        // Runs on the server inside NetworkServer.PackageJoinData (LaunchPadBooster-injected
         // into the join writer per Research/Protocols/PlayerConnectedThingFindTiming.md);
         // runs on the client inside NetworkClient.ProcessJoinData at the position
         // of the original AtmosphericsManager.DeserializeOnJoin call, which is

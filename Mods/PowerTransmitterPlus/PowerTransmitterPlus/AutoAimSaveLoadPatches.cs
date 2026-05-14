@@ -184,7 +184,7 @@ namespace PowerTransmitterPlus
         {
             try
             {
-                // Run only on the authoritative side: single-player, MP host,
+                // Run only on the authoritative side: single-player, multiplayer host,
                 // or dedicated server. Pure remote clients receive cache and
                 // aim from the host via IJoinSuffixSerializer + tick deltas.
                 // Per Research/GameSystems/NetworkRoles.md the remote-client

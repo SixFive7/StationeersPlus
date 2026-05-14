@@ -152,7 +152,7 @@ TerrainReclamationMod/
 For each voxel to reset, convert world position to octree space, read the base density via `VoxelTerrain.ReadOnlyOctree.Get(octreePos)`, and write it back with `VoxelTerrain.Octree.SetDensity(worldPos, baseDensity, ...)`. This overwrites the delta with the base value; on next save the node collapses. Process a few hundred voxels per tick; sort by distance from base center (furthest first) for a dramatic closing-in effect.
 
 Full content lifted to:
-- [../../Research/Workflows/ResetTerrainLive.md](../../Research/Workflows/ResetTerrainLive.md) - Live-MP runtime reset approach: `SetDensity` per-voxel recipe and tick-budget considerations.
+- [../../Research/Workflows/ResetTerrainLive.md](../../Research/Workflows/ResetTerrainLive.md) - Live-multiplayer runtime reset approach: `SetDensity` per-voxel recipe and tick-budget considerations.
 
 Open questions about `SetDensity` network sync, mesh rebuild, room-manager access, tick budget, Stationeers.Addons lifecycle, and effects APIs moved to `Plans/SaveFixPrototype/RESEARCH.md` under Open questions. Lore-concept brainstorm (Seismic Reclamation / Nanite Reconstruction / Temporal Anomaly) is implementation strategy and stays below.
 

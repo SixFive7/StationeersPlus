@@ -7,7 +7,7 @@ verified_at: 2026-05-12
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer)
-  - Plans/PowerGridPlus/PLAN.md (PGP-3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)
+  - Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)
 related:
   - ./Cable.md
   - ./PowerTransmitter.md
@@ -82,7 +82,7 @@ A transformer is already the only clean "bridge" between two cable networks (it 
 
 ## Verification history
 
-- 2026-05-12: page created. Sourced from a PGP-3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373766 and 403300-403545; verbatim excerpts of the `ElectricalInputOutput` `InputNetwork`/`OutputNetwork` fields, the `Transformer` class header + `Setting` clamp + logic getters + `GetGeneratedPower` head. Confirmed no `TransformerLarge`/`TransformerSmall` class exists. Re-Volt mod source (`TransformerExploitPatch` / `TransformerLogicPatch` targeting `Transformer`) corroborates the class name and the patch surface.
+- 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373766 and 403300-403545; verbatim excerpts of the `ElectricalInputOutput` `InputNetwork`/`OutputNetwork` fields, the `Transformer` class header + `Setting` clamp + logic getters + `GetGeneratedPower` head. Confirmed no `TransformerLarge`/`TransformerSmall` class exists. Re-Volt mod source (`TransformerExploitPatch` / `TransformerLogicPatch` targeting `Transformer`) corroborates the class name and the patch surface.
 
 ## Open questions
 
