@@ -72,12 +72,18 @@ namespace PowerGridPlus.Power
         // First device this tick that's on a cable tier it isn't allowed on; ApplyState_New burns the cable
         // adjacent to it (if there's power flow). The device itself is never destroyed.
         private Device _misplacedDeviceForBurn;
-        // NEW-3 (per-port): the wrong-tier cable directly at a two-port device's offending port (a
-        // transformer with a cable that doesn't match its per-variant input / output tier requirement,
-        // or an APC whose two sides are on different tiers). _portMismatchOwner is the device whose
-        // port the cable sits on; only used for the log line and the tooltip reason.
+        // NEW-3 (per-port, APC): the lower-tier port's adjacent cable on an APC whose two sides are
+        // on different tiers. Single-cable burn, gated on local network powerFlow > 0.
+        // _portMismatchOwner is the APC, only used for the log line and the tooltip reason.
         private Cable _portMismatchCableForBurn;
         private Device _portMismatchOwner;
+
+        // NEW-3 (per-port, transformer): a transformer whose two cable ports violate its variant's
+        // unordered tier-pair rule AND that is actively bridging power (Transformer.OnOff and
+        // _powerProvided > 0). When recorded, ApplyState_New burns BOTH adjacent cables (input AND
+        // output) -- the transformer itself is never destroyed. An off / half-powered transformer
+        // sits harmlessly even with a violation.
+        private Transformer _portMismatchTransformerForBurn;
 
         static PowerGridTick()
         {
@@ -213,6 +219,7 @@ namespace PowerGridPlus.Power
             _misplacedDeviceForBurn = null;
             _portMismatchCableForBurn = null;
             _portMismatchOwner = null;
+            _portMismatchTransformerForBurn = null;
             int idx = Devices.Count;
             while (idx-- > 0)
             {
@@ -233,21 +240,30 @@ namespace PowerGridPlus.Power
                     _misplacedDeviceForBurn = currentDevice;
                 }
 
-                // NEW-3 (per-port): two-port devices (transformer / APC) have port-specific tier rules.
-                // Transformer has per-variant required tiers (Small heavy<->normal, Medium heavy<->heavy,
-                // Large superHeavy<->heavy). APC requires both ports to be on the same tier. Either way,
-                // a wrong-tier cable directly at the offending port is the burn victim.
-                if (Settings.EnableVoltageTiers.Value && _portMismatchCableForBurn == null)
+                // NEW-3 (per-port, transformer): a transformer whose two cable ports violate the
+                // variant's unordered tier-pair rule fires the burn-both-cables rule ONLY when the
+                // transformer is turned on AND actively bridging power (_powerProvided > 0 from the
+                // previous tick). An off or half-powered transformer with a violation waits.
+                if (Settings.EnableVoltageTiers.Value
+                    && _portMismatchTransformerForBurn == null
+                    && currentDevice is Transformer transformer
+                    && VoltageTier.IsTransformerTierViolated(transformer)
+                    && VoltageTier.IsTransformerActivelyConducting(transformer))
                 {
-                    Cable mismatch = null;
-                    if (currentDevice is Transformer transformer)
-                        mismatch = VoltageTier.FindMismatchedTransformerCable(transformer);
-                    else if (currentDevice is AreaPowerControl apc)
-                        mismatch = VoltageTier.FindMismatchedApcCable(apc);
+                    _portMismatchTransformerForBurn = transformer;
+                }
+
+                // NEW-3 (per-port, APC): an APC with mismatched-tier ports fires the existing single-
+                // cable burn whenever the relevant network has power flow. No "actively bridging" gate.
+                if (Settings.EnableVoltageTiers.Value
+                    && _portMismatchCableForBurn == null
+                    && currentDevice is AreaPowerControl apc)
+                {
+                    var mismatch = VoltageTier.FindMismatchedApcCable(apc);
                     if (mismatch != null)
                     {
                         _portMismatchCableForBurn = mismatch;
-                        _portMismatchOwner = currentDevice;
+                        _portMismatchOwner = apc;
                     }
                 }
 
@@ -327,16 +343,23 @@ namespace PowerGridPlus.Power
                 power = true;
 
                 // NEW-3: tier burns are gated on real power flow this tick. An idle / off network never
-                // destroys cables. Priority order: mixed-tier-in-this-network (root cause) -> port
-                // mismatch on a two-port device (transformer / APC) -> misplaced single-port device.
-                // Resolving the higher-priority case usually fixes the lower-priority symptom on the
-                // next tick's fresh network.
+                // destroys cables. Priority order: mixed-tier-in-this-network (root cause) -> actively-
+                // bridging transformer with a violated pair (burn BOTH adjacent cables) -> APC with
+                // mismatched sides (single cable) -> misplaced single-port device (single cable).
+                // The transformer rule's "actively bridging" gate implies powerFlow > 0 on the local
+                // network anyway. Resolving the higher-priority case usually fixes the lower-priority
+                // symptom on the next tick's fresh network.
                 if (powerFlow > 0f && Settings.EnableVoltageTiers.Value && !_tierResolutionPending)
                 {
                     if (_mixedTierDetected)
                     {
                         _tierResolutionPending = true;
                         VoltageTier.ResolveMixedTierNetwork(CableNetwork);
+                    }
+                    else if (_portMismatchTransformerForBurn != null)
+                    {
+                        _tierResolutionPending = true;
+                        VoltageTier.BurnTransformerBothCables(_portMismatchTransformerForBurn);
                     }
                     else if (_portMismatchCableForBurn != null)
                     {

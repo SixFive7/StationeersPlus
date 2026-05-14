@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using HarmonyLib;
 using Objects;
 
 namespace PowerGridPlus
@@ -20,16 +22,23 @@ namespace PowerGridPlus
     ///       * High-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher,
     ///         Hydraulic Pipe Bender, Deep Miner, plus the Extra Heavy-Cable Devices config list) -- T
     ///         must be heavy or normal (not super-heavy).
-    ///       * Area Power Control and wireless power devices -- any T, but the two cable ports (if both
-    ///         carry cable) must be on the same tier. If they differ, the lower-tier port's adjacent
-    ///         cable burns when power flows.
-    ///       * Transformer (per-variant) -- explicit input / output tier requirement:
-    ///           - Small (StructureTransformerSmall, StructureTransformerSmallReversed): input = heavy,
-    ///             output = normal.
+    ///       * Area Power Control -- any T, but both cable ports must be on the same tier. If they
+    ///         differ, the lower-tier port's adjacent cable burns when power flows on the relevant
+    ///         network. Wireless power devices (PowerTransmitter, PowerReceiver, PowerTransmitterOmni)
+    ///         only have one cable-wired port in practice; the rule is vacuous on them.
+    ///       * Transformer -- per variant, the two cable ports must hold a canonical UNORDERED pair of
+    ///         tiers. Direction is interchangeable, so a Small can be wired heavy-in/normal-out OR
+    ///         normal-in/heavy-out (the latter is the "step-up" / generation-side wiring).
+    ///           - Small (StructureTransformerSmall, StructureTransformerSmallReversed): {heavy, normal}.
     ///           - Medium (StructureTransformerMedium, StructureTransformerMedium(Reversed),
-    ///             StructureTransformerMediumReversed): input = heavy, output = heavy.
-    ///           - Large (StructureTransformer): input = superHeavy, output = heavy.
-    ///         If a port has the wrong-tier cable, that adjacent cable burns when power flows.
+    ///             StructureTransformerMediumReversed): {heavy, heavy}.
+    ///           - Large (StructureTransformer): {superHeavy, heavy}.
+    ///         The reactive burn for a transformer-tier violation fires ONLY when the transformer is
+    ///         turned on AND actively bridging power (Transformer._powerProvided > 0 -- both sides
+    ///         have flow through the transformer). When triggered, BOTH adjacent cables burn. The
+    ///         transformer itself is never destroyed (it's expensive to build); the cables are the
+    ///         signal. A violated-but-off or violated-but-half-powered transformer sits harmlessly
+    ///         until the player flips it on with both sides drawing.
     ///       * Everything else -- T must be normal.
     ///     A device on a tier it is not allowed on burns the adjacent cable when power flows. Placing
     ///     the device itself is never blocked at the cursor; placing a wrong-tier cable next to an
@@ -115,26 +124,98 @@ namespace PowerGridPlus
         }
 
         /// <summary>
-        ///     For a transformer with a known per-variant tier map: returns the wrong-tier cable
-        ///     adjacent to a port, or null if both ports are correct (or no map / no cables).
-        ///     The cable returned is the one to burn -- it sits directly at the offending port via
-        ///     <see cref="Assets.Scripts.Objects.Pipes.Connection.GetCable(bool)"/>.
+        ///     True iff the transformer's two cable ports together violate its per-variant unordered
+        ///     pair-of-tiers rule. The pair is direction-agnostic: a Small accepts heavy/normal OR
+        ///     normal/heavy. A Medium (symmetric pair) accepts only heavy/heavy. A Large accepts
+        ///     superHeavy/heavy OR heavy/superHeavy. Violation if (a) any wired port has a tier outside
+        ///     the pair set, or (b) on an asymmetric variant, both wired ports share the same tier
+        ///     (meaning the pair is incomplete -- the other tier of the pair is missing).
+        ///     Returns null when there's no violation (or when only one side is wired and that side's
+        ///     tier is in the pair; the other side could still be wired correctly later).
         /// </summary>
-        internal static Cable FindMismatchedTransformerCable(Transformer transformer)
+        internal static bool IsTransformerTierViolated(Transformer transformer)
         {
-            if (transformer == null) return null;
+            if (transformer == null) return false;
             var map = GetTransformerTierMap(transformer.PrefabName);
-            if (!map.HasValue) return null;
+            if (!map.HasValue) return false;
 
             var inputCable = transformer.InputConnection?.GetCable();
-            if (inputCable != null && inputCable.CableType != map.Value.Input)
-                return inputCable;
-
             var outputCable = transformer.OutputConnection?.GetCable();
-            if (outputCable != null && outputCable.CableType != map.Value.Output)
-                return outputCable;
 
-            return null;
+            var tierA = map.Value.Input;
+            var tierB = map.Value.Output;
+            bool symmetric = tierA == tierB;
+
+            if (symmetric)
+            {
+                // Medium: both ports must be the canonical tier.
+                if (inputCable != null && inputCable.CableType != tierA) return true;
+                if (outputCable != null && outputCable.CableType != tierA) return true;
+                return false;
+            }
+
+            // Asymmetric (Small, Large): each individually-wired cable must be in {tierA, tierB},
+            // and when both are wired they must be different (otherwise the pair has duplicates and
+            // is missing the other tier).
+            if (inputCable != null && inputCable.CableType != tierA && inputCable.CableType != tierB)
+                return true;
+            if (outputCable != null && outputCable.CableType != tierA && outputCable.CableType != tierB)
+                return true;
+            if (inputCable != null && outputCable != null && inputCable.CableType == outputCable.CableType)
+                return true;
+            return false;
+        }
+
+        // Reflection accessor for Transformer._powerProvided. Set by Transformer.ReceivePower
+        // during the previous tick's ApplyState_New; positive means the transformer was bridging
+        // real power flow last tick. One-tick latency vs the "first tick power flows" framing is
+        // acceptable -- the player won't notice and after the burn fires the cables are gone.
+        private static readonly FieldInfo _transformerPowerProvidedField =
+            AccessTools.Field(typeof(Transformer), "_powerProvided");
+
+        /// <summary>
+        ///     True when this transformer is actively bridging power: turned on AND its previous
+        ///     tick's throughput was positive. This is the "both sides have real flow through the
+        ///     transformer" gate for the burn-both-cables rule.
+        /// </summary>
+        internal static bool IsTransformerActivelyConducting(Transformer transformer)
+        {
+            if (transformer == null || _transformerPowerProvidedField == null) return false;
+            if (!transformer.OnOff) return false;
+            object raw = _transformerPowerProvidedField.GetValue(transformer);
+            return raw is float v && v > 0f;
+        }
+
+        /// <summary>
+        ///     The transformer is violating its tier-pair rule AND is actively bridging power. Burn
+        ///     BOTH adjacent cables (input port AND output port) so the bridge splits on both sides.
+        ///     The transformer itself is never destroyed -- only the cables, which are the player
+        ///     signal. Idempotent: calling Break on an already-destroyed cable is a safe no-op via
+        ///     Unity's "destroyed object compares equal to null" overload.
+        /// </summary>
+        internal static void BurnTransformerBothCables(Transformer transformer)
+        {
+            if (transformer == null || !GameManager.RunSimulation) return;
+            string label = string.IsNullOrEmpty(transformer.DisplayName) ? transformer.PrefabName : transformer.DisplayName;
+
+            var inputCable = transformer.InputConnection?.GetCable();
+            if (inputCable != null)
+            {
+                Plugin.Log?.LogInfo(
+                    $"Voltage tiers: burning a {inputCable.CableType} cable adjacent to {label} (transformer bridging incompatible tiers).");
+                BurnReasonRegistry.RegisterPending(inputCable,
+                    $"Wrong voltage -- {label} was bridging incompatible cable tiers");
+                inputCable.Break();
+            }
+            var outputCable = transformer.OutputConnection?.GetCable();
+            if (outputCable != null)
+            {
+                Plugin.Log?.LogInfo(
+                    $"Voltage tiers: burning a {outputCable.CableType} cable adjacent to {label} (transformer bridging incompatible tiers).");
+                BurnReasonRegistry.RegisterPending(outputCable,
+                    $"Wrong voltage -- {label} was bridging incompatible cable tiers");
+                outputCable.Break();
+            }
         }
 
         /// <summary>

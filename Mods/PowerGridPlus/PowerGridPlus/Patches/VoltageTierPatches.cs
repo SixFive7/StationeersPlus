@@ -69,23 +69,48 @@ namespace PowerGridPlus.Patches
                         if (device == null)
                             continue;
 
-                        // (b.1) Transformer: cable's tier must match either the variant's required input
-                        // tier or its required output tier. (Picking which port the cursor cable attaches to
-                        // is geometry the cursor preview doesn't have a clean handle on, so this is the
-                        // permissive cursor rule -- "could attach to a valid port"; the reactive
-                        // BurnPortMismatchCable in PowerGridTick handles right-tier-but-wrong-side.)
+                        // (b.1) Transformer: each variant's two cable ports must hold an unordered tier
+                        // pair {tierA, tierB}. The cable's tier must be in that pair. For asymmetric
+                        // variants (Small, Large) where exactly ONE side is already wired, the new cable's
+                        // tier must DIFFER from that side's tier (otherwise the pair would have duplicates,
+                        // e.g. both heavy on a Small). When both sides are filled the cable-to-cable
+                        // network-tier check covers the extension case; when neither is filled, any tier
+                        // in the pair is fine.
                         if (device is Transformer transformer)
                         {
                             var map = VoltageTier.GetTransformerTierMap(transformer.PrefabName);
-                            if (map.HasValue && __instance.CableType != map.Value.Input && __instance.CableType != map.Value.Output)
+                            if (map.HasValue)
                             {
-                                string label = string.IsNullOrEmpty(transformer.DisplayName) ? transformer.PrefabName : transformer.DisplayName;
-                                __result = CanConstructInfo.InvalidPlacement(
-                                    $"Wrong voltage -- {label} doesn't accept {__instance.CableType} cable on either side.");
-                                return;
+                                bool symmetric = map.Value.Input == map.Value.Output;
+                                if (__instance.CableType != map.Value.Input && __instance.CableType != map.Value.Output)
+                                {
+                                    string label = string.IsNullOrEmpty(transformer.DisplayName) ? transformer.PrefabName : transformer.DisplayName;
+                                    string pairDesc = symmetric
+                                        ? $"{map.Value.Input} cable"
+                                        : $"a {map.Value.Input}/{map.Value.Output} cable pair";
+                                    __result = CanConstructInfo.InvalidPlacement(
+                                        $"Wrong voltage -- {label} only accepts {pairDesc}, not {__instance.CableType}.");
+                                    return;
+                                }
+                                if (!symmetric)
+                                {
+                                    var inputCable = transformer.InputConnection?.GetCable();
+                                    var outputCable = transformer.OutputConnection?.GetCable();
+                                    Cable wiredOther = null;
+                                    if (inputCable != null && outputCable == null) wiredOther = inputCable;
+                                    else if (outputCable != null && inputCable == null) wiredOther = outputCable;
+                                    if (wiredOther != null && wiredOther.CableType == __instance.CableType)
+                                    {
+                                        string label = string.IsNullOrEmpty(transformer.DisplayName) ? transformer.PrefabName : transformer.DisplayName;
+                                        __result = CanConstructInfo.InvalidPlacement(
+                                            $"Wrong voltage -- {label} already has {wiredOther.CableType} cable on its other side; the two sides must be different tiers.");
+                                        return;
+                                    }
+                                }
+                                continue;
                             }
-                            // Unknown / modded transformer: fall through to the general IsAllowedOnTier check below,
-                            // which treats it as tier-exempt and lets it through.
+                            // Unknown / modded transformer variant: fall through to the general
+                            // IsAllowedOnTier check below, which treats it as tier-exempt.
                         }
 
                         // (b.2) APC: any tier is fine PER se, but if a side is already wired, the new cable

@@ -224,6 +224,14 @@ The remaining round-2 gap was the build-time cursor reject for misplaced devices
 
 Net result: build-time gating is cable-side only; device placement is never blocked. The "you put it on the wrong cable" feedback is the cable burning, with a tooltip on the wreckage explaining why.
 
+### 2026-05-15: bidirectional transformer tier-pair + actively-bridging burn gate
+
+The per-variant transformer rule lands but in two refined forms vs the original D9/D10 design:
+
+- **Bidirectional unordered pair.** Each variant defines an unordered set `{tierA, tierB}` that the two cable ports must form together; direction does not matter. A Small is heavy/normal in either order; a Large is superHeavy/heavy in either order; a Medium is heavy/heavy. This covers both step-down (load-side wiring: heavy in, normal out) and step-up (generation-side wiring: normal in, heavy out) without distinguishing prefab-orientation variants. Reasoning: the original asymmetric rule only considered power-usage direction and didn't fit generators feeding into a heavy backbone via a Small transformer (which is a normal-side source pumping into a heavy-side network).
+- **Actively-bridging burn gate.** The reactive cable burn for a transformer tier violation no longer fires whenever the local network has power flow. The stricter condition is `Transformer.OnOff == true` AND `Transformer._powerProvided > 0` (the previous tick's throughput was positive, i.e. the transformer was actually bridging power on both sides). When that condition is met AND the pair is violated, BOTH adjacent cables burn. Reasoning: transformers are expensive to build; punishing a misconfigured-but-off transformer feels wrong from a player-experience standpoint. The burn fires only when the player has actually committed to using the bad bridge.
+- **Cable cursor reject scope confirmed.** Only cables are cursor-rejected, never transformers / devices. Cursor logic for the transformer-pair rule: cable's tier must be in the pair; for asymmetric variants with exactly one side wired, the new cable's tier must differ from that side's tier. Mirror of the APC rule (which requires same tier on both sides). Both-sides-wired and neither-side-wired cases handled by the cable-to-cable network-tier check upstream.
+
 ### 2026-05-14: LogicPassthroughMode + centralised LogicType catalogue
 
 - `Transformer` gets a writable `LogicPassthroughMode` logic slot (`StationeersPlus.Shared.LogicTypeNumbers.LogicPassthroughMode`, ushort 6577). Per-Transformer override stored in `PassthroughModeStore`; defaults to 1 for `StructureTransformerSmall` + `StructureTransformerSmallReversed`, 0 for every other transformer prefab. Persists across save / load via an XML side-car in the save ZIP.
