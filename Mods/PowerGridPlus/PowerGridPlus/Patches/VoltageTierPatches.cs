@@ -68,6 +68,49 @@ namespace PowerGridPlus.Patches
                     {
                         if (device == null)
                             continue;
+
+                        // (b.1) Transformer: cable's tier must match either the variant's required input
+                        // tier or its required output tier. (Picking which port the cursor cable attaches to
+                        // is geometry the cursor preview doesn't have a clean handle on, so this is the
+                        // permissive cursor rule -- "could attach to a valid port"; the reactive
+                        // BurnPortMismatchCable in PowerGridTick handles right-tier-but-wrong-side.)
+                        if (device is Transformer transformer)
+                        {
+                            var map = VoltageTier.GetTransformerTierMap(transformer.PrefabName);
+                            if (map.HasValue && __instance.CableType != map.Value.Input && __instance.CableType != map.Value.Output)
+                            {
+                                string label = string.IsNullOrEmpty(transformer.DisplayName) ? transformer.PrefabName : transformer.DisplayName;
+                                __result = CanConstructInfo.InvalidPlacement(
+                                    $"Wrong voltage -- {label} doesn't accept {__instance.CableType} cable on either side.");
+                                return;
+                            }
+                            // Unknown / modded transformer: fall through to the general IsAllowedOnTier check below,
+                            // which treats it as tier-exempt and lets it through.
+                        }
+
+                        // (b.2) APC: any tier is fine PER se, but if a side is already wired, the new cable
+                        // must match that side's existing tier (because both ports must end up on the same
+                        // tier). When both sides are wired and matching, the cable-to-cable check above
+                        // already covers extending one of those networks.
+                        if (device is AreaPowerControl apc)
+                        {
+                            var inputTier = VoltageTier.GetUniformTier(apc.InputNetwork);
+                            var outputTier = VoltageTier.GetUniformTier(apc.OutputNetwork);
+                            if (inputTier.HasValue && inputTier.Value != __instance.CableType)
+                            {
+                                __result = CanConstructInfo.InvalidPlacement(
+                                    $"Wrong voltage -- this Area Power Controller has {inputTier.Value} cable on its other side; both sides must match.");
+                                return;
+                            }
+                            if (outputTier.HasValue && outputTier.Value != __instance.CableType)
+                            {
+                                __result = CanConstructInfo.InvalidPlacement(
+                                    $"Wrong voltage -- this Area Power Controller has {outputTier.Value} cable on its other side; both sides must match.");
+                                return;
+                            }
+                            continue;
+                        }
+
                         if (!VoltageTier.IsAllowedOnTier(device, __instance.CableType))
                         {
                             string label = string.IsNullOrEmpty(device.DisplayName) ? device.PrefabName : device.DisplayName;

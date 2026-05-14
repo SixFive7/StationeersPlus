@@ -72,6 +72,12 @@ namespace PowerGridPlus.Power
         // First device this tick that's on a cable tier it isn't allowed on; ApplyState_New burns the cable
         // adjacent to it (if there's power flow). The device itself is never destroyed.
         private Device _misplacedDeviceForBurn;
+        // NEW-3 (per-port): the wrong-tier cable directly at a two-port device's offending port (a
+        // transformer with a cable that doesn't match its per-variant input / output tier requirement,
+        // or an APC whose two sides are on different tiers). _portMismatchOwner is the device whose
+        // port the cable sits on; only used for the log line and the tooltip reason.
+        private Cable _portMismatchCableForBurn;
+        private Device _portMismatchOwner;
 
         static PowerGridTick()
         {
@@ -202,8 +208,11 @@ namespace PowerGridPlus.Power
         {
             bool dirtyProviderList = false;
             int provIdx = 0;
-            // NEW-3: record at most one misplaced device per tick; ApplyState_New uses it AFTER the power-flow gate.
+            // NEW-3: record at most one misplaced device + at most one port-mismatched cable per tick;
+            // ApplyState_New uses both AFTER the power-flow gate.
             _misplacedDeviceForBurn = null;
+            _portMismatchCableForBurn = null;
+            _portMismatchOwner = null;
             int idx = Devices.Count;
             while (idx-- > 0)
             {
@@ -222,6 +231,24 @@ namespace PowerGridPlus.Power
                     && !VoltageTier.IsAllowedOnTier(currentDevice, _networkTier.Value))
                 {
                     _misplacedDeviceForBurn = currentDevice;
+                }
+
+                // NEW-3 (per-port): two-port devices (transformer / APC) have port-specific tier rules.
+                // Transformer has per-variant required tiers (Small heavy<->normal, Medium heavy<->heavy,
+                // Large superHeavy<->heavy). APC requires both ports to be on the same tier. Either way,
+                // a wrong-tier cable directly at the offending port is the burn victim.
+                if (Settings.EnableVoltageTiers.Value && _portMismatchCableForBurn == null)
+                {
+                    Cable mismatch = null;
+                    if (currentDevice is Transformer transformer)
+                        mismatch = VoltageTier.FindMismatchedTransformerCable(transformer);
+                    else if (currentDevice is AreaPowerControl apc)
+                        mismatch = VoltageTier.FindMismatchedApcCable(apc);
+                    if (mismatch != null)
+                    {
+                        _portMismatchCableForBurn = mismatch;
+                        _portMismatchOwner = currentDevice;
+                    }
                 }
 
                 Required += _powerData[idx].PowerUsed;
@@ -300,15 +327,21 @@ namespace PowerGridPlus.Power
                 power = true;
 
                 // NEW-3: tier burns are gated on real power flow this tick. An idle / off network never
-                // destroys cables, even if it's mixed-tier or has a misplaced device. Mixed-tier takes
-                // precedence over misplaced-device (it's the root cause; resolving it cleans up the
-                // device check on the next tick's fresh network).
+                // destroys cables. Priority order: mixed-tier-in-this-network (root cause) -> port
+                // mismatch on a two-port device (transformer / APC) -> misplaced single-port device.
+                // Resolving the higher-priority case usually fixes the lower-priority symptom on the
+                // next tick's fresh network.
                 if (powerFlow > 0f && Settings.EnableVoltageTiers.Value && !_tierResolutionPending)
                 {
                     if (_mixedTierDetected)
                     {
                         _tierResolutionPending = true;
                         VoltageTier.ResolveMixedTierNetwork(CableNetwork);
+                    }
+                    else if (_portMismatchCableForBurn != null)
+                    {
+                        _tierResolutionPending = true;
+                        VoltageTier.BurnPortMismatchCable(_portMismatchCableForBurn, _portMismatchOwner);
                     }
                     else if (_misplacedDeviceForBurn != null)
                     {

@@ -12,25 +12,32 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     The three-tier transmission-voltage policy (NEW-3). The three cable tiers (normal, heavy,
-    ///     super-heavy) are three separate voltages: a cable network must be single-tier, and the only
-    ///     legal bridge between tiers is a transformer (or Area Power Controller) -- whose input and
-    ///     output sit on separate networks anyway, so they need no enforcement.
+    ///     super-heavy) are three separate voltages: a cable network must be single-tier.
     ///
     ///     Per-device tier rules (a single-tier network's tier T):
-    ///       * Transformer / Area Power Controller / wireless power devices -- any T (exempt).
     ///       * Electrical generators -- T must be heavy.
     ///       * Stationary batteries -- T must be heavy.
     ///       * High-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher,
     ///         Hydraulic Pipe Bender, Deep Miner, plus the Extra Heavy-Cable Devices config list) -- T
     ///         must be heavy or normal (not super-heavy).
+    ///       * Area Power Control and wireless power devices -- any T, but the two cable ports (if both
+    ///         carry cable) must be on the same tier. If they differ, the lower-tier port's adjacent
+    ///         cable burns when power flows.
+    ///       * Transformer (per-variant) -- explicit input / output tier requirement:
+    ///           - Small (StructureTransformerSmall, StructureTransformerSmallReversed): input = heavy,
+    ///             output = normal.
+    ///           - Medium (StructureTransformerMedium, StructureTransformerMedium(Reversed),
+    ///             StructureTransformerMediumReversed): input = heavy, output = heavy.
+    ///           - Large (StructureTransformer): input = superHeavy, output = heavy.
+    ///         If a port has the wrong-tier cable, that adjacent cable burns when power flows.
     ///       * Everything else -- T must be normal.
-    ///     A device on a tier it is not allowed on is rejected at build time (best effort) and produces /
-    ///     draws no power at the simulation level.
+    ///     A device on a tier it is not allowed on burns the adjacent cable when power flows. Placing
+    ///     the device itself is never blocked at the cursor; placing a wrong-tier cable next to an
+    ///     existing device IS blocked at the cursor.
     ///
-    ///     Enforcement of the cable-tier rule has two halves: a reactive backstop (a network holding more
-    ///     than one tier burns its lowest-tier boundary cable, splitting it -- this fires on cable
-    ///     register and on power-tick rebuild, both cheap) and a best-effort build-time placement
-    ///     rejection.
+    ///     Enforcement has two halves: a reactive backstop (the power tick burns the offending cable
+    ///     when power flows; an idle network destroys nothing) and a best-effort build-time cursor
+    ///     rejection for cables placed adjacent to wrong-tier devices.
     /// </summary>
     internal static class VoltageTier
     {
@@ -70,13 +77,136 @@ namespace PowerGridPlus
                    || device is RadioscopicThermalGenerator;
         }
 
-        /// <summary>True for transformers / APCs / wireless power devices -- these are exempt from tier restrictions.</summary>
+        /// <summary>
+        ///     True for devices that are exempt from the single-tier per-device rule because they have
+        ///     their own per-port rules (transformer, APC) or only sit on one cable side (wireless power).
+        ///     The per-port rules are enforced by <see cref="FindMismatchedTransformerCable"/> and
+        ///     <see cref="FindMismatchedApcCable"/>, called from the power tick.
+        /// </summary>
         private static bool IsTierExempt(Device device)
         {
             return device is Transformer
                    || device is AreaPowerControl
                    || device is WirelessPower            // covers PowerReceiver and PowerTransmitter
                    || device is PowerTransmitterOmni;
+        }
+
+        /// <summary>
+        ///     Per-variant transformer port-tier requirements. Returns (inputTier, outputTier) or null
+        ///     when the prefab is not a known transformer variant (e.g. modded transformers).
+        /// </summary>
+        internal static (Cable.Type Input, Cable.Type Output)? GetTransformerTierMap(string prefabName)
+        {
+            if (string.IsNullOrEmpty(prefabName)) return null;
+            switch (prefabName)
+            {
+                case "StructureTransformerSmall":
+                case "StructureTransformerSmallReversed":
+                    return (Cable.Type.heavy, Cable.Type.normal);
+                case "StructureTransformerMedium":
+                case "StructureTransformerMedium(Reversed)":
+                case "StructureTransformerMediumReversed":
+                    return (Cable.Type.heavy, Cable.Type.heavy);
+                case "StructureTransformer":
+                    return (Cable.Type.superHeavy, Cable.Type.heavy);
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        ///     For a transformer with a known per-variant tier map: returns the wrong-tier cable
+        ///     adjacent to a port, or null if both ports are correct (or no map / no cables).
+        ///     The cable returned is the one to burn -- it sits directly at the offending port via
+        ///     <see cref="Assets.Scripts.Objects.Pipes.Connection.GetCable(bool)"/>.
+        /// </summary>
+        internal static Cable FindMismatchedTransformerCable(Transformer transformer)
+        {
+            if (transformer == null) return null;
+            var map = GetTransformerTierMap(transformer.PrefabName);
+            if (!map.HasValue) return null;
+
+            var inputCable = transformer.InputConnection?.GetCable();
+            if (inputCable != null && inputCable.CableType != map.Value.Input)
+                return inputCable;
+
+            var outputCable = transformer.OutputConnection?.GetCable();
+            if (outputCable != null && outputCable.CableType != map.Value.Output)
+                return outputCable;
+
+            return null;
+        }
+
+        /// <summary>
+        ///     For an APC: both cable ports must be on the same tier. Returns the lower-tier port's
+        ///     adjacent cable when they differ, or null if matching (or either port is uncabled).
+        /// </summary>
+        internal static Cable FindMismatchedApcCable(AreaPowerControl apc)
+        {
+            if (apc == null) return null;
+            var inputCable = apc.InputConnection?.GetCable();
+            var outputCable = apc.OutputConnection?.GetCable();
+            if (inputCable == null || outputCable == null) return null;
+            if (inputCable.CableType == outputCable.CableType) return null;
+            return TierRank(inputCable.CableType) < TierRank(outputCable.CableType) ? inputCable : outputCable;
+        }
+
+        /// <summary>
+        ///     True when this cable has at least one grid-adjacent cable of a higher tier (used to
+        ///     identify boundary cables in a mixed-tier network). Cheap: a few neighbours per cable.
+        /// </summary>
+        private static bool HasHigherTierNeighbour(Cable cable)
+        {
+            if (cable == null) return false;
+            List<Cable> neighbours;
+            try
+            {
+                neighbours = cable.ConnectedCables(NetworkType.Power);
+            }
+            catch
+            {
+                return false;
+            }
+            if (neighbours == null) return false;
+            int myRank = TierRank(cable.CableType);
+            foreach (var n in neighbours)
+            {
+                if (n == null) continue;
+                if (TierRank(n.CableType) > myRank) return true;
+            }
+            return false;
+        }
+
+        private static int TierRank(Cable.Type t)
+        {
+            switch (t)
+            {
+                case Cable.Type.normal: return 1;
+                case Cable.Type.heavy: return 2;
+                case Cable.Type.superHeavy: return 3;
+                default: return 0;
+            }
+        }
+
+        /// <summary>
+        ///     Returns the uniform <see cref="Cable.Type"/> of a network, or null if the network is mixed
+        ///     or empty. Used by the cursor-reject path to read an APC's existing-side tier without
+        ///     having to figure out which Connection the cursor cable would attach to.
+        /// </summary>
+        internal static Cable.Type? GetUniformTier(CableNetwork network)
+        {
+            if (network == null) return null;
+            Cable.Type? type = null;
+            lock (network.CableList)
+            {
+                foreach (var cable in network.CableList)
+                {
+                    if (cable == null) continue;
+                    if (!type.HasValue) type = cable.CableType;
+                    else if (type.Value != cable.CableType) return null;
+                }
+            }
+            return type;
         }
 
         private static bool IsStationaryBattery(Device device) => device is Battery;
@@ -183,14 +313,30 @@ namespace PowerGridPlus
                 }
                 else
                 {
+                    // First pass: pick a lowest-tier cable that is grid-adjacent to a higher-tier cable
+                    // (the actual boundary -- "burn next to the higher tier cable, not somewhere else").
                     foreach (var cable in network.CableList)
                     {
-                        if (cable == null)
-                            continue;
-                        if (cable.MaxVoltage <= lowestRating)
+                        if (cable == null) continue;
+                        if (cable.MaxVoltage > lowestRating) continue;
+                        if (HasHigherTierNeighbour(cable))
                         {
                             victim = cable;
                             break;
+                        }
+                    }
+                    // Fallback: any lowest-tier cable (only reached when the grid-adjacency check yields
+                    // nothing -- typically a torn network mid-rebuild).
+                    if (victim == null)
+                    {
+                        foreach (var cable in network.CableList)
+                        {
+                            if (cable == null) continue;
+                            if (cable.MaxVoltage <= lowestRating)
+                            {
+                                victim = cable;
+                                break;
+                            }
                         }
                     }
                 }
@@ -203,6 +349,25 @@ namespace PowerGridPlus
                     $"Wrong voltage -- {victim.CableType} cable was bridging into a different cable tier");
                 victim.Break();
             }
+        }
+
+        /// <summary>
+        ///     A two-port device (transformer / APC) has a wrong-tier cable directly on one of its ports
+        ///     (either the transformer's input or output port, or the APC's lower-tier side when its two
+        ///     sides differ). Burns that specific cable -- it sits directly at the offending port via
+        ///     <see cref="Assets.Scripts.Objects.Pipes.Connection.GetCable(bool)"/>, so the boundary is
+        ///     correct by construction.
+        /// </summary>
+        internal static void BurnPortMismatchCable(Cable victim, Device portOwner)
+        {
+            if (victim == null || portOwner == null || !GameManager.RunSimulation)
+                return;
+            string label = string.IsNullOrEmpty(portOwner.DisplayName) ? portOwner.PrefabName : portOwner.DisplayName;
+            Plugin.Log?.LogInfo(
+                $"Voltage tiers: burning a {victim.CableType} cable adjacent to {label} (port-tier mismatch).");
+            BurnReasonRegistry.RegisterPending(victim,
+                $"Wrong voltage -- the adjacent {label} doesn't accept {victim.CableType} cable on this port");
+            victim.Break();
         }
 
         /// <summary>
