@@ -3,7 +3,7 @@ title: CableNetwork
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-13
+verified_at: 2026-05-15
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.CableNetwork
 related:
@@ -254,12 +254,85 @@ Both accessors return the underlying list reference (no copy), so mutations thro
 
 Note the asymmetry: `DataDeviceList.get` refreshes when `PowerDeviceListDirty` is true and ignores `DataDeviceListDirty`. `PowerDeviceList.get` checks both flags. This is almost certainly a copy-paste leftover; in practice `DirtyDataDeviceList()` (which sets only the data flag) followed by a `DataDeviceList` read will return stale data unless something else (cable add/remove, power dirty) has happened to also set the power flag. Code that needs a fresh data list after a `DirtyDataDeviceList()` call should call `RefreshPowerAndDataDeviceLists()` explicitly. See Open Questions for the unresolved "is this a bug or a deliberate optimization" question.
 
+## Lifecycle: three constructors + pool registration + multiplayer sync
+<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+
+`CableNetwork` is tracked in `ConcurrentDensePool<CableNetwork> AllCableNetworks = new ConcurrentDensePool<CableNetwork>("AllCableNetworks", 4096)` (line 253430). The pool is the canonical "every network in the world" list. Instances are NOT acquired/returned from the pool via Get/Release in the call sites; the `new CableNetwork(...)` expressions seen below allocate fresh objects which then register themselves with `AllCableNetworks` via `AssignReference`. So each `new CableNetwork(...)` does go through one of three constructors, and Harmony postfixes on the constructors fire reliably.
+
+The three constructors (lines 253735-253764):
+
+```csharp
+public CableNetwork()
+{
+    AssignReference(this, 0L);           // 0L = "assign a fresh ReferenceId from the global counter"
+    CableNetworkType = CableNetworkType.CableNetwork;
+    if (CableNetwork.OnNetworkChanged != null)
+        CableNetwork.OnNetworkChanged();
+}
+
+public CableNetwork(long cableNetworkId)
+{
+    AssignReference(this, cableNetworkId); // use the explicit id; do NOT increment the counter
+    CableNetworkType = CableNetworkType.CableNetwork;
+    if (CableNetwork.OnNetworkChanged != null)
+        CableNetwork.OnNetworkChanged();
+}
+
+public CableNetwork(Cable cable)
+{
+    AssignReference(this, 0L);           // fresh ReferenceId
+    CableNetworkType = CableNetworkType.CableNetwork;
+    Add(cable);                          // attaches the seed cable
+    if (CableNetwork.OnNetworkChanged != null)
+        CableNetwork.OnNetworkChanged();
+}
+```
+
+Server vs client constructor usage:
+
+- **Server creates new networks** via `new CableNetwork()` or `new CableNetwork(cable)`. Both call `AssignReference(this, 0L)`, which generates a fresh ReferenceId from the global counter. Example call site: `Cable.OnRegistered` at line 254055 (`CableNetwork cableNetwork2 = new CableNetwork(cable);`) when a placed cable opens a new network island.
+- **Client recreates networks** via `new CableNetwork(referenceId)` from `DeserializeNew(RocketBinaryReader)` (line 254162). The factory reads a `CableNetworkType` byte and a packed `ReferenceId` from the wire, then switches on the type to construct either `new CableNetwork(referenceId)` or `new WirelessNetwork(referenceId)`. This is the `SyncList<CableNetwork> NewToSend = new SyncList<CableNetwork>(DeserializeNew)` (line 253491) factory.
+- **Both sides recreate from saved id** via the `(long)` constructor: in `Cable` (line 371386), `(Referencable.Find<CableNetwork>(cableNetworkId) ?? new CableNetwork(cableNetworkId)).Add(this)` -- if a cable carries a deserialised `cableNetworkId` and no `CableNetwork` with that id is found, one is constructed with the saved id rather than a fresh one. Used during save load and during the join-time `Add` chain.
+
+`DeserializeNew` verbatim (line 254162):
+
+```csharp
+private static void DeserializeNew(RocketBinaryReader reader)
+{
+    CableNetworkType cableNetworkType = (CableNetworkType)reader.ReadByte();
+    Network.ReadPackedId(reader, out var referenceId);
+    switch (cableNetworkType)
+    {
+        case CableNetworkType.CableNetwork:
+            new CableNetwork(referenceId);
+            break;
+        case CableNetworkType.WirelessNetwork:
+            new WirelessNetwork(referenceId);
+            break;
+        case CableNetworkType.None:
+            break;
+    }
+}
+```
+
+Note the discard pattern: `new CableNetwork(referenceId)` allocates and the result is thrown away. `AssignReference(this, referenceId)` inside the constructor adds the instance to `AllCableNetworks` keyed by `referenceId`, so subsequent `Referencable.Find<CableNetwork>(referenceId)` lookups return the instance. The constructor's only externally-visible job on the client side is "register this id".
+
+`OnNetworkChanged` is a static `Action` (no parameters) invoked at the tail of every constructor. Subscribers can react to "a network was created or recreated"; the event does not pass which network.
+
+Pool / id-counter implications for mods:
+
+- A Harmony postfix on any of the three `CableNetwork` constructors fires for both server-created and client-recreated networks. Posting state into the instance (e.g. injecting a replacement `PowerTick`) is therefore consistent on both sides.
+- The `(long)` constructor is the ONLY path on a remote client that creates a `CableNetwork`. Anything that ends up on the client side that should know about a network must be reachable from this constructor postfix.
+- Cable burns destroy cables and can split networks on the server. Each split creates a new `CableNetwork()` via the default constructor (fresh id from the counter). The server's id counter advances; clients only learn about the new id when the server replicates the split via `NewToSend.Send` -> `DeserializeNew`. If a server-side action (mod patch, voltage rule, anything that calls `cable.Break()` server-only) creates an extra network between two replicated states, the server's id counter will be ahead of the client's expectation by one until the next sync delivers the new id.
+- The counter itself is per-runtime state, not derived from any synchronised seed. Server and client do NOT share a counter; the client relies entirely on the server-supplied `referenceId` from `DeserializeNew`. An id "drift" between server and client of N means the server has created N more networks than the client has received messages for.
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
 
 - 2026-05-02: page created. Sourced from a long-distance auto-aim test on the Lunar save: seven TX-RX pairs at 163-222 m all linked successfully (verified via InspectorPlus DishProbe), but only one RX showed `Powered=True` and `PowerProvided > 0`. Reading `CableNetwork.ConsumePower` in Assembly-CSharp.dll (decompile lines 254579-254654) confirmed the single-supplier-first iteration, identifying the observed asymmetry as expected vanilla behaviour for parallel receivers on a shared destination network.
 - 2026-05-13: added "Data device list" and "HandleDataNetTransmissionDevice" sections, sourced from `Assembly-CSharp.dll` decompile lines 253589-253655 (refresh + relay) and 364740-365158 (interfaces and rocket-link implementers). Added `logic` and `network` tags. No conflict with the existing power-side content. Findings produced while researching whether transformers and APCs can be made logic-transparent for Power Grid Plus.
 - 2026-05-13: added "Field shape and accessor quirk" section, sourced from `Assembly-CSharp.dll` decompile lines 253460-253541. Notes the `protected readonly` declarations (Harmony-reachable by name) and the `DataDeviceList.get` asymmetry that checks `PowerDeviceListDirty` instead of `DataDeviceListDirty`.
+- 2026-05-15: added "Lifecycle: three constructors + pool registration + multiplayer sync" section, sourced from decompile lines 253430 (`ConcurrentDensePool<CableNetwork> AllCableNetworks`), 253491 (`SyncList<CableNetwork> NewToSend`), 253735-253764 (the three constructors), 254162 (`DeserializeNew` factory), 254055 (`Cable.OnRegistered` `new CableNetwork(cable)` call site), and 371386 (`Cable.Add` `(Referencable.Find<CableNetwork>(cableNetworkId) ?? new CableNetwork(cableNetworkId))`). Documents the server-only ReferenceId counter, the client's exclusive use of the `(long)` constructor via `DeserializeNew`, and the implication that mod-driven server-side network creation between replicated states advances the server's counter past the client's id horizon.
 
 ## Open questions
 
