@@ -65,6 +65,9 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
@@ -84,6 +87,15 @@
     <Compile Include="Patches\VoltageTierPatches.cs" />
     <Compile Include="Patches\CableCostPatches.cs" />
     <Compile Include="Patches\BurnReasonPatches.cs" />
+    <Compile Include="Patches\LogicPassthroughPatches.cs" />
+    <Compile Include="LogicTypeRegistry.cs" />
+    <Compile Include="PassthroughModeStore.cs" />
+    <Compile Include="PassthroughSideCar.cs" />
+    <Compile Include="Ic10ConstantsPatcher.cs" />
+    <Compile Include="Patches\TransformerPassthroughLogicPatches.cs" />
+    <Compile Include="Patches\PassthroughSaveLoadPatches.cs" />
+    <Compile Include="Patches\LogicableInitializePatch.cs" />
+    <Compile Include="Patches\EnumNamePatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

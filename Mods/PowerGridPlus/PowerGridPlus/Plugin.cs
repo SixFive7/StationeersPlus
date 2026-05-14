@@ -42,6 +42,7 @@ namespace PowerGridPlus
                 harmony.PatchAll();
 
                 CableCostPatches.ApplyRecipeCost();
+                Ic10ConstantsPatcher.Apply();
 
                 Log.LogInfo($"{PluginName} patches applied");
             }

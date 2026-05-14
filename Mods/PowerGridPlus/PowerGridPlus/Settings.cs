@@ -31,9 +31,11 @@ namespace PowerGridPlus
         // --- Server - Transformers ---
         internal static ConfigEntry<bool> EnableTransformerExploitMitigation;
         internal static ConfigEntry<bool> EnableTransformerLogicAdditions;
+        internal static ConfigEntry<bool> EnableTransformerLogicPassthrough;
 
         // --- Server - Area Power Control ---
         internal static ConfigEntry<bool> EnableAreaPowerControlFix;
+        internal static ConfigEntry<bool> EnableAreaPowerControlLogicPassthrough;
 
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
         {
@@ -120,10 +122,25 @@ namespace PowerGridPlus
                 Desc("(Server-authoritative) When true, transformers expose their current throughput as the Power Actual " +
                      "logic value.", 20));
 
+            EnableTransformerLogicPassthrough = config.Bind("Server - Transformers", "Enable Transformer Logic Passthrough", true,
+                Desc("(Server-authoritative) Master kill-switch for transformer logic-passthrough. When true, transformers " +
+                     "honour the per-device LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 makes " +
+                     "the transformer logic-transparent (devices on either side are visible across), 0 keeps vanilla " +
+                     "logic-opaque behaviour. The small transformer and its reversed variant default to mode 1; every other " +
+                     "transformer defaults to mode 0. Per-device mode is persisted across save / load. When this master is " +
+                     "false, every transformer behaves vanilla-opaque regardless of its per-device mode.", 30));
+
             // --- Server - Area Power Control ---
             EnableAreaPowerControlFix = config.Bind("Server - Area Power Control", "Enable APC Power Fix", true,
                 Desc("(Server-authoritative) When true, Area Power Controllers no longer leak a small amount of power and " +
                      "no longer slowly drain their battery when nothing is connected downstream.", 10));
+
+            EnableAreaPowerControlLogicPassthrough = config.Bind("Server - Area Power Control", "Enable APC Logic Passthrough", true,
+                Desc("(Server-authoritative) When true, Area Power Controllers are logic-transparent: an IC10 or logic " +
+                     "reader wired to one side of an APC can read and write devices wired to the other side. Power is " +
+                     "unaffected -- the APC's downstream side still meters and gates power normally. Turn this off to " +
+                     "restore the vanilla behaviour where an APC breaks the logic network the same way it breaks the power " +
+                     "network.", 20));
         }
     }
 }
