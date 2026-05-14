@@ -88,6 +88,7 @@
     <Compile Include="Patches\CableCostPatches.cs" />
     <Compile Include="Patches\BurnReasonPatches.cs" />
     <Compile Include="Patches\LogicPassthroughPatches.cs" />
+    <Compile Include="..\..\..\Patterns\Logic\LogicTypeNumbers.cs" Link="Patterns\LogicTypeNumbers.cs" />
     <Compile Include="LogicTypeRegistry.cs" />
     <Compile Include="PassthroughModeStore.cs" />
     <Compile Include="PassthroughSideCar.cs" />

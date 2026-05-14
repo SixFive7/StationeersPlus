@@ -1,15 +1,17 @@
 using System.Collections.Generic;
 using Assets.Scripts.Objects.Motherboards;
+using StationeersPlus.Shared;
 
 namespace PowerGridPlus
 {
-    // 6577 is the next compact slot in the SixFive7 LogicType catalogue (6571 onward,
-    // PowerTransmitterPlus owns 6571-6576). The catalogue is centralised under
-    // Patterns/Logic/ at the repo root; do not pick a new value here without checking
-    // there first.
+    // LogicType ushort values come from the centralised SixFive7 catalogue at
+    // Patterns/Logic/LogicTypeNumbers.cs (table + reservation rules in
+    // Patterns/Logic/README.md). Linked into this csproj as
+    // Patterns/LogicTypeNumbers.cs. Do not redeclare integer literals here; do not
+    // pick a new number without first updating the central catalogue.
     internal static class LogicTypeRegistry
     {
-        internal const ushort LogicPassthroughModeValue = 6577;
+        internal const ushort LogicPassthroughModeValue = LogicTypeNumbers.LogicPassthroughMode;
         internal static readonly LogicType LogicPassthroughMode = (LogicType)LogicPassthroughModeValue;
 
         internal class CustomLogicType
