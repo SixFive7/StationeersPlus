@@ -1,4 +1,4 @@
-// NEW-3: three-tier transmission-voltage gating. See VoltageTier for the policy.
+// Three-tier transmission-voltage gating. See VoltageTier for the policy.
 
 using System;
 using Assets.Scripts.Networks;

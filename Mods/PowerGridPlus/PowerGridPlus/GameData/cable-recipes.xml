@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Power Grid Plus -- NEW-2: super-heavy cable coil costs more to craft.
+  Power Grid Plus -- super-heavy cable coil costs more to craft.
   The game's recipe loader patch-replaces a vanilla <RecipeData> when a mod ships one with a matching
   <PrefabName> (see Research/GameSystems/RecipeDataLoading.md). Vanilla ItemCableCoilSuperHeavy
   (rocketstation_Data/StreamingAssets/Data/electronics.xml) is Time 8, Energy 800, Constantan 0.5,

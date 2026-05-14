@@ -7,9 +7,9 @@ using Reagents;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     NEW-2: scales the ingredient cost of crafting a super-heavy cable coil (the Electronics Printer
-    ///     recipe for <c>ItemCableCoilSuperHeavy</c> -- vanilla is Time 8, Energy 800, Constantan 0.5,
-    ///     Electrum 0.5).
+    ///     Super-heavy cable cost multiplier: scales the ingredient cost of crafting a super-heavy
+    ///     cable coil (the Electronics Printer recipe for <c>ItemCableCoilSuperHeavy</c> -- vanilla
+    ///     is Time 8, Energy 800, Constantan 0.5, Electrum 0.5).
     ///
     ///     The shipped <c>GameData/cable-recipes.xml</c> overlay does the headline 2x bump through the
     ///     game's own recipe loader (a <c>&lt;RecipeData&gt;</c> with a matching <c>&lt;PrefabName&gt;</c>

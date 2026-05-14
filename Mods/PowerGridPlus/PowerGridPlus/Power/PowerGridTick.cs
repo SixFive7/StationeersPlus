@@ -4,9 +4,9 @@
 // The simulation rewrite below (proportional load sharing, sliding-window probabilistic cable
 // burnout, NaN-power guards, provider bookkeeping) follows Re-Volt's RevoltTick. Power Grid Plus
 // removes Re-Volt's circuit-breaker / load-center machinery and adds:
-//   * an unlimited super-heavy cable carve-out (NEW-1), and
+//   * a super-heavy cable carve-out (super-heavy cables never burn), and
 //   * a hook into the three-tier voltage gating that suppresses generator output on a non-heavy
-//     network (NEW-3).
+//     network.
 
 using System;
 using System.Collections.Generic;
@@ -57,32 +57,36 @@ namespace PowerGridPlus.Power
         private float _powerUsageWindow;
         private List<PowerProvider> _powerProviders;
 
-        // NEW-3: the cable tier of this network (it is single-tier once the burn-on-join backstop has run;
-        // during the brief mixed-tier window this is whichever tier was seen first). Null if cableless.
+        // Voltage tiers: the cable tier of this network (it is single-tier once the burn-on-join
+        // backstop has run; during the brief mixed-tier window this is whichever tier was seen
+        // first). Null if cableless.
         private Cable.Type? _networkTier;
-        // NEW-1: true iff the weakest cable in this network is super-heavy (so the whole network is super-heavy).
+        // Super-heavy carve-out: true iff the weakest cable in this network is super-heavy (so the
+        // whole network is super-heavy).
         private bool _weakestCableIsSuperHeavy;
-        // NEW-3: a mixed-tier network has been detected; we have asked for a cable burn to split it. Guards
-        // against requesting another burn before the first one takes effect (the split replaces this tick).
+        // Voltage tiers: a mixed-tier network has been detected; we have asked for a cable burn to
+        // split it. Guards against requesting another burn before the first one takes effect (the
+        // split replaces this tick).
         private bool _tierResolutionPending;
-        // NEW-3: cached during Initialize_New (cheap, only on dirty rebuild). The actual burn fires from
-        // ApplyState_New gated on the network having real power flow (_actual > 0).
+        // Voltage tiers: cached during Initialize_New (cheap, only on dirty rebuild). The actual
+        // burn fires from ApplyState_New gated on the network having real power flow (_actual > 0).
         private bool _mixedTierDetected;
-        // NEW-3: recorded during CalculateState_New (once per tick). Reset to null at the top of each tick.
-        // First device this tick that's on a cable tier it isn't allowed on; ApplyState_New burns the cable
-        // adjacent to it (if there's power flow). The device itself is never destroyed.
+        // Voltage tiers: recorded during CalculateState_New (once per tick). Reset to null at the
+        // top of each tick. First device this tick that's on a cable tier it isn't allowed on;
+        // ApplyState_New burns the cable adjacent to it (if there's power flow). The device itself
+        // is never destroyed.
         private Device _misplacedDeviceForBurn;
-        // NEW-3 (per-port, APC): the lower-tier port's adjacent cable on an APC whose two sides are
-        // on different tiers. Single-cable burn, gated on local network powerFlow > 0.
+        // Voltage tiers (per-port, APC): the lower-tier port's adjacent cable on an APC whose two
+        // sides are on different tiers. Single-cable burn, gated on local network powerFlow > 0.
         // _portMismatchOwner is the APC, only used for the log line and the tooltip reason.
         private Cable _portMismatchCableForBurn;
         private Device _portMismatchOwner;
 
-        // NEW-3 (per-port, transformer): a transformer whose two cable ports violate its variant's
-        // unordered tier-pair rule AND that is actively bridging power (Transformer.OnOff and
-        // _powerProvided > 0). When recorded, ApplyState_New burns BOTH adjacent cables (input AND
-        // output) -- the transformer itself is never destroyed. An off / half-powered transformer
-        // sits harmlessly even with a violation.
+        // Voltage tiers (per-port, transformer): a transformer whose two cable ports violate its
+        // variant's unordered tier-pair rule AND that is actively bridging power (Transformer.OnOff
+        // and _powerProvided > 0). When recorded, ApplyState_New burns BOTH adjacent cables (input
+        // AND output) -- the transformer itself is never destroyed. An off / half-powered
+        // transformer sits harmlessly even with a violation.
         private Transformer _portMismatchTransformerForBurn;
 
         static PowerGridTick()
@@ -170,10 +174,11 @@ namespace PowerGridPlus.Power
             if (_powerData == null || _powerData.Length != Devices.Count)
                 _powerData = Devices.Select(x => new PowerUsage { Device = x }).ToArray();
 
-            // NEW-3 detection: a network that ended up holding more than one cable tier (an old save with a
-            // pre-existing illegal junction, or anything the build-time check missed). Record the fact here
-            // (cheap, only on dirty rebuild); ApplyState_New fires the actual burn IF the network has real
-            // power flow, so an idle / off network never destroys cables.
+            // Voltage tiers: a network that ended up holding more than one cable tier (an old save
+            // with a pre-existing illegal junction, or anything the build-time check missed).
+            // Record the fact here (cheap, only on dirty rebuild); ApplyState_New fires the actual
+            // burn IF the network has real power flow, so an idle / off network never destroys
+            // cables.
             _mixedTierDetected = mixedTier;
         }
 
@@ -183,7 +188,8 @@ namespace PowerGridPlus.Power
             if (_allCables.Keys.Count < 1)
                 return null;
 
-            // NEW-1: a network whose weakest cable is super-heavy never burns (it's the long-haul backbone).
+            // Super-heavy carve-out: a network whose weakest cable is super-heavy never burns
+            // (it's the long-haul backbone).
             if (Settings.EnableUnlimitedSuperHeavyCables.Value && _weakestCableIsSuperHeavy)
                 return null;
 
@@ -214,8 +220,8 @@ namespace PowerGridPlus.Power
         {
             bool dirtyProviderList = false;
             int provIdx = 0;
-            // NEW-3: record at most one misplaced device + at most one port-mismatched cable per tick;
-            // ApplyState_New uses both AFTER the power-flow gate.
+            // Voltage tiers: record at most one misplaced device + at most one port-mismatched
+            // cable per tick; ApplyState_New uses both AFTER the power-flow gate.
             _misplacedDeviceForBurn = null;
             _portMismatchCableForBurn = null;
             _portMismatchOwner = null;
@@ -230,8 +236,9 @@ namespace PowerGridPlus.Power
                 _powerData[idx].PowerUsed = SanitizePower(currentDevice.GetUsedPower(CableNetwork));
                 _powerData[idx].PowerProvided = SanitizePower(currentDevice.GetGeneratedPower(CableNetwork));
 
-                // NEW-3: don't suppress power here. Just record the first device that's on a tier it isn't
-                // allowed on; ApplyState_New will burn its adjacent cable IF actual power is flowing.
+                // Voltage tiers: don't suppress power here. Just record the first device that's on
+                // a tier it isn't allowed on; ApplyState_New will burn its adjacent cable IF actual
+                // power is flowing.
                 if (Settings.EnableVoltageTiers.Value
                     && _networkTier.HasValue
                     && _misplacedDeviceForBurn == null
@@ -240,10 +247,10 @@ namespace PowerGridPlus.Power
                     _misplacedDeviceForBurn = currentDevice;
                 }
 
-                // NEW-3 (per-port, transformer): a transformer whose two cable ports violate the
-                // variant's unordered tier-pair rule fires the burn-both-cables rule ONLY when the
-                // transformer is turned on AND actively bridging power (_powerProvided > 0 from the
-                // previous tick). An off or half-powered transformer with a violation waits.
+                // Voltage tiers (per-port, transformer): a transformer whose two cable ports violate
+                // the variant's unordered tier-pair rule fires the burn-both-cables rule ONLY when
+                // the transformer is turned on AND actively bridging power (_powerProvided > 0 from
+                // the previous tick). An off or half-powered transformer with a violation waits.
                 if (Settings.EnableVoltageTiers.Value
                     && _portMismatchTransformerForBurn == null
                     && currentDevice is Transformer transformer
@@ -253,8 +260,9 @@ namespace PowerGridPlus.Power
                     _portMismatchTransformerForBurn = transformer;
                 }
 
-                // NEW-3 (per-port, APC): an APC with mismatched-tier ports fires the existing single-
-                // cable burn whenever the relevant network has power flow. No "actively bridging" gate.
+                // Voltage tiers (per-port, APC): an APC with mismatched-tier ports fires the
+                // existing single-cable burn whenever the relevant network has power flow. No
+                // "actively bridging" gate.
                 if (Settings.EnableVoltageTiers.Value
                     && _portMismatchCableForBurn == null
                     && currentDevice is AreaPowerControl apc)
@@ -342,13 +350,13 @@ namespace PowerGridPlus.Power
             {
                 power = true;
 
-                // NEW-3: tier burns are gated on real power flow this tick. An idle / off network never
-                // destroys cables. Priority order: mixed-tier-in-this-network (root cause) -> actively-
-                // bridging transformer with a violated pair (burn BOTH adjacent cables) -> APC with
-                // mismatched sides (single cable) -> misplaced single-port device (single cable).
-                // The transformer rule's "actively bridging" gate implies powerFlow > 0 on the local
-                // network anyway. Resolving the higher-priority case usually fixes the lower-priority
-                // symptom on the next tick's fresh network.
+                // Voltage tiers: tier burns are gated on real power flow this tick. An idle / off
+                // network never destroys cables. Priority order: mixed-tier-in-this-network (root
+                // cause) -> actively-bridging transformer with a violated pair (burn BOTH adjacent
+                // cables) -> APC with mismatched sides (single cable) -> misplaced single-port
+                // device (single cable). The transformer rule's "actively bridging" gate implies
+                // powerFlow > 0 on the local network anyway. Resolving the higher-priority case
+                // usually fixes the lower-priority symptom on the next tick's fresh network.
                 if (powerFlow > 0f && Settings.EnableVoltageTiers.Value && !_tierResolutionPending)
                 {
                     if (_mixedTierDetected)

@@ -13,7 +13,7 @@ using Objects;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     The three-tier transmission-voltage policy (NEW-3). The three cable tiers (normal, heavy,
+    ///     The three-tier transmission-voltage policy. The three cable tiers (normal, heavy,
     ///     super-heavy) are three separate voltages: a cable network must be single-tier.
     ///
     ///     Per-device tier rules (a single-tier network's tier T):
