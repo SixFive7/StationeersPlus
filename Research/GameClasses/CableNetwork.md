@@ -213,12 +213,54 @@ A mod that wants a device to appear logic-transparent (logic flows through it ev
 1. Implement both `ITransmitDataNetworkDevices` and `IReceiveDataNetworkDevices` on the bridging device and configure the two sides as a bound pair (input side as receiver pointing at output side as transmitter, and the inverse), so the standard relay merges each side into the other's data list.
 2. Patch `RefreshPowerAndDataDeviceLists` to, for a chosen device class, pull the other side's `DeviceList` into the local `_dataDeviceList` directly. This skips the interface dance for devices that are always bound to themselves (a transformer's input is always paired with its own output for data purposes).
 
+## Field shape and accessor quirk
+<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+
+The backing lists are declared `protected readonly`, which is reachable from a Harmony patch via field-injection by name (`___dataDeviceList` / `___powerDeviceList`). `readonly` only fixes the list reference; `.Add` / `.Remove` are still valid mutations. Verbatim, from decompile lines 253460-253468:
+
+```csharp
+public readonly List<Device> DeviceList = new List<Device>();
+protected readonly List<Device> _dataDeviceList = new List<Device>();
+protected readonly List<Device> _powerDeviceList = new List<Device>();
+protected bool PowerDeviceListDirty;
+protected bool DataDeviceListDirty;
+```
+
+The public property accessors (decompile lines 253519-253541) refresh on read:
+
+```csharp
+public List<Device> DataDeviceList
+{
+    get
+    {
+        if (PowerDeviceListDirty)        // checks the POWER flag, not the data flag
+            RefreshPowerAndDataDeviceLists();
+        return _dataDeviceList;
+    }
+}
+
+public List<Device> PowerDeviceList
+{
+    get
+    {
+        if (PowerDeviceListDirty || DataDeviceListDirty)
+            RefreshPowerAndDataDeviceLists();
+        return _powerDeviceList;
+    }
+}
+```
+
+Both accessors return the underlying list reference (no copy), so mutations through the property are persistent.
+
+Note the asymmetry: `DataDeviceList.get` refreshes when `PowerDeviceListDirty` is true and ignores `DataDeviceListDirty`. `PowerDeviceList.get` checks both flags. This is almost certainly a copy-paste leftover; in practice `DirtyDataDeviceList()` (which sets only the data flag) followed by a `DataDeviceList` read will return stale data unless something else (cable add/remove, power dirty) has happened to also set the power flag. Code that needs a fresh data list after a `DirtyDataDeviceList()` call should call `RefreshPowerAndDataDeviceLists()` explicitly. See Open Questions for the unresolved "is this a bug or a deliberate optimization" question.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
 
 - 2026-05-02: page created. Sourced from a long-distance auto-aim test on the Lunar save: seven TX-RX pairs at 163-222 m all linked successfully (verified via InspectorPlus DishProbe), but only one RX showed `Powered=True` and `PowerProvided > 0`. Reading `CableNetwork.ConsumePower` in Assembly-CSharp.dll (decompile lines 254579-254654) confirmed the single-supplier-first iteration, identifying the observed asymmetry as expected vanilla behaviour for parallel receivers on a shared destination network.
 - 2026-05-13: added "Data device list" and "HandleDataNetTransmissionDevice" sections, sourced from `Assembly-CSharp.dll` decompile lines 253589-253655 (refresh + relay) and 364740-365158 (interfaces and rocket-link implementers). Added `logic` and `network` tags. No conflict with the existing power-side content. Findings produced while researching whether transformers and APCs can be made logic-transparent for Power Grid Plus.
+- 2026-05-13: added "Field shape and accessor quirk" section, sourced from `Assembly-CSharp.dll` decompile lines 253460-253541. Notes the `protected readonly` declarations (Harmony-reachable by name) and the `DataDeviceList.get` asymmetry that checks `PowerDeviceListDirty` instead of `DataDeviceListDirty`.
 
 ## Open questions
 
-None at creation.
+- Is the `DataDeviceList.get` accessor checking `PowerDeviceListDirty` instead of `DataDeviceListDirty` a vanilla bug or an intentional optimization tied to the fact that power dirties typically co-occur with data dirties? Recommend treating it as a bug and refreshing explicitly when only the data flag is set.
