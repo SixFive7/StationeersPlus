@@ -326,6 +326,83 @@ Pool / id-counter implications for mods:
 - Cable burns destroy cables and can split networks on the server. Each split creates a new `CableNetwork()` via the default constructor (fresh id from the counter). The server's id counter advances; clients only learn about the new id when the server replicates the split via `NewToSend.Send` -> `DeserializeNew`. If a server-side action (mod patch, voltage rule, anything that calls `cable.Break()` server-only) creates an extra network between two replicated states, the server's id counter will be ahead of the client's expectation by one until the next sync delivers the new id.
 - The counter itself is per-runtime state, not derived from any synchronised seed. Server and client do NOT share a counter; the client relies entirely on the server-supplied `referenceId` from `DeserializeNew`. An id "drift" between server and client of N means the server has created N more networks than the client has received messages for.
 
+## Merge: `cableNetworks[0]` wins, ConnectedNetworks defines the order
+<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+
+When a placed cable bridges two or more existing networks, the surviving network is determined entirely by **list order**. The static factory at line 253998:
+
+```csharp
+public static CableNetwork Merge(List<CableNetwork> cableNetworks)
+{
+    if (cableNetworks.Count <= 0) return null;
+    if (cableNetworks.Count == 1) return cableNetworks[0];
+    CableNetwork cableNetwork = cableNetworks[0];
+    for (int i = 1; i < cableNetworks.Count; i++)
+        cableNetwork.Merge(cableNetworks[i]);
+    return cableNetwork;
+}
+```
+
+`cableNetworks[0]` is the survivor; every other network in the list is consumed via the instance-level `Merge`:
+
+```csharp
+public void Merge(CableNetwork oldNetwork)
+{
+    if (oldNetwork == null || oldNetwork == this) return;
+    for (int num = oldNetwork.CableList.Count - 1; num >= 0; num--)
+    {
+        Cable cable = oldNetwork.CableList[num];
+        if ((object)cable != null) Add(cable);
+    }
+    oldNetwork.CableList.Clear();
+    oldNetwork.RefreshNetwork();
+    oldNetwork.DirtyPowerAndDataDeviceLists();
+}
+```
+
+The instance `Merge` walks `oldNetwork.CableList` in reverse and reassigns each cable into `this` via `Add`. The old network's cable list is cleared, its `RefreshNetwork` runs to flush internal state, and both lists' dirty flags are set.
+
+`ConnectedNetworks` is where the order is established (line 254110):
+
+```csharp
+public static List<CableNetwork> ConnectedNetworks(Cable cable)
+{
+    List<Cable> list = cable.ConnectedCables();
+    List<CableNetwork> list2 = new List<CableNetwork>(list.Count);
+    foreach (Cable item in list)
+    {
+        if (!list2.Contains(item.CableNetwork))
+            list2.Add(item.CableNetwork);
+    }
+    return list2;
+}
+```
+
+So the order of networks in the merge list is the order of unique `CableNetwork` references encountered while iterating `cable.ConnectedCables()`. Two cables that belong to the same network are deduplicated; the first cable from each unique network "claims" the slot.
+
+**Multiplayer-relevance implication.** Both server and client run the merge independently on their own side. `Cable.OnRegistered` runs on both sides (cable placement replicates), but its merge call is server-only via the `GameManager.RunSimulation` gate at line 371479. The client's runtime merge happens in `Cable.DeserializeOnJoin` at line 371405:
+
+```csharp
+public override void DeserializeOnJoin(RocketBinaryReader reader)
+{
+    base.DeserializeOnJoin(reader);
+    CableNetworkId = reader.ReadInt64();
+    CableNetwork cableNetwork = Referencable.Find<CableNetwork>(CableNetworkId);
+    CableNetwork cableNetwork2 = cableNetwork;
+    if (GameManager.GameState != GameState.Joining)
+    {
+        cableNetwork2 = CableNetwork.Merge(CableNetwork.ConnectedNetworks(this)) ?? cableNetwork;
+    }
+    cableNetwork2.Add(this);
+}
+```
+
+`DeserializeOnJoin` here is the per-cable wire deserialise. The `!Joining` gate means: during initial join, accept the server's network id verbatim; during normal runtime, re-derive the merge survivor locally via `ConnectedNetworks`. Both sides therefore run their OWN `Merge(ConnectedNetworks(cable))` on the placed cable. If `cable.ConnectedCables()` returns adjacent cables in a different order on server vs client at the moment of merge, the chosen survivors differ. The two pre-merge ids both still resolve to live `CableNetwork` instances on the side that did NOT consume them (`Merge` only destroys the non-survivors LOCALLY on each side), producing a stable "server sees id X, client sees id Y" desync that persists indefinitely until a future merge reconciles via a different cable registration.
+
+**ConnectedCables order depends on the cable's OpenEnds and the grid-adjacency lookup.** Anything that mutates grid-adjacency state (registration timing, OpenEnd assignment) or that runs between `cable.ConnectedCables()` calls on the two sides differently could perturb the order. The vanilla code path is deterministic; any Harmony patch that runs in the cable-registration window and is server-only OR that mutates shared cable / network state between the server's `OnRegistered` and the client's `OnRegistered` is a candidate for breaking the symmetry.
+
+`RebuildCableNetworkServer` at line 254050 (called from the destruction side of the lifecycle) is explicitly server-only by name. `RebuildNetwork` (private, line 254016) is the BFS used to re-fold cables into a target network after a split or a forced rebuild; both calls fire `OnNetworkChanged`.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
 
@@ -333,6 +410,8 @@ Pool / id-counter implications for mods:
 - 2026-05-13: added "Data device list" and "HandleDataNetTransmissionDevice" sections, sourced from `Assembly-CSharp.dll` decompile lines 253589-253655 (refresh + relay) and 364740-365158 (interfaces and rocket-link implementers). Added `logic` and `network` tags. No conflict with the existing power-side content. Findings produced while researching whether transformers and APCs can be made logic-transparent for Power Grid Plus.
 - 2026-05-13: added "Field shape and accessor quirk" section, sourced from `Assembly-CSharp.dll` decompile lines 253460-253541. Notes the `protected readonly` declarations (Harmony-reachable by name) and the `DataDeviceList.get` asymmetry that checks `PowerDeviceListDirty` instead of `DataDeviceListDirty`.
 - 2026-05-15: added "Lifecycle: three constructors + pool registration + multiplayer sync" section, sourced from decompile lines 253430 (`ConcurrentDensePool<CableNetwork> AllCableNetworks`), 253491 (`SyncList<CableNetwork> NewToSend`), 253735-253764 (the three constructors), 254162 (`DeserializeNew` factory), 254055 (`Cable.OnRegistered` `new CableNetwork(cable)` call site), and 371386 (`Cable.Add` `(Referencable.Find<CableNetwork>(cableNetworkId) ?? new CableNetwork(cableNetworkId))`). Documents the server-only ReferenceId counter, the client's exclusive use of the `(long)` constructor via `DeserializeNew`, and the implication that mod-driven server-side network creation between replicated states advances the server's counter past the client's id horizon.
+- 2026-05-15: added "Merge: `cableNetworks[0]` wins, ConnectedNetworks defines the order" section, sourced from decompile lines 253979 (instance `Merge`), 253998 (static `Merge`), 254110 (`ConnectedNetworks`), 254016 (private `RebuildNetwork`), 254050 (`RebuildCableNetworkServer`), 371413 (`Cable.OnRegistered` merge call site). Documents that merge survivor is list-index-zero, that list order comes from `cable.ConnectedCables()`, and the multiplayer implication that any perturbation of `ConnectedCables` ordering between server and client produces a stable id desync that persists across many ticks (both pre-merge ids stay live, one on each side).
+- 2026-05-15: expanded the multiplayer-relevance section with the verbatim `Cable.DeserializeOnJoin` body (line 371405). Documents that `Cable.OnRegistered`'s merge is server-only (`GameManager.RunSimulation` gate) while the client's runtime merge happens in `DeserializeOnJoin` (gated by `GameManager.GameState != GameState.Joining` -- merge is skipped during the initial join handshake, runs during normal runtime updates). Both sides therefore run their own `Merge(ConnectedNetworks(cable))` independently. Implications: a desync that depends on `ConnectedCables` ordering between sides cannot be resolved by "the server is authoritative" because the client is making its own merge decision at runtime.
 
 ## Open questions
 
