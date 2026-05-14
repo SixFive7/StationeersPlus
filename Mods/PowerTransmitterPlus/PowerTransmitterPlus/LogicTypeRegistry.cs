@@ -1,22 +1,22 @@
 using Assets.Scripts.Objects.Motherboards;
+using StationeersPlus.Shared;
 using System.Collections.Generic;
 
 namespace PowerTransmitterPlus
 {
-    // Our three custom LogicType slots. Range 6571-6573 sits well outside vanilla
-    // (0-349) and Stationeers Logic Extended (1000-1830). LogicType is a ushort, so any value up to
-    // 65535 is legal at runtime. We just need to avoid collisions with other
-    // mods that might pick the same numbers.
-    //
-    // Reserve 6571-6599 as our band for future readouts.
+    // LogicType ushort values come from the centralised SixFive7 catalogue at
+    // Patterns/Logic/LogicTypeNumbers.cs (table + reservation rules in
+    // Patterns/Logic/README.md). Linked into this csproj as
+    // Patterns/LogicTypeNumbers.cs. Do not redeclare integer literals here; do not
+    // pick a new number without first updating the central catalogue.
     internal static class LogicTypeRegistry
     {
-        internal const ushort SourceDrawValue = 6571;
-        internal const ushort DestinationDrawValue = 6572;
-        internal const ushort TransmissionLossValue = 6573;
-        internal const ushort EfficiencyValue = 6574;
-        internal const ushort AutoAimTargetValue = 6575;
-        internal const ushort LinkedPartnerValue = 6576;
+        internal const ushort SourceDrawValue = LogicTypeNumbers.MicrowaveSourceDraw;
+        internal const ushort DestinationDrawValue = LogicTypeNumbers.MicrowaveDestinationDraw;
+        internal const ushort TransmissionLossValue = LogicTypeNumbers.MicrowaveTransmissionLoss;
+        internal const ushort EfficiencyValue = LogicTypeNumbers.MicrowaveEfficiency;
+        internal const ushort AutoAimTargetValue = LogicTypeNumbers.MicrowaveAutoAimTarget;
+        internal const ushort LinkedPartnerValue = LogicTypeNumbers.MicrowaveLinkedPartner;
 
         internal static readonly LogicType MicrowaveSourceDraw = (LogicType)SourceDrawValue;
         internal static readonly LogicType MicrowaveDestinationDraw = (LogicType)DestinationDrawValue;
