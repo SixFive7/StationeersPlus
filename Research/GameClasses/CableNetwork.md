@@ -512,6 +512,36 @@ public override void OnRegistered(Cell cell)
 
 and the client runs `Cable.DeserializeOnJoin` (line 371405), already excerpted above. No `RebuildCableNetworkEvent`-equivalent fires for merges. The server's chosen survivor is implicitly carried in the cable's `CableNetworkId` field on the wire, **but the client discards it** in `DeserializeOnJoin` whenever `GameManager.GameState != GameState.Joining` and instead recomputes `Merge(ConnectedNetworks(this))` locally. The local recomputation is what desyncs.
 
+**`RebuildCableNetworkEvent` wire shape and client apply path** (decompile line 255178):
+
+```csharp
+public readonly struct RebuildCableNetworkEvent(long originNetworkedStructureReference, long newNetworkReference, long oldNetworkReference) : ISyncListable
+{
+    public readonly long OriginNetworkedStructureReference = ...;
+    public readonly long NewNetworkReference = ...;
+    public readonly long OldNetworkReference = ...;
+    public static SyncList<RebuildCableNetworkEvent> NewEvents = new SyncList<RebuildCableNetworkEvent>(DeserializeEvent);
+
+    public void Serialize(RocketBinaryWriter writer) {
+        Network.WritePackedId(writer, OriginNetworkedStructureReference);
+        Network.WritePackedId(writer, NewNetworkReference);
+        Network.WritePackedId(writer, OldNetworkReference);
+    }
+
+    private static void DeserializeEvent(RocketBinaryReader reader) {
+        Network.ReadPackedId(reader, out var referenceId);
+        Network.ReadPackedId(reader, out var referenceId2);
+        Network.ReadPackedId(reader, out var referenceId3);
+        Cable cable = Referencable.Find<Cable>(referenceId);
+        CableNetwork newNetwork = Referencable.Find<CableNetwork>(referenceId2);
+        CableNetwork oldNetwork = Referencable.Find<CableNetwork>(referenceId3);
+        CableNetwork.RebuildCableNetworkClient(cable, newNetwork, oldNetwork);
+    }
+}
+```
+
+The client `Referencable.Find<CableNetwork>(referenceId2)` lookup for the NEW network depends on that network having been previously delivered via `SyncList<CableNetwork> NewToSend`. If the SyncList ordering puts the rebuild event before the network creation, `newNetwork` is null and `RebuildCableNetworkClient` exits early with `ConsoleWindow.PrintError("Cable or Network null during rebuild")` (line 254070). Same hazard applies to `cable` (must arrive via thing-sync first) and `oldNetwork` (must still be alive). The serializer at line 197579 (`RebuildCableNetworkEvent.NewEvents.Serialize(writer)`) is part of the per-tick MessageFactory packet, so all three syncs (NewToSend, thing-sync, RebuildEvent) ride the same packet -- but their per-stream order is what determines whether the client's `Referencable.Find` succeeds when the event applies.
+
 **Vanilla survivability vs mod-driven desync.** Under vanilla mechanics the iteration is expected to match: same OpenEnds, same SmallCells (network state is deterministic), same `IsConnected` results, same `FoundCables` (the static reusable list is only the game thread's caller on vanilla since the power tick runs server-side only and even the host does not run merges on a worker). So vanilla mostly "gets lucky" with deterministic ordering -- the structural bug is latent. Once a mod perturbs anything that touches the moment-of-merge state of an adjacent cable's network reference, or causes an additional construction event whose ordering differs between server and client, the latent bug surfaces and stays stuck: each side has already picked its winner and the loser network instance is still alive on the OTHER side, so no future tick alone reconciles them.
 
 **`OnRegistered` order-of-operations.** Note that `base.OnRegistered(cell)` (which is the `SmallGrid` / `Thing` chain that writes `smallCell.Cable = this` for the new cable's own cell) runs AFTER the merge call. So at the moment of `ConnectedNetworks(this)`, the new cable is **not yet in its own SmallCell**. The `smallCell.Cable != this` filter in `ConnectedCables` is therefore vacuously satisfied on the server's first run. The client's `DeserializeOnJoin` path does not have this guarantee: by the time `cableNetwork2.Add(this)` runs at the end of `DeserializeOnJoin`, base classes have already executed `base.DeserializeOnJoin(reader)` which may have completed registration paths that the server has not yet performed at the equivalent point. Investigating which exact base method writes the SmallCell pointer, and whether it differs between the construction and join paths, is the next decomp step.
@@ -547,6 +577,7 @@ A neighbour is considered "connected" if **any** of its OpenEnds shares a Networ
 - 2026-05-15: expanded the multiplayer-relevance section with the verbatim `Cable.DeserializeOnJoin` body (line 371405). Documents that `Cable.OnRegistered`'s merge is server-only (`GameManager.RunSimulation` gate) while the client's runtime merge happens in `DeserializeOnJoin` (gated by `GameManager.GameState != GameState.Joining` -- merge is skipped during the initial join handshake, runs during normal runtime updates). Both sides therefore run their own `Merge(ConnectedNetworks(cable))` independently. Implications: a desync that depends on `ConnectedCables` ordering between sides cannot be resolved by "the server is authoritative" because the client is making its own merge decision at runtime.
 - 2026-05-15: added the verbatim `SmallGrid.ConnectedCables()` body (decompile line 294267) with notes on `FoundCables` being a shared static reusable list, OpenEnds-iteration ordering, and the four mechanisms by which two sides could produce different orderings (different OpenEnds, different `smallCell.Cable`, different `IsConnected` result, or `FoundCables` corruption by a concurrent caller). Notes that `ConnectedCables(NetworkType)` at line 294319 is a different overload using a fresh per-call list.
 - 2026-05-15: added "Split is authoritative; merge is not. Asymmetric multiplayer sync" section, sourced from decompile lines 254050-254076 (`RebuildCableNetworkServer` and `RebuildCableNetworkClient`), 371477-371491 (`Cable.OnRegistered`), 371405-371416 (`Cable.DeserializeOnJoin`), 294154-294188 (both `SmallGrid.IsConnected(Connection)` overloads). Documents that `RebuildCableNetworkEvent` carries the server's chosen `newNetwork.ReferenceId` + `oldNetwork.ReferenceId` to the client (splits are id-authoritative), while merges have no equivalent event and the client always re-runs `Merge(ConnectedNetworks(this))` locally after `GameState != Joining`. This is the structural source of a stable cable-network-id desync after a merge: each side's loser network instance is still alive on the OTHER side, so the discrepancy persists indefinitely. Notes `Cable.OnRegistered`'s `base.OnRegistered(cell)`-after-merge ordering means the new cable is not yet in its own SmallCell at the moment of `ConnectedNetworks(this)` on the server, while the equivalent guarantee for the client's `DeserializeOnJoin` path is not yet established.
+- 2026-05-15: added the verbatim `RebuildCableNetworkEvent` struct + `DeserializeEvent` body (decompile line 255178-255205) inside the split-vs-merge section. Documents the wire shape (three packed `long` ids: origin cable, new network, old network), the per-tick serializer at line 197579, and the per-stream ordering hazard: the client's `Referencable.Find<CableNetwork>(NewNetworkReference)` requires the matching `SyncList<CableNetwork> NewToSend` delivery to have already occurred, otherwise `RebuildCableNetworkClient` early-returns with a `Cable or Network null during rebuild` console error (line 254070).
 - 2026-05-15: extended the ConnectedCables-iteration-order section with verification that the `Add()` walk's `cable.ConnectedDevices()` and `item.FindDataCable()` calls do NOT re-enter the static `FoundCables`. `Device.FindDataCable` (decompile line 350763), `Device.FindPowerCable` (line 350778), and `Device.InitializeDataConnection` (line 350794) all use the `ConnectedCables(NetworkType)` overload (line 294319) which allocates a fresh `new List<Cable>(4)` per call. So the only path from inside `Merge -> Add` that re-touches the cable graph is via the safe overload; the static `FoundCables` cannot be reentrantly clobbered by the merge's own internal walks.
 
 ## Open questions
