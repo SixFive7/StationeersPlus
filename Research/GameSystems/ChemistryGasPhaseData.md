@@ -3,10 +3,10 @@ title: Chemistry gas phase data (freezing points, max-liquid temperatures, Antoi
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-14
+verified_at: 2026-05-15
 sources:
-  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Atmospherics.Chemistry, Mole, MoleHelper
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 419000-419279 (Chemistry static constants), 424068-424103 (Mole.FreezingTemperature switch), 424157-424197 (Mole.MaxLiquidTemperature switch), 424115-424155 (Mole.MinLiquidPressure switch), 424204-424239 (Mole.MinimumLiquidPressureAtMaxTemperature switch), 425341-425463 (MoleHelper.EvaporationTemperature / EvaporationPressure / coefficient tables)
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Atmospherics.Chemistry, Mole, MoleHelper, AtmosphereHelper, PureIce, GlobalGasMix
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 419000-419279 (Chemistry static constants), 424068-424103 (Mole.FreezingTemperature switch), 424157-424197 (Mole.MaxLiquidTemperature switch), 424115-424155 (Mole.MinLiquidPressure switch), 424204-424239 (Mole.MinimumLiquidPressureAtMaxTemperature switch), 425341-425463 (MoleHelper.EvaporationTemperature / EvaporationPressure / coefficient tables), 417045-417051 (AtmosphereHelper.MatterState enum), 419488-419511 (Chemistry.MatterState switch), 424886-424893 (Mole.WillFreeze), 424895-424905 (EvaporationTemperatureClamped / EvaporationPressureClamped), 191075-191123 (GlobalGasMix.StateChangeMoleQuantity / TryEvaporateGroundLiquid freezing checks), 333735-333746 (PureIce.AssignSpawnGasValues)
 related:
   - ./Explosions.md
 tags: [save-format]
@@ -129,6 +129,103 @@ Note on SodiumChloride: only the liquid form `LiquidSodiumChloride` is registere
 
 Note on Helium: `A = 0` short-circuits both `FreezingTemperature` and `MaxLiquidTemperature` to `TemperatureKelvin.Zero` (`FREEZING_POINT_HELIUM = TemperatureKelvin.Zero`, `CRITICAL_TEMPERATURE_HELIUM_K = TemperatureKelvin.Zero`, decompile lines 419188-419190). `CanEvaporate(Helium) = false` and `CanCondense(Helium) = false` (`MoleHelper.CanEvaporate` / `CanCondense`, lines 425465-425540) make it a single-phase gas at every (T, P) the simulation supports.
 
+## Phase model: how (T, P) maps to solid / liquid / gas
+<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+
+Stationeers does not represent the solid phase as a `MatterState` value. The enum `AtmosphereHelper.MatterState : byte` (decompile lines 417045-417051) has exactly four values:
+
+```csharp
+public enum MatterState : byte { Liquid, Gas, All, None }
+```
+
+There is no `Solid`. Instead, when a Mole crosses the freezing threshold the simulator removes the mole from the gas mixture and spawns a separate `PureIce` Thing (decompile lines 333735-333746):
+
+```csharp
+public static void AssignSpawnGasValues(PureIce ice, Chemistry.GasType gasType, MoleQuantity quantity)
+{
+    ice.SpawnContents.Clear();
+    int num = Mathf.CeilToInt(quantity.ToFloat() / 50f);
+    ice.SpawnContents = new List<SpawnGas> { new SpawnGas(gasType, (quantity / num).ToFloat()) };
+    ice.temperature = Mole.FreezingTemperature(gasType).ToFloat() + 0.1f;
+    ice.meltTemperature = Mole.FreezingTemperature(gasType).ToFloat() + 1f;
+    ice.SetQuantity(num);
+}
+```
+
+Frozen mass is therefore a world-space object, not a state of the in-mixture mole. Conversely, melting a `PureIce` Thing re-injects the substance into the surrounding atmosphere as a Mole. The ice spawn temperature is hardcoded to `Tf + 0.1 K` and the melt threshold to `Tf + 1.0 K`, both pressure-independent.
+
+`MatterState(GasType)` (decompile lines 419488-419511) classifies the in-mixture phase, which is always Liquid or Gas:
+
+```csharp
+public static AtmosphereHelper.MatterState MatterState(GasType gasType)
+{
+    switch (gasType)
+    {
+    case GasType.Water:                case GasType.PollutedWater:
+    case GasType.LiquidNitrogen:       case GasType.LiquidOxygen:
+    case GasType.LiquidMethane:        case GasType.LiquidCarbonDioxide:
+    case GasType.LiquidPollutant:      case GasType.LiquidNitrousOxide:
+    case GasType.LiquidHydrogen:       case GasType.LiquidHydrazine:
+    case GasType.LiquidAlcohol:        case GasType.LiquidSodiumChloride:
+    case GasType.LiquidSilanol:        case GasType.LiquidHydrochloricAcid:
+    case GasType.LiquidOzone:
+        return AtmosphereHelper.MatterState.Liquid;
+    default:
+        return AtmosphereHelper.MatterState.Gas;
+    }
+}
+```
+
+Note that `GasType.Water` (NOT `GasType.Steam`) is classified as `Liquid`. Water is the liquid form, Steam is the gas form. The same A, B coefficients drive the vapor-pressure curve for both. The pair is wired via `MoleHelper.EvaporationType(GasType.Water) = GasType.Steam` and `MoleHelper.CondensationType(GasType.Steam) = GasType.Water` (decompile lines 425594-425640).
+
+The freezing trigger is pressure-independent. `Mole.WillFreeze()` (decompile lines 424886-424893):
+
+```csharp
+public bool WillFreeze()
+{
+    if (Quantity < Chemistry.MINIMUM_QUANTITY_MOLES) return false;
+    return Temperature <= FreezingTemperature();
+}
+```
+
+The atmospheric tick uses the same temperature-only test with a tiny epsilon offset (decompile lines 191075-191116):
+
+```csharp
+if (globalGasMixTemperature < mole.FreezingTemperature() + GlobalTemperatureStateChangeOffset)
+{
+    return MoleEnergy.Zero;   // (skip state-change; substance is frozen out)
+}
+```
+
+This is significant: **the game does not model a pressure-dependent freezing line** (no Clausius-Clapeyron slope on the solid-liquid boundary). On a (T, P) phase diagram the solid-liquid border is a vertical line at `T = Tf`. The same vertical line at `T = Tf` serves as the solid-gas border below the triple point (where P < Pf), since there is no separate sublimation curve.
+
+`EvaporationTemperatureClamped` / `EvaporationPressureClamped` (decompile lines 424895-424905) clamp the curve inputs:
+
+```csharp
+public TemperatureKelvin EvaporationTemperatureClamped(PressurekPa pressure)
+{
+    pressure = RocketMath.Clamp(pressure, MinLiquidPressure(), MinimumLiquidPressureAtMaxTemperature());
+    return RocketMath.Clamp(MoleHelper.EvaporationTemperature(Type, pressure), FreezingTemperature(), MaxLiquidTemperature());
+}
+
+public PressurekPa EvaporationPressureClamped(TemperatureKelvin temperature)
+{
+    temperature = RocketMath.Clamp(temperature, FreezingTemperature(), MaxLiquidTemperature());
+    return RocketMath.Clamp(MoleHelper.EvaporationPressure(Type, temperature), MinLiquidPressure(), MinimumLiquidPressureAtMaxTemperature());
+}
+```
+
+So at `P > Pc` the effective boiling temperature is `Tmax_liq`, and at `P < Pf` it is `Tf`. The liquid region on the phase diagram is therefore bounded by:
+
+- Left: vertical line `T = Tf` (solid-liquid).
+- Right: vertical line `T = Tmax_liq` (above which the substance is always gas regardless of P, per the `MaxLiquidTemperature` switch).
+- Bottom: the saturation curve `P = A * T^B` from `(Tf, P_sat(Tf))` to `(Tmax_liq, Pc)`.
+- Top: open (any pressure above the saturation curve is liquid as long as `Tf <= T <= Tmax_liq`).
+
+For non-water gases, `Tf` is derived from the curve at `Pf`, so `P_sat(Tf) == Pf` exactly. For Water and Polluted Water `Tf` is hardcoded (273.15 / 276.15 K) and the curve at that T gives `P_sat(273.15) ~= 6.87 kPa` vs the floor `Pf = 6.3 kPa` -- a small offset (~0.6 kPa) where the saturation curve starts above the floor. The clamps absorb this discrepancy in practice.
+
+Gas-only substances: Helium has `A = B = 0` which short-circuits both `FreezingTemperature` and `MaxLiquidTemperature` to `TemperatureKelvin.Zero`. `MatterState(Helium) = Gas`. Helium has no solid or liquid region on the (T, P) diagram; it is gas everywhere the simulation can express.
+
 ## GasType enum (every state Stationeers tracks)
 <!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
 
@@ -154,6 +251,7 @@ Ozone, LiquidOzone
 <!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
 
 - 2026-05-14: page created from a fresh read of `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. All coefficients, switches, and reference pressures captured verbatim. Computed freeze and max-liquid temperatures via `T = (P / A)^(1 / B)` in PowerShell.
+- 2026-05-15: added "Phase model" section documenting `AtmosphereHelper.MatterState` (no Solid value; freezing produces a `PureIce` Thing), the `Chemistry.MatterState(GasType)` classifier (Water and PollutedWater are Liquid; Steam is Gas), the pressure-independent `Mole.WillFreeze()` rule, the atmospheric freezing trigger in `GlobalGasMix.StateChangeMoleQuantity`, and the clamp semantics of `EvaporationTemperatureClamped` / `EvaporationPressureClamped`. Establishes the four phase-region boundaries on a (T, P) diagram: solid-liquid at vertical `T = Tf`, liquid-gas along `P = A * T^B`, critical wall at vertical `T = Tmax_liq`, and the small offset where Water's hardcoded `Tf = 273.15 K` puts the curve start ~0.6 kPa above the floor.
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
