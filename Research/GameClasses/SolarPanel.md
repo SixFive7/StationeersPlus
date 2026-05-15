@@ -16,6 +16,7 @@ sources:
 related:
   - ../GameSystems/LogicType.md
   - ../GameClasses/RotatableBehaviour.md
+  - ../GameClasses/WeatherEvent.md
 tags: [power, logic, ic10, prefab]
 ---
 
