@@ -306,7 +306,7 @@ Rule of thumb: if a human modder would naturally write the same sentence because
 
 Read `DedicatedServer/CLAUDE.md` before running, modifying, or proposing changes that touch the dedicated server. The folder doc auto-loads when you touch any path inside the folder, including the launcher script.
 
-The launcher reads `<StationeersPath>` from `Directory.Build.props` and `STEAMCMD_PATH` from the environment (placeholder documented in `DEV.md.template`). It contains no developer-specific paths.
+The launcher reads `<StationeersPath>` from `Directory.Build.props` and `STEAMCMD_PATH` from the environment (set per `DEV.md`). It contains no developer-specific paths.
 
 ## Tool: InspectorPlus for live runtime state
 

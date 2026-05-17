@@ -26,7 +26,7 @@ Durable per-mod knowledge lives in each mod's `RESEARCH.md`; project-wide conven
 Common defaults:
 
 - Steam default (no custom library): `C:\Program Files (x86)\Steam\steamapps\common\Stationeers\`
-- Secondary Steam library: `<DRIVE>:\Steam\steamapps\common\Stationeers\` (for example `E:\Steam\steamapps\common\Stationeers\`)
+- Secondary Steam library: `<DRIVE>:\Steam\steamapps\common\Stationeers\`
 
 `$(StationeersPath)` in `Directory.Build.props` points at this.
 
@@ -96,6 +96,41 @@ Third-party mod installations from Workshop subscriptions:
 ```
 
 Useful for reading other mods' compiled assemblies with `ilspycmd` when patterns need confirmation.
+
+---
+
+## SteamCMD install
+
+SteamCMD is a separate, headless Steam client used by `DedicatedServer/dedicated-server.ps1 -Bootstrap` to install and update the Stationeers Dedicated Server app (`600760`), and by ad-hoc scripts under `.work/` that fetch Workshop content non-interactively. It is independent of the Stationeers client install at the top of this file.
+
+Canonical layout, placed as a subfolder of a Steam content library so it stays out of the way without colliding with the Steam client:
+
+```
+<DRIVE>:\Steam\SteamCMD\
+  steamcmd.exe                    <- entry point (STEAMCMD_PATH points here)
+  steamapps\
+    workshop\
+      appworkshop_544550.acf      <- workshop manifest (item IDs + manifest hashes)
+      content\544550\<id>\        <- per-item downloaded content
+  appcache\                       <- app/depot info cache
+  depotcache\                     <- per-depot .manifest cache
+  config\                         <- SteamCMD config (anonymous login state)
+  logs\                           <- stderr.txt, content_log.txt, workshop_log.txt
+  package\                        <- self-update bundles
+```
+
+A subfolder under your Steam library root is conflict-free: the Steam client only scans `<Library>\steamapps\` and the root `libraryfolder.vdf` of a library, so a sibling `SteamCMD\` subfolder is invisible to it. Do NOT flatten SteamCMD's contents into the library root itself; that would overwrite the library's `libraryfolder.vdf` marker and merge SteamCMD's `steamapps\` into the Steam client's, mixing two depot namespaces.
+
+If SteamCMD is not yet installed, download it from https://developer.valvesoftware.com/wiki/SteamCMD, extract the zip into the chosen `SteamCMD\` folder, and run `steamcmd.exe` once so it self-bootstraps the rest of its files.
+
+Wire the location into the environment so the launcher and ad-hoc scripts find it:
+
+```powershell
+# Permanent (current user; new shells pick it up):
+[Environment]::SetEnvironmentVariable('STEAMCMD_PATH', '<DRIVE>:\Steam\SteamCMD\steamcmd.exe', 'User')
+```
+
+`DedicatedServer/dedicated-server.ps1` reads `$env:STEAMCMD_PATH` during `-Bootstrap` and throws at startup if the variable is unset or the file is missing. Ad-hoc scripts under `.work/` that wrap SteamCMD should follow the same pattern (read the env var, throw on missing). There is no fallback or default path.
 
 ---
 
@@ -224,14 +259,7 @@ The launcher script is `DedicatedServer/dedicated-server.ps1`. It depends on two
 
 1. **Stationeers client install** (`$(StationeersPath)` in `Directory.Build.props`). The launcher reads it directly from `Directory.Build.props` at the repo root, the same property the mod builds use. No env var needed; if `Directory.Build.props` is set up for builds, the launcher works.
 
-2. **SteamCMD executable** (`STEAMCMD_PATH` environment variable). Used during `-Bootstrap` to install Steam app `600760` (`Stationeers Dedicated Server`) into `DedicatedServer/install/`. Set this in the environment:
-
-   ```powershell
-   # Permanent (current user; new shells pick it up):
-   [Environment]::SetEnvironmentVariable('STEAMCMD_PATH', '<STEAMCMD_PATH>', 'User')
-   ```
-
-   If SteamCMD is not yet installed, download it from https://developer.valvesoftware.com/wiki/SteamCMD, extract it to a folder of your choice, and point `STEAMCMD_PATH` at the resulting `steamcmd.exe`.
+2. **SteamCMD executable** (`STEAMCMD_PATH` environment variable). Install layout, canonical location, and env-var setup are documented in the "SteamCMD install" section above. Used during `-Bootstrap` to install Steam app `600760` (`Stationeers Dedicated Server`) into `DedicatedServer/install/`.
 
 ### Stationeers user-data paths (informational)
 

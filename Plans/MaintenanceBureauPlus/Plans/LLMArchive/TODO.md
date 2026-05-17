@@ -11,7 +11,7 @@
 
 ### Deployment (local dev)
 
-- [ ] Copy `LLM.dll` + all dependency DLLs + `runtimes/` folder + `About/` + `Models/` to the local Stationeers mods deploy folder (see `DEV.md` / `DEV.md.template` for the path on your setup; the deploy target directory is named `LLM/` or the post-rename mod code name).
+- [ ] Copy `LLM.dll` + all dependency DLLs + `runtimes/` folder + `About/` + `Models/` to the local Stationeers mods deploy folder (see `DEV.md` for the path on your setup; the deploy target directory is named `LLM/` or the post-rename mod code name).
 - [ ] Verify folder contains no `.pdb`, `.deps.json`, source files, or `RESEARCH.md`
 - [ ] Add `<Local Enabled="true"><Path Value="..." /></Local>` entry to `modconfig.xml` if not present
 
