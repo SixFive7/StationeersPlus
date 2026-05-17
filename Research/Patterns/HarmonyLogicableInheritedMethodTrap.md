@@ -17,14 +17,22 @@ tags: [harmony, logic]
 
 # Harmony patching trap: inherited Logicable methods on subclasses that don't override
 
-`Logicable` declares the virtual logic-port API:
+`Device` declares the virtual logic-port API. Decompile line 350229 onward inside `public class Device : SmallGrid, ILogicable, IReferencable, IEvaluable, IConnected, ISlotWriteable, IWreckage, IPowered, IDensePoolable`. (`Logicable` itself, at decompile line 359632, is `public static class Logicable` -- a static helper class, NOT the base class for logic-capable Things. The interface counterpart is `ILogicable`, which `Device` implements.) The four virtual method declarations are:
+
+```csharp
+public virtual bool CanLogicRead(LogicType logicType) { ... }
+public virtual bool CanLogicWrite(LogicType logicType) { ... }
+// equivalent virtual GetLogicValue, SetLogicValue declarations follow
+```
+
+The four method names:
 
 - `bool CanLogicRead(LogicType)`
 - `bool CanLogicWrite(LogicType)`
 - `double GetLogicValue(LogicType)`
 - `void SetLogicValue(LogicType, double)`
 
-Many `Logicable` subclasses (e.g. `Transformer`) override one or more of these to expose subclass-specific logic types. Other subclasses (`Battery` at decompile line 370616, `PowerTransmitter` at line 387065, `PowerReceiver` at line 386861) **do not override** these methods at all -- they inherit them from `Logicable` directly.
+Many `Device` subclasses (e.g. `Transformer`) override one or more of these to expose subclass-specific logic types. Other subclasses (`Battery` at decompile line 370616, `PowerTransmitter` at line 387065, `PowerReceiver` at line 386861) **do not override** these methods at all -- they inherit them from `Device` directly.
 
 ## The trap
 <!-- verified: 0.2.6228.27061 @ 2026-05-17 -->
@@ -68,11 +76,11 @@ Three working options, pick by taste:
 **(a) Patch the base class with a runtime type check.** Cleanest because it covers every subclass in one place:
 
 ```csharp
-[HarmonyPatch(typeof(Logicable))]
+[HarmonyPatch(typeof(Device))]
 public static class FooPassthroughLogicPatches
 {
-    [HarmonyPrefix, HarmonyPatch(nameof(Logicable.SetLogicValue))]
-    public static bool SetLogicValuePatch(Logicable __instance, LogicType logicType, double value)
+    [HarmonyPrefix, HarmonyPatch(nameof(Device.SetLogicValue))]
+    public static bool SetLogicValuePatch(Device __instance, LogicType logicType, double value)
     {
         if (logicType != LogicTypeRegistry.LogicPassthroughMode) return true;
         if (__instance is Battery battery) { ... return false; }
@@ -83,18 +91,18 @@ public static class FooPassthroughLogicPatches
 }
 ```
 
-The base method exists on Logicable directly, so the patch resolves regardless of subclass.
+The base method exists on Device directly, so the patch resolves regardless of subclass.
 
-**(b) Explicit method discovery via `AccessTools.Method(typeof(Logicable), name)`.** Use `[HarmonyPatch]` with no method-name argument and provide `TargetMethod()`:
+**(b) Explicit method discovery via `AccessTools.Method(typeof(Device), name)`.** Use `[HarmonyPatch]` with no method-name argument and provide `TargetMethod()`:
 
 ```csharp
 [HarmonyPatch]
 public static class BatteryPassthroughLogicPatches
 {
     static MethodBase TargetMethod() =>
-        AccessTools.Method(typeof(Logicable), nameof(Logicable.SetLogicValue));
+        AccessTools.Method(typeof(Device), nameof(Device.SetLogicValue));
 
-    public static bool Prefix(Logicable __instance, LogicType logicType, double value) { ... }
+    public static bool Prefix(Device __instance, LogicType logicType, double value) { ... }
 }
 ```
 
@@ -106,7 +114,7 @@ PowerGridPlus's `TransformerPassthroughLogicPatches` happens to work with attrib
 
 ## Verification history
 
-- 2026-05-17: page created after PowerGridPlus's first attempt at extending logic-passthrough to Battery + PowerTransmitter / PowerReceiver bailed `Harmony.PatchAll()` with `Undefined target method for patch method ... Battery::SetLogicValue`. Confirmed (via the in-session BepInEx LogOutput.log of the user's running game) that the bail-out also took down LogicableInitializePatch and the post-`PatchAll` manual init calls in `Plugin.OnPrefabsLoaded`. Solution adopted: pattern (a) -- patch `Logicable` directly with runtime type checks.
+- 2026-05-17: page created after PowerGridPlus's first attempt at extending logic-passthrough to Battery + PowerTransmitter / PowerReceiver bailed `Harmony.PatchAll()` with `Undefined target method for patch method ... Battery::SetLogicValue`. Confirmed (via the in-session BepInEx LogOutput.log of the user's running game) that the bail-out also took down LogicableInitializePatch and the post-`PatchAll` manual init calls in `Plugin.OnPrefabsLoaded`. Initial draft pointed at `Logicable` as the base; corrected after discovering `public static class Logicable` (decompile line 359632) is a static helper class, not the inheritance base. The virtual logic-port methods are actually declared on `Device : SmallGrid, ILogicable, ...` (decompile line 349960+) with the `CanLogicRead` body at line 350229, `CanLogicWrite` at line 350305, `SetLogicValue` at line 350323, `GetLogicValue` at line 350359. Solution adopted: pattern (a) -- patch `Device` directly with runtime type checks (`Battery`, `PowerTransmitter`, `PowerReceiver` all inherit from `Device` via `ElectricalInputOutput` / `WirelessPower`).
 
 ## Open questions
 
