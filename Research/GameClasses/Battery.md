@@ -3,7 +3,7 @@ title: Battery (station-mounted)
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-28
+verified_at: 2026-05-17
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
 related:
@@ -146,6 +146,13 @@ The loop self-exits when `Mode` leaves Critical or when the device is switched o
 
 Net effect: a battery dropping into the `(0, 10%)` band flashes red at 2 Hz; reaching 10% snaps to a steady single segment in the `VeryLow` material; and the bar fills out segment by segment up to 5 segments at `Full`.
 
+## Class hierarchy: ElectricalInputOutput (two cable networks)
+<!-- verified: 0.2.6228.27061 @ 2026-05-17 -->
+
+Decompile line 370616: `public class Battery : ElectricalInputOutput, IRocketInternals, IRocketComponent, IChargable, IReferencable, IEvaluable, IRocketMassContributor`.
+
+Battery inherits `ElectricalInputOutput`, the same base as `Transformer` and `AreaPowerControl`. This means Battery has both `InputNetwork` and `OutputNetwork` cable network references at runtime. The `ChargeEfficiencyControl` patch in PowerGridPlus's `StationaryBatteryPatches.cs` exercises this via `cableNetwork == __instance.InputNetwork`. Implication: a station Battery acts as a power bridge with separate cable ports for the input (charging) and output (discharging) sides. Logic-passthrough patches that work for `Transformer` (bridging device lists across the InputNetwork / OutputNetwork pair) can be applied identically to `Battery`.
+
 ## Subclassing notes for mods
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
@@ -156,6 +163,7 @@ A mod that subclasses `Battery` (e.g., `StationBatteryNuclear : Battery` in More
 
 ## Verification history
 
+- 2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that `Battery : ElectricalInputOutput, ...` mirrors `Transformer` and `AreaPowerControl` in having both `InputNetwork` and `OutputNetwork` cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.
 - 2026-04-28: page created. Verbatim findings from `ilspycmd -t Assets.Scripts.Objects.Electrical.Battery` against `E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll` at game version 0.2.6228.27061. Confirms the threshold ladder is identical to `BatteryCell.UpdateBatteryState` documented on `HelmetBattery.md`; the new content here is the segment-bar display logic (`SetRenderersState` segment counts, `displayModeMaterials` per-Mode lookup, and the `FlashingDisplay` 2 Hz Critical-mode coroutine). Triggered by a question about MorePowerMod's `StationBatteryNuclear` inheriting from `Battery`: when does the prefab's color change as charge drops? Answer is the threshold ladder above; vanilla material colors (red / orange / green) are set in the prefab `displayModeMaterials[]` array, not in code.
 
 ## Open questions

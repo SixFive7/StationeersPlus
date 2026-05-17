@@ -3,7 +3,7 @@ title: PowerTransmitter
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-26
+verified_at: 2026-05-17
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:251-271
   - Mods/PowerTransmitterPlus/RESEARCH.md:273-333
@@ -246,6 +246,19 @@ set TargetHorizontal = H, TargetVertical = V
 
 The contraction factor is approximately `k = |root-to-RayTransform offset| / link_distance`. For our 42 m wall + ceiling case `k = 1.94 / 42 = 0.046`, which converges to mm precision in 2-3 iterations. The contraction degrades at short range: at `D = |offset|` (~ 2 m) the iteration does not converge meaningfully, but a 1.9 m dish-to-dish placement is pathological. PowerTransmitterPlus caps at 10 iterations as a safety net and breaks early at the 1 cm tolerance, with the cache check on the public auto-aim entry preventing redundant solves on rewrites of the same target.
 
+## TX/RX wireless link topology (network bridging)
+<!-- verified: 0.2.6228.27061 @ 2026-05-17 -->
+
+`PowerTransmitter` (decompile line 387065) and `PowerReceiver` (line 386861) inherit from `WirelessPower`. The wireless pair is bridged through a shared `WirelessNetwork` instance:
+
+- `PowerTransmitter.OutputNetwork` is a `WirelessNetwork` (`WirelessOutputNetwork => OutputNetwork as WirelessNetwork`). The TX's `LinkedReceiver` setter (line 387089) calls `WirelessOutputNetwork.RemoveDevice(_linkedReceiver)` then `WirelessOutputNetwork.AddDevice(value)` -- the RX is registered as a device on the TX's wireless network.
+- `PowerReceiver.LinkedPowerTransmitter` setter (line 386871) executes `InputNetwork = value.OutputNetwork;` -- the RX's `InputNetwork` is assigned the TX's `OutputNetwork` reference, sharing the same WirelessNetwork instance.
+- The fields backing the link are `PowerTransmitter._linkedReceiver` (private `PowerReceiver`) and `PowerReceiver._linkedPowerTransmitter` (private `PowerTransmitter`).
+- For wire-side serialization, `PowerTransmitter.SerializeOnJoin` (line 387148) writes `OutputNetwork.ReferenceId` then `LinkedReceiver?.ReferenceId ?? 0`; `DeserializeOnJoin` (line 387155) reads them in the same order and rehydrates the wireless network reference via `Referencable.Find<WirelessNetwork>`. The runtime link is rebuilt via `_savedRecieverId` (note vanilla typo `Reciever`).
+- `PowerTransmitter.OnDestroy` (line 387183 onward) and `PowerReceiver.OnDestroy` (line 386904) both null-out the partner side.
+
+Cable-side networks are separate from the wireless network: the TX's cable port is on its own physical `CableNetwork` (the cable network ID seen as `OutputNetworkReferenceId` in `PowerTransmitterSaveData` is the cable-side network). Same for the RX. So a TX-RX pair touches four networks total: two wireless (one shared instance bridging both sides) and two physical cable networks (one wired to the TX side, one wired to the RX side). To bridge cable-side logic across a TX-RX link you traverse: caller cable network -> caller's TX or RX -> partner via `_linkedReceiver` / `_linkedPowerTransmitter` -> partner's cable network.
+
 ## Mod extensions
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
 
@@ -254,6 +267,7 @@ The contraction factor is approximately `k = |root-to-RayTransform offset| / lin
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
 
+- 2026-05-17: added "TX/RX wireless link topology (network bridging)" section, sourced from decompile lines 387065-387162 (PowerTransmitter) and 386861-386911 (PowerReceiver). Documents the shared `WirelessNetwork` between linked TX and RX (`RX.InputNetwork = TX.OutputNetwork` assignment in the `LinkedPowerTransmitter` setter), the private fields backing the link (`_linkedReceiver`, `_linkedPowerTransmitter`, `_savedRecieverId` vanilla typo), the wire format used by `SerializeOnJoin` / `DeserializeOnJoin`, and the topology fact that a TX/RX pair touches four networks total (one shared wireless + two separate cable networks on each end). Driving question: how would a logic-passthrough mod bridge cable-side logic across a TX-RX wireless link.
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0035, F0036, F0037, F0038, F0039, F0042, F0044, F0050, F0052, F0053, F0219z, F0300, F0301. No conflicts.
 - 2026-04-20: removed PowerTransmitterPlus-specific subsections per Phase 6 Pass B editorial decision (GameClasses pages are strictly vanilla). Added mod-extensions pointer.
 - 2026-04-25: refined the "Placement" line in "Transforms and geometry" to clarify the floor-only restriction comes from the prefab's serialized `AllowedRotations` value (the gate is in `InventoryManager.UpdatePlacement`, not hardcoded to `PowerTransmitter`), and added caveats covering `OnRegistered` H/V reset, TX-RX link raycast frame-invariance, and vertical clamp behavior under non-upright placement. Source: deep decompile pass producing `Research/GameClasses/AllowedRotations.md`, `Research/GameSystems/PlacementOrientation.md`, `Research/GameClasses/WirelessPower.md`. No existing factual claim was contradicted; the new wording disambiguates the previously implicit assumption.
