@@ -4587,6 +4587,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#registration-mechanisms-canonical-signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration mechanisms (canonical signatures)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#findings" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4636,6 +4647,39 @@
     <span class="md-ellipsis">
       
         4. Improved Labeller (rank 61)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-stationeers-logic-extended-workshop-3625190467-the-canonical-large-registrar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Stationeers Logic Extended (Workshop 3625190467) -- the canonical large registrar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-powertransmitterplus-workshop-3707677512-this-monorepos-own-registrar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. PowerTransmitterPlus (Workshop 3707677512) -- this monorepo's own registrar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-ic10-inspectordebugger-workshop-3508602436-the-numeric-cast-only-soft-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. IC10 Inspector/Debugger (Workshop 3508602436) -- the numeric-cast-only "soft" pattern
       
     </span>
   </a>
@@ -6219,6 +6263,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#registration-mechanisms-canonical-signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration mechanisms (canonical signatures)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#findings" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6268,6 +6323,39 @@
     <span class="md-ellipsis">
       
         4. Improved Labeller (rank 61)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-stationeers-logic-extended-workshop-3625190467-the-canonical-large-registrar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Stationeers Logic Extended (Workshop 3625190467) -- the canonical large registrar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-powertransmitterplus-workshop-3707677512-this-monorepos-own-registrar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. PowerTransmitterPlus (Workshop 3707677512) -- this monorepo's own registrar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-ic10-inspectordebugger-workshop-3508602436-the-numeric-cast-only-soft-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. IC10 Inspector/Debugger (Workshop 3508602436) -- the numeric-cast-only "soft" pattern
       
     </span>
   </a>
@@ -6413,22 +6501,34 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-14.
+           on 2026-05-18.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (10)</summary>
           <ul>
             
               <li><code>.work/decomp/0.2.6228.27061/Dan_s_Colonists_3639645231__DansColonists.decompiled.cs:3714-3863</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/FPGA_3457324551__FPGAMod.decompiled.cs:317</code></li>
             
               <li><code>.work/decomp/0.2.6228.27061/FPGA_3457324551__FPGAMod.decompiled.cs:1890-1937</code></li>
             
               <li><code>.work/decomp/0.2.6228.27061/KeypadMod_3478434324__KeypadMod.decompiled.cs:34-447</code></li>
             
               <li><code>.work/decomp/0.2.6228.27061/ImprovedLabeller_3656548039__ImprovedLabeller.decompiled.cs:355-595</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/StationeersLogicExtended.decompiled.cs:3924-4153</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/IC10_Inspector_Debugger_3508602436__IC10Inspector.decompiled.cs:1268</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/IC10_Inspector_Debugger_3508602436__IC10Inspector.decompiled.cs:2208-2212</code></li>
+            
+              <li><code>E:/Steam/steamapps/workshop/content/544550/3625190467/Data/SLE_LogicTypes.json</code></li>
+            
+              <li><code>E:/Steam/steamapps/workshop/content/544550/3625190467/Documentation/CustomLogicTypes.md</code></li>
             
           </ul>
         </details>
@@ -6469,15 +6569,46 @@
 
 
 <h1 id="mod-logictype-registration-analysis">Mod LogicType Registration Analysis<a class="headerlink" href="#mod-logictype-registration-analysis" title="Permanent link">&para;</a></h1>
-<p>Analysis of four decompiled C# mods to determine whether each registers new LogicType integers or only consumes vanilla LogicType values (0–349).</p>
+<p>Analysis of decompiled Stationeers Workshop mods to determine whether each registers new LogicType integers or only consumes vanilla LogicType values (0-349). Initial pass covered four deep-dive targets; the 2026-05-18 extension added findings from a 124-mod scan (top 90 most-subscribed Workshop mods plus 34 additional developer-subscribed mods).</p>
+<p>The per-name catalogue of every integer registered by every mod listed here lives in the monorepo's own <code>Patterns/Logic/README.md</code> (not under <code>Research/</code> because it is also the SixFive7 mods' own assignment table). Treat that file as the cross-reference for any specific integer value cited here.</p>
 <h2 id="methodology">Methodology<a class="headerlink" href="#methodology" title="Permanent link">&para;</a></h2>
-<p>Each mod was analyzed for:
-1. <strong>Registration mechanisms</strong> used: ProgrammableChip.AllConstants reflection-append, InternalEnums patching, Logicable.LogicTypes dict, EnumCollections modification, ScreenDropdownBase patches
-2. <strong>Custom LogicType constants</strong> defined as <code>private const LogicType FOO = (LogicType)N</code> where N &gt;= 350
-3. <strong>CanLogicRead/CanLogicWrite/GetLogicValue/SetLogicValue</strong> overrides that handle custom values
-4. <strong>OnLoaded/Awake/ModBehaviour entry points</strong> where registration would occur</p>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>Each mod was analyzed for:</p>
+<ol>
+<li><strong>Registration mechanisms</strong> used: <code>ProgrammableChip.AllConstants</code> reflection-append, <code>ProgrammableChip.InternalEnums</code> patching (<code>ScriptEnum&lt;LogicType&gt;</code> / <code>BasicEnum&lt;LogicType&gt;</code>), <code>Logicable.LogicTypes</code> dict, <code>EnumCollections.LogicTypes</code> modification, <code>ScreenDropdownBase.LogicTypes</code> patches.</li>
+<li><strong>Custom LogicType constants</strong> defined as <code>private const LogicType FOO = (LogicType)N</code> where N &gt;= 350. A constant alone is necessary but not sufficient: the integer is only a true registration if it lands in at least one of the five registries above. A numeric cast that never reaches a registry is a "soft" reservation (the value is still serialized into save data via the per-Thing logic store, but it is invisible to IC10 chips and other mods).</li>
+<li><strong>CanLogicRead / CanLogicWrite / GetLogicValue / SetLogicValue</strong> overrides that handle custom values.</li>
+<li><strong>OnLoaded / Awake / ModBehaviour entry points</strong> where registration would occur.</li>
+</ol>
+<p>For the broader 124-mod scan, a binary string scan of every mod DLL was used to filter the candidate set before decompilation. The scan covered both ASCII (for type / method names in the <code>#Strings</code> metadata heap) and UTF-16 LE (for string literals in the <code>#US</code> heap), because <code>GetField("AllConstants", ...)</code> calls store the field name as a UTF-16 string literal in the user-strings heap, not in the ASCII type-names heap. An ASCII-only filter misses every reflection-based registrar.</p>
+<p>DLLs that hit any of the markers <code>AllConstants</code>, <code>InternalEnums</code>, <code>EnumCollections</code> plus <code>LogicType</code>, or <code>ScriptEnum&lt;LogicType&gt;</code> were decompiled with <code>ilspycmd 10.0.0.8330</code> and re-grepped for actual mutation sites.</p>
+<h2 id="registration-mechanisms-canonical-signatures">Registration mechanisms (canonical signatures)<a class="headerlink" href="#registration-mechanisms-canonical-signatures" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>The five mechanisms by which a mod can extend the vanilla <code>LogicType</code> enum at runtime. A registrar uses at least one; mods using none, but consuming <code>(LogicType)&lt;int&gt;</code> casts, are consumers regardless of how many devices they introduce.</p>
+<ol>
+<li>
+<p><strong><code>ProgrammableChip.AllConstants</code> reflection-append</strong>. Read the existing <code>ProgrammableChip.Constant[]</code> via reflection, allocate a larger array, copy + append <code>new ProgrammableChip.Constant(name, description, (double)value, true)</code> entries, then <code>field.SetValue(null, merged)</code>. This registers the integer with the IC10 compiler (so <code>s d0 MyName ...</code> resolves to the integer).</p>
+</li>
+<li>
+<p><strong><code>ProgrammableChip.InternalEnums</code></strong> entries (<code>ScriptEnum&lt;LogicType&gt;</code> and <code>BasicEnum&lt;LogicType&gt;</code>) are private snapshots of <code>Enum.GetValues</code> / <code>Enum.GetNames</code> taken at construction. Their backing fields <code>_types</code> and <code>_names</code> are extended via reflection. This drives in-game-screen syntax highlighting for custom names; without it, custom names render in the default invalid-token red.</p>
+</li>
+<li>
+<p><strong><code>Logicable.LogicTypes</code> dict</strong> patched per-Thing. Wires per-instance Logicable behaviour.</p>
+</li>
+<li>
+<p><strong><code>EnumCollections.LogicTypes</code></strong> modification via <code>ModUtils.PatchEnumCollection</code> or equivalent. Resizes <code>Values</code>, <code>ValuesAsInts</code>, <code>Names</code>, <code>PaddedNames</code> arrays. Required for tablet-cycling UI and motherboard dropdowns.</p>
+</li>
+<li>
+<p><strong><code>ScreenDropdownBase.LogicTypes</code></strong> patches. Required for cartridge / screen dropdown lists.</p>
+</li>
+</ol>
+<p>The marker <code>EnumCollections.&lt;something&gt;</code> alone is insufficient to identify a LogicType registrar: the same helper utility commonly patches sibling enums in the same family (<code>SlotClasses</code>, <code>Class</code>, etc.). Confirm the generic type argument is <code>LogicType</code> (or the target collection field is <code>LogicTypes</code>).</p>
 <h2 id="findings">Findings<a class="headerlink" href="#findings" title="Permanent link">&para;</a></h2>
 <h3 id="1-dans-colonists-rank-31">1. Dan's Colonists (rank 31)<a class="headerlink" href="#1-dans-colonists-rank-31" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
+
 <p><strong>Verdict:</strong> CONSUMER</p>
 <p><strong>Mechanism:</strong> None -- uses only vanilla game logic</p>
 <p><strong>Evidence:</strong>
@@ -6487,27 +6618,25 @@
 - LogicType uses: only reading device values via vanilla calls; no custom LogicType constants defined
 - File: <code>Dan_s_Colonists_3639645231__DansColonists.decompiled.cs</code>, lines 3714-3863</p>
 <p><strong>Notes:</strong> Game logic is driven by colonist AI tasks and NPC state machines. No need for custom LogicTypes.</p>
-<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
-
 <hr />
 <h3 id="2-fpga-mod-rank-35">2. FPGA Mod (rank 35)<a class="headerlink" href="#2-fpga-mod-rank-35" title="Permanent link">&para;</a></h3>
-<p><strong>Verdict:</strong> REGISTRAR (via EnumCollections patching)</p>
-<p><strong>Mechanism:</strong> <code>ModUtils.PatchEnumCollection&lt;T1, T2&gt;()</code> reflection-based enum resizing</p>
-<p><strong>Integers added:</strong> Unknown -- likely custom FPGA control LogicTypes, exact values not determinable from decompiled code (computed at runtime or stored in config)</p>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p><strong>Verdict:</strong> CONSUMER for <code>LogicType</code>. REGISTRAR for the adjacent <code>Class</code> enum (registers <code>Class 105 = "FPGAChip"</code> in <code>EnumCollections.SlotClasses</code>).</p>
+<p><strong>Mechanism (Class registration):</strong> <code>ModUtils.PatchEnumCollection&lt;Class, ushort&gt;(EnumCollections.SlotClasses, (Class)105, "FPGAChip")</code>. The generic argument is <code>&lt;Class, ushort&gt;</code> and the target collection is <code>EnumCollections.SlotClasses</code>, not <code>EnumCollections.LogicTypes</code>.</p>
+<p><strong>Mechanism (LogicType):</strong> None. No call to <code>ModUtils.PatchEnumCollection</code> with <code>LogicType</code> as a generic argument or with <code>EnumCollections.LogicTypes</code> as a target. No references to <code>ProgrammableChip.AllConstants</code>, <code>ProgrammableChip.InternalEnums</code>, <code>Logicable.LogicTypes</code>, or <code>ScreenDropdownBase.LogicTypes</code>. No <code>Register(new LogicTypeInfo(...))</code> calls. No <code>private const LogicType</code> definitions.</p>
 <p><strong>Evidence:</strong>
 - Entry point: <code>FPGAMod : MonoBehaviour</code> with <code>OnLoaded(List&lt;GameObject&gt; prefabs)</code> (line 1890)
 - Harmony patches initialized via <code>PatchAll()</code> (line 1893)
-- Enum patching utility at lines 1913-1937:
-  <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>PatchEnumCollection&lt;T1, T2&gt;(EnumCollection&lt;T1, T2&gt; collection, T1 val, string name)
+- Only <code>PatchEnumCollection</code> call site in the DLL (verbatim, line 317):
+  <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ModUtils.PatchEnumCollection&lt;Class, ushort&gt;(EnumCollections.SlotClasses, (Class)105, &quot;FPGAChip&quot;);
 </span></code></pre></div>
-  Calls <code>Array.Resize()</code> on <code>collection.Values</code>, <code>collection.ValuesAsInts</code>, <code>collection.Names</code>, and <code>collection.PaddedNames</code>, then uses reflection <code>SetValue()</code> on backing fields (lines 1934-1936)
-- No explicit call to <code>PatchEnumCollection</code> with <code>LogicType</code> visible in decompiled output (likely in undecompiled config/initialization path or called dynamically)
-- No private <code>const LogicType</code> definitions found</p>
-<p><strong>Notes:</strong> Pattern matches EnumCollections modification mechanism. Exact registered values unknown without access to source or runtime inspection. The utility is generic and could patch any EnumCollection, not just LogicType.</p>
-<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
-
+- Generic helper definition (line 1913): <code>public static void PatchEnumCollection&lt;T1, T2&gt;(EnumCollection&lt;T1, T2&gt; collection, T1 val, string name)</code> -- calls <code>Array.Resize()</code> on <code>collection.Values</code>, <code>collection.ValuesAsInts</code>, <code>collection.Names</code>, and <code>collection.PaddedNames</code>, then uses reflection <code>SetValue()</code> on backing fields (lines 1934-1936). Helper is generic and reusable; the only invocation in this DLL is the Class one above.</p>
+<p><strong>Notes:</strong> Earlier analysis (2026-05-14) misread the generic PatchEnumCollection helper as evidence of a LogicType registration. A fresh independent validator on 2026-05-18 enumerated every call site of the helper and every LogicType registration marker in the FPGA DLL; the verdict was binding (B is correct). See "Verification history" below. FPGA mods that read <code>LogicType.Setting</code> (12) on a placed FPGA chip do so against vanilla; the Class 105 registration is what makes the FPGA item itself placeable, not a LogicType extension.</p>
 <hr />
 <h3 id="3-keypad-mod-rank-60">3. Keypad Mod (rank 60)<a class="headerlink" href="#3-keypad-mod-rank-60" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
+
 <p><strong>Verdict:</strong> CONSUMER</p>
 <p><strong>Mechanism:</strong> None -- overrides only vanilla LogicTypes</p>
 <p><strong>LogicTypes used:</strong>
@@ -6524,10 +6653,10 @@
 - Pulse output triggered via <code>SetLogicValue((LogicType)3, ...)</code> (lines 111, 130)
 - No custom LogicType constants; all values are hardcoded vanilla enums</p>
 <p><strong>Notes:</strong> Keypad is a simple input device that reads its Setting slot and pulses Output. No new enum values required.</p>
-<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
-
 <hr />
 <h3 id="4-improved-labeller-rank-61">4. Improved Labeller (rank 61)<a class="headerlink" href="#4-improved-labeller-rank-61" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
+
 <p><strong>Verdict:</strong> CONSUMER</p>
 <p><strong>Mechanism:</strong> None -- utility mod for vanilla labellers</p>
 <p><strong>LogicTypes used:</strong> <code>(LogicType)0</code> = None (vanilla, all instances in file)</p>
@@ -6543,24 +6672,282 @@
   - Line 395: <code>instance.LogicType = (LogicType)0;</code> (LogicBatchReader)
 - No custom LogicType overrides; all patches are UI/interaction flow</p>
 <p><strong>Notes:</strong> UI enhancement for device selection. No game-logic LogicType changes.</p>
-<!-- verified: 0.2.6228.27061 @ 2026-05-14 -->
+<hr />
+<h3 id="5-stationeers-logic-extended-workshop-3625190467-the-canonical-large-registrar">5. Stationeers Logic Extended (Workshop 3625190467) -- the canonical large registrar<a class="headerlink" href="#5-stationeers-logic-extended-workshop-3625190467-the-canonical-large-registrar" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
+<p><strong>Verdict:</strong> REGISTRAR (the largest known third-party <code>LogicType</code> registrar in the Stationeers ecosystem).</p>
+<p><strong>Mechanism:</strong> <code>ProgrammableChip.AllConstants</code> reflection-append, driven by an internal <code>LogicTypeRegistry</code> class. The mod's <code>OnLoaded</code> calls <code>LogicTypeRegistry.Initialize()</code> (line 89), which executes ~230 <code>Register(new LogicTypeInfo(name, displayName, description, value, dataType, access, category))</code> calls. The registered values are subsequently appended to <code>ProgrammableChip.AllConstants</code> via the standard reflection pattern (the same one PowerTransmitterPlus uses). The mod also patches <code>Logicable.LogicTypes</code> (line 267) and reads back its own registry in the various game-side Harmony postfixes (<code>GetCustomLogicTypeName</code>, etc., lines 176-251) to keep tablet UI and IC10 compiler names consistent.</p>
+<p><strong>Integers added:</strong> 230 entries in the range <strong>1000-1830</strong>, sparse, grouped by 35 device categories. Per-name catalogue verbatim in <code>Patterns/Logic/README.md</code> under "Known third-party reservations". Range summary by device category:</p>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Device</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1000-1004</td>
+<td>ContactSelection (SatelliteDish)</td>
+<td>5</td>
+</tr>
+<tr>
+<td>1010-1020</td>
+<td>ContactProperties (SatelliteDish)</td>
+<td>11</td>
+</tr>
+<tr>
+<td>1030-1032</td>
+<td>DishState (SatelliteDish)</td>
+<td>3</td>
+</tr>
+<tr>
+<td>1100-1103</td>
+<td>Centrifuge</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1110-1117</td>
+<td>RealtimeData (DaylightSensor)</td>
+<td>8</td>
+</tr>
+<tr>
+<td>1120-1123</td>
+<td>WindTurbine</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1130</td>
+<td>SolidFuelGenerator</td>
+<td>1</td>
+</tr>
+<tr>
+<td>1140-1141</td>
+<td>WeatherStation</td>
+<td>2</td>
+</tr>
+<tr>
+<td>1150-1151</td>
+<td>DeepMiner</td>
+<td>2</td>
+</tr>
+<tr>
+<td>1160-1169</td>
+<td>HydroponicsDevice</td>
+<td>10</td>
+</tr>
+<tr>
+<td>1180-1189</td>
+<td>Harvester</td>
+<td>10</td>
+</tr>
+<tr>
+<td>1200-1205</td>
+<td>GasFuelGenerator</td>
+<td>6</td>
+</tr>
+<tr>
+<td>1210-1215</td>
+<td>Battery</td>
+<td>6</td>
+</tr>
+<tr>
+<td>1220-1228</td>
+<td>SolarPanel</td>
+<td>9</td>
+</tr>
+<tr>
+<td>1230-1233</td>
+<td>H2Combustor</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1240-1243</td>
+<td>Electrolyzer</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1250-1292</td>
+<td>PipeAnalyzer</td>
+<td>31</td>
+</tr>
+<tr>
+<td>1300-1311</td>
+<td>Furnace</td>
+<td>12</td>
+</tr>
+<tr>
+<td>1320-1323</td>
+<td>AdvancedFurnace</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1330-1333</td>
+<td>ArcFurnace</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1400-1416</td>
+<td>Filtration</td>
+<td>13</td>
+</tr>
+<tr>
+<td>1500-1503</td>
+<td>AirConditioner</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1520-1523</td>
+<td>WallCooler</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1530-1534</td>
+<td>WallHeater</td>
+<td>5</td>
+</tr>
+<tr>
+<td>1540-1542</td>
+<td>ActiveVent</td>
+<td>3</td>
+</tr>
+<tr>
+<td>1600-1604</td>
+<td>StateChangeDevice</td>
+<td>5</td>
+</tr>
+<tr>
+<td>1610-1615</td>
+<td>Fabricator</td>
+<td>6</td>
+</tr>
+<tr>
+<td>1620-1627</td>
+<td>AdvancedComposter</td>
+<td>8</td>
+</tr>
+<tr>
+<td>1700-1707</td>
+<td>RobotMining</td>
+<td>8</td>
+</tr>
+<tr>
+<td>1720-1726</td>
+<td>Quarry</td>
+<td>7</td>
+</tr>
+<tr>
+<td>1740-1745</td>
+<td>HorizontalQuarry</td>
+<td>6</td>
+</tr>
+<tr>
+<td>1760-1764</td>
+<td>Recycler</td>
+<td>5</td>
+</tr>
+<tr>
+<td>1780-1785</td>
+<td>StirlingEngine</td>
+<td>6</td>
+</tr>
+<tr>
+<td>1800-1803</td>
+<td>RocketMiner</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1820-1824</td>
+<td>LandingPad</td>
+<td>5</td>
+</tr>
+<tr>
+<td>1830</td>
+<td>APC</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>The whole band 1000-1830 is reserved by the mod author by device category. Many gaps (e.g. 1005-1009, 1021-1029, 1033-1099) are intentional headroom for future entries in the same category and should be treated as reserved, not free.</p>
+<p><strong>Evidence:</strong>
+- Entry point: <code>Plugin.Awake</code> at decompile line 86 prints <code>"[SLE] Stationeers Logic Extended v1.0.0 loading..."</code>, then calls <code>LogicTypeRegistry.Initialize()</code> (line 89).
+- Registration loop (decompile lines 3924-4153): each entry is a verbatim <code>Register(new LogicTypeInfo("Name", "DisplayName", "Description", VALUE, "datatype", "access", "category"))</code> call. The full 230-call list was extracted into <code>Patterns/Logic/README.md</code> by a regex over the decompile.
+- AllConstants append at the standard reflection pattern (lines 145-160): allocates a <code>List&lt;Constant&gt;</code>, iterates <code>LogicTypeRegistry.All</code>, constructs <code>new Constant(name, description, (double)value, true)</code> per entry, then writes back via reflection.
+- Mod-shipped source-of-truth: the Workshop download contains <code>Data/SLE_LogicTypes.json</code> (24 sample entries) and <code>Documentation/CustomLogicTypes.md</code> (63 entries in markdown tables). Neither shipped file is complete; the DLL is authoritative.
+- Workshop popularity: 378 subscribers, 2046 unique visitors, 48 favorites at 2026-05-18. Not in the all-time top 90 Stationeers Workshop mods by subscription.</p>
+<p><strong>Notes:</strong> Earlier monorepo conventions (root <code>CLAUDE.md</code>, prior version of <code>Patterns/Logic/README.md</code>) listed the SLE reservation as "1000-1830 ThunderDuck" without per-name detail. Both the upper bound (1830) and the author attribution are correct.</p>
+<hr />
+<h3 id="6-powertransmitterplus-workshop-3707677512-this-monorepos-own-registrar">6. PowerTransmitterPlus (Workshop 3707677512) -- this monorepo's own registrar<a class="headerlink" href="#6-powertransmitterplus-workshop-3707677512-this-monorepos-own-registrar" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p><strong>Verdict:</strong> REGISTRAR (in-repo reference implementation of the canonical pattern).</p>
+<p><strong>Mechanism:</strong> <code>ProgrammableChip.AllConstants</code> reflection-append plus <code>ProgrammableChip.InternalEnums</code> extension for syntax highlighting. Source lives in this repository at <code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/Ic10ConstantsPatcher.cs</code> (not decompiled; read directly).</p>
+<p><strong>Integers added:</strong> 6 entries in <strong>6571-6576</strong> (MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveAutoAimTarget, MicrowaveLinkedPartner). Catalogued in <code>Patterns/Logic/LogicTypeNumbers.cs</code> and tabled in <code>Patterns/Logic/README.md</code>. The sibling mod PowerGridPlus adds LogicPassthroughMode at 6577 via the same shared catalogue.</p>
+<p><strong>Evidence:</strong>
+- <code>Patterns/Logic/LogicTypeNumbers.cs</code> (verbatim, this repo): <code>public const ushort MicrowaveSourceDraw = 6571;</code> through <code>MicrowaveLinkedPartner = 6576</code> plus <code>LogicPassthroughMode = 6577</code>.
+- <code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/Ic10ConstantsPatcher.cs</code>: reflection-append pattern, <code>existing.CopyTo(merged, 0); ...; field.SetValue(null, merged);</code>. Also extends <code>_types</code> / <code>_names</code> of every <code>ScriptEnum&lt;LogicType&gt;</code> and <code>BasicEnum&lt;LogicType&gt;</code> entry in <code>ProgrammableChip.InternalEnums</code>.
+- Binary scan of the built <code>PowerTransmitterPlus.dll</code> (UTF-16-aware) shows <code>AllConstants</code>, <code>InternalEnums</code>, <code>EnumCollections</code>, <code>LogicType</code>, and <code>ScriptEnum</code> string literals in the user-strings heap; an ASCII-only filter sees only the type-name literals (<code>LogicType</code> from member names) and misses the registration markers.</p>
+<p><strong>Notes:</strong> Same pattern Stationeers Logic Extended uses, applied to a single mod with a small reservation band. Workshop popularity: 169 subscribers, 669 unique visitors, 27 favorites at 2026-05-18.</p>
+<hr />
+<h3 id="7-ic10-inspectordebugger-workshop-3508602436-the-numeric-cast-only-soft-pattern">7. IC10 Inspector/Debugger (Workshop 3508602436) -- the numeric-cast-only "soft" pattern<a class="headerlink" href="#7-ic10-inspectordebugger-workshop-3508602436-the-numeric-cast-only-soft-pattern" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p><strong>Verdict:</strong> CONSUMER for the strict definition (does not register), but <strong>uses non-vanilla LogicType integers</strong> via direct numeric casts that bypass every registry. Documented here because the values still land in save-game state, which makes them a soft reservation.</p>
+<p><strong>Mechanism:</strong> Private <code>const LogicType</code> declarations cast from <code>int</code> literals, accessed through the standard <code>Logicable</code> / <code>ISetable</code> interfaces. No call to <code>ProgrammableChip.AllConstants</code>, <code>ProgrammableChip.InternalEnums</code>, <code>EnumCollections.LogicTypes</code>, or any other registry. The integers are invisible to IC10 chip compilation, to tablet cycling, to the in-game enum dropdown, and to mods that iterate the registries.</p>
+<p><strong>Integers used:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Name (in mod source)</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>500</td>
+<td>LOGIC_TYPE / SETDEVICE_LOGIC_TYPE</td>
+<td>Primary debugger logic slot, also reused for "set device by reference id"</td>
+</tr>
+<tr>
+<td>501</td>
+<td>SETSELDEVICE_LOGIC_TYPE</td>
+<td>Selected-device command channel</td>
+</tr>
+<tr>
+<td>502</td>
+<td>COMMAND_LOGIC_TYPE</td>
+<td>Generic command channel</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Evidence:</strong>
+- Decompile line 1268: <code>private const LogicType LOGIC_TYPE = (LogicType)500;</code>
+- Decompile lines 2208-2212: <code>private const LogicType SETDEVICE_LOGIC_TYPE = (LogicType)500; private const LogicType SETSELDEVICE_LOGIC_TYPE = (LogicType)501; private const LogicType COMMAND_LOGIC_TYPE = (LogicType)502;</code>
+- Used in <code>LogicType = (LogicType)500</code> Setable assignments (lines 1391, 2405, 2437, 2469, 2803) and switch statements that branch on the three constants.</p>
+<p><strong>Notes:</strong> A future mod that registers 500/501/502 properly into the registries would not collide at the registry level (IC10 Inspector/Debugger never claimed those slots there), but would collide at the save-game level on installations where IC10 Inspector/Debugger has been active. Treat 500-502 as reserved when picking new SixFive7 values. Workshop popularity: 1529 subscribers, 4258 unique visitors, 127 favorites at 2026-05-18; in the all-time top 90 most-subscribed Stationeers Workshop mods.</p>
 <hr />
 <h2 id="summary-table">Summary Table<a class="headerlink" href="#summary-table" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
 <table>
 <thead>
 <tr>
 <th>Mod</th>
+<th>Workshop ID</th>
 <th>Rank</th>
-<th>Verdict</th>
+<th>LogicType verdict</th>
 <th>Mechanism</th>
-<th>Custom Values</th>
+<th>Integer range</th>
 <th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Dan's Colonists</td>
+<td>3639645231</td>
 <td>31</td>
 <td>CONSUMER</td>
 <td>None</td>
@@ -6569,47 +6956,84 @@
 </tr>
 <tr>
 <td>FPGA</td>
+<td>3457324551</td>
 <td>35</td>
-<td>REGISTRAR</td>
-<td>EnumCollections patching</td>
-<td>unknown</td>
-<td>Likely FPGA control types; values runtime-determined</td>
+<td>CONSUMER (Class 105 REGISTRAR)</td>
+<td><code>EnumCollections.SlotClasses</code> patching for Class enum, no LogicType code</td>
+<td>-- (Class 105 = "FPGAChip")</td>
+<td>Earlier mis-classified as LogicType registrar; corrected 2026-05-18 by fresh validator</td>
 </tr>
 <tr>
 <td>Keypad</td>
+<td>3478434324</td>
 <td>60</td>
 <td>CONSUMER</td>
 <td>None</td>
 <td>--</td>
-<td>Input device; uses (LogicType)3 &amp; (LogicType)12</td>
+<td>Input device; uses (LogicType)3 and (LogicType)12</td>
 </tr>
 <tr>
 <td>Improved Labeller</td>
+<td>3656548039</td>
 <td>61</td>
 <td>CONSUMER</td>
 <td>None</td>
 <td>--</td>
 <td>UI utility; all resets to (LogicType)0</td>
 </tr>
+<tr>
+<td>Stationeers Logic Extended</td>
+<td>3625190467</td>
+<td>(not top 90)</td>
+<td>REGISTRAR</td>
+<td><code>AllConstants</code> reflection-append + <code>Logicable.LogicTypes</code></td>
+<td>1000-1830 (230 names, 35 device categories)</td>
+<td>Largest third-party LogicType registrar in the ecosystem</td>
+</tr>
+<tr>
+<td>PowerTransmitterPlus</td>
+<td>3707677512</td>
+<td>(not top 90)</td>
+<td>REGISTRAR</td>
+<td><code>AllConstants</code> reflection-append + <code>InternalEnums</code> extension</td>
+<td>6571-6576 (6 names)</td>
+<td>This monorepo's own mod; reference implementation</td>
+</tr>
+<tr>
+<td>IC10 Inspector/Debugger</td>
+<td>3508602436</td>
+<td>28</td>
+<td>CONSUMER (soft 500-502)</td>
+<td>Private const numeric casts, no registry</td>
+<td>500-502 (3 slots, NOT registered)</td>
+<td>Save-game-level reservation; invisible to all registries</td>
+</tr>
 </tbody>
 </table>
 <hr />
 <h2 id="decompilation-sources">Decompilation Sources<a class="headerlink" href="#decompilation-sources" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
 <p>All decompiled from game version <strong>0.2.6228.27061</strong>, present under <code>.work/decomp/0.2.6228.27061/</code> when regenerated:</p>
 <ul>
 <li><code>Dan_s_Colonists_3639645231__DansColonists.decompiled.cs</code></li>
 <li><code>FPGA_3457324551__FPGAMod.decompiled.cs</code></li>
 <li><code>KeypadMod_3478434324__KeypadMod.decompiled.cs</code></li>
 <li><code>ImprovedLabeller_3656548039__ImprovedLabeller.decompiled.cs</code></li>
+<li><code>StationeersLogicExtended.decompiled.cs</code></li>
+<li><code>IC10_Inspector_Debugger_3508602436__IC10Inspector.decompiled.cs</code></li>
 </ul>
+<p>For PowerTransmitterPlus, the in-repo C# source under <code>Mods/PowerTransmitterPlus/</code> is the primary reference; the built DLL was binary-scanned to confirm registration markers are present in both ASCII and UTF-16 LE heaps. SLE additionally ships <code>Data/SLE_LogicTypes.json</code> (incomplete, 24 entries) and <code>Documentation/CustomLogicTypes.md</code> (incomplete, 63 entries); both are partial views of the 230 entries the DLL registers.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-14: Initial analysis of four mods (Dan's Colonists, FPGA, Keypad, Improved Labeller) against game version 0.2.6228.27061. Decompiles read from <code>.work/decomp/0.2.6228.27061/</code>. Per-finding section stamps applied.</li>
 <li>2026-05-18: Frontmatter migrated to Research/CLAUDE.md schema (replaced <code>status</code>+<code>category</code> with <code>type: Patterns</code>, added <code>verified_at</code> and <code>sources[]</code>, normalised tags to canonical vocabulary). Page relocated from <code>Research/</code> root to <code>Research/Patterns/</code> so it nests under the Patterns category in nav. Body developer-specific paths stripped per repo-root style rule. No factual content changed.</li>
+<li>2026-05-18: Conflict on "does FPGA register a new LogicType integer". Previous claim: FPGA was REGISTRAR via EnumCollections patching, integers unknown. New finding from a 124-mod scan: FPGA's only <code>ModUtils.PatchEnumCollection</code> call site passes <code>&lt;Class, ushort&gt;(EnumCollections.SlotClasses, (Class)105, "FPGAChip")</code>, not LogicType; no other LogicType registration markers present. Fresh validator verdict (game version 0.2.6228.27061): <strong>B is correct, FPGA is a CONSUMER for LogicType and a REGISTRAR for the adjacent Class enum</strong>. Result: FPGA section rewritten with the corrected verdict and the verbatim <code>Class 105 = "FPGAChip"</code> registration evidence. Open question about FPGA's "exact LogicType integer values" closed (no such values exist).</li>
+<li>2026-05-18: Page extended additively (no contradictions of existing verified content) with three new findings from the same 124-mod scan: Stationeers Logic Extended (230 registrations, 1000-1830), PowerTransmitterPlus (6 registrations, 6571-6576, in-repo reference implementation), and IC10 Inspector/Debugger (numeric-cast-only soft reservation at 500-502). A new "Registration mechanisms" section was added near the top, drawn from <code>Research/WORKFLOW.md</code> Rule 3 Example 2 and verified against the SLE and PowerTransmitterPlus implementations.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>FPGA mod's exact custom LogicType integer values are not determinable from the decompile. The <code>PatchEnumCollection</code> utility is generic and the call sites that target <code>LogicType</code> are not present in the decompiled output (likely runtime-computed from config or invoked dynamically). Runtime introspection of the patched <code>EnumCollection&lt;LogicType&gt;</code> via InspectorPlus (request: types=[LogicTypeCollection or wherever the patched collection lives], fields=[Values, Names, ValuesAsInts]) after FPGA mod loads would resolve the registered values.</li>
+<li>No outstanding LogicType-registration unknowns in the seven mods listed above. The 124-mod scan (top 90 most-subscribed Workshop mods plus 34 additional developer-subscribed mods) found 2 confirmed <code>LogicType</code> registrars (SLE, PowerTransmitterPlus), 1 numeric-cast-only mod (IC10 Inspector/Debugger), and 1 adjacent-enum registrar (FPGA's Class 105). Mods outside that 124-mod pool are not covered by the scan; periodic re-scan (or directed search for <code>AllConstants</code> / <code>InternalEnums</code> / <code>EnumCollections.LogicTypes</code> / <code>ScriptEnum&lt;LogicType&gt;</code> markers in newly-released mods) would extend the coverage.</li>
 </ul>
 
 
