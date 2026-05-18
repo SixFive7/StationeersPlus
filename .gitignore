@@ -69,6 +69,9 @@ DEV.md
 playwright/profile/
 playwright/output/
 
+## Web publish staging (intermediate dir assembled by tools/publish-web/build.ps1; Web/site/ IS tracked)
+Web/_staging/
+
 ## Dedicated server tree (see DedicatedServer/CLAUDE.md)
 ## Everything inside DedicatedServer/ is local-only except CLAUDE.md and the launcher script.
 /DedicatedServer/*

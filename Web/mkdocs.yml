@@ -1,0 +1,101 @@
+site_name: StationeersPlus
+site_url: https://stationeers.huisman.io/
+site_description: Tools and research for Stationeers modding, sourced from the StationeersPlus monorepo.
+site_author: SixFive7
+
+repo_url: https://github.com/SixFive7/StationeersPlus
+repo_name: SixFive7/StationeersPlus
+edit_uri: ""
+
+docs_dir: _staging
+site_dir: site
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tooltips
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 4
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.keys
+  - pymdownx.smartsymbols
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search:
+      lang: en
+  - awesome-pages
+  - tags
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/SixFive7/StationeersPlus
+    - icon: fontawesome/brands/steam
+      link: https://steamcommunity.com/profiles/76561198081578712/myworkshopfiles/
+  generator: false
+
+copyright: >
+  Apache 2.0. Sources at
+  <a href="https://github.com/SixFive7/StationeersPlus">github.com/SixFive7/StationeersPlus</a>.

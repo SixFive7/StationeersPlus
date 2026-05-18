@@ -1,0 +1,42 @@
+/* Research metadata aside, rendered above the H1 on Research pages */
+.research-meta {
+  margin: 0 0 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--md-primary-fg-color);
+  background: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.research-meta p {
+  margin: 0.25rem 0;
+}
+
+.research-meta details {
+  margin-top: 0.5rem;
+}
+
+.research-meta details summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.research-meta details ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.research-meta details li {
+  margin: 0.15rem 0;
+  word-break: break-word;
+}
+
+.research-meta code {
+  font-size: 0.8rem;
+}
+
+/* Landing-page card grid */
+.md-typeset .grid.cards {
+  margin-top: 2rem;
+}

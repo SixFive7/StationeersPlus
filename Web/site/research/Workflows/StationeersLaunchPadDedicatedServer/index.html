@@ -1,0 +1,7085 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Tools and research for Stationeers modding, sourced from the StationeersPlus monorepo.">
+      
+      
+        <meta name="author" content="SixFive7">
+      
+      
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Workflows/StationeersLaunchPadDedicatedServer/">
+      
+      
+        <link rel="prev" href="../SPADumpKeys/">
+      
+      
+        <link rel="next" href="../TTSDeadEnd/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>StationeersLaunchPad on a Dedicated Server - StationeersPlus</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#stationeerslaunchpad-on-a-dedicated-server" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="StationeersPlus" class="md-header__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            StationeersPlus
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              StationeersLaunchPad on a Dedicated Server
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  StationeersPlus
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tools/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tools
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Research
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="StationeersPlus" class="md-nav__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    StationeersPlus
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersPlus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../tools/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tools/phase-diagram/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameClasses
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameClasses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/AdvancedTablet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AdvancedTablet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/AllowedRotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AllowedRotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Battery (station-mounted)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CableNetwork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CableNetwork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CameraController/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraController
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatCanvas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatCanvas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatStatusMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatStatusMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ColorSwatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ColorSwatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CombustionDeepMiner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CombustionDeepMiner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ConfigCartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConfigCartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Constructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CreateStructureInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CreateStructureInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CursorManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CursorManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CustomScrollPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CustomScrollPanel.ScrollPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Device/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/GameManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Grid3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/HelmetBattery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Helmet Battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/HelpLinkHandler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HelpLinkHandler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Human/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ILifeSuspender/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILifeSuspender
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ISprayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISprayer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/InventoryManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/InventoryWindow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryWindow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ItemKitLinearRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ItemKitLinearRail (multi-constructor kit for rail pieces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LanderCapsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LogicTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MultiConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MultiMergeConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiMergeConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/NetworkChannel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/OnServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OnServer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PipeIgniter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PipeIgniter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PowerTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTick
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PowerTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RoboticArmDock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmDock and dock subclasses (Larre dock IC10 / slot surface)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RoboticArmRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Room/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Room
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RotatableBehaviour/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RotatableBehaviour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SayCommand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SayCommand
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SensorLenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SensorLenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Silo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Silo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SolarPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SolarPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SprayCan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayCan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SprayGun/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayGun
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Stationpedia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/StationpediaPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Thing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ThingRenderer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingRenderer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Transformer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transformer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/UniversalPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UniversalPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Wall/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wall
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/WeatherEvent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WeatherEvent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/WirelessPower/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WirelessPower
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameSystems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameSystems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/CameraFilterPack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraFilterPack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ChatBroadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatBroadcast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ChemistryGasPhaseData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chemistry gas phase data (freezing points, max-liquid temperatures, Antoine-style coefficients)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ConveyorBeltCutContent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConveyorBeltCutContent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DamageState/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DamageState
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DedicatedServerSettings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dedicated Server Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DevicePowerDraw/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device power draw (which devices exceed the 5 kW normal-cable rating)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DirectConnect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct-Connect Server Join Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Explosions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explosions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10DeviceAddressing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 device addressing (pin, alias, ReferenceId)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10ExecutionTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 Execution Tick Rate and Yield Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10SyntaxHighlighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SyntaxHighlighting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/KeyBinding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Key Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LightSources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Light Sources (built-in light emitters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Localization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Localization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LogicType/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LogicValueFormatting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicValueFormatting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModDeduplication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModDeduplication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModLoadSequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModLoadSequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/NetworkRoles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkRoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/NetworkUpdateFlags/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkUpdateFlags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Occlusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Occlusion (distance-based renderer culling)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PlacementOrientation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PowerTickThreading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTickThreading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RecipeDataLoading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RecipeData loading and GameData XML overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RenderingPipelineAndGlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendering Pipeline and Glow Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RepairMechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepairMechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RespawnFlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RespawnFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveDataRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveDataRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveZipExtension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Side-car file persistence in save ZIPs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ScrollInputHandling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scroll Input Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaAscendedInternals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaAscendedInternals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaMarkup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaMarkup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaPageRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPageRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaSearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaSearch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StructurePlacementValidation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure placement validation (CanConstruct / CanReplace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StunStateMachine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/TerrainOctree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainOctree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ThirdPartyModIdentities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThirdPartyModIdentities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/UnregisteredSaveDataBehavior/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnregisteredSaveDataBehavior
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/WorldStateAPIs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldStateAPIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AboutXmlWorkshopHandleParse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AboutXmlWorkshopHandleParse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AccessToolsRecipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AccessTools recipes for private field access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncEnumerator472/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manual async-enumerator drain on .NET Framework 4.7.2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncHarmonyTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async Harmony trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BestEffortIntegration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best-effort integration with optional dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BinaryStreamSafety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ClientDisconnectedPrefix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ClientDisconnected cleanup Prefix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConditionalWeakTableCache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConditionalWeakTable per-instance cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConflictDetection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod conflict detection via assembly scan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CursorAdjacencyLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cursor-time adjacency lookup (find neighbour cells from a placement ghost)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CustomLogicValueInjection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom logic-value injection on a vanilla device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/FileSystemWatcherMainThread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileSystemWatcher main-thread boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/Float16Quantization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Float16 quantization on network serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyFieldOrProperty/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony field-or-property reflection tolerance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyInheritedMethods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony inherited-method patching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchTypes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPrefixReturnBool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony Prefix must return bool to block the original
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ILRepackPerModCopy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILRepackPerModCopy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InGameConsoleOutput/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InGameConsoleOutput
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InventoryAutoEquip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inventory Auto-Equip APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/LogicableInitializeAppend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending Logicable's initialized LogicType arrays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/MainThreadDispatcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MainThreadDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ModLogicTypeRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod LogicType Registration Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PeriodicProcessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Periodic processing options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PooledSpanEnumeration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PooledSpan enumeration with trailing-null filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PrefabCloning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prefab cloning (Mirrored Devices template)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ProtectedMethodPublicAPIBypass/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replace a protected method via public-API composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveDataIsinstInheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom save-data type must inherit vanilla so isinst still matches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveLoadOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveLoadOrdering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ServerAuthoritativeSimulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server-authoritative simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SinglePlayerNetworkRole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single-player NetworkRole trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotInsertionBlock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotInsertionBlock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotTypeIconLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotTypeIcon lookup injection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPadSettingsGrouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersModdingGotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers modding gotchas (catch-all)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersNamespaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers namespace pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SubcomponentGrafting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sub-component grafting from a vanilla prefab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityFakeNull/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unity fake-null
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityMaterialPerInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnityMaterialPerInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/WorldSpacePreviewRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldSpacePreviewRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocols
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocols
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/AtmosphereSaveData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AtmosphereSaveData (pipe networks)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ConstructionCreationMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstructionCreationMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/EquipmentPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EquipmentPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/GameMessageFactory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameMessageFactory (vanilla network messages)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/LaunchPadBoosterNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPadBooster Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/NetworkPuristPlusCableAlignment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkPuristPlus Cable Alignment and Rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PlayerConnectedThingFindTiming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlayerConnected message timing vs world-load on joining clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PowerTransmitterPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SPADeviceDatabase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia Ascended DeviceDatabase / descriptions.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SaveFileStructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save file ZIP structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SprayPaintPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayPaintPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainChunkChecksums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainChunkChecksums
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainDat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    terrain.dat binary format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ThingColorMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingColorMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/WorldXml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    world.xml
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../BCSIImplementationRoadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BCSI v1 Implementation Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CameraEffectsRuntime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera Effects at Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../HealAllDamagedThings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heal All Damaged Things
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../InspectorPlusUsage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InspectorPlus Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../KnockPlayerUnconscious/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knock Player Unconscious
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LaunchPadNativeDllTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPad native-DLL trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ModProjectSetup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod Project Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ResetTerrainLive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Live (Multiplayer)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ResetTerrainOffline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Offline (terrain_reset.py)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SPADumpKeys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    /spda_dumpkeys Console Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPad on a Dedicated Server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPad on a Dedicated Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server-side-load-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-side load orchestration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-only-platform-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-only platform overrides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-modconfigxml-lives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where modconfig.xml lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-local-mods-are-scanned-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where local mods are scanned from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-modconfigxml-entries-match-discovered-mods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How modconfig.xml entries match discovered mods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-export-mod-package-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Export Mod Package mechanism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-stationeerslaunchpad-server-side-release-zip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The StationeersLaunchPad server-side release zip
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-a-headless-client-is-not-a-supported-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a "headless client" is not a supported mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-a-verbatim-copy-of-the-clients-modconfigxml-does-not-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a verbatim copy of the client's modconfig.xml does NOT work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-official-procedure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The official procedure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The official procedure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#auto-add-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-add behaviour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-a-export-mod-package-from-the-client-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path A: Export Mod Package from the client UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-b-replicate-the-export-logic-no-ui-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path B: Replicate the export logic, no UI required
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-clients-bepinexconfigcfg-mirror-is-not-sufficient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why the client's BepInEx/config/*.cfg mirror is not sufficient
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applyconfig-matching-clean-state-matches-relative-paths-cleanly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ApplyConfig matching: clean state matches relative paths cleanly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#port-binding-behaviour-with-a-running-client-on-the-same-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Port-binding behaviour with a running client on the same machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rgimguidll-is-not-required-on-the-dedicated-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RG.ImGui.dll is not required on the dedicated server
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TTSDeadEnd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TTS Dead End
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TimeSkipWorldManipulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time-Skip World Manipulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TriggerLanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger Lander Capsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server-side-load-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-side load orchestration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-only-platform-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-only platform overrides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-modconfigxml-lives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where modconfig.xml lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-local-mods-are-scanned-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where local mods are scanned from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-modconfigxml-entries-match-discovered-mods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How modconfig.xml entries match discovered mods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-export-mod-package-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Export Mod Package mechanism
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-stationeerslaunchpad-server-side-release-zip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The StationeersLaunchPad server-side release zip
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-a-headless-client-is-not-a-supported-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a "headless client" is not a supported mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-a-verbatim-copy-of-the-clients-modconfigxml-does-not-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a verbatim copy of the client's modconfig.xml does NOT work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-official-procedure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The official procedure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The official procedure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#auto-add-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-add behaviour
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-a-export-mod-package-from-the-client-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path A: Export Mod Package from the client UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-b-replicate-the-export-logic-no-ui-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path B: Replicate the export logic, no UI required
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-clients-bepinexconfigcfg-mirror-is-not-sufficient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why the client's BepInEx/config/*.cfg mirror is not sufficient
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applyconfig-matching-clean-state-matches-relative-paths-cleanly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ApplyConfig matching: clean state matches relative paths cleanly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#port-binding-behaviour-with-a-running-client-on-the-same-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Port-binding behaviour with a running client on the same machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rgimguidll-is-not-required-on-the-dedicated-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RG.ImGui.dll is not required on the dedicated server
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    StationeersPlus
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Research
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../BCSIImplementationRoadmap/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Workflows
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+    <aside class="research-meta" markdown>
+      
+        <p class="research-meta-type">
+          <strong>Category:</strong> Workflows
+        </p>
+      
+      
+        <p class="research-meta-verified">
+          <strong>Verified</strong>
+           in game version <code>0.2.6228.27061</code>
+           on 2026-04-29.
+        </p>
+      
+      
+      
+        <details class="research-meta-sources">
+          <summary><strong>Sources</strong> (3)</summary>
+          <ul>
+            
+              <li><code>DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'WorkshopMenu (decompile lines 38373-38491)'}</code></li>
+            
+              <li><code>StationeersLaunchPad GitHub releases (server-side asset)</code></li>
+            
+          </ul>
+        </details>
+      
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (3)</summary>
+          <ul>
+            
+              <li><code>GameSystems/DedicatedServerSettings.md</code></li>
+            
+              <li><code>GameSystems/ModLoadSequence.md</code></li>
+            
+              <li><code>Patterns/ServerAuthoritativeSimulation.md</code></li>
+            
+          </ul>
+        </details>
+      
+    </aside>
+  
+  
+                  
+
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">launchpad</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">network</span>
+      
+    
+  </nav>
+
+
+
+<h1 id="stationeerslaunchpad-on-a-dedicated-server">StationeersLaunchPad on a Dedicated Server<a class="headerlink" href="#stationeerslaunchpad-on-a-dedicated-server" title="Permanent link">&para;</a></h1>
+<p>How StationeersLaunchPad discovers and loads mods on a Stationeers Dedicated Server, why a verbatim copy of the client's <code>modconfig.xml</code> does NOT work, and the exact procedure to mirror a client's mod set onto a dedicated server without touching the client's filesystem.</p>
+<p>The dedicated server build of Stationeers is the same Unity assembly as the client, run with <code>Application.platform == WindowsServer</code> (or <code>-batchmode</code>). StationeersLaunchPad detects the server build via <code>Platform.CheckIsServer()</code> and switches to <code>ServerPlatform</code>. The mod-loading mechanism is the same as on the client (<code>ModSource.ListAll</code> -&gt; <code>ModConfigUtil.LoadConfig</code> -&gt; <code>ModList.ApplyConfig</code> -&gt; <code>StageLoading</code>), but two server-only configuration values change the behaviour materially.</p>
+<h2 id="server-side-load-orchestration">Server-side load orchestration<a class="headerlink" href="#server-side-load-orchestration" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p><code>LaunchPadConfig.Run()</code> (StationeersLaunchPad.decompiled.cs line 3190) is called from <code>LaunchPadPlugin.Awake</code> -&gt; <code>FinishAwake</code> -&gt; <code>LaunchPadConfig.Run</code> (lines 3928-3970). It runs the full stage pipeline on every build, including dedicated server:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">()</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Yield</span><span class="p">();</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="n">LoadState</span><span class="w"> </span><span class="n">initState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Platform</span><span class="p">.</span><span class="n">InitLoadState</span><span class="p">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">SteamDisabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">initState</span><span class="p">.</span><span class="n">SteamDisabled</span><span class="p">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="n">AutoLoad</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="n">initState</span><span class="p">.</span><span class="n">AutoLoad</span><span class="p">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="n">AutoSort</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Configs</span><span class="p">.</span><span class="n">AutoSortOnStart</span><span class="p">.</span><span class="n">Value</span><span class="p">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="n">CustomSavePathPatches</span><span class="p">.</span><span class="n">SavePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Configs</span><span class="p">.</span><span class="n">SavePathOnStart</span><span class="p">.</span><span class="n">Value</span><span class="p">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">SavePath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LaunchPadPaths</span><span class="p">.</span><span class="n">SavePath</span><span class="p">;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nf">StageInitializing</span><span class="p">();</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nf">StageUpdating</span><span class="p">();</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">firstLoad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="k">do</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nf">StageSearching</span><span class="p">(</span><span class="n">firstLoad</span><span class="p">);</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="n">firstLoad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nf">StageConfiguring</span><span class="p">();</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">Stage</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LoadStage</span><span class="p">.</span><span class="n">Searching</span><span class="p">);</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nf">StageLoading</span><span class="p">();</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nf">StageFinal</span><span class="p">();</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="n">StartGame</span><span class="p">();</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">StationeersLaunchPadCommand</span><span class="p">.</span><span class="n">MoveToStage</span><span class="p">(</span><span class="n">CommandStage</span><span class="p">.</span><span class="n">GameRunning</span><span class="p">);</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The server log proves all stages run, in order: <code>Loading Mod Repos</code>, <code>Loading local repo cache</code>, <code>Fetching repo updates</code>, <code>Listing Mods</code>, <code>Loading Mod Config</code>, <code>Mod Config Initialized</code>, <code>Assemblies loading...</code>, <code>Asset loading...</code>, <code>Loading entrypoints...</code>, <code>Took 0:00.005 to load mods.</code>. There is NO server-only mod-loading skip.</p>
+<h2 id="server-only-platform-overrides">Server-only platform overrides<a class="headerlink" href="#server-only-platform-overrides" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p><code>ServerPlatform</code> (StationeersLaunchPad.decompiled.cs line 4647) overrides:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">LoadState</span><span class="w"> </span><span class="n">PlatformInitLoadState</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">LoadState</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">AutoLoad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w">        </span><span class="c1">// server progresses through stages without UI input</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">SteamDisabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="w">    </span><span class="c1">// server skips all Steam API calls</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">};</span>
+</span></code></pre></div>
+<p><code>SteamDisabled = true</code> is the central fact. It is consumed by <code>ModSource.ListAll(state)</code> (line 10670) and propagated to each ModSource. <code>WorkshopModSource.ListMods</code> (line 10861) short-circuits to an empty list when Steam is disabled. The server therefore discovers ZERO Workshop-source mods.</p>
+<p><code>ServerPlatform.PlatformWait</code> (line 4709) is also distinct: any non-<code>Auto</code> wait logs <code>"An error occurred during loading. Exiting"</code> and calls <code>Application.Quit()</code>. The server is unattended; it has no UI to recover from a hang.</p>
+<h2 id="where-modconfigxml-lives">Where modconfig.xml lives<a class="headerlink" href="#where-modconfigxml-lives" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p><code>WorkshopMenu.ConfigPath</code> (Assembly-CSharp.decompiled.cs line 38412):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">ConfigPath</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">StationSaveUtils</span><span class="p">.</span><span class="n">DefaultPath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;modconfig.xml&quot;</span><span class="p">);</span>
+</span></code></pre></div>
+<p><code>StationSaveUtils.DefaultPath</code> in batch mode is the directory containing the executable, NOT the user's <code>Documents\My Games\Stationeers</code>. So on a dedicated server the file is read from and written to <code>&lt;install&gt;/modconfig.xml</code> (next to <code>rocketstation_DedicatedServer.exe</code>). It is NOT consulted at <code>&lt;SavePath&gt;/modconfig.xml</code>, and it is NOT consulted at <code>&lt;SavePath&gt;/setting.xml</code>-style paths even though many other Stationeers files are.</p>
+<p><code>LaunchPadPaths.ConfigPath</code> (line 3884) delegates to <code>WorkshopMenu.ConfigPath</code>, so StationeersLaunchPad and the game agree on the location.</p>
+<h2 id="where-local-mods-are-scanned-from">Where local mods are scanned from<a class="headerlink" href="#where-local-mods-are-scanned-from" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p><code>LocalModSource.ListMods</code> (StationeersLaunchPad.decompiled.cs lines 10422-10456):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="o">&lt;</span><span class="n">localDir</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WorkshopUtils</span><span class="p">.</span><span class="n">GetLocalDirInfo</span><span class="p">(</span><span class="n">WorkshopType</span><span class="p">.</span><span class="n">Mod</span><span class="p">);</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="o">&lt;</span><span class="n">fileName</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WorkshopUtils</span><span class="p">.</span><span class="n">GetLocalFileName</span><span class="p">(</span><span class="n">WorkshopType</span><span class="p">.</span><span class="n">Mod</span><span class="p">);</span><span class="w">  </span><span class="c1">// &quot;About.xml&quot;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="p">...</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="o">&lt;&gt;</span><span class="n">s__5</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">localDir</span><span class="o">&gt;</span><span class="p">.</span><span class="n">GetDirectories</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">SearchOption</span><span class="p">.</span><span class="n">AllDirectories</span><span class="p">);</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="o">&lt;</span><span class="n">dir</span><span class="o">&gt;</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="n">s__5</span><span class="p">:</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="o">&lt;&gt;</span><span class="n">s__8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">dir</span><span class="o">&gt;</span><span class="p">.</span><span class="n">GetFiles</span><span class="p">(</span><span class="o">&lt;</span><span class="n">fileName</span><span class="o">&gt;</span><span class="p">);</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="o">&lt;</span><span class="n">file</span><span class="o">&gt;</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="n">s__8</span><span class="p">:</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="o">&lt;</span><span class="n">modDir</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">dir</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Parent</span><span class="p">;</span><span class="w">        </span><span class="c1">// mod root is the parent of the dir holding About.xml</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="o">&lt;</span><span class="n">about</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XmlSerialization</span><span class="p">.</span><span class="n">Deserialize</span><span class="o">&lt;</span><span class="n">ModAboutEx</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&lt;</span><span class="n">file</span><span class="o">&gt;</span><span class="p">.</span><span class="n">FullName</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ModMetadata&quot;</span><span class="p">);</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="o">&lt;</span><span class="n">mods</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">LocalModDefinition</span><span class="p">(</span><span class="o">&lt;</span><span class="n">modDir</span><span class="o">&gt;</span><span class="p">.</span><span class="n">FullName</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="n">about</span><span class="o">&gt;</span><span class="p">));</span>
+</span></code></pre></div>
+<p>The scan recurses every directory under <code>&lt;localDir&gt;</code> and collects each <code>*/About/About.xml</code> it finds. The mod's directory is the parent of the <code>About/</code> folder. So a mod laid out at <code>&lt;localDir&gt;/MyMod/About/About.xml</code> is registered as a Local mod with <code>DirectoryPath = &lt;localDir&gt;/MyMod</code>.</p>
+<p><code>WorkshopUtils.GetLocalDirInfo(WorkshopType.Mod)</code> resolves to <code>&lt;SavePath&gt;/mods/</code>, NOT <code>&lt;DefaultPath&gt;/mods/</code>. This was confirmed empirically at game version 0.2.6228.27061: a server with <code>-settings SavePath &lt;DataDir&gt;</code> produces <code>enabled mod not found at &lt;DataDir&gt;/mods/&lt;modname&gt;</code> log lines when modconfig entries cannot be matched. The decompiled <code>GetLocalDirInfo</code> in Assembly-CSharp (line 264071) uses <code>StationSaveUtils.GetSavePath()</code>, which honors <code>Settings.CurrentData.SavePath</code> and only falls back to <code>DefaultPath</code> when SavePath is empty.</p>
+<p>If the directory does not exist, <code>LocalModSource.ListMods</code> logs <code>"local mod folder not found"</code> and returns an empty list.</p>
+<p><strong>Important asymmetry to remember</strong>: <code>modconfig.xml</code> is read from <code>&lt;DefaultPath&gt;/modconfig.xml</code> (next to the exe, NOT influenced by SavePath), while the local mods folder is at <code>&lt;SavePath&gt;/mods/</code> (influenced by SavePath). When the launcher passes <code>-settings SavePath &lt;DataDir&gt;</code> to redirect saves, the local mods folder moves with SavePath, but <code>modconfig.xml</code> stays next to the exe.</p>
+<h2 id="how-modconfigxml-entries-match-discovered-mods">How modconfig.xml entries match discovered mods<a class="headerlink" href="#how-modconfigxml-entries-match-discovered-mods" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p><code>ModList.ApplyConfig(ModConfig config)</code> (StationeersLaunchPad.decompiled.cs line 13416) is the matcher:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ApplyConfig</span><span class="p">(</span><span class="n">ModConfig</span><span class="w"> </span><span class="n">config</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">Dictionary</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="n">ModInfo</span><span class="o">&gt;</span><span class="w"> </span><span class="n">dictionary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ModInfo</span><span class="w"> </span><span class="n">mod</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">mods</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="n">dictionary</span><span class="p">[</span><span class="n">NormalizePath</span><span class="p">(</span><span class="n">mod</span><span class="p">.</span><span class="n">DirectoryPath</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mod</span><span class="p">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">fullName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WorkshopUtils</span><span class="p">.</span><span class="n">GetLocalDirInfo</span><span class="p">(</span><span class="n">WorkshopType</span><span class="p">.</span><span class="n">Mod</span><span class="p">).</span><span class="n">FullName</span><span class="p">;</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ModData</span><span class="w"> </span><span class="n">mod2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">Mods</span><span class="p">)</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">)</span><span class="n">mod2</span><span class="p">.</span><span class="n">DirectoryPath</span><span class="p">;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">Path</span><span class="p">.</span><span class="n">IsPathRooted</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">            </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="n">fullName</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">);</span><span class="w">          </span><span class="c1">// relative -&gt; resolved against &lt;localDir&gt;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">text2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NormalizePath</span><span class="p">(</span><span class="n">text</span><span class="p">);</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">dictionary</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">text2</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">value2</span><span class="p">))</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">            </span><span class="n">value2</span><span class="p">.</span><span class="n">Enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mod2</span><span class="p">.</span><span class="n">Enabled</span><span class="p">;</span><span class="w">                </span><span class="c1">// matched: enable</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">mod2</span><span class="p">.</span><span class="n">Enabled</span><span class="p">)</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">            </span><span class="n">Logger</span><span class="p">.</span><span class="n">Global</span><span class="p">.</span><span class="n">LogWarning</span><span class="p">(</span><span class="s">&quot;enabled mod not found at &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>&lt;Local&gt;&lt;Path Value="&lt;X&gt;" /&gt;&lt;/Local&gt;</code> resolves to <code>&lt;localDir&gt;/&lt;X&gt;</code> (or stays absolute if already rooted) and is matched against the dictionary of discovered mods. A <code>&lt;Workshop&gt;</code> entry only matches a <code>WorkshopModDefinition</code> produced by <code>WorkshopModSource.ListMods</code>, which on a server is always empty.</p>
+<h2 id="the-export-mod-package-mechanism">The Export Mod Package mechanism<a class="headerlink" href="#the-export-mod-package-mechanism" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>The <code>Export Mod Package</code> action in the StationeersLaunchPad UI (StationeersLaunchPad.decompiled.cs lines 3370-3429) writes a zip whose contents are exactly what a dedicated server needs. The relevant slice:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">ModConfig</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ModConfig</span><span class="p">();</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ModInfo</span><span class="w"> </span><span class="n">enabledMod</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">modList</span><span class="p">.</span><span class="n">EnabledMods</span><span class="p">)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="p">{</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">enabledMod</span><span class="p">.</span><span class="n">Source</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ModSourceType</span><span class="p">.</span><span class="n">Core</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="n">val</span><span class="p">.</span><span class="n">Mods</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">CoreModData</span><span class="p">());</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">$&quot;{enabledMod.Source}_{enabledMod.DirectoryName}&quot;</span><span class="p">;</span><span class="w">  </span><span class="c1">// e.g. &quot;Workshop_3702940349&quot;</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">directoryPath</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">enabledMod</span><span class="p">.</span><span class="n">DirectoryPath</span><span class="p">;</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Directory</span><span class="p">.</span><span class="n">GetFiles</span><span class="p">(</span><span class="n">directoryPath</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;*&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">SearchOption</span><span class="p">.</span><span class="n">AllDirectories</span><span class="p">);</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">text2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">files</span><span class="p">)</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">entryName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Path</span><span class="p">.</span><span class="n">Combine</span><span class="p">(</span><span class="s">&quot;mods&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">,</span><span class="w"> </span><span class="n">text2</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="n">directoryPath</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)).</span><span class="n">Replace</span><span class="p">(</span><span class="sc">&#39;\\&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;/&#39;</span><span class="p">);</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">        </span><span class="n">zipArchive</span><span class="p">.</span><span class="n">CreateEntryFromFile</span><span class="p">(</span><span class="n">text2</span><span class="p">,</span><span class="w"> </span><span class="n">entryName</span><span class="p">);</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="n">val</span><span class="p">.</span><span class="n">Mods</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">LocalModData</span><span class="p">(</span><span class="n">text</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">));</span><span class="w">   </span><span class="c1">// every entry becomes a Local with relative Path</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">}</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="n">ZipArchiveEntry</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">zipArchive</span><span class="p">.</span><span class="n">CreateEntry</span><span class="p">(</span><span class="s">&quot;modconfig.xml&quot;</span><span class="p">);</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="k">new</span><span class="w"> </span><span class="nf">XmlSerializer</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">ModConfig</span><span class="p">)).</span><span class="n">Serialize</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">Open</span><span class="p">(),</span><span class="w"> </span><span class="n">val</span><span class="p">);</span>
+</span></code></pre></div>
+<p>Three rules emerge:</p>
+<ol>
+<li>Every enabled mod, regardless of original Source, is rewritten as a <code>&lt;Local&gt;</code> entry. Workshop entries lose their <code>&lt;WorkshopId&gt;</code> and become Local; the original Workshop subscription is irrelevant on the server.</li>
+<li>The new <code>Path</code> value is the bare name <code>&lt;Source&gt;_&lt;DirectoryName&gt;</code> (no <code>mods/</code> prefix, no leading slash). <code>ApplyConfig</code> resolves it against <code>&lt;localDir&gt;</code> = <code>&lt;install&gt;/mods/</code>.</li>
+<li>The mod's full directory contents (recursively) are copied into the zip under <code>mods/&lt;Source&gt;_&lt;DirectoryName&gt;/...</code>, preserving the relative subtree (so <code>About/About.xml</code> stays at <code>mods/&lt;Source&gt;_&lt;DirectoryName&gt;/About/About.xml</code>).</li>
+</ol>
+<p>When the developer extracts the zip into the server's install directory, the result is <code>&lt;install&gt;/mods/&lt;Source&gt;_&lt;DirectoryName&gt;/About/About.xml</code> for every mod, plus a baked <code>&lt;install&gt;/modconfig.xml</code>. StationeersLaunchPad's <code>LocalModSource</code> discovers each, <code>ApplyConfig</code> matches each, and StationeersLaunchPad loads them all without ever calling Steam.</p>
+<h2 id="the-stationeerslaunchpad-server-side-release-zip">The StationeersLaunchPad server-side release zip<a class="headerlink" href="#the-stationeerslaunchpad-server-side-release-zip" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>StationeersLaunchPad's GitHub releases ship two assets per version:</p>
+<ul>
+<li><code>StationeersLaunchPad-client-v&lt;version&gt;.zip</code></li>
+<li><code>StationeersLaunchPad-server-v&lt;version&gt;.zip</code></li>
+</ul>
+<p>For v0.3.1 the server zip is <code>389,095</code> bytes and contains:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>StationeersLaunchPad/LaunchPadBooster.dll          97792
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>StationeersLaunchPad/RG.ImGui.dll                 384512
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>StationeersLaunchPad/StationeersLaunchPad.dll     314368
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>StationeersLaunchPad/StationeersMods.Interface.dll 17408
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>StationeersLaunchPad/StationeersMods.Shared.dll     8704
+</span></code></pre></div>
+<p>The four shared DLLs are byte-identical (sha256-confirmed) to the client install's <code>BepInEx/plugins/StationeersLaunchPad/*</code>. The single difference is <code>RG.ImGui.dll</code> (the ImGui rendering library). It is bundled with the server zip and is not present on a client install (the client uses Unity's UI). StationeersLaunchPad's debug/log windows on the server depend on RG.ImGui being on the loader path; without it, the StationeersLaunchPad-side console UI disable-falls-back silently but the rest of the loader still runs.</p>
+<p>Practically: mirroring the client's <code>BepInEx/plugins/StationeersLaunchPad/</code> to a dedicated server is sufficient for StationeersLaunchPad to bootstrap and load mods, but it is missing <code>RG.ImGui.dll</code>. Add the file from the server zip alongside the other DLLs to keep the server identical to a fresh server-zip install.</p>
+<h2 id="why-a-headless-client-is-not-a-supported-mode">Why a "headless client" is not a supported mode<a class="headerlink" href="#why-a-headless-client-is-not-a-supported-mode" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+
+<p>A natural follow-up question for automated multiplayer testing: can we run a second Stationeers instance headlessly that acts as a <em>client</em> (connects out to a server, executes scripted actions) without a human at a UI? The answer hinges on <code>Platform.CheckIsServer()</code> (StationeersLaunchPad.decompiled.cs line 4433):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CheckIsServer</span><span class="p">()</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">isBatchMode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Application</span><span class="p">.</span><span class="n">isBatchMode</span><span class="p">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">isBatchMode</span><span class="p">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">        </span><span class="n">RuntimePlatform</span><span class="w"> </span><span class="n">platform</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Application</span><span class="p">.</span><span class="n">platform</span><span class="p">;</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">platform</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">43</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// matches WindowsServer / LinuxServer</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">        </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flag2</span><span class="p">;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">flag</span><span class="p">;</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Two paths put StationeersLaunchPad into <code>ServerPlatform</code>: either (1) the executable is the dedicated-server build (Unity reports <code>Application.platform</code> as <code>WindowsServer</code> (44) or <code>LinuxServer</code> (43)), or (2) the instance was launched with <code>-batchmode</code>, which sets <code>Application.isBatchMode == true</code>. So:</p>
+<ul>
+<li>Running a second <code>rocketstation_DedicatedServer.exe</code> in batch mode does NOT produce a client; the binary's <code>Application.platform</code> is hardcoded by Unity's "server" build target. The dedicated server is wired to host (<code>IsServer=true, IsClient=false, SteamDisabled=true</code>) and has no outbound-connect path.</li>
+<li>Running the regular <code>rocketstation.exe</code> with <code>-batchmode -nographics</code> to suppress the UI ALSO enters <code>ServerPlatform</code> in StationeersLaunchPad, because the <code>isBatchMode</code> short-circuit in <code>CheckIsServer</code> fires before the platform check. And <code>Application.isBatchMode</code> propagates to the engine's <code>GameManager.IsBatchMode</code>, which gates 50+ UI/audio/visual paths across <code>Assembly-CSharp</code> (e.g. <code>Assembly-CSharp.decompiled.cs</code> lines 32391, 33719, 38883, 39875, 46383, etc.) plus the <code>AutoPauseServer</code> setting (lines 38883, 38891).</li>
+</ul>
+<p>So neither "headless mode" produces a client-mode runtime. Practical options for actually automating a client surface are:</p>
+<ul>
+<li><strong>A. Real client with full UI + UI-automation tooling</strong> (AutoHotkey, pyautogui, Windows UI Automation API). Drives the actual game with synthetic input. Brittle to UI updates but exercises the real network and rendering pipelines end-to-end.</li>
+<li><strong>B. Server-side test harness mod</strong>: a BepInEx mod on the dedicated server that scripts player-agent actions in-engine (move avatar, trigger attacks, etc.). Bypasses the network entirely, so it does NOT exercise the client/server message flow that is usually the point of a multiplayer test.</li>
+<li><strong>C. Custom "test client" BepInEx mod loaded on a real client</strong>: on a trigger (file drop, log event, time-based), the mod calls the same internal Direct Connect, movement, interaction code paths that the UI calls. Real network, real protocol, real client; no human at the keyboard except for launching the client and the trigger drop. Requires identifying the right entry points to call without invoking UI elements that depend on rendering state.</li>
+<li><strong>D. Two separate client instances on one machine</strong>. Requires two Steam logins; <code>PlayerCookie-v2.xml</code>, the Unity PlayerPrefs registry key under <code>HKCU\Software\Rocketwerkz Limited\rocketstation</code>, and the Steam runtime are shared per Windows account; family sharing prevents simultaneous use of the same game; running one Steam-authenticated and one with a Steam emulator (Goldberg) is theoretically possible but unsupported and likely breaks the StationeersLaunchPad / Workshop handshake.</li>
+</ul>
+<p>Running a second dedicated-server instance to act as a client is NOT among the options: dedicated servers always run with <code>IsServer=true, IsClient=false</code> and never initiate outbound connections.</p>
+<p>For the StationeersPlus repo's purposes, the realistic ranking is <strong>C &gt; A &gt; B &gt; D</strong>. <strong>C</strong> has the best fidelity-to-effort ratio (real protocol exercise, no UI fragility, modest implementation effort against a known internal API). <strong>A</strong> is the fallback when a feature can only be exercised through the UI. <strong>B</strong> is useful only for tests that don't depend on the network. <strong>D</strong> has too many friction points for a single-developer setup.</p>
+<h2 id="why-a-verbatim-copy-of-the-clients-modconfigxml-does-not-work">Why a verbatim copy of the client's modconfig.xml does NOT work<a class="headerlink" href="#why-a-verbatim-copy-of-the-clients-modconfigxml-does-not-work" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>Concrete failure mode observed at game version 0.2.6228.27061 with StationeersLaunchPad 0.3.1:</p>
+<ol>
+<li>Mirror the client's <code>BepInEx/plugins/StationeersLaunchPad/</code> tree to the dedicated server install (skipping <code>RG.ImGui.dll</code> does not change behaviour for this failure mode).</li>
+<li>Copy the user's <code>&lt;USER_DOCUMENTS&gt;\My Games\Stationeers\modconfig.xml</code> to <code>&lt;install&gt;/modconfig.xml</code>.</li>
+<li>Start the server.</li>
+</ol>
+<p>Result: StationeersLaunchPad's load pipeline runs through every stage (visible in server log: <code>Loading Mod Repos</code> ... <code>Took 0:00.005 to load mods</code>), but <strong>zero mods load</strong>. Reason chain:</p>
+<ul>
+<li><code>WorkshopModSource.ListMods</code> returns empty because <code>SteamDisabled = true</code> on <code>ServerPlatform</code>.</li>
+<li><code>LocalModSource.ListMods</code> returns empty because <code>&lt;install&gt;/mods/</code> has no subdirectories.</li>
+<li><code>ModList.mods</code> is therefore empty (modulo Core).</li>
+<li><code>ApplyConfig</code> walks the modconfig entries; each enabled <code>&lt;Workshop&gt;</code> resolves to its absolute path on the user's E: drive, fails the dictionary lookup (because <code>WorkshopModSource</code> did not enumerate it), and logs <code>"enabled mod not found at &lt;abs path&gt;"</code>.</li>
+<li>The modconfig's lone <code>&lt;Local&gt;</code> entry pointing at <code>C:\Users\&lt;user&gt;\Documents\My Games\Stationeers\mods\EquipmentPlus</code> resolves to its absolute path and also fails the dictionary lookup (because <code>LocalModSource</code> only scans <code>&lt;install&gt;/mods/</code>, not the user's Documents folder).</li>
+<li>The end-of-stage tally is "0 mods", <code>Took 0:00.005</code> is the entire mod-load duration.</li>
+<li>Loading a save that referenced any modded <code>*SaveData</code> type (e.g. <code>SpotlightSaveData</code>) then fails with <code>InvalidOperationException: The specified type was not recognized</code> mid-<code>world.xml</code> deserialization.</li>
+</ul>
+<p>The verbatim copy approach assumes <code>modconfig.xml</code> is a SOURCE of truth for what to load. It is not. It is a FILTER applied on top of mods that ModSources have already discovered. With Steam disabled and <code>&lt;install&gt;/mods/</code> empty, there is nothing to filter, and the filter has no effect.</p>
+<h2 id="the-official-procedure">The official procedure<a class="headerlink" href="#the-official-procedure" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>To mirror a client's mod set onto a dedicated server, three things are needed in the right places on the server:</p>
+<ol>
+<li><code>&lt;install&gt;/BepInEx/plugins/StationeersLaunchPad/</code> with all five DLLs from the <strong>server</strong> zip (mirroring the client's <code>BepInEx/plugins/StationeersLaunchPad/</code> and adding <code>RG.ImGui.dll</code> produces an equivalent tree).</li>
+<li><code>&lt;SavePath&gt;/mods/&lt;Source&gt;_&lt;DirectoryName&gt;/...</code> for every enabled mod on the client. The directory name follows the export convention: <code>Workshop_&lt;PublishedFileId&gt;</code> for Workshop mods, <code>Local_&lt;DirName&gt;</code> for Local mods. The contents are a recursive copy of the source mod folder. <strong><code>&lt;SavePath&gt;</code> is whatever you set via <code>-settings SavePath &lt;path&gt;</code>; if unset, it defaults to <code>&lt;install&gt;/</code>. Our launcher sets it to <code>&lt;repo&gt;/DedicatedServer/data/</code>.</strong></li>
+<li><code>&lt;install&gt;/modconfig.xml</code> with one <code>&lt;Core Enabled="true"&gt;</code> entry plus optionally one <code>&lt;Local Enabled="true"&gt;&lt;Path Value="&lt;Source&gt;_&lt;DirectoryName&gt;" /&gt;&lt;/Local&gt;</code> entry per mod. (See the auto-add note below: the file is not strictly required since <code>ApplyConfig</code> adds any discovered mod that is not in modconfig with <code>Enabled = true</code>. Including the file is still recommended to express intent and to disable specific mods if needed.)</li>
+</ol>
+<p>The <code>&lt;install&gt;/modconfig.xml</code> lives at <code>&lt;DefaultPath&gt;</code> even when SavePath is redirected; it is a config file and the engine hardcodes its path to <code>Path.Combine(StationSaveUtils.DefaultPath, "modconfig.xml")</code>.</p>
+<h3 id="auto-add-behaviour">Auto-add behaviour<a class="headerlink" href="#auto-add-behaviour" title="Permanent link">&para;</a></h3>
+<p><code>ApplyConfig</code> (decompile lines 13480-13485) iterates the dictionary of discovered mods AFTER processing modconfig entries. Any mod still in the dictionary at that point is added to the load list with <code>Enabled = true</code> and the log message <code>"new mod added at &lt;path&gt;"</code>. So a server with mods staged at <code>&lt;SavePath&gt;/mods/&lt;X&gt;/</code> and an EMPTY (or absent) modconfig.xml still loads every mod. modconfig.xml is best understood as a filter for disabling specific discovered mods, not as the primary "what to load" list.</p>
+<p>In our setup, every mod we copy ends up logging <code>new mod added at &lt;DataDir&gt;/mods/&lt;name&gt;</code> rather than matching its modconfig entry. End result is the same (mod loaded, <code>Enabled = true</code>); the modconfig entries do not silently break anything when this happens.</p>
+<p>Two paths to produce (1)-(3):</p>
+<h3 id="path-a-export-mod-package-from-the-client-ui">Path A: Export Mod Package from the client UI<a class="headerlink" href="#path-a-export-mod-package-from-the-client-ui" title="Permanent link">&para;</a></h3>
+<p>Click the <code>Export Mod Package</code> button in StationeersLaunchPad's UI on the client. StationeersLaunchPad writes a zip to <code>&lt;USER_DOCUMENTS&gt;\My Games\Stationeers\modpkg_&lt;timestamp&gt;.zip</code> with the layout above. Extract the zip into <code>&lt;install&gt;</code> on the server. Done. This is the documented intended path. It requires the developer to operate the client UI; an agent cannot trigger it without driving the UI.</p>
+<h3 id="path-b-replicate-the-export-logic-no-ui-required">Path B: Replicate the export logic, no UI required<a class="headerlink" href="#path-b-replicate-the-export-logic-no-ui-required" title="Permanent link">&para;</a></h3>
+<p>Read the client's <code>modconfig.xml</code> (read-only). For each enabled non-Core entry:</p>
+<ul>
+<li>Source path: from the entry's <code>&lt;Path Value="..." /&gt;</code> (absolute path that already exists on the client).</li>
+<li>Destination name: <code>Workshop_&lt;WorkshopId&gt;</code> for <code>&lt;Workshop&gt;</code> entries, <code>Local_&lt;basename(Path)&gt;</code> for <code>&lt;Local&gt;</code> entries.</li>
+<li>Recursively copy the source folder's contents into <code>&lt;install&gt;/mods/&lt;DestinationName&gt;/</code>, preserving the relative subtree.</li>
+</ul>
+<p>After all copies, write <code>&lt;install&gt;/modconfig.xml</code>:</p>
+<div class="language-xml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">&lt;ModConfig</span><span class="w"> </span><span class="na">xmlns:xsd=</span><span class="s">&quot;http://www.w3.org/2001/XMLSchema&quot;</span><span class="w"> </span><span class="na">xmlns:xsi=</span><span class="s">&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</span><span class="nt">&gt;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">&lt;Core</span><span class="w"> </span><span class="na">Enabled=</span><span class="s">&quot;true&quot;</span><span class="nt">&gt;&lt;Path</span><span class="w"> </span><span class="nt">/&gt;&lt;/Core&gt;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">&lt;Local</span><span class="w"> </span><span class="na">Enabled=</span><span class="s">&quot;true&quot;</span><span class="nt">&gt;&lt;Path</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;&lt;DestinationName1&gt;&quot;</span><span class="w"> </span><span class="nt">/&gt;&lt;/Local&gt;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span><span class="nt">&lt;Local</span><span class="w"> </span><span class="na">Enabled=</span><span class="s">&quot;true&quot;</span><span class="nt">&gt;&lt;Path</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;&lt;DestinationName2&gt;&quot;</span><span class="w"> </span><span class="nt">/&gt;&lt;/Local&gt;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span>...
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nt">&lt;/ModConfig&gt;</span>
+</span></code></pre></div>
+<p>Path B produces a tree byte-equivalent to what Path A would produce (with the caveat that load order in modconfig.xml may differ from Path A's <code>modList.EnabledMods</code> order; StationeersLaunchPad's dependency graph reorders at load time anyway).</p>
+<h2 id="why-the-clients-bepinexconfigcfg-mirror-is-not-sufficient">Why the client's <code>BepInEx/config/*.cfg</code> mirror is not sufficient<a class="headerlink" href="#why-the-clients-bepinexconfigcfg-mirror-is-not-sufficient" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>The client's <code>&lt;install&gt;/BepInEx/config/</code> contains <code>.cfg</code> files for every BepInEx-style mod the client has loaded (e.g. <code>BetterAdvancedTablet.cfg</code>, <code>JetpackHeightUnlocker.cfg</code>, dozens more). Mirroring this directory to the server is documented in <code>DedicatedServer/CLAUDE.md</code> as part of <code>-Bootstrap</code>.</p>
+<p>These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Their presence on the server does NOT cause those mods to load; they are written for mods that DO load and remain as no-ops if the corresponding mods are missing. Mirroring the configs is only valuable to preserve user-tuned settings across client / server boundary; the mod DLLs and <code>mods/&lt;...&gt;/</code> folders are still required for the mods to actually run.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<ul>
+<li>2026-04-28: page created from a fresh decompile of <code>Assembly-CSharp.dll</code> and the four StationeersLaunchPad-suite DLLs at game version 0.2.6228.27061 (decompile output at <code>.work/decomp/0.2.6228.27061/*.decompiled.cs</code>). The Export Mod Package code, <code>LocalModSource.ListMods</code>, <code>ModList.ApplyConfig</code>, <code>WorkshopMenu.ConfigPath</code>, <code>ServerPlatform.PlatformInitLoadState</code>, and the StationeersLaunchPad server-zip contents (downloaded from <code>https://github.com/StationeersLaunchPad/StationeersLaunchPad/releases/download/v0.3.1/StationeersLaunchPad-server-v0.3.1.zip</code>) are all directly cited above with line numbers and sha256 hashes. Failure mode "verbatim modconfig.xml copy yields zero mods loaded" was observed end-to-end on a running dedicated server at this game version.</li>
+<li>2026-04-28: corrected the local-mods-folder location finding. Initial decompile-side reading said <code>&lt;DefaultPath&gt;/mods/</code>; runtime probe at game version 0.2.6228.27061 with <code>-settings SavePath &lt;DataDir&gt;</code> produced <code>enabled mod not found at &lt;DataDir&gt;/mods/&lt;modname&gt;</code> errors, proving <code>WorkshopUtils.GetLocalDirInfo(WorkshopType.Mod)</code> resolves to <code>&lt;SavePath&gt;/mods/</code> (which honours the SavePath override), not <code>&lt;DefaultPath&gt;/mods/</code>. Procedure section updated; auto-add behaviour subsection added based on the same end-to-end test (56 mods loaded, Luna save deserialized successfully, RakNet hosted on 27016).</li>
+<li>2026-04-28: resolved both prior open questions. (1) <code>ApplyConfig</code> primary-loop matching: a clean run with <code>data/mods/</code> wiped and a fresh <code>-SyncMods</code> produced 0 "new mod added" and 0 "enabled mod not found" log lines, proving the primary loop does match relative-path entries cleanly; the earlier 56 auto-adds were a state-corruption artefact from interleaved debug steps. (2) <code>RG.ImGui.dll</code>: the StationeersLaunchPad source's ImGui calls are all gated on <code>!Platform.IsServer</code> (via <code>EssentialPatches.SplashDraw</code>) and the lazy-JIT model means missing ImGui types do not block server-side mod loading; an earlier test confirmed StationeersLaunchPad's full stage pipeline ran without <code>RG.ImGui.dll</code> present. Both findings curated into dedicated H2 sections above.</li>
+<li>2026-04-29: documented RakNet's wildcard-fallback hosting behaviour when the dedicated server tries to bind a port already held by another process on the same machine. Empirical test (client in-session at <code>10.20.30.200:27016</code>, server started with default <code>GamePort 27016</code>) showed the server's specific-IP bind fails, falls back to <code>0.0.0.0:27016</code> (wildcard), and reports "RakNet successfully hosted" despite the conflict. The two processes coexist but route ambiguously. Recommended workaround: pass non-default <code>GamePort</code> / <code>UpdatePort</code> settings when both run on one machine.</li>
+<li>2026-04-29: empirical confirmation of the workaround. Launcher gained <code>-GamePort</code> / <code>-UpdatePort</code> parameters with new defaults <code>28016</code> / <code>28015</code> (offset by +1000 from the Stationeers client defaults). Re-test with same client in-session (<code>10.20.30.200:27016</code>): server log shows clean "Attempting to host at 10.20.30.200:28016" -&gt; "RakNet successfully hosted with Address: 10.20.30.200:28016", no "Hosting failed. Attempting fallback behaviour" line. UDP endpoints show both processes own distinct, exclusive specific-IP binds (<code>10.20.30.200:27016</code> for the client, <code>10.20.30.200:28016</code> for the server). Clean coexistence.</li>
+<li>2026-04-29: documented why a "headless client" is not a supported automation mode. <code>Platform.CheckIsServer()</code> (line 4433) routes any <code>Application.isBatchMode</code> instance into <code>ServerPlatform</code>, which is <code>IsServer=true, IsClient=false, SteamDisabled=true</code> and has no outbound-connect path. Both batch-mode regular-client and any dedicated-server build land on the server side. Practical options A-D listed for client-side automation; recommended ranking C &gt; A &gt; B &gt; D.</li>
+</ul>
+<h2 id="applyconfig-matching-clean-state-matches-relative-paths-cleanly">ApplyConfig matching: clean state matches relative paths cleanly<a class="headerlink" href="#applyconfig-matching-clean-state-matches-relative-paths-cleanly" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>Resolution of the prior open question. Empirical test on a clean server install (data/mods/ wiped, fresh <code>-SyncMods</code>, fresh <code>-Start -New Lunar</code>) at game version 0.2.6228.27061 produced:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>&#39;enabled mod not found&#39; count: 0
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>&#39;new mod added&#39; count:         0
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>&#39;Mod has empty path&#39; count:    0
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>&#39;Invalid path in mod config&#39; count: 0
+</span></code></pre></div>
+<p>Every modconfig entry matched in <code>ApplyConfig</code>'s primary loop (decompile lines 13441-13478). No auto-add fallback fired. NormalizePath behaviour (<code>path?.Replace("\\", "/").Trim().ToLowerInvariant()</code> at line 13709) on both sides is consistent. The primary-loop comparison succeeds when:</p>
+<ul>
+<li><code>Path.IsPathRooted</code> returns false on the relative <code>&lt;Path Value&gt;</code>, so it gets prefixed with <code>&lt;localDir&gt;</code> (= <code>&lt;SavePath&gt;/mods/</code>);</li>
+<li>the resulting path normalizes identically to the discovered mod's <code>LocalModDefinition.DirectoryPath</code> (set from <code>&lt;modDir&gt;5__11.FullName</code> in <code>LocalModSource.ListMods</code>).</li>
+</ul>
+<p>The earlier "56 new mod added at <abs-path>" observation that prompted the open question was an artefact of an interleaved debug state: mods had been physically moved between <code>install/mods/</code> and <code>data/mods/</code> mid-debug, modconfig.xml had been rewritten by StationeersLaunchPad's <code>SaveConfig</code> after a previously-failed-load run (changing relative paths to absolute paths pointing at the old install/mods/ location, then later not aligning with the new data/mods/ location), and the launcher's <code>-SyncMods</code> had run at least once with the stale <code>install/mods/</code> target. Once <code>data/mods/</code> was wiped and <code>-SyncMods</code> re-ran cleanly, the primary loop matched.</p>
+<p>Practical consequence: the launcher's <code>-SyncMods</code> writes a working modconfig.xml. No path-format change is required. The auto-add fallback exists to gracefully handle drop-in mods that aren't listed in modconfig, but in normal operation it is not relied on.</p>
+<h2 id="port-binding-behaviour-with-a-running-client-on-the-same-machine">Port-binding behaviour with a running client on the same machine<a class="headerlink" href="#port-binding-behaviour-with-a-running-client-on-the-same-machine" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+
+<p>When a client and the dedicated server try to bind the same <code>GamePort</code> on one machine, the server does NOT crash. RakNet attempts a specific-IP bind first; on failure it falls back to a wildcard (<code>0.0.0.0</code>) bind, and the OS accepts the combination. The result is two simultaneous bindings on the same port that route by destination address.</p>
+<p>Empirical at game version 0.2.6228.27061: client running and in-session (specific bind on <code>10.20.30.200:27016</code>, the LAN IPv4), dedicated server started with the launcher's default <code>-settings GamePort 27016</code>. Server log:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>22:46:50: Attempting to host at 10.20.30.200:27016
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>22:46:51: Hosting failed. Attempting fallback behaviour
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>22:46:51: RakNet successfully hosted with Address: 10.20.30.200:27016
+</span></code></pre></div>
+<p>The "Address" reported in the second success line is the LAN IP the server intended (not what it actually bound). UDP endpoint inspection:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>LocalAddress    LocalPort   OwningProcess
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>10.20.30.200    27016       &lt;client PID&gt;     ← specific bind, exclusive on that IP
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>0.0.0.0         27016       &lt;server PID&gt;     ← wildcard bind, catches everything else
+</span></code></pre></div>
+<p>Routing rules on Windows: specific-IP binds win over wildcard binds for traffic matching that specific IP. So:</p>
+<ul>
+<li>A remote peer connecting to <code>10.20.30.200:27016</code> reaches the client (the more-specific bind wins).</li>
+<li>Connections to <code>127.0.0.1:27016</code> or other interface IPs hit the server's wildcard catch-all.</li>
+</ul>
+<p>This is technically not a crash and not an OS-level conflict, but it is unreliable: the dedicated server is unreachable at the LAN IP it logged, and which process actually serves a given client is determined by the client's exact destination IP. For clean coexistence, the dedicated server should bind a different port via <code>-settings GamePort &lt;other&gt; -settings UpdatePort &lt;other&gt;</code>. Defaults that avoid the conflict in normal Stationeers multiplayer setups: <code>GamePort 27018, UpdatePort 27017</code>.</p>
+<h2 id="rgimguidll-is-not-required-on-the-dedicated-server">RG.ImGui.dll is not required on the dedicated server<a class="headerlink" href="#rgimguidll-is-not-required-on-the-dedicated-server" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+
+<p>Resolution of the prior open question. The StationeersLaunchPad-suite DLL <code>RG.ImGui.dll</code> ships with the StationeersLaunchPad server-zip release but is not present in client installs. We add it via <code>-Bootstrap</code> to match the official server-zip layout. The dedicated server's mod-loading pipeline does NOT depend on it.</p>
+<p>Evidence:</p>
+<ul>
+<li>Source-side: every <code>using ImGuiNET</code> / <code>ImGui.*</code> / <code>ImGuiHelper.Draw</code> call in <code>StationeersLaunchPad.decompiled.cs</code> is reachable only from UI draw paths. The two relevant sites:</li>
+<li><code>EssentialPatches.SplashDraw</code> (line 3548) gates <code>LaunchPadConfig.Draw()</code> on <code>if (!Platform.IsServer &amp;&amp; !GameStarted)</code>. On a server, <code>Platform.IsServer == true</code>, so the guarded <code>LaunchPadConfig.Draw()</code> (which is the entry point for ImGui rendering) is never invoked.</li>
+<li>The Mod Configuration / LaunchPad Configuration draw functions (lines 7536, 7855, 7876, 9745, 10034) are only called from <code>LaunchPadConfig.Draw()</code>'s subtree.</li>
+<li>The <code>LaunchPadConfig.Run()</code> async pipeline (<code>StageInitializing</code> -&gt; <code>StageUpdating</code> -&gt; <code>StageSearching</code> -&gt; <code>StageConfiguring</code> -&gt; <code>StageLoading</code> -&gt; <code>StageFinal</code> -&gt; <code>StartGame</code>, lines 3190-3213) reaches none of those draw paths.</li>
+<li>Lazy JIT means a method that is never called on the server doesn't have its referenced types resolved. Even though StationeersLaunchPad's compiled assembly imports <code>ImGuiNET</code>, missing <code>RG.ImGui.dll</code> does not produce a type-load exception until a method that mentions ImGui types is actually invoked.</li>
+<li>Empirical: in the first test pass (before we overlaid <code>RG.ImGui.dll</code>), StationeersLaunchPad's full stage pipeline ran successfully. The server log showed every <code>[Global]:</code> stage transition through <code>Took 0:00.005 to load mods.</code> (zero mods because the local mods folder was empty at that point), with no JIT or assembly-resolve errors.</li>
+</ul>
+<p>Practical consequence: <code>RG.ImGui.dll</code> is the safe default to ship (the official server zip does, and a future StationeersLaunchPad version might invoke ImGui from a non-UI path), but its absence does not block mod loading on a server. If a server-zip download fails during <code>-Bootstrap</code>, the server still loads mods; a warning rather than an error is appropriate.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../SPADumpKeys/" class="md-footer__link md-footer__link--prev" aria-label="Previous: /spda_dumpkeys Console Command">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                /spda_dumpkeys Console Command
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../TTSDeadEnd/" class="md-footer__link md-footer__link--next" aria-label="Next: TTS Dead End">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                TTS Dead End
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache 2.0. Sources at <a href="https://github.com/SixFive7/StationeersPlus">github.com/SixFive7/StationeersPlus</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/SixFive7/StationeersPlus" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://steamcommunity.com/profiles/76561198081578712/myworkshopfiles/" target="_blank" rel="noopener" title="steamcommunity.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M504 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L184.6 279c-15.5-.9-30.7 3.4-43.5 12.1L8 236.1C18.2 108.4 125.1 8 255.6 8 392.8 8 504 119 504 256M163.7 384.3l-30.5-12.6c5.6 11.6 15.3 20.8 27.2 25.8 26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3S214 305.6 201 300.2c-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21m173.8-254.5a62.3 62.3 0 1 1 0 124.6 62.3 62.3 0 1 1 0-124.6m.1 109a46.8 46.8 0 1 0 0-93.6 46.8 46.8 0 1 0 0 93.6"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tooltips", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

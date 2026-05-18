@@ -9,6 +9,11 @@
             "type": "command",
             "if": "Bash(*git commit*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/research-commit-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git commit*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-commit-hook.ps1"
           }
         ]
       },
@@ -160,6 +165,86 @@
         ]
       },
       {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*\\Research\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Research\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\tools\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\tools\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Web\\content\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Web\\content\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Web\\overrides\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Web\\overrides\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Web\\mkdocs.yml)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Web\\mkdocs.yml)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Web\\requirements.txt)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Web\\requirements.txt)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-publish-hook.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*\\Web\\site\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-site-edit-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Web\\site\\\\\\\\*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-site-edit-hook.ps1"
+          }
+        ]
+      },
+      {
         "matcher": "Read|Edit|Write",
         "hooks": [
           {
@@ -221,6 +306,16 @@
             "type": "command",
             "if": "Write(*\\Mods\\\\\\\\*\\\\\\\\*\\Plugin.cs)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/release-hook.ps1"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-stop-hook.ps1"
           }
         ]
       }

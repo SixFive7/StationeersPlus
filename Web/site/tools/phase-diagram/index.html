@@ -1,0 +1,1208 @@
+<!--
+================================================================================
+  AGENT CONTEXT BLOCK - read this in full before modifying anything below.
+  Invisible to end-users in the rendered page. Source of truth for picking up
+  this tool in a future session.
+================================================================================
+
+  PURPOSE
+    Single-file interactive phase diagram for all 16 Stationeers gas/liquid
+    substance families. Reads the game's actual vapor-pressure coefficients
+    verbatim from the decompile and computes everything on the fly. No external
+    dependencies; double-click to open.
+
+  REPO CONTEXT
+    Repo root:  c:\Source\SixFive7\StationeersPlus  (read its CLAUDE.md first)
+    This file:  tools/phase-diagram/index.html
+    .work/ scratch directory was used during initial development; this tool
+    graduated out of .work/ to tools/ once it was a keeper. There is no
+    accompanying README -- everything a future agent needs is in this comment.
+
+  GAME VERSION
+    Last verified against Stationeers 0.2.6228.27061. The version string is
+    also shown in the visible UI header (`Game version 0.2.6228.27061`). When
+    the game updates, BOTH must move together (and the Research page below
+    needs a new section stamp + Verification History entry).
+
+  PRIMARY SOURCE OF TRUTH
+    Research/GameSystems/ChemistryGasPhaseData.md
+    That file carries the canonical, lossless, verbatim citations into the
+    decompile. Treat it as authoritative when this tool falls behind a game
+    update. Its frontmatter `verified_in` is the version this tool's data was
+    captured against.
+
+  DECOMPILE LOCATION
+    .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs
+    Refresh procedure (when game updates per repo-root CLAUDE.md
+    "Decompilation artifacts" section):
+      1. Delete .work/decomp/<old-version>/
+      2. Re-decompile via ilspycmd into .work/decomp/<new-version>/
+      3. Re-verify the values cited below; they MAY change between versions
+      4. Update Research/GameSystems/ChemistryGasPhaseData.md FIRST
+      5. Then update the GASES array and version stamp here
+
+================================================================================
+  DATA SOURCING - Assembly-CSharp.dll @ 0.2.6228.27061
+================================================================================
+
+  Vapor pressure formula (always, every gas): P = A * T^B
+    MoleHelper.EvaporationTemperature  -> decompile lines 425341-425348:
+        new TemperatureKelvin(Math.Pow(pressure / EvaporationCoefficientA(type),
+                                       1.0 / EvaporationCoefficientB(type)))
+    MoleHelper.EvaporationPressure     -> decompile lines 425350-425357:
+        new PressurekPa(EvaporationCoefficientA(type)
+                        * Math.Pow(temperature, EvaporationCoefficientB(type)))
+    MoleHelper.EvaporationCoefficientA -> 425359-425410 (per-GasType switch)
+    MoleHelper.EvaporationCoefficientB -> 425412-425463 (per-GasType switch)
+
+  Per-gas reference pressures:
+    Mole.MinLiquidPressure                  -> 424115-424155
+        Returns the "floor": below this pressure the substance cannot be
+        liquid (it sublimates / stays gas). Wrapped in RocketMath.Max(...,
+        Chemistry.ArmstrongLimit) so Helium's 0.0 effectively becomes
+        ArmstrongLimit, though Helium has no liquid phase regardless.
+    Mole.MinimumLiquidPressureAtMaxTemp     -> 424204-424239
+        The "critical" pressure. Used to derive MaxLiquidTemperature.
+
+  Freezing & critical temperatures:
+    Mole.FreezingTemperature(GasType)       -> 424068-424102
+      - Water:         TRIPLE_POINT_TEMPERATURE_WATER_K = 273.15 (hardcoded, 419098-419100)
+      - PollutedWater: TRIPLE_POINT_TEMPERATURE_POLLUTED_WATER_K = 276.15 (419112-419114)
+      - All others:    MoleHelper.EvaporationTemperature(type, MinLiquidPressure)
+      - Helium:        FREEZING_POINT_HELIUM = TemperatureKelvin.Zero (419190)
+    Mole.MaxLiquidTemperature(GasType)      -> 424157-424197
+      - All real gases: MoleHelper.EvaporationTemperature(type,
+                          MinimumLiquidPressureAtMaxTemperature)
+      - Helium:         CRITICAL_TEMPERATURE_HELIUM_K = TemperatureKelvin.Zero (419188)
+
+  Phase / state model:
+    AtmosphereHelper.MatterState enum       -> 417045-417051
+        public enum MatterState : byte { Liquid, Gas, All, None }
+        NOTE: NO Solid value. Frozen mass is a separate PureIce Thing,
+        not an in-mixture MatterState.
+    Chemistry.MatterState(GasType)          -> 419488-419511
+        Liquid for Water, PollutedWater, all 13 Liquid* variants;
+        Gas for everything else.
+    Mole.WillFreeze                         -> 424886-424893
+        return Temperature <= FreezingTemperature()
+        NO pressure parameter. Freezing is pressure-INDEPENDENT.
+    EvaporationTemperatureClamped           -> 424895-424899
+        Clamps pressure to [Pf, Pc] BEFORE evaluating the curve, then clamps
+        T to [Tf, Tmax_liq]. Above Pc, effective boiling T = Tmax_liq.
+    EvaporationPressureClamped              -> 424901-424905
+    GlobalGasMix.StateChangeMoleQuantity    -> 191065-191123
+        Atmospheric tick uses `temperature < Tf + GlobalTemperatureStateChangeOffset`
+        as the freezing trigger.
+    PureIce.AssignSpawnGasValues            -> 333735-333746
+        ice.temperature = Mole.FreezingTemperature(gasType) + 0.1f
+        ice.meltTemperature = Mole.FreezingTemperature(gasType) + 1.0f
+        Both pressure-independent.
+
+================================================================================
+  COEFFICIENT TABLE (verbatim, all 16 substance families)
+================================================================================
+
+  Substance         | A                      | B                    | Pf   | Pc   | Tf override
+  ------------------|------------------------|----------------------|------|------|------------
+  Oxygen            | 2.6854996004e-11       | 6.49214937325        | 6.3  | 6000 |
+  Nitrogen          | 5.5757107833e-07       | 4.40221368946        | 6.3  | 6000 |
+  CarbonDioxide     | 1.579573e-26           | 12.195837931         | 517  | 6000 |
+  Methane           | 5.863496734e-15        | 7.8643601035         | 6.3  | 6000 |
+  Pollutant (SO2)   | 2.079033884            | 1.31202194555        | 1800 | 6000 |
+  Water             | 3.8782059839e-19       | 7.90030107708        | 6.3  | 6000 | 273.15 K
+  PollutedWater     | 4e-20                  | 8.27025711260823     | 6.3  | 6000 | 276.15 K
+  NitrousOxide      | 0.065353501531         | 1.70297431874        | 800  | 2000 |
+  Hydrogen          | 3.18041e-05            | 4.4843872973         | 6.3  | 6000 |
+  Hydrazine         | 8e-22                  | 9.15642808045339     | 6.3  | 6000 |
+  Alcohol (Ethanol) | 9e-20                  | 8.391884446078986    | 6.3  | 1000 |
+  Helium            | 0                      | 0                    | null | null | noLiquid: true
+  SodiumChloride    | 6.211737044295e-08     | 2.8774143233482707   | 6.3  | 515  |
+  Silanol           | 0.22176555607618392    | 1.5206578718752168   | 516  | 6000 |
+  HydrochloricAcid  | 1e-21                  | 9.108844460789863    | 6.3  | 1000 |
+  Ozone             | 0.006219763823043718   | 2.4097251251207226   | 250  | 6000 |
+
+  IMPORTANT relationships in the game's GasType enum (decompile context):
+    - Gas / liquid companion pairs (Oxygen / LiquidOxygen, Nitrogen /
+      LiquidNitrogen, etc.) share the SAME A and B. They are the same chemical
+      with different in-mixture state tags routed via MoleHelper.EvaporationType
+      and CondensationType.
+    - Steam shares Water's A, B. MatterState classifies Water as Liquid and
+      Steam as Gas. Steam is NOT a separate row in our table.
+    - Internal naming mismatches: "Pollutant" is Sulfur Dioxide internally
+      (CRITICAL_TEMPERATURE_SULFUR_DIOXIDE_K); "Nitrous Oxide" has some
+      constants under NITROGEN_DIOXIDE; "Alcohol" maps to ETHANOL; "Methane"
+      was renamed from "Volatiles" in the March-2026 Gases Update.
+
+================================================================================
+  PHASE REGION MODEL (as the game implements it)
+================================================================================
+
+  Freezing is PRESSURE-INDEPENDENT. No Clausius-Clapeyron slope. The solid-
+  liquid boundary is a vertical line at T = Tf, regardless of pressure.
+
+  On a (T, P) phase diagram:
+    T < Tf:                          SOLID  (any P; modelled as PureIce Thing)
+    Tf <= T <= Tc, P >= P_sat(T):    LIQUID
+    Tf <= T <= Tc, P <  P_sat(T):    GAS
+    T > Tc:                          GAS    (supercritical, always)
+
+  Water / PollutedWater curve-vs-floor offset:
+    Their Tf is hardcoded (273.15 / 276.15 K), NOT derived from the curve.
+    P_sat(273.15) ~= 6.87 kPa, but Pf = 6.3 kPa. The curve starts ~0.6 kPa
+    above the floor. EvaporationTemperatureClamped absorbs the discrepancy
+    in practice; the visible plot shows the curve from its true start, not
+    from (Tf, Pf).
+
+  Helium: A=B=0 short-circuits both Tf and Tc to TemperatureKelvin.Zero.
+    MatterState(Helium) = Gas. CanEvaporate(Helium) = CanCondense(Helium) =
+    false (decompile 425465-425540). Treated as a single-phase gas at every
+    (T, P) the simulation supports. In our `GASES` array: noLiquid: true.
+
+================================================================================
+  TOOL ARCHITECTURE & STATE
+================================================================================
+
+  No external libraries. Vanilla HTML / CSS / Canvas2D / JS. Single file.
+
+  Internal coords: always K (Kelvin) and kPa, regardless of display unit /
+  axis-scale toggles. The unit toggle (K / C) only affects axis tick labels,
+  table cell formatting, and hover info text.
+
+  Plot ranges:
+    T axis log:    [10 K, max(visibleTc * 1.1, 100 K)]   -- DYNAMIC
+    T axis linear: [0 K, max(visibleTc * 1.1, 100 K)]    -- DYNAMIC
+    P axis log:    [0.1, 60000] kPa                       -- fixed
+    P axis linear: [0, 7000] kPa                          -- fixed
+  Dynamic T-max: rescales when gases are toggled so Sodium Chloride (Tc=2799 K)
+  doesn't compress the rest into the left third of the plot.
+
+  Highlight state model (two variables to track):
+    stickyIdx     - persistent highlight (defaults to Water at index 5)
+    highlightIdx  - what's actually drawn right now (may differ during hover)
+  Rules:
+    - Hover-enter on a row sets highlightIdx = that row's idx.
+      Also updates stickyIdx, BUT only if the hovered gas is currently visible.
+      (Hovering an unselected gas is a preview, not sticky.)
+    - Hover-leave the tbody reverts highlightIdx -> effectiveStickyIdx().
+    - effectiveStickyIdx() returns the single visible gas if exactly one is
+      visible (overrides sticky), otherwise stickyIdx.
+    - enforceSingleVisibleHighlight() fires on any visibility change. If now
+      exactly one is visible, snaps BOTH stickyIdx and highlightIdx to it.
+      Otherwise leaves highlightIdx alone (so a mid-hover toggle is not
+      disrupted; next mouseleave reverts via effectiveStickyIdx).
+
+  Curves: sampled at 64 points in log(T) space along [Tf, Tc] for each gas.
+  This renders correctly in both log-log mode (where the curve is straight,
+  so 64 points are overkill) and any mixed log/linear mode (where the curve
+  is curved and the samples actually matter).
+
+  Phase region rendering (drawPhaseRegions):
+    Drawn BENEATH the grid, BENEATH the curves, on a per-frame basis.
+    Only the highlighted gas's regions are shaded.
+    SOLID = rectangle (T_lo to Tf, all P).
+    LIQUID = polygon above the saturation curve.
+    GAS = polygon below the curve + supercritical strip (T > Tc).
+    Each region toggles independently via bgs.solid / bgs.liquid / bgs.gas.
+
+  Color convention:
+    SOLID:  rgba(220, 150, 70, 0.20)   -- orange (mineral / warm)
+    LIQUID: rgba(80, 140, 220, 0.20)   -- blue (water-like)
+    GAS:    rgba(80, 200, 120, 0.16)   -- green (vapor / atmospheric)
+    Per-gas curve colors: COLORS array, 16 distinct picks.
+    Solid uses higher alpha than gas because the solid strip is small (left
+    edge); gas covers most of the plot and needs less ink.
+
+================================================================================
+  UPDATE PROCEDURE WHEN GAME ADVANCES
+================================================================================
+
+  1. Re-decompile Assembly-CSharp.dll to .work/decomp/<new-version>/.
+  2. Diff against the cited line ranges. Most-likely-to-change:
+       - EvaporationCoefficientA / B (425359-425463) -- per-gas tuning
+       - MinLiquidPressure (424115-424155)
+       - MinimumLiquidPressureAtMaxTemperature (424204-424239)
+       - Hardcoded constants in Chemistry (419000-419279)
+       - NEW GasType enum values = new substance families
+       - MatterState switch (419488-419511) for any new types
+  3. Update Research/GameSystems/ChemistryGasPhaseData.md FIRST. It is the
+     canonical lossless record. Bump verified_in and verified_at and append
+     a Verification History entry.
+  4. Then update the `GASES` array in this file, the version string in the
+     visible header, and this comment block's version line.
+  5. If a new GasType lands, extend the COLORS array and add a row to GASES.
+  6. If the PHASE MODEL itself changes (e.g. game adds pressure-dependent
+     freezing), the "Phase Region Model" section above is stale. Rewrite
+     drawPhaseRegions and the visible "Game model vs. real physics" list.
+
+================================================================================
+  RELATED FILES IN THE REPO
+================================================================================
+
+  Research/GameSystems/ChemistryGasPhaseData.md       canonical citations
+  Research/WORKFLOW.md                                research-curation rules
+  Research/CLAUDE.md                                  research-file conventions
+  CLAUDE.md (repo root)                               monorepo conventions
+  .work/decomp/<version>/Assembly-CSharp.decompiled.cs   decompile source
+
+================================================================================
+  KNOWN LIMITATIONS / DIRECTIONS LEFT OPEN
+================================================================================
+
+  - No state persistence (no URL hash, no localStorage). State resets on reload.
+  - No PNG / SVG export.
+  - No real-physics overlay (NIST / IAPWS curves alongside game curves would
+    visualize where the game diverges; the differences are large for CO2, N2,
+    H2 in particular).
+  - Combustion data is not shown. The game tracks AutoIgnition* and a separate
+    CombustionResult pipeline (Chemistry.CombustionResult ~419518 onward) that
+    is a different topic.
+  - Specific heat and latent heat are not visualized. Constants live in
+    Chemistry.SPECIFIC_HEAT_* and LATENT_HEAT_* (decompile ~419000-419279) and
+    Mole.SpecificHeat / Mole.LatentHeatOfVaporization (~424335-~424400).
+  - The plot is saturation-curve only. The game's phase-change machines
+    (CondensationChamber, ExpansionValve) have their own Mole.ChangeState
+    logic (~424600 onward) handling latent heat and mole-quantity transfer
+    that this tool does not model.
+
+================================================================================
+  END AGENT CONTEXT
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stationeers Gas Phase Diagram</title>
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --panel: #252525;
+    --panel2: #2e2e2e;
+    --text: #e8e8e8;
+    --muted: #888;
+    --border: #3a3a3a;
+    --accent: #4a9eff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 1rem; font-size: 13px;
+  }
+  h1 { margin: 0 0 0.25rem; font-size: 1.3rem; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+  .sub code { background: #111; padding: 1px 5px; border-radius: 3px; color: #ccc; }
+
+  .controls {
+    background: var(--panel); padding: 0.75rem 1rem; border-radius: 5px;
+    margin-bottom: 0.5rem; display: flex; gap: 0.85rem; align-items: center; flex-wrap: wrap;
+  }
+  .controls label { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  .controls input[type=range] { width: 280px; vertical-align: middle; }
+  .controls input[type=number] {
+    width: 100px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); padding: 0.25rem 0.4rem; border-radius: 3px;
+  }
+  .controls button {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 0.3rem 0.65rem; border-radius: 3px; cursor: pointer; font-size: 0.85rem;
+  }
+  .controls button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls .spacer { flex: 1; }
+  .controls select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 0.3rem 0.5rem; border-radius: 3px;
+  }
+  .group-label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .divider { width: 1px; height: 18px; background: var(--border); }
+  .swatch-inline { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(255,255,255,0.15); }
+  /* SOLID = orange (mineral / warm). LIQUID = blue (water-like). GAS = green (vapor / atmospheric). */
+  .swatch-solid  { background: rgb(220, 150, 70); }
+  .swatch-liquid { background: rgb(80, 140, 220); }
+  .swatch-gas    { background: rgb(80, 200, 120); }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1rem; }
+  @media (max-width: 1300px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); padding: 1rem; border-radius: 5px; }
+  .panel h2 { margin: 0 0 0.5rem; font-size: 0.95rem; font-weight: 600; color: #ccc; }
+
+  canvas { display: block; width: 100%; height: auto; background: #121212; border-radius: 3px; cursor: crosshair; }
+  #hover-info {
+    color: var(--muted); margin-top: 0.5rem; font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.85rem; min-height: 1.2em;
+  }
+  .legend-hint { color: var(--muted); font-size: 0.78rem; margin-top: 0.25rem; line-height: 1.5; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { padding: 0.32rem 0.4rem; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  thead th { cursor: pointer; user-select: none; background: var(--panel2); color: #ccc; font-weight: 600; position: sticky; top: 0; }
+  th[data-sort]:hover { color: var(--accent); }
+  th:nth-child(-n+3), td:nth-child(-n+3) { text-align: left; }
+  #gas-table tbody tr { cursor: pointer; }
+  #gas-table tbody tr:hover:not(.highlighted) { background: rgba(255,255,255,0.03); }
+  td.swatch-cell { width: 16px; padding: 0 0.25rem; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.15); }
+  tr.disabled { opacity: 0.35; }
+  tr.disabled td { color: var(--muted); }
+  tr.highlighted { background: rgba(74, 158, 255, 0.10); }
+  tr.highlighted td:nth-child(3) { font-weight: 600; color: var(--accent); }
+  .sort-asc::after  { content: ' ▲'; color: var(--accent); }
+  .sort-desc::after { content: ' ▼'; color: var(--accent); }
+  td.nlt, .nlt { color: var(--muted); font-style: italic; }
+  td.state-supercrit { color: #ff9090; }
+  td.state-sublimate { color: #90c0ff; }
+  td.state-always-gas { color: var(--muted); font-style: italic; }
+  td.state-boil { color: #aef0ae; }
+
+  .footer { margin-top: 0.75rem; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+  .footer code { background: #111; padding: 1px 4px; border-radius: 2px; }
+
+  .diffs { margin: 0.5rem 0 0; padding: 0; list-style: none; columns: 2; column-gap: 1.5rem; }
+  @media (max-width: 1100px) { .diffs { columns: 1; } }
+  .diffs li {
+    break-inside: avoid;
+    margin-bottom: 0.7rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--border);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .diffs li strong { color: var(--accent); display: block; margin-bottom: 0.15rem; }
+  .diffs li code { background: #111; padding: 1px 4px; border-radius: 2px; font-size: 0.85em; }
+
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); cursor: pointer; }
+
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 0.25rem 0.55rem; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.8rem; }
+  .seg button.active { background: var(--accent); color: #fff; }
+  .seg button:not(.active):hover { background: var(--panel2); }
+</style>
+</head>
+<body>
+
+<h1>Stationeers Gas Phase Diagram</h1>
+<div class="sub">Game version 0.2.6228.27061. All data, formulas, and switches verbatim from <code>Assembly-CSharp.dll</code> :: <code>Chemistry</code>, <code>Mole</code>, <code>MoleHelper</code>. Pressure-independent freezing per <code>Mole.WillFreeze</code>; vapor curve <code>P = A &middot; T<sup>B</sup></code>.</div>
+
+<div class="controls">
+  <label>Pressure (kPa):
+    <input type="number" id="pressure-num" min="0.01" max="100000" step="0.01" value="101.325">
+  </label>
+  <input type="range" id="pressure-range" min="-2" max="5" step="0.001" value="2.0057">
+  <button data-p="0.5">Vacuum 0.5</button>
+  <button data-p="6.3">Pipe floor 6.3</button>
+  <button data-p="101.325">1 atm</button>
+  <button data-p="1000">1 MPa</button>
+  <button data-p="6000">Critical 6 MPa</button>
+  <span class="spacer"></span>
+  <button id="show-all">Show all</button>
+  <button id="hide-all">Hide all</button>
+</div>
+
+<div class="controls">
+  <span class="group-label">Units:</span>
+  <span class="seg" id="unit-seg">
+    <button data-unit="K" class="active">Kelvin</button>
+    <button data-unit="C">Celsius</button>
+  </span>
+
+  <span class="divider"></span>
+  <span class="group-label">T axis:</span>
+  <span class="seg" id="taxis-seg">
+    <button data-mode="log" class="active">Log</button>
+    <button data-mode="linear">Linear</button>
+  </span>
+
+  <span class="group-label">P axis:</span>
+  <span class="seg" id="paxis-seg">
+    <button data-mode="log" class="active">Log</button>
+    <button data-mode="linear">Linear</button>
+  </span>
+
+  <span class="divider"></span>
+  <span class="group-label">Layers:</span>
+  <label><input type="checkbox" id="layer-curves" checked> Boiling curves</label>
+  <label><input type="checkbox" id="layer-freeze" checked> Freeze lines</label>
+  <label><input type="checkbox" id="layer-critical"> Critical lines</label>
+  <label><input type="checkbox" id="layer-points" checked> Endpoints</label>
+
+  <span class="divider"></span>
+  <span class="group-label">Phase bg:</span>
+  <label><span class="swatch-inline swatch-solid"></span><input type="checkbox" id="bg-solid" checked> Solid</label>
+  <label><span class="swatch-inline swatch-liquid"></span><input type="checkbox" id="bg-liquid" checked> Liquid</label>
+  <label><span class="swatch-inline swatch-gas"></span><input type="checkbox" id="bg-gas" checked> Gas</label>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <h2>Phase plot</h2>
+    <canvas id="plot" width="900" height="640"></canvas>
+    <div id="hover-info">Hover over plot &mdash; coordinates appear here. Click to set pressure.</div>
+    <div class="legend-hint">
+      Solid line = boiling curve (<code>P = A&middot;T<sup>B</sup></code> from triple to critical point). Dashed vertical = freeze line. Dotted vertical = critical-T line.
+      Filled dot = triple point. Hollow dot = critical point. Open ring = saturation T at current pressure.
+      Game model: freezing is pressure-independent (single vertical line per gas); solid mass exists as a separate <code>PureIce</code> Thing, not as a <code>MatterState</code> value.
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Gases <span style="color:var(--muted);font-weight:normal;font-size:0.8em" id="count-label"></span></h2>
+    <table id="gas-table">
+      <thead>
+        <tr>
+          <th title="Toggle all visibility"><input type="checkbox" id="select-all-cb" checked></th>
+          <th></th>
+          <th data-sort="name">Gas</th>
+          <th data-sort="freezeK" id="hdr-freeze">Freeze</th>
+          <th data-sort="maxK"    id="hdr-maxliq">Max-liq</th>
+          <th data-sort="boilK"   id="hdr-boil">Boil @ P</th>
+          <th data-sort="stateOrd">State @ P</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="footer">
+      Source: <code>Assembly-CSharp.dll</code> :: <code>Assets.Scripts.Atmospherics.Chemistry</code>, <code>Mole</code>, <code>MoleHelper</code>, <code>AtmosphereHelper.MatterState</code>.
+      Full citations in <code>Research/GameSystems/ChemistryGasPhaseData.md</code>.
+      <br>Special cases: Water freezes at hardcoded 273.15 K, Polluted Water at 276.15 K (not from the curve). Helium has <code>A=B=0</code> (no liquid or solid phase). Steam shares Water's A/B; both <code>Water</code> and <code>PollutedWater</code> are classified as <code>MatterState.Liquid</code>.
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top: 1rem;">
+  <h2>Game model vs. real physics</h2>
+  <ul class="diffs">
+    <li>
+      <strong>Pressure-independent freezing</strong>
+      Real solids have a Clausius-Clapeyron slope on the solid-liquid boundary (steep but non-vertical). The game's <code>Mole.WillFreeze</code> is just <code>Temperature &le; FreezingTemperature()</code>; no <code>Pressure</code> parameter. Each gas has one fixed freeze temperature, drawn as a vertical line. Water freezes at exactly 273.15 K whether you're at 0.5 kPa or 60 MPa.
+    </li>
+    <li>
+      <strong>No solid state in atmospheres</strong>
+      <code>AtmosphereHelper.MatterState</code> has only <code>Liquid</code>, <code>Gas</code>, <code>All</code>, <code>None</code>. There is no <code>Solid</code>. Freezing removes the mole from the mixture and spawns a <code>PureIce</code> Thing object with <code>temperature = Tf + 0.1</code>. No sublimation curve, no in-mixture ice crystals.
+    </li>
+    <li>
+      <strong>Power-law vapor pressure, not Antoine</strong>
+      Real-world saturation pressure follows the Antoine equation <code>log P = A &minus; B / (T + C)</code> (or its NIST extensions). The game uses <code>P = A &middot; T<sup>B</sup></code>: a straight line in log-log space. Decent fit over a narrow range; the per-gas constants are tuned to hit the right endpoints rather than match real Antoine coefficients.
+    </li>
+    <li>
+      <strong>Critical temperatures are approximated</strong>
+      Some are close, several are wildly off. Real vs. game:
+      CO<sub>2</sub> 304.1 K vs. 266.3 K,
+      N<sub>2</sub> 126.2 K vs. 190.0 K,
+      H<sub>2</sub> 33.2 K vs. 70.1 K,
+      H<sub>2</sub>O 647.1 K vs. 643.7 K (close).
+      Same goes for triple points (real water triple point is 0.61 kPa at 273.16 K; game uses 6.3 kPa).
+    </li>
+    <li>
+      <strong>Molar masses are balance-tuned, not physical</strong>
+      <code>MOLAR_MASS_OXYGEN = 16</code> (real O<sub>2</sub> = 32 g/mol; the game uses the atom, not the diatomic molecule).
+      <code>NITROGEN = 64</code> (real N<sub>2</sub> = 28; game is 2.3&times; high).
+      <code>WATER = 108</code> (real H<sub>2</sub>O = 18; game is 6&times; high).
+      Hydrogen 2 and Helium 4 are correct. These values drive how heavy a mole of gas is in pipes / canisters, not the phase math.
+    </li>
+    <li>
+      <strong>Constant latent heat and specific heat</strong>
+      Real <code>L<sub>vap</sub></code> falls with T and reaches zero at the critical point; real <code>c<sub>p</sub></code> varies with T. The game uses a single <code>LATENT_HEAT_*</code> and <code>SPECIFIC_HEAT_*</code> per gas, applied at every temperature.
+    </li>
+    <li>
+      <strong>Helium never has a liquid or solid phase</strong>
+      In reality helium liquifies at 4.2 K (and superfluid at 2.17 K). The game sets <code>A = B = 0</code> for helium, short-circuiting <code>FreezingTemperature</code> and <code>MaxLiquidTemperature</code> to <code>TemperatureKelvin.Zero</code>. <code>CanEvaporate(Helium) = false</code> and <code>CanCondense(Helium) = false</code> make it gas-only everywhere.
+    </li>
+    <li>
+      <strong>Water and Steam are separate <code>GasType</code> enum values</strong>
+      Real H<sub>2</sub>O is one chemical with three phases. The game tracks <code>Water</code> (liquid) and <code>Steam</code> (gas) as distinct values that must be converted between via <code>MoleHelper.EvaporationType</code> / <code>CondensationType</code>. They share A, B, and the critical temperature, but each is its own routing tag through the simulation.
+    </li>
+    <li>
+      <strong>Internal names don't always match in-game labels</strong>
+      "Pollutant" is internally called Sulfur Dioxide (<code>CRITICAL_TEMPERATURE_SULFUR_DIOXIDE_K</code>). "Nitrous Oxide" is partly stored under Nitrogen Dioxide constants. "Liquid Alcohol" maps to Ethanol constants. "Methane" was previously named "Volatiles" before the March-2026 Gases Update.
+    </li>
+    <li>
+      <strong>Hardcoded triple points for water</strong>
+      Most gases have <code>FreezingTemperature</code> derived from the curve at the floor pressure, so <code>P_sat(Tf) == Pf</code> by construction. Water and Polluted Water short-circuit to hardcoded constants (273.15 / 276.15 K), and <code>P_sat(273.15) &asymp; 6.87 kPa</code> &ne; the floor <code>Pf = 6.3 kPa</code>. The clamps absorb the ~0.6 kPa discrepancy.
+    </li>
+  </ul>
+</div>
+
+<script>
+// ====== DATA: verbatim from Assembly-CSharp.dll @ 0.2.6228.27061 ======
+const GASES = [
+  { name: 'Oxygen',            A: 2.6854996004e-11,     B: 6.49214937325,      Pf: 6.3,  Pc: 6000 },
+  { name: 'Nitrogen',          A: 5.5757107833e-07,     B: 4.40221368946,      Pf: 6.3,  Pc: 6000 },
+  { name: 'Carbon Dioxide',    A: 1.579573e-26,         B: 12.195837931,       Pf: 517,  Pc: 6000 },
+  { name: 'Methane',           A: 5.863496734e-15,      B: 7.8643601035,       Pf: 6.3,  Pc: 6000 },
+  { name: 'Pollutant (SO2)',   A: 2.079033884,          B: 1.31202194555,      Pf: 1800, Pc: 6000 },
+  { name: 'Water',             A: 3.8782059839e-19,     B: 7.90030107708,      Pf: 6.3,  Pc: 6000, Tf: 273.15 },
+  { name: 'Polluted Water',    A: 4e-20,                B: 8.27025711260823,   Pf: 6.3,  Pc: 6000, Tf: 276.15 },
+  { name: 'Nitrous Oxide',     A: 0.065353501531,       B: 1.70297431874,      Pf: 800,  Pc: 2000 },
+  { name: 'Hydrogen',          A: 3.18041e-05,          B: 4.4843872973,       Pf: 6.3,  Pc: 6000 },
+  { name: 'Hydrazine',         A: 8e-22,                B: 9.15642808045339,   Pf: 6.3,  Pc: 6000 },
+  { name: 'Alcohol (Ethanol)', A: 9e-20,                B: 8.391884446078986,  Pf: 6.3,  Pc: 1000 },
+  { name: 'Helium',            A: 0, B: 0,              Pf: null, Pc: null, noLiquid: true },
+  { name: 'Sodium Chloride',   A: 6.211737044295e-08,   B: 2.8774143233482707, Pf: 6.3,  Pc: 515 },
+  { name: 'Silanol',           A: 0.22176555607618392,  B: 1.5206578718752168, Pf: 516,  Pc: 6000 },
+  { name: 'Hydrochloric Acid', A: 1e-21,                B: 9.108844460789863,  Pf: 6.3,  Pc: 1000 },
+  { name: 'Ozone',             A: 0.006219763823043718, B: 2.4097251251207226, Pf: 250,  Pc: 6000 },
+];
+const COLORS = [
+  '#4a9eff', '#86c5ff', '#5fd35f', '#ff944a', '#a3724f',
+  '#3fd4d4', '#9ee8e8', '#d8d83f', '#ff5252', '#b56bd6',
+  '#ff7fc8', '#bbbbbb', '#ffc78a', '#b0e89a', '#d6b8e6', '#ff9b9b'
+];
+
+function P_sat(g, T)   { return g.A * Math.pow(T, g.B); }
+function T_sat(g, P)   { return Math.pow(P / g.A, 1 / g.B); }
+
+GASES.forEach((g, i) => {
+  g.color = COLORS[i % COLORS.length];
+  g.visible = true;
+  if (g.noLiquid) { g.Tf_calc = null; g.Tc_calc = null; }
+  else {
+    g.Tf_calc = (g.Tf !== undefined) ? g.Tf : T_sat(g, g.Pf);
+    g.Tc_calc = T_sat(g, g.Pc);
+  }
+});
+
+// ====== HELPERS ======
+const K2C = k => k - 273.15;
+const C2K = c => c + 273.15;
+
+function phaseStateAt(g, P) {
+  if (g.noLiquid) return { label: 'always gas', kind: 'always-gas', ord: 3, T: null };
+  if (P < g.Pf)    return { label: 'sublimates (P below floor)', kind: 'sublimate', ord: 1, T: null };
+  if (P > g.Pc)    return { label: 'supercritical (P above crit)', kind: 'supercrit', ord: 2, T: null };
+  const T = T_sat(g, P);
+  return { label: '__boil__', kind: 'boil', ord: 0, T };
+}
+
+// "nice" linear ticks like d3.ticks
+function niceLinearTicks(min, max, target = 10) {
+  if (min === max) return [min];
+  const range = max - min;
+  const rough = range / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let step;
+  if (norm < 1.5) step = 1 * mag;
+  else if (norm < 3) step = 2 * mag;
+  else if (norm < 7) step = 5 * mag;
+  else step = 10 * mag;
+  const ticks = [];
+  const start = Math.ceil(min / step) * step;
+  for (let v = start; v <= max + 1e-9; v += step) ticks.push(+v.toFixed(10));
+  return ticks;
+}
+
+// ====== STATE ======
+let pressure = 101.325;
+let sortKey = null, sortDir = 1;
+// `stickyIdx` is the persistent highlight: where the plot reverts to after a hover ends.
+// `highlightIdx` is what's actually drawn right now (may be a non-visible gas while hovering).
+// Sticky updates only on (a) init, (b) hover-enter on a *visible* row, (c) visibility change to 1-visible.
+let stickyIdx = 5;     // Water by default
+let highlightIdx = 5;
+const layers = { curves: true, freeze: true, critical: false, points: true };
+const bgs = { solid: true, liquid: true, gas: true };
+let useCelsius = false;
+let tAxisLog = true;
+let pAxisLog = true;
+
+// Plot ranges (internal coords always in K and kPa, regardless of display unit).
+// T max is dynamic: 10% headroom above the highest critical T of currently-visible gases,
+// so toggling a gas with an outlier Tc (e.g. Sodium Chloride at 2799 K) rescales the axis.
+const T_LO_LOG = 10, T_LO_LIN = 0;
+const P_RANGE_LOG = [0.1, 60000];
+const P_RANGE_LIN = [0, 7000];
+function maxVisibleTc() {
+  let m = 0;
+  for (const g of GASES) {
+    if (g.visible && !g.noLiquid && g.Tc_calc != null && g.Tc_calc > m) m = g.Tc_calc;
+  }
+  return m > 0 ? m : 300; // fallback when nothing visible
+}
+function tRange() {
+  const top = maxVisibleTc() * 1.1;
+  if (tAxisLog) return [T_LO_LOG, Math.max(top, 100)];
+  return [T_LO_LIN, Math.max(top, 100)];
+}
+function pRange() { return pAxisLog ? P_RANGE_LOG : P_RANGE_LIN; }
+
+// ====== PLOT ======
+const canvas = document.getElementById('plot');
+const ctx = canvas.getContext('2d');
+const M = { l: 65, r: 20, t: 20, b: 50 };
+const lg = Math.log10;
+function plotW() { return canvas.width - M.l - M.r; }
+function plotH() { return canvas.height - M.t - M.b; }
+function tx(T) {
+  const [lo, hi] = tRange();
+  if (tAxisLog) return M.l + (lg(T) - lg(lo)) / (lg(hi) - lg(lo)) * plotW();
+  return M.l + (T - lo) / (hi - lo) * plotW();
+}
+function py(P) {
+  const [lo, hi] = pRange();
+  if (pAxisLog) return M.t + plotH() - (lg(P) - lg(lo)) / (lg(hi) - lg(lo)) * plotH();
+  return M.t + plotH() - (P - lo) / (hi - lo) * plotH();
+}
+function invX(x) {
+  const [lo, hi] = tRange();
+  if (tAxisLog) return Math.pow(10, lg(lo) + (x - M.l) / plotW() * (lg(hi) - lg(lo)));
+  return lo + (x - M.l) / plotW() * (hi - lo);
+}
+function invY(y) {
+  const [lo, hi] = pRange();
+  if (pAxisLog) return Math.pow(10, lg(lo) + (1 - (y - M.t) / plotH()) * (lg(hi) - lg(lo)));
+  return lo + (1 - (y - M.t) / plotH()) * (hi - lo);
+}
+
+function clampX(x) { return Math.max(M.l, Math.min(canvas.width - M.r, x)); }
+function clampY(y) { return Math.max(M.t, Math.min(canvas.height - M.b, y)); }
+
+// label-for-temperature in current unit
+function tLabel(T_K) {
+  if (useCelsius) return (T_K - 273.15).toFixed(0);
+  return T_K.toFixed(0);
+}
+function pLabel(P_kPa) {
+  if (P_kPa >= 1000) return (P_kPa / 1000).toFixed(P_kPa >= 10000 ? 0 : 1) + 'k';
+  return P_kPa.toFixed(P_kPa < 10 ? 1 : 0);
+}
+
+// generate tick positions (in K / kPa)
+function tMajorTicks() {
+  const [lo, hi] = tRange();
+  if (tAxisLog) {
+    const out = [];
+    for (let d = Math.ceil(lg(lo)); d <= Math.floor(lg(hi)); d++) {
+      const v = Math.pow(10, d);
+      if (v >= lo && v <= hi) out.push(v);
+    }
+    return out;
+  } else {
+    // generate in display unit so ticks land on round display values
+    if (useCelsius) return niceLinearTicks(lo - 273.15, hi - 273.15, 10).map(c => c + 273.15);
+    return niceLinearTicks(lo, hi, 10);
+  }
+}
+function tMinorTicks() {
+  const [lo, hi] = tRange();
+  if (tAxisLog) {
+    const out = [];
+    for (let d = Math.ceil(lg(lo)) - 1; d <= Math.floor(lg(hi)) + 1; d++) {
+      for (let k = 2; k < 10; k++) {
+        const v = k * Math.pow(10, d);
+        if (v > lo && v < hi) out.push(v);
+      }
+    }
+    return out;
+  } else {
+    const majors = tMajorTicks();
+    const out = [];
+    for (let i = 0; i + 1 < majors.length; i++) {
+      out.push((majors[i] + majors[i+1]) / 2);
+    }
+    return out;
+  }
+}
+function pMajorTicks() {
+  const [lo, hi] = pRange();
+  if (pAxisLog) {
+    const out = [];
+    for (let d = Math.ceil(lg(lo)); d <= Math.floor(lg(hi)); d++) {
+      const v = Math.pow(10, d);
+      if (v >= lo && v <= hi) out.push(v);
+    }
+    return out;
+  } else {
+    return niceLinearTicks(lo, hi, 8);
+  }
+}
+function pMinorTicks() {
+  const [lo, hi] = pRange();
+  if (pAxisLog) {
+    const out = [];
+    for (let d = Math.ceil(lg(lo)) - 1; d <= Math.floor(lg(hi)) + 1; d++) {
+      for (let k = 2; k < 10; k++) {
+        const v = k * Math.pow(10, d);
+        if (v > lo && v < hi) out.push(v);
+      }
+    }
+    return out;
+  } else {
+    const majors = pMajorTicks();
+    const out = [];
+    for (let i = 0; i + 1 < majors.length; i++) {
+      out.push((majors[i] + majors[i+1]) / 2);
+    }
+    return out;
+  }
+}
+
+// Sample N points along a gas's saturation curve in K space; returns array of {T, P}.
+function sampleCurve(g, N = 64) {
+  if (g.noLiquid) return [];
+  const Tf = g.Tf_calc, Tc = g.Tc_calc;
+  const pts = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    // sample in log T so the curve stays well-resolved at low T
+    const logT = lg(Tf) + t * (lg(Tc) - lg(Tf));
+    const T = Math.pow(10, logT);
+    const P = P_sat(g, T);
+    pts.push({ T, P });
+  }
+  return pts;
+}
+
+function pathCurve(g) {
+  const pts = sampleCurve(g);
+  if (!pts.length) return false;
+  ctx.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const x = tx(pts[i].T), y = py(pts[i].P);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  return true;
+}
+
+function drawPhaseRegions(g) {
+  if (!g || g.noLiquid) return;
+  const Tf = g.Tf_calc, Tc = g.Tc_calc;
+  const xTf = tx(Tf), xTc = tx(Tc);
+  const xMin = M.l, xMax = canvas.width - M.r;
+  const yMin = M.t, yMax = canvas.height - M.b;
+  const pts = sampleCurve(g);
+
+  // ---- SOLID (orange): T < Tf, all P ----
+  if (bgs.solid) {
+    ctx.fillStyle = 'rgba(220, 150, 70, 0.20)';
+    const x = clampX(xTf);
+    if (x > xMin) ctx.fillRect(xMin, yMin, x - xMin, yMax - yMin);
+  }
+
+  // ---- LIQUID (blue): bounded by Tf, Tc, sat curve, plot top ----
+  if (bgs.liquid) {
+    ctx.fillStyle = 'rgba(80, 140, 220, 0.20)';
+    ctx.beginPath();
+    ctx.moveTo(clampX(xTf), yMin);                              // top-left
+    ctx.lineTo(clampX(xTf), clampY(py(pts[0].P)));              // down to curve start
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(clampX(tx(pts[i].T)), clampY(py(pts[i].P)));
+    }
+    ctx.lineTo(clampX(xTc), yMin);                              // up to top-right
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ---- GAS (green): everything else (T >= Tf) ----
+  if (bgs.gas) {
+    ctx.fillStyle = 'rgba(80, 200, 120, 0.16)';
+    // (a) Tf <= T <= Tc, below curve
+    ctx.beginPath();
+    ctx.moveTo(clampX(xTf), clampY(py(pts[0].P)));
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(clampX(tx(pts[i].T)), clampY(py(pts[i].P)));
+    }
+    ctx.lineTo(clampX(xTc), yMax);
+    ctx.lineTo(clampX(xTf), yMax);
+    ctx.closePath();
+    ctx.fill();
+    // (b) T > Tc, all P
+    if (xTc < xMax) ctx.fillRect(clampX(xTc), yMin, xMax - clampX(xTc), yMax - yMin);
+  }
+}
+
+function drawPlot() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#121212';
+  ctx.fillRect(M.l, M.t, W - M.l - M.r, H - M.t - M.b);
+
+  // phase regions (bottom layer) for highlighted gas only
+  if (highlightIdx >= 0 && highlightIdx < GASES.length) drawPhaseRegions(GASES[highlightIdx]);
+
+  // minor grid
+  ctx.strokeStyle = '#262626'; ctx.lineWidth = 1;
+  for (const T of tMinorTicks()) {
+    const x = tx(T); if (x < M.l || x > W - M.r) continue;
+    ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, H - M.b); ctx.stroke();
+  }
+  for (const P of pMinorTicks()) {
+    const y = py(P); if (y < M.t || y > H - M.b) continue;
+    ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(W - M.r, y); ctx.stroke();
+  }
+  // major grid + labels
+  ctx.strokeStyle = '#3a3a3a'; ctx.fillStyle = '#aaa';
+  ctx.font = '11px ui-monospace, Consolas, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const T of tMajorTicks()) {
+    const x = tx(T); if (x < M.l - 0.5 || x > W - M.r + 0.5) continue;
+    ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, H - M.b); ctx.stroke();
+    ctx.fillText(tLabel(T), x, H - M.b + 5);
+  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const P of pMajorTicks()) {
+    const y = py(P); if (y < M.t - 0.5 || y > H - M.b + 0.5) continue;
+    ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(W - M.r, y); ctx.stroke();
+    ctx.fillText(pLabel(P), M.l - 6, y);
+  }
+
+  // frame
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+  ctx.strokeRect(M.l, M.t, W - M.l - M.r, H - M.t - M.b);
+
+  // axis titles
+  ctx.fillStyle = '#ddd'; ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  const tUnit = useCelsius ? '°C' : 'K';
+  const tScale = tAxisLog ? 'log' : 'linear';
+  const pScale = pAxisLog ? 'log' : 'linear';
+  ctx.fillText(`Temperature (${tUnit}, ${tScale} scale)`, M.l + (W - M.l - M.r) / 2, H - 5);
+  ctx.save();
+  ctx.translate(15, M.t + (H - M.t - M.b) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top';
+  ctx.fillText(`Pressure (kPa, ${pScale} scale)`, 0, 0);
+  ctx.restore();
+
+  // pressure cursor
+  if (pressure >= pRange()[0] && pressure <= pRange()[1]) {
+    const y = py(pressure);
+    ctx.strokeStyle = '#4a9eff'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(W - M.r, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#4a9eff'; ctx.font = '11px ui-monospace, Consolas, monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(`P = ${pressure.toFixed(2)} kPa`, M.l + 6, y - 3);
+  }
+
+  // freeze + critical vertical lines
+  for (const g of GASES) {
+    if (!g.visible || g.noLiquid) continue;
+    const isHi = (GASES[highlightIdx] === g);
+    if (layers.freeze) {
+      ctx.strokeStyle = g.color; ctx.lineWidth = isHi ? 2 : 1;
+      ctx.setLineDash([4, 3]);
+      const x = tx(g.Tf_calc);
+      if (x >= M.l && x <= W - M.r) {
+        ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, H - M.b); ctx.stroke();
+      }
+    }
+    if (layers.critical) {
+      ctx.strokeStyle = g.color; ctx.lineWidth = isHi ? 2 : 1;
+      ctx.setLineDash([2, 4]);
+      const x = tx(g.Tc_calc);
+      if (x >= M.l && x <= W - M.r) {
+        ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, H - M.b); ctx.stroke();
+      }
+    }
+  }
+  ctx.setLineDash([]);
+
+  // boiling curves
+  if (layers.curves) {
+    for (const g of GASES) {
+      if (!g.visible || g.noLiquid) continue;
+      const isHi = (GASES[highlightIdx] === g);
+      ctx.strokeStyle = g.color; ctx.lineWidth = isHi ? 3 : 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(M.l, M.t, W - M.l - M.r, H - M.t - M.b);
+      ctx.clip();
+      pathCurve(g); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // endpoints + current-P intersection
+  if (layers.points) {
+    for (const g of GASES) {
+      if (!g.visible || g.noLiquid) continue;
+      const Pf_curve = P_sat(g, g.Tf_calc);
+      const x1 = tx(g.Tf_calc), y1 = py(Pf_curve);
+      const x2 = tx(g.Tc_calc), y2 = py(g.Pc);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(M.l, M.t, W - M.l - M.r, H - M.t - M.b);
+      ctx.clip();
+      // triple-point (filled)
+      ctx.fillStyle = g.color;
+      ctx.beginPath(); ctx.arc(x1, y1, 4.5, 0, Math.PI * 2); ctx.fill();
+      // critical-point (hollow)
+      ctx.beginPath(); ctx.arc(x2, y2, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#121212'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = g.color; ctx.stroke();
+      // current-P intersection
+      if (pressure >= g.Pf && pressure <= g.Pc) {
+        const T = T_sat(g, pressure);
+        const cx = tx(T), cy = py(pressure);
+        ctx.strokeStyle = g.color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+      // right-edge tab (outside the clipped region)
+      if (pressure >= g.Pf && pressure <= g.Pc) {
+        const cy = py(pressure);
+        if (cy >= M.t && cy <= H - M.b) {
+          ctx.fillStyle = g.color;
+          ctx.fillRect(W - M.r - 12, cy - 3, 12, 6);
+        }
+      }
+    }
+  }
+
+  // highlight label
+  if (highlightIdx >= 0 && !GASES[highlightIdx].noLiquid) {
+    ctx.fillStyle = '#ddd'; ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText(`Phase regions: ${GASES[highlightIdx].name}`, canvas.width - M.r - 6, M.t + 4);
+  }
+}
+
+// ====== TABLE ======
+function updateTableHeaders() {
+  const u = useCelsius ? '°C' : 'K';
+  document.getElementById('hdr-freeze').textContent = `Freeze ${u}`;
+  document.getElementById('hdr-maxliq').textContent = `Max-liq ${u}`;
+  document.getElementById('hdr-boil').textContent = `Boil ${u} @ P`;
+}
+
+function renderTable() {
+  updateTableHeaders();
+  const tbody = document.querySelector('#gas-table tbody');
+  tbody.innerHTML = '';
+  const visibleCount = GASES.filter(g => g.visible).length;
+  document.getElementById('count-label').textContent =
+    `(${visibleCount}/${GASES.length} visible, P = ${pressure.toFixed(2)} kPa)`;
+  // master checkbox: checked if all visible, indeterminate if some, unchecked if none
+  const selAll = document.getElementById('select-all-cb');
+  if (selAll) {
+    selAll.checked = (visibleCount === GASES.length);
+    selAll.indeterminate = (visibleCount > 0 && visibleCount < GASES.length);
+  }
+
+  const conv = T_K => T_K == null ? null : (useCelsius ? K2C(T_K) : T_K);
+  const rows = GASES.map((g, idx) => {
+    const s = phaseStateAt(g, pressure);
+    return {
+      idx, gas: g,
+      name: g.name,
+      freezeK: g.Tf_calc, freezeDisp: conv(g.Tf_calc),
+      maxK:    g.Tc_calc, maxDisp:    conv(g.Tc_calc),
+      boilK:   s.T,       boilDisp:   conv(s.T),
+      state: s, stateOrd: s.ord * 1e9 + (s.T || 0),
+    };
+  });
+
+  if (sortKey) {
+    rows.sort((a, b) => {
+      let av = a[sortKey], bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+      return sortDir * (av - bv);
+    });
+  }
+
+  const fmtTd = v => v == null ? '<td class="nlt">n/a</td>' : `<td>${v.toFixed(2)}</td>`;
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    if (!r.gas.visible) tr.className = 'disabled';
+    if (r.idx === highlightIdx) tr.classList.add('highlighted');
+    const stateDisp = r.state.kind === 'boil'
+      ? `boils at ${(useCelsius ? K2C(r.state.T) : r.state.T).toFixed(1)} ${useCelsius ? '°C' : 'K'}`
+      : r.state.label;
+    tr.dataset.idx = r.idx;
+    tr.innerHTML = `
+      <td><input type="checkbox" class="vis-cb" data-idx="${r.idx}" ${r.gas.visible ? 'checked' : ''}></td>
+      <td class="swatch-cell"><span class="swatch" style="background:${r.gas.color}"></span></td>
+      <td>${r.name}</td>
+      ${fmtTd(r.freezeDisp)}${fmtTd(r.maxDisp)}${fmtTd(r.boilDisp)}
+      <td class="state-${r.state.kind}">${stateDisp}</td>
+    `;
+    // Hover sets the displayed highlight. Sticky updates only if the hovered gas is visible
+    // (so hovering an unselected gas is a *preview* that reverts on mouse-leave).
+    tr.addEventListener('mouseenter', () => {
+      if (highlightIdx === r.idx) return;
+      highlightIdx = r.idx;
+      if (GASES[r.idx].visible) stickyIdx = r.idx;
+      updateRowHighlightClasses();
+      drawPlot();
+    });
+    tbody.appendChild(tr);
+  }
+
+  // Mouse leaves the table body entirely: revert to sticky (which respects the 1-visible rule).
+  tbody.addEventListener('mouseleave', () => {
+    const idx = effectiveStickyIdx();
+    if (idx === highlightIdx) return;
+    highlightIdx = idx;
+    updateRowHighlightClasses();
+    drawPlot();
+  });
+
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.sort === sortKey) th.classList.add(sortDir > 0 ? 'sort-asc' : 'sort-desc');
+  });
+
+  tbody.querySelectorAll('input.vis-cb').forEach(cb => {
+    cb.addEventListener('change', e => {
+      // Stop the click from bubbling to the row, which would also fire mouseenter logic on re-render.
+      e.stopPropagation();
+      GASES[parseInt(e.target.dataset.idx)].visible = e.target.checked;
+      enforceSingleVisibleHighlight();
+      drawPlot(); renderTable();
+    });
+  });
+}
+
+// Returns the persistent fallback: the single visible gas if exactly one is visible,
+// otherwise the most recent sticky pick.
+function effectiveStickyIdx() {
+  const vis = GASES.map((g, i) => g.visible ? i : -1).filter(i => i >= 0);
+  if (vis.length === 1) return vis[0];
+  return stickyIdx;
+}
+
+// Called when visibility changes. If now exactly one is visible, snap sticky+highlight to it.
+// Otherwise leave highlightIdx alone so an active hover is not disrupted; the next
+// mouseleave on the tbody will route through effectiveStickyIdx() naturally.
+function enforceSingleVisibleHighlight() {
+  const vis = GASES.map((g, i) => g.visible ? i : -1).filter(i => i >= 0);
+  if (vis.length === 1) {
+    stickyIdx = vis[0];
+    highlightIdx = vis[0];
+  }
+}
+
+function updateRowHighlightClasses() {
+  document.querySelectorAll('#gas-table tbody tr').forEach(row => {
+    row.classList.toggle('highlighted', parseInt(row.dataset.idx) === highlightIdx);
+  });
+}
+
+// ====== CONTROLS ======
+const pNum = document.getElementById('pressure-num');
+const pRng = document.getElementById('pressure-range');
+function setPressure(p) {
+  pressure = Math.max(0.01, Math.min(100000, p));
+  pNum.value = +pressure.toFixed(3);
+  pRng.value = lg(pressure);
+  drawPlot(); renderTable();
+}
+pNum.addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  if (isFinite(v) && v > 0) setPressure(v);
+});
+pRng.addEventListener('input', e => setPressure(Math.pow(10, parseFloat(e.target.value))));
+document.querySelectorAll('button[data-p]').forEach(btn => {
+  btn.addEventListener('click', () => setPressure(parseFloat(btn.dataset.p)));
+});
+document.getElementById('show-all').addEventListener('click', () => {
+  GASES.forEach(g => g.visible = true); enforceSingleVisibleHighlight(); drawPlot(); renderTable();
+});
+document.getElementById('hide-all').addEventListener('click', () => {
+  GASES.forEach(g => g.visible = false); drawPlot(); renderTable();
+});
+// Header master checkbox: click toggles all-on / all-off.
+document.getElementById('select-all-cb').addEventListener('click', e => {
+  const target = e.target.checked;
+  GASES.forEach(g => g.visible = target);
+  enforceSingleVisibleHighlight();
+  drawPlot(); renderTable();
+});
+
+// segmented buttons: unit / T axis / P axis
+function bindSeg(containerId, onPick) {
+  const c = document.getElementById(containerId);
+  c.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      c.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onPick(btn.dataset);
+    });
+  });
+}
+bindSeg('unit-seg',  d => { useCelsius = (d.unit === 'C'); drawPlot(); renderTable(); });
+bindSeg('taxis-seg', d => { tAxisLog   = (d.mode === 'log'); drawPlot(); });
+bindSeg('paxis-seg', d => { pAxisLog   = (d.mode === 'log'); drawPlot(); });
+
+// layer toggles
+for (const [key, id] of [['curves','layer-curves'],['freeze','layer-freeze'],['critical','layer-critical'],['points','layer-points']]) {
+  const el = document.getElementById(id);
+  el.checked = layers[key];
+  el.addEventListener('change', e => { layers[key] = e.target.checked; drawPlot(); });
+}
+for (const [key, id] of [['solid','bg-solid'],['liquid','bg-liquid'],['gas','bg-gas']]) {
+  const el = document.getElementById(id);
+  el.checked = bgs[key];
+  el.addEventListener('change', e => { bgs[key] = e.target.checked; drawPlot(); });
+}
+
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (sortKey === k) sortDir = -sortDir;
+    else { sortKey = k; sortDir = 1; }
+    renderTable();
+  });
+});
+
+// hover info
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) * canvas.width / r.width;
+  const y = (e.clientY - r.top) * canvas.height / r.height;
+  if (x < M.l || x > canvas.width - M.r || y < M.t || y > canvas.height - M.b) {
+    document.getElementById('hover-info').textContent = 'Hover over plot — coordinates appear here. Click to set pressure.';
+    return;
+  }
+  const T_K = invX(x), P = invY(y);
+  const Tdisp = useCelsius ? K2C(T_K) : T_K;
+  const tUnit = useCelsius ? '°C' : 'K';
+
+  // nearest curve (in screen space)
+  let nearest = null, nearDist = Infinity;
+  for (const g of GASES) {
+    if (!g.visible || g.noLiquid) continue;
+    const pts = sampleCurve(g, 32);
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const x1 = tx(pts[i].T),     y1 = py(pts[i].P);
+      const x2 = tx(pts[i+1].T),   y2 = py(pts[i+1].P);
+      const dx = x2 - x1, dy = y2 - y1, len2 = dx*dx + dy*dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - x1)*dx + (y - y1)*dy) / len2));
+      const px = x1 + t*dx, pyy = y1 + t*dy;
+      const d = Math.hypot(x - px, y - pyy);
+      if (d < nearDist) { nearDist = d; nearest = g; }
+    }
+  }
+
+  let phaseLabel = '';
+  if (highlightIdx >= 0) {
+    const g = GASES[highlightIdx];
+    if (g.noLiquid) phaseLabel = `   ${g.name}: gas`;
+    else if (T_K < g.Tf_calc) phaseLabel = `   ${g.name}: SOLID`;
+    else if (T_K > g.Tc_calc) phaseLabel = `   ${g.name}: GAS (supercritical)`;
+    else phaseLabel = (P >= P_sat(g, T_K)) ? `   ${g.name}: LIQUID` : `   ${g.name}: GAS`;
+  }
+  let extra = '';
+  if (nearest && nearDist < 10) extra = `   nearest: ${nearest.name}`;
+  document.getElementById('hover-info').textContent =
+    `T = ${Tdisp.toFixed(1)} ${tUnit}   P = ${P.toFixed(2)} kPa${phaseLabel}${extra}`;
+});
+canvas.addEventListener('mouseleave', () => {
+  document.getElementById('hover-info').textContent = 'Hover over plot — coordinates appear here. Click to set pressure.';
+});
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  const y = (e.clientY - r.top) * canvas.height / r.height;
+  if (y < M.t || y > canvas.height - M.b) return;
+  setPressure(invY(y));
+});
+
+// ====== INIT ======
+enforceSingleVisibleHighlight();
+setPressure(101.325);
+</script>
+</body>
+</html>

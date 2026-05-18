@@ -1,0 +1,7075 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Tools and research for Stationeers modding, sourced from the StationeersPlus monorepo.">
+      
+      
+        <meta name="author" content="SixFive7">
+      
+      
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/LightSources/">
+      
+      
+        <link rel="prev" href="../KeyBinding/">
+      
+      
+        <link rel="next" href="../Localization/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Light Sources (built-in light emitters) - StationeersPlus</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#light-sources-built-in-light-emitters" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="StationeersPlus" class="md-header__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            StationeersPlus
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Light Sources (built-in light emitters)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  StationeersPlus
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tools/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tools
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Research
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="StationeersPlus" class="md-nav__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    StationeersPlus
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersPlus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../tools/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tools/phase-diagram/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameClasses
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameClasses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/AdvancedTablet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AdvancedTablet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/AllowedRotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AllowedRotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Battery (station-mounted)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CableNetwork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CableNetwork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CameraController/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraController
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatCanvas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatCanvas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatStatusMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatStatusMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ColorSwatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ColorSwatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CombustionDeepMiner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CombustionDeepMiner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ConfigCartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConfigCartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Constructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CreateStructureInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CreateStructureInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CursorManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CursorManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CustomScrollPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CustomScrollPanel.ScrollPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Device/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/GameManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Grid3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/HelmetBattery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Helmet Battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/HelpLinkHandler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HelpLinkHandler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Human/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ILifeSuspender/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILifeSuspender
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ISprayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISprayer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/InventoryManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/InventoryWindow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryWindow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ItemKitLinearRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ItemKitLinearRail (multi-constructor kit for rail pieces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LanderCapsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LogicTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MultiConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MultiMergeConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiMergeConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/NetworkChannel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/OnServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OnServer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PipeIgniter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PipeIgniter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PowerTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTick
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PowerTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RoboticArmDock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmDock and dock subclasses (Larre dock IC10 / slot surface)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RoboticArmRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Room/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Room
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RotatableBehaviour/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RotatableBehaviour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SayCommand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SayCommand
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SensorLenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SensorLenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Silo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Silo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SolarPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SolarPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SprayCan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayCan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SprayGun/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayGun
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Stationpedia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/StationpediaPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Thing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ThingRenderer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingRenderer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Transformer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transformer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/UniversalPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UniversalPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Wall/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wall
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/WeatherEvent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WeatherEvent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/WirelessPower/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WirelessPower
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameSystems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameSystems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CameraFilterPack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraFilterPack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChatBroadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatBroadcast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChemistryGasPhaseData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chemistry gas phase data (freezing points, max-liquid temperatures, Antoine-style coefficients)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ConveyorBeltCutContent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConveyorBeltCutContent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DamageState/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DamageState
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DedicatedServerSettings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dedicated Server Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DevicePowerDraw/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device power draw (which devices exceed the 5 kW normal-cable rating)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DirectConnect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct-Connect Server Join Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Explosions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explosions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10DeviceAddressing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 device addressing (pin, alias, ReferenceId)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10ExecutionTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 Execution Tick Rate and Yield Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10SyntaxHighlighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SyntaxHighlighting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../KeyBinding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Key Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Light Sources (built-in light emitters)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Light Sources (built-in light emitters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a-the-ilight-interface-and-thingallilights-alliwearablelights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. The ILight interface and Thing.AllILights / AllIWearableLights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#b-the-thinglight-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. The ThingLight wrapper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-power-model-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Power model summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-the-light-source-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. The light-source table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#e-walllight-toggling-occlusion-airlock-smart-rotate-custom-colour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. WallLight: toggling, occlusion, airlock, smart-rotate, custom colour
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#f-walllightbattery-battery-backup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. WallLightBattery: battery backup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#g-flashinglight-and-growlight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        G. FlashingLight and GrowLight
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#h-flashlight-headlamp-helmet-gasmask-the-wearable-handheld-lights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H. Flashlight, Headlamp, Helmet, GasMask: the wearable / handheld lights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#i-stackablelight-chemlight-roadflare-lifetime-based-emitters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. StackableLight / ChemLight / RoadFlare: lifetime-based emitters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#j-lightmanager-and-illuminationmanager-what-they-do-and-dont-for-lights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        J. LightManager and IlluminationManager — what they do (and don't) for lights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#k-limits-of-the-decompile-what-needs-the-asset-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K. Limits of the decompile — what needs the asset bundle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Localization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Localization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LogicType/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LogicValueFormatting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicValueFormatting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ModDeduplication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModDeduplication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ModLoadSequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModLoadSequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../NetworkRoles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkRoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../NetworkUpdateFlags/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkUpdateFlags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Occlusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Occlusion (distance-based renderer culling)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PlacementOrientation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTickThreading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTickThreading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RecipeDataLoading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RecipeData loading and GameData XML overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RenderingPipelineAndGlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendering Pipeline and Glow Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RepairMechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepairMechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RespawnFlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RespawnFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SaveDataRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveDataRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SaveZipExtension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Side-car file persistence in save ZIPs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ScrollInputHandling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scroll Input Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaAscendedInternals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaAscendedInternals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaMarkup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaMarkup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaPageRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPageRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaSearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaSearch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StructurePlacementValidation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure placement validation (CanConstruct / CanReplace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StunStateMachine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StunStateMachine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TerrainOctree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainOctree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ThirdPartyModIdentities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThirdPartyModIdentities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../UnregisteredSaveDataBehavior/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnregisteredSaveDataBehavior
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WorldStateAPIs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldStateAPIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AboutXmlWorkshopHandleParse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AboutXmlWorkshopHandleParse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AccessToolsRecipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AccessTools recipes for private field access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncEnumerator472/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manual async-enumerator drain on .NET Framework 4.7.2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncHarmonyTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async Harmony trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BestEffortIntegration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best-effort integration with optional dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BinaryStreamSafety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ClientDisconnectedPrefix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ClientDisconnected cleanup Prefix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConditionalWeakTableCache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConditionalWeakTable per-instance cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConflictDetection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod conflict detection via assembly scan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CursorAdjacencyLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cursor-time adjacency lookup (find neighbour cells from a placement ghost)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CustomLogicValueInjection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom logic-value injection on a vanilla device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/FileSystemWatcherMainThread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileSystemWatcher main-thread boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/Float16Quantization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Float16 quantization on network serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyFieldOrProperty/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony field-or-property reflection tolerance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyInheritedMethods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony inherited-method patching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchTypes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPrefixReturnBool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony Prefix must return bool to block the original
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ILRepackPerModCopy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILRepackPerModCopy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InGameConsoleOutput/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InGameConsoleOutput
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InventoryAutoEquip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inventory Auto-Equip APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/LogicableInitializeAppend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending Logicable's initialized LogicType arrays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/MainThreadDispatcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MainThreadDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ModLogicTypeRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod LogicType Registration Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PeriodicProcessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Periodic processing options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PooledSpanEnumeration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PooledSpan enumeration with trailing-null filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PrefabCloning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prefab cloning (Mirrored Devices template)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ProtectedMethodPublicAPIBypass/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replace a protected method via public-API composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveDataIsinstInheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom save-data type must inherit vanilla so isinst still matches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveLoadOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveLoadOrdering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ServerAuthoritativeSimulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server-authoritative simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SinglePlayerNetworkRole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single-player NetworkRole trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotInsertionBlock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotInsertionBlock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotTypeIconLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotTypeIcon lookup injection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPadSettingsGrouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersModdingGotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers modding gotchas (catch-all)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersNamespaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers namespace pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SubcomponentGrafting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sub-component grafting from a vanilla prefab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityFakeNull/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unity fake-null
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityMaterialPerInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnityMaterialPerInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/WorldSpacePreviewRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldSpacePreviewRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocols
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocols
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/AtmosphereSaveData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AtmosphereSaveData (pipe networks)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ConstructionCreationMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstructionCreationMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/EquipmentPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EquipmentPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/GameMessageFactory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameMessageFactory (vanilla network messages)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/LaunchPadBoosterNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPadBooster Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/NetworkPuristPlusCableAlignment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkPuristPlus Cable Alignment and Rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PlayerConnectedThingFindTiming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlayerConnected message timing vs world-load on joining clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PowerTransmitterPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SPADeviceDatabase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia Ascended DeviceDatabase / descriptions.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SaveFileStructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save file ZIP structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SprayPaintPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayPaintPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainChunkChecksums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainChunkChecksums
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainDat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    terrain.dat binary format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ThingColorMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingColorMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/WorldXml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    world.xml
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/BCSIImplementationRoadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BCSI v1 Implementation Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/CameraEffectsRuntime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera Effects at Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/HealAllDamagedThings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heal All Damaged Things
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/InspectorPlusUsage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InspectorPlus Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/KnockPlayerUnconscious/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knock Player Unconscious
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/LaunchPadNativeDllTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPad native-DLL trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ModProjectSetup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod Project Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ResetTerrainLive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Live (Multiplayer)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ResetTerrainOffline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Offline (terrain_reset.py)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/SPADumpKeys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    /spda_dumpkeys Console Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/StationeersLaunchPadDedicatedServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPad on a Dedicated Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TTSDeadEnd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TTS Dead End
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TimeSkipWorldManipulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time-Skip World Manipulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TriggerLanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger Lander Capsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a-the-ilight-interface-and-thingallilights-alliwearablelights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. The ILight interface and Thing.AllILights / AllIWearableLights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#b-the-thinglight-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. The ThingLight wrapper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-power-model-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Power model summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-the-light-source-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. The light-source table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#e-walllight-toggling-occlusion-airlock-smart-rotate-custom-colour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. WallLight: toggling, occlusion, airlock, smart-rotate, custom colour
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#f-walllightbattery-battery-backup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. WallLightBattery: battery backup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#g-flashinglight-and-growlight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        G. FlashingLight and GrowLight
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#h-flashlight-headlamp-helmet-gasmask-the-wearable-handheld-lights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H. Flashlight, Headlamp, Helmet, GasMask: the wearable / handheld lights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#i-stackablelight-chemlight-roadflare-lifetime-based-emitters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I. StackableLight / ChemLight / RoadFlare: lifetime-based emitters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#j-lightmanager-and-illuminationmanager-what-they-do-and-dont-for-lights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        J. LightManager and IlluminationManager — what they do (and don't) for lights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#k-limits-of-the-decompile-what-needs-the-asset-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K. Limits of the decompile — what needs the asset bundle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    StationeersPlus
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Research
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../CameraFilterPack/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    GameSystems
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+    <aside class="research-meta" markdown>
+      
+        <p class="research-meta-type">
+          <strong>Category:</strong> GameSystems
+        </p>
+      
+      
+        <p class="research-meta-verified">
+          <strong>Verified</strong>
+           in game version <code>0.2.6228.27061</code>
+           on 2026-05-11.
+        </p>
+      
+      
+      
+        <details class="research-meta-sources">
+          <summary><strong>Sources</strong> (6)</summary>
+          <ul>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.ILight'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.ThingLight'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.WallLight / WallLightBattery / FlashingLight / GrowLight'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.Items.StackableLight / ChemLight / RoadFlare'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.Items.PowerTool / PortableLight / Flashlight / Headlamp / Helmet / GasMask'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.LightChanger / LightManager / OcclusionManager'}</code></li>
+            
+          </ul>
+        </details>
+      
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (5)</summary>
+          <ul>
+            
+              <li><code>./RenderingPipelineAndGlow.md</code></li>
+            
+              <li><code>./PowerTickThreading.md</code></li>
+            
+              <li><code>./Occlusion.md</code></li>
+            
+              <li><code>../GameClasses/ColorSwatch.md</code></li>
+            
+              <li><code>../GameClasses/SolarPanel.md</code></li>
+            
+          </ul>
+        </details>
+      
+    </aside>
+  
+  
+                  
+
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">power</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">prefab</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">unity</span>
+      
+    
+  </nav>
+
+
+
+<h1 id="light-sources-built-in-light-emitters">Light Sources (built-in light emitters)<a class="headerlink" href="#light-sources-built-in-light-emitters" title="Permanent link">&para;</a></h1>
+<p>This page catalogs every code-recognised light-emitting Thing in vanilla Stationeers (v0.2.6228.27061): how each one is powered, how it is enabled/disabled, and what the decompile does and does not tell you about its light <em>spread</em> (range, spot angle, point vs spot, intensity, color). Per-prefab <code>UnityEngine.Light</code> component values (the actual range/angle/intensity/color of each shipped prefab variant) live in <code>sharedassets0.assets</code>, not in the C# assembly; the limits of the decompile are spelled out in the last section.</p>
+<p>For the related emissive-material / bloom glow path (ChemLight and RoadFlare also set <code>SetCustomColor(emissive: true)</code> on their <em>mesh</em> renderers, separate from their <code>Light</code> component) see <code>./RenderingPipelineAndGlow.md</code> and <code>../GameClasses/ColorSwatch.md</code>. For the sunlight-occlusion side (<code>ILightActivated</code>, <code>LightManager.HasSunlight</code>, the daylight sensor) see <code>../GameClasses/SolarPanel.md</code>.</p>
+<h2 id="a-the-ilight-interface-and-thingallilights-alliwearablelights">A. The <code>ILight</code> interface and <code>Thing.AllILights</code> / <code>AllIWearableLights</code><a class="headerlink" href="#a-the-ilight-interface-and-thingallilights-alliwearablelights" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">ILight</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">GetAsThing</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="n">Light</span><span class="w"> </span><span class="n">Light</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">            </span><span class="c1">// a single primary UnityEngine.Light</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ILight</code> is implemented only by <code>WallLight</code> (and its subclasses <code>WallLightBattery</code>, <code>FlashingLight</code>, <code>GrowLight</code>). <code>WallLight.Light</code> returns the serialized <code>private Light light</code> field; <code>WallLight.Awake()</code> adds <code>this</code> to the static <code>Thing.AllILights</code> list, <code>OnDestroy()</code> removes it.</p>
+<p>A parallel marker interface, <code>IWearableLight</code>, covers worn/handheld lights:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">IWearableLight</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IReferencable</span><span class="p">,</span><span class="w"> </span><span class="n">IEvaluable</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">GetAsThing</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">netId</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Implemented by <code>Flashlight</code>, <code>Headlamp</code>, <code>Helmet</code>, and <code>GasMask</code>. Each adds itself to <code>Thing.AllIWearableLights</code> in <code>Awake()</code> (skipped when <code>IsCursor</code>) and removes itself in <code>OnDestroy()</code>.</p>
+<p>Both lists are static and cleared on prefab reload (<code>Thing.AllILights.Clear()</code> / <code>AllIWearableLights.Clear()</code>). They exist so the storm-effect shader (<code>StormEffectMaterialController.UpdateLights</code>, only runs during a weather event) and other systems can iterate every active light cheaply. <code>UpdateLights</code> reads, per <code>ThingLight</code>, the light's world position, <code>transform.forward</code> (only for <code>LightType.Spot</code>), <code>color * intensity</code>, and <code>range</code>, sorts by camera distance, and uploads the nearest 8 to global shader vectors; it skips any Thing whose <code>OnOff</code> or <code>Powered</code> is false, or that is more than 20 m (<code>400f</code> squared) from the camera.</p>
+<h2 id="b-the-thinglight-wrapper">B. The <code>ThingLight</code> wrapper<a class="headerlink" href="#b-the-thinglight-wrapper" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><code>ThingLight</code> is the per-<code>Light</code>-component wrapper the game builds for every <code>UnityEngine.Light</code> found under a prefab. It is <em>not</em> a <code>MonoBehaviour</code>; it is a plain class held in <code>Thing.Lights</code> (<code>public List&lt;ThingLight&gt; Lights</code>).</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ThingLight</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="n">Thing</span><span class="p">;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Light</span><span class="w"> </span><span class="n">Light</span><span class="p">;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">VolumetricLight</span><span class="w"> </span><span class="n">VolumetricLight</span><span class="p">;</span><span class="w">   </span><span class="c1">// optional component on the light GO</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">EasyFlares</span><span class="w"> </span><span class="n">Flare</span><span class="p">;</span><span class="w">                   </span><span class="c1">// optional component on the light GO</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">Range</span><span class="p">;</span><span class="w">                        </span><span class="c1">// captured from light.range at construction</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">LayerMask</span><span class="w"> </span><span class="n">LayerMask</span><span class="p">;</span><span class="w">                </span><span class="c1">// captured from light.cullingMask</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">LayerMask</span><span class="w"> </span><span class="n">BlankMask</span><span class="p">;</span><span class="w">         </span><span class="c1">// shared &quot;render to nothing&quot; mask</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsRendered</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">Thing</span><span class="p">.</span><span class="n">IsOccluded</span><span class="p">;</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">ThingLight</span><span class="p">(</span><span class="n">Light</span><span class="w"> </span><span class="n">light</span><span class="p">,</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="n">Thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="p">;</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">        </span><span class="n">Light</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">light</span><span class="p">;</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">        </span><span class="n">VolumetricLight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">light</span><span class="p">.</span><span class="n">GetComponent</span><span class="o">&lt;</span><span class="n">VolumetricLight</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">        </span><span class="n">Flare</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">light</span><span class="p">.</span><span class="n">GetComponent</span><span class="o">&lt;</span><span class="n">EasyFlares</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">        </span><span class="n">Range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">light</span><span class="p">.</span><span class="n">range</span><span class="p">;</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">        </span><span class="n">LayerMask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">light</span><span class="p">.</span><span class="n">cullingMask</span><span class="p">;</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">lightVisible</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">effectsVisible</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">_isTurnedOn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lightVisible</span><span class="p">;</span><span class="w"> </span><span class="n">_showEffects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">effectsVisible</span><span class="p">;</span><span class="w"> </span><span class="n">Refresh</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Refresh</span><span class="p">()</span>
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Light</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="n">Light</span><span class="p">.</span><span class="n">cullingMask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">IsRendered</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">LayerMask</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">BlankMask</span><span class="p">);</span>
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">VolumetricLight</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="n">VolumetricLight</span><span class="p">.</span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ShowEffects</span><span class="p">;</span>
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Flare</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="n">Flare</span><span class="p">.</span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ShowEffects</span><span class="p">;</span>
+</span><span id="__span-2-30"><a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-31"><a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="p">}</span>
+</span><span id="__span-2-32"><a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="c1">// ShowEffects =&gt; IsRendered &amp;&amp; _isTurnedOn &amp;&amp; _showEffects &amp;&amp; Light.enabled</span>
+</span></code></pre></div>
+<p>How <code>Thing.Lights</code> is populated (in <code>Prefab.RegisterExisting</code>, run once per prefab at load):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">prefab</span><span class="p">.</span><span class="n">Lights</span><span class="p">.</span><span class="n">Clear</span><span class="p">();</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">Light</span><span class="p">[]</span><span class="w"> </span><span class="n">componentsInChildren</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prefab</span><span class="p">.</span><span class="n">GetComponentsInChildren</span><span class="o">&lt;</span><span class="n">Light</span><span class="o">&gt;</span><span class="p">(</span><span class="n">includeInactive</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Light</span><span class="w"> </span><span class="n">obj</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">componentsInChildren</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">ThingLight</span><span class="w"> </span><span class="n">thingLight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ThingLight</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span><span class="w"> </span><span class="n">prefab</span><span class="p">);</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">obj</span><span class="p">.</span><span class="n">shadowBias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">;</span><span class="w">                       </span><span class="c1">// shadowBias forced to 0.1 on every light</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">obj</span><span class="p">.</span><span class="n">CompareTag</span><span class="p">(</span><span class="s">&quot;EffectLight&quot;</span><span class="p">))</span><span class="w">          </span><span class="c1">// tag &quot;EffectLight&quot; -&gt; not added to Lights</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="n">prefab</span><span class="p">.</span><span class="n">Lights</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">thingLight</span><span class="p">);</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="n">thingLight</span><span class="p">.</span><span class="n">LayerMask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thingLight</span><span class="p">.</span><span class="n">Light</span><span class="p">.</span><span class="n">cullingMask</span><span class="p">;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So: a prefab can carry any number of <code>UnityEngine.Light</code> children. The ones tagged <code>EffectLight</code> are excluded from <code>Lights</code> (and from all the toggle/occlusion logic below). <code>shadowBias</code> is normalised to <code>0.1</code> on all of them. Everything else (range, type, spot angle, intensity, color, render mode, culling mask) is whatever the prefab author set in the Unity editor; the decompile only ever <em>reads</em> <code>light.range</code> / <code>light.color</code> / <code>light.intensity</code> / <code>light.type</code> / <code>light.cullingMask</code> / <code>light.shadows</code> / <code>light.enabled</code> and writes <code>light.enabled</code>, <code>light.color</code>, <code>light.cullingMask</code>, <code>light.shadows</code>, and (for RoadFlare and a parachute case) <code>light.range</code> / <code>light.intensity</code>.</p>
+<p><code>Refresh()</code> is the central "should this light render" gate: it swaps the light's <code>cullingMask</code> between the prefab's mask and <code>BlankMask</code> based on <code>Thing.IsOccluded</code> (frustum/distance culling), and toggles the optional <code>VolumetricLight</code> and <code>EasyFlares</code> (light-shaft and lens-flare effect components) by <code>ShowEffects</code>.</p>
+<p>There is also a separate light-anim helper, <code>LightChanger : MonoBehaviour</code>, used by tools that drive a single non-<code>ThingLight</code> lamp through named states:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">LightChanger</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">MonoBehaviour</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">LightAnimState</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Id</span><span class="p">;</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Color</span><span class="p">.</span><span class="n">white</span><span class="p">;</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">Enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">        </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ApplyTo</span><span class="p">(</span><span class="n">Light</span><span class="w"> </span><span class="n">l</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">l</span><span class="p">.</span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Enabled</span><span class="p">;</span><span class="w"> </span><span class="n">l</span><span class="p">.</span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">color</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">protected</span><span class="w"> </span><span class="n">LightAnimState</span><span class="p">[]</span><span class="w"> </span><span class="n">states</span><span class="p">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Light</span><span class="w"> </span><span class="n">Light</span><span class="p">;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ChangeState</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Light</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">TryGetState</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">s</span><span class="p">))</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">ApplyTo</span><span class="p">(</span><span class="n">Light</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>MaterialChanger</code> (sibling class) does the same for <code>MeshRenderer</code> materials and is what <code>Flashlight._materialChanger</code>, <code>Headlamp._lightMaterialChanger</code>, <code>Suit</code>, etc. use to swap the glowing-bulb material when their light turns on/off. <code>MaterialAnimState.ApplyTo(Light l)</code> exists too (<code>l.enabled = true; l.color = materials[0].color;</code>), so a <code>MaterialChanger</code> state can also recolour a light from a material.</p>
+<h2 id="c-power-model-summary">C. Power model summary<a class="headerlink" href="#c-power-model-summary" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p>There are three power models:</p>
+<ol>
+<li>
+<p><strong>Cable-grid watts</strong> — <code>Device</code>-derived. <code>Device.UsedPower</code> is a serialized field (<code>[Tooltip("How much power (in Watts) does the device used while turned on.")] public float UsedPower = 10f;</code>), defaulting to 10 W but overridden per prefab in the Unity editor. <code>Device.GetUsedPower(CableNetwork)</code> returns <code>0f</code> if <code>!OnOff || !IsStructureCompleted</code>, else <code>UsedPower</code>. <code>WallLight</code>, <code>FlashingLight</code>, and <code>GrowLight</code> use this base behaviour unchanged: their actual wattage is prefab data, not in the C# assembly.</p>
+</li>
+<li>
+<p><strong>Battery (BatteryCell) drain per power tick</strong> — <code>IBatteryPowered</code>. <code>WallLightBattery</code> (battery-backed wall light), and the wearables <code>Flashlight</code>/<code>Headlamp</code>/<code>Helmet</code> all drain a <code>BatteryCell</code> each <code>OnPowerTick</code>. <code>GasMask</code> drains the parent suit's battery. Exact figures below.</p>
+</li>
+<li>
+<p><strong>None</strong> — <code>StackableLight</code>/<code>ChemLight</code>/<code>RoadFlare</code> are <code>Stackable</code> items, not <code>Device</code>s; they consume no power. They have a finite <em>lifetime</em> instead (<code>LIFETIME = 180f</code> seconds, plus 0..5 s random) and self-destruct when it runs out.</p>
+</li>
+</ol>
+<p><code>PowerTool</code> (the base for <code>Flashlight</code>, <code>Headlamp</code>, <code>MiningDrill</code>, <code>Defibrillator</code>, <code>PortableLight</code>, ...) defines the two battery-drain knobs:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">PowerTool</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Tool</span><span class="p">,</span><span class="w"> </span><span class="n">IBatteryPowered</span><span class="p">,</span><span class="w"> </span><span class="p">...</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="na">[Header(&quot;Power Tool&quot;)]</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">UsedPowerPassive</span><span class="p">;</span><span class="w">            </span><span class="c1">// drained every power tick while OnOff &amp;&amp; Powered</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">UsedPowerActive</span><span class="p">;</span><span class="w">             </span><span class="c1">// additionally drained every power tick while Activate == 1</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BASEPOWERUSAGE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w">   </span><span class="c1">// drained per OnUseItem call</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BasePowerUsage</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">BASEPOWERUSAGE</span><span class="p">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnPowerTick</span><span class="p">()</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">        </span><span class="k">base</span><span class="p">.</span><span class="n">OnPowerTick</span><span class="p">();</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Powered</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Battery</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">            </span><span class="n">Battery</span><span class="p">.</span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">UsedPowerPassive</span><span class="p">;</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Activate</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="n">Battery</span><span class="p">.</span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">UsedPowerActive</span><span class="p">;</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Both <code>UsedPowerPassive</code> and <code>UsedPowerActive</code> are <code>[SerializeField]</code>-style public fields set per prefab, so the actual numbers for the flashlight / mining headlamp are prefab data. (<code>Flashlight</code> overrides <code>OnPowerTick</code> to map its two Modes onto these fields, see section H.)</p>
+<p><code>BatteryCell.PowerStored</code> is in joules; one "power tick" is ~0.5 s of game time (see <code>./PowerTickThreading.md</code>), so a drain of <code>N</code> per tick is roughly <code>2*N</code> W.</p>
+<h2 id="d-the-light-source-table">D. The light-source table<a class="headerlink" href="#d-the-light-source-table" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<table>
+<thead>
+<tr>
+<th>Display name (approx)</th>
+<th>Prefab key (data, not in C#)</th>
+<th>C# class</th>
+<th>Category</th>
+<th>Power model</th>
+<th>Power figure (where in code)</th>
+<th>Light type / spread (decompile says)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wall Light / Ceiling Light Long / Ceiling Light Round / Angled Light / Sign lights, etc.</td>
+<td><code>StructureWallLight</code>, <code>StructureLightLong</code>, <code>StructureLightRound</code>, ... (prefab keys, not literals in the assembly)</td>
+<td><code>WallLight : SmallDevice, IAirlockDevice, ISmartRotatable, ILight</code></td>
+<td>Structure (player-built, wall-mounted)</td>
+<td>Cable-grid watts</td>
+<td><code>Device.UsedPower</code> serialized field, default <code>10f</code>, <strong>overridden per prefab</strong> (figure NOT in code)</td>
+<td>Single <code>light</code> + optional <code>terrainLight</code> + optional <code>lodFlare</code> (<code>LensFlare</code>); type/range/spotAngle/intensity/color all <strong>prefab data</strong>. The shared C# treats them generically.</td>
+</tr>
+<tr>
+<td>Wall Light w/ Battery</td>
+<td><code>StructureWallLightBattery</code> (prefab key)</td>
+<td><code>WallLightBattery : WallLight, IBatteryPowered</code></td>
+<td>Structure</td>
+<td>Cable watts when on a powered grid, else BatteryCell drain</td>
+<td><code>BatteryChargeRate = 200f</code> (W, hardcoded; rate to recharge its internal cell from the grid). On-tick drain when not grid-powered: <code>occupant.PowerStored -= UsedPower</code> (the inherited Device <code>UsedPower</code>, prefab data).</td>
+<td>Same <code>Light</code> set as <code>WallLight</code>.</td>
+</tr>
+<tr>
+<td>Emergency / Flashing Light (rotating beacon)</td>
+<td><code>StructureFlashingLight</code> (prefab key)</td>
+<td><code>FlashingLight : WallLight</code></td>
+<td>Structure</td>
+<td>Cable watts (<code>Device.UsedPower</code>, prefab data)</td>
+<td>not in code</td>
+<td>Iterates <strong>all</strong> <code>Lights</code> (not just <code>light</code>); spins a <code>rotator</code> Transform at <code>720f</code> deg/s while on, powered, not occluded. Beam(s) type/range/angle = prefab data.</td>
+</tr>
+<tr>
+<td>Grow Light</td>
+<td><code>StructureGrowLight</code> (prefab key)</td>
+<td><code>GrowLight : WallLight, ILightActivated, IDensePoolable</code></td>
+<td>Structure</td>
+<td>Cable watts (<code>Device.UsedPower</code>, prefab data)</td>
+<td>not in code</td>
+<td><code>NeverCastShadows =&gt; true</code>. Has a <code>BoxCollider LocalBoxCollider</code> trigger volume; planters/trays whose collider overlaps register into <code>IGrower.LinkedGrowLights</code>. A grower is "lit by grow light" when any linked <code>GrowLight</code> has <code>OnOff &amp;&amp; Powered</code>. The <code>Light</code> component(s) themselves are prefab data; the gameplay growth effect is the trigger-volume membership, not the <code>Light</code>.</td>
+</tr>
+<tr>
+<td>Portable Light (deployable lamp / "PortableLight")</td>
+<td><code>ItemPortableLight</code> / similar (prefab key)</td>
+<td><code>PortableLight : PowerTool</code></td>
+<td>Handheld / placed deployable item</td>
+<td>BatteryCell drain via <code>PowerTool.OnPowerTick</code></td>
+<td><code>UsedPowerPassive</code> / <code>UsedPowerActive</code> serialized on the prefab (figures NOT in code)</td>
+<td>Iterates <code>Lights</code>, recolours each to <code>CustomColor.Light</code> on paint, hides them from the local player's own camera layers when held. Type/range = prefab data.</td>
+</tr>
+<tr>
+<td>Flashlight (hand torch)</td>
+<td><code>ItemFlashlight</code> (prefab key)</td>
+<td><code>Flashlight : PowerTool, IWearableLight</code></td>
+<td>Handheld item</td>
+<td>BatteryCell drain, two modes</td>
+<td><code>OnPowerTick</code>: <code>Battery.PowerStored -= (IsHighPower ? UsedPowerActive : (IsLowPower ? UsedPowerPassive : 0f))</code>. So Mode 0 ("Low Power") drains <code>UsedPowerPassive</code>/tick, Mode 1 ("High Power") drains <code>UsedPowerActive</code>/tick. Both fields are prefab data.</td>
+<td>Exactly <strong>two</strong> <code>Light</code>s, <code>Lights[0]</code> = low-power beam, <code>Lights[1]</code> = high-power beam. Only one is visible at a time. Beams are re-parented either to the player's <code>HeadBone</code> (when held in a hand slot) or to the torch transform; local-player camera layers stripped from the beam mask so it doesn't blind the holder. Both beams' type/range/spotAngle/intensity = prefab data.</td>
+</tr>
+<tr>
+<td>Mining Helmet / "Headlamp" (hard-hat lamp worn in helmet slot)</td>
+<td><code>ItemMiningHelmet</code> / similar (prefab key)</td>
+<td><code>Headlamp : PowerTool, IWearable, IWearableLight</code></td>
+<td>Wearable (helmet slot)</td>
+<td>BatteryCell drain via <code>PowerTool.OnPowerTick</code> (<code>UsedPowerPassive</code> + <code>UsedPowerActive</code> if <code>Activate==1</code>)</td>
+<td>serialized on prefab (figures NOT in code)</td>
+<td>A single <code>GameObject _light</code> toggled <code>SetActive(OnOff &amp;&amp; Powered)</code>, plus a <code>_lightMaterialChanger</code>. Auto-turns-off when placed into a <code>Structure</code>. Casts shadows only within <code>OcclusionManager.HelmetLightShadowDistanceSq()</code> (= <code>(LightShadowDistance/2)^2</code>, default <code>(30/2)^2 = 225</code>). Beam = prefab data.</td>
+</tr>
+<tr>
+<td>Space Helmet / Hardsuit Helmet light</td>
+<td><code>ItemSpaceHelmet</code>, <code>ItemHardSuitHelmet</code> (prefab keys)</td>
+<td><code>Helmet : HelmetBase, IBatteryPowered, IWearableLight</code></td>
+<td>Wearable (helmet slot)</td>
+<td>BatteryCell in the helmet's own battery slot</td>
+<td><code>OnPowerTick</code>: <code>Battery.PowerStored -= 5f;</code> per tick (<strong>hardcoded <code>5f</code></strong>). <code>CheckPowerState()</code> turns the light off when the cell empties.</td>
+<td>The <code>Light</code> component(s) are prefab data. Shadow distance = <code>HelmetLightShadowDistanceSq()</code> like <code>Headlamp</code>. <code>HelmetBase</code> provides the "Light On/Off" contextual interaction name.</td>
+</tr>
+<tr>
+<td>Gas Mask light</td>
+<td><code>ItemGasMask</code> (prefab key)</td>
+<td><code>GasMask : AtmosphericItem, ..., IWearableLight</code></td>
+<td>Wearable (helmet slot)</td>
+<td>Parent suit's BatteryCell</td>
+<td><code>private static float _lightPowerUsage = 50f;</code> (hardcoded). <code>OnAtmosphericTick</code>: <code>ParentBattery.PowerStored -= _lightPowerUsage;</code> when <code>OnOff &amp;&amp; Powered</code> (drained per atmospheric tick, not power tick; <code>ParentBattery</code> = the worn <code>Suit.Battery</code>).</td>
+<td>A single <code>GameObject _spotlight</code> toggled <code>SetActive(OnOff &amp;&amp; Powered)</code>. Beam = prefab data.</td>
+</tr>
+<tr>
+<td>Chem Light (glowstick)</td>
+<td><code>ItemGlowstick</code> / <code>ItemChemLight</code> (prefab key)</td>
+<td><code>ChemLight : StackableLight</code></td>
+<td>Handheld / dropped world item</td>
+<td>None (finite lifetime)</td>
+<td><code>LIFETIME = 180f</code> s + <code>Random.Range(0,5)</code>; no power.</td>
+<td>One <code>FlareLight</code> (<code>public Light FlareLight</code> on <code>StackableLight</code>). On activation: <code>FlareLight.gameObject.SetActive(true)</code>, <code>FlareLight.color = CustomColor.Light</code>, then a per-frame loop that just keeps the light positioned above the item (<code>+ up * UpOffset + up * 0.1f</code>) and decrements <code>ActualLifetime</code>. <strong>No intensity flicker</strong>, no atmosphere ignition. Also fires <code>SetCustomColor(emissive: true)</code> on the mesh (bloom glow, see <code>RenderingPipelineAndGlow.md</code>). <code>FlareLight</code> range/type/intensity = prefab data.</td>
+</tr>
+<tr>
+<td>Road Flare</td>
+<td><code>ItemRoadFlare</code> (prefab key, hardcoded as <code>"ItemRoadFlare"</code> in one Create call)</td>
+<td><code>RoadFlare : StackableLight, IProjectile</code></td>
+<td>Handheld / thrown / dropped world item</td>
+<td>None (finite lifetime)</td>
+<td><code>LIFETIME = 180f</code> s + random; <code>ENERGY_RELEASED_PER_TICK = 1000f</code>; <code>FuseTimeMs = 1200</code>.</td>
+<td>One <code>FlareLight</code> + a <code>ParticleSystem LightParticles</code>. <strong>Intensity flickers</strong>: each ~0.1-0.5 s, <code>FlareLight.intensity = Random.Range(num, num+0.8f)</code> where <code>num = Mathf.Lerp(0.5f, 3f, ActualLifetime/180f)</code> (brighter when fresh, dims to ~0.5 as it burns out). <code>FlareLight.range</code> is set in code: <code>10f</code> normally (<code>SetNormalPhysicsAndLighting</code>), <code>25f</code> when its parachute is deployed (<code>SetParachutePhysicsAndLighting</code>). <code>OnAtmosphericTick</code>: if the surrounding atmosphere is above Armstrong's limit and the flare is lit, <code>burningAtmosphere.Sparked = true</code> and <code>GasMixture.AddEnergy(new MoleEnergy(1000.0))</code> — road flares ignite flammable atmospheres, chem lights do not. Also <code>SetCustomColor(emissive: true)</code> on the mesh.</td>
+</tr>
+<tr>
+<td>Mining Drill (heavy / pneumatic)</td>
+<td><code>ItemMiningDrill...</code>, <code>ItemMiningDrillHeavyPneumatic</code> (prefab keys)</td>
+<td><code>MiningDrill : PowerTool, IMiningTool</code></td>
+<td>Handheld tool</td>
+<td><code>PowerTool</code> battery drain (<code>UsedPowerPassive</code>/<code>UsedPowerActive</code>) + <code>BasePowerUsage = 1000</code> per <code>OnUseItem</code></td>
+<td>serialized on prefab</td>
+<td><strong>No light handling in C#.</strong> <code>MiningDrill</code> does not touch <code>Lights</code>, has no <code>ToggleLightsOn</code>/<code>UpdateBeamStates</code>. If a drill prefab carries a head-lamp <code>Light</code>, it is purely a static prefab <code>Light</code> component with no on/off code path — not a code-recognised light source.</td>
+</tr>
+</tbody>
+</table>
+<p>Notes on the structure-light variants: the player-buildable ceiling/wall/sign/angled lights are <strong>all prefabs on the <code>WallLight</code> class</strong> (or <code>FlashingLight</code> for the rotating beacon, <code>GrowLight</code> for the hydroponics lamp, <code>WallLightBattery</code> for the battery-backed one). There is no per-shape C# class. The decompiled assembly contains <strong>no string literals</strong> like <code>"StructureWallLight"</code> / <code>"StructureLightLong"</code> / <code>"StructureLightRound"</code> — those prefab keys live in the world prefab list (<code>WorldManager.SourcePrefabs</code>) and the per-prefab data (mesh, <code>Light</code> components, <code>Device.UsedPower</code>, <code>SmartRotate</code> config) is in <code>sharedassets0.assets</code> / the prefab assets. So the <em>spread</em> differences between, say, a long ceiling light and a round one (point vs spot, range, spot angle, intensity, color, render mode) are <strong>not recoverable from the C# decompile</strong> — only from dumping the asset bundle.</p>
+<h2 id="e-walllight-toggling-occlusion-airlock-smart-rotate-custom-colour">E. <code>WallLight</code>: toggling, occlusion, airlock, smart-rotate, custom colour<a class="headerlink" href="#e-walllight-toggling-occlusion-airlock-smart-rotate-custom-colour" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><code>WallLight : SmallDevice, IAirlockDevice, ISmartRotatable, ILight</code>. Serialized fields: <code>private Light light;</code>, <code>private Light terrainLight;</code>, <code>protected LensFlare lodFlare;</code>. Constant <code>WALL_LIGHT_RENDER_DISTANCE = 40f</code>.</p>
+<p><strong>On/off.</strong> There is no brightness/dim control — a <code>WallLight</code> is binary. <code>InteractWith</code> on <code>InteractableType.OnOff</code> flips the device's <code>OnOff</code> state (<code>OnServer.Interact(interactable, state != 1 ? 1 : 0)</code>), refusing if <code>IsLocked</code>. <code>OnInteractableUpdated</code> for <code>OnOff</code> or <code>Powered</code> calls <code>ToggleLightsOn(OnOff &amp;&amp; Powered)</code> and plays a switch sound:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">protected</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ToggleLightsOn</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="k">on</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">HasBaseAnimator</span><span class="p">)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GetOpenEndsPermutation</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="n">light</span><span class="p">.</span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">on</span><span class="p">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">terrainLight</span><span class="p">)</span><span class="w"> </span><span class="n">terrainLight</span><span class="p">.</span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">on</span><span class="p">;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">lodFlare</span><span class="p">)</span><span class="w"> </span><span class="n">lodFlare</span><span class="p">.</span><span class="n">gameObject</span><span class="p">.</span><span class="n">SetActive</span><span class="p">(</span><span class="k">on</span><span class="p">);</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">        </span><span class="n">SetCustomColor</span><span class="p">(</span><span class="k">on</span><span class="p">);</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So a wall light with a base Animator drives its light through the animator instead; otherwise <code>light.enabled</code> (and <code>terrainLight.enabled</code>, and the LOD <code>lodFlare</code>) are toggled directly. <code>light</code> is only enabled when <code>GetOpenEndsPermutation()</code> is non-null (a smart-rotate consideration). The audio side (<code>UpdateAudio</code>): a <code>WallLightHum</code> pooled sound plays only when <code>!IsOccluded &amp;&amp; OnOff &amp;&amp; Powered &amp;&amp; light</code>.</p>
+<p><strong>Custom colour.</strong> <code>SetCustomColor(int index, bool emissive=false)</code> chains <code>base.SetCustomColor</code>, then if <code>GameManager.IsValidColor(index)</code> calls <code>SetLightsCustomColor()</code> (sets <code>light.Light.color = CustomColor.Light</code> for every <code>ThingLight</code> in <code>Lights</code>) and then <code>SetCustomColor(OnOff &amp;&amp; Powered)</code>. So painting a wall light recolours its actual <code>UnityEngine.Light</code>s to the swatch's <code>Light</code> colour (<code>ColorSwatch.Light</code>, a per-swatch colour distinct from <code>ColorSwatch.Color</code>; see <code>../GameClasses/ColorSwatch.md</code>). <code>OnAnimationStop</code> re-asserts the colour from <code>PaintableMaterial</code> if the current <code>CustomColor</code> isn't emissive, then <code>SetCustomColor(OnOff &amp;&amp; Powered)</code>.</p>
+<p><strong>Occlusion / shadows.</strong> <code>SetOcclusion()</code> (called by <code>OcclusionManager</code>) decides whether the light should cast shadows: shadows on only when <code>Position.DistanceSquared(InventoryManager.WorldPosition) &lt; OcclusionManager.LightShadowDistanceSq</code> (= <code>LightShadowDistance^2</code>, default <code>900</code> i.e. 30 m), and only when <code>ShadowQualitySetting != Disable</code> and <code>!NeverCastShadows</code>. The actual change is deferred a frame (<code>ShadowChange</code> UniTask) and maps the quality setting to <code>LightShadows.None</code> / <code>.Hard</code> / <code>.Soft</code> for every <code>ThingLight.Light</code> in <code>Lights</code>; <code>terrainLight.shadows</code> is forced to <code>None</code> on Medium/Low <code>ThingShadowMode</code>. <code>GetRenderMaxDistanceSquared() = (40 * RenderDistanceMultiplier)^2</code>; <code>GetShadowMaxDistanceSquared() = (40 * ThingShadowDistanceMultiplier)^2</code>. <code>IsOccluded</code> (a <code>Thing</code>-level property) is what <code>ThingLight.Refresh()</code> reads to swap the light's cullingMask to <code>BlankMask</code> when off-screen / too far.</p>
+<p><strong>Airlock integration.</strong> <code>WallLight</code> implements <code>IAirlockDevice</code> (so an airlock controller can include it in its managed device set and toggle it as part of cycling), but the airlock-specific behaviour is on the airlock side; <code>WallLight</code> itself just exposes the <code>IAirlockDevice</code> surface plus the standard <code>OnOff</code>/<code>Powered</code>/<code>Lock</code> device interactions.</p>
+<p><strong>Smart-rotate.</strong> <code>WallLight</code> implements <code>ISmartRotatable</code> with <code>ConnectionType ConnectionType = SmartRotate.ConnectionType.Exhaustive</code> and an <code>OpenEndsPermutation</code> int[6]; <code>GetConnectionType</code>/<code>SetConnectionType</code>/<code>GetOpenEndsPermutation</code>/<code>SetOpenEndsPermutation</code> are the contract. As noted above, <code>light.enabled</code> is only set when <code>GetOpenEndsPermutation()</code> is non-null.</p>
+<p><code>OnFinishedLoad</code> re-applies <code>SetCustomColor(OnOff &amp;&amp; Powered)</code> and schedules an initial <code>ShadowChange</code>.</p>
+<h2 id="f-walllightbattery-battery-backup">F. <code>WallLightBattery</code>: battery backup<a class="headerlink" href="#f-walllightbattery-battery-backup" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><code>WallLightBattery : WallLight, IBatteryPowered</code>. Adds a battery slot (<code>BatterySlot =&gt; Slots[0]</code>, <code>Battery =&gt; BatterySlot.Get&lt;BatteryCell&gt;()</code>) and a hardcoded <code>public float BatteryChargeRate = 200f;</code> ("How many watts are used to charge the battery?").</p>
+<ul>
+<li><code>GetUsedPower(cableNetwork)</code>: <code>(OnOff ? UsedPower : 0f)</code> + (if a cell is present and not charged) <code>Mathf.Min(BatteryChargeRate, occupant.PowerDelta)</code> — i.e. it draws its running wattage off the grid plus up to 200 W to top up its cell.</li>
+<li><code>ReceivePower</code>: if the grid delivered less than <code>UsedPower</code>, it makes up the shortfall from the cell (<code>occupant.PowerStored -= min(stored, shortfall)</code>); if it got more than <code>UsedPower</code>, the surplus recharges the cell (<code>Recharge(powerAdded - UsedPower)</code>); a <code>_lastPoweredByCableOnTick</code> timestamp records grid power.</li>
+<li><code>OnPowerTick</code>: when running and <code>!WasPoweredByCableLastTick</code>, drains the cell by <code>UsedPower</code> (<code>occupant.PowerStored -= UsedPower</code>). So off-grid, the light runs purely off its cell at <code>UsedPower</code> joules/tick.</li>
+<li><code>CheckPowerState</code>: forces the device's <code>Powered</code> flag on/off depending on whether it <code>HasPower()</code> (grid this tick, or a non-empty cell). Re-checked on every interaction and on child-slot changes.</li>
+</ul>
+<p>The <code>UsedPower</code> figure (inherited <code>Device.UsedPower</code>, default 10 W) is prefab data.</p>
+<h2 id="g-flashinglight-and-growlight">G. <code>FlashingLight</code> and <code>GrowLight</code><a class="headerlink" href="#g-flashinglight-and-growlight" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><strong><code>FlashingLight : WallLight</code></strong> — the rotating emergency beacon. Serialized <code>Transform rotator</code>, constant <code>DEGREES_ROTATION_PER_SECOND = 720f</code>. Overrides <code>ToggleLightsOn</code> to enable/disable <strong>every</strong> <code>ThingLight.Light</code> in <code>Lights</code> (plus <code>lodFlare</code>), then <code>SetCustomColor(on)</code>. <code>UpdateEachFrame</code> spins <code>rotator</code> at 720 deg/s about local forward while <code>!IsOccluded &amp;&amp; OnOff &amp;&amp; Powered</code>. Power model is plain <code>WallLight</code>/<code>Device</code> (grid watts, prefab figure).</p>
+<p><strong><code>GrowLight : WallLight, ILightActivated, IDensePoolable</code></strong> — the hydroponics lamp.
+- <code>NeverCastShadows =&gt; true</code> (its light never casts shadows regardless of settings).
+- <code>Awake</code> caches a <code>BulbColorSwatch</code> from a serialized <code>Material BulbMaterial</code> (<code>GameManager.GetColorSwatch(BulbMaterial)</code>).
+- <code>OnFinishedLoad</code> does <code>Physics.OverlapBox</code> over <code>LocalBoxCollider</code> and registers any overlapping <code>IGrower</code> (planter / hydroponics tray) into <code>_plantersAffected</code> and into that grower's <code>IGrower.LinkedGrowLights</code>. A <code>GrowLightEvent : MonoBehaviour</code> on the trigger collider forwards <code>OnTriggerEnter</code>/<code>OnTriggerExit</code> to <code>HandleEnterTrigger</code>/<code>HandleExitTrigger</code> for live add/remove. <code>OnDestroy</code> removes itself from every affected grower's list.
+- Gameplay: a grower's <code>IsLitByGrowLight</code> is true iff any entry in <code>LinkedGrowLights</code> has <code>OnOff &amp;&amp; Powered</code>. This is the actual "grow light powers photosynthesis" link; it does not depend on the <code>UnityEngine.Light</code> at all. (Compare <code>SolarPanel</code> / <code>LightManager.HasSunlight</code> for natural light; see <code>../GameClasses/SolarPanel.md</code>.)
+- <code>SetLightsCustomColor()</code> is overridden to do <strong>nothing</strong> (a grow light keeps its fixed colour). Painting a grow light only swaps the named "Bulb" sub-material between the swatch's <code>Normal</code> and <code>Emissive</code> material via <code>SetBulbMaterial(OnOff &amp;&amp; Powered)</code> — i.e. the bulb looks lit (emissive material) when on. Renderers tagged <code>NotPaintable</code> or not named <code>"Bulb"</code> are skipped.
+- <code>ILightActivated</code> here is the marker <code>LightManager</code> uses to recheck sunlight occlusion for the thing each threaded pass — for a grow light it just means it participates in the occlusion bookkeeping, not that its own light is sun-driven.</p>
+<h2 id="h-flashlight-headlamp-helmet-gasmask-the-wearable-handheld-lights">H. <code>Flashlight</code>, <code>Headlamp</code>, <code>Helmet</code>, <code>GasMask</code>: the wearable / handheld lights<a class="headerlink" href="#h-flashlight-headlamp-helmet-gasmask-the-wearable-handheld-lights" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><strong><code>Flashlight : PowerTool, IWearableLight</code></strong> — the hand torch with Low/High power modes (<code>ModeStrings = { FlashLightModeLowPower, FlashLightModeHighPower }</code>).
+- Power: <code>OnPowerTick</code> overrides <code>PowerTool</code>'s: <code>Battery.PowerStored -= (IsHighPower ? UsedPowerActive : (IsLowPower ? UsedPowerPassive : 0f))</code> when <code>OnOff &amp;&amp; Powered</code>. So Low mode burns <code>UsedPowerPassive</code>/tick, High burns <code>UsedPowerActive</code>/tick (both prefab fields).
+- Has <strong>two</strong> <code>ThingLight</code>s. <code>UpdateBeamStates()</code> (called on render start, mode/onoff/powered change, finished load, inventory move, world move): computes <code>flag = IsLowPower &amp;&amp; LightIsActive</code>, <code>flag2 = IsHighPower &amp;&amp; LightIsActive</code>, then <code>Lights[0].SetVisible(flag, flag &amp;&amp; !IsHeldByLocalPlayer)</code> and <code>Lights[1].SetVisible(flag2, flag2 &amp;&amp; !IsHeldByLocalPlayer)</code>. The inactive beam's <code>cullingMask</code> is forced to <code>ThingLight.BlankMask</code>. <code>LightIsActive</code> = <code>(ParentSlot == null || IsInHandSlot) &amp;&amp; OnOff &amp;&amp; IsOperable</code>.
+- Beams are re-parented: held in a hand slot -&gt; parented to <code>RootParentHuman.HeadBone</code>, localPos <code>(0.25, 0.25, ±0.25)</code> (sign by which hand), localRot <code>Euler(-45, -90, 0)</code>. Not in a hand -&gt; parented to the torch transform, localPos <code>(-0.25, -0.023, -0.005)</code>, localRot <code>Euler(0, -90, 0)</code>. The <code>_materialChanger</code> swaps the torch body to its <code>OnPowered</code> or <code>Off</code> material.
+- Beam range / spotAngle / intensity / color: prefab data.</p>
+<p><strong><code>Headlamp : PowerTool, IWearable, IWearableLight</code></strong> — the hard-hat head lamp (worn in the helmet slot).
+- Power: plain <code>PowerTool.OnPowerTick</code> (<code>UsedPowerPassive</code> per tick, <code>+ UsedPowerActive</code> if <code>Activate == 1</code>); figures are prefab data.
+- A single serialized <code>GameObject _light</code>; <code>OnInteractableUpdated</code> for <code>Powered</code>/<code>OnOff</code> does <code>_light.SetActive(OnOff &amp;&amp; Powered)</code> and <code>_lightMaterialChanger.ChangeState(flag ? On : Off)</code>.
+- <code>OnEnterInventory</code>: if turned on and dropped into a <code>Structure</code>, auto-turns-off (<code>OnServer.Interact(InteractOnOff, 0)</code>).
+- Shadows: <code>SetOcclusion</code> toggles shadow casting within <code>OcclusionManager.HelmetLightShadowDistanceSq()</code> = <code>(LightShadowDistance/2)^2</code> (default <code>(30/2)^2 = 225</code>), deferred a frame via <code>ScheduleShadowChange</code>. <code>GetRenderMaxDistanceSquared</code> = <code>(100 * RenderDistanceMultiplier)^2</code> when in the helmet slot.
+- Beam: prefab data.</p>
+<p><strong><code>Helmet : HelmetBase, IBatteryPowered, IPowered, IWearableLight</code></strong> — space / hardsuit helmet light, powered from a <code>BatteryCell</code> in the helmet's own battery slot (<code>BatterySlot =&gt; Slots[0]</code>).
+- Power: <code>OnPowerTick</code>: <code>Battery.PowerStored -= 5f;</code> per tick (<strong>hardcoded <code>5f</code></strong>), then <code>CheckPowerState()</code>. So a helmet light burns ~10 W. <code>CheckPowerState</code> flips <code>Powered</code> off when the cell is null/empty, on again when a non-empty cell is reinserted.
+- Shadows: same <code>HelmetLightShadowDistanceSq()</code> logic and <code>ScheduleShadowChange</code> as <code>Headlamp</code>.
+- <code>HelmetBase</code> supplies the <code>"Light On/Off"</code> contextual interaction name; <code>HelmetBase</code> also has the <code>OnEnterInventory</code> "turn off if dropped into a Structure" guard.
+- <code>WaitEffects()</code> re-<code>Refresh()</code>es every <code>ThingLight</code> a frame after an animation stop (so the volumetric / flare effects re-sync).
+- Beam(s): prefab data.</p>
+<p><strong><code>GasMask : AtmosphericItem, ..., IWearableLight</code></strong> — gas mask with an optional spotlight, powered from the worn suit's battery.
+- Power: <code>private static float _lightPowerUsage = 50f;</code> (hardcoded). <code>OnAtmosphericTick</code>: when <code>OnOff &amp;&amp; Powered &amp;&amp; ParentBattery != null</code>, <code>ParentBattery.PowerStored -= _lightPowerUsage</code>. <code>ParentBattery</code> is <code>ParentHuman.Suit.Battery</code> only when the mask is in the helmet slot of a human wearing a suit; otherwise null (so the light needs a powered suit). <code>OnAtmosphericTick</code> also flips <code>Powered</code> based on whether the suit battery is present/non-empty.
+- A single serialized <code>GameObject _spotlight</code>; <code>OnInteractableUpdated</code> for <code>OnOff</code>/<code>Powered</code> does <code>_spotlight.SetActive(OnOff &amp;&amp; Powered)</code>.
+- Beam: prefab data.</p>
+<p><strong><code>PortableLight : PowerTool</code></strong> — a deployable / handheld lamp (no Mode split). Plain <code>PowerTool</code> battery drain. Iterates <code>Lights</code>, recolours each to <code>CustomColor.Light</code> on paint. <code>HandleInventoryChange</code> strips the local player's own camera layers (<code>Layers.Player</code> / <code>Layers.PlayerInvisible</code>) from each beam's cullingMask when held by the local player so it doesn't self-blind; restores <code>ThingLight.LayerMask</code> otherwise. <code>OnAnimationStart</code>/<code>OnAnimationStop</code> track an <code>_isExtended</code> flag and re-apply the colour. Beam: prefab data.</p>
+<h2 id="i-stackablelight-chemlight-roadflare-lifetime-based-emitters">I. <code>StackableLight</code> / <code>ChemLight</code> / <code>RoadFlare</code>: lifetime-based emitters<a class="headerlink" href="#i-stackablelight-chemlight-roadflare-lifetime-based-emitters" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><code>StackableLight : Stackable</code> is the shared base for the consumable light sticks/flares.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">StackableLight</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Stackable</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="na">[Header(&quot;Road Flare&quot;)]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Light</span><span class="w"> </span><span class="n">FlareLight</span><span class="p">;</span><span class="w">     </span><span class="c1">// the single light component</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">UpOffset</span><span class="p">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">UP_SCALE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">RENDER_DISTANCE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">100f</span><span class="p">;</span><span class="w">     </span><span class="c1">// (100 * RenderDistanceMultiplier)^2 when not in a slot</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">LIFETIME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">180f</span><span class="p">;</span><span class="w">                 </span><span class="c1">// seconds</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">ActualLifetime</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Awake</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">Awake</span><span class="p">();</span><span class="w"> </span><span class="n">_actualLifetime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">180f</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Random</span><span class="p">.</span><span class="n">Range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<ul>
+<li>No power: these are <code>Stackable</code> items, not <code>Device</code>s. They burn for <code>LIFETIME</code> (180 s) + 0..5 s random, decrementing <code>ActualLifetime</code> by <code>Time.deltaTime</code> each frame in their operation coroutine, then <code>OnServer.Destroy(this)</code>.</li>
+<li>Activation: <code>OnUseSecondary</code> ("Light Flare" action, 0.5 s) lights one; if <code>Quantity &gt; 1</code> it splits one off as a new <code>StackableLight</code>, drops it into a hand slot if free, decrements the stack, and <code>WaitThenBurn()</code> -&gt; <code>Thing.Interact(InteractOnOff, 1)</code>. Stacking is blocked once <code>OnOff</code> (a lit flare can't be merged back).</li>
+<li>Custom colour: <code>StackableLight.SetCustomColor(index, emissive)</code> recolours every <code>ThingLight.Light</code> in <code>Lights</code> <strong>and</strong> <code>FlareLight</code> to <code>CustomColor.Light</code>, then <code>SetCustomColor(OnOff &amp;&amp; Powered)</code>.</li>
+<li>Camera-layer handling: <code>HandleInventoryChange</code> strips <code>Layers.Player</code>/<code>PlayerInvisible</code> from <code>FlareLight.cullingMask</code> when held by the local player, restores them otherwise (so a held flare doesn't blind the holder's first-person view).</li>
+<li>Save data: <code>RoadflareSaveData</code> carries <code>Lifetime</code>.</li>
+</ul>
+<p><strong><code>ChemLight : StackableLight</code></strong> (the glowstick):
+- On activate (<code>OnInteractableUpdated</code>, <code>InteractableType.OnOff</code>, <code>OnOff</code> true): <code>SetCustomColor(emissive: true)</code> (mesh bloom glow), then <code>ChemlightOperation()</code>.
+- <code>ChemlightOperation</code>: <code>FlareLight.gameObject.SetActive(true)</code>, <code>FlareLight.color = CustomColor.Light</code> (if <code>CustomColor != null</code>), registers with <code>AtmosphericsManager</code> (but has <strong>no</strong> <code>OnAtmosphericTick</code> override that adds energy — so it does <strong>not</strong> ignite atmospheres), then a per-frame loop that just keeps <code>FlareLight.transform.position</code> pinned above the item (<code>ThingTransformPosition + up*UpOffset + up*0.1f</code>) and decrements <code>ActualLifetime</code>. <strong>No intensity flicker.</strong> When <code>ActualLifetime &lt;= 0</code>, <code>OnServer.Destroy(this)</code>.
+- <code>DeserializeSave</code> restarts <code>ChemlightOperation()</code> if <code>OnOff</code> after a load.
+- <code>FlareLight</code> range / type / intensity: prefab data. The bright "glow" is the bloom on the emissive mesh material, not the <code>Light</code>.</p>
+<p><strong><code>RoadFlare : StackableLight, IProjectile</code></strong> (the road flare; can also be fired/thrown):
+- Constants: <code>FuseTimeMs = 1200</code>, <code>ActivateLaunched = 2</code>, <code>ActivateParachuteDeployed = 3</code>, <code>ENERGY_RELEASED_PER_TICK = 1000f</code>.
+- Has a <code>ParticleSystem LightParticles</code> (recoloured to <code>CustomColor.Light</code> on paint), plus <code>activateObjects[]</code> and a <code>parachute</code> GameObject.
+- On activate (<code>OnInteractableUpdated</code>, <code>OnOff</code> true): <code>SetCustomColor(emissive: true)</code>, then <code>RoadFlareOperation()</code>.
+- <code>RoadFlareOperation</code>: enables <code>activateObjects</code>, sets <code>FlareLight.color</code> and <code>LightParticles</code> start colour from <code>CustomColor</code>, registers with <code>AtmosphericsManager</code>, then a per-frame loop:
+  - <code>SetLightVisibility(!IsOccluded)</code>.
+  - <strong>Intensity flicker</strong>: every <code>Random.Range(0.1f, 0.5f)</code> s, <code>FlareLight.intensity = Random.Range(num, num + 0.8f)</code> where <code>num = Mathf.Lerp(0.5f, 3f, ActualLifetime / 180f)</code>. So a fresh flare flickers around 3.0-3.8 intensity, a near-dead one around 0.5-1.3.
+  - Pins <code>FlareLight.transform.position</code> above the item like ChemLight.
+  - Decrements <code>ActualLifetime</code>; when it hits 0, deregisters and <code>OnServer.Destroy(this)</code>.
+- <code>FlareLight.range</code> IS set in code: <code>SetNormalPhysicsAndLighting()</code> -&gt; <code>FlareLight.range = 10f</code>; <code>SetParachutePhysicsAndLighting()</code> -&gt; <code>FlareLight.range = 25f</code> (and <code>RigidBody.drag = 10</code>, <code>mass = 0.1</code>, parachute active). The parachute path is the air-burst state after the flare is fired upward and the 1.2 s fuse expires.
+- <code>OnAtmosphericTick</code>: gets the burning atmosphere (parent slot's internal atmosphere, else the world atmosphere at its grid, cloning the global atmosphere above Armstrong's limit); if that atmosphere <code>IsAboveArmstrong()</code> and the flare is <code>OnOff</code>, sets <code>burningAtmosphere.Sparked = true</code> and <code>burningAtmosphere.GasMixture.AddEnergy(new MoleEnergy(1000.0))</code>. <strong>Road flares ignite flammable atmospheres</strong> (1000 energy/tick + spark); chem lights don't.
+- Projectile: <code>OnProjectileLaunched</code> rotates 90°, sets <code>Activate = 2</code>, starts <code>BurnFuse()</code> (1.2 s, then <code>Activate = 3</code> air-burst + <code>InteractOnOff 1</code>). <code>OnCollisionEnter</code> while parachute deployed resets <code>Activate</code> to 1. <code>OnFireStart</code> (caught fire) lights it via <code>WaitThenBurn()</code>.</p>
+<h2 id="j-lightmanager-and-illuminationmanager-what-they-do-and-dont-for-lights">J. <code>LightManager</code> and <code>IlluminationManager</code> — what they do (and don't) for <em>lights</em><a class="headerlink" href="#j-lightmanager-and-illuminationmanager-what-they-do-and-dont-for-lights" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p><code>LightManager : ThreadedManager</code> is the <strong>sunlight-occlusion</strong> manager, not the artificial-light manager. Despite the name it deals with whether grid cells / devices / structures / atmospheres "have sunlight":</p>
+<ul>
+<li>Constants: <code>GridSurfaceArea = 24f</code>, <code>LightCastDistance = 800f</code>, <code>MAX_LIGHT_ACTIVATED = 16384</code>, <code>DEFINITELY_HAS_SUNLIGHT_HEIGHT = 1000f</code>.</li>
+<li><code>AllLightActivated</code> is a <code>ConcurrentDensePool&lt;ILightActivated&gt;</code>. <code>ILightActivated : IDensePoolable { bool IsBeingDestroyed { get; } }</code> is implemented by things whose sunlight state must be tracked: <code>Device</code>s (<code>GrowLight</code>, <code>HydroponicsAutomated</code>, ...), <code>HydroponicTray</code>, <code>DynamicThing</code>s. <code>Register</code>/<code>Deregister</code> add/remove.</li>
+<li><code>ThreadedWork()</code> (off-main-thread, <code>Settings.NonFrameCriticalThreadPriority</code>): sets <code>LightRay = OrbitalSimulation.WorldSunVector * 800</code>, calls <code>CheckLightOcclusion(cell)</code> for every <code>Cell.AllCells</code>, then runs <code>AllLightActivatedAction</code> over <code>AllLightActivated</code>, which calls <code>CheckLightOcclusion(...)</code> per type and fires <code>OnHasSunlight()</code> / <code>OnLostSunlight()</code> (or, for a <code>HydroponicTray</code>, <code>Plant.HasLight = ...</code> + <code>OnHasSunlight/OnLostSunlight</code>).</li>
+<li><code>HasSunlight(cell)</code>: <code>true</code> if <code>cell.Position.y &gt;= 1000</code>; <code>false</code> if <code>OrbitalSimulation.IsEclipse</code>; otherwise a raycast along the sun vector.</li>
+<li><code>AirSolarIrradiance =&gt; 0.05f * OrbitalSimulation.SolarIrradiance * (weather solar ratio)</code>. <code>SolarHeatingCurve(atmosTempK) = 1f / (1f + (atmosTempK/450f)^3.2f)</code>.</li>
+</ul>
+<p><code>LightManager</code> has <strong>nothing</strong> to do with <code>UnityEngine.Light</code> components, ranges, or spot angles. The only "artificial light" bookkeeping in code is <code>Thing.AllILights</code> / <code>AllIWearableLights</code> (section A) plus the per-Thing <code>ThingLight.Refresh()</code> cullingMask gate driven by <code>Thing.IsOccluded</code> (handled by <code>OcclusionManager</code>, not <code>LightManager</code>).</p>
+<p>There is <strong>no <code>IlluminationManager</code> class</strong> in the v0.2.6228.27061 assembly. The "ambient illumination" / "is this place dark" gameplay concept is <code>LightManager.HasSunlight</code> (natural) plus the grow-light trigger-volume membership (<code>IGrower.IsLitByGrowLight</code>); the worn/handheld light beams are pure rendering with no gameplay illumination meter. The storm-shader light upload in <code>StormEffectMaterialController.UpdateLights</code> is the only place that aggregates artificial <code>Light</code> ranges/colours, and it only runs during a weather event.</p>
+<p><code>LightChanger</code> / <code>MaterialChanger</code> (section B) are the only "light <em>controller</em>" classes — small per-GameObject state-machine helpers, not managers.</p>
+<h2 id="k-limits-of-the-decompile-what-needs-the-asset-bundle">K. Limits of the decompile — what needs the asset bundle<a class="headerlink" href="#k-limits-of-the-decompile-what-needs-the-asset-bundle" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p>The C# assembly tells you the <em>behaviour</em> (on/off logic, occlusion, power model, lifetime, recolour rules, which <code>Light</code>s are toggled together) but almost nothing about the <em>spread</em> of any individual light. Specifically, the following are <strong>prefab data in <code>sharedassets0.assets</code> (and the prefab assets), not in <code>Assembly-CSharp</code></strong>, and would require AssetStudio / AssetRipper to dump:</p>
+<ul>
+<li>For every structure-light prefab variant (each ceiling/wall/sign/angled light, the flashing beacon, the grow light, the battery wall light): the <code>UnityEngine.Light</code> component(s) on the prefab — <code>type</code> (Spot vs Point vs Directional), <code>range</code>, <code>spotAngle</code>, <code>innerSpotAngle</code>, <code>intensity</code>, <code>color</code>, <code>colorTemperature</code>, <code>renderMode</code>, <code>cullingMask</code>, <code>lightShadowCasterMode</code>, plus any <code>VolumetricLight</code> / <code>EasyFlares</code> / <code>LensFlare</code> / <code>LightChanger</code> sibling components and their settings.</li>
+<li>The wattage of each light: <code>Device.UsedPower</code> per prefab (the base default is 10 W; the real per-light value is overridden in the editor).</li>
+<li><code>PowerTool.UsedPowerPassive</code> / <code>UsedPowerActive</code> for <code>Flashlight</code>, <code>Headlamp</code>, <code>PortableLight</code>, <code>MiningDrill</code> — the actual battery drain numbers.</li>
+<li>Whether a given drill prefab carries a head-lamp <code>Light</code> at all (the C# never touches it).</li>
+<li>The <code>UpOffset</code> and <code>FlareLight</code> settings of <code>ItemRoadFlare</code> / <code>ItemGlowstick</code> (range is 10 m for the road flare from code, but its <code>type</code>/<code>intensity</code>/<code>color</code>-default/<code>renderMode</code> are prefab data; the glowstick's range is entirely prefab data).</li>
+<li>The exact prefab key strings (<code>StructureWallLight</code>, <code>StructureLightLong</code>, <code>ItemFlashlight</code>, <code>ItemGlowstick</code>, <code>ItemRoadFlare</code> (this one is referenced as a literal once), <code>ItemMiningDrillHeavyPneumatic</code>, ...) — only <code>"ItemRoadFlare"</code> appears as a literal in the assembly; the rest are data-driven via <code>WorldManager.SourcePrefabs</code> and <code>Prefab.PrefabName</code> (set in the editor).</li>
+</ul>
+<p>The hard, code-confirmed numbers are: <code>WallLightBattery.BatteryChargeRate = 200f</code> W; <code>Helmet</code> light drain <code>5f</code>/tick (~10 W); <code>GasMask</code> light drain <code>_lightPowerUsage = 50f</code>/atmospheric-tick; <code>StackableLight.LIFETIME = 180f</code> s (+0..5 s random); <code>RoadFlare.FlareLight.range</code> = <code>10f</code> normal / <code>25f</code> parachute, intensity <code>Random.Range(num, num+0.8f)</code> with <code>num = Lerp(0.5f, 3f, ActualLifetime/180f)</code>, <code>ENERGY_RELEASED_PER_TICK = 1000f</code>, <code>FuseTimeMs = 1200</code>; <code>FlashingLight</code> rotator <code>720f</code> deg/s; <code>Device.UsedPower</code> default <code>10f</code>; <code>PowerTool.BASEPOWERUSAGE = 1000</code>; <code>WallLight</code> render distance <code>40f</code>, shadow distance via <code>OcclusionManager.LightShadowDistanceSq</code> (default <code>900</code> = 30 m²); helmet/headlamp shadow distance via <code>HelmetLightShadowDistanceSq()</code> = <code>(LightShadowDistance/2)^2</code> (default <code>225</code>).</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-05-11: page created from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>. All sections verified against the decompile at game version 0.2.6228.27061. Per-prefab <code>UnityEngine.Light</code> component values were not inspected (asset-bundle data); flagged in section K and the table.</li>
+</ul>
+<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Per-prefab light spread for every structure-light variant (long/round/wall/angled/sign ceiling lights, flashing beacon, grow light): <code>type</code> (Spot vs Point), <code>range</code>, <code>spotAngle</code>, <code>intensity</code>, default <code>color</code>, <code>renderMode</code>. Requires dumping <code>sharedassets0.assets</code> / the prefab assets with AssetStudio / AssetRipper. Not recoverable from the C# decompile.</li>
+<li>The actual wattage of each shipped structure light (<code>Device.UsedPower</code> per prefab) and the battery-drain numbers for <code>Flashlight</code> (Low/High = <code>UsedPowerPassive</code>/<code>UsedPowerActive</code>), <code>Headlamp</code>, <code>PortableLight</code>. Prefab data.</li>
+<li>Whether the heavy pneumatic mining drill (<code>ItemMiningDrillHeavyPneumatic</code>) actually has a head-lamp <code>Light</code> child. The <code>MiningDrill</code> C# class never touches <code>Lights</code>, so even if present it has no on/off code path; confirm by inspecting the prefab.</li>
+<li>Does <code>GasMask</code> have a real <code>ThingLight</code> (in <code>Lights</code>) or only the <code>_spotlight</code> GameObject? It implements <code>IWearableLight</code> and is iterated by <code>StormEffectMaterialController.UpdateLights</code> via <code>thing.Lights</code>, so it presumably carries at least one non-<code>EffectLight</code>-tagged <code>Light</code> under <code>_spotlight</code>; confirm in the prefab.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../KeyBinding/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Key Binding">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Key Binding
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../Localization/" class="md-footer__link md-footer__link--next" aria-label="Next: Localization">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Localization
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache 2.0. Sources at <a href="https://github.com/SixFive7/StationeersPlus">github.com/SixFive7/StationeersPlus</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/SixFive7/StationeersPlus" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://steamcommunity.com/profiles/76561198081578712/myworkshopfiles/" target="_blank" rel="noopener" title="steamcommunity.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M504 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L184.6 279c-15.5-.9-30.7 3.4-43.5 12.1L8 236.1C18.2 108.4 125.1 8 255.6 8 392.8 8 504 119 504 256M163.7 384.3l-30.5-12.6c5.6 11.6 15.3 20.8 27.2 25.8 26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3S214 305.6 201 300.2c-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21m173.8-254.5a62.3 62.3 0 1 1 0 124.6 62.3 62.3 0 1 1 0-124.6m.1 109a46.8 46.8 0 1 0 0-93.6 46.8 46.8 0 1 0 0 93.6"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tooltips", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

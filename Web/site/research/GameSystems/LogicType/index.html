@@ -1,0 +1,7173 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Tools and research for Stationeers modding, sourced from the StationeersPlus monorepo.">
+      
+      
+        <meta name="author" content="SixFive7">
+      
+      
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/LogicType/">
+      
+      
+        <link rel="prev" href="../Localization/">
+      
+      
+        <link rel="next" href="../LogicValueFormatting/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>LogicType - StationeersPlus</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#logictype" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="StationeersPlus" class="md-header__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            StationeersPlus
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              LogicType
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  StationeersPlus
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tools/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tools
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Research
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="StationeersPlus" class="md-nav__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    StationeersPlus
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersPlus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../tools/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tools/phase-diagram/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameClasses
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameClasses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/AdvancedTablet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AdvancedTablet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/AllowedRotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AllowedRotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Battery (station-mounted)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CableNetwork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CableNetwork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CameraController/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraController
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Cell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatCanvas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatCanvas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ChatStatusMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatStatusMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ColorSwatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ColorSwatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CombustionDeepMiner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CombustionDeepMiner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ConfigCartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConfigCartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Constructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CreateStructureInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CreateStructureInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CursorManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CursorManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/CustomScrollPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CustomScrollPanel.ScrollPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Device/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/GameManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Grid3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/HelmetBattery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Helmet Battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/HelpLinkHandler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HelpLinkHandler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Human/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ILifeSuspender/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILifeSuspender
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ISprayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISprayer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/InventoryManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/InventoryWindow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryWindow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ItemKitLinearRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ItemKitLinearRail (multi-constructor kit for rail pieces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LanderCapsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LogicTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MultiConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/MultiMergeConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiMergeConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/NetworkChannel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/OnServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OnServer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PipeIgniter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PipeIgniter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PowerTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTick
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/PowerTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RoboticArmDock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmDock and dock subclasses (Larre dock IC10 / slot surface)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RoboticArmRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Room/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Room
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/RotatableBehaviour/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RotatableBehaviour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SayCommand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SayCommand
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SensorLenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SensorLenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Silo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Silo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SolarPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SolarPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SprayCan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayCan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/SprayGun/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayGun
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Stationpedia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/StationpediaPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Thing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ThingRenderer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingRenderer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Transformer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transformer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/UniversalPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UniversalPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Wall/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wall
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/WeatherEvent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WeatherEvent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/WirelessPower/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WirelessPower
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameSystems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameSystems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CameraFilterPack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraFilterPack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChatBroadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatBroadcast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChemistryGasPhaseData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chemistry gas phase data (freezing points, max-liquid temperatures, Antoine-style coefficients)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ConveyorBeltCutContent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConveyorBeltCutContent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DamageState/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DamageState
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DedicatedServerSettings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dedicated Server Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DevicePowerDraw/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device power draw (which devices exceed the 5 kW normal-cable rating)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DirectConnect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct-Connect Server Join Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Explosions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explosions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10DeviceAddressing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 device addressing (pin, alias, ReferenceId)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10ExecutionTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 Execution Tick Rate and Yield Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10SyntaxHighlighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SyntaxHighlighting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../KeyBinding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Key Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LightSources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Light Sources (built-in light emitters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Localization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Localization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#four-separate-logictype-registries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four separate LogicType registries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logictype-enum-value-inventory-f0040" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogicType enum value inventory (F0040)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atmospheric-gas-ratio-logictype-members" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Atmospheric gas-ratio LogicType members
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Atmospheric gas-ratio LogicType members">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gas-fuel-relevance-for-combustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gas / fuel relevance for combustion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reserved-bands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reserved bands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-logictype-arrays-extension-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three LogicType arrays extension mechanism
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Three LogicType arrays extension mechanism">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logicableinitializepatch-three-extension-points-comment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogicableInitializePatch three-extension-points comment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enumnamepatches-class-header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EnumNamePatches class header
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enumcollection-public-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EnumCollection public API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-custom-logictypes-dont-appear-without-patches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why custom LogicTypes don't appear without patches
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LogicValueFormatting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicValueFormatting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ModDeduplication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModDeduplication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ModLoadSequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModLoadSequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../NetworkRoles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkRoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../NetworkUpdateFlags/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkUpdateFlags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Occlusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Occlusion (distance-based renderer culling)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PlacementOrientation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTickThreading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTickThreading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RecipeDataLoading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RecipeData loading and GameData XML overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RenderingPipelineAndGlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendering Pipeline and Glow Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RepairMechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepairMechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RespawnFlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RespawnFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SaveDataRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveDataRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SaveZipExtension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Side-car file persistence in save ZIPs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ScrollInputHandling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scroll Input Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaAscendedInternals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaAscendedInternals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaMarkup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaMarkup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaPageRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPageRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaSearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaSearch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StructurePlacementValidation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure placement validation (CanConstruct / CanReplace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StunStateMachine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StunStateMachine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../TerrainOctree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainOctree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ThirdPartyModIdentities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThirdPartyModIdentities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../UnregisteredSaveDataBehavior/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnregisteredSaveDataBehavior
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WorldStateAPIs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldStateAPIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AboutXmlWorkshopHandleParse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AboutXmlWorkshopHandleParse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AccessToolsRecipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AccessTools recipes for private field access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncEnumerator472/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manual async-enumerator drain on .NET Framework 4.7.2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncHarmonyTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async Harmony trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BestEffortIntegration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best-effort integration with optional dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BinaryStreamSafety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ClientDisconnectedPrefix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ClientDisconnected cleanup Prefix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConditionalWeakTableCache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConditionalWeakTable per-instance cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConflictDetection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod conflict detection via assembly scan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CursorAdjacencyLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cursor-time adjacency lookup (find neighbour cells from a placement ghost)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CustomLogicValueInjection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom logic-value injection on a vanilla device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/FileSystemWatcherMainThread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileSystemWatcher main-thread boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/Float16Quantization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Float16 quantization on network serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyFieldOrProperty/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony field-or-property reflection tolerance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyInheritedMethods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony inherited-method patching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchTypes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPrefixReturnBool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony Prefix must return bool to block the original
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ILRepackPerModCopy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILRepackPerModCopy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InGameConsoleOutput/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InGameConsoleOutput
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InventoryAutoEquip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inventory Auto-Equip APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/LogicableInitializeAppend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending Logicable's initialized LogicType arrays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/MainThreadDispatcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MainThreadDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ModLogicTypeRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod LogicType Registration Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PeriodicProcessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Periodic processing options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PooledSpanEnumeration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PooledSpan enumeration with trailing-null filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PrefabCloning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prefab cloning (Mirrored Devices template)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ProtectedMethodPublicAPIBypass/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replace a protected method via public-API composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveDataIsinstInheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom save-data type must inherit vanilla so isinst still matches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveLoadOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveLoadOrdering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ServerAuthoritativeSimulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server-authoritative simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SinglePlayerNetworkRole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single-player NetworkRole trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotInsertionBlock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotInsertionBlock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotTypeIconLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotTypeIcon lookup injection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPadSettingsGrouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersModdingGotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers modding gotchas (catch-all)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersNamespaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers namespace pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SubcomponentGrafting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sub-component grafting from a vanilla prefab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityFakeNull/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unity fake-null
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityMaterialPerInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnityMaterialPerInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/WorldSpacePreviewRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldSpacePreviewRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocols
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocols
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/AtmosphereSaveData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AtmosphereSaveData (pipe networks)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ConstructionCreationMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstructionCreationMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/EquipmentPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EquipmentPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/GameMessageFactory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameMessageFactory (vanilla network messages)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/LaunchPadBoosterNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPadBooster Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/NetworkPuristPlusCableAlignment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkPuristPlus Cable Alignment and Rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PlayerConnectedThingFindTiming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlayerConnected message timing vs world-load on joining clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PowerTransmitterPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SPADeviceDatabase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia Ascended DeviceDatabase / descriptions.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SaveFileStructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save file ZIP structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SprayPaintPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayPaintPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainChunkChecksums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainChunkChecksums
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainDat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    terrain.dat binary format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ThingColorMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingColorMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/WorldXml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    world.xml
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/BCSIImplementationRoadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BCSI v1 Implementation Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/CameraEffectsRuntime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera Effects at Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/HealAllDamagedThings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heal All Damaged Things
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/InspectorPlusUsage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InspectorPlus Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/KnockPlayerUnconscious/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knock Player Unconscious
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/LaunchPadNativeDllTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPad native-DLL trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ModProjectSetup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod Project Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ResetTerrainLive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Live (Multiplayer)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ResetTerrainOffline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Offline (terrain_reset.py)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/SPADumpKeys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    /spda_dumpkeys Console Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/StationeersLaunchPadDedicatedServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPad on a Dedicated Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TTSDeadEnd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TTS Dead End
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TimeSkipWorldManipulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time-Skip World Manipulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TriggerLanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger Lander Capsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#four-separate-logictype-registries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four separate LogicType registries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logictype-enum-value-inventory-f0040" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogicType enum value inventory (F0040)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#atmospheric-gas-ratio-logictype-members" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Atmospheric gas-ratio LogicType members
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Atmospheric gas-ratio LogicType members">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gas-fuel-relevance-for-combustion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gas / fuel relevance for combustion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reserved-bands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reserved bands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-logictype-arrays-extension-mechanism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three LogicType arrays extension mechanism
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Three LogicType arrays extension mechanism">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logicableinitializepatch-three-extension-points-comment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogicableInitializePatch three-extension-points comment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enumnamepatches-class-header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EnumNamePatches class header
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enumcollection-public-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EnumCollection public API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-custom-logictypes-dont-appear-without-patches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why custom LogicTypes don't appear without patches
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    StationeersPlus
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Research
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../CameraFilterPack/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    GameSystems
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+    <aside class="research-meta" markdown>
+      
+        <p class="research-meta-type">
+          <strong>Category:</strong> GameSystems
+        </p>
+      
+      
+        <p class="research-meta-verified">
+          <strong>Verified</strong>
+           in game version <code>0.2.6228.27061</code>
+           on 2026-04-27.
+        </p>
+      
+      
+      
+        <details class="research-meta-sources">
+          <summary><strong>Sources</strong> (11)</summary>
+          <ul>
+            
+              <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:664-670</code></li>
+            
+              <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:398-425</code></li>
+            
+              <li><code>Plans/StationpediaPlus/PLAN.md:225-236</code></li>
+            
+              <li><code>Plans/StationpediaPlus/PLAN.md:240-255</code></li>
+            
+              <li><code>Plans/StationpediaPlus/PLAN.md:229-236</code></li>
+            
+              <li><code>Plans/StationpediaPlus/PLAN.md:240-254</code></li>
+            
+              <li><code>Plans/StationpediaPlus/PLAN.md:3483-3506</code></li>
+            
+              <li><code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs:55-71</code></li>
+            
+              <li><code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/EnumNamePatches.cs:9-16</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.EnumCollection`2'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.EnumCollections'}</code></li>
+            
+          </ul>
+        </details>
+      
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (5)</summary>
+          <ul>
+            
+              <li><code>./IC10SyntaxHighlighting.md</code></li>
+            
+              <li><code>./StationpediaPageRendering.md</code></li>
+            
+              <li><code>../GameClasses/ProgrammableChip.md</code></li>
+            
+              <li><code>../GameClasses/WirelessPower.md</code></li>
+            
+              <li><code>../GameClasses/PowerTransmitter.md</code></li>
+            
+          </ul>
+        </details>
+      
+    </aside>
+  
+  
+                  
+
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">ic10</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">logic</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">ui</span>
+      
+    
+  </nav>
+
+
+
+<h1 id="logictype">LogicType<a class="headerlink" href="#logictype" title="Permanent link">&para;</a></h1>
+<p><code>LogicType</code> is a <code>ushort</code> enum with 350 vanilla values (0-349) that names every logic readable and writable in the game. Extending it at runtime requires writing into four independent registries, all snapshotted from <code>Enum.GetValues(typeof(LogicType))</code> at class load. Missing any registry produces silent breakage in at least one UI surface (tablet, ConfigCartridge, motherboard dropdown, or in-game screen syntax highlighting).</p>
+<h2 id="four-separate-logictype-registries">Four separate LogicType registries<a class="headerlink" href="#four-separate-logictype-registries" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p>The game stores LogicType names/values in four independent locations, each populated from <code>Enum.GetValues</code>/<code>GetNames</code> at class load. All four must be extended for full coverage:</p>
+<ol>
+<li><code>Logicable.LogicTypes</code> / <code>LogicTypeNames</code>: drives <code>NextLogicType</code> cycling in the tablet.</li>
+<li><code>EnumCollections.LogicTypes</code>: drives <code>ConfigCartridge</code> (tablet cartridge UI).</li>
+<li><code>ScreenDropdownBase.LogicTypes</code> / <code>LogicTypeNames</code>: drives motherboard condition/action dropdown menus.</li>
+<li><code>ProgrammableChip.InternalEnums</code> entries <code>ScriptEnum&lt;LogicType&gt;</code> and <code>BasicEnum&lt;LogicType&gt;</code>: drive <strong>syntax highlighting</strong> on all in-game screens (computers, laptops, wall-mounted screens). If not extended, custom LogicType names receive no <code>&lt;color&gt;</code> tag and inherit the screen's default red text color, appearing "invalid" even though they compile and execute correctly. See <code>./IC10SyntaxHighlighting.md</code>.</li>
+</ol>
+<h2 id="logictype-enum-value-inventory-f0040">LogicType enum value inventory (F0040)<a class="headerlink" href="#logictype-enum-value-inventory-f0040" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p><code>LogicType</code> enum (<code>Assets.Scripts.Objects.Motherboards.LogicType</code>): <code>ushort</code>, vanilla values 0-349 with one true gap at <strong>159</strong>. Examples: <code>Power = 1</code>, <code>On = 28</code>, <code>Charge = 11</code>, <code>Horizontal = 20</code>, <code>Vertical = 21</code>, <code>PowerPotential = 25</code>, <code>PowerActual = 26</code>, <code>Error = 4</code>, <code>PrefabHash = 84</code>, <code>ReferenceId = 217</code>, <code>PositionX/Y/Z = 76/77/78</code>.</p>
+<p>LogicType is <code>[ushort]</code> so values up to 65535 are runtime-legal. The IC10 / MIPS parser resolves name tokens against <code>ProgrammableChip.AllConstants[].Literal</code> via <code>OrdinalIgnoreCase</code> string comparison, so out-of-enum values WORK as long as we register their names in that array.</p>
+<p><code>WirelessPower.CanLogicRead</code> returns true for: Charge, Horizontal, Vertical, PowerPotential, PowerActual, PositionX/Y/Z (plus Device-base ones: Power, On, Error, Mode, RequiredPower, PrefabHash, ReferenceId). <code>PowerTransmitter</code> and <code>PowerReceiver</code> inherit without override.</p>
+<p><code>WirelessPower.GetLogicValue</code> returns:
+- <code>Horizontal</code> → <code>Horizontal × 360.0</code> (degrees)
+- <code>Vertical</code> → <code>Vertical × 180.0</code>
+- <code>HorizontalRatio</code> → <code>Horizontal</code> (0..1)
+- <code>VerticalRatio</code> → <code>Vertical</code>
+- <code>Charge</code> → <code>AvailablePower</code> = <code>InputNetwork.PotentialLoad</code>
+- <code>PowerPotential</code> → <code>base.PotentialLoad</code>
+- <code>PowerActual</code> → <code>base.CurrentLoad</code> = <code>OutputNetwork.CurrentLoad</code> ← <strong>delivered watts</strong>
+- <code>PositionX/Y/Z</code> → <code>RayTransform.position</code></p>
+<p>The game keeps <strong>three separate arrays of logic types</strong>:
+1. <code>Logicable.LogicTypes</code> / <code>LogicTypeNames</code>: used by <code>Logicable.NextLogicType</code> cycling.
+2. <code>Assets.Scripts.EnumCollections.LogicTypes</code>: the <code>EnumCollection&lt;LogicType, ushort&gt;</code> consumed by <code>ConfigCartridge</code> (configuration tablet cartridge).
+3. <code>Assets.Scripts.UI.Motherboard.ScreenDropdownBase.LogicTypes</code> / <code>LogicTypeNames</code>: IC housing on-screen dropdowns.</p>
+<p>All three are populated from <code>Enum.GetValues(typeof(LogicType))</code> at class load. Extending only <code>Logicable</code>'s pair is not enough: the configuration tablet is driven by <code>EnumCollections.LogicTypes</code>. <code>ScreenDropdownBase</code> drives the motherboard condition/action dropdown UI. This mod extends all three.</p>
+<p><code>EnumCollection&lt;T1, T2&gt;</code> lives in <code>Assets.Scripts</code>, NOT <code>Assets.Scripts.Util</code>. <code>ProgrammableChip</code> lives in <code>Assets.Scripts.Objects.Electrical</code>, NOT <code>Motherboards</code>; <code>ProgrammableChip.Constant</code> is a nested <code>public readonly struct</code>.</p>
+<p>The MIPS compiler resolves name tokens against <code>ProgrammableChip.AllConstants</code> directly: verified in-game for both <code>l r0 d0 MicrowaveSourceDraw</code> and <code>lbn ... MicrowaveSourceDraw 0</code>. The <code>Hash</code> field on <code>Constant</code> is for the <code>#hash</code> MIPS directive, not pure name lookups.</p>
+<h2 id="atmospheric-gas-ratio-logictype-members">Atmospheric gas-ratio LogicType members<a class="headerlink" href="#atmospheric-gas-ratio-logictype-members" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+
+<p>Every combustion-relevant gas (fuels and oxidisers) has a chamber-scoped <code>Ratio*</code> LogicType member, plus per-network <code>Input</code> / <code>Input2</code> / <code>Output</code> / <code>Output2</code> variants. Verbatim from <code>Assets/Scripts/Objects/Motherboards/LogicType.cs</code> (decompile of <code>Assembly-CSharp.dll</code>, source order, with assigned integer values):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">RatioOxygen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span><span class="p">,</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">RatioCarbonDioxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">RatioNitrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">RatioPollutant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">17</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">RatioMethane</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">18</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">RatioWater</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">19</span><span class="p">,</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">Ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">24</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">RatioNitrousOxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">83</span><span class="p">,</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">RatioOxygenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">108</span><span class="p">,</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">RatioCarbonDioxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">109</span><span class="p">,</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">RatioNitrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">110</span><span class="p">,</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">RatioPollutantInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">111</span><span class="p">,</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">RatioMethaneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">112</span><span class="p">,</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">RatioWaterInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">113</span><span class="p">,</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">RatioNitrousOxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">114</span><span class="p">,</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="n">RatioOxygenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">118</span><span class="p">,</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">RatioCarbonDioxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">119</span><span class="p">,</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">RatioNitrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">120</span><span class="p">,</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">RatioPollutantInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">121</span><span class="p">,</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">RatioMethaneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">122</span><span class="p">,</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="n">RatioWaterInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">RatioNitrousOxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">124</span><span class="p">,</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="n">RatioOxygenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">,</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="n">RatioCarbonDioxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">129</span><span class="p">,</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="n">RatioNitrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">130</span><span class="p">,</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="n">RatioPollutantOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">131</span><span class="p">,</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">RatioMethaneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">132</span><span class="p">,</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="n">RatioWaterOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">133</span><span class="p">,</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="n">RatioNitrousOxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">134</span><span class="p">,</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="n">RatioOxygenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">138</span><span class="p">,</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="n">RatioCarbonDioxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">139</span><span class="p">,</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="n">RatioNitrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">140</span><span class="p">,</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="n">RatioPollutantOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">141</span><span class="p">,</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="n">RatioMethaneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">142</span><span class="p">,</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="n">RatioWaterOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">143</span><span class="p">,</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="n">RatioNitrousOxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">144</span><span class="p">,</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="n">RatioLiquidNitrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">177</span><span class="p">,</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="n">RatioLiquidNitrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">178</span><span class="p">,</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="n">RatioLiquidNitrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">179</span><span class="p">,</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="n">RatioLiquidNitrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">180</span><span class="p">,</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="n">RatioLiquidNitrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">181</span><span class="p">,</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="n">RatioLiquidOxygen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">183</span><span class="p">,</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="n">RatioLiquidOxygenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">184</span><span class="p">,</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="n">RatioLiquidOxygenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">185</span><span class="p">,</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="n">RatioLiquidOxygenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">186</span><span class="p">,</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="n">RatioLiquidOxygenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">187</span><span class="p">,</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="n">RatioLiquidMethane</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">188</span><span class="p">,</span>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="n">RatioLiquidMethaneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">189</span><span class="p">,</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="n">RatioLiquidMethaneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">190</span><span class="p">,</span>
+</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="n">RatioLiquidMethaneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">191</span><span class="p">,</span>
+</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="n">RatioLiquidMethaneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">192</span><span class="p">,</span>
+</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="n">RatioSteam</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">193</span><span class="p">,</span>
+</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="n">RatioSteamInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">194</span><span class="p">,</span>
+</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="n">RatioSteamInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">195</span><span class="p">,</span>
+</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="n">RatioSteamOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">196</span><span class="p">,</span>
+</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="n">RatioSteamOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">197</span><span class="p">,</span>
+</span><span id="__span-0-57"><a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="n">RatioLiquidCarbonDioxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">199</span><span class="p">,</span>
+</span><span id="__span-0-58"><a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a><span class="n">RatioLiquidCarbonDioxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">200</span><span class="p">,</span>
+</span><span id="__span-0-59"><a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a><span class="n">RatioLiquidCarbonDioxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">201</span><span class="p">,</span>
+</span><span id="__span-0-60"><a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a><span class="n">RatioLiquidCarbonDioxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">202</span><span class="p">,</span>
+</span><span id="__span-0-61"><a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="n">RatioLiquidCarbonDioxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">203</span><span class="p">,</span>
+</span><span id="__span-0-62"><a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="n">RatioLiquidPollutant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">204</span><span class="p">,</span>
+</span><span id="__span-0-63"><a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a><span class="n">RatioLiquidPollutantInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">205</span><span class="p">,</span>
+</span><span id="__span-0-64"><a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="n">RatioLiquidPollutantInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">206</span><span class="p">,</span>
+</span><span id="__span-0-65"><a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="n">RatioLiquidPollutantOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">207</span><span class="p">,</span>
+</span><span id="__span-0-66"><a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a><span class="n">RatioLiquidPollutantOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">208</span><span class="p">,</span>
+</span><span id="__span-0-67"><a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a><span class="n">RatioLiquidNitrousOxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">209</span><span class="p">,</span>
+</span><span id="__span-0-68"><a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a><span class="n">RatioLiquidNitrousOxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">210</span><span class="p">,</span>
+</span><span id="__span-0-69"><a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a><span class="n">RatioLiquidNitrousOxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">211</span><span class="p">,</span>
+</span><span id="__span-0-70"><a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a><span class="n">RatioLiquidNitrousOxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">212</span><span class="p">,</span>
+</span><span id="__span-0-71"><a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a><span class="n">RatioLiquidNitrousOxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">213</span><span class="p">,</span>
+</span><span id="__span-0-72"><a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a><span class="n">RatioHydrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">252</span><span class="p">,</span>
+</span><span id="__span-0-73"><a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a><span class="n">RatioLiquidHydrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">253</span><span class="p">,</span>
+</span><span id="__span-0-74"><a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a><span class="n">RatioPollutedWater</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">254</span><span class="p">,</span>
+</span><span id="__span-0-75"><a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a><span class="n">RatioHydrazine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">283</span><span class="p">,</span>
+</span><span id="__span-0-76"><a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a><span class="n">RatioLiquidHydrazine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">284</span><span class="p">,</span>
+</span><span id="__span-0-77"><a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a><span class="n">RatioLiquidAlcohol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">285</span><span class="p">,</span>
+</span><span id="__span-0-78"><a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a><span class="n">RatioHelium</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">286</span><span class="p">,</span>
+</span><span id="__span-0-79"><a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a><span class="n">RatioLiquidSodiumChloride</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">287</span><span class="p">,</span>
+</span><span id="__span-0-80"><a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a><span class="n">RatioSilanol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">288</span><span class="p">,</span>
+</span><span id="__span-0-81"><a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a><span class="n">RatioLiquidSilanol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">289</span><span class="p">,</span>
+</span><span id="__span-0-82"><a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a><span class="n">RatioHydrochloricAcid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">290</span><span class="p">,</span>
+</span><span id="__span-0-83"><a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a><span class="n">RatioLiquidHydrochloricAcid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">291</span><span class="p">,</span>
+</span><span id="__span-0-84"><a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a><span class="n">RatioOzone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">292</span><span class="p">,</span>
+</span><span id="__span-0-85"><a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a><span class="n">RatioLiquidOzone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">293</span><span class="p">,</span>
+</span><span id="__span-0-86"><a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a><span class="n">RatioHydrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">294</span><span class="p">,</span>
+</span><span id="__span-0-87"><a id="__codelineno-0-87" name="__codelineno-0-87" href="#__codelineno-0-87"></a><span class="n">RatioHydrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">295</span><span class="p">,</span>
+</span><span id="__span-0-88"><a id="__codelineno-0-88" name="__codelineno-0-88" href="#__codelineno-0-88"></a><span class="n">RatioHydrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">296</span><span class="p">,</span>
+</span><span id="__span-0-89"><a id="__codelineno-0-89" name="__codelineno-0-89" href="#__codelineno-0-89"></a><span class="n">RatioHydrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">297</span><span class="p">,</span>
+</span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90" href="#__codelineno-0-90"></a><span class="n">RatioLiquidHydrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">298</span><span class="p">,</span>
+</span><span id="__span-0-91"><a id="__codelineno-0-91" name="__codelineno-0-91" href="#__codelineno-0-91"></a><span class="n">RatioLiquidHydrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">299</span><span class="p">,</span>
+</span><span id="__span-0-92"><a id="__codelineno-0-92" name="__codelineno-0-92" href="#__codelineno-0-92"></a><span class="n">RatioLiquidHydrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
+</span><span id="__span-0-93"><a id="__codelineno-0-93" name="__codelineno-0-93" href="#__codelineno-0-93"></a><span class="n">RatioLiquidHydrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">301</span><span class="p">,</span>
+</span><span id="__span-0-94"><a id="__codelineno-0-94" name="__codelineno-0-94" href="#__codelineno-0-94"></a><span class="n">RatioPollutedWaterInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">302</span><span class="p">,</span>
+</span><span id="__span-0-95"><a id="__codelineno-0-95" name="__codelineno-0-95" href="#__codelineno-0-95"></a><span class="n">RatioPollutedWaterInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">303</span><span class="p">,</span>
+</span><span id="__span-0-96"><a id="__codelineno-0-96" name="__codelineno-0-96" href="#__codelineno-0-96"></a><span class="n">RatioPollutedWaterOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">304</span><span class="p">,</span>
+</span><span id="__span-0-97"><a id="__codelineno-0-97" name="__codelineno-0-97" href="#__codelineno-0-97"></a><span class="n">RatioPollutedWaterOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">305</span><span class="p">,</span>
+</span><span id="__span-0-98"><a id="__codelineno-0-98" name="__codelineno-0-98" href="#__codelineno-0-98"></a><span class="n">RatioHydrazineInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">306</span><span class="p">,</span>
+</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99" href="#__codelineno-0-99"></a><span class="n">RatioHydrazineInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">307</span><span class="p">,</span>
+</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100" href="#__codelineno-0-100"></a><span class="n">RatioHydrazineOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">308</span><span class="p">,</span>
+</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101" href="#__codelineno-0-101"></a><span class="n">RatioHydrazineOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">309</span><span class="p">,</span>
+</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102" href="#__codelineno-0-102"></a><span class="n">RatioLiquidHydrazineInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">310</span><span class="p">,</span>
+</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103" href="#__codelineno-0-103"></a><span class="n">RatioLiquidHydrazineInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">311</span><span class="p">,</span>
+</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104" href="#__codelineno-0-104"></a><span class="n">RatioLiquidHydrazineOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">312</span><span class="p">,</span>
+</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105" href="#__codelineno-0-105"></a><span class="n">RatioLiquidHydrazineOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">313</span><span class="p">,</span>
+</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106" href="#__codelineno-0-106"></a><span class="n">RatioLiquidAlcoholInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">314</span><span class="p">,</span>
+</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107" href="#__codelineno-0-107"></a><span class="n">RatioLiquidAlcoholInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">315</span><span class="p">,</span>
+</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108" href="#__codelineno-0-108"></a><span class="n">RatioLiquidAlcoholOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">316</span><span class="p">,</span>
+</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109" href="#__codelineno-0-109"></a><span class="n">RatioLiquidAlcoholOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">317</span><span class="p">,</span>
+</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110" href="#__codelineno-0-110"></a><span class="n">RatioHeliumInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">318</span><span class="p">,</span>
+</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111" href="#__codelineno-0-111"></a><span class="n">RatioHeliumInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">319</span><span class="p">,</span>
+</span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112" href="#__codelineno-0-112"></a><span class="n">RatioHeliumOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">320</span><span class="p">,</span>
+</span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113" href="#__codelineno-0-113"></a><span class="n">RatioHeliumOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">321</span><span class="p">,</span>
+</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114" href="#__codelineno-0-114"></a><span class="n">RatioLiquidSodiumChlorideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">322</span><span class="p">,</span>
+</span><span id="__span-0-115"><a id="__codelineno-0-115" name="__codelineno-0-115" href="#__codelineno-0-115"></a><span class="n">RatioLiquidSodiumChlorideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">323</span><span class="p">,</span>
+</span><span id="__span-0-116"><a id="__codelineno-0-116" name="__codelineno-0-116" href="#__codelineno-0-116"></a><span class="n">RatioLiquidSodiumChlorideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">324</span><span class="p">,</span>
+</span><span id="__span-0-117"><a id="__codelineno-0-117" name="__codelineno-0-117" href="#__codelineno-0-117"></a><span class="n">RatioLiquidSodiumChlorideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">325</span><span class="p">,</span>
+</span><span id="__span-0-118"><a id="__codelineno-0-118" name="__codelineno-0-118" href="#__codelineno-0-118"></a><span class="n">RatioSilanolInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">326</span><span class="p">,</span>
+</span><span id="__span-0-119"><a id="__codelineno-0-119" name="__codelineno-0-119" href="#__codelineno-0-119"></a><span class="n">RatioSilanolInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">327</span><span class="p">,</span>
+</span><span id="__span-0-120"><a id="__codelineno-0-120" name="__codelineno-0-120" href="#__codelineno-0-120"></a><span class="n">RatioSilanolOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">328</span><span class="p">,</span>
+</span><span id="__span-0-121"><a id="__codelineno-0-121" name="__codelineno-0-121" href="#__codelineno-0-121"></a><span class="n">RatioSilanolOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">329</span><span class="p">,</span>
+</span><span id="__span-0-122"><a id="__codelineno-0-122" name="__codelineno-0-122" href="#__codelineno-0-122"></a><span class="n">RatioLiquidSilanolInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">330</span><span class="p">,</span>
+</span><span id="__span-0-123"><a id="__codelineno-0-123" name="__codelineno-0-123" href="#__codelineno-0-123"></a><span class="n">RatioLiquidSilanolInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">331</span><span class="p">,</span>
+</span><span id="__span-0-124"><a id="__codelineno-0-124" name="__codelineno-0-124" href="#__codelineno-0-124"></a><span class="n">RatioLiquidSilanolOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">332</span><span class="p">,</span>
+</span><span id="__span-0-125"><a id="__codelineno-0-125" name="__codelineno-0-125" href="#__codelineno-0-125"></a><span class="n">RatioLiquidSilanolOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">333</span><span class="p">,</span>
+</span><span id="__span-0-126"><a id="__codelineno-0-126" name="__codelineno-0-126" href="#__codelineno-0-126"></a><span class="n">RatioHydrochloricAcidInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">334</span><span class="p">,</span>
+</span><span id="__span-0-127"><a id="__codelineno-0-127" name="__codelineno-0-127" href="#__codelineno-0-127"></a><span class="n">RatioHydrochloricAcidInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">335</span><span class="p">,</span>
+</span><span id="__span-0-128"><a id="__codelineno-0-128" name="__codelineno-0-128" href="#__codelineno-0-128"></a><span class="n">RatioHydrochloricAcidOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">336</span><span class="p">,</span>
+</span><span id="__span-0-129"><a id="__codelineno-0-129" name="__codelineno-0-129" href="#__codelineno-0-129"></a><span class="n">RatioHydrochloricAcidOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">337</span><span class="p">,</span>
+</span><span id="__span-0-130"><a id="__codelineno-0-130" name="__codelineno-0-130" href="#__codelineno-0-130"></a><span class="n">RatioLiquidHydrochloricAcidInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">338</span><span class="p">,</span>
+</span><span id="__span-0-131"><a id="__codelineno-0-131" name="__codelineno-0-131" href="#__codelineno-0-131"></a><span class="n">RatioLiquidHydrochloricAcidInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">339</span><span class="p">,</span>
+</span><span id="__span-0-132"><a id="__codelineno-0-132" name="__codelineno-0-132" href="#__codelineno-0-132"></a><span class="n">RatioLiquidHydrochloricAcidOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">340</span><span class="p">,</span>
+</span><span id="__span-0-133"><a id="__codelineno-0-133" name="__codelineno-0-133" href="#__codelineno-0-133"></a><span class="n">RatioLiquidHydrochloricAcidOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">341</span><span class="p">,</span>
+</span><span id="__span-0-134"><a id="__codelineno-0-134" name="__codelineno-0-134" href="#__codelineno-0-134"></a><span class="n">RatioOzoneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">342</span><span class="p">,</span>
+</span><span id="__span-0-135"><a id="__codelineno-0-135" name="__codelineno-0-135" href="#__codelineno-0-135"></a><span class="n">RatioOzoneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">343</span><span class="p">,</span>
+</span><span id="__span-0-136"><a id="__codelineno-0-136" name="__codelineno-0-136" href="#__codelineno-0-136"></a><span class="n">RatioOzoneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">344</span><span class="p">,</span>
+</span><span id="__span-0-137"><a id="__codelineno-0-137" name="__codelineno-0-137" href="#__codelineno-0-137"></a><span class="n">RatioOzoneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">345</span><span class="p">,</span>
+</span><span id="__span-0-138"><a id="__codelineno-0-138" name="__codelineno-0-138" href="#__codelineno-0-138"></a><span class="n">RatioLiquidOzoneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">346</span><span class="p">,</span>
+</span><span id="__span-0-139"><a id="__codelineno-0-139" name="__codelineno-0-139" href="#__codelineno-0-139"></a><span class="n">RatioLiquidOzoneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">347</span><span class="p">,</span>
+</span><span id="__span-0-140"><a id="__codelineno-0-140" name="__codelineno-0-140" href="#__codelineno-0-140"></a><span class="n">RatioLiquidOzoneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">348</span><span class="p">,</span>
+</span><span id="__span-0-141"><a id="__codelineno-0-141" name="__codelineno-0-141" href="#__codelineno-0-141"></a><span class="n">RatioLiquidOzoneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">349</span><span class="p">,</span>
+</span></code></pre></div>
+<p>The bare <code>Ratio = 24</code> member is the generic ratio readout (used by some non-atmosphere devices for proportional state), unrelated to gas content.</p>
+<p>Notably absent: there is no <code>RatioVolatiles</code> member in the current enum. Hydrogen is exposed as <code>RatioHydrogen = 252</code>. Older Stationeers IC10 references that mention <code>RatioVolatiles</code> are from a previous enum revision. Use <code>RatioHydrogen</code> in scripts written against this game version.</p>
+<p>For atmosphere-readable devices (those with <code>HasReadableAtmosphere =&gt; true</code>, e.g. <code>CombustionDeepMiner</code>), the bare-name members (no <code>Input</code> / <code>Output</code> suffix) read the <strong>chamber's internal atmosphere</strong>, not any pipe network. The <code>Input</code> / <code>Input2</code> / <code>Output</code> / <code>Output2</code> variants read the corresponding pipe networks on devices that expose them.</p>
+<h3 id="gas-fuel-relevance-for-combustion">Gas / fuel relevance for combustion<a class="headerlink" href="#gas-fuel-relevance-for-combustion" title="Permanent link">&para;</a></h3>
+<p>Cross-reference with <code>Mole.Enthalpy</code> and <code>EnthalpyMultiplier</code> (verbatim tables in <code>../GameClasses/CombustionDeepMiner.md</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Gas</th>
+<th>Chamber LogicType</th>
+<th>Enthalpy / Multiplier</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fuel</td>
+<td>Hydrogen</td>
+<td><code>RatioHydrogen</code></td>
+<td>306,000 J/mol</td>
+</tr>
+<tr>
+<td>Fuel</td>
+<td>LiquidHydrogen</td>
+<td><code>RatioLiquidHydrogen</code></td>
+<td>306,000 J/mol</td>
+</tr>
+<tr>
+<td>Fuel</td>
+<td>Methane</td>
+<td><code>RatioMethane</code></td>
+<td>286,000 J/mol</td>
+</tr>
+<tr>
+<td>Fuel</td>
+<td>LiquidMethane</td>
+<td><code>RatioLiquidMethane</code></td>
+<td>286,000 J/mol</td>
+</tr>
+<tr>
+<td>Fuel</td>
+<td>Hydrazine</td>
+<td><code>RatioHydrazine</code></td>
+<td>306,000 J/mol</td>
+</tr>
+<tr>
+<td>Fuel</td>
+<td>LiquidHydrazine</td>
+<td><code>RatioLiquidHydrazine</code></td>
+<td>306,000 J/mol</td>
+</tr>
+<tr>
+<td>Fuel</td>
+<td>LiquidAlcohol</td>
+<td><code>RatioLiquidAlcohol</code></td>
+<td>566,000 J/mol</td>
+</tr>
+<tr>
+<td>Oxidiser</td>
+<td>Oxygen</td>
+<td><code>RatioOxygen</code></td>
+<td>×1.0</td>
+</tr>
+<tr>
+<td>Oxidiser</td>
+<td>LiquidOxygen</td>
+<td><code>RatioLiquidOxygen</code></td>
+<td>×1.0</td>
+</tr>
+<tr>
+<td>Oxidiser</td>
+<td>NitrousOxide</td>
+<td><code>RatioNitrousOxide</code></td>
+<td>×2.0</td>
+</tr>
+<tr>
+<td>Oxidiser</td>
+<td>LiquidNitrousOxide</td>
+<td><code>RatioLiquidNitrousOxide</code></td>
+<td>×2.0</td>
+</tr>
+<tr>
+<td>Oxidiser</td>
+<td>Ozone</td>
+<td><code>RatioOzone</code></td>
+<td>×2.0</td>
+</tr>
+<tr>
+<td>Oxidiser</td>
+<td>LiquidOzone</td>
+<td><code>RatioLiquidOzone</code></td>
+<td>×2.0</td>
+</tr>
+</tbody>
+</table>
+<p>This is the full set of IC10-readable gases that contribute to <code>Atmosphere.CombustionEnergy</code> accumulation.</p>
+<h2 id="reserved-bands">Reserved bands<a class="headerlink" href="#reserved-bands" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p><code>LogicType</code> values are <code>ushort</code>; any 0-65535 value is legal at runtime once injected into <code>EnumCollections.LogicTypes</code>. Reserved bands:</p>
+<table>
+<thead>
+<tr>
+<th>Band</th>
+<th>Owner</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0-349</td>
+<td>Vanilla game</td>
+<td>Compiled-in <code>LogicType</code> enum members</td>
+</tr>
+<tr>
+<td>1000-1830</td>
+<td>Stationeers Logic Extended (ThunderDuck)</td>
+<td>Reserved by Stationeers Logic Extended; avoid</td>
+</tr>
+<tr>
+<td>6571-6599</td>
+<td><strong>PowerTransmitterPlus</strong></td>
+<td>PowerTransmitterPlus reserved band</td>
+</tr>
+</tbody>
+</table>
+<p>Future SixFive7 mods adding LogicTypes should reserve their own bands clear of vanilla, Stationeers Logic Extended, and PowerTransmitterPlus.</p>
+<h2 id="three-logictype-arrays-extension-mechanism">Three LogicType arrays extension mechanism<a class="headerlink" href="#three-logictype-arrays-extension-mechanism" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p>Stationeers stores LogicType lists in three separate places: <code>Logicable.LogicTypes</code>/<code>LogicTypeNames</code> (NextLogicType cycling, tablet display), <code>EnumCollections.LogicTypes</code> (ConfigCartridge tablet UI), <code>ScreenDropdownBase.LogicTypes</code> (IC housing on-screen dropdowns). All extended by <code>LogicableInitializePatch</code> postfix, including Values/ValuesAsInts/Names/PaddedNames/<code>&lt;Length&gt;k__BackingField</code>. <code>LogicTypeNamesRedirects</code> is a binary-search index rebuilt by the same patch (best-effort). Must also patch <code>Enum.GetName</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName</code>/<code>GetNameFromValue</code> postfixes via <code>EnumNamePatches</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Array</th>
+<th>Used by</th>
+<th>PowerTransmitterPlus extension mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Logicable.LogicTypes</code> / <code>Logicable.LogicTypeNames</code></td>
+<td><code>NextLogicType</code> cycling, tablet display</td>
+<td><code>LogicableInitializePatch</code> postfix</td>
+</tr>
+<tr>
+<td><code>Assets.Scripts.EnumCollections.LogicTypes</code></td>
+<td><code>ConfigCartridge</code> (configuration tablet UI)</td>
+<td>Same patch; extends Values, ValuesAsInts, Names, PaddedNames, <code>&lt;Length&gt;k__BackingField</code></td>
+</tr>
+<tr>
+<td><code>Assets.Scripts.UI.Motherboard.ScreenDropdownBase.LogicTypes</code></td>
+<td>IC housing on-screen dropdowns</td>
+<td>Same patch (best-effort)</td>
+</tr>
+</tbody>
+</table>
+<p><code>LogicTypeNamesRedirects</code> is a binary-search index rebuilt by the same patch (best-effort; tolerates absence).</p>
+<p>Additionally the mod must patch <code>Enum.GetName(Type, object)</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName</code> / <code>GetNameFromValue</code> postfixes so reflection-based name lookups find our custom values, done by <code>EnumNamePatches</code>.</p>
+<h3 id="logicableinitializepatch-three-extension-points-comment">LogicableInitializePatch three-extension-points comment<a class="headerlink" href="#logicableinitializepatch-three-extension-points-comment" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p>From <code>LogicableInitializePatch.cs</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>// Some game versions maintain a binary-search redirect array
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>// (LogicTypeNamesRedirects). Best-effort rebuild if present;
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>// otherwise the tablet will fall back to linear scans.
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>TryRebuildRedirects(newNames);
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>// ConfigCartridge (and other tablet UI paths) iterate
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>// EnumCollections.LogicTypes instead of Logicable.LogicTypes.
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>// That collection wraps Enum.GetValues, so our custom values
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>// are invisible to the tablet dropdown unless we also extend
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>// its Values / ValuesAsInts / Names / PaddedNames / Length.
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>ExtendEnumCollection(additions);
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>// The in-game screen preview (code rendered on the
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>// computer/laptop when NOT in the editor) validates tokens
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>// against ScreenDropdownBase.LogicTypes / LogicTypeNames.
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>// Without this, custom names draw red as &quot;invalid&quot;.
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>ExtendScreenDropdownBase(additions);
+</span></code></pre></div>
+<h3 id="enumnamepatches-class-header">EnumNamePatches class header<a class="headerlink" href="#enumnamepatches-class-header" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p>From <code>EnumNamePatches.cs</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>// The configuration tablet and various UI paths look up the display name
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>// for a given LogicType value via Enum.GetName(...) and the game&#39;s own
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>// EnumCollection&lt;LogicType, ushort&gt;. Both return null for our 6571+ values
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>// because the underlying enum has no metadata for them. These postfixes
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>// substitute our names from the registry when the lookup would otherwise
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>// come up empty.
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>//
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>// Pattern lifted from Stationeers Logic Extended (ThunderDuck).
+</span></code></pre></div>
+<h2 id="enumcollection-public-api">EnumCollection<TEnum, TInt> public API<a class="headerlink" href="#enumcollection-public-api" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-27 -->
+
+<p><code>Assets.Scripts.EnumCollection&lt;T1, T2&gt;</code> is the generic wrapper that backs every entry in the static <code>Assets.Scripts.EnumCollections</code> class (<code>LogicTypes</code>, <code>LogicSlotTypes</code>, <code>DeviceModes</code>, etc.). Verbatim public surface from the decompile of <code>Assets.Scripts.EnumCollection</code>2`:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IEnumCollection</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Enum</span><span class="p">,</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">()</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T2</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="n">IEquatable</span><span class="o">&lt;</span><span class="n">T2</span><span class="o">&gt;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">  </span><span class="n">Values</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">  </span><span class="n">ValuesAsInts</span><span class="p">;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Names</span><span class="p">;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">PaddedNames</span><span class="p">;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="w">   </span><span class="n">LongestName</span><span class="p">;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="k">this</span><span class="p">[</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">]</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">index</span><span class="p">];</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Length</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="kt">string</span><span class="p">[](</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">   </span><span class="p">(</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">EnumCollection</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">toProper</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">   </span><span class="nf">GetValues</span><span class="p">();</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetName</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetEnumTypeName</span><span class="p">();</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromValue</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIndexFromValue</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">);</span><span class="w">     </span><span class="c1">// throws IndexOutOfRangeException on miss</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIntFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">PrintAll</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">);</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w">     </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">);</span><span class="w">                 </span><span class="c1">// case-insensitive name -&gt; value lookup</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Lookup directions and miss behavior:</p>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Method</th>
+<th>Miss behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name -&gt; enum</td>
+<td><code>Get(string name)</code></td>
+<td>Returns <code>default(T1)</code> (NOT exception)</td>
+</tr>
+<tr>
+<td>enum -&gt; name</td>
+<td><code>GetName(T1 value, bool padded)</code></td>
+<td>Returns <code>string.Empty</code></td>
+</tr>
+<tr>
+<td>int -&gt; name</td>
+<td><code>GetNameFromValue(int, bool)</code></td>
+<td>Returns <code>string.Empty</code></td>
+</tr>
+<tr>
+<td>index -&gt; name</td>
+<td><code>GetNameFromIndex(int, bool)</code></td>
+<td>Throws (array bounds)</td>
+</tr>
+<tr>
+<td>enum -&gt; index</td>
+<td><code>GetIndexFromValue(T1)</code></td>
+<td>Throws <code>IndexOutOfRangeException</code></td>
+</tr>
+<tr>
+<td>index -&gt; int</td>
+<td><code>GetIntFromIndex(int)</code></td>
+<td>Throws (array bounds)</td>
+</tr>
+<tr>
+<td>index -&gt; enum</td>
+<td>indexer <code>this[int]</code></td>
+<td>Throws (array bounds)</td>
+</tr>
+</tbody>
+</table>
+<p><code>Get(string)</code> body, verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Names</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Equals</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">StringComparison</span><span class="p">.</span><span class="n">InvariantCultureIgnoreCase</span><span class="p">))</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="n">T1</span><span class="p">);</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Caller pitfall: <code>Get</code> returning <code>default(T1)</code> is indistinguishable from a real hit on whichever enum member maps to the zero value. For unambiguous not-found detection, scan <code>Names</code> directly with <code>Array.FindIndex(coll.Names, n =&gt; string.Equals(n, name, StringComparison.InvariantCultureIgnoreCase))</code> and check for <code>-1</code>, then index <code>coll.Values[i]</code>.</p>
+<p>The constructor populates <code>Values</code>, <code>ValuesAsInts</code>, <code>Names</code>, and <code>PaddedNames</code> from <code>Enum.GetValues(typeof(T1))</code> / <code>Enum.GetNames(typeof(T1))</code> exactly once at static class load, so custom enum values added later by <code>(T1)cast</code> are invisible to <code>Get</code> / <code>GetName</code> / <code>GetNameFromValue</code> until those arrays are resized via reflection. <code>Values</code> and <code>ValuesAsInts</code> are not <code>readonly</code>; <code>Names</code> and <code>PaddedNames</code> are <code>readonly</code> references whose array contents must be replaced via reflection (the <code>valuesField.SetValue(collection, newValues)</code> pattern in <a href="../../Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs"><code>LogicableInitializePatch.ExtendEnumCollection</code></a>).</p>
+<h2 id="why-custom-logictypes-dont-appear-without-patches">Why custom LogicTypes don't appear without patches<a class="headerlink" href="#why-custom-logictypes-dont-appear-without-patches" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<p>Early investigation established that vanilla Stationpedia pages for stock devices (like the Microwave Power Transmitter) have a frozen <code>LogicInsert</code> list built once at game startup. Even though <code>Logicable.LogicTypes</code> can be extended at runtime, the page's <code>LogicInsert</code> is populated inside <code>AddLogicTypeInfo</code> which iterates <code>EnumCollections.LogicTypes.Values</code>, a collection constructed from <code>Enum.GetValues(typeof(LogicType))</code> at <code>EnumCollection&lt;LogicType,ushort&gt;</code> construction time. Our runtime-cast <code>ushort → LogicType</code> values are NOT in the compiled enum, so <code>Enum.GetValues</code> doesn't return them.</p>
+<p>This is why we (1) extend <code>EnumCollections.LogicTypes</code> via <code>LogicableInitializePatch</code>, (2) patch <code>Enum.GetName</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName</code> / <code>GetNameFromValue</code> so reflection-based name lookups find our values, (3) postfix <code>CanLogicRead</code>/<code>CanLogicWrite</code> on <code>PowerTransmitter</code>/<code>PowerReceiver</code> to return true for our types, and (4) inject into <code>ProgrammableChip.AllConstants</code> for IC10 name resolution.</p>
+<p>Given all four of those, <code>AddLogicTypeInfo</code> naturally discovers and emits native rows for our custom LogicTypes. This is why the LogicInsert fallback (Decision 11) is NOT needed under normal operation.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+
+<ul>
+<li>2026-04-20: page created from the Research migration; F0054 is the primary source per MigrationMap §5.1. Additional sources: F0040, F0219a, F0219b, F0244, F0245, F0247 (primary for "why custom LogicTypes don't appear without patches"; F0219v is a duplicate extraction that merges here), F0305, F0316.</li>
+<li>2026-04-25: added "Atmospheric gas-ratio LogicType members" section. Verbatim list of all 130+ <code>Ratio*</code> enum members (chamber + per-network variants) decompiled from <code>Assets/Scripts/Objects/Motherboards/LogicType.cs</code> at v0.2.6228.27061. Cross-references combustion-relevant gases against <code>Mole.Enthalpy</code> and <code>EnthalpyMultiplier</code> from <code>../GameClasses/CombustionDeepMiner.md</code>. Verified via <code>ilspycmd</code> against <code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll</code>. Confirms <code>RatioMethane</code>, <code>RatioHydrazine</code>, <code>RatioLiquidAlcohol</code>, <code>RatioOzone</code>, <code>RatioLiquidOzone</code>, <code>RatioLiquidHydrazine</code> all exist and are IC10-readable; no <code>RatioVolatiles</code> member in the current enum (Hydrogen exposed as <code>RatioHydrogen = 252</code>).</li>
+<li>2026-04-27: added "EnumCollection<TEnum, TInt> public API" section. Verbatim public surface (fields, indexer, constructor, all methods) of <code>Assets.Scripts.EnumCollection</code>2<code>decompiled at v0.2.6228.27061 via</code>ilspycmd<code>against</code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll<code>. Documents the</code>Get(string name)<code>case-insensitive name-to-value lookup (returns</code>default(T1)<code>on miss, NOT exception), the value-to-name</code>GetName<code>/</code>GetNameFromValue<code>(return</code>string.Empty<code>on miss), the indexer /</code>GetIndexFromValue<code>/</code>GetIntFromIndex<code>(throw on miss), the implicit operators to</code>string[]<code>and</code>T2[]<code>, and the constructor's one-shot</code>Enum.GetValues<code>/</code>Enum.GetNames<code>snapshot that explains why custom enum values added via</code>(T1)cast` are invisible until the arrays are resized via reflection. No conflicts with prior page content; section is purely additive.</li>
+</ul>
+<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<p>None at creation.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../Localization/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Localization">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Localization
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../LogicValueFormatting/" class="md-footer__link md-footer__link--next" aria-label="Next: LogicValueFormatting">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                LogicValueFormatting
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache 2.0. Sources at <a href="https://github.com/SixFive7/StationeersPlus">github.com/SixFive7/StationeersPlus</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/SixFive7/StationeersPlus" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://steamcommunity.com/profiles/76561198081578712/myworkshopfiles/" target="_blank" rel="noopener" title="steamcommunity.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M504 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L184.6 279c-15.5-.9-30.7 3.4-43.5 12.1L8 236.1C18.2 108.4 125.1 8 255.6 8 392.8 8 504 119 504 256M163.7 384.3l-30.5-12.6c5.6 11.6 15.3 20.8 27.2 25.8 26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3S214 305.6 201 300.2c-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21m173.8-254.5a62.3 62.3 0 1 1 0 124.6 62.3 62.3 0 1 1 0-124.6m.1 109a46.8 46.8 0 1 0 0-93.6 46.8 46.8 0 1 0 0 93.6"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tooltips", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{#-
+  Adds a metadata block to every page that carries Research-style frontmatter
+  (verified_in, sources, related, type). Pages without that frontmatter render
+  unchanged.
+-#}
+
+{% block content %}
+  {% if page.meta.verified_in or page.meta.verified_at or page.meta.sources or page.meta.related %}
+    <aside class="research-meta" markdown>
+      {% if page.meta.type %}
+        <p class="research-meta-type">
+          <strong>Category:</strong> {{ page.meta.type }}
+        </p>
+      {% endif %}
+      {% if page.meta.verified_in or page.meta.verified_at %}
+        <p class="research-meta-verified">
+          <strong>Verified</strong>
+          {% if page.meta.verified_in %} in game version <code>{{ page.meta.verified_in }}</code>{% endif %}
+          {% if page.meta.verified_at %} on {{ page.meta.verified_at }}{% endif %}.
+        </p>
+      {% endif %}
+      {% if page.meta.created_in and page.meta.created_in != page.meta.verified_in %}
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>{{ page.meta.created_in }}</code>.
+        </p>
+      {% endif %}
+      {% if page.meta.sources %}
+        <details class="research-meta-sources">
+          <summary><strong>Sources</strong> ({{ page.meta.sources | length }})</summary>
+          <ul>
+            {% for s in page.meta.sources %}
+              <li><code>{{ s }}</code></li>
+            {% endfor %}
+          </ul>
+        </details>
+      {% endif %}
+      {% if page.meta.related %}
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> ({{ page.meta.related | length }})</summary>
+          <ul>
+            {% for r in page.meta.related %}
+              <li><code>{{ r }}</code></li>
+            {% endfor %}
+          </ul>
+        </details>
+      {% endif %}
+    </aside>
+  {% endif %}
+  {{ super() }}
+{% endblock %}

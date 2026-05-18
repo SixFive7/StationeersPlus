@@ -1,0 +1,6772 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Tools and research for Stationeers modding, sourced from the StationeersPlus monorepo.">
+      
+      
+        <meta name="author" content="SixFive7">
+      
+      
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/MultiMergeConstructor/">
+      
+      
+        <link rel="prev" href="../MultiConstructor/">
+      
+      
+        <link rel="next" href="../NetworkChannel/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>MultiMergeConstructor - StationeersPlus</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#multimergeconstructor" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="StationeersPlus" class="md-header__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            StationeersPlus
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MultiMergeConstructor
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  StationeersPlus
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../tools/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tools
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Research
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="StationeersPlus" class="md-nav__button md-logo" aria-label="StationeersPlus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    StationeersPlus
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/SixFive7/StationeersPlus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    SixFive7/StationeersPlus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersPlus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../tools/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tools/phase-diagram/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phase Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameClasses
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameClasses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AdvancedTablet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AdvancedTablet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../AllowedRotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AllowedRotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Battery (station-mounted)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Cable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cable
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CableNetwork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CableNetwork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CameraController/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraController
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Cartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Cell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChatCanvas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatCanvas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChatMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ChatStatusMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatStatusMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ColorSwatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ColorSwatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CombustionDeepMiner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CombustionDeepMiner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ConfigCartridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConfigCartridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Constructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CreateStructureInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CreateStructureInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CursorManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CursorManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CustomScrollPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CustomScrollPanel.ScrollPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Device/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Entity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../GameManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Grid3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../HelmetBattery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Helmet Battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../HelpLinkHandler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HelpLinkHandler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Human/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ILifeSuspender/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILifeSuspender
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ISprayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ISprayer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../InventoryManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../InventoryWindow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InventoryWindow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ItemKitLinearRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ItemKitLinearRail (multi-constructor kit for rail pieces)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LanderCapsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LogicTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../MultiConstructor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiMergeConstructor
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiMergeConstructor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-long-straight-piece-prefab-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The "long" straight-piece prefab family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-a-long-piece-declares-its-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How a long piece declares its length
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#construct-the-merge-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construct: the merge path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#igridmergeable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IGridMergeable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implications-for-a-remove-the-long-pieces-mod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications for a "remove the long pieces" mod
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implications for a &#34;remove the long pieces&#34; mod">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#detecting-a-long-straight-variant-and-the-implementation-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detecting a long-straight variant, and the implementation recipe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../NetworkChannel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../OnServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OnServer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PipeIgniter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PipeIgniter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTick
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTransmitter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RoboticArmDock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmDock and dock subclasses (Larre dock IC10 / slot surface)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RoboticArmRail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Room/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Room
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RotatableBehaviour/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RotatableBehaviour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SayCommand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SayCommand
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SensorLenses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SensorLenses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Silo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Silo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SolarPanel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SolarPanel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SprayCan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayCan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SprayGun/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayGun
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Stationpedia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationpediaPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Thing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ThingRenderer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingRenderer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Transformer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transformer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../UniversalPage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UniversalPage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Wall/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wall
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WeatherEvent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WeatherEvent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../WirelessPower/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WirelessPower
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameSystems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    GameSystems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/CameraFilterPack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CameraFilterPack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ChatBroadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChatBroadcast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ChemistryGasPhaseData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chemistry gas phase data (freezing points, max-liquid temperatures, Antoine-style coefficients)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ConveyorBeltCutContent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConveyorBeltCutContent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DamageState/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DamageState
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DedicatedServerSettings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dedicated Server Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DevicePowerDraw/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device power draw (which devices exceed the 5 kW normal-cable rating)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DirectConnect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct-Connect Server Join Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Explosions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explosions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10DeviceAddressing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 device addressing (pin, alias, ReferenceId)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10ExecutionTick/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10 Execution Tick Rate and Yield Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/IC10SyntaxHighlighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SyntaxHighlighting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/KeyBinding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Key Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LightSources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Light Sources (built-in light emitters)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Localization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Localization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LogicType/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/LogicValueFormatting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicValueFormatting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModDeduplication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModDeduplication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModLoadSequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ModLoadSequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/NetworkRoles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkRoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/NetworkUpdateFlags/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkUpdateFlags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/Occlusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Occlusion (distance-based renderer culling)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PlacementOrientation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlacementOrientation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/PowerTickThreading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTickThreading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RecipeDataLoading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RecipeData loading and GameData XML overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RenderingPipelineAndGlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendering Pipeline and Glow Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RepairMechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepairMechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/RespawnFlow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RespawnFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveDataRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveDataRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/SaveZipExtension/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Side-car file persistence in save ZIPs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ScrollInputHandling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scroll Input Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaAscendedInternals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaAscendedInternals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaMarkup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaMarkup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaPageRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaPageRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationpediaSearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaSearch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StructurePlacementValidation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structure placement validation (CanConstruct / CanReplace)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StunStateMachine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/TerrainOctree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainOctree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ThirdPartyModIdentities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThirdPartyModIdentities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/UnregisteredSaveDataBehavior/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnregisteredSaveDataBehavior
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/WorldStateAPIs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldStateAPIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AboutXmlWorkshopHandleParse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AboutXmlWorkshopHandleParse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AccessToolsRecipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AccessTools recipes for private field access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncEnumerator472/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manual async-enumerator drain on .NET Framework 4.7.2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/AsyncHarmonyTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async Harmony trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BestEffortIntegration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best-effort integration with optional dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BinaryStreamSafety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ClientDisconnectedPrefix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ClientDisconnected cleanup Prefix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConditionalWeakTableCache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConditionalWeakTable per-instance cache
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ConflictDetection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod conflict detection via assembly scan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CursorAdjacencyLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cursor-time adjacency lookup (find neighbour cells from a placement ghost)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/CustomLogicValueInjection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom logic-value injection on a vanilla device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/FileSystemWatcherMainThread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileSystemWatcher main-thread boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/Float16Quantization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Float16 quantization on network serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyFieldOrProperty/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony field-or-property reflection tolerance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyInheritedMethods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony inherited-method patching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchTypes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPrefixReturnBool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony Prefix must return bool to block the original
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ILRepackPerModCopy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ILRepackPerModCopy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InGameConsoleOutput/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InGameConsoleOutput
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/InventoryAutoEquip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inventory Auto-Equip APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/LogicableInitializeAppend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending Logicable's initialized LogicType arrays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/MainThreadDispatcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MainThreadDispatcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ModLogicTypeRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod LogicType Registration Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PeriodicProcessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Periodic processing options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PooledSpanEnumeration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PooledSpan enumeration with trailing-null filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PrefabCloning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prefab cloning (Mirrored Devices template)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ProtectedMethodPublicAPIBypass/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replace a protected method via public-API composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveDataIsinstInheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom save-data type must inherit vanilla so isinst still matches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SaveLoadOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SaveLoadOrdering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/ServerAuthoritativeSimulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server-authoritative simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SinglePlayerNetworkRole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single-player NetworkRole trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotInsertionBlock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotInsertionBlock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SlotTypeIconLookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SlotTypeIcon lookup injection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPadSettingsGrouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersModdingGotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers modding gotchas (catch-all)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/StationeersNamespaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationeers namespace pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/SubcomponentGrafting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sub-component grafting from a vanilla prefab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityFakeNull/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unity fake-null
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/UnityMaterialPerInstance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UnityMaterialPerInstance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/WorldSpacePreviewRendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WorldSpacePreviewRendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocols
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocols
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/AtmosphereSaveData/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AtmosphereSaveData (pipe networks)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ConstructionCreationMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstructionCreationMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/EquipmentPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EquipmentPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/GameMessageFactory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameMessageFactory (vanilla network messages)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/LaunchPadBoosterNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPadBooster Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/NetworkPuristPlusCableAlignment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkPuristPlus Cable Alignment and Rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PlayerConnectedThingFindTiming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PlayerConnected message timing vs world-load on joining clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/PowerTransmitterPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SPADeviceDatabase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stationpedia Ascended DeviceDatabase / descriptions.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SaveFileStructure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save file ZIP structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/SprayPaintPlusNetworking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SprayPaintPlus Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainChunkChecksums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TerrainChunkChecksums
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/TerrainDat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    terrain.dat binary format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/ThingColorMessage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ThingColorMessage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/WorldXml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    world.xml
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/BCSIImplementationRoadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BCSI v1 Implementation Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/CameraEffectsRuntime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera Effects at Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/HealAllDamagedThings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Heal All Damaged Things
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/InspectorPlusUsage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    InspectorPlus Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/KnockPlayerUnconscious/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knock Player Unconscious
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/LaunchPadNativeDllTrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LaunchPad native-DLL trap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ModProjectSetup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod Project Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ResetTerrainLive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Live (Multiplayer)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/ResetTerrainOffline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reset Terrain Offline (terrain_reset.py)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/SPADumpKeys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    /spda_dumpkeys Console Command
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/StationeersLaunchPadDedicatedServer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationeersLaunchPad on a Dedicated Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TTSDeadEnd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TTS Dead End
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TimeSkipWorldManipulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time-Skip World Manipulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Workflows/TriggerLanderCapsule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger Lander Capsule
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-long-straight-piece-prefab-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The "long" straight-piece prefab family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-a-long-piece-declares-its-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How a long piece declares its length
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#construct-the-merge-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construct: the merge path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#igridmergeable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IGridMergeable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implications-for-a-remove-the-long-pieces-mod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications for a "remove the long pieces" mod
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implications for a &#34;remove the long pieces&#34; mod">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#detecting-a-long-straight-variant-and-the-implementation-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detecting a long-straight variant, and the implementation recipe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    StationeersPlus
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Research
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../AdvancedTablet/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    GameClasses
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+    <aside class="research-meta" markdown>
+      
+        <p class="research-meta-type">
+          <strong>Category:</strong> GameClasses
+        </p>
+      
+      
+        <p class="research-meta-verified">
+          <strong>Verified</strong>
+           in game version <code>0.2.6228.27061</code>
+           on 2026-05-11.
+        </p>
+      
+      
+      
+        <details class="research-meta-sources">
+          <summary><strong>Sources</strong> (4)</summary>
+          <ul>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.MultiMergeConstructor'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Pipes.Piping'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.Cable'}</code></li>
+            
+              <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Language\english.xml</code></li>
+            
+          </ul>
+        </details>
+      
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (5)</summary>
+          <ul>
+            
+              <li><code>./MultiConstructor.md</code></li>
+            
+              <li><code>./Constructor.md</code></li>
+            
+              <li><code>./CreateStructureInstance.md</code></li>
+            
+              <li><code>../GameSystems/PlacementOrientation.md</code></li>
+            
+              <li><code>../GameSystems/ConveyorBeltCutContent.md</code></li>
+            
+          </ul>
+        </details>
+      
+    </aside>
+  
+  
+                  
+
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">network</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">prefab</span>
+      
+    
+  </nav>
+
+
+
+<h1 id="multimergeconstructor">MultiMergeConstructor<a class="headerlink" href="#multimergeconstructor" title="Permanent link">&para;</a></h1>
+<p><code>MultiMergeConstructor : MultiConstructor</code> at <code>Assets.Scripts.Objects.MultiMergeConstructor</code>. The held-item kit form used by <code>ItemKitPipe</code> ("Kit (Pipe)"), <code>ItemKitChute</code> ("Kit (Basic Chutes)"), and the Super-Heavy cable kit. It is a regular <code>MultiConstructor</code> whose <code>Constructables</code> list includes both the 1-cell straight piece and the multi-cell "long" straight variants (3, 5, 10 segments), plus an extra <code>ToolExit</code> item that, when held in the off hand, lets the kit <em>merge over</em> an existing straight run instead of refusing placement.</p>
+<p>This page exists because someone asked "what are the long pieces in Stationeers and where do they come from in the code." Short answer: there is no per-length C# class; the long variants are extra prefabs of the ordinary <code>Pipe</code> / <code>Piping</code> / <code>Cable</code> (and, for chutes, <code>Chute</code>) classes whose mesh/collider footprint spans N small-grid cells, registered into a <code>MultiMergeConstructor</code> kit's <code>Constructables</code> list.</p>
+<h2 id="the-long-straight-piece-prefab-family">The "long" straight-piece prefab family<a class="headerlink" href="#the-long-straight-piece-prefab-family" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p>From <code>StreamingAssets\Language\english.xml</code> (<code>&lt;RecordThing&gt;</code> keys = prefab names; values = display names). Each family has a 1-cell base piece and 3 / 5 / 10-segment long variants. "Burnt" variants exist for the cable family (electrocution damage state).</p>
+<p>Gas pipes:
+- <code>StructurePipeStraight</code> = "Pipe (Straight)" (1 cell) — note: this one <em>can</em> be merged and upgraded to insulated.
+- <code>StructurePipeStraight3</code> = "Pipe (Straight 3)", <code>StructurePipeStraight5</code> = "Pipe (Straight 5)", <code>StructurePipeStraight10</code> = "Pipe (Straight 10)". Description: "Long variant of the straight pipe. These variants cannot be merged or upgraded with insulation."</p>
+<p>Insulated gas pipes:
+- <code>StructureInsulatedPipeStraight</code> = "Insulated Pipe (Straight)" (1 cell).
+- <code>StructureInsulatedPipeStraight3</code> / <code>...5</code> / <code>...10</code> = "Insulated Pipe (Straight 3 / 5 / 10)".</p>
+<p>Liquid pipes:
+- <code>StructurePipeLiquidStraight</code> = "Liquid Pipe (Straight)" (1 cell).
+- <code>StructurePipeLiquidStraight3</code> / <code>...5</code> / <code>...10</code> = "Liquid Pipe (Straight 3 / 5 / 10)".</p>
+<p>Insulated liquid pipes:
+- <code>StructureInsulatedPipeLiquidStraight</code> = "Insulated Liquid Pipe (Straight)" (1 cell).
+- <code>StructureInsulatedPipeLiquidStraight3</code> / <code>...5</code> / <code>...10</code> = "Insulated Liquid Pipe (Straight 3 / 5 / 10)".</p>
+<p>Chutes:
+- <code>StructureChuteStraight</code> = "Chute (Straight)" (1 cell).
+- <code>StructureChuteStraight3</code> / <code>...5</code> / <code>...10</code> = "Chute (Straight 3 / 5 / 10)".</p>
+<p>Cables — only the Super-Heavy cable tier has long variants (confirmed by the NetworkUpgrader Workshop mod's own description: "Super Heavy Cables ... the only cable type with long variants available"):
+- <code>StructureCableSuperHeavyStraight</code> = "Super-Heavy Cable (Straight)" (1 cell), <code>StructureCableSuperHeavyStraightBurnt</code>.
+- <code>StructureCableSuperHeavyStraight3</code> / <code>...5</code> / <code>...10</code> = "Super-Heavy Cable (Straight 3 / 5 / 10)", each with a <code>...Burnt</code> sibling.
+- (Ordinary <code>StructureCableStraight</code> and Heavy <code>StructureCableStraightH</code> have no long variants.)</p>
+<p>That is the complete set of "merge into a longer straight run" prefabs (6 families x {1, 3, 5, 10}, plus <code>...Burnt</code> only for the cable family). <code>StreamingAssets\Language\english.xml</code> has no other <code>&lt;Key&gt;...Straight[0-9]+&lt;/Key&gt;</code> keys; low-volume pipes and ducts have only <code>...CrossJunction3/4/5/6</code> (junction <em>outlet counts</em>, not multi-cell runs); no long walls / girders / beams / rails exist. Changelog corroboration: the WIP long straight insulated-<em>liquid</em>-pipe variants (3x / 5x / 10x) were an earlier beta experiment; Update v0.2.6085.26682 then changed the long super-heavy-cable and long pipe variants to the "straight asymmetric" smart-rotation type, and the new Super-Heavy cable (500 kW) shipped with 3 / 5 / 10 long variants for trunk lines.</p>
+<p>Adjacent but a <em>separate</em> system, not a <code>MultiMergeConstructor</code>: the conveyor-belt prefabs <code>StructureConveyorStraight</code> / <code>StructureConveyorStraightLong</code> / <code>StructureConveyorStraightShort</code> / <code>StructureConveyorCorner</code> / <code>StructureConveyorRiser</code> and their kit <code>ItemKitConveyor</code> ("Kit (Conveyors)"). These are <strong>cut content</strong> — leftovers from the pre-chute "Flexi-belt" cargo system. The prefabs and string / Stationpedia entries still ship registered (so old saves and the prefab tables don't break), but no conveyor-specific C# class exists in <code>Assembly-CSharp</code>: <code>Prefab.Find&lt;Item&gt;("ItemKitConveyor")</code> is cast to plain <code>Item</code>, and an exhaustive <code>grep -i conveyor</code> of the assembly returns only <code>LoreFactions.Recurso</code> (the lore faction credited in the flavor text), a <code>"Conveyors"</code> audio-concurrency bucket, <code>CrateType.ConveyorSupplies</code> (whose spawn case adds 2x <code>ItemKitConveyor</code>), the vestigial <code>DynamicThing.OnConveyor</code> bool (read in the physics tick, never assigned <code>true</code> anywhere), and <code>DeviceImportExport.ImportConveyorPosition</code> / <code>DeviceImportExport2.ExportConveyorPosition2</code> (Transform fields sitting next to <code>Chute ImportChute</code> / <code>Chute ExportChute2</code> — chute drop-points, not belt code). The conveyor prefabs are spawnable via the creative-mode prefab spawner, but "building" one (right-mouse) errors because the construction wiring is gone. So <code>StructureConveyorStraightLong</code> is <strong>not</strong> a working <code>MultiConstructor</code>/<code>MultiMergeConstructor</code> kit option and is not merge-able — for a "remove the long pieces" mod it is a "hide a vestige" target (<code>HideInStationpedia</code>, drop from the creative spawn list), not the <code>Constructables</code>-strip + merge-reject + on-load-replace target the functional long pipe / chute / cable variants are. Full inventory: <code>Research/GameSystems/ConveyorBeltCutContent.md</code>. Also unrelated: <code>StructureCompositeCladdingAngled*Long*</code> and <code>StructureLightLong*</code> are cladding panels / light fixtures with a wider collider, not multi-cell pipe-style runs.</p>
+<p>There is no <code>StructurePipeStraight3</code> C# class, no <code>ChuteStraight</code> class, etc. <code>Chute : SmallSingleGrid, ISmartRotatable, IChute, ...</code> and <code>Cable : SmallSingleGrid, IGridMergeable, ...</code> and <code>Pipe : SmallSingleGrid, ...</code> / <code>Piping : Pipe, IGridMergeable, ISmartRotatable</code> are the only relevant classes; the long variants are instances of these.</p>
+<h2 id="how-a-long-piece-declares-its-length">How a long piece declares its length<a class="headerlink" href="#how-a-long-piece-declares-its-length" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p>A <code>Structure</code>'s occupied small-grid cells come from <code>GridBounds.GetLocalSmallGrid(position, rotation)</code> -&gt; <code>Grid3[]</code>, ultimately computed in <code>Structure.GetLocalSmallGridBounds()</code> from the mesh/collider bounds scaled by <code>BoundsGridRatio</code> and the <code>BoundsGridAdd*</code> offsets (see <code>Structure.md</code>). A <code>StructurePipeStraight3</code> prefab simply has a collider/mesh ~3 small cells long, so <code>GetLocalSmallGrid</code> returns 3 <code>Grid3</code> entries; a <code>...10</code> returns 10. (<code>Structure.ForceGridBounds : List&lt;Grid3&gt;</code> overrides only <code>GetLocalGridBounds</code>, the <em>large</em>-grid set, not the small-grid set; the per-length sizing of these pieces is the mesh bounds, baked into the prefab asset, not into <code>Assembly-CSharp.dll</code> — the decompiled C# carries no length constant.)</p>
+<p><code>Piping.CanReplace</code> and <code>Piping.WillMergeWhenPlaced</code> both iterate <code>(Grid3[])GridBounds.GetLocalSmallGrid(ThingTransformPosition, ThingTransformRotation)</code> and look up each cell's <code>SmallCell.Pipe</code>, which is how a long ghost detects the run of existing 1-cell pipes it would absorb.</p>
+<h2 id="class-layout">Class layout<a class="headerlink" href="#class-layout" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">MultiMergeConstructor</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">MultiConstructor</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Item</span><span class="w"> </span><span class="n">ToolExit</span><span class="p">;</span><span class="w">            </span><span class="c1">// off-hand tool that enables &quot;merge over an existing run&quot;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ConstructingSoundHash</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">UsingSound</span><span class="p">)</span><span class="w">       </span><span class="o">?</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">UsingSound</span><span class="p">);</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">FinishedConstructingSoundHash</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">UseCompleteSound</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">UseCompleteSound</span><span class="p">);</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Construct</span><span class="p">(</span><span class="n">Grid3</span><span class="w"> </span><span class="n">localPosition</span><span class="p">,</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">targetRotation</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">optionIndex</span><span class="p">,</span><span class="w"> </span><span class="n">Item</span><span class="w"> </span><span class="n">offhandItem</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">authoringMode</span><span class="p">,</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">steamId</span><span class="p">);</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ToolExit</code> (display string <code>MergeRequiresTool</code> = "Merging requires &lt;color=green&gt;{Tool}&lt;/color&gt; in other hand") is the item the player holds in the inactive hand to authorise a merge.</p>
+<h2 id="construct-the-merge-path">Construct: the merge path<a class="headerlink" href="#construct-the-merge-path" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Construct</span><span class="p">(</span><span class="n">Grid3</span><span class="w"> </span><span class="n">localPosition</span><span class="p">,</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">targetRotation</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">optionIndex</span><span class="p">,</span><span class="w"> </span><span class="n">Item</span><span class="w"> </span><span class="n">offhandItem</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">authoringMode</span><span class="p">,</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">steamId</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="c1">// No merge tool in off hand (and not authoring) -&gt; behave like a plain MultiConstructor: place Constructables[optionIndex] as-is.</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">authoringMode</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">offhandItem</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">offhandItem</span><span class="p">.</span><span class="n">PrefabHash</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">ToolExit</span><span class="p">.</span><span class="n">PrefabHash</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">            </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">offhandItem</span><span class="p">.</span><span class="n">ReplacementOf</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ToolExit</span><span class="p">.</span><span class="n">PrefabHash</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">offhandItem</span><span class="p">.</span><span class="n">ReplacementOf</span><span class="p">.</span><span class="n">PrefabHash</span><span class="p">)))</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="k">base</span><span class="p">.</span><span class="n">Construct</span><span class="p">(</span><span class="n">localPosition</span><span class="p">,</span><span class="w"> </span><span class="n">targetRotation</span><span class="p">,</span><span class="w"> </span><span class="n">optionIndex</span><span class="p">,</span><span class="w"> </span><span class="n">offhandItem</span><span class="p">,</span><span class="w"> </span><span class="n">authoringMode</span><span class="p">,</span><span class="w"> </span><span class="n">steamId</span><span class="p">);</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">IGridMergeable</span><span class="w"> </span><span class="n">gridMergeable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Constructables</span><span class="p">[</span><span class="n">optionIndex</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">IGridMergeable</span><span class="p">;</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="n">StructureFuselage</span><span class="w"> </span><span class="n">structureFuselage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Constructables</span><span class="p">[</span><span class="n">optionIndex</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">StructureFuselage</span><span class="p">;</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">gridMergeable</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">structureFuselage</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">Construct</span><span class="p">(...);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="n">IGridMergeable</span><span class="w"> </span><span class="n">gridMergeable2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="n">Structure</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">gridMergeable</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">Piping</span><span class="p">)</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">        </span><span class="n">Piping</span><span class="w"> </span><span class="n">piping</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetPipe</span><span class="p">(</span><span class="n">localPosition</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Piping</span><span class="p">;</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">piping</span><span class="p">)</span><span class="w"> </span><span class="n">piping</span><span class="p">.</span><span class="n">PipeNetwork</span><span class="o">?.</span><span class="n">Remove</span><span class="p">(</span><span class="n">piping</span><span class="p">);</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">        </span><span class="n">gridMergeable2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">piping</span><span class="p">;</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">piping</span><span class="p">;</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">gridMergeable</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">Cable</span><span class="p">)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">        </span><span class="n">Cable</span><span class="w"> </span><span class="n">cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetCable</span><span class="p">(</span><span class="n">localPosition</span><span class="p">);</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cable</span><span class="p">)</span><span class="w"> </span><span class="n">cable</span><span class="p">.</span><span class="n">CableNetwork</span><span class="o">?.</span><span class="n">Remove</span><span class="p">(</span><span class="n">cable</span><span class="p">);</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">        </span><span class="n">gridMergeable2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cable</span><span class="p">;</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cable</span><span class="p">;</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">structureFuselage</span><span class="p">)</span><span class="w">   </span><span class="c1">// hull/fuselage panels share this kit form</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">        </span><span class="n">StructureFuselage</span><span class="w"> </span><span class="n">existing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetStructure</span><span class="p">(</span><span class="n">localPosition</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">StructureFuselage</span><span class="p">;</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">        </span><span class="n">existing</span><span class="o">?.</span><span class="n">StructureNetwork</span><span class="o">?.</span><span class="n">Remove</span><span class="p">(</span><span class="n">existing</span><span class="p">);</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">existing</span><span class="p">)</span><span class="w"> </span><span class="n">OnServer</span><span class="p">.</span><span class="n">Destroy</span><span class="p">(</span><span class="n">existing</span><span class="p">);</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">        </span><span class="k">base</span><span class="p">.</span><span class="n">Construct</span><span class="p">(</span><span class="n">localPosition</span><span class="p">,</span><span class="w"> </span><span class="n">targetRotation</span><span class="p">,</span><span class="w"> </span><span class="n">optionIndex</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">,</span><span class="w"> </span><span class="n">authoringMode</span><span class="p">,</span><span class="w"> </span><span class="n">steamId</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">existing</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">gridMergeable2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">Construct</span><span class="p">(...);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-37"><a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a>
+</span><span id="__span-1-38"><a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="c1">// Combine the open-end permutations of the new ghost and the existing piece, resolve the resulting</span>
+</span><span id="__span-1-39"><a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="w">    </span><span class="c1">// SmartRotate.ConnectionType (Elbow / Straight / Tee / Cross / ...), pick the Constructables entry whose</span>
+</span><span id="__span-1-40"><a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="c1">// GetConnectionType() matches, compute the rotation that lines its open-ends up, destroy the old piece,</span>
+</span><span id="__span-1-41"><a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="w">    </span><span class="c1">// and place the chosen variant charging only the *extra* item cost (EntryQuantity delta).</span>
+</span><span id="__span-1-42"><a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="w">    </span><span class="kt">int</span><span class="p">[]</span><span class="w"> </span><span class="n">permNew</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gridMergeable</span><span class="p">.</span><span class="n">GetOpenEndLocationPermutation</span><span class="p">(</span><span class="n">Quaternion</span><span class="p">.</span><span class="n">identity</span><span class="p">,</span><span class="w"> </span><span class="n">targetRotation</span><span class="p">);</span>
+</span><span id="__span-1-43"><a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="w">    </span><span class="kt">int</span><span class="p">[]</span><span class="w"> </span><span class="n">permOld</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gridMergeable2</span><span class="p">.</span><span class="n">GetOpenEndLocationPermutation</span><span class="p">(</span><span class="n">Quaternion</span><span class="p">.</span><span class="n">identity</span><span class="p">);</span>
+</span><span id="__span-1-44"><a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="w">    </span><span class="kt">int</span><span class="p">[]</span><span class="w"> </span><span class="n">combined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">6</span><span class="p">];</span>
+</span><span id="__span-1-45"><a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">combined</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="n">Max</span><span class="p">(</span><span class="n">permNew</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">permOld</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span><span id="__span-1-46"><a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a><span class="w">    </span><span class="c1">// ... resolve connectionType via SmartRotate.OrientationLookup ...</span>
+</span><span id="__span-1-47"><a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="w">    </span><span class="c1">// num2 = first Constructables index whose GetConnectionType() == connectionType</span>
+</span><span id="__span-1-48"><a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="w">    </span><span class="c1">// index = first Constructables index whose GetConnectionType() == gridMergeable2.GetConnectionType()</span>
+</span><span id="__span-1-49"><a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="w">    </span><span class="n">OnServer</span><span class="p">.</span><span class="n">Destroy</span><span class="p">(</span><span class="n">thing</span><span class="p">);</span>
+</span><span id="__span-1-50"><a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">entryQuantity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Constructables</span><span class="p">[</span><span class="n">index</span><span class="p">].</span><span class="n">BuildStates</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">Tool</span><span class="p">.</span><span class="n">EntryQuantity</span><span class="p">;</span>
+</span><span id="__span-1-51"><a id="__codelineno-1-51" name="__codelineno-1-51" href="#__codelineno-1-51"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">extra</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Constructables</span><span class="p">[</span><span class="n">num2</span><span class="p">].</span><span class="n">BuildStates</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">Tool</span><span class="p">.</span><span class="n">EntryQuantity</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">entryQuantity</span><span class="p">;</span>
+</span><span id="__span-1-52"><a id="__codelineno-1-52" name="__codelineno-1-52" href="#__codelineno-1-52"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">Construct</span><span class="p">(</span><span class="n">localPosition</span><span class="p">,</span><span class="w"> </span><span class="n">quaternion2</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">,</span><span class="w"> </span><span class="n">authoringMode</span><span class="p">,</span><span class="w"> </span><span class="n">steamId</span><span class="p">,</span><span class="w"> </span><span class="n">extra</span><span class="p">);</span>
+</span><span id="__span-1-53"><a id="__codelineno-1-53" name="__codelineno-1-53" href="#__codelineno-1-53"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Takeaways:</p>
+<ul>
+<li>Without <code>ToolExit</code> in the off hand, <code>MultiMergeConstructor</code> is just a <code>MultiConstructor</code>: you select the long variant from the kit (mouse-wheel option) and place it on empty cells like any other piece. So the long pieces are directly placeable from the kit if (and only if) they sit in that kit's serialized <code>Constructables</code> list.</li>
+<li>With <code>ToolExit</code> in the off hand and a ghost overlapping an existing pipe/cable, the kit <em>absorbs</em> the existing piece(s) into the larger variant, charging only the material difference. This is the "upgrade a straight run in place" affordance.</li>
+<li>Only <code>Piping</code>, <code>Cable</code>, and <code>StructureFuselage</code> have a merge branch here. <code>Chute</code> does not implement <code>IGridMergeable</code>, so the chute kit's long variants go through the plain <code>base.Construct</code> path (place-as-is); they are not merge-absorbed.</li>
+</ul>
+<h2 id="igridmergeable">IGridMergeable<a class="headerlink" href="#igridmergeable" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">IGridMergeable</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">ISmartRotatable</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">CanConstructInfo</span><span class="w"> </span><span class="nf">CanReplace</span><span class="p">(</span><span class="n">MultiConstructor</span><span class="w"> </span><span class="n">constructor</span><span class="p">,</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Item</span><span class="w"> </span><span class="n">inactiveHandItem</span><span class="p">);</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">WillMergeWhenPlaced</span><span class="p">();</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Implemented by <code>Cable</code> (<code>Cable : SmallSingleGrid, IGridMergeable, ISmartRotatable, IRocketInternals, IRocketComponent</code>) and <code>Piping</code> (<code>Piping : Pipe, IGridMergeable, ISmartRotatable</code>). <code>Piping.Type</code> enum: <code>normal, Insulated, NormalLowVolume, InsulatedLowVolume, Duct</code>. <code>Piping.DontAllowMergingWithWrench</code> (bool) blocks merge for specific piping prefabs.</p>
+<p><code>Piping.CanReplace</code> rejects with <code>GameStrings.CannotMergeIMergeable</code> when the piece is <code>Indestructable</code> or the constructor is not a <code>MultiMergeConstructor</code>; rejects with <code>GameStrings.MergeRequiresTool</code> when no off-hand item / wrong off-hand item; rejects with <code>GameStrings.CannotMergeIMergeableOfDifferentType</code> when <code>PipeType</code> / <code>PipeContentType</code> differ; otherwise <code>CanConstructInfo.ValidPlacement</code>. <code>Cable.CanReplace</code> (around <code>Assembly-CSharp.dll</code> :: <code>Cable</code>) is the parallel implementation for cables. <code>ConstructionCursor</code> checks <code>rotatable is IGridMergeable gm &amp;&amp; gm.WillMergeWhenPlaced()</code> while previewing placement.</p>
+<h2 id="implications-for-a-remove-the-long-pieces-mod">Implications for a "remove the long pieces" mod<a class="headerlink" href="#implications-for-a-remove-the-long-pieces-mod" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<p>A mod that wants to make the &#8535;/10 variants unavailable has these levers (none of them deletes the prefab type, just its reachability):</p>
+<ol>
+<li><strong>Strip kit constructables</strong> — at prefab-load, remove every <code>Structure</code> whose <code>PrefabName</code> matches <code>*Straight(3|5|10)</code> (and the Super-Heavy cable ones) from each <code>MultiMergeConstructor.Constructables</code> list (then let <code>MultiConstructor.OnPrefabLoad</code> clamp <code>LastSelectedIndex</code>). This hides them from the kit's mouse-wheel options. Mirror of the "insert variant" recipe in <code>Patterns/PrefabCloning.md</code>.</li>
+<li><strong>Disable the merge tool</strong> — null/replace <code>MultiMergeConstructor.ToolExit</code>, or patch <code>Piping.CanReplace</code> / <code>Cable.CanReplace</code> to always return <code>InvalidPlacement</code>. Removes the in-place upgrade affordance but not direct placement.</li>
+<li><strong>Block at construction</strong> — Harmony-prefix <code>MultiMergeConstructor.Construct</code> (and/or <code>MultiConstructor.Construct</code> / <code>Constructor.SpawnConstruct</code> / <code>CreateStructureInstance</code>) and reject when the chosen <code>Constructables[optionIndex]</code> (or <code>CreateStructureInstance.Prefab</code>) is a long variant. Catches every placement path including dev tools, at the cost of an unfiltered build menu. <strong>Caveat: ZoopMod (id 3310094883) drives placement through <code>InventoryManager.UsePrimaryComplete</code> and has no per-piece error recovery, so a hard reject here produces half-built zoops. Don't use lever 3 as a reject if ZoopMod compatibility matters; use lever 1 instead.</strong></li>
+<li><strong>Unregister the prefab</strong> — remove the long-variant prefab from <code>Prefab.AllPrefabs</code> / <code>Prefab._allPrefabs</code> after <code>Prefab.LoadAll</code>. Fragile: any cached reference (recipes, Stationpedia, an already-loaded save with one placed) still points at it; a save containing a long variant fails to instantiate it on load. Keep the prefab registered if you also do lever 5.</li>
+<li><strong>Strip from saves</strong> — on save load (after structures are placed), enumerate placed <code>Structure</code>s and <code>OnServer.Destroy</code> / <code>Thing.Delete</code> long variants, or replace each with N x the 1-cell base piece (NetworkUpgrader in reverse: preserve cell positions, rotation, custom color, and gas/atmos contents). Plain delete splits the network at that cell and loses the segment's contents; replace keeps the network. Run server-side / single-player only.</li>
+</ol>
+<p>Existing-save concern: a save can already contain these prefabs (a player placed them via the kit / <code>ToolExit</code> merge, the NetworkUpgrader Workshop mod's <code>upgrade &lt;pipes|cables|chutes|all&gt;</code> console command converted runs into them, or a ZoopMod drag packed them in). Hiding from the kit does not affect already-placed instances; only lever 5 removes those.</p>
+<p>Menu surfaces a long variant can appear in, and which lever clears each:</p>
+<ul>
+<li><strong>In-world kit mouse-wheel / <code>ConstructionPanel</code></strong> — lever 1 (strip <code>Constructables</code>). <code>ConstructionPanel</code> (<code>Assembly-CSharp</code> line ~220492) holds <code>[ReadOnly] public MultiConstructor Parent</code> and <code>int BuildIndex</code>; <code>Assign</code>/<code>SelectUp</code>/<code>SelectDown</code> walk <code>BuildIndex</code> over <code>Parent.Constructables</code> only, and <code>MultiConstructor.Construct(... optionIndex ...)</code> does <code>new CreateStructureInstance(Constructables[optionIndex], ...)</code>. Nothing here consults <code>Prefab.AllPrefabs</code>, so removing the prefab from the registry does <em>not</em> clean the wheel; you must mutate <code>Constructables</code>. <code>MultiConstructor.OnPrefabLoad</code> (~288251) already removes <code>null</code> entries and clamps <code>LastSelectedIndex</code> — postfix it and <code>Constructables.RemoveAll(s =&gt; s != null &amp;&amp; isLong(s))</code>, then re-clamp <code>LastSelectedIndex</code> if <code>Count</code> changed. No long variant is a single-piece <code>Constructor.BuildStructure</code>, so there is no second wheel source to clear.</li>
+<li><strong>Stationpedia (page list + category lists + search)</strong> — set <code>Thing.HideInStationpedia = true</code> (<code>Assembly-CSharp</code> line ~297850) on each long-variant prefab. <code>Stationpedia.Regenerate()</code> (~231012) -&gt; <code>PopulateThingPages()</code> (~231964) loops <code>foreach (Thing allPrefab in Prefab.AllPrefabs)</code> and <code>continue</code>s (no page created) when <code>allPrefab.HideInStationpedia || DataHandler.HiddenInPedia[name]</code>; the same guard gates the kit/category lists (~232470-232697) and search (<code>DoSearch</code> iterates <code>StationpediaPages</code>, which the hidden prefab never enters). Pages are not cached across runs and <code>Regenerate</code> re-runs on <code>Localization.OnLanguageChanged</code>, so set the flag on <code>Prefab.OnPrefabsLoaded</code> (it survives unless an XML page-override re-sets it inside <code>DataHandler.HandleThingPageOverrides</code> -&gt; <code>thing.HideInStationpedia = item.HideInSPDA;</code> at ~47703; vanilla has no override for these, but a belt-and-suspenders postfix on <code>HandleThingPageOverrides</code> re-setting the flag is ~5 extra lines). This is <em>not</em> much work; no reason to defer it. See <code>Research/GameClasses/Stationpedia.md</code> / <code>StationpediaPage.md</code> / <code>Research/GameSystems/StationpediaPageRendering.md</code> / <code>StationpediaSearch.md</code>.</li>
+<li><strong>Fabricator recipe lists</strong> — nothing to do. Recipe outputs are always <code>DynamicThing</code>/<code>Item</code> (<code>Autolathe</code>/<code>ElectronicsPrinter</code>/<code>HydraulicPipeBender</code> <code>RecipeComparable</code> are <code>Dictionary&lt;DynamicThing, Recipe&gt;</code>; <code>Microwave</code>/<code>ChemistryStation</code> are <code>Dictionary&lt;Recipe, Item&gt;</code>). A long variant is a <code>Structure</code> (<code>Pipe</code>/<code>Cable</code>/<code>Chute</code>), so it cannot be a recipe output. The <code>HydraulicPipeBender</code> produces the <em>kits</em> (<code>ItemKitPipe</code> etc.), which are not removed. Confirmed: no fabricator recipe emits a long-variant prefab.</li>
+<li><strong>Creative / admin spawn UI</strong> — out of scope (it iterates <code>Prefab.AllPrefabs</code>; would need lever 4 or a population patch). The long-variant prefabs stay registered so old saves load, so they remain visible here.</li>
+</ul>
+<p>ZoopMod interaction (verified from <code>github.com/Nivvdiy/ZoopModRecovered</code>, <code>Zoop/Placement/ZoopLongVariantRules.cs</code>): ZoopMod detects long variants by string-matching <code>Constructables[0].GetPrefabName() + &lt;digits&gt;</code> inside the active kit's <code>Constructables</code> list (no hard-coded prefab names or hashes), caches the result per base-piece object, then sets <code>ConstructionPanel.BuildIndex</code> and calls vanilla <code>InventoryManager.UsePrimaryComplete</code>. So lever 1 (strip the long variants from <code>Constructables</code>) makes ZoopMod's <code>FindLongVariants</code> return empty and it cleanly falls back to placing only the 1-cell base piece, with no ZoopMod-side errors. Two constraints: (a) keep <code>Constructables[0]</code> as the 1-cell base straight (ZoopMod assumes index 0); (b) strip before the first zoop preview of the session (a prefab-load / kit-init patch satisfies this), because ZoopMod caches <code>_longVariantsByBasePiece</code>. ZoopMod has no "disable long pieces" config to flip; BepInEx GUID <code>"ZoopMod"</code>. Related Workshop mods: NetworkUpgrader (id 3656955459, <code>upgrade pipes|cables|chutes|all</code> console command) and "No tool required for pipe/cable merging" (id 3571613419, Nikku, removes the <code>ToolExit</code> requirement) — both only ever produce the vanilla long prefabs, so lever 1 + lever 5 cover them; do <em>not</em> null <code>MultiMergeConstructor.ToolExit</code> (lever 2) if you care about the Nikku mod, and it is unnecessary anyway once the long variants are out of <code>Constructables</code>. QuietPipesMod (id 3402741739) adds <code>ItemKitQuietInsulatedPipe</code> / <code>ItemKitQuietInsulatedLiquidPipe</code>; no evidence it adds long quiet-pipe variants, but a footprint-based predicate (below) catches them if it does.</p>
+<h3 id="detecting-a-long-straight-variant-and-the-implementation-recipe">Detecting a long-straight variant, and the implementation recipe<a class="headerlink" href="#detecting-a-long-straight-variant-and-the-implementation-recipe" title="Permanent link">&para;</a></h3>
+<p>There is no single boolean meaning "I am a long straight variant" across the families. <code>Cable.BlockMergeWithOtherCables</code> (<code>Assembly-CSharp</code> line ~371306; this is <code>IsLongStraightVariant</code> renamed) and <code>Piping.DontAllowMergingWithWrench</code> (~363936) are set on the cable / pipe long variants respectively but are semantically "don't merge", are family-specific, and <code>Chute</code> has no such flag. The robust, family-agnostic predicate is footprint cell count:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// On a registered prefab, GridBounds is populated by Structure.CachePrefabBounds() (~297131):</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1">//   GridBounds = new GridBounds(this);  -&gt; _gridsSmall = (Grid3[])structure.GetLocalSmallGridBounds();</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsLongStraightVariant</span><span class="p">(</span><span class="n">Structure</span><span class="w"> </span><span class="n">s</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="p">(</span><span class="n">Pipe</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="n">Cable</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="n">Chute</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span><span class="w">          </span><span class="c1">// the three small-grid-pipe families</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="n">cells</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Grid3</span><span class="p">[])</span><span class="n">s</span><span class="p">.</span><span class="n">GridBounds</span><span class="p">.</span><span class="n">GetLocalSmallGrid</span><span class="p">(</span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">,</span><span class="w"> </span><span class="n">Quaternion</span><span class="p">.</span><span class="n">identity</span><span class="p">);</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">cells</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cells</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 1-cell base == 1; long variant == 3/5/10</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(On the <em>prefab</em>, use <code>GridBounds.GetLocalSmallGrid</code>, not <code>Structure.BlockingGrids</code> — <code>BlockingGrids</code> is the post-placement registered set, a <code>Grid3[1]</code> placeholder on a fresh prefab. Note <code>Structure.ForceGridBounds</code> overrides only <code>GetLocalGridBounds</code> (the <em>large</em>-grid set), <strong>not</strong> <code>GetLocalSmallGridBounds</code>, which always computes from the mesh bounds — so the small-cell count check is unaffected by <code>ForceGridBounds</code>. Optionally corroborate with <code>(s as Cable)?.BlockMergeWithOtherCables == true || (s as Piping)?.DontAllowMergingWithWrench == true</code>.)</p>
+<p>Recipe:</p>
+<ol>
+<li><strong><code>Prefab.OnPrefabsLoaded</code> handler</strong> (or <code>Prefab.LoadAll</code> postfix): scan <code>Prefab.AllPrefabs</code>, build <code>HashSet&lt;int&gt; longHashes</code> of <code>PrefabHash</code> for everything matching <code>IsLongStraightVariant</code>; set <code>HideInStationpedia = true</code> on each. Leave them in <code>Prefab._allPrefabs</code> / <code>AllPrefabs</code>.</li>
+<li><strong>Postfix <code>MultiConstructor.OnPrefabLoad</code></strong>: <code>Constructables.RemoveAll(s =&gt; s != null &amp;&amp; longHashes.Contains(s.PrefabHash)); if (LastSelectedIndex &gt;= Constructables.Count) LastSelectedIndex = Constructables.Count - 1;</code> (covers <code>MultiMergeConstructor</code> since it inherits <code>OnPrefabLoad</code>).</li>
+<li><strong>Postfix <code>World.OnLoadingFinished</code></strong> (<code>Assets.Scripts.Objects.World</code>, static, <code>Assembly-CSharp</code> line ~305850 — <code>World.OnLoadingFinished(XmlSaveLoad.WorldData)</code>, called from the tail of <code>XmlSaveLoad.LoadWorld</code>; it in turn calls <code>GameManager.StartGame()</code> synchronously, which flips <code>GameState</code> to <code>Running</code> and runs <code>UpdateThingsOnGameStart</code> -&gt; per-Thing <code>Thing.OnFinishedLoad</code>. Patch <code>World.OnLoadingFinished</code>, not <code>GameManager.StartGame</code> directly — the latter is <code>async UniTask</code>.) Guard <code>if (!GameManager.RunSimulation) return;</code> (host / single-player only — <code>Constructor.SpawnConstruct</code> on a client just sends a message and does nothing locally, and <code>OnServer.Destroy</code> is server-only). Then iterate a snapshot of <code>GridController.AllStructuresPool</code> (the pool is mutated by destroy/create) and for each long-variant instance either: (a) <strong>delete</strong> — <code>OnServer.Destroy(s)</code> (deregisters its grid cells, removes it from its <code>PipeNetwork</code>/<code>CableNetwork</code>/<code>ChuteNetwork</code>, splitting the run into disconnected ends and queuing the gas redistribution as a <code>NetworkAtmosphereEvent</code>, queues a <code>DestroyEvent</code> to clients) — simplest, but loses the segment's gas/contents and splits the network there; or (b) <strong>replace</strong> — compute the run's <code>Grid3[]</code> cells via <code>s.GridBounds.GetLocalSmallGrid(s.ThingTransformPosition, s.ThingTransformRotation)</code>, capture rotation/owner/paint, <code>OnServer.Destroy(s)</code>, then <code>Constructor.SpawnConstruct(new CreateStructureInstance(basePrefab, cell, rotation, owner, colorIdx))</code> for each cell. Because <code>GameState == Running</code> at this point, each new 1-cell piece's <code>OnRegistered</code> runs the network-merge branch (<code>Pipe</code>/<code>Cable</code>/<code>Chute.OnRegistered</code> does <code>StructureNetwork.Merge(ConnectedNetworks(this))</code> + <code>.Add(this)</code> only when <code>GameState != Loading</code>), so the replacements rejoin the surrounding network with no extra calls — gas and connectivity preserved (modulo a transient pressure swing while the long piece's volume is briefly out of the network; the gas-divide event is async and usually runs after the replacements are back). <code>SpawnConstruct</code> charges no item cost and replicates created structures to connected clients via the normal <code>Thing.Create</code> -&gt; <code>NewToSend</code> path. The vanilla precedent for the destroy-then-<code>SpawnConstruct</code> swap is <code>Cable.Break()</code> (<code>new CreateStructureInstance(RupturedPrefab, this); OnServer.Destroy(this); Constructor.SpawnConstruct(instance);</code>). This is also the same iterate-and-<code>OnServer.Destroy</code> shape as <code>WorldManager.DeleteOutOfBoundsObjects</code> (~251634).</li>
+<li><strong>Do not</strong> add a hard reject in <code>MultiMergeConstructor.Construct</code> / <code>Constructor.SpawnConstruct</code> — step 2 already makes the wheel unable to select a long variant, and a mid-placement reject breaks ZoopMod.</li>
+</ol>
+<p><code>GridController.AllStructuresPool</code> (<code>Assets.Scripts.GridController</code>, <code>static readonly DensePool&lt;Structure&gt;("AllStructuresPool", 65536)</code>, line ~191276) is the canonical "all placed structures" collection (every <code>Structure</code> / <code>SmallGridObject</code> is added in <code>GridController.Register</code>, removed in <code>Deregister</code>); iterate with <code>ForEach</code>, snapshot before destroying. <code>OcclusionManager.AllThings</code> is the broader all-Thing pool if you need it.</p>
+<p>Replace-on-load specifics worth knowing: the long-variant prefabs must stay registered in <code>Prefab.AllPrefabs</code> regardless of which lever you pick — <code>XmlSaveLoad.LoadThing</code> (<code>Assembly-CSharp</code> ~251312) does <code>Prefab.Find(thingData.PrefabName)</code> and silently drops the structure (<code>"Can't spawn ..."</code> warning) if the prefab is gone, so unregistering would lose every placed long piece before you can rebuild it. During the <em>load</em> itself (<code>GameState == Loading</code>) the network linkage is pre-established differently — <code>XmlSaveLoad.LoadInNetworks</code> pre-creates the network objects and each pipe/cable/chute's <code>DeserializeSave</code> re-adds itself to its saved network by id (<code>Pipe.DeserializeSave</code>: <code>(Referencable.Find&lt;PipeNetwork&gt;(id) ?? new PipeNetwork(id)).Add(this)</code>, and likewise <code>Cable</code>/<code>Chute</code>) — which is why the merge-in-<code>OnRegistered</code> path is skipped during load and fires only for the replacements created at <code>Running</code>. For burnt long cables, <code>StructureCableSuperHeavyStraight10Burnt</code> etc. are <code>CableRuptured</code> prefabs (<code>Cable.RupturedPrefab : CableRuptured</code>; <code>CableRuptured : SmallGrid</code> — electrically dead, no <code>CableNetwork</code>), base <code>StructureCableSuperHeavyStraightBurnt</code>; the name+footprint predicate classifies them without a type check and they need no network rejoin or colour carry. For chutes, an item physically in transit sits in <code>Chute.TransportSlot =&gt; Slots[0]</code>, and <code>Chute</code> does not override <code>Thing.DestroyChildrenOnDead</code> (default <code>true</code>), so <code>OnServer.Destroy(chute)</code> destroys the contained item — to avoid that, grab <code>chute.TransportSlot.Occupant</code> and <code>OnServer.MoveToWorld(...)</code> (or re-insert into a replacement) before destroying.</p>
+<p><code>Mods/NetworkPuristPlus/</code> in this repo implements the <strong>replace</strong> variant: <code>LongVariantRegistry</code> (the <code>OnPrefabsLoaded</code> scan, <code>HideInStationpedia</code>, the imperative <code>MultiConstructor.Constructables</code> strip) and <code>ReplaceLongPiecesOnLoadPatch</code> (the <code>World.OnLoadingFinished</code> postfix). See its <code>RESEARCH.md</code> for the per-file walkthrough and the accepted limitations.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+
+<ul>
+<li>2026-05-11: page created. <code>MultiMergeConstructor</code> class body, <code>IGridMergeable</code>, and <code>Piping.CanReplace</code> lifted verbatim from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> (lines ~288310-288459, ~215053, ~363925-363993). Prefab-name family enumerated from <code>StreamingAssets\Language\english.xml</code>. The NetworkUpgrader Workshop mod (id 3656955459) corroborates "Super-Heavy is the only cable tier with long variants" and that long pieces are &#8535;/10 segments. No conflicts with existing pages.</li>
+<li>2026-05-11: completeness re-check. <code>english.xml</code> <code>&lt;Key&gt;...Straight[0-9]+&lt;/Key&gt;</code> sweep confirms exactly 6 families x {3,5,10} (+ <code>...Burnt</code> only for the cable family) and nothing else (low-volume pipes/ducts have only <code>...CrossJunction3/4/5/6</code> outlet-count junctions; no long walls/girders/beams/rails). In-game changelog (<code>StreamingAssets\version.ini</code> <code>UPDATENOTES</code>) cross-check: WIP long insulated-liquid-pipe 3x/5x/10x added in an earlier beta, then "long straight pipe variants" / "long straight super-heavy cable variants" / "long straight chute variants" moved to the new 'straight asymmetric' smart-rotate type, super-heavy-cable build requirements set for the 3x/5x/10x variants, and a <code>Cable.IsLongStraightVariant</code> flag renamed to <code>BlockMergeWithOtherCables</code>. Open question 1 resolved: the long variants ARE in the stock kit <code>Constructables</code> lists -- ZoopMod's long-piece feature (<code>Zoop/Placement/ZoopLongVariantRules.cs</code>) works on vanilla kits by string-matching <code>Constructables[0].GetPrefabName() + &lt;digits&gt;</code> and finds them, which it could not if they were absent. Added ZoopMod-interaction notes and the menu-surface map to the "Implications" section.</li>
+<li>2026-05-11: removal-mechanics deep dive (decompile pass for a planned StationeersPlus "remove the long pieces" mod). Confirmed: (a) <code>MultiConstructor.Constructables</code> is serialized direct <code>Structure</code> refs, not <code>Prefab.AllPrefabs</code> lookups, so unregistering a prefab does not clean the kit wheel; <code>MultiConstructor.OnPrefabLoad</code> already null-strips + clamps <code>LastSelectedIndex</code>. (b) <code>Thing.HideInStationpedia</code> (~297850) makes <code>Stationpedia.PopulateThingPages</code> (~231964, loops <code>Prefab.AllPrefabs</code>) skip a prefab entirely (page list, category lists, search) — pages are not cross-run cached, <code>Regenerate</code> re-runs on language change, the flag is normally written only from XML page-overrides (<code>DataHandler.HandleThingPageOverrides</code> ~47703). &copy; No fabricator recipe outputs a long variant (recipe outputs are <code>DynamicThing</code>/<code>Item</code>; long variants are <code>Structure</code>s) -- resolves the old open question. (d) Save-load lifecycle: <code>XmlSaveLoad.LoadWorld</code> (~251347) -&gt; <code>LoadThing</code> (~251312, <code>Prefab.Find</code> resolves the prefab, so it must stay registered) -&gt; networks linked -&gt; <code>World.OnLoadingFinished</code> (~305850) -&gt; <code>GameManager.StartGame</code> (~189593) -&gt; <code>UpdateThingsOnGameStart</code> (<code>Thing.OnFinishedLoad</code> per Thing); the post-load sweep belongs in a postfix on <code>World.OnLoadingFinished</code> (static, <code>Assets.Scripts.Objects.World</code>; <code>GameManager.StartGame</code> is <code>async UniTask</code>, awkward to postfix), guarded by <code>GameManager.RunSimulation</code>. (e) <code>GridController.AllStructuresPool</code> (~191276, <code>Assets.Scripts.GridController</code>, <code>DensePool&lt;Structure&gt;</code>) is the canonical placed-structure collection; <code>OnServer.Destroy(structure)</code> is the correct removal (deregisters the grid cell, splits the run, queues client <code>DestroyEvent</code>); iterate a snapshot. (f) Robust long-variant predicate: <code>s is Pipe or Cable or Chute</code> &amp;&amp; <code>s.GridBounds.GetLocalSmallGrid(Vector3.zero, Quaternion.identity).Length &gt; 1</code> (on a prefab; not <code>BlockingGrids</code>), optionally corroborated by <code>Cable.BlockMergeWithOtherCables</code> / <code>Piping.DontAllowMergingWithWrench</code>. Added the "Detecting a long-straight variant, and the implementation recipe" subsection.</li>
+<li>2026-05-11: replace-on-load mechanics + correction. The "remove the long pieces" mod was built as <code>Mods/NetworkPuristPlus/</code> using the <strong>replace</strong> variant (destroy each long piece, <code>Constructor.SpawnConstruct</code> the N x 1-cell base at its cells with the same rotation/owner/paint; the replacements rejoin the network because <code>OnRegistered</code>'s merge branch fires at <code>GameState == Running</code>). Added the replace recipe to the "implementation recipe" section. Findings folded in: <code>Pipe</code>/<code>Cable</code>/<code>Chute.OnRegistered</code> runs <code>StructureNetwork.Merge(ConnectedNetworks(this)) + .Add(this)</code> only when <code>GameState != Loading</code> (during load the network is pre-linked by <code>DeserializeSave</code> from the saved network id); <code>Cable.RupturedPrefab : CableRuptured</code> (<code>CableRuptured : SmallGrid</code>, no network) so the <code>...Burnt</code> long-cable variants are <code>CableRuptured</code> prefabs; <code>Chute.TransportSlot =&gt; Slots[0]</code> and <code>Chute</code> keeps <code>Thing.DestroyChildrenOnDead == true</code>, so <code>OnServer.Destroy</code> on a long chute destroys an in-transit item unless it is moved out first; <code>Cable.Break()</code> is the vanilla destroy-then-<code>SpawnConstruct</code> precedent. Correction: <code>Structure.ForceGridBounds</code> overrides only <code>GetLocalGridBounds</code> (large-grid), <strong>not</strong> <code>GetLocalSmallGridBounds</code> — the small-cell-count check is unaffected by it (the prior wording of this page implied otherwise; fixed in two places). <code>Constructor.md</code> and <code>CreateStructureInstance.md</code> were checked and are already accurate (the <code>SpawnConstruct</code> body there already includes the <code>0L</code> reference-id arg; both <code>CreateStructureInstance</code> ctors are present).</li>
+<li>2026-05-11: conflict on "<code>StructureConveyorStraightLong</code> status". Previous claim: it is a distinct multi-cell buildable variant the player selects from the (plain <code>MultiConstructor</code>) <code>ItemKitConveyor</code> kit, with no merge-absorb. New finding: the <code>StructureConveyor*</code> prefabs and <code>ItemKitConveyor</code> are cut content from the pre-chute "Flexi-belt" era — prefabs and string entries still ship registered, but no conveyor-specific C# class exists in <code>Assembly-CSharp</code> (only leftovers: <code>LoreFactions.Recurso</code>, a "Conveyors" audio bucket, <code>CrateType.ConveyorSupplies</code>, the never-set <code>DynamicThing.OnConveyor</code> bool, the chute-related <code>DeviceImportExport.ImportConveyorPosition</code> transforms); spawnable via the creative spawner, errors on build. Fresh validator verdict: B is correct — the "buildable variant you select from the kit" wording was unsupported (the page cited only the <code>english.xml</code> name list for it; the DLL has no construction wiring referencing the conveyor prefabs and <code>OnConveyor</code> is dead code). Result: rewrote the conveyor paragraph in "The 'long' straight-piece prefab family"; created <code>Research/GameSystems/ConveyorBeltCutContent.md</code> (full inventory) and linked it from <code>related:</code>.</li>
+<li>2026-05-11: <code>Pipe.OnDestroy</code> gas-transfer dance, and the standalone-network gas-loss it causes when rebuilding. <code>Pipe.OnDestroy</code> (<code>Assembly-CSharp</code> line ~363201): snapshots <code>ConnectedPipes()</code> (before removal), <code>PipeNetwork?.Remove(this)</code>, then if <code>RunSimulation</code> copies the <em>whole</em> network gas (<code>GasMixture gasMixture = GasMixtureHelper.Create(); gasMixture.Set(pipeNetwork.Atmosphere.GasMixture);</code>), calls <code>networkedPipe.PipeNetwork.RebuildNetworkServer(networkedPipe)</code> for each connected pipe (and collects their networks into <code>list2</code>), then queues <code>NetworkAtmosphereEvent.DivideNetworkAtmosphere(list2, gasMixture)</code> (or <code>..., pipeNetwork.Atmosphere)</code> when <code>pipeNetwork.Atmosphere.IsAwaitingEvent</code>). Consequence for a "destroy each long pipe + <code>Constructor.SpawnConstruct</code> the N×1-cell base" rebuild: <code>OnServer.Destroy</code> is deferred to end-of-frame, all of a network's long pipes get destroyed together, each <code>OnDestroy</code> queues its own <code>DivideNetworkAtmosphere</code>, and for a network that consisted <em>entirely</em> of long variants the gas does not make it to the rebuilt single-tile network — field-confirmed: NetworkPuristPlus rebuilding a standalone gas-edited <code>StructurePipeStraight 10/5/3</code> run (4 mol O2 + 16 mol N2 + 123 kJ in a 190 L network) left the rebuilt 18×<code>StructurePipeStraight</code> (correctly networked, correct 190 L <code>&lt;Volume&gt;</code>) with <code>Oxygen=0 Nitrogen=0 Energy=0</code>; the original network id is gone, the rebuilt pipes are in a brand-new network with an empty atmosphere. Mixed networks (long pipes alongside regular pipes/devices) keep the gas because there are surviving pipes for the divide. Fix used in <code>Mods/NetworkPuristPlus/</code> v1.0: capture each affected <code>PipeNetwork.Atmosphere.GasMixture</code> (via <code>GasMixtureHelper.Create().Set(...)</code>) and its <code>ReferenceId</code> <em>before</em> destroying anything from it; after a 3-frame <code>WaitForEndOfFrame</code>-equivalent settle (so the deferred destroys + queued atmospherics events have run), if a sample rebuilt pipe's <code>PipeNetwork.ReferenceId != original</code> (the original network died) <code>Atmosphere.Add(capturedGas)</code> into the rebuilt network. Cables/chutes carry no gas, so this only applies to <code>Pipe</code>-derived long variants. Relevant types/namespaces: <code>Pipe</code> <code>Assets.Scripts.Objects.Pipes</code>, <code>PipeNetwork : AtmosphericsNetwork</code> <code>Assets.Scripts.Networks</code>, <code>Atmosphere : IReferencable,...</code> <code>Assets.Scripts.Atmospherics</code> (NOT the unrelated static <code>Assets.Scripts.Networking.Atmosphere</code>), <code>GasMixture</code> (struct) / <code>GasMixtureHelper</code> <code>Assets.Scripts.Atmospherics</code>, <code>Atmosphere.Add(GasMixture)</code> line ~190674.</li>
+<li>2026-05-11: correction to the "Detecting a long-straight variant" subsection — the footprint test does NOT work on a prefab. <code>Structure.GridBounds</code> is <code>new GridBounds()</code> (the empty parameterless ctor; <code>_gridsSmall</code> empty) until <code>Structure.CachePrefabBounds()</code> -&gt; <code>GridBounds = new GridBounds(this)</code> runs, and <code>CachePrefabBounds()</code> is called from <code>Structure.SetPrefab(Thing prefab)</code> (when a Thing is <em>instantiated</em> from a prefab), not from <code>Prefab.RegisterExisting</code> / <code>Prefab.LoadAll</code>. So on a never-yet-instantiated prefab at <code>Prefab.OnPrefabsLoaded</code> time, <code>GridBounds.GetLocalSmallGrid(Vector3.zero, Quaternion.identity)</code> returns a <em>zero-length</em> <code>Grid3[]</code>, and <code>Structure.BlockingGrids</code> is a <code>Grid3[1]</code> placeholder — neither reveals the real N cells. Field-confirmed: NetworkPuristPlus v1.0's first build gated prefab-time classification on <code>footprint &gt; 1 cell</code> and consequently classified ZERO long variants (every candidate skipped at the footprint check; log line <code>[Warning:NetworkPuristPlus] ... no long-variant prefabs found</code>). Corrected approach: at prefab-load time classify by NAME only — a <code>Structure</code> whose prefab name matches <code>^(Structure[A-Za-z]+Straight)(\d+)(Burnt)?$</code> AND whose de-numbered name (<code>group1 + group3</code>) is a registered <code>Structure</code> (optionally also <code>s is SmallGrid</code> and/or the <code>Cable.BlockMergeWithOtherCables</code> / <code>Piping.DontAllowMergingWithWrench</code> family flags); the <code>english.xml</code> <code>&lt;Key&gt;...Straight[0-9]+&lt;/Key&gt;</code> sweep confirms nothing outside the six families matches, so name+base-exists is precise. The footprint IS reliable on a placed <em>instance</em> (it has been instantiated, so <code>CachePrefabBounds</code> has run) — that is where the on-load rebuild reads <code>GetLocalSmallGrid(ThingTransformPosition, ThingTransformRotation)</code> to get the run's cells. The "Detecting a long-straight variant, and the implementation recipe" code sample / parenthetical above still shows the prefab-footprint version and should be updated to the name-based predicate. (Confirmed by runtime behavior + decompile — <code>GridBounds = new GridBounds()</code> at <code>Assembly-CSharp</code> line ~295232, <code>CachePrefabBounds</code> at ~297131 called from <code>SetPrefab</code> at ~295701; not a fresh-validator pass.) NetworkPuristPlus v1.0 (rebuilt with the name-based predicate + per-rebuilt-piece <code>Logger.LogInfo</code>) is the reference implementation.</li>
+<li>2026-05-11 (later): supersedes the gas-handling described in the earlier "<code>Pipe.OnDestroy</code> gas-transfer dance" entry — the capture-then-<code>Atmosphere.Add</code> re-inject <strong>does not work</strong>. Field-tested in NetworkPuristPlus: capturing each affected <code>PipeNetwork.Atmosphere.GasMixture</code> (via <code>GasMixtureHelper.Create().Set(...)</code>) before destroying and re-injecting it (<code>Atmosphere.Add(...)</code>) into the rebuilt network 3 frames later — the re-inject ran (log line <code>restored gas to N rebuilt pipe network(s)</code>) but the rebuilt network's atmosphere still ended at <code>Oxygen=0 Nitrogen=0 Energy=0</code> in the resulting save. Could not distinguish between (a) the captured <code>GasMixture</code> struct not actually copying the gas, (b) <code>Atmosphere.Add</code> not taking, or &copy; a late queued <code>NetworkAtmosphereEvent.DivideNetworkAtmosphere</code> overwriting it — would need runtime instrumentation (log captured / before-Add / after-Add mole counts, and the <code>AtmosphericsManager</code> event drain). Also: the gas loss is <strong>not</strong> limited to networks made entirely of long variants — it happens even when a regular 1-cell pipe is at the end of the long run. So: a destroy-then-<code>SpawnConstruct</code> rebuild of a pipe run loses the run's gas, full stop. NetworkPuristPlus v1.0 therefore ships <strong>without</strong> gas preservation (the rebuilt single-tile pipes start empty; layout / rotation / colour / network connectivity ARE preserved); the gas-handling code was removed. A working fix is an open problem (likely: hook the <code>AtmosphericsManager</code> event-drain so you re-inject after all <code>DivideNetworkAtmosphere</code> events have processed, and <em>set</em> rather than <em>add</em> the rebuilt network's atmosphere; or place the single-tile replacements before destroying the long pipes so the network never dies). Cables and chutes carry no gas, so this only concerns <code>Pipe</code>-derived long variants.</li>
+</ul>
+<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The exact <code>ToolExit</code> item for each kit (likely a wrench-class tool; <code>MergeRequiresTool</code> shows it as a coloured display name at runtime). Confirm by inspecting the kit prefabs in-game.</li>
+<li>How the chute kit exposes <code>StructureChuteStraight3/5/10</code> given <code>Chute</code> does not implement <code>IGridMergeable</code> — presumably as plain <code>Constructables</code> entries placed as-is (the <code>MultiMergeConstructor.Construct</code> merge path only handles <code>Piping</code> / <code>Cable</code> / <code>StructureFuselage</code>, so chute long variants must go through <code>base.Construct</code>), but the kit's serialized <code>Constructables</code> membership is unconfirmed.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../MultiConstructor/" class="md-footer__link md-footer__link--prev" aria-label="Previous: MultiConstructor">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                MultiConstructor
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../NetworkChannel/" class="md-footer__link md-footer__link--next" aria-label="Next: NetworkChannel">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                NetworkChannel
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Apache 2.0. Sources at <a href="https://github.com/SixFive7/StationeersPlus">github.com/SixFive7/StationeersPlus</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/SixFive7/StationeersPlus" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://steamcommunity.com/profiles/76561198081578712/myworkshopfiles/" target="_blank" rel="noopener" title="steamcommunity.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M504 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L184.6 279c-15.5-.9-30.7 3.4-43.5 12.1L8 236.1C18.2 108.4 125.1 8 255.6 8 392.8 8 504 119 504 256M163.7 384.3l-30.5-12.6c5.6 11.6 15.3 20.8 27.2 25.8 26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3S214 305.6 201 300.2c-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21m173.8-254.5a62.3 62.3 0 1 1 0 124.6 62.3 62.3 0 1 1 0-124.6m.1 109a46.8 46.8 0 1 0 0-93.6 46.8 46.8 0 1 0 0 93.6"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tooltips", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
