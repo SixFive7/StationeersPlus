@@ -3,7 +3,7 @@ title: Dedicated Server Settings
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-28
+verified_at: 2026-05-18
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Settings.SettingData (decompile lines 248232-248613)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: CommandLine (decompile lines 94926-95177)
@@ -514,7 +514,7 @@ If you launch `rocketstation_DedicatedServer.exe -batchmode -nographics -new Lun
 - `setting.xml` written to `<SavePath>/setting.xml` on first save, which (with empty SavePath) is the exe directory.
 
 ## Notes for DedicatedServer/dedicated-server.ps1
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
 The launcher's current `-Start` flag set:
 
@@ -523,35 +523,35 @@ The launcher's current `-Start` flag set:
 -settingspath  <DedicatedServer>/data/setting.xml
 -logFile       <DedicatedServer>/data/server.log
 -settings SavePath           <DedicatedServer>/data
--settings GamePort           27016
--settings UpdatePort         27015
+-settings GamePort           28016
+-settings UpdatePort         28015
+-settings LocalIpAddress     127.0.0.1
 -settings AutoSave           true
+-settings AutoPauseServer    false
 -settings UPNPEnabled        false
 -settings ServerName         "Local Test"
 -settings ServerMaxPlayers   4
--settings ServerPassword     x
 -settings ServerAuthSecret   x
 -load <SaveName> <Map>   OR   -new <Map>
 ```
 
 Verified against the source:
 
-- `UPNPEnabled false` is correct for a local-only test rig; the default `true` would advertise via UPnP.
-- `ServerPassword x` is correct; clients enter `x` in Direct Connect.
-- `ServerAuthSecret x` is correct; matching value on the client unlocks `serverrun` for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).
+- `LocalIpAddress 127.0.0.1` pins RakNet to the loopback interface. Without it RakNet binds whichever interface comes up first, which on a developer machine with an active LAN is the LAN IP (`10.20.30.200` or similar) -- direct connections to `127.0.0.1:28016` then fail because no listener is bound there. Loopback binding makes the agent-driven test loop deterministic. To intentionally expose the server to the LAN, override or remove this line.
+- `UPNPEnabled false` is correct for a loopback-only test rig; the default `true` would advertise via UPnP. Redundant with the loopback bind but kept for documentation.
+- No `ServerPassword`. The server is loopback-only, so unauthenticated connections from outside the machine are impossible at the network layer; a connection password adds no protection in that topology and just gets in the way of agent-driven test loops. Earlier launcher revisions hardcoded `ServerPassword x`; that was removed once the LocalIpAddress pin landed.
+- `ServerAuthSecret x` is kept; matching value on the client unlocks `serverrun` for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).
 - `ServerMaxPlayers 4` is below the default of 10. No clamping is visible at the SettingData level; the source-of-truth for upper bound (1-30 in public docs) was not located this pass.
+- `AutoPauseServer false` keeps world simulation running with no clients connected (atmospheric simulation, growth, decay, autosave timer). Default is `true`. Required for tests that depend on game-time progression between client sessions.
 - `AutoSave true` matches the default; passing it explicitly is documentation, not a state change.
-- `GamePort 27016` / `UpdatePort 27015` match the defaults; explicit for the same reason.
-
-Optional refinement not currently applied:
-
-- `-settings AutoPauseServer false` for tests that need world-time progression even with no client connected (atmospheric simulation, growth, decay). The default is `true`, which pauses the world when nobody is connected.
+- `GamePort 28016` / `UpdatePort 28015` are offset by +1000 from the Stationeers client defaults (`27016` / `27015`) so the dedicated server runs alongside a hosting client on the same machine without RakNet's port-binding fallback.
 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
 - 2026-04-28: page created from a fresh decompile of `Assembly-CSharp.dll` at game version `0.2.6228.27061` (ilspycmd output at `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`). All Settings field defaults are verbatim from `Settings.SettingData` (decompile lines 248236-248577). Command dispatch dictionary verbatim from `CommandLine` static constructor (lines 94942-95038). HelpText / Arguments / IsLaunchCmd values for the lifecycle commands (Save, Quit, LoadGame, LoadLatest, NewGame, Settings, SettingsPath, ServerRun, Ban) are verbatim from each command's class declaration.
 - 2026-04-28: launcher relocated from `tools/dedicated-server.ps1` to `DedicatedServer/dedicated-server.ps1` (un-ignored alongside `DedicatedServer/CLAUDE.md`). Flag set updated: `StartLocalHost true` removed (confirmed unnecessary on the dedicated build's load path), `ServerAuthSecret x` added (enables `serverrun` from a connected client). Path references and the "Notes for DedicatedServer/dedicated-server.ps1" section updated to match. Game-internals claims unchanged.
+- 2026-05-18: launcher flag set updated to pin `LocalIpAddress 127.0.0.1` and drop `ServerPassword x`. Confirmed via runtime test (host wrapper PID 25800, server UDP bind read via `Get-NetUDPEndpoint`): without LocalIpAddress, RakNet bound UDP 28016 to the LAN IP `10.20.30.200` and refused loopback connections; with LocalIpAddress = 127.0.0.1, the bind moves to loopback and Direct Connect from a same-machine client succeeds. Removed ServerPassword because the loopback bind makes external auth at the network layer impossible to bypass, so a password adds friction without security. Kept `ServerAuthSecret x` (it gates `serverrun`, not connection). Also flipped `AutoPauseServer` to `false` in the documented flag block to match the launcher, which has been carrying that flag for tests that need simulation between client sessions.
 - 2026-04-28: corrected world-id list in the `-new` deep-dive. NewGameCommand source declares `"Moon"` as the default but `WorldSetting.Find("Moon")` returns null at runtime; valid ids verified by runtime probe are `Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2, Vulcan (Deprecated)`. Defaults summary updated to use `-new Lunar` as the example.
 
 ## Open questions
