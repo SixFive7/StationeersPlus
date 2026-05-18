@@ -91,7 +91,18 @@ namespace PowerTransmitterPlus
 
         internal static void ClearCache(WirelessPower dish)
         {
-            if (_target.TryGetValue(dish, out var box)) box.Value = 0L;
+            if (_target.TryGetValue(dish, out var box))
+            {
+                box.Value = 0L;
+                // Sync the cleared state to clients. On the host this enqueues a per-tick
+                // delta carrying id=0 via AutoAimUpdateFlag; clients' ProcessUpdate postfix
+                // applies the clear through ApplyDeltaUpdate. On a client the write has no
+                // observable effect (clients do not run SerializeDeltaState), so this is a
+                // safe no-op. SetCache already sets this flag on its own writes; ClearCache
+                // needs to set it too so a host-side reset postfix (player manually adjusts
+                // TargetH/V via tablet or IC10) propagates the cleared cache to clients.
+                if (dish != null) dish.NetworkUpdateFlags |= AutoAimUpdateFlag;
+            }
         }
 
         // Public restore entry point for the side-car save load and the multiplayer
@@ -508,6 +519,21 @@ namespace PowerTransmitterPlus
     // the cached target so auto-aim relinquishes control. Our own writes set
     // a thread-static suppression flag so this postfix skips them. Gated on
     // AutoAimPatched: no cache exists to invalidate when the feature is off.
+    //
+    // CRITICAL: must NOT fire on clients. RotatableBehaviour.TargetHorizontal /
+    // TargetVertical's setter is invoked on every peer that processes a state
+    // update for the dish -- including the client's WirelessPower.ProcessUpdate
+    // applying vanilla's bit-0x100 per-tick servo target sync. Without the
+    // IsServer gate, every servo step the host slews would clear the client's
+    // cached target id, then the 0x2000 AutoAim sync (which only travels when
+    // the host actually changed targets) would NOT be present in that tick,
+    // and the client's cache would stay at 0 indefinitely. This matched the
+    // user-reported "auto-aim broken on dedicated server" symptom.
+    //
+    // Single-player and host: IsServer is true, the cache clears as the
+    // original logic intends when the host's player adjusts the dish manually
+    // (tablet, IC10, in-world R-key). The new ClearCache also raises
+    // AutoAimUpdateFlag so the cleared state propagates to clients next tick.
     [HarmonyPatch(typeof(RotatableBehaviour), nameof(RotatableBehaviour.TargetHorizontal), MethodType.Setter)]
     public static class RotatableTargetHorizontalResetPatch
     {
@@ -518,6 +544,7 @@ namespace PowerTransmitterPlus
         public static void Postfix(RotatableBehaviour __instance)
         {
             if (AutoAimState.SuppressReset) return;
+            if (!Assets.Scripts.Networking.NetworkManager.IsServer) return;
             if (AutoAimState.TryGetOwner(__instance, out var dish)) AutoAimState.ClearCache(dish);
         }
     }
@@ -532,6 +559,7 @@ namespace PowerTransmitterPlus
         public static void Postfix(RotatableBehaviour __instance)
         {
             if (AutoAimState.SuppressReset) return;
+            if (!Assets.Scripts.Networking.NetworkManager.IsServer) return;
             if (AutoAimState.TryGetOwner(__instance, out var dish)) AutoAimState.ClearCache(dish);
         }
     }
@@ -563,9 +591,13 @@ namespace PowerTransmitterPlus
     // Per-tick auto-aim target sync (client-side read). Counterpart to the
     // BuildUpdate postfix above. Runs after vanilla's ProcessUpdate body, so
     // by the time we read our 8 bytes the vanilla setter writes for bits 256
-    // and 512 have already fired. Those setter writes triggered the reset
-    // postfix on the client which cleared the cache entry; this postfix
-    // immediately re-populates it with the host's authoritative value.
+    // (TargetH/V) and 512 (VisualizerIntensity) have already fired. Those
+    // setter writes invoke our RotatableTargetH/V reset postfixes, which now
+    // gate on NetworkManager.IsServer and return immediately on the client.
+    // So on the client the cache survives vanilla's TargetH/V apply untouched;
+    // this postfix overwrites it with the host's authoritative target id only
+    // when the host actually changed targets this tick (the AutoAimUpdateFlag
+    // is set on the host's dish whenever SetCache or ClearCache runs).
     [HarmonyPatch(typeof(WirelessPower), nameof(WirelessPower.ProcessUpdate))]
     public static class WirelessPowerProcessUpdateAutoAimPatch
     {

@@ -67,12 +67,24 @@ namespace NetworkPuristPlus
 
         // Re-roll a placed straight cable to the canonical orientation for its run axis. Cosmetic only:
         // changes the transform rotation, the registered rotation (what the save records), the network-sync
-        // Direction field, and -- on the server -- raises the transform-delta flag so connected clients get
-        // the new rotation. Does NOT re-register the cable (which would re-run Cable.OnRegistered ->
-        // CableNetwork.Merge, a full network rebuild); the occupied cell of a single-tile SmallSingleGrid
-        // is rotation-invariant, so there is nothing to re-register. Returns true if the rotation changed.
+        // Direction field, and raises the transform-delta flag so connected clients get the new rotation
+        // via the standard bit-1 per-tick sync.
+        //
+        // SERVER-ONLY. Both call sites (NormalizeCableRollOnRegisterPatch, NormalizeCableRollOnLoadPatch)
+        // gate on !GameManager.RunSimulation, which is the host-only gate; clients never reach this
+        // function in normal use. The inner IsServer guard below is defense-in-depth: if a future caller
+        // forgets the outer gate, the inner one keeps client-side rotation untouched and lets the standard
+        // transform sync deliver the host's canonical rotation. Mutating these fields on a client would
+        // change ConnectedCables iteration order via the rotated OpenEnds, which is precisely the kind of
+        // server-vs-client mismatch CableNetwork.Merge picks list[0] on, producing a stable network-id
+        // desync. See Research/Patterns/MultiplayerStateMutation.md.
+        //
+        // Does NOT re-register the cable (which would re-run Cable.OnRegistered -> CableNetwork.Merge, a
+        // full network rebuild); the occupied cell of a single-tile SmallSingleGrid is rotation-invariant,
+        // so there is nothing to re-register. Returns true if the rotation changed.
         internal static bool Normalise(Cable c)
         {
+            if (!NetworkManager.IsServer) return false;
             if (!IsNormalisableStraight(c)) return false;
             Quaternion cur = c.ThingTransformRotation;
             Quaternion canon = Canonical(cur);
@@ -81,8 +93,7 @@ namespace NetworkPuristPlus
             c.ThingTransform.rotation = canon;   // visible mesh follows this frame; no re-skin call needed
             c.RegisteredRotation = canon;        // StructureSaveData.RegisteredWorldRotation is written from this
             c.Direction = canon;                 // keep the join-package Direction consistent (network-sync-only field)
-            if (NetworkManager.IsServer)
-                c.NetworkUpdateFlags |= 1;       // bit 1 == Thing transform delta -> already-connected clients
+            c.NetworkUpdateFlags |= 1;           // bit 1 == Thing transform delta -> already-connected clients
             return true;
         }
     }

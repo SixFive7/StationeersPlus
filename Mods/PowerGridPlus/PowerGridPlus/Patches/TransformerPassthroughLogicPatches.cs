@@ -1,3 +1,4 @@
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
 using HarmonyLib;
@@ -50,6 +51,11 @@ namespace PowerGridPlus.Patches
         {
             if (logicType == LogicTypeRegistry.LogicPassthroughMode)
             {
+                // Defense-in-depth. Same reasoning as InheritedLogicablePassthroughLogicPatches:
+                // vanilla SetLogicValue is server-side, but a future modded writer firing on a
+                // client would desync the store, so we drop client-side writes explicitly.
+                if (!NetworkManager.IsServer) return false;
+
                 int newMode = value > 0.5 ? 1 : 0;
                 int oldMode = PassthroughModeStore.GetMode((Assets.Scripts.Objects.Thing)__instance);
                 PassthroughModeStore.SetMode((Assets.Scripts.Objects.Thing)__instance, newMode);

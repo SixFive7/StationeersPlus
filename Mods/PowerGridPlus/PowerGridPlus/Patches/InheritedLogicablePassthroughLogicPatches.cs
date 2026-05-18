@@ -1,3 +1,4 @@
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
@@ -61,6 +62,14 @@ namespace PowerGridPlus.Patches
         {
             if (logicType != LogicTypeRegistry.LogicPassthroughMode) return true;
             if (!IsBridge(__instance)) return true;
+
+            // Defense-in-depth. Vanilla SetLogicValue is server-side in practice -- IC10 ticks
+            // on the host, tablet writes route through the host -- so this branch should never
+            // run on a client. Belt-and-suspenders: if a future modded writer fires SetLogicValue
+            // on a client, we drop the write rather than letting it desync the per-Thing
+            // PassthroughModeStore from the host's authoritative value. The 0/false swallow path
+            // matches the LogicType-handled exit below.
+            if (!NetworkManager.IsServer) return false;
 
             int newMode = value > 0.5 ? 1 : 0;
             int oldMode = PassthroughModeStore.GetMode((Thing)__instance);

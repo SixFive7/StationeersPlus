@@ -236,6 +236,16 @@ namespace SprayPaintPlus
     // glow are orthogonal: a can paint only changes colour; glow state
     // survives. If the target was glowing, the emissive re-apply from job 2
     // restores the emissive material on the new colour.
+    //
+    // SERVER-SAFE WITHOUT AN EXPLICIT IsServer GATE. Job 1's GlowingThingIds
+    // mutation is mode-gated, and CurrentMode is set only inside
+    // ThingAttackWithGunPatch.Prefix's RunSimulation-gated branch -- it stays
+    // Idle on clients, so job 1's branches never fire on a client. Job 2 is
+    // a deterministic re-skin keyed on the per-side GlowingThingIds, which
+    // is host-authoritative (synced via ThingGlowSyncPatches' 0x2000 bit and
+    // join sync), so both sides see the same IsGlowing value and apply the
+    // same emissive re-skin. This patch is part of the multiplayer-state-
+    // mutation audit in Research/Patterns/MultiplayerStateMutation.md.
     [HarmonyPatch(typeof(Thing), nameof(Thing.SetCustomColor),
         new[] { typeof(int), typeof(bool) })]
     public class ThingSetCustomColorGlowPatch
