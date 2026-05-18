@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/Room/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/Elevator/">
       
       
-        <link rel="prev" href="../RoboticArmRail/">
+        <link rel="prev" href="../Device/">
       
       
-        <link rel="next" href="../RotatableBehaviour/">
+        <link rel="next" href="../Entity/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Room - StationeersPlus</title>
+        <title>Elevator - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#room" class="md-skip">
+        <a href="#class-family" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Room
+              Elevator
             
           </span>
         </div>
@@ -1291,10 +1291,35 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../Elevator/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Elevator
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1310,6 +1335,112 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#class-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#elevatorshaftnetwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ElevatorShaftNetwork
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paintability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paintability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#elevatormode-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ElevatorMode state machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paint-enumeration-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paint enumeration pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1963,37 +2094,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Room
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../Room/" class="md-nav__link">
         
   
   
@@ -2009,76 +2113,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#roomgrids-and-walls-on-boundary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Room.Grids and walls on boundary
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Room.Grids and walls on boundary">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#wall-scan-expansion-comment-f0351" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Wall-scan expansion comment (F0351)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -6162,8 +6196,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -6172,30 +6204,68 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#roomgrids-and-walls-on-boundary" class="md-nav__link">
+  <a href="#class-family" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Room.Grids and walls on boundary
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Room.Grids and walls on boundary">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#wall-scan-expansion-comment-f0351" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Wall-scan expansion comment (F0351)
+        Class family
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#elevatorshaftnetwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ElevatorShaftNetwork
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paintability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paintability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#elevatormode-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ElevatorMode state machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paint-enumeration-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paint enumeration pattern
+      
+    </span>
+  </a>
   
 </li>
       
@@ -6311,32 +6381,34 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-05-18.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (1)</summary>
           <ul>
             
-              <li><code>Mods/SprayPaintPlus/RESEARCH.md:112-114</code></li>
-            
-              <li><code>Mods/SprayPaintPlus/SprayPaintPlus/NetworkPainterPatch.cs:212-215</code></li>
-            
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Room'}</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 188139-188521 (ElevatorCarrageSaveData, ElevatorMode, ElevatorCarrage), 374128-374290 (ElevatorLevel), 374291-374587 (ElevatorShaft), 374588-374750 (ElevatorShaftNetwork), 297950-297970 + 299367-299379 (Thing.PaintableMaterial, Thing.IsPaintable)'}</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
-              <li><code>./Cell.md</code></li>
+              <li><code>./Thing.md</code></li>
             
-              <li><code>./Wall.md</code></li>
+              <li><code>./Structure.md</code></li>
+            
+              <li><code>./Device.md</code></li>
+            
+              <li><code>./CableNetwork.md</code></li>
+            
+              <li><code>./ISprayer.md</code></li>
             
           </ul>
         </details>
@@ -6352,34 +6424,191 @@
       
       
       
-        <span class="md-tag">terrain</span>
+        <span class="md-tag">network</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">prefab</span>
       
     
   </nav>
 
 
 
-<h1 id="room">Room<a class="headerlink" href="#room" title="Permanent link">&para;</a></h1>
-<p>Vanilla game class representing an enclosed interior volume. Holds the list of interior cells forming the sealed space.</p>
-<h2 id="roomgrids-and-walls-on-boundary">Room.Grids and walls on boundary<a class="headerlink" href="#roomgrids-and-walls-on-boundary" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+  <h1>Elevator</h1>
 
-<p>Source: F0029.</p>
-<p><code>RoomController.World.GetRoom(gridPosition)</code> returns the <code>Room</code> a cell belongs to. <code>room.Grids</code> lists the room's interior cells. Walls sit on the boundary (one layer outside <code>room.Grids</code>), which is why the wall-painting code expands one neighbor layer outward.</p>
-<h3 id="wall-scan-expansion-comment-f0351">Wall-scan expansion comment (F0351)<a class="headerlink" href="#wall-scan-expansion-comment-f0351" title="Permanent link">&para;</a></h3>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h2 id="class-family">Class family<a class="headerlink" href="#class-family" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
-<p>Source comment from <code>NetworkPainterPatch.cs:212-215</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>The room&#39;s interior cells are in room.Grids; walls sit on the boundary, so expand one layer to cover both sides.
+<p>Stationeers models an elevator with three placeable <code>Thing</code> classes plus one non-<code>Thing</code> coordinator and one serialization carrier. Note the in-code spelling <code>Carrage</code> (the game's own typo); mod code that interoperates with these types must match the spelling exactly.</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Line</th>
+<th>Base</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ElevatorShaft</code></td>
+<td>374291</td>
+<td><code>Device, ISmartRotatable</code></td>
+<td>Generic shaft segment. Stackable vertical column piece.</td>
+</tr>
+<tr>
+<td><code>ElevatorLevel</code></td>
+<td>374128</td>
+<td><code>ElevatorShaft</code></td>
+<td>Specialized shaft segment marking a passenger stop. Adds door colliders, level digit displays, <code>BottomPosition</code>, <code>LevelCarragePosition</code>. Overrides <code>StopCarrage</code>, <code>CheckCarrageState</code>, and the <code>ShaftLevel</code> setter.</td>
+</tr>
+<tr>
+<td><code>ElevatorCarrage</code></td>
+<td>188170</td>
+<td><code>DynamicThing</code></td>
+<td>The moving cabin. Holds <code>CurrentShaft</code>, <code>ShaftNetwork</code>, <code>LevelTarget</code>, and the mode state machine.</td>
+</tr>
+<tr>
+<td><code>ElevatorShaftNetwork</code></td>
+<td>374588</td>
+<td>(standalone class)</td>
+<td>Non-<code>Thing</code> coordinator. Holds <code>List&lt;ElevatorShaft&gt; Shafts</code> and a single <code>ElevatorCarrage Carrage</code>. One per connected elevator stack.</td>
+</tr>
+<tr>
+<td><code>ElevatorCarrageSaveData</code></td>
+<td>188139</td>
+<td><code>DynamicThingSaveData</code></td>
+<td>Serialization snapshot for the carriage. Carries <code>LevelTarget</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>In the in-game build menu these classes register multiple visual variants (for example with-cable and without-cable versions of the same C# class), so a player sees more entries than there are classes. All visual variants of one class share its behavior, paintability, and network membership.</p>
+<h2 id="elevatorshaftnetwork">ElevatorShaftNetwork<a class="headerlink" href="#elevatorshaftnetwork" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ElevatorShaftNetwork</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ElevatorShaft</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Shafts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ElevatorShaft</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">ElevatorCarrage</span><span class="w"> </span><span class="n">Carrage</span><span class="p">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">_speed</span><span class="p">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">DEFAULT_SPEED</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.5f</span><span class="p">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">Speed</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1">// marks Carrage dirty on change</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">PoweredValue</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1">// 1 if any shaft has PoweredValue &gt;= 1 AND PowerCable != null</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">Powered</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">        </span><span class="c1">// any shaft.Powered AND shaft.PowerCable != null</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">}</span>
 </span></code></pre></div>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
+<p>(decompile lines 374588-374644)</p>
+<p><code>Shafts</code> mixes both <code>ElevatorShaft</code> and <code>ElevatorLevel</code> instances. <code>ElevatorLevel</code> subclasses <code>ElevatorShaft</code>, so a <code>List&lt;ElevatorShaft&gt;</code> holds both, and the network code discriminates at use-time with <code>as ElevatorLevel</code> (for example, line 188386: <code>if ((bool)(ShaftNetwork.Shafts[i] as ElevatorLevel))</code>).</p>
+<p>Constructors:</p>
 <ul>
-<li>2026-04-20: page created from the Research migration; verbatim content lifted from F0029, F0351. No conflicts.</li>
+<li><code>ElevatorShaftNetwork(ElevatorShaft)</code> registers the shaft only.</li>
+<li><code>ElevatorShaftNetwork(ElevatorLevel, bool makeCarrage = true)</code> registers the level, and on the simulation server creates a carriage prefab at <code>elevatorShaft.BottomPosition</code> and registers it. The shaft that triggers carriage creation must be a <code>Level</code>, not a generic <code>Shaft</code>.</li>
+</ul>
+<p>Back-references from pieces to network use the same field name on both <code>Thing</code> families:</p>
+<ul>
+<li><code>ElevatorShaft.ShaftNetwork</code> (inherited by <code>ElevatorLevel</code>)</li>
+<li><code>ElevatorCarrage.ShaftNetwork</code> (line 188176)</li>
+</ul>
+<p>Identical naming means a mod that walks "from any elevator piece to the rest of its network" can read <code>.ShaftNetwork</code> without type discrimination.</p>
+<h2 id="registration">Registration<a class="headerlink" href="#registration" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p><code>ElevatorShaftNetwork.Register(ElevatorCarrage)</code> (line 374685):</p>
+<ul>
+<li>If a different carriage was already registered, that one is <code>OnServer.Destroy</code>'d. The network holds at most one carriage at a time.</li>
+<li>The new carriage's <code>LevelTarget</code> is computed from <code>Shafts.IndexOf(CurrentShaft)</code>.</li>
+<li>The carriage's <code>ShaftNetwork</code> back-reference is set.</li>
+<li><code>RefreshLevelState()</code> runs to update the level digits and lock interactions.</li>
+</ul>
+<p><code>ElevatorShaftNetwork.Register(ElevatorShaft)</code> (line 374703) appends to <code>Shafts</code> if not already present.</p>
+<p>The carriage attaches itself to the local shaft network in <code>ElevatorCarrage.WaitThenRegister</code> (around line 188311):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">ElevatorShaft</span><span class="w"> </span><span class="n">elevatorShaft</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SmallCell</span><span class="p">.</span><span class="n">Get</span><span class="o">&lt;</span><span class="n">ElevatorShaft</span><span class="o">&gt;</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">);</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">elevatorShaft</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">CurrentShaft</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="p">{</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">CurrentShaft</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">elevatorShaft</span><span class="p">;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">CurrentShaft</span><span class="p">.</span><span class="n">ShaftNetwork</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<h2 id="paintability">Paintability<a class="headerlink" href="#paintability" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>Elevator pieces ARE paintable in vanilla, but the paintability is configured on the Unity prefab, not in C# code. A grep of the decompile for <code>PaintableMaterial =</code> assignments finds nothing on <code>ElevatorShaft</code> or <code>ElevatorCarrage</code> and yields the wrong conclusion if taken alone.</p>
+<p><code>Thing.PaintableMaterial</code> is a public, serialized field:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="na">[Header(&quot;Thing Colors&quot;)]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="na">[Tooltip(&quot;If set, will allow any parts of the thing with this material to be spraypainted&quot;)]</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">public</span><span class="w"> </span><span class="n">Material</span><span class="w"> </span><span class="n">PaintableMaterial</span><span class="p">;</span>
+</span></code></pre></div>
+<p>(decompile lines 297953-297955)</p>
+<p><code>Thing.IsPaintable</code> returns true if <code>PaintableMaterial</code> is non-null, or alternatively if the subclass overrides <code>HasPaintableMaskMaterial</code> to true:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsPaintable</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">PaintableMaterial</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">))</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">HasPaintableMaskMaterial</span><span class="p">;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">}</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="k">protected</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">HasPaintableMaskMaterial</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span></code></pre></div>
+<p>(decompile lines 299367-299379)</p>
+<p>Because <code>PaintableMaterial</code> is public and serialized, Unity assigns it during prefab deserialization at scene load; each elevator prefab's <code>PaintableMaterial</code> is set in the prefab asset itself. <code>ElevatorShaft</code>, <code>ElevatorLevel</code>, and <code>ElevatorCarrage</code> do not override <code>IsPaintable</code> or <code>HasPaintableMaskMaterial</code>, so paintability flows from prefab data alone.</p>
+<p>The same prefab-driven pattern applies to other vanilla paintables: <code>Wall</code>, <code>Pipe</code>, <code>Cable</code>, and <code>AreaPowerControl</code> do not assign <code>PaintableMaterial</code> in code either. Confirmed paintable in-game testing on 2026-05-18 (every shaft and level variant, with-cable and without, plus the carriage, accepted spray paint from the vanilla can).</p>
+<h2 id="elevatormode-state-machine">ElevatorMode state machine<a class="headerlink" href="#elevatormode-state-machine" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">ElevatorMode</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">byte</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">Stationary</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="n">Upward</span><span class="p">,</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="n">Downward</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(decompile line 188147)</p>
+<p><code>ElevatorCarrage._ElevatorMode</code> is backed by a <code>byte</code> field with <code>[ByteArraySync]</code>, written to the network in <code>Serialize</code> / <code>Deserialize</code> and on join. <code>SetElevatorMode(ElevatorMode)</code> (line 188294) dispatches to <code>OnServer.Interact(base.InteractActivate, 0)</code> for <code>Stationary</code> and to <code>OnServer.Interact(base.InteractActivate, 1)</code> for both <code>Upward</code> and <code>Downward</code>. The enum is exposed to IC10 via <code>new BasicEnum&lt;ElevatorMode&gt;("ElevatorMode")</code> at line 393584.</p>
+<h2 id="paint-enumeration-pattern">Paint enumeration pattern<a class="headerlink" href="#paint-enumeration-pattern" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>Given any single elevator-piece <code>Thing</code> as a seed (a shaft, a level, or the carriage), the full paint set is reachable in one hop via the <code>.ShaftNetwork</code> back-reference:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">ElevatorShaftNetwork</span><span class="w"> </span><span class="n">network</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seed</span><span class="w"> </span><span class="k">switch</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">ElevatorShaft</span><span class="w">   </span><span class="n">shaft</span><span class="w">    </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">shaft</span><span class="p">.</span><span class="n">ShaftNetwork</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">ElevatorCarrage</span><span class="w"> </span><span class="n">carriage</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">carriage</span><span class="p">.</span><span class="n">ShaftNetwork</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="n">_</span><span class="w">                        </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">null</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">};</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">network</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="p">{</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ElevatorShaft</span><span class="w"> </span><span class="n">piece</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">Shafts</span><span class="p">)</span><span class="w"> </span><span class="c1">// includes ElevatorLevel via inheritance</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">        </span><span class="n">Paint</span><span class="p">(</span><span class="n">piece</span><span class="p">);</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">network</span><span class="p">.</span><span class="n">Carrage</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">        </span><span class="n">Paint</span><span class="p">(</span><span class="n">network</span><span class="p">.</span><span class="n">Carrage</span><span class="p">);</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ElevatorLevel</code> does not need a separate branch: it inherits from <code>ElevatorShaft</code>, so the seed switch covers it and the <code>List&lt;ElevatorShaft&gt;</code> enumeration picks it up. Visual prefab variants (with-cable, without-cable) all instantiate one of these three classes and live in the same network, so the walk covers them uniformly.</p>
+<p>The <code>SetCustomColor</code> setter on <code>ElevatorCarrage</code> is inherited from <code>DynamicThing</code> without override; the carriage's motion does not guard the color setter. Whether the assigned color persists visually through carriage motion is open (see Open questions).</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-05-18: Initial writeup. Consolidated from two in-session drafts (<code>ElevatorPaintability.md</code>, <code>ElevatorSystem.md</code>, both unsanctioned and removed in the same change). All claims re-verified against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>. The "elevators are not paintable" claim from an earlier sub-agent pass was incorrect: it grepped for <code>PaintableMaterial =</code> assignments in code, which misses prefab-asset assignments by Unity serialization. In-game verification confirms paintability on all three classes and all known with-cable / without-cable visual variants.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>Does the custom color assigned to an <code>ElevatorCarrage</code> persist visually as the carriage moves vertically? <code>DynamicThing</code> color machinery is the same as for other moving items, so the expected answer is yes, but this has not been confirmed in-game.</li>
+<li>The exact vanilla in-game build-menu names for the with-cable and without-cable variants of each piece (e.g., for <code>ElevatorShaft</code>) are not captured here; they live in Stationpedia data and were not extracted in this pass.</li>
+</ul>
 
 
 
@@ -6419,7 +6648,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../RoboticArmRail/" class="md-footer__link md-footer__link--prev" aria-label="Previous: RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)">
+          <a href="../Device/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Device">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -6429,20 +6658,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+                Device
               </div>
             </div>
           </a>
         
         
           
-          <a href="../RotatableBehaviour/" class="md-footer__link md-footer__link--next" aria-label="Next: RotatableBehaviour">
+          <a href="../Entity/" class="md-footer__link md-footer__link--next" aria-label="Next: Entity">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                RotatableBehaviour
+                Entity
               </div>
             </div>
             <div class="md-footer__button md-icon">
