@@ -423,12 +423,12 @@ function Invoke-HostMode {
         '-settings', 'SavePath',         $DataDir
         '-settings', 'GamePort',         "$GamePort"
         '-settings', 'UpdatePort',       "$UpdatePort"
+        '-settings', 'LocalIpAddress',   '127.0.0.1'
         '-settings', 'AutoSave',         'true'
         '-settings', 'AutoPauseServer',  'false'
         '-settings', 'UPNPEnabled',      'false'
         '-settings', 'ServerName',       'Local Test'
         '-settings', 'ServerMaxPlayers', '4'
-        '-settings', 'ServerPassword',   'x'
         '-settings', 'ServerAuthSecret', 'x'
     )
     if ($Load) { $serverArgs += @('-load', $Load, $Map) }

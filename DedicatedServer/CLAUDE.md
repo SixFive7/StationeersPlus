@@ -110,11 +110,12 @@ Validates args, refuses if a server or host wrapper is already alive (use `-Stop
 -settings SavePath          <DedicatedServer>/data
 -settings GamePort          28016     (override with -GamePort N)
 -settings UpdatePort        28015     (override with -UpdatePort N)
+-settings LocalIpAddress    127.0.0.1
 -settings AutoSave          true
+-settings AutoPauseServer   false
 -settings UPNPEnabled       false
 -settings ServerName        "Local Test"
 -settings ServerMaxPlayers  4
--settings ServerPassword    x
 -settings ServerAuthSecret  x
 -load <SaveName> <Map>      OR    -new <Map>
 ```
@@ -172,11 +173,13 @@ If nothing is running, the call is a no-op (cleans stale state files defensively
 
 ## Joining as a client
 
-The developer launches the regular Stationeers client and uses Direct Connect to `127.0.0.1:28016` with password `x`. There is no `-connect` command-line flag on the client; this step is manual.
+The developer launches the regular Stationeers client and uses Direct Connect to `127.0.0.1:28016`. No password is required. There is no `-connect` command-line flag on the client; this step is manual.
 
-The default `28016` for the dedicated server's `GamePort` is offset by +1000 from the Stationeers client default `27016`, so the dedicated server runs alongside a hosting client on the same machine without RakNet's port-binding fallback (see `Research/Workflows/StationeersLaunchPadDedicatedServer.md` "Port-binding behaviour with a running client on the same machine"). To override, pass `-GamePort N -UpdatePort N` to `-Start`.
+The launcher pins `LocalIpAddress 127.0.0.1` so the dedicated server binds RakNet to the loopback interface only. Without that pin RakNet picks the first up interface, which on a developer machine with a LAN connection is typically the LAN IP (e.g. `10.20.30.200`); Direct Connect to `127.0.0.1:28016` then fails because nothing is listening there. See `Research/Workflows/StationeersLaunchPadDedicatedServer.md` "Port-binding behaviour with a running client on the same machine" for the underlying behaviour. To expose the server to other machines on the LAN intentionally, override the bind by editing the `LocalIpAddress` line in `DedicatedServer/dedicated-server.ps1`.
 
-The password is hardcoded to `x` in the launcher's flag set so the server is never exposed unauthenticated, even if it accidentally binds a public interface. The same value is also set as `ServerAuthSecret`, which lets a connected client run admin commands on the server via the in-game `serverrun` command without writing to the server's stdin (see `Research/GameSystems/DedicatedServerSettings.md` for the full mechanic). To rotate either value, edit the corresponding `'-settings', '...', 'x'` line in `DedicatedServer/dedicated-server.ps1` and restart the server.
+The default `28016` for the dedicated server's `GamePort` is offset by +1000 from the Stationeers client default `27016`, so the dedicated server runs alongside a hosting client on the same machine without RakNet's port-binding fallback. To override, pass `-GamePort N -UpdatePort N` to `-Start`.
+
+No `ServerPassword` is set. The server is loopback-only by design (LocalIpAddress 127.0.0.1), so unauthenticated connections from outside the machine are impossible at the network layer; a connection password adds no protection in that topology and just gets in the way of agent-driven and developer test loops. `ServerAuthSecret` is still set to `x` so a connected client can run admin commands on the server via the in-game `serverrun` command (see `Research/GameSystems/DedicatedServerSettings.md`).
 
 ## Files outside this folder touched by operations
 
@@ -207,7 +210,7 @@ There is no `-Clean` action. Cleaning is the developer's call:
 2. `DedicatedServer/dedicated-server.ps1 -DeployMods -Mod <X>` (or all mods, no `-Mod` flag).
 3. `DedicatedServer/dedicated-server.ps1 -Start -New <Map>`, OR ask the developer for a save name and use `-Start -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
 4. Wait until the server is ready: poll `DedicatedServer/dedicated-server.ps1 -Logs -Grep 'World loaded'` (or another readiness marker) before asking the developer to join. Timing varies by save size; budget 10-60 s.
-5. Tell the developer: "Server is up at `127.0.0.1:27016`. Join with the regular client via Direct Connect when you are ready." That is the only manual step.
+5. Tell the developer: "Server is up at `127.0.0.1:28016`, no password. Join with the regular client via Direct Connect when you are ready." That is the only manual step.
 6. Run the test. Drop InspectorPlus request files into `install/BepInEx/inspector/requests/`, read snapshots out of `install/BepInEx/inspector/snapshots/`. Use `-SendCommand -Command 'status'` or `-Logs -Grep <pattern>` to check server-side state.
 7. To preserve state for a follow-up session: `-Save -Name <SaveName>`. Confirmation comes back via the log.
 8. Tear down: `-Stop` (no save needed, throws away the run) or `-Stop -SaveAs <SaveName>` (saves first, then quits cleanly).
