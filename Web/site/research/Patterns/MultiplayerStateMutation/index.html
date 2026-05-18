@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/StationeersNamespaces/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/MultiplayerStateMutation/">
       
       
-        <link rel="prev" href="../StationeersModdingGotchas/">
+        <link rel="prev" href="../ModLogicTypeRegistration/">
       
       
-        <link rel="next" href="../SubcomponentGrafting/">
+        <link rel="next" href="../PeriodicProcessing/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Stationeers namespace pitfalls - StationeersPlus</title>
+        <title>MultiplayerStateMutation - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#stationeers-namespace-pitfalls" class="md-skip">
+        <a href="#multiplayer-state-mutation-patches-gate-or-explain" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Stationeers namespace pitfalls
+              MultiplayerStateMutation
             
           </span>
         </div>
@@ -4573,10 +4573,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../MultiplayerStateMutation/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MultiplayerStateMutation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -4592,6 +4619,153 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-bug-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The bug class
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sibling-class-the-merge-non-authoritative-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sibling class: the merge-non-authoritative pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-checklist-for-a-new-patch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit checklist for a new patch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-examples-from-this-monorepo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked examples from this monorepo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Worked examples from this monorepo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#networkpuristplus-cablerollnormalise-caller-gated-redundant-inner-gate-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NetworkPuristPlus CableRoll.Normalise -- caller-gated, redundant inner gate added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#powertransmitterplus-auto-aim-reset-postfix-real-class-a-bug-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerTransmitterPlus auto-aim reset postfix -- real class-A bug fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spraypaintplus-thingsetcustomcolorglowpatch-mode-gated-comment-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SprayPaintPlus ThingSetCustomColorGlowPatch -- mode-gated, comment added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#powergridplus-passthrough-setlogicvalue-patches-defense-in-depth-gate-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerGridPlus passthrough SetLogicValue patches -- defense-in-depth gate added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anti-patterns-this-rules-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anti-patterns this rules out
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -4937,37 +5111,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Stationeers namespace pitfalls
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../StationeersNamespaces/" class="md-nav__link">
         
   
   
@@ -4983,81 +5130,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reference
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-consult-this" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to consult this
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cited-verifications" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cited verifications
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -6207,10 +6279,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#reference" class="md-nav__link">
+  <a href="#the-bug-class" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reference
+        The bug class
       
     </span>
   </a>
@@ -6218,10 +6290,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-consult-this" class="md-nav__link">
+  <a href="#sibling-class-the-merge-non-authoritative-pattern" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to consult this
+        Sibling class: the merge-non-authoritative pattern
       
     </span>
   </a>
@@ -6229,10 +6301,82 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cited-verifications" class="md-nav__link">
+  <a href="#audit-checklist-for-a-new-patch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cited verifications
+        Audit checklist for a new patch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-examples-from-this-monorepo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked examples from this monorepo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Worked examples from this monorepo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#networkpuristplus-cablerollnormalise-caller-gated-redundant-inner-gate-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NetworkPuristPlus CableRoll.Normalise -- caller-gated, redundant inner gate added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#powertransmitterplus-auto-aim-reset-postfix-real-class-a-bug-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerTransmitterPlus auto-aim reset postfix -- real class-A bug fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spraypaintplus-thingsetcustomcolorglowpatch-mode-gated-comment-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SprayPaintPlus ThingSetCustomColorGlowPatch -- mode-gated, comment added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#powergridplus-passthrough-setlogicvalue-patches-defense-in-depth-gate-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerGridPlus passthrough SetLogicValue patches -- defense-in-depth gate added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anti-patterns-this-rules-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anti-patterns this rules out
       
     </span>
   </a>
@@ -6351,100 +6495,141 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-05-18.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
-              <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:613-619 (F0049, primary)</code></li>
+              <li><code>./ServerAuthoritativeSimulation.md</code></li>
             
-              <li><code>Mods/SprayPaintPlus/SprayPaintPlus/ConsumableSyncPatch.cs:6 (F0388)</code></li>
+              <li><code>./SinglePlayerNetworkRole.md</code></li>
+            
+              <li><code>../GameClasses/CableNetwork.md</code></li>
+            
+              <li><code>../Protocols/NetworkPuristPlusCableAlignment.md</code></li>
             
           </ul>
         </details>
       
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (3)</summary>
+          <ul>
+            
+              <li><code>./ServerAuthoritativeSimulation.md</code></li>
+            
+              <li><code>./SinglePlayerNetworkRole.md</code></li>
+            
+              <li><code>../GameClasses/CableNetwork.md</code></li>
+            
+          </ul>
+        </details>
       
     </aside>
   
   
                   
 
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">harmony</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">network</span>
+      
+    
+  </nav>
 
 
-<h1 id="stationeers-namespace-pitfalls">Stationeers namespace pitfalls<a class="headerlink" href="#stationeers-namespace-pitfalls" title="Permanent link">&para;</a></h1>
-<p>Reference table of game types whose namespace is easy to guess wrong. All verified against game version 0.2.6228.27061. Compile errors of the form <code>using &lt;namespace&gt;;</code> followed by "type not found" usually trace back to one of these.</p>
-<h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
-<p>F0049 (Mods/PowerTransmitterPlus/RESEARCH.md:613-619, primary):</p>
-<table>
-<thead>
-<tr>
-<th>Type</th>
-<th>Namespace</th>
-<th>Common mistake</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>EnumCollection&lt;,&gt;</code></td>
-<td><code>Assets.Scripts</code></td>
-<td>Not <code>Assets.Scripts.Util</code></td>
-</tr>
-<tr>
-<td><code>ProgrammableChip</code></td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>Not <code>Motherboards</code></td>
-</tr>
-<tr>
-<td><code>ProgrammableChip.Constant</code></td>
-<td>nested in <code>ProgrammableChip</code></td>
-<td>Must qualify as <code>ProgrammableChip.Constant</code></td>
-</tr>
-<tr>
-<td><code>LogicType</code></td>
-<td><code>Assets.Scripts.Objects.Motherboards</code></td>
-<td>(Most Logic types ARE in Motherboards, just not the chip)</td>
-</tr>
-<tr>
-<td><code>PowerTransmitterVisualiser</code></td>
-<td>global namespace</td>
-<td>NOT <code>Assets.Scripts.Objects.Electrical</code> despite the dish being there</td>
-</tr>
-</tbody>
-</table>
-<p>F0388 (Mods/SprayPaintPlus/SprayPaintPlus/ConsumableSyncPatch.cs:6) adds:</p>
+<h1 id="multiplayer-state-mutation-patches-gate-or-explain">Multiplayer state-mutation patches: gate or explain<a class="headerlink" href="#multiplayer-state-mutation-patches-gate-or-explain" title="Permanent link">&para;</a></h1>
+<p>A Harmony patch (or non-Harmony code triggered by a game event) that mutates persistent game state during a lifecycle hook firing on both server AND client, without a proper server-only gate, where the mutation result can differ between the two sides, produces a stable multiplayer desync. This page is the audit lens for that bug class and the per-patch checklist for new code.</p>
+<h2 id="the-bug-class">The bug class<a class="headerlink" href="#the-bug-class" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>Four conjoint criteria. All four must hold for a patch to be in the class.</p>
+<ol>
+<li>The patched method (or the event handler) fires on both server and client. Methods that vanilla only invokes server-side (e.g. anything reached only via <code>GameManager.RunSimulation</code> paths like <code>ElectricityTick</code>, <code>OnAtmosphericTick</code>, or IC10 chip evaluation) are out of scope -- the class is about patches that vanilla touches symmetrically.</li>
+<li>The patch mutates persistent game state. "Persistent" means: a field or property whose value is observed by future ticks or future serialisation. Reading the same field, or writing to a local variable, does not qualify. Examples that qualify: <code>ThingTransform.rotation</code>, <code>RegisteredRotation</code>, <code>Direction</code>, network membership lists, dictionary entries keyed by <code>ReferenceId</code>, <code>RotatableBehaviour.TargetHorizontal / TargetVertical</code>, anything that ends up in a SerializeOnJoin / BuildUpdate / save file.</li>
+<li>The mutation is not gated to <code>NetworkManager.IsServer</code> (or an equivalent host-only signal: <code>GameManager.RunSimulation</code>, or a thread-static flag that is itself only set inside a host-only branch). Gating only an enqueued <code>NetworkUpdateFlags |= N</code> write while leaving the field assignment unconditional does NOT count -- the field write is the desync.</li>
+<li>The mutation result is not deterministic across the wire. The result depends on floating-point classification edges (<code>Mathf.Abs(forward.x) &gt;= Mathf.Abs(forward.y)</code>), ordering-dependent lookups (the order vanilla returns adjacent cables in), timing of <code>base.X</code> chains, transient input state (which side last received a wire packet), or worker-thread scheduling.</li>
+</ol>
+<p>Class-A bug -&gt; visible symptoms include: stable id desyncs (server and client read different <code>ReferenceId</code> for the same logical object), visual or geometric mismatches (rotation, position, orientation), state-machine divergences (one side thinks a feature is active, the other does not), value drift on the same logical computation.</p>
+<h2 id="sibling-class-the-merge-non-authoritative-pattern">Sibling class: the merge-non-authoritative pattern<a class="headerlink" href="#sibling-class-the-merge-non-authoritative-pattern" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>A second, vanilla-side class is structurally related: when a static <code>Merge(List&lt;T&gt;)</code> picks the survivor by <code>list[0]</code> AND both server and client invoke <code>Merge(ConnectedX(thing))</code> independently AND there is no "rebuild on merge" event analogous to <code>RebuildCableNetworkEvent</code> that carries the host's chosen survivor id across, ANY ordering perturbation upstream (from a class-A bug, from a third-party mod, from FP edges) latches into a stable id-level desync.</p>
+<p>Confirmed instances in 0.2.6228.27061:</p>
 <ul>
-<li><code>Consumable</code> (used for spray cans, fuel canisters, welding torches) resides in <code>Assets.Scripts.Objects.Items</code>.</li>
+<li><code>CableNetwork.Merge(List&lt;CableNetwork&gt;)</code> (decompile line 253998). Affects <code>CableNetwork</code> and the inheriting <code>WirelessNetwork</code>.</li>
+<li><code>StructureNetwork.Merge(List&lt;StructureNetwork&gt;, out StructureNetwork)</code> (line 177412). Affects <code>RocketNetwork</code>, <code>RoboticArmNetwork</code>, <code>LandingPadNetwork</code>, and any other <code>StructureNetwork</code> subclass that overrides <code>INetworkedStructure.DeserializeOnJoin</code> to re-run a local merge.</li>
 </ul>
-<h2 id="when-to-consult-this">When to consult this<a class="headerlink" href="#when-to-consult-this" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p>Not affected: <code>PipeNetwork</code>, <code>ChuteNetwork</code>. They inherit the <code>Merge(List)</code> signature but their wire-deserialisation paths do not re-call it locally on the client -- they trust the server's id from the join packet.</p>
+<p>Power Grid Plus closes the class-B pattern in <code>Patches/MergeDeterminismPatches.cs</code> by sorting the input list by <code>ReferenceId</code> ascending before vanilla picks <code>list[0]</code>. ReferenceIds are server-allocated and identical on every peer (see <code>Research/GameClasses/CableNetwork.md</code> "Lifecycle: three constructors"), so both sides converge on the same survivor regardless of upstream ordering disagreement.</p>
+<h2 id="audit-checklist-for-a-new-patch">Audit checklist for a new patch<a class="headerlink" href="#audit-checklist-for-a-new-patch" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<p>For every Harmony patch that touches mutable state, the author answers all six questions in a comment block above the patch class. The answers either justify the absence of an <code>IsServer</code> gate or motivate adding one.</p>
+<ol>
+<li><strong>What method does this patch target?</strong> Class name + member name.</li>
+<li><strong>Does vanilla invoke that method on the client?</strong> Yes / no. If "yes", continue. If "no" (the method is reached only via host-only paths like <code>GameManager.RunSimulation</code>-gated callers), document the host-only caller chain and stop -- the patch is safe by transitivity.</li>
+<li><strong>What persistent state does this patch mutate?</strong> List the fields / properties / dictionaries / lists / network flags.</li>
+<li><strong>What gates the mutation?</strong> One of:</li>
+<li><code>NetworkManager.IsServer</code> direct check.</li>
+<li><code>GameManager.RunSimulation</code> (host-only via the host-only simulation tick).</li>
+<li>A thread-static flag that is only set inside a host-only branch (mode-gating).</li>
+<li>Caller gating: the patch is targeted at a method that is itself host-only-called.</li>
+<li><strong>Could the mutation result differ between server and client given identical inputs?</strong> Yes / no. If "yes" and step 4 does not produce a host-only gate, the patch is in the class -- add an explicit <code>IsServer</code> check.</li>
+<li><strong>What is the propagation mechanism?</strong> When the host mutates the state, how does the change reach clients? One of:</li>
+<li>Standard vanilla per-tick delta (<code>NetworkUpdateFlags |= N</code> writing into <code>BuildUpdate</code>).</li>
+<li>Custom <code>NetworkUpdateFlags</code> bit + matching <code>BuildUpdate</code> / <code>ProcessUpdate</code> postfixes.</li>
+<li>Custom <code>INetworkMessage</code> (per-event message).</li>
+<li>Join-time sync (<code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code> postfixes).</li>
+<li>Save-load sidecar that replays on both sides at load time.</li>
+</ol>
+<p>The check that step 4 actually closes step 5 is the load-bearing one. A patch that mutates non-deterministic state with no gate is the bug.</p>
+<h2 id="worked-examples-from-this-monorepo">Worked examples from this monorepo<a class="headerlink" href="#worked-examples-from-this-monorepo" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+
+<h3 id="networkpuristplus-cablerollnormalise-caller-gated-redundant-inner-gate-added">NetworkPuristPlus CableRoll.Normalise -- caller-gated, redundant inner gate added<a class="headerlink" href="#networkpuristplus-cablerollnormalise-caller-gated-redundant-inner-gate-added" title="Permanent link">&para;</a></h3>
+<p>Targets <code>Cable.OnRegistered</code> postfix (and an additional <code>World.OnLoadingFinished</code> postfix). Both callers gate on <code>!GameManager.RunSimulation</code>. The mutation (rotation + <code>RegisteredRotation</code> + <code>Direction</code> + <code>NetworkUpdateFlags</code>) is therefore reachable only on the host; clients pick up the rotation via the standard bit-1 transform delta. Added a defensive <code>if (!NetworkManager.IsServer) return false;</code> at the top of <code>Normalise</code> so the function is safe-by-construction even if a future caller forgets the outer gate. Step 5 answer is "yes" (the canonical rotation is computed from a floating-point axis-dominance classification that could disagree on rotations near the 45-degree edge), step 4 answer is "caller-gated <code>RunSimulation</code> plus inner <code>IsServer</code>", and step 6 answer is "standard bit-1 transform delta".</p>
+<h3 id="powertransmitterplus-auto-aim-reset-postfix-real-class-a-bug-fixed">PowerTransmitterPlus auto-aim reset postfix -- real class-A bug fixed<a class="headerlink" href="#powertransmitterplus-auto-aim-reset-postfix-real-class-a-bug-fixed" title="Permanent link">&para;</a></h3>
+<p>Targets <code>RotatableBehaviour.TargetHorizontal</code> / <code>TargetVertical</code> setters. Vanilla invokes the setter on the client during <code>WirelessPower.ProcessUpdate</code>'s application of the host's bit-256 servo-target delta, so the patch fires on the client. The reset postfix called <code>ClearCache(dish)</code> unconditionally -- which on the client cleared the dish's auto-aim target id whenever the host slewed the servo, regardless of whether the host had actually cleared its own cache. If the same tick did NOT also carry the custom <code>AutoAimUpdateFlag = 0x2000</code> payload (because the host did not change the target this tick, only stepped the servo toward the existing target), the client's cache stayed at zero indefinitely while the host's stayed at the real target id.</p>
+<p>Fix: gate both reset postfixes on <code>NetworkManager.IsServer</code>, and modify <code>ClearCache</code> to set the <code>AutoAimUpdateFlag</code> so legitimate host-side clears still propagate to clients via the existing per-tick payload. Step 6 answer becomes "custom <code>0x2000</code> bit; client's <code>ApplyDeltaUpdate</code> writes the host's value verbatim, including id=0 for explicit clears".</p>
+<h3 id="spraypaintplus-thingsetcustomcolorglowpatch-mode-gated-comment-added">SprayPaintPlus ThingSetCustomColorGlowPatch -- mode-gated, comment added<a class="headerlink" href="#spraypaintplus-thingsetcustomcolorglowpatch-mode-gated-comment-added" title="Permanent link">&para;</a></h3>
+<p>Targets <code>Thing.SetCustomColor</code> postfix. Vanilla invokes <code>SetCustomColor</code> on the client during save load, during reception of an <code>OnServer.SetCustomColor</code> network message, and during <code>ColorCycler</code> animation steps -- so the postfix does fire on the client. But the postfix's <code>GlowingThingIds</code> mutation is gated by <code>GlowPaintHelpers.CurrentMode != Idle</code>, and <code>CurrentMode</code> is set off-Idle only inside <code>ThingAttackWithGunPatch.Prefix</code>'s <code>if (GameManager.RunSimulation)</code> branch. So on a client the mode stays Idle and the mutation branches never fire. The "re-skin emissive" branch IS unconditional but is a deterministic function of the per-side <code>GlowingThingIds[id]</code>, which is host-authoritative via the custom <code>0x2000</code> <code>GlowNetworkFlag</code> and join-time sync.</p>
+<p>This patch is safe without an explicit <code>IsServer</code> gate. The 2026-05-18 audit added a comment block at the patch site documenting why, so a future reader does not re-litigate the call.</p>
+<h3 id="powergridplus-passthrough-setlogicvalue-patches-defense-in-depth-gate-added">PowerGridPlus passthrough SetLogicValue patches -- defense-in-depth gate added<a class="headerlink" href="#powergridplus-passthrough-setlogicvalue-patches-defense-in-depth-gate-added" title="Permanent link">&para;</a></h3>
+<p>Targets <code>Device.SetLogicValue</code> / <code>Transformer.SetLogicValue</code>. Vanilla invokes <code>SetLogicValue</code> only on the host (IC10 ticks on the host, tablet writes are network-routed to the host), so the patches are caller-gated in practice. But the patch did NOT have an explicit <code>IsServer</code> check, which leaves a future modded client-side logic writer free to desync the per-Thing <code>PassthroughModeStore</code>. Added <code>if (!NetworkManager.IsServer) return false;</code> after the <code>LogicType</code> filter. Zero observable impact today; protects against future contributors.</p>
+<h2 id="anti-patterns-this-rules-out">Anti-patterns this rules out<a class="headerlink" href="#anti-patterns-this-rules-out" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
 <ul>
-<li>After a compile error immediately following a freshly added <code>using Assets.Scripts.&lt;guess&gt;;</code>.</li>
-<li>Before writing a Harmony patch against a game type whose namespace you inferred from file-system layout or a file name.</li>
-<li>When decompiled code elides the namespace: ILSpy and dnSpy both show <code>LogicType</code> without its enclosing namespace in some views.</li>
-</ul>
-<p>Add entries here as new namespace surprises are discovered. The table is small by design; add only types that have actually tripped someone.</p>
-<h2 id="cited-verifications">Cited verifications<a class="headerlink" href="#cited-verifications" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<ul>
-<li>F0049: primary table covering the five highest-surprise entries encountered in PowerTransmitterPlus.</li>
-<li>F0388: <code>Consumable</code> namespace note from SprayPaintPlus code comment.</li>
+<li><strong>Gating only the <code>NetworkUpdateFlags</code> write.</strong> If the field assignment runs on the client but only the <code>|= N</code> write is <code>IsServer</code>-gated, the field is locally desynced and the host never sees a reason to re-send it. The field assignment must be inside the gate.</li>
+<li><strong>Trusting <code>Reapplying</code> / <code>SuppressReset</code> thread-statics across host/client mirroring.</strong> These flags work for re-entrancy within a single side. They do not gate the cross-side mutation question -- a flag set by code that runs on the host does not protect a method that ALSO runs on the client.</li>
+<li><strong>Patching a setter without checking who invokes it.</strong> Property setters are routine reflection targets for sync code (<code>ProcessUpdate</code> calling the setter to apply a wire-arriving value). A postfix on a property setter fires on every peer that applies the value, not just the originator.</li>
+<li><strong>Assuming "vanilla calls this method server-only" without grepping every caller in the decompile.</strong> Some methods are called on the client during save load, during join sync, or during <code>ProcessUpdate</code>'s application of a delta. Run the audit checklist (step 2) against the decompile rather than guessing.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
 <ul>
-<li>2026-04-20: page created from the Research migration; F0049 primary, F0388 additional.</li>
+<li>2026-05-18: page created. Sourced from the multiplayer cable-network-id desync investigation. Documents the class-A bug (client-side mutation without proper gating) and class-B bug (vanilla merge-non-authoritative pattern) plus the six-question audit checklist and four worked examples from the monorepo (NetworkPuristPlus, PowerTransmitterPlus, SprayPaintPlus, PowerGridPlus passthrough setters). Companion to the deterministic Merge sort resolution documented in <code>Research/GameClasses/CableNetwork.md</code>.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>Are there other vanilla static methods with the same "list[0] wins + each side decides independently + no rebuild event" shape beyond <code>CableNetwork.Merge</code> and <code>StructureNetwork.Merge</code>? A broader decompile sweep across the <code>Assets.Scripts.Networks</code> namespace would be needed to be sure. Candidates worth probing: anything else inheriting <code>StructureNetwork</code>, plus the various <code>Atmospherics*Network</code> types if their save-load and join-sync paths re-derive membership locally.</li>
+</ul>
 
 
 
@@ -6484,7 +6669,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../StationeersModdingGotchas/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Stationeers modding gotchas (catch-all)">
+          <a href="../ModLogicTypeRegistration/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Mod LogicType Registration Analysis">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -6494,20 +6679,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Stationeers modding gotchas (catch-all)
+                Mod LogicType Registration Analysis
               </div>
             </div>
           </a>
         
         
           
-          <a href="../SubcomponentGrafting/" class="md-footer__link md-footer__link--next" aria-label="Next: Sub-component grafting from a vanilla prefab">
+          <a href="../PeriodicProcessing/" class="md-footer__link md-footer__link--next" aria-label="Next: Periodic processing options">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Sub-component grafting from a vanilla prefab
+                Periodic processing options
               </div>
             </div>
             <div class="md-footer__button md-icon">
