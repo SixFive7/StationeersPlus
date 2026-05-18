@@ -1,6 +1,7 @@
 // Three-tier transmission-voltage gating. See VoltageTier for the policy.
 
 using System;
+using System.Collections.Generic;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -35,11 +36,22 @@ namespace PowerGridPlus.Patches
 
             try
             {
-                // (a) Cable-to-cable: don't allow placing into a network that already has a different tier.
-                var connected = CableNetwork.ConnectedNetworks(__instance);
-                if (connected != null)
+                // (a) Cable-to-cable: don't allow placing into a POWER network that already has a different
+                // tier. Port-aware: only considers cables reached via a Power-bit OpenEnd overlap. A purely
+                // data-side adjacency (Data-bit only) does NOT engage tier rules, so heavy / normal data
+                // cables mix freely. ConnectedCables(NetworkType.Power) returns adjacent cables whose open
+                // ends overlap on the Power bit, so combo (PowerAndData) cables still count on the power side.
+                var powerAdjacent = __instance.ConnectedCables(NetworkType.Power);
+                if (powerAdjacent != null && powerAdjacent.Count > 0)
                 {
-                    foreach (var network in connected)
+                    var seenNetworks = new HashSet<CableNetwork>();
+                    foreach (var c in powerAdjacent)
+                    {
+                        if (c?.CableNetwork == null)
+                            continue;
+                        seenNetworks.Add(c.CableNetwork);
+                    }
+                    foreach (var network in seenNetworks)
                     {
                         if (network == null)
                             continue;
@@ -67,6 +79,15 @@ namespace PowerGridPlus.Patches
                     foreach (var device in adjacentDevices)
                     {
                         if (device == null)
+                            continue;
+
+                        // Port-aware: skip the entire per-device tier check when the cursor cable would
+                        // attach to this device only through a non-power Connection (e.g. a data port).
+                        // Tier rules are about power flow; a data-only adjacency does not engage them.
+                        // ConnectedDevices() returns the device whenever ANY OpenEnd bitmask overlaps, so
+                        // a heavy data cable next to a transformer's data port is reported here even though
+                        // the device's power-tier rule should not apply to it.
+                        if (!CursorAttachesToPowerPortOf(__instance, device))
                             continue;
 
                         // (b.1) Transformer: each variant's two cable ports must hold an unordered tier
@@ -152,6 +173,41 @@ namespace PowerGridPlus.Patches
                 // reactive burns from PowerGridTick will still resolve any mixed-tier or misplaced-device
                 // result once power flows on the resulting network.
             }
+        }
+
+        /// <summary>
+        ///     True iff <paramref name="cursor"/>'s preview placement would attach to at least one of
+        ///     <paramref name="device"/>'s OpenEnds whose ConnectionType includes the Power bit. Used to
+        ///     scope the per-device tier rules to power-port adjacencies: a data-only adjacency (cursor's
+        ///     open end touching the device only at a Data-bit Connection) should not engage tier rules.
+        ///
+        ///     ConnectionType is a NetworkType bitmask: pure-data ports have Data only, pure-power ports
+        ///     have Power only, and combo ports have PowerAndData (= Power | Data). Cable.IsConnected is
+        ///     the same grid-adjacency-plus-bitmask test SmallGrid uses everywhere (decompile line 294154).
+        /// </summary>
+        private static bool CursorAttachesToPowerPortOf(Cable cursor, Device device)
+        {
+            if (cursor == null || device == null || device.OpenEnds == null)
+                return false;
+            for (int i = 0; i < device.OpenEnds.Count; i++)
+            {
+                var oe = device.OpenEnds[i];
+                if (oe == null)
+                    continue;
+                if ((oe.ConnectionType & NetworkType.Power) == NetworkType.None)
+                    continue;
+                try
+                {
+                    if (cursor.IsConnected(oe))
+                        return true;
+                }
+                catch
+                {
+                    // Either side's grid not initialized yet -- treat as no match and let the next frame
+                    // try again. The placement preview re-runs CanConstruct continuously.
+                }
+            }
+            return false;
         }
     }
 }
