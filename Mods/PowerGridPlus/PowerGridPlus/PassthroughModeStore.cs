@@ -1,46 +1,57 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 
 namespace PowerGridPlus
 {
-    // Per-Transformer LogicPassthroughMode state. Keyed by Transformer.ReferenceId,
-    // value is 0 or 1. Defaults by PrefabName: 1 for the small transformer + its
-    // reversed variant (so they ship as logic-transparent out of the box), 0 for
-    // every other transformer prefab.
+    // Per-Thing LogicPassthroughMode state. Keyed by Thing.ReferenceId, value is
+    // 0 or 1. Used for Transformer, Battery, PowerTransmitter, and PowerReceiver.
+    //
+    // Per-PrefabName defaults:
+    //   - Small Transformer + Reversed: 1 (logic-transparent out of the box).
+    //   - Other Transformer variants:    0 (vanilla-opaque).
+    // Per-type defaults (anything without a specific PrefabName override):
+    //   - Battery:          1 (logic-transparent across input / output cable ports).
+    //   - PowerTransmitter: 1 (logic-transparent across the wireless link to its receiver).
+    //   - PowerReceiver:    1 (logic-transparent across the wireless link to its transmitter).
+    //   - Everything else:  0.
     //
     // Persistence: PassthroughSideCar reads / writes a sidecar XML inside the save
-    // ZIP. PassthroughSaveLoadPatches restores state in Thing.OnFinishedLoad.
+    // ZIP. PassthroughSaveLoadPatches restores state in Thing.OnFinishedLoad for
+    // every supported type.
     internal static class PassthroughModeStore
     {
         private static readonly ConcurrentDictionary<long, int> _byReference =
             new ConcurrentDictionary<long, int>();
 
-        internal static int GetMode(Transformer transformer)
+        internal static int GetMode(Thing thing)
         {
-            if (transformer == null) return 0;
-            if (_byReference.TryGetValue(transformer.ReferenceId, out var mode))
+            if (thing == null) return 0;
+            if (_byReference.TryGetValue(thing.ReferenceId, out var mode))
                 return mode;
-            return GetDefaultMode(transformer.PrefabName);
+            return GetDefaultMode(thing);
         }
 
-        internal static void SetMode(Transformer transformer, int mode)
+        internal static void SetMode(Thing thing, int mode)
         {
-            if (transformer == null) return;
-            _byReference[transformer.ReferenceId] = mode != 0 ? 1 : 0;
+            if (thing == null) return;
+            _byReference[thing.ReferenceId] = mode != 0 ? 1 : 0;
         }
 
-        internal static int GetDefaultMode(string prefabName)
+        internal static int GetDefaultMode(Thing thing)
         {
-            if (string.IsNullOrEmpty(prefabName)) return 0;
-            switch (prefabName)
+            if (thing == null) return 0;
+            switch (thing.PrefabName)
             {
                 case "StructureTransformerSmall":
                 case "StructureTransformerSmallReversed":
                     return 1;
-                default:
-                    return 0;
             }
+            if (thing is Battery) return 1;
+            if (thing is PowerTransmitter) return 1;
+            if (thing is PowerReceiver) return 1;
+            return 0;
         }
 
         internal static IEnumerable<KeyValuePair<long, int>> SnapshotEntries()

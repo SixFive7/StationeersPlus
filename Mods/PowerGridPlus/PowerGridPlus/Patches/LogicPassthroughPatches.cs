@@ -8,19 +8,21 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Makes Area Power Controllers and Transformers logic-transparent: a logic reader on one
-    ///     side of the bridge sees devices on the other side, and the bridging device's own logic
-    ///     ports (Setting, Power Actual, ...) are visible from both sides.
+    ///     Makes bridging devices logic-transparent: a logic reader on one side of the bridge sees
+    ///     devices on the other side. Covered bridges:
+    ///
+    ///     - Transformer / AreaPowerControl: bridge between InputNetwork and OutputNetwork on a single device.
+    ///     - Battery: bridge between InputNetwork (charging side) and OutputNetwork (discharging side).
+    ///     - PowerTransmitter / PowerReceiver pair: bridge from the TX cable network (tx.InputNetwork)
+    ///       to the RX cable network (rx.OutputNetwork) via the wireless link.
     ///
     ///     Mechanism: postfix on <see cref="CableNetwork.RefreshPowerAndDataDeviceLists"/>. For each
-    ///     <see cref="ElectricalInputOutput"/> sitting on the local network, find its "other" side
-    ///     network and append every entry in that network's <see cref="CableNetwork.DeviceList"/>
-    ///     (deduped) into the local data device list. The bridging device itself is already in both
-    ///     sides' <see cref="CableNetwork.DeviceList"/> via its two cable connections, so its own
-    ///     <see cref="LogicType"/> slots become readable from both sides as a side effect.
-    ///
-    ///     Mirrors the vanilla <c>HandleDataNetTransmissionDevice</c> rocket-data-link pattern, but
-    ///     symmetric: the bridging device acts as both transmitter and receiver against itself.
+    ///     supported bridging device sitting on the local network, find its "other" side cable network
+    ///     and append every entry in that network's <see cref="CableNetwork.DeviceList"/> (deduped)
+    ///     into the local data device list. The bridging device itself is already in both sides'
+    ///     <see cref="CableNetwork.DeviceList"/> via its two cable connections (or via the wireless
+    ///     link for TX/RX pairs), so its own <see cref="LogicType"/> slots become readable from both
+    ///     sides as a side effect.
     /// </summary>
     [HarmonyPatch(typeof(CableNetwork), "RefreshPowerAndDataDeviceLists")]
     public static class LogicPassthroughPatches
@@ -37,7 +39,10 @@ namespace PowerGridPlus.Patches
         public static void Postfix(CableNetwork __instance, bool __state, List<Device> ____dataDeviceList)
         {
             if (!__state) return;
-            if (!Settings.EnableTransformerLogicPassthrough.Value && !Settings.EnableAreaPowerControlLogicPassthrough.Value)
+            if (!Settings.EnableTransformerLogicPassthrough.Value
+                && !Settings.EnableAreaPowerControlLogicPassthrough.Value
+                && !Settings.EnableBatteryLogicPassthrough.Value
+                && !Settings.EnablePowerTransmitterLogicPassthrough.Value)
                 return;
 
             var devices = __instance.DeviceList;
@@ -46,12 +51,10 @@ namespace PowerGridPlus.Patches
                 var device = devices[i];
                 if (device == null) continue;
 
-                CableNetwork other;
+                CableNetwork other = null;
+
                 if (device is Transformer transformer)
                 {
-                    // Feature kill-switch + per-device mode. Default mode per PrefabName
-                    // (small transformer + reversed default to 1, others default to 0)
-                    // is applied by PassthroughModeStore.GetMode when no override exists.
                     if (!Settings.EnableTransformerLogicPassthrough.Value) continue;
                     if (PassthroughModeStore.GetMode(transformer) == 0) continue;
                     other = (transformer.InputNetwork == __instance) ? transformer.OutputNetwork : transformer.InputNetwork;
@@ -60,6 +63,26 @@ namespace PowerGridPlus.Patches
                 {
                     if (!Settings.EnableAreaPowerControlLogicPassthrough.Value) continue;
                     other = (apc.InputNetwork == __instance) ? apc.OutputNetwork : apc.InputNetwork;
+                }
+                else if (device is Battery battery)
+                {
+                    if (!Settings.EnableBatteryLogicPassthrough.Value) continue;
+                    if (PassthroughModeStore.GetMode(battery) == 0) continue;
+                    other = (battery.InputNetwork == __instance) ? battery.OutputNetwork : battery.InputNetwork;
+                }
+                else if (device is PowerTransmitter tx)
+                {
+                    if (!Settings.EnablePowerTransmitterLogicPassthrough.Value) continue;
+                    if (PassthroughModeStore.GetMode(tx) == 0) continue;
+                    // TX's cable side is its InputNetwork; partner cable is rx.OutputNetwork.
+                    other = tx.LinkedReceiver?.OutputNetwork;
+                }
+                else if (device is PowerReceiver rx)
+                {
+                    if (!Settings.EnablePowerTransmitterLogicPassthrough.Value) continue;
+                    if (PassthroughModeStore.GetMode(rx) == 0) continue;
+                    // RX's cable side is its OutputNetwork; partner cable is tx.InputNetwork.
+                    other = rx.LinkedPowerTransmitter?.InputNetwork;
                 }
                 else
                 {

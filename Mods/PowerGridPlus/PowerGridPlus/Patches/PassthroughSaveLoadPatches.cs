@@ -83,20 +83,48 @@ namespace PowerGridPlus.Patches
         }
     }
 
-    // Per-Thing restore. Fires in Thing.OnFinishedLoad postfix. For each
-    // Transformer with a side-car entry, restore its saved mode. Transformers
-    // without a side-car entry (legacy saves, fresh placements) fall through
+    // Per-Thing restore. Fires in Thing.OnFinishedLoad postfix. For each supported
+    // bridging device (Transformer, Battery, PowerTransmitter, PowerReceiver) with
+    // a side-car entry, restore its saved mode and dirty the affected networks so
+    // the cached data-device lists rebuild with the restored value on next read.
+    // Devices without a side-car entry (legacy saves, fresh placements) fall through
     // to PassthroughModeStore.GetDefaultMode via GetMode on next read.
     [HarmonyPatch(typeof(Thing), nameof(Thing.OnFinishedLoad))]
     public class ThingOnFinishedLoadPassthroughPatch
     {
         public static void Postfix(Thing __instance)
         {
-            if (!(__instance is Transformer transformer)) return;
+            if (__instance == null) return;
             var cache = PassthroughSideCar.LoadedModes;
             if (cache == null) return;
-            if (cache.TryGetValue(transformer.ReferenceId, out var savedMode))
-                PassthroughModeStore.RestoreFromSideCar(transformer.ReferenceId, savedMode);
+            if (!cache.TryGetValue(__instance.ReferenceId, out var savedMode)) return;
+
+            // Only restore for supported bridging types. Anything else with a stray sidecar
+            // entry would be a legacy file; ignore safely.
+            switch (__instance)
+            {
+                case Transformer transformer:
+                    PassthroughModeStore.RestoreFromSideCar(transformer.ReferenceId, savedMode);
+                    // See Research/GameClasses/CableNetwork.md "Field shape and accessor quirk".
+                    transformer.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    transformer.OutputNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+                case Battery battery:
+                    PassthroughModeStore.RestoreFromSideCar(battery.ReferenceId, savedMode);
+                    battery.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    battery.OutputNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+                case PowerTransmitter tx:
+                    PassthroughModeStore.RestoreFromSideCar(tx.ReferenceId, savedMode);
+                    tx.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    tx.LinkedReceiver?.OutputNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+                case PowerReceiver rx:
+                    PassthroughModeStore.RestoreFromSideCar(rx.ReferenceId, savedMode);
+                    rx.OutputNetwork?.DirtyPowerAndDataDeviceLists();
+                    rx.LinkedPowerTransmitter?.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+            }
         }
     }
 }

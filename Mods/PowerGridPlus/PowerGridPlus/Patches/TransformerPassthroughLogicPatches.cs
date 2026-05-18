@@ -39,7 +39,7 @@ namespace PowerGridPlus.Patches
         {
             if (logicType == LogicTypeRegistry.LogicPassthroughMode)
             {
-                __result = PassthroughModeStore.GetMode(__instance);
+                __result = PassthroughModeStore.GetMode((Assets.Scripts.Objects.Thing)__instance);
                 return false;
             }
             return true;
@@ -51,12 +51,16 @@ namespace PowerGridPlus.Patches
             if (logicType == LogicTypeRegistry.LogicPassthroughMode)
             {
                 int newMode = value > 0.5 ? 1 : 0;
-                int oldMode = PassthroughModeStore.GetMode(__instance);
-                PassthroughModeStore.SetMode(__instance, newMode);
+                int oldMode = PassthroughModeStore.GetMode((Assets.Scripts.Objects.Thing)__instance);
+                PassthroughModeStore.SetMode((Assets.Scripts.Objects.Thing)__instance, newMode);
                 if (oldMode != newMode)
                 {
-                    __instance.InputNetwork?.DirtyDataDeviceList();
-                    __instance.OutputNetwork?.DirtyDataDeviceList();
+                    // Dirty BOTH the power and data flags. CableNetwork.DataDeviceList.get is buggy:
+                    // it checks PowerDeviceListDirty (not DataDeviceListDirty), so DirtyDataDeviceList
+                    // alone leaves the cached _dataDeviceList stale on next read. See
+                    // Research/GameClasses/CableNetwork.md "Field shape and accessor quirk".
+                    __instance.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    __instance.OutputNetwork?.DirtyPowerAndDataDeviceLists();
                 }
                 return false;
             }

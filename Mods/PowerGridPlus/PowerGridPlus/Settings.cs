@@ -27,6 +27,7 @@ namespace PowerGridPlus
         internal static ConfigEntry<float> MaxBatteryDischargeRate;
         internal static ConfigEntry<float> BatteryChargeEfficiency;
         internal static ConfigEntry<bool> EnableBatteryLogicAdditions;
+        internal static ConfigEntry<bool> EnableBatteryLogicPassthrough;
 
         // --- Server - Transformers ---
         internal static ConfigEntry<bool> EnableTransformerExploitMitigation;
@@ -36,6 +37,9 @@ namespace PowerGridPlus
         // --- Server - Area Power Control ---
         internal static ConfigEntry<bool> EnableAreaPowerControlFix;
         internal static ConfigEntry<bool> EnableAreaPowerControlLogicPassthrough;
+
+        // --- Server - Power Transmitters ---
+        internal static ConfigEntry<bool> EnablePowerTransmitterLogicPassthrough;
 
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
         {
@@ -113,6 +117,13 @@ namespace PowerGridPlus
                 Desc("(Server-authoritative) When true, stationary batteries expose their max charge rate (Import Quantity) " +
                      "and max discharge rate (Export Quantity) as logic values.", 50));
 
+            EnableBatteryLogicPassthrough = config.Bind("Server - Batteries", "Enable Battery Logic Passthrough", true,
+                Desc("(Server-authoritative) Master kill-switch for stationary-battery logic-passthrough. When true, batteries " +
+                     "honour the per-device LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 makes the " +
+                     "battery logic-transparent (devices on either cable side are visible across), 0 keeps vanilla logic-opaque " +
+                     "behaviour. Every battery defaults to mode 1 (enabled); per-device mode is persisted across save / load. " +
+                     "When this master is false, every battery behaves vanilla-opaque regardless of its per-device mode.", 60));
+
             // --- Server - Transformers ---
             EnableTransformerExploitMitigation = config.Bind("Server - Transformers", "Enable Transformer Exploit Mitigation", true,
                 Desc("(Server-authoritative) When true, transformers no longer leak free power and charge their own " +
@@ -141,6 +152,15 @@ namespace PowerGridPlus
                      "unaffected -- the APC's downstream side still meters and gates power normally. Turn this off to " +
                      "restore the vanilla behaviour where an APC breaks the logic network the same way it breaks the power " +
                      "network.", 20));
+
+            // --- Server - Power Transmitters ---
+            EnablePowerTransmitterLogicPassthrough = config.Bind("Server - Power Transmitters", "Enable Power Transmitter Logic Passthrough", true,
+                Desc("(Server-authoritative) Master kill-switch for power-transmitter logic-passthrough across a wireless link. " +
+                     "When true, a linked TX/RX dish pair is logic-transparent: an IC10 or logic reader wired to the TX's cable " +
+                     "network can see devices wired to the RX's cable network, and vice versa. Each dish honours its own " +
+                     "LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 = transparent, 0 = opaque. " +
+                     "Defaults to mode 1 for every transmitter and receiver. Bridging requires the pair to be linked (auto-aim " +
+                     "or manual link); an unlinked dish has nothing to bridge to. Per-device mode is persisted across save / load.", 10));
         }
     }
 }
