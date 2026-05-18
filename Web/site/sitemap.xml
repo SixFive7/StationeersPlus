@@ -149,6 +149,10 @@
          <lastmod>2026-05-18</lastmod>
     </url>
     <url>
+         <loc>https://stationeers.huisman.io/research/GameClasses/MotionSensor/</loc>
+         <lastmod>2026-05-18</lastmod>
+    </url>
+    <url>
          <loc>https://stationeers.huisman.io/research/GameClasses/MultiConstructor/</loc>
          <lastmod>2026-05-18</lastmod>
     </url>
@@ -177,6 +181,10 @@
          <lastmod>2026-05-18</lastmod>
     </url>
     <url>
+         <loc>https://stationeers.huisman.io/research/GameClasses/ProximitySensor/</loc>
+         <lastmod>2026-05-18</lastmod>
+    </url>
+    <url>
          <loc>https://stationeers.huisman.io/research/GameClasses/RoboticArmDock/</loc>
          <lastmod>2026-05-18</lastmod>
     </url>
@@ -194,6 +202,10 @@
     </url>
     <url>
          <loc>https://stationeers.huisman.io/research/GameClasses/SayCommand/</loc>
+         <lastmod>2026-05-18</lastmod>
+    </url>
+    <url>
+         <loc>https://stationeers.huisman.io/research/GameClasses/Sensor/</loc>
          <lastmod>2026-05-18</lastmod>
     </url>
     <url>
