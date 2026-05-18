@@ -19,8 +19,8 @@ namespace InspectorPlus
         internal static ManualLogSource Log;
         internal static ConfigEntry<KeyboardShortcut> SnapshotKey;
 
-        private static string _watchDir;
-        private static string _outputDir;
+        internal static string _watchDir;
+        internal static string _outputDir;
         private FileSystemWatcher _watcher;
 
         void Awake()
@@ -124,7 +124,7 @@ namespace InspectorPlus
             }
         }
 
-        private void ProcessRequestFileInline(string fullPath)
+        internal static void ProcessRequestFileInline(string fullPath)
         {
             try
             {
@@ -137,6 +137,29 @@ namespace InspectorPlus
             catch (Exception ex)
             {
                 Log.LogError($"InspectorPlus[POLL] processing {Path.GetFileName(fullPath)} failed: {ex}");
+            }
+        }
+
+        // Called from a Harmony postfix on ElectricityManager.ElectricityTick (see
+        // RequestPollOnTickPatch.cs). The dedicated server's headless main loop
+        // does not drive MonoBehaviour.Update() or coroutines reliably, so the
+        // Plugin.Update()-based and MainThreadDispatcher-coroutine-based polling
+        // both stall after world load. ElectricityTick, in contrast, is invoked
+        // from the server's game-thread tick driver and fires regularly (every
+        // simulation tick) once force-unpause has run, so it is a reliable
+        // main-thread pump for our request-file scan + processing.
+        internal static void ProcessPendingRequests()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_watchDir)) return;
+                var files = Directory.GetFiles(_watchDir, "*.json");
+                if (files.Length == 0) return;
+                foreach (var f in files) ProcessRequestFileInline(f);
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"InspectorPlus[POLL] ProcessPendingRequests failed: {ex}");
             }
         }
 
@@ -188,7 +211,7 @@ namespace InspectorPlus
             });
         }
 
-        private void TakeSnapshot(SnapshotRequest request)
+        internal static void TakeSnapshot(SnapshotRequest request)
         {
             try
             {

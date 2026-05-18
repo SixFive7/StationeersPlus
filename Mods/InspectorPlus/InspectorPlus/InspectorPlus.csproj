@@ -65,6 +65,7 @@
     <Compile Include="ObjectWalker.cs" />
     <Compile Include="MainThreadDispatcher.cs" />
     <Compile Include="DishProbePatch.cs" />
+    <Compile Include="RequestPollOnTickPatch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
