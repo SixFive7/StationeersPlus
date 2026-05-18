@@ -6683,7 +6683,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-28.
+           on 2026-05-18.
         </p>
       
       
@@ -8168,35 +8168,34 @@
 <li><code>setting.xml</code> written to <code>&lt;SavePath&gt;/setting.xml</code> on first save, which (with empty SavePath) is the exe directory.</li>
 </ul>
 <h2 id="notes-for-dedicatedserverdedicated-serverps1">Notes for DedicatedServer/dedicated-server.ps1<a class="headerlink" href="#notes-for-dedicatedserverdedicated-serverps1" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
 <p>The launcher's current <code>-Start</code> flag set:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>-batchmode -nographics
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>-settingspath  &lt;DedicatedServer&gt;/data/setting.xml
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>-logFile       &lt;DedicatedServer&gt;/data/server.log
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>-settings SavePath           &lt;DedicatedServer&gt;/data
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>-settings GamePort           27016
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>-settings UpdatePort         27015
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>-settings AutoSave           true
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>-settings UPNPEnabled        false
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>-settings ServerName         &quot;Local Test&quot;
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>-settings ServerMaxPlayers   4
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>-settings ServerPassword     x
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>-settings ServerAuthSecret   x
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>-load &lt;SaveName&gt; &lt;Map&gt;   OR   -new &lt;Map&gt;
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>-settings GamePort           28016
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>-settings UpdatePort         28015
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>-settings LocalIpAddress     127.0.0.1
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>-settings AutoSave           true
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>-settings AutoPauseServer    false
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>-settings UPNPEnabled        false
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>-settings ServerName         &quot;Local Test&quot;
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>-settings ServerMaxPlayers   4
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>-settings ServerAuthSecret   x
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>-load &lt;SaveName&gt; &lt;Map&gt;   OR   -new &lt;Map&gt;
 </span></code></pre></div>
 <p>Verified against the source:</p>
 <ul>
-<li><code>UPNPEnabled false</code> is correct for a local-only test rig; the default <code>true</code> would advertise via UPnP.</li>
-<li><code>ServerPassword x</code> is correct; clients enter <code>x</code> in Direct Connect.</li>
-<li><code>ServerAuthSecret x</code> is correct; matching value on the client unlocks <code>serverrun</code> for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).</li>
+<li><code>LocalIpAddress 127.0.0.1</code> pins RakNet to the loopback interface. Without it RakNet binds whichever interface comes up first, which on a developer machine with an active LAN is the LAN IP (<code>10.20.30.200</code> or similar) -- direct connections to <code>127.0.0.1:28016</code> then fail because no listener is bound there. Loopback binding makes the agent-driven test loop deterministic. To intentionally expose the server to the LAN, override or remove this line.</li>
+<li><code>UPNPEnabled false</code> is correct for a loopback-only test rig; the default <code>true</code> would advertise via UPnP. Redundant with the loopback bind but kept for documentation.</li>
+<li>No <code>ServerPassword</code>. The server is loopback-only, so unauthenticated connections from outside the machine are impossible at the network layer; a connection password adds no protection in that topology and just gets in the way of agent-driven test loops. Earlier launcher revisions hardcoded <code>ServerPassword x</code>; that was removed once the LocalIpAddress pin landed.</li>
+<li><code>ServerAuthSecret x</code> is kept; matching value on the client unlocks <code>serverrun</code> for in-game admin commands without writing to the server's stdin (see ServerRunCommand at decompile line 98588).</li>
 <li><code>ServerMaxPlayers 4</code> is below the default of 10. No clamping is visible at the SettingData level; the source-of-truth for upper bound (1-30 in public docs) was not located this pass.</li>
+<li><code>AutoPauseServer false</code> keeps world simulation running with no clients connected (atmospheric simulation, growth, decay, autosave timer). Default is <code>true</code>. Required for tests that depend on game-time progression between client sessions.</li>
 <li><code>AutoSave true</code> matches the default; passing it explicitly is documentation, not a state change.</li>
-<li><code>GamePort 27016</code> / <code>UpdatePort 27015</code> match the defaults; explicit for the same reason.</li>
-</ul>
-<p>Optional refinement not currently applied:</p>
-<ul>
-<li><code>-settings AutoPauseServer false</code> for tests that need world-time progression even with no client connected (atmospheric simulation, growth, decay). The default is <code>true</code>, which pauses the world when nobody is connected.</li>
+<li><code>GamePort 28016</code> / <code>UpdatePort 28015</code> are offset by +1000 from the Stationeers client defaults (<code>27016</code> / <code>27015</code>) so the dedicated server runs alongside a hosting client on the same machine without RakNet's port-binding fallback.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -8204,6 +8203,7 @@
 <ul>
 <li>2026-04-28: page created from a fresh decompile of <code>Assembly-CSharp.dll</code> at game version <code>0.2.6228.27061</code> (ilspycmd output at <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>). All Settings field defaults are verbatim from <code>Settings.SettingData</code> (decompile lines 248236-248577). Command dispatch dictionary verbatim from <code>CommandLine</code> static constructor (lines 94942-95038). HelpText / Arguments / IsLaunchCmd values for the lifecycle commands (Save, Quit, LoadGame, LoadLatest, NewGame, Settings, SettingsPath, ServerRun, Ban) are verbatim from each command's class declaration.</li>
 <li>2026-04-28: launcher relocated from <code>tools/dedicated-server.ps1</code> to <code>DedicatedServer/dedicated-server.ps1</code> (un-ignored alongside <code>DedicatedServer/CLAUDE.md</code>). Flag set updated: <code>StartLocalHost true</code> removed (confirmed unnecessary on the dedicated build's load path), <code>ServerAuthSecret x</code> added (enables <code>serverrun</code> from a connected client). Path references and the "Notes for DedicatedServer/dedicated-server.ps1" section updated to match. Game-internals claims unchanged.</li>
+<li>2026-05-18: launcher flag set updated to pin <code>LocalIpAddress 127.0.0.1</code> and drop <code>ServerPassword x</code>. Confirmed via runtime test (host wrapper PID 25800, server UDP bind read via <code>Get-NetUDPEndpoint</code>): without LocalIpAddress, RakNet bound UDP 28016 to the LAN IP <code>10.20.30.200</code> and refused loopback connections; with LocalIpAddress = 127.0.0.1, the bind moves to loopback and Direct Connect from a same-machine client succeeds. Removed ServerPassword because the loopback bind makes external auth at the network layer impossible to bypass, so a password adds friction without security. Kept <code>ServerAuthSecret x</code> (it gates <code>serverrun</code>, not connection). Also flipped <code>AutoPauseServer</code> to <code>false</code> in the documented flag block to match the launcher, which has been carrying that flag for tests that need simulation between client sessions.</li>
 <li>2026-04-28: corrected world-id list in the <code>-new</code> deep-dive. NewGameCommand source declares <code>"Moon"</code> as the default but <code>WorldSetting.Find("Moon")</code> returns null at runtime; valid ids verified by runtime probe are <code>Lunar, Mars2, Europa3, MimasHerschel, Venus, Vulcan2, Vulcan (Deprecated)</code>. Defaults summary updated to use <code>-new Lunar</code> as the example.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
