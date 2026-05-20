@@ -3,7 +3,7 @@ title: Elevator
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-18
+verified_at: 2026-05-21
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 188139-188521 (ElevatorCarrageSaveData, ElevatorMode, ElevatorCarrage), 374128-374290 (ElevatorLevel), 374291-374587 (ElevatorShaft), 374588-374750 (ElevatorShaftNetwork), 297950-297970 + 299367-299379 (Thing.PaintableMaterial, Thing.IsPaintable)
 related:
@@ -143,7 +143,7 @@ public enum ElevatorMode : byte
 `ElevatorCarrage._ElevatorMode` is backed by a `byte` field with `[ByteArraySync]`, written to the network in `Serialize` / `Deserialize` and on join. `SetElevatorMode(ElevatorMode)` (line 188294) dispatches to `OnServer.Interact(base.InteractActivate, 0)` for `Stationary` and to `OnServer.Interact(base.InteractActivate, 1)` for both `Upward` and `Downward`. The enum is exposed to IC10 via `new BasicEnum<ElevatorMode>("ElevatorMode")` at line 393584.
 
 ## Paint enumeration pattern
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
 
 Given any single elevator-piece `Thing` as a seed (a shaft, a level, or the carriage), the full paint set is reachable in one hop via the `.ShaftNetwork` back-reference:
 
@@ -170,13 +170,13 @@ if (network != null)
 
 `ElevatorLevel` does not need a separate branch: it inherits from `ElevatorShaft`, so the seed switch covers it and the `List<ElevatorShaft>` enumeration picks it up. Visual prefab variants (with-cable, without-cable) all instantiate one of these three classes and live in the same network, so the walk covers them uniformly.
 
-The `SetCustomColor` setter on `ElevatorCarrage` is inherited from `DynamicThing` without override; the carriage's motion does not guard the color setter. Whether the assigned color persists visually through carriage motion is open (see Open questions).
+The `SetCustomColor` setter on `ElevatorCarrage` is inherited from `DynamicThing` without override; the carriage's motion does not guard the color setter. Confirmed in-game on 2026-05-21 (game version 0.2.6228.27061): a painted carriage keeps its color through vertical motion.
 
 ## Verification history
 
 - 2026-05-18: Initial writeup. Consolidated from two in-session drafts (`ElevatorPaintability.md`, `ElevatorSystem.md`, both unsanctioned and removed in the same change). All claims re-verified against `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. The "elevators are not paintable" claim from an earlier sub-agent pass was incorrect: it grepped for `PaintableMaterial =` assignments in code, which misses prefab-asset assignments by Unity serialization. In-game verification confirms paintability on all three classes and all known with-cable / without-cable visual variants.
+- 2026-05-21: Resolved the carriage-persistence open question. Developer confirmed in-game (game version 0.2.6228.27061) that a painted `ElevatorCarrage` retains its `CustomColor` through vertical motion. Observed during SprayPaintPlus elevator-paint feature testing.
 
 ## Open questions
 
-- Does the custom color assigned to an `ElevatorCarrage` persist visually as the carriage moves vertically? `DynamicThing` color machinery is the same as for other moving items, so the expected answer is yes, but this has not been confirmed in-game.
 - The exact vanilla in-game build-menu names for the with-cable and without-cable variants of each piece (e.g., for `ElevatorShaft`) are not captured here; they live in Stationpedia data and were not extracted in this pass.
