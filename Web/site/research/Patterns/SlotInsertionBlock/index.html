@@ -6523,7 +6523,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-21.
+           on 2026-05-21.
         </p>
       
       
@@ -6579,7 +6579,7 @@
 
 
 <h1 id="slotinsertionblock">SlotInsertionBlock<a class="headerlink" href="#slotinsertionblock" title="Permanent link">&para;</a></h1>
-<p>How to block a specific <code>(Thing, Slot)</code> combination from being inserted, via Harmony patches. Used by <code>SprayPaintPlus</code> v1.4.0 to prevent <code>SprayCan</code> from being loaded into the <code>SprayGun</code> once the glow-paint feature replaces the gun's ammo model.</p>
+<p>How to block a specific <code>(Thing, Slot)</code> combination from being inserted, via Harmony patches. Researched for the <code>SprayPaintPlus</code> v1.4.0 glow-paint gun (blocking a <code>SprayCan</code> from the <code>SprayGun</code> once the gun goes ammo-less). Note that mod ultimately shipped a UI-only <code>Slot.Class.Blocked</code> slot hide in <code>GlowPaintPatches.cs</code>, not the server-authoritative <code>CanEnter</code> block documented here; the can-in-gun block in <code>SprayPaintPlus</code> is therefore UI-level only.</p>
 <h2 id="insertion-call-chain">Insertion call chain<a class="headerlink" href="#insertion-call-chain" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
@@ -6626,18 +6626,18 @@
 </span></code></pre></div>
 <p>Without this, the client UI can briefly show the insert as succeeding before the server rejects and the item snaps back. With both the <code>CanEnter</code> postfix and the <code>AllowMove</code> prefix in place, the UI stays consistent with the rule.</p>
 <h2 id="legacy-state-handling">Legacy-state handling<a class="headerlink" href="#legacy-state-handling" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
 
-<p><code>Thing.CanEnter</code> is NOT re-checked during save load. Items already parented in slots at save time load as-is regardless of the current predicate. When a mod introduces a new block against a previously-valid <code>(Thing, Slot)</code> combination (like SprayPaintPlus v1.4.0's can-in-gun block), saves from before the block load normally, and the previously-loaded contents become orphaned: they still function (the gun still fires), but they cannot be re-inserted after the player removes them.</p>
+<p><code>Thing.CanEnter</code> is NOT re-checked during save load. Items already parented in slots at save time load as-is regardless of the current predicate. When a mod introduces a new block against a previously-valid <code>(Thing, Slot)</code> combination, saves from before the block load normally, and the previously-loaded contents become orphaned: they still function (the gun still fires). With the <code>CanEnter</code> block above in place, they cannot be re-inserted after the player removes them. A UI-only <code>Slot.Class.Blocked</code> hide (as <code>SprayPaintPlus</code> actually ships) does not have this property: the occupied slot is left untouched at load, so its contents stay removable and re-insertable until the slot is emptied and the world reloaded.</p>
 <p>To eject orphaned contents cleanly on load, postfix a post-load hook (<code>Thing.OnFinishedLoad</code> or equivalent) on the container type and move the child out via <code>OnServer.MoveToWorld</code>. This is optional polish; many mods ship without it and document the edge case instead.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-04-21: page created. Decompile findings sourced from Assembly-CSharp.dll (Thing.CanEnter at line 3931, DynamicThing.MoveToSlot at line 2443, Slot.AllowMove at line 659, Slot.TakesSpecificItem at line 981) surfaced by a sub-agent pass in support of SprayPaintPlus v1.4.0 (block SprayCan from SprayGun).</li>
+<li>2026-05-21: re-confirmed the insertion call chain and the <code>CanEnter</code> / <code>AllowMove</code> techniques against 0.2.6228.27061 (still accurate). Corrected provenance: <code>SprayPaintPlus</code> did not adopt this page's server-authoritative technique; it ships a UI-only <code>Slot.Class.Blocked</code> slot hide (<code>SprayGunSlotHiderPatch</code> in <code>GlowPaintPatches.cs</code>), so its can-in-gun block is UI-level only and orphaned cans stay re-insertable until removed and reloaded. Resolved the <code>Thing.OnFinishedLoad</code> open question: the signature is pinned and used in production by the <code>SprayPaintPlus</code> v1.6.0 glow side-car (<code>ThingOnFinishedLoadGlowPatch</code>); <code>SprayPaintPlus</code> accepts the orphaned-can edge case by design rather than ejecting.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>CanEnterResult</code> struct shape: the <code>Fail(string)</code> factory is documented here; the full field / method list (other factories, severity levels, etc.) is not. If a mod wants to read the reason or downgrade the severity of an existing fail, the shape needs pinning.</li>
-<li><code>Thing.OnFinishedLoad</code> method signature (and whether it is virtual / protected / public) is not documented. SprayPaintPlus v1.4.0 defers the legacy-eject pass until this is pinned.</li>
 </ul>
 
 
