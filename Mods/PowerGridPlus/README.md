@@ -26,6 +26,12 @@ Added by this mod (the three-tier voltage backbone):
 - **Placement UX:** placing a device on the wrong cable tier is allowed -- when power flows, the *cable* burns and the device becomes orphaned (never the device itself). But placing the wrong-tier *cable* next to an existing device shows a red ghost with a "Wrong voltage" tooltip; same for placing a wrong-tier cable next to an existing cable network of another tier. So: you can't make a tier mistake at the cable-coil cursor, but you can make one at the device cursor -- and the resulting cable burn tells you exactly what went wrong.
 - **Burned-cable tooltips tell you why.** Hover over a ruptured cable and the tooltip says "Burned: overloaded" / "Burned: wrong voltage -- adjacent <device>" / "Burned: wrong voltage -- bridging different tiers", so you can tell a sustained-overload burn from a tier mismatch at a glance.
 
+Logic passthrough (also new):
+
+- **Bridging devices can be made logic-transparent.** A transformer, stationary battery, or Area Power Controller splits a power network into two sides, and normally an IC10 chip or logic reader on one side cannot see the devices on the other. Turn passthrough on and it can: both sides read as one logic network, with no extra data cable. A linked Microwave Power Transmitter and Receiver pair bridges the same way across its wireless link.
+- **A writable `LogicPassthroughMode` logic value controls it per device** (set it from an IC10 chip or a Logic Writer): 1 = transparent, 0 = vanilla opaque. It defaults to transparent for batteries, transmitter and receiver dishes, and the small transformer (and its reversed variant); opaque for other transformers. Area Power Controllers follow their server toggle only (no per-device value). The per-device setting is saved with the world.
+- **Each device family has a server-authoritative master toggle**, so a host can switch passthrough off globally for transformers, batteries, power transmitters, or Area Power Controllers.
+
 This is an early build, not yet play-tested.
 
 ## Settings
@@ -45,9 +51,13 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Batteries | Max Battery Discharge Rate | 0.007 | Max discharge per tick, as a fraction of capacity. |
 | Batteries | Battery Charge Efficiency | 1.0 | Fraction of incoming power stored. |
 | Batteries | Enable Battery Logic Additions | true | Expose battery rate limits as logic values. |
+| Batteries | Enable Battery Logic Passthrough | true | Master toggle for battery logic passthrough (a battery bridges its two cable sides). |
 | Transformers | Enable Transformer Exploit Mitigation | true | Close the transformer free-power exploit. |
 | Transformers | Enable Transformer Logic Additions | true | Expose transformer throughput as Power Actual. |
+| Transformers | Enable Transformer Logic Passthrough | true | Master toggle for transformer logic passthrough. |
 | Area Power Control | Enable APC Power Fix | true | Stop the APC power leak and idle battery drain. |
+| Area Power Control | Enable APC Logic Passthrough | true | APCs are logic-transparent (logic readers on either side see the other side's devices). |
+| Power Transmitters | Enable Power Transmitter Logic Passthrough | true | Master toggle for transmitter / receiver logic passthrough across a wireless link. |
 
 ## Compatibility
 

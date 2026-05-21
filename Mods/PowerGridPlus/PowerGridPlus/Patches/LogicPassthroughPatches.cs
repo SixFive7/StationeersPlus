@@ -1,28 +1,31 @@
 using System.Collections.Generic;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Makes bridging devices logic-transparent: a logic reader on one side of the bridge sees
-    ///     devices on the other side. Covered bridges:
+    ///     Makes bridging devices logic-transparent: a logic reader on one side of a bridge sees
+    ///     devices on the other side. Passthrough is TRANSITIVE -- it follows a chain of mode-1 bridges
+    ///     to its transitive closure, so a reader on one network sees every device on every network
+    ///     reachable through bridges, not just the immediate neighbour. Cyclic bridge graphs are safe
+    ///     (the walk folds each network in once). The set of bridge devices and their per-device gating
+    ///     live in <see cref="PassthroughTopology"/>.
     ///
-    ///     - Transformer / AreaPowerControl: bridge between InputNetwork and OutputNetwork on a single device.
-    ///     - Battery: bridge between InputNetwork (charging side) and OutputNetwork (discharging side).
-    ///     - PowerTransmitter / PowerReceiver pair: bridge from the TX cable network (tx.InputNetwork)
-    ///       to the RX cable network (rx.OutputNetwork) via the wireless link.
+    ///     Mechanism: postfix on <see cref="CableNetwork.RefreshPowerAndDataDeviceLists"/>. The merge
+    ///     reads the live <see cref="CableNetwork.DeviceList"/> of every network in the local network's
+    ///     passthrough component and appends each entry (deduped) into the local data device list, so
+    ///     the bridging devices' own <see cref="LogicType"/> slots become readable from anywhere in the
+    ///     component as a side effect. Because the merge reads live device lists, it is correct as long
+    ///     as the local network is refreshed after any component change; cross-network invalidation (so
+    ///     a change on a far network rebuilds this network's list) is handled by the dirty-propagation
+    ///     in <see cref="CableNetworkPatches"/>.
     ///
-    ///     Mechanism: postfix on <see cref="CableNetwork.RefreshPowerAndDataDeviceLists"/>. For each
-    ///     supported bridging device sitting on the local network, find its "other" side cable network
-    ///     and append every entry in that network's <see cref="CableNetwork.DeviceList"/> (deduped)
-    ///     into the local data device list. The bridging device itself is already in both sides'
-    ///     <see cref="CableNetwork.DeviceList"/> via its two cable connections (or via the wireless
-    ///     link for TX/RX pairs), so its own <see cref="LogicType"/> slots become readable from both
-    ///     sides as a side effect.
+    ///     Cadence: <c>RefreshPowerAndDataDeviceLists</c> runs only when a device list was dirtied and
+    ///     then read (structural changes, not per tick -- see Research/GameClasses/CableNetwork.md), so
+    ///     this walk is amortized over topology edits, not paid on the frame path.
     /// </summary>
     [HarmonyPatch(typeof(CableNetwork), "RefreshPowerAndDataDeviceLists")]
     public static class LogicPassthroughPatches
@@ -39,59 +42,14 @@ namespace PowerGridPlus.Patches
         public static void Postfix(CableNetwork __instance, bool __state, List<Device> ____dataDeviceList)
         {
             if (!__state) return;
-            if (!Settings.EnableTransformerLogicPassthrough.Value
-                && !Settings.EnableAreaPowerControlLogicPassthrough.Value
-                && !Settings.EnableBatteryLogicPassthrough.Value
-                && !Settings.EnablePowerTransmitterLogicPassthrough.Value)
-                return;
+            if (!PassthroughTopology.AnyPassthroughEnabled()) return;
 
-            var devices = __instance.DeviceList;
-            for (int i = devices.Count - 1; i >= 0; i--)
+            var reachable = PassthroughTopology.GatherReachable(__instance);
+            if (reachable == null) return; // not part of a passthrough component
+
+            for (int n = 0; n < reachable.Count; n++)
             {
-                var device = devices[i];
-                if (device == null) continue;
-
-                CableNetwork other = null;
-
-                if (device is Transformer transformer)
-                {
-                    if (!Settings.EnableTransformerLogicPassthrough.Value) continue;
-                    if (PassthroughModeStore.GetMode(transformer) == 0) continue;
-                    other = (transformer.InputNetwork == __instance) ? transformer.OutputNetwork : transformer.InputNetwork;
-                }
-                else if (device is AreaPowerControl apc)
-                {
-                    if (!Settings.EnableAreaPowerControlLogicPassthrough.Value) continue;
-                    other = (apc.InputNetwork == __instance) ? apc.OutputNetwork : apc.InputNetwork;
-                }
-                else if (device is Battery battery)
-                {
-                    if (!Settings.EnableBatteryLogicPassthrough.Value) continue;
-                    if (PassthroughModeStore.GetMode(battery) == 0) continue;
-                    other = (battery.InputNetwork == __instance) ? battery.OutputNetwork : battery.InputNetwork;
-                }
-                else if (device is PowerTransmitter tx)
-                {
-                    if (!Settings.EnablePowerTransmitterLogicPassthrough.Value) continue;
-                    if (PassthroughModeStore.GetMode(tx) == 0) continue;
-                    // TX's cable side is its InputNetwork; partner cable is rx.OutputNetwork.
-                    other = tx.LinkedReceiver?.OutputNetwork;
-                }
-                else if (device is PowerReceiver rx)
-                {
-                    if (!Settings.EnablePowerTransmitterLogicPassthrough.Value) continue;
-                    if (PassthroughModeStore.GetMode(rx) == 0) continue;
-                    // RX's cable side is its OutputNetwork; partner cable is tx.InputNetwork.
-                    other = rx.LinkedPowerTransmitter?.InputNetwork;
-                }
-                else
-                {
-                    continue;
-                }
-
-                if (other == null || other == __instance) continue;
-
-                var remote = other.DeviceList;
+                var remote = reachable[n].DeviceList;
                 for (int j = remote.Count - 1; j >= 0; j--)
                 {
                     var remoteDevice = remote[j];

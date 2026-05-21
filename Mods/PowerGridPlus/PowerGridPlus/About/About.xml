@@ -35,6 +35,13 @@ Re-Volt's circuit breakers and Load Center are not included; this is the pure-si
 [*]Burned cables explain why: hover over a ruptured cable for "Burned: overloaded" / "Burned: wrong voltage -- adjacent [device]" / "Burned: wrong voltage -- bridging different tiers".
 [/list]
 
+[h3]Logic passthrough (new)[/h3]
+[list]
+[*]Transformers, stationary batteries and Area Power Controllers split a power network in two; normally a logic reader on one side can't see the other side's devices. Turn on passthrough and it can, with no extra data cable. Linked Microwave Power Transmitter and Receiver dishes bridge across their wireless link too.
+[*]A writable LogicPassthroughMode logic value (set from IC10 or a Logic Writer) controls it per device: 1 = transparent, 0 = vanilla. Defaults to transparent for batteries, dishes and the small transformer; opaque for other transformers. Saved with the world.
+[*]Each device family has a server-authoritative master toggle.
+[/list]
+
 [h3]Settings[/h3]
 All settings are server-authoritative: in multiplayer the host's value controls gameplay for everyone. Highlights:
 [list]
@@ -43,6 +50,7 @@ All settings are server-authoritative: in multiplayer the host's value controls 
 [*][b]Enable Voltage Tiers[/b] (default true), [b]Extra Heavy-Cable Devices[/b] (a comma-separated PrefabName list).
 [*][b]Enable Battery Limits[/b] / [b]Max Battery Charge Rate[/b] / [b]Max Battery Discharge Rate[/b] / [b]Battery Charge Efficiency[/b].
 [*][b]Enable Transformer Exploit Mitigation[/b], [b]Enable APC Power Fix[/b].
+[*][b]Enable Transformer / Battery / Power Transmitter Logic Passthrough[/b], [b]Enable APC Logic Passthrough[/b] (all default true).
 [/list]
 
 [h2]Compatibility[/h2]
@@ -78,6 +86,8 @@ v0.1.0: First build (work in progress)
 - Recursive and looped networks allowed by default.
 - Super-heavy cable never burns; the three cable tiers are separate transmission voltages (mixing them burns the lower-tier boundary cable and splits the network); devices belong on their tier (generators and batteries on heavy, high-draw machines on heavy or normal, super-heavy is cables-and-transformers only, everything else on normal) and a device on the wrong tier gets no power; super-heavy cable coil costs 2x to craft (configurable via the multiplier).
 - Reactive tier enforcement: a wrong-tier cable burns on the next power tick if the network has actual power flow (an idle or off network destroys nothing). Wrong-tier cable placement is blocked at the cursor with a "Wrong voltage" tooltip; device placement is never blocked. Burned cables explain why they burned in their hover tooltip.
+- Logic passthrough: a writable LogicPassthroughMode logic value (set via IC10 or a logic writer) makes power-network bridging devices logic-transparent, so a logic reader sees devices on the far side, transitively across a whole chain of bridged devices (cycle-safe, so looped networks are fine). Covers transformers, stationary batteries, linked power transmitter and receiver dishes, and Area Power Controllers. The per-device mode is server-authoritative, persists across save and load, and each device family has its own master server toggle.
+- Deterministic network merge: when cable or structure networks merge, the survivor is chosen by lowest reference id so the host and all clients agree on the same network id (a multiplayer correctness fix).
   </ChangeLog>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>
@@ -89,15 +99,16 @@ v0.1.0: First build (work in progress)
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Power Grid Plus</color></size>
 <line-height=40%>Reworks the Stationeers power simulation and turns the three cable tiers into three separate transmission voltages.
-A pure-patch mod (no new prefabs). Simulation half derived from Re-Volt (MIT). Full multiplayer compatibility. Safe to remove from existing savegames. Early build -- some pieces still in progress.
+A pure-patch mod (no new prefabs). Simulation half from Re-Volt (MIT). Multiplayer-compatible; safe to remove from saves. Early build.
 <b>From Re-Volt:</b>
 - Proportional load sharing across sources and loads.
 - Gradual probabilistic cable burnout on a rolling throughput average; fuses still blow first.
-- Recursive/looped networks allowed; battery charge/discharge limits + logic values; transformer exploit fix + Power Actual logic value; APC power-leak fix.
+- Recursive/looped networks allowed; battery charge/discharge limits; transformer exploit fix; APC power-leak fix.
 <b>New:</b>
 - Super-heavy cable never burns; it is the long-haul backbone.
 - The three cable tiers are separate voltages; mixing them burns the lower-tier boundary cable. Bridge tiers with a transformer or APC.
-- Devices belong on their tier (generators/batteries on heavy, high-draw machines on heavy or normal, everything else on normal); a misplaced device burns its cable on the next power tick (only when power is actually flowing). Wrong-tier cable placement is cursor-blocked. Burned cables explain why.
+- Devices belong on their tier (generators/batteries on heavy, high-draw machines on heavy or normal, else normal); a misplaced device burns its cable on the next powered tick. Wrong-tier cable placement is cursor-blocked; burned cables explain why.
+- Logic passthrough: a writable LogicPassthroughMode makes transformers, batteries and linked transmitter/receiver dishes logic-transparent.
 <b>Settings:</b> Server-authoritative; the host's values control gameplay for everyone.
 <b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
 </line-height>

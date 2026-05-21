@@ -16,16 +16,16 @@ namespace PowerGridPlus.Patches
     // [HarmonyPatch(typeof(Battery), nameof(Battery.SetLogicValue))] throws
     // "Undefined target method" at PatchAll time when Battery does not declare
     // SetLogicValue itself, which bails the whole Harmony batch and silently disables
-    // every patch processed after it (including DeviceInitializePatch, the bridge
+    // every patch processed after it (including LogicableInitializePatch, the bridge
     // postfix, recipe cost re-apply, IC10 constants). See
-    // Research/Patterns/HarmonyDeviceInheritedMethodTrap.md.
+    // Research/Patterns/HarmonyLogicableInheritedMethodTrap.md.
     //
     // Transformer is handled separately in TransformerPassthroughLogicPatches.cs because
     // Transformer overrides the four methods directly -- our base-class patch here would
     // be shadowed by Transformer's override at runtime, so the Transformer-specific patch
     // is still required for the Transformer case.
     [HarmonyPatch(typeof(Device))]
-    public static class InheritedDevicePassthroughLogicPatches
+    public static class InheritedLogicablePassthroughLogicPatches
     {
         private static bool IsBridge(Device l) =>
             l is Battery || l is PowerTransmitter || l is PowerReceiver;
