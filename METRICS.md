@@ -27,6 +27,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 |---|---|---|---|---|---|---|---|
 | 2026-05-12 | 360 | 972 | 40 | 26 | 15 | insufficient ratings | 1.7.1 (Workshop updated 2026-04-28) |
 | 2026-05-21 | 383 | 1033 | 43 | 31 | 15 | insufficient ratings | 1.7.1 (Workshop updated 2026-04-28) |
+| 2026-05-21 | 383 | 1033 | 43 | 31 | 15 | insufficient ratings | 1.8.0 (Workshop updated 2026-05-21) |
 
 ## Power Transmitter Plus
 
