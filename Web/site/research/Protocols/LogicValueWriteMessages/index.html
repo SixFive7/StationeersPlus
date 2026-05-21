@@ -5514,6 +5514,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-rocketmotherboard-logic-config-panel-float-typed-commit-a-separate-path-from-the-handheld-tablet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The RocketMotherboard logic-config panel: float-typed commit (a separate path from the handheld tablet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setlogicfromclient-id-37-the-handheld-settable-write-gated-on-isetable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SetLogicFromClient (id 37): the handheld / settable write, gated on ISetable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#patching-setlogicvalue-target-the-declaring-type" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6379,6 +6401,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-rocketmotherboard-logic-config-panel-float-typed-commit-a-separate-path-from-the-handheld-tablet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The RocketMotherboard logic-config panel: float-typed commit (a separate path from the handheld tablet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setlogicfromclient-id-37-the-handheld-settable-write-gated-on-isetable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SetLogicFromClient (id 37): the handheld / settable write, gated on ISetable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#patching-setlogicvalue-target-the-declaring-type" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6501,7 +6545,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-18.
+           on 2026-05-21.
         </p>
       
       
@@ -6622,6 +6666,90 @@
 <li><strong>Host / single-player</strong>: <code>IsClient</code> is false, so <code>SetLogicValue</code> is called directly in-process. The patch fires locally.</li>
 </ul>
 <p>Note the input is typed <code>float newValue</code> here, widened to the message's <code>double LogicValue</code>. A logic value carrying a 64-bit <code>Thing.ReferenceId</code> (which can exceed 2^24) loses precision through a <code>float</code>-typed UI path; whether a given UI control is <code>float</code>- or <code>double</code>-typed determines whether large-id writes (e.g. a target ReferenceId) survive. <code>RocketMotherboard.LogicValueChanged</code> is <code>float</code>-typed; other write entry points may differ and were not all enumerated this pass (see Open Questions).</p>
+<h2 id="the-rocketmotherboard-logic-config-panel-float-typed-commit-a-separate-path-from-the-handheld-tablet">The RocketMotherboard logic-config panel: float-typed commit (a separate path from the handheld tablet)<a class="headerlink" href="#the-rocketmotherboard-logic-config-panel-float-typed-commit-a-separate-path-from-the-handheld-tablet" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+
+<p>The in-game logic-config tablet (the <code>LogicControlPanel</code> on <code>RocketMotherboard</code>, shown when a logicable is selected) builds its per-LogicType rows in <code>RocketUIBuilder.BuildModel</code> (decompile around line 154914). The row list is assembled CLIENT-SIDE from the local logicable instance:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EnumCollections</span><span class="p">.</span><span class="n">LogicTypes</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">num</span><span class="o">--</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EnumCollections</span><span class="p">.</span><span class="n">LogicTypes</span><span class="p">.</span><span class="n">Values</span><span class="p">[</span><span class="n">num</span><span class="p">];</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">logicable</span><span class="p">.</span><span class="n">CanLogicRead</span><span class="p">(</span><span class="n">logicType</span><span class="p">))</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="n">model</span><span class="p">.</span><span class="n">LogicControlModel</span><span class="p">.</span><span class="n">LogicValues</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">LogicValueModel</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">            </span><span class="n">DeviceReferenceId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">logicable</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">            </span><span class="n">DisplayName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">logicType</span><span class="p">.</span><span class="n">GetName</span><span class="p">(),</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">            </span><span class="n">Pinned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pinned2</span><span class="p">,</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">            </span><span class="n">LogicType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">logicType</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">            </span><span class="n">CanLogicWrite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">logicable</span><span class="p">.</span><span class="n">CanLogicWrite</span><span class="p">(</span><span class="n">logicType</span><span class="p">),</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">            </span><span class="n">Value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">motherboard</span><span class="p">.</span><span class="n">SelectedDeviceLogicValues</span><span class="p">[(</span><span class="kt">int</span><span class="p">)</span><span class="n">logicType</span><span class="p">]</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="p">});</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Two consequences for a mod-registered writable LogicType:</p>
+<ul>
+<li>A row appears only when <code>CanLogicRead(logicType)</code> returns true (the gate is read, not write). The field is then made editable when <code>CanLogicWrite(logicType)</code> returns true.</li>
+<li>Both <code>CanLogicRead</code> and <code>CanLogicWrite</code> are called on the CLIENT's own copy of the logicable. A Harmony postfix that forces these true (as PowerTransmitterPlus does on <code>WirelessPower.CanLogicRead</code> / <code>CanLogicWrite</code>) runs on every peer, so the row shows and the input is interactable on a remote client with no server round-trip. The writable-list computation is NOT server-driven.</li>
+</ul>
+<p><code>LogicValueModel.Value</code> is typed <code>double</code> (line 155246) and <code>CanLogicWrite</code> is <code>bool</code> (line 155248). The editable field's interactability is set in <code>LogicValueDisplay.Initialize</code> (line 152748): <code>_valueInputField.interactable = model.CanLogicWrite;</code>.</p>
+<p>The commit, however, goes through a <code>float</code>. <code>LogicValueDisplay.OnValueChanged</code> (line 152762, verbatim):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnValueChanged</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="k">value</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="p">))</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="n">_motherboard</span><span class="p">.</span><span class="n">LogicValueChanged</span><span class="p">(</span><span class="n">result</span><span class="p">,</span><span class="w"> </span><span class="n">_logicType</span><span class="p">,</span><span class="w"> </span><span class="n">LogicValueModel</span><span class="p">.</span><span class="n">DeviceReferenceId</span><span class="p">);</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>result</code> is a <code>float</code>. It flows into <code>RocketMotherboard.LogicValueChanged(float newValue, ...)</code> (line 318416), which packs it into <code>SetLogicValueMessage.LogicValue</code> (a <code>double</code>) on a client or calls <code>SetLogicValue(logicType, newValue)</code> directly on the host. The widening <code>float -&gt; double</code> happens AFTER the value is already a <code>float</code>, so the precision was lost at <code>float.TryParse</code>, not recovered.</p>
+<p>This <code>float</code> typing is lossy for any LogicType whose value is a <code>Thing.ReferenceId</code> above 2^24 (~16.7M): a <code>float</code> mantissa holds only ~24 bits, so a large typed-in id is quantized to the nearest representable <code>float</code>, the server casts it back (<code>(long)value</code>), and <code>Thing.Find(quantizedId)</code> may resolve nothing.</p>
+<p><strong>Scope (corrected 2026-05-21):</strong> this lossy path is ONLY the <code>RocketMotherboard</code> <code>LogicControlPanel</code>, a wall-mounted console screen. It is NOT the path a handheld tablet uses, and it does NOT explain the observed "dish auto-aim write via the AdvancedTablet reads back 0 on a dedicated server" symptom. The handheld tablet commits through <code>double.TryParse</code> and sends <code>SetLogicFromClient</code> (a <code>double</code> field, full precision -- see the next section), so there is no quantization on that path. And even if a value were quantized, the server would still CALL <code>SetLogicValue</code> (with a wrong target), firing a <code>SetLogicValue</code> patch -- whereas the dish symptom was ZERO <code>SetLogicValue</code> calls. The dish symptom is the <code>ISetable</code> gate documented in the next section, not float loss. The float path is a real, separate defect that only bites a large ReferenceId typed into the RocketMotherboard panel.</p>
+<p>The handheld <code>ConfigCartridge</code> (line 323182) is read-only IN VANILLA: <code>ReadLogicText</code> (line 323217) only appends <code>GetLogicValue</code> results to a display string and never writes. EquipmentPlus's AdvancedTablet adds click-to-write by patching <code>ConfigCartridge.OnScreenUpdate</code>, and that write goes through the <code>SetLogicFromClient</code> path below (not the RocketMotherboard float path above).</p>
+<h2 id="setlogicfromclient-id-37-the-handheld-settable-write-gated-on-isetable">SetLogicFromClient (id 37): the handheld / settable write, gated on ISetable<a class="headerlink" href="#setlogicfromclient-id-37-the-handheld-settable-write-gated-on-isetable" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+
+<p>The in-world "Set" popup and EquipmentPlus's AdvancedTablet click-to-write both use <code>SetLogicFromClient</code> (message factory id 37, decompile line 258660), NOT <code>SetLogicValueMessage</code>. Its value field is a <code>double</code> (no float quantization), but its server-side apply is gated on the target being <code>ISetable</code>. Verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SetLogicFromClient</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">ProcessedMessage</span><span class="o">&lt;</span><span class="n">SetLogicFromClient</span><span class="o">&gt;</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">LogicId</span><span class="p">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">LogicType</span><span class="w"> </span><span class="n">LogicType</span><span class="p">;</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">Value</span><span class="p">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Process</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">hostId</span><span class="p">)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">Thing</span><span class="p">.</span><span class="n">Find</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">(</span><span class="n">LogicId</span><span class="p">)</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">ISetable</span><span class="w"> </span><span class="n">setable</span><span class="p">))</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">                </span><span class="n">List</span><span class="o">&lt;</span><span class="kt">long</span><span class="o">&gt;</span><span class="w"> </span><span class="n">instanceId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="kt">long</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">LogicId</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">                </span><span class="n">WaitUntilFound</span><span class="p">(</span><span class="n">hostId</span><span class="p">,</span><span class="w"> </span><span class="n">Process</span><span class="p">,</span><span class="w"> </span><span class="n">Process</span><span class="p">,</span><span class="w"> </span><span class="n">instanceId</span><span class="p">,</span><span class="w"> </span><span class="mf">10f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;LogicMirror&quot;</span><span class="p">);</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">            </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">setable</span><span class="p">.</span><span class="n">CanLogicWrite</span><span class="p">(</span><span class="n">LogicType</span><span class="p">))</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">                </span><span class="n">setable</span><span class="p">.</span><span class="n">SetLogicValue</span><span class="p">(</span><span class="n">LogicType</span><span class="p">,</span><span class="w"> </span><span class="n">Value</span><span class="p">);</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Deserialize</span><span class="p">(</span><span class="n">RocketBinaryReader</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">        </span><span class="n">Network</span><span class="p">.</span><span class="n">ReadPackedId</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">LogicId</span><span class="p">);</span>
+</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">        </span><span class="n">LogicType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">LogicType</span><span class="p">)</span><span class="n">reader</span><span class="p">.</span><span class="n">ReadUInt16</span><span class="p">();</span>
+</span><span id="__span-4-27"><a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">        </span><span class="n">Value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">ReadDouble</span><span class="p">();</span>
+</span><span id="__span-4-28"><a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-29"><a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">    </span><span class="c1">// Serialize mirrors: WritePackedId, WriteUInt16((ushort)LogicType), WriteDouble(Value)</span>
+</span><span id="__span-4-30"><a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The gate: <code>Process</code> calls <code>SetLogicValue</code> ONLY when <code>Thing.Find&lt;Thing&gt;(LogicId) is ISetable setable</code> succeeds AND <code>setable.CanLogicWrite(LogicType)</code> is true. If the target is NOT <code>ISetable</code>, the write is diverted to <code>WaitUntilFound</code> (a 10-second mirror-resolution retry intended for not-yet-resolved <code>LogicMirror</code> targets) and <code>SetLogicValue</code> is NEVER called. There is no fallback to a plain <code>ILogicable</code> write.</p>
+<p><code>ISetable</code> (interface, line 329860, extends <code>ILogicable, IReferencable, IEvaluable</code>) is implemented by only a specific subset of devices. Confirmed implementers in v0.2.6228.27061 (decompile grep): <code>Waypoint</code> (114787), <code>AdvancedFurnace</code> (344409), <code>SettableAtmosDevice</code> (366393), <code>LogicUnitBase</code> (384220), <code>Stacker</code> (401794), <code>Transformer</code> (403300), <code>VendingMachineRefrigerated</code> (404776), <code>AdvancedSuit</code> (405979), <code>SuitBase</code> (407792). The WirelessPower family is NOT among them: <code>WirelessPower : ElectricalInputOutput, IRotatable</code> (405441), <code>PowerTransmitter : WirelessPower</code> (387065), <code>PowerReceiver : WirelessPower, ITransmitable, ILogicable, IReferencable, IEvaluable</code> (386861) -- none declares <code>ISetable</code>, and the shared base <code>ElectricalInputOutput</code> does not either (its sibling <code>Transformer : ElectricalInputOutput, ISetable</code> opts in explicitly, which it would not need to do if the base already implemented it). <code>Device</code> itself (349588) declares <code>ILogicable, ISlotWriteable, ...</code> but NOT <code>ISetable</code>.</p>
+<p><strong>Consequence (root cause of the dish-tablet symptom).</strong> A logic-value write to a non-<code>ISetable</code> device -- a dish, and any other <code>ILogicable</code>-but-not-<code>ISetable</code> <code>Device</code> -- sent via <code>SetLogicFromClient</code> from a remote client is silently dropped server-side at the <code>is ISetable</code> cast. This is exactly why a remote-client AdvancedTablet write of <code>MicrowaveAutoAimTarget</code> to a dish reads back 0 and fires zero <code>SetLogicValue</code> patches on the server, while:</p>
+<ul>
+<li>the same write on the host works -- the host path calls <code>Device.SetLogicValue(...)</code> directly through <code>ILogicable</code> (EquipmentPlus <code>ConfigCartridgePatches.WriteLogicValue</code>, <code>IsServer</code> branch), never touching the <code>ISetable</code> gate; and</li>
+<li>an IC10 <code>s d0 MicrowaveAutoAimTarget</code> works -- it reaches <code>SetLogicValue</code> server-side directly (verified by control test 2026-05-21).</li>
+</ul>
+<p>Contrast <code>SetLogicValueMessage.Process</code> (above): it resolves <code>Thing.Find&lt;ILogicable&gt;</code> and has NO <code>ISetable</code> gate, so it would apply to a dish. The two client write messages differ critically in the target-interface requirement: <code>SetLogicValueMessage</code> needs only <code>ILogicable</code>; <code>SetLogicFromClient</code> needs <code>ISetable</code>. A mod that wants its non-<code>ISetable</code> device writable from a remote client via a handheld tablet must NOT route through <code>SetLogicFromClient</code>.</p>
 <h2 id="patching-setlogicvalue-target-the-declaring-type">Patching SetLogicValue: target the declaring type<a class="headerlink" href="#patching-setlogicvalue-target-the-declaring-type" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
 
@@ -6634,11 +6762,13 @@
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-18: page created while debugging PowerTransmitterPlus auto-aim on a dedicated server. Confirmed <code>SetLogicValueMessage.Process</code> (line 261398) calls <code>Thing.Find&lt;ILogicable&gt;(...).SetLogicValue(...)</code> server-side; <code>RocketMotherboard.LogicValueChanged</code> (line 318416) shows the IsClient-send / host-direct-call split; <code>WirelessPower</code> declares <code>SetLogicValue</code> at line 405799 while <code>PowerTransmitter</code> / <code>PowerReceiver</code> inherit it. Message factory id 104 at line 179647.</li>
+<li>2026-05-21: added section "The motherboard tablet UI: float-typed commit, client-side writable list" while tracing why a <code>MicrowaveAutoAimTarget</code> (ReferenceId-valued) write via the in-game tablet reads back 0 on a dedicated server. Resolved both prior Open Questions. New facts (all from the v0.2.6228.27061 decompile): the tablet writable-row list is built client-side in <code>RocketUIBuilder.BuildModel</code> (line 154914) by calling <code>CanLogicRead</code> / <code>CanLogicWrite</code> on the local logicable; rows gate on <code>CanLogicRead</code>, editability on <code>CanLogicWrite</code>. <code>LogicValueDisplay.OnValueChanged</code> (line 152762) commits via <code>float.TryParse</code> and passes a <code>float</code> to <code>LogicValueChanged</code>, so any ReferenceId-valued LogicType is quantized to ~24 bits BEFORE the <code>float -&gt; double</code> widening, on whichever peer types the value (host or client). The handheld <code>ConfigCartridge</code> (line 323182) is read-only display (<code>ReadLogicText</code>, line 323217) and is not a write entry point. Additive plus open-question resolution; no existing claim contradicted, so no fresh validator. The pre-existing "loses precision through a float-typed UI path" note in the send-side section is now corroborated with the concrete control.</li>
+<li>2026-05-21 (correction): the prior 2026-05-21 entry over-attributed the dish-tablet symptom to the RocketMotherboard float path. A control test (server-side <code>Device.SetLogicValue</code> on a dish works; IC10 path works) plus reading EquipmentPlus's <code>ConfigCartridgePatches.WriteLogicValue</code> (sends <code>SetLogicFromClient</code> with a <code>double</code>, parsed via <code>double.TryParse</code>) and the <code>SetLogicFromClient.Process</code> body (decompile 258660) established that the handheld/AdvancedTablet write uses <code>SetLogicFromClient</code> (id 37), NOT the RocketMotherboard <code>LogicValueDisplay</code> float path. The actual root cause of the dish symptom is the <code>is ISetable</code> gate in <code>SetLogicFromClient.Process</code>: a dish (<code>WirelessPower</code>, not <code>ISetable</code>) fails the cast and the write is diverted to <code>WaitUntilFound</code>, so <code>SetLogicValue</code> is never called. Rescoped the float section to the RocketMotherboard panel and added the "SetLogicFromClient (id 37)" section with the <code>ISetable</code> gate, the implementer list, and the WirelessPower-is-not-ISetable confirmation. The float path remains documented as a real but separate defect; this correction does not delete it, only narrows its scope.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The handheld Configuration Cartridge tablet's exact write path was not fully traced. <code>RocketMotherboard.LogicValueChanged</code> is one sender of <code>SetLogicValueMessage</code>, but whether the handheld <code>ConfigCartridge</code> (decompile line 323182) routes through the same message or a different one (e.g. a setting-write message) is unconfirmed. This matters because a write that does not flow through <code>SetLogicValue</code> would bypass any <code>SetLogicValue</code> patch entirely. Diagnostic next step: a prefix on <code>SetLogicValueMessage.Process</code> logging every inbound write, plus tracing <code>ConfigCartridge</code>'s commit handler.</li>
-<li>Which UI controls are <code>float</code>-typed (lossy for large ReferenceId logic values) vs <code>double</code>-typed was not enumerated. A target-ReferenceId write through a <code>float</code> path could quantize the id.</li>
+<li>The <code>SetLogicFromClient</code> path is now confirmed as a loss-free (<code>double</code>) write path: it carries the value as a raw <code>double</code> with no per-type quantization, so a large ReferenceId survives the wire. The remaining lossy writer is the <code>RocketMotherboard</code> <code>LogicValueDisplay</code> / <code>LogicValueChanged</code> pair (both <code>float</code>-typed); a large ReferenceId typed into the RocketMotherboard wall panel specifically would still quantize. Whether any other UI control commits through <code>float</code> was not exhaustively enumerated.</li>
+<li>IC10 <code>s d0 X v</code>: not traced at the instruction level, but the control test (2026-05-21) confirmed a server-side <code>Device.SetLogicValue</code> call applies correctly, and IC10 registers are <code>double</code>, so the IC10 store path is loss-free in practice. The exact <code>ProgrammableChip</code> store-instruction typing was not confirmed from the decompile.</li>
 </ul>
 
 

@@ -956,6 +956,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refresh-cadence-device-lists-dirty-only-on-structural-change-never-per-tick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refresh cadence: device lists dirty only on structural change, never per tick
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#handledatanettransmissiondevice-data-devices-reach-across-cable-networks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6478,6 +6489,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refresh-cadence-device-lists-dirty-only-on-structural-change-never-per-tick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refresh cadence: device lists dirty only on structural change, never per tick
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#handledatanettransmissiondevice-data-devices-reach-across-cable-networks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6655,7 +6677,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-18.
+           on 2026-05-21.
         </p>
       
       
@@ -6830,6 +6852,30 @@
 <li>Dirtying is split. <code>DirtyPowerAndDataDeviceLists()</code> dirties both; <code>DirtyDataDeviceList()</code> dirties only the data side.</li>
 </ul>
 <p>This is the architectural hook that lets a single physical cable carry both signals while letting a device participate in only one.</p>
+<h2 id="refresh-cadence-device-lists-dirty-only-on-structural-change-never-per-tick">Refresh cadence: device lists dirty only on structural change, never per tick<a class="headerlink" href="#refresh-cadence-device-lists-dirty-only-on-structural-change-never-per-tick" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+
+<p><code>RefreshPowerAndDataDeviceLists()</code> is invoked lazily from the two property getters (see "Field shape and accessor quirk" below), so it runs only when a dirty flag is set and the list is then read. Every call site that sets a dirty flag is a structural (membership / connectivity) event; none sits on a per-tick or per-frame path. Call sites in <code>Assembly-CSharp.dll</code> (decompile, version 0.2.6228.27061):</p>
+<p><code>DirtyPowerAndDataDeviceLists()</code>:</p>
+<ul>
+<li><code>CableNetwork.AddDevice(Cable, Device)</code> line 253849 -- a device gains a cable into this network.</li>
+<li><code>CableNetwork.AddDevice(Device)</code> line 253858 -- the virtual overload.</li>
+<li><code>CableNetwork.RemoveDevice(Device)</code> line 253892 -- a device leaves the network.</li>
+<li><code>CableNetwork.Remove(Cable)</code> line 253966 -- a cable is pulled from the network (after <code>RefreshNetwork()</code>).</li>
+<li><code>CableNetwork.Merge(CableNetwork oldNetwork)</code> line 253995 -- <code>oldNetwork.DirtyPowerAndDataDeviceLists()</code> as two networks fuse.</li>
+<li><code>Device.InitializeDataConnection()</code> lines 350798-350799 -- dirties both <code>DataCableNetwork</code> and <code>PowerCableNetwork</code> when a device (re)derives its cable connections.</li>
+</ul>
+<p><code>DirtyDataDeviceList()</code> (data side only):</p>
+<ul>
+<li><code>HandleDataNetTransmissionDevice</code> line 253652 -- the transmitter-push half of the rocket data-link relay dirties each receiver network during a refresh (see the next section).</li>
+<li>The <code>ITransmit</code> / <code>IReceiveDataNetworkDevices</code> implementers (<code>RocketDataDownLink</code> / <code>RocketDataUpLink</code>) lines 364937, 365077, 365094, 365182, 365333 -- on data-connection add / remove / config change.</li>
+</ul>
+<p>Consequences:</p>
+<ul>
+<li>The lists rebuild on construction, destruction, cable add / remove, network merge / split, device connect, and data-link configuration: all structural events. A device's <code>Powered</code> flip (set every tick by the power tick) does NOT dirty either list; membership is independent of power state. So in steady state the cached <code>_dataDeviceList</code> is reused and IC10 batch reads (<code>lb</code> / <code>sb</code>, which walk <code>DataDeviceList</code>) incur no rebuild.</li>
+<li>A Harmony postfix on <code>RefreshPowerAndDataDeviceLists</code> (for example a logic-passthrough merge) therefore fires at structural-change cadence, not per tick. Its cost is amortized over topology edits, not paid on the frame path.</li>
+<li>The vanilla call sites dirty only the network that directly changed (plus the explicit <code>HandleDataNetTransmissionDevice</code> receiver-push). A mod that makes one network's data list depend on a DIFFERENT network's membership (transitive logic passthrough across a chain of bridge devices) gets no automatic invalidation when the far network changes; it must propagate the dirty itself. Per the accessor quirk below, <code>DirtyDataDeviceList()</code> alone will not force a rebuild on the next <code>DataDeviceList</code> read (the getter checks <code>PowerDeviceListDirty</code>), so a reliable cross-network invalidation must call <code>DirtyPowerAndDataDeviceLists()</code>.</li>
+</ul>
 <h2 id="handledatanettransmissiondevice-data-devices-reach-across-cable-networks">HandleDataNetTransmissionDevice: data devices reach across cable networks<a class="headerlink" href="#handledatanettransmissiondevice-data-devices-reach-across-cable-networks" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
 
@@ -7202,6 +7248,7 @@
 <li>2026-05-15: extended the ConnectedCables-iteration-order section with verification that the <code>Add()</code> walk's <code>cable.ConnectedDevices()</code> and <code>item.FindDataCable()</code> calls do NOT re-enter the static <code>FoundCables</code>. <code>Device.FindDataCable</code> (decompile line 350763), <code>Device.FindPowerCable</code> (line 350778), and <code>Device.InitializeDataConnection</code> (line 350794) all use the <code>ConnectedCables(NetworkType)</code> overload (line 294319) which allocates a fresh <code>new List&lt;Cable&gt;(4)</code> per call. So the only path from inside <code>Merge -&gt; Add</code> that re-touches the cable graph is via the safe overload; the static <code>FoundCables</code> cannot be reentrantly clobbered by the merge's own internal walks.</li>
 <li>2026-05-18: corrected the page-intro namespace claim. <code>CableNetwork</code> is in <code>Assets.Scripts.Networks</code> (decompile lines 253403 / 253411), NOT <code>Assets.Scripts.Objects.Electrical</code> as previously stated. Sibling base <code>StructureNetwork</code> is in a different top-level namespace called just <code>Networks</code> (decompile lines 175608 / 177045). Confirmed by a Power Grid Plus build that needed <code>using Networks;</code> separately from <code>using Assets.Scripts.Networks;</code> to resolve both types.</li>
 <li>2026-05-18: added "Resolution: deterministic Merge sort" section. Confirmed via the full decompile that the bug was vanilla-structural, not Power Grid Plus -- the original 2026-05-15 "disappears when Power Grid Plus is disabled" observation was symptomatic of Power Grid Plus's tier-burn mechanic generating enough cable destroy/place churn to expose the latent ordering bug, not a Power Grid Plus patch directly mutating cable state on the client. Reviewed all 15 Power Grid Plus patches, plus the NetworkPuristPlus and SprayPaintPlus patches that touch cable / glow state: every state-mutating path is either caller-gated on <code>GameManager.RunSimulation</code> (host-only) or mode-gated on a thread-static set inside a <code>RunSimulation</code> branch. None mutate cable rotation, OpenEnds, or network state on a client instance. The remaining open question is upstream-cause-of-rotation-divergence, narrowed below. Sourced from decompile lines 253998-254014 (<code>CableNetwork.Merge(List)</code>), 177412-177430 (<code>StructureNetwork.Merge(List, out)</code>), 254113 (<code>CableNetwork.ConnectedNetworks</code>), 177115 (<code>StructureNetwork.ConnectedNetworks</code>), 150889 / 162600 (<code>INetworkedRocketPart</code> / <code>INetworkedRoboticArm</code> <code>DeserializeOnJoin</code> client-side local merge call sites).</li>
+<li>2026-05-21: added "Refresh cadence: device lists dirty only on structural change, never per tick" section. Enumerated all <code>DirtyPowerAndDataDeviceLists()</code> / <code>DirtyDataDeviceList()</code> call sites from the decompile (lines 253652, 253849, 253858, 253892, 253966, 253995, 350798-350799, 364937, 365077, 365094, 365182, 365333): every one is a membership / connectivity / data-link-config event, none per-tick. Additive (no existing claim contradicted). Documents that a postfix on <code>RefreshPowerAndDataDeviceLists</code> runs at topology-change cadence and that transitive cross-network logic passthrough must propagate its own dirty. Produced while designing multi-hop logic passthrough for Power Grid Plus.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>

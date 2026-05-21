@@ -3747,6 +3747,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#save-folder-layout-and-the-load-commands-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save folder layout and the load command's resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6610,6 +6621,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#save-folder-layout-and-the-load-commands-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save folder layout and the load command's resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6721,14 +6743,18 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-21.
+           on 2026-05-21.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (6)</summary>
+          <summary><strong>Sources</strong> (8)</summary>
           <ul>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Util.Commands.LoadGameCommand.LoadGame'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Serialization.SaveLoadConstants'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Serialization.SaveHelper.Save'}</code></li>
             
@@ -7143,11 +7169,43 @@
 3. Without mod, side-car file is harmlessly ignored; glow state is simply lost (desired behavior for optional features)
 4. Enables removal without save breakage, unlike custom ThingSaveData which breaks loads when mod is absent</p>
 <p>Not a replacement for critical save-breaking state (use ThingSaveData + registration for that). For glow-paint, this approach is superior to current GlowThingSaveData method because removal becomes non-fatal.</p>
+<h2 id="save-folder-layout-and-the-load-commands-resolution">Save folder layout and the <code>load</code> command's resolution<a class="headerlink" href="#save-folder-layout-and-the-load-commands-resolution" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+
+<p>A save on disk is a FOLDER under <code>saves/</code> whose world data is a single <code>*.save</code> ZIP (the archive <code>SaveHelper.Save</code> writes above, holding <code>world_meta.xml</code>, <code>world.xml</code>, <code>terrain.dat</code>, and any side-cars). The loose <code>world.xml</code> / <code>terrain.dat</code> files only ever exist in the temp extraction directory at load time (see <code>ExtractToTemp</code> above), never in the saves folder itself.</p>
+<p>The <code>load &lt;name&gt;</code> console command (the path the dedicated server's <code>-load</code> flag drives) resolves the name to that folder and requires exactly one <code>*.save</code> file in it (Assembly-CSharp.dll decompile lines 96534-96562):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1">// Util.Commands.LoadGameCommand.LoadGame</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">DirectoryInfo</span><span class="w"> </span><span class="n">directoryInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">DirectoryInfo</span><span class="p">(</span><span class="n">filenameOrFullPath</span><span class="p">);</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">directoryInfo</span><span class="p">.</span><span class="n">Exists</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">Print</span><span class="p">(</span><span class="n">FileCommand</span><span class="p">.</span><span class="n">LoadAtFullPath</span><span class="p">(</span><span class="n">directoryInfo</span><span class="p">.</span><span class="n">FullName</span><span class="p">));</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">directoryInfo</span><span class="p">.</span><span class="n">Exists</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">directoryInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FileCommand</span><span class="p">.</span><span class="n">GetStationDirectory</span><span class="p">(</span><span class="n">filenameOrFullPath</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">directoryInfo</span><span class="p">.</span><span class="n">Exists</span><span class="p">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="p">{</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="n">FileInfo</span><span class="p">[]</span><span class="w"> </span><span class="n">files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">directoryInfo</span><span class="p">.</span><span class="n">GetFiles</span><span class="p">(</span><span class="n">SaveLoadConstants</span><span class="p">.</span><span class="n">SaveFileSearchPattern</span><span class="p">,</span><span class="w"> </span><span class="n">SearchOption</span><span class="p">.</span><span class="n">TopDirectoryOnly</span><span class="p">);</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">files</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;.save file not found at &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">directoryInfo</span><span class="p">.</span><span class="n">FullName</span><span class="p">);</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">        </span><span class="n">LoadHelper</span><span class="p">.</span><span class="n">LoadGame</span><span class="p">(</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">FullName</span><span class="p">,</span><span class="w"> </span><span class="n">filenameOrFullPath</span><span class="p">);</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="p">}</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="c1">// ... else falls through to starting a NEW world named &lt;name&gt; on the backupWorldName id</span>
+</span></code></pre></div>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1">// Assets.Scripts.Serialization.SaveLoadConstants</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">SaveFileExtension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;.save&quot;</span><span class="p">;</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">SaveFileSearchPattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;*.save&quot;</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Practical implications:</p>
+<ul>
+<li><code>GetFiles("*.save", TopDirectoryOnly)</code> must return EXACTLY ONE file. Zero (an empty or loose-file folder) and two-or-more both print <code>.save file not found at &lt;dir&gt;</code> and abort the load.</li>
+<li>Seeding a save for the dedicated server means placing the world's single <code>&lt;name&gt;.save</code> ZIP inside <code>data/saves/&lt;name&gt;/</code>, NOT extracting it into loose <code>world.xml</code> / <code>terrain.dat</code> files. Extracting yields a folder with zero <code>*.save</code> files, so the load fails with <code>.save file not found</code> even though every world file is physically present. (Observed 2026-05-21: a hand-extracted Lunar save in <code>data/saves/Luna/</code> produced exactly this error; replacing the loose files with the original <code>Luna.save</code> ZIP loaded cleanly.)</li>
+<li>A bare name is mapped to <code>&lt;SavePath&gt;/saves/&lt;name&gt;</code> via <code>GetStationDirectory</code>; on the dedicated server <code>&lt;SavePath&gt;</code> is the <code>-settings SavePath</code> value. A full path bypasses this via <code>LoadAtFullPath</code>.</li>
+<li>When no matching save folder exists at all, <code>LoadGame</code> does NOT error; it starts a NEW world under <code>backupWorldName</code> (the second <code>load</code> argument / map id). A typo'd save name therefore silently starts a fresh world.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-04-21: full verification pass against Assembly-CSharp.dll v0.2.6228.27061. Decompiled SaveHelper.Save (ZipOutputStream write path with 5 known entries), XmlSaveLoad.LoadWorld (no ZIP enumeration), Thing.OnFinishedLoad, GameManager.UpdateThingsOnGameStartAction (caller), GameManager.AutoSaveNow (multiplayer guard), and SaveHelper.CopyToHeadSave (file copy, not rebuild). Decompiled LaunchPadBooster.dll and confirmed no save/load extension hooks. Resolved: (A) confirmed ZipOutputStream-based complete rebuild with single seal point at Finish(), (B) confirmed save-copy via binary file copy (unknown entries already absent), (C) no user warning needed for optional side-car data. Recommended Postfix on SaveHelper.Save as concrete Harmony pattern.</li>
 <li>2026-04-21: added "SaveHelper.Save overload disambiguation" section after a live in-game test surfaced <code>HarmonyException: Ambiguous match for ... methodname=Save</code> at <code>PatchAll</code> time. Decompile verified <code>SaveHelper</code> declares two <code>Save</code> methods (public <code>(string, CancellationToken)</code> and private <code>(DirectoryInfo, string, bool, CancellationToken)</code>); every save path funnels through the private worker via <code>SaveGame</code> -&gt; <code>Do*Save</code> dispatch. Documented the routing table and the required argument-type array in the <code>[HarmonyPatch]</code> attribute. Consequence of the bug: <code>PatchAll</code> throws on first ambiguous overload, so the ENTIRE mod's Harmony patches fail to apply, not just the ambiguous one.</li>
 <li>2026-04-21: conflict on "how the game reads save ZIPs at load time". Previous claim: "LoadWorld uses <code>ZipArchive.GetEntry(name)</code> for known filenames only; unknown entries remain in the archive untouched." New finding: the game does NOT open a ZipArchive at LoadWorld time. <code>LoadHelper.LoadGameTask</code> calls <code>ExtractToTemp(path)</code> first, which uses <code>ZipInputStream.GetNextEntry()</code> to extract every entry (known and unknown) to a temp directory as loose files. <code>CurrentWorldSave.World.FullName</code> is <code>&lt;tempDir&gt;/world.xml</code>, not a path into a ZIP. Fresh validator verdict: B is correct (the new finding). Result: added a "Load-time ZIP extraction (LoadHelper.ExtractToTemp)" section with the full decompile of <code>LoadHelper.LoadGameTask</code> and <code>ExtractToTemp</code>, rewrote the "ZIP read path (LoadWorld)" section to clarify that <code>LoadWorld</code> reads loose files not a ZIP, and updated the "Harmony interception strategy" section to replace the (wrong) "open the temp file in Update mode" recipe with the verified wrapped-UniTask pattern shipped in SprayPaintPlus v1.6.0. The side-car-on-load recipe was also corrected: consume <code>&lt;tempDir&gt;/&lt;entry-name&gt;</code> as a loose file in the <code>XmlSaveLoad.LoadWorld</code> postfix; attempting to reopen the save ZIP produces <code>End of Central Directory record could not be found</code> because the original ZIP was closed by <code>ExtractToTemp</code>.</li>
+<li>2026-05-21: added "Save folder layout and the <code>load</code> command's resolution" section. Sourced from <code>Util.Commands.LoadGameCommand.LoadGame</code> (decompile lines 96534-96562) and <code>SaveLoadConstants.SaveFileExtension</code> / <code>SaveFileSearchPattern</code> (lines 248112-248114). Additive (no existing claim contradicted): documents that the <code>load</code> command resolves a save folder to exactly one <code>*.save</code> file via <code>GetFiles("*.save", TopDirectoryOnly)</code>, so a dedicated-server save must be seeded as the <code>&lt;name&gt;.save</code> ZIP inside <code>data/saves/&lt;name&gt;/</code>, not as extracted loose files. Found while seeding the Lunar save for a Power Grid Plus passthrough test.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation. All three original open questions resolved in the 2026-04-21 verification pass.</p>
