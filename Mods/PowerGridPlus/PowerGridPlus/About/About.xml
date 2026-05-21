@@ -37,7 +37,7 @@ Re-Volt's circuit breakers and Load Center are not included; this is the pure-si
 
 [h3]Logic passthrough (new)[/h3]
 [list]
-[*]Transformers, stationary batteries and Area Power Controllers split a power network in two; normally a logic reader on one side can't see the other side's devices. Turn on passthrough and it can, with no extra data cable. Linked Microwave Power Transmitter and Receiver dishes bridge across their wireless link too.
+[*]Transformers, stationary batteries and Area Power Controllers split a power network in two; normally a logic reader on one side can't see the other side's devices. Turn on passthrough and the reader sees through the bridge, and through a whole chain of bridges, so devices several transformers away read as one logic network, with no extra data cable. Looped layouts are fine. Linked Microwave Power Transmitter and Receiver dishes bridge across their wireless link too.
 [*]A writable LogicPassthroughMode logic value (set from IC10 or a Logic Writer) controls it per device: 1 = transparent, 0 = vanilla. Defaults to transparent for batteries, dishes and the small transformer; opaque for other transformers. Saved with the world.
 [*]Each device family has a server-authoritative master toggle.
 [/list]
