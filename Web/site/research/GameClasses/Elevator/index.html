@@ -2783,6 +2783,8 @@
       
         
       
+        
+      
     
     
     
@@ -3345,6 +3347,34 @@
     
   
     ModLoadSequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/ModMetadataLimits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod Metadata Limits
   
 
     
@@ -5341,6 +5371,8 @@
       
         
       
+        
+      
     
     
     
@@ -5511,6 +5543,34 @@
     
   
     LaunchPadBooster Networking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Protocols/LogicValueWriteMessages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicValueWriteMessages
   
 
     
@@ -6501,7 +6561,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-18.
+           on 2026-05-21.
         </p>
       
       
@@ -6696,7 +6756,7 @@
 <p>(decompile line 188147)</p>
 <p><code>ElevatorCarrage._ElevatorMode</code> is backed by a <code>byte</code> field with <code>[ByteArraySync]</code>, written to the network in <code>Serialize</code> / <code>Deserialize</code> and on join. <code>SetElevatorMode(ElevatorMode)</code> (line 188294) dispatches to <code>OnServer.Interact(base.InteractActivate, 0)</code> for <code>Stationary</code> and to <code>OnServer.Interact(base.InteractActivate, 1)</code> for both <code>Upward</code> and <code>Downward</code>. The enum is exposed to IC10 via <code>new BasicEnum&lt;ElevatorMode&gt;("ElevatorMode")</code> at line 393584.</p>
 <h2 id="paint-enumeration-pattern">Paint enumeration pattern<a class="headerlink" href="#paint-enumeration-pattern" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-18 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
 
 <p>Given any single elevator-piece <code>Thing</code> as a seed (a shaft, a level, or the carriage), the full paint set is reachable in one hop via the <code>.ShaftNetwork</code> back-reference:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">ElevatorShaftNetwork</span><span class="w"> </span><span class="n">network</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seed</span><span class="w"> </span><span class="k">switch</span>
@@ -6719,14 +6779,14 @@
 </span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><code>ElevatorLevel</code> does not need a separate branch: it inherits from <code>ElevatorShaft</code>, so the seed switch covers it and the <code>List&lt;ElevatorShaft&gt;</code> enumeration picks it up. Visual prefab variants (with-cable, without-cable) all instantiate one of these three classes and live in the same network, so the walk covers them uniformly.</p>
-<p>The <code>SetCustomColor</code> setter on <code>ElevatorCarrage</code> is inherited from <code>DynamicThing</code> without override; the carriage's motion does not guard the color setter. Whether the assigned color persists visually through carriage motion is open (see Open questions).</p>
+<p>The <code>SetCustomColor</code> setter on <code>ElevatorCarrage</code> is inherited from <code>DynamicThing</code> without override; the carriage's motion does not guard the color setter. Confirmed in-game on 2026-05-21 (game version 0.2.6228.27061): a painted carriage keeps its color through vertical motion.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-18: Initial writeup. Consolidated from two in-session drafts (<code>ElevatorPaintability.md</code>, <code>ElevatorSystem.md</code>, both unsanctioned and removed in the same change). All claims re-verified against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>. The "elevators are not paintable" claim from an earlier sub-agent pass was incorrect: it grepped for <code>PaintableMaterial =</code> assignments in code, which misses prefab-asset assignments by Unity serialization. In-game verification confirms paintability on all three classes and all known with-cable / without-cable visual variants.</li>
+<li>2026-05-21: Resolved the carriage-persistence open question. Developer confirmed in-game (game version 0.2.6228.27061) that a painted <code>ElevatorCarrage</code> retains its <code>CustomColor</code> through vertical motion. Observed during SprayPaintPlus elevator-paint feature testing.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Does the custom color assigned to an <code>ElevatorCarrage</code> persist visually as the carriage moves vertically? <code>DynamicThing</code> color machinery is the same as for other moving items, so the expected answer is yes, but this has not been confirmed in-game.</li>
 <li>The exact vanilla in-game build-menu names for the with-cable and without-cable variants of each piece (e.g., for <code>ElevatorShaft</code>) are not captured here; they live in Stationpedia data and were not extracted in this pass.</li>
 </ul>
 
