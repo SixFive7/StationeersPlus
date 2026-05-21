@@ -202,7 +202,6 @@ $HostPidFile   = Join-Path $DataDir 'host.pid'
 
 $LockFile       = Join-Path $ServerRoot 'session.lock'
 $LockTemplate   = Join-Path $ServerRoot 'session.lock.template'
-$ConsoleLogFile = Join-Path $DataDir 'console.log'
 
 # ---- environment helpers --------------------------------------------------
 
@@ -309,45 +308,40 @@ function Get-LockAgeText {
     } catch { return 'unknown' }
 }
 
-function Get-ConnectedPlayerCount {
-    # Returns [int] connected-client count, or $null if it cannot be determined
-    # (server/host not both alive, or no parseable response). Consulted lazily,
-    # only to break the "expired timer but a server is still running" tie.
-    $serverPidVal = Get-PidFromFile $ServerPidFile
-    $hostPidVal   = Get-PidFromFile $HostPidFile
-    if (-not (Test-PidAlive $serverPidVal) -or -not (Test-PidAlive $hostPidVal)) { return $null }
-
-    $sinks = @($ConsoleLogFile, $LogFile)
-    $startLens = @{}
-    foreach ($s in $sinks) { if (Test-Path $s) { $startLens[$s] = (Get-Item $s).Length } }
-
-    try { Send-ServerCommand -Cmd 'clients' -WaitForFreeSeconds 5 } catch { return $null }
-
-    $deadline = (Get-Date).AddSeconds(6)
-    while ((Get-Date) -lt $deadline) {
-        foreach ($s in $sinks) {
-            if (-not (Test-Path $s)) { continue }
-            $startLen = if ($startLens.ContainsKey($s)) { $startLens[$s] } else { 0 }
-            if ((Get-Item $s).Length -le $startLen) { continue }
-            try {
-                $stream = [System.IO.File]::Open($s, 'Open', 'Read', 'ReadWrite')
-                try {
-                    $stream.Seek($startLen, 'Begin') | Out-Null
-                    $reader = [System.IO.StreamReader]::new($stream)
-                    $new = $reader.ReadToEnd()
-                    $reader.Close()
-                } finally { $stream.Close() }
-                $m = [regex]::Match($new, 'Clients:\s*(\d+)')
-                if ($m.Success) { return [int]$m.Groups[1].Value }
-            } catch { }
-        }
-        Start-Sleep -Milliseconds 300
+function Measure-PlayersInLog {
+    # Pure helper: net connected-client count from a server.log-format file.
+    # Each completed join logs "Client <name> (<id>) is ready"; each leave logs
+    # "Client disconnected: ...". server.log truncates per launch, so the whole
+    # file is the current run; net = (ready events) - (disconnected events).
+    # Side-effect-free and takes an explicit path, so it can be unit-tested
+    # offline against synthetic logs without a running server or a real client.
+    param([Parameter(Mandatory)] [string] $Path)
+    if (-not (Test-Path $Path)) { return 0 }
+    $ready = 0
+    $disc  = 0
+    foreach ($line in (Get-Content -ErrorAction SilentlyContinue $Path)) {
+        if ($line -match 'Client .*\) is ready') { $ready++ }
+        elseif ($line -match 'Client disconnected:') { $disc++ }
     }
-    return $null
+    $net = $ready - $disc
+    if ($net -lt 0) { return 0 }
+    return $net
+}
+
+function Get-ConnectedPlayerCount {
+    # Currently-connected client count for the live server. The 'clients' /
+    # 'status' console commands write to the in-game console, not the Unity
+    # -logFile, so they cannot be scraped; the connection lifecycle IS logged,
+    # so we scan server.log via Measure-PlayersInLog. Reads the log directly: no
+    # stdin round-trip, no dependence on the host wrapper, unaffected by the
+    # no-client simulation pause. Returns 0 when the server is not running
+    # (favours freeing the dedi, per session.lock.template).
+    if (-not (Test-PidAlive (Get-PidFromFile $ServerPidFile))) { return 0 }
+    return (Measure-PlayersInLog $LogFile)
 }
 
 function Get-LockState {
-    # States: None, Mine, LiveForeign, DeadForeign, Indeterminate.
+    # States: None, Mine, LiveForeign, DeadForeign.
     param([string] $CallerId)
     $lock = Read-Lock
     if (-not $lock) { return [pscustomobject]@{ State = 'None'; Lock = $null; Players = $null } }
@@ -362,9 +356,6 @@ function Get-LockState {
         return [pscustomobject]@{ State = 'DeadForeign'; Lock = $lock; Players = 0 }
     }
     $players = Get-ConnectedPlayerCount
-    if ($null -eq $players) {
-        return [pscustomobject]@{ State = 'Indeterminate'; Lock = $lock; Players = $null }
-    }
     if ($players -ge 1) {
         # A player is connected: an active session self-renews so a brief
         # disconnect still gets a full TTL grace.
@@ -401,9 +392,6 @@ function Assert-MutatingAllowed {
         }
         'LiveForeign' {
             throw "[$Action] The dedicated server is locked by another session.`n$(Format-ForeignLock $st)`nDo NOT proceed. Report this purpose to the user and let the user decide. Only the user may authorize -Force. See session.lock.template."
-        }
-        'Indeterminate' {
-            throw "[$Action] A previous lock's timer expired but a server is still running and the connected-player count could not be read (possible active session: '$($st.Lock['purpose'])'). Do NOT auto-reclaim. Report to the user. See session.lock.template."
         }
     }
 }
@@ -653,31 +641,7 @@ function Invoke-HostMode {
     $psi.WorkingDirectory       = $InstallDir
     $psi.CreateNoWindow         = $true
 
-    # Player-aware lock support: capture the server's stdout to console.log so a
-    # 'clients' query can be read back (the count prints to the console, not the
-    # Unity -logFile). Best-effort; if capture cannot be set up the server still
-    # runs and connected-player count falls back to "unknown". See
-    # session.lock.template.
-    $consoleWriter = $null
-    try {
-        $consoleWriter = [System.IO.StreamWriter]::new($ConsoleLogFile, $false)
-        $consoleWriter.AutoFlush = $true
-        $psi.RedirectStandardOutput = $true
-    } catch {
-        $consoleWriter = $null
-    }
-
-    $proc = [System.Diagnostics.Process]::new()
-    $proc.StartInfo = $psi
-    if ($consoleWriter) {
-        $outputHandler = {
-            param($sender, $e)
-            if ($null -ne $e.Data) { $consoleWriter.WriteLine($e.Data) }
-        }.GetNewClosure()
-        $proc.add_OutputDataReceived($outputHandler)
-    }
-    [void]$proc.Start()
-    if ($consoleWriter) { try { $proc.BeginOutputReadLine() } catch { } }
+    $proc = [System.Diagnostics.Process]::Start($psi)
     Set-Content -Path $ServerPidFile -Value $proc.Id
 
     try {
@@ -702,7 +666,6 @@ function Invoke-HostMode {
     }
     finally {
         try { $proc.StandardInput.Close() } catch { }
-        if ($consoleWriter) { try { $consoleWriter.Flush(); $consoleWriter.Close() } catch { } }
         Remove-Item -Force -ErrorAction SilentlyContinue $ServerPidFile
         Remove-Item -Force -ErrorAction SilentlyContinue $HostPidFile
         Remove-Item -Force -ErrorAction SilentlyContinue $ControlFile
@@ -835,9 +798,6 @@ function Invoke-Stop {
         }
         Write-Warning "[Stop] -Force: stopping a server held by another live session ('$($st.Lock['purpose'])')."
     }
-    elseif ($st.State -eq 'Indeterminate' -and -not $Force) {
-        throw "[Stop] A lock expired but a server is running and the connected-player count is unknown (possible active session: '$($st.Lock['purpose'])'). Report to the user. Only the user may authorize -Force. See session.lock.template."
-    }
 
     $serverAlive = Test-PidAlive (Get-PidFromFile $ServerPidFile)
     $hostAlive   = Test-PidAlive (Get-PidFromFile $HostPidFile)
@@ -907,12 +867,6 @@ function Invoke-Lock {
                 throw "Cannot acquire: the dedicated server is locked by another session.`n$(Format-ForeignLock $st)`nReport this purpose to the user. Only the user may authorize -Force. See session.lock.template."
             }
             Write-Warning "[Lock] -Force: breaking a live lock held by '$($st.Lock['purpose'])' (owner $($st.Lock['owner']))."
-        }
-        'Indeterminate' {
-            if (-not $Force) {
-                throw "Cannot acquire: a previous lock expired but a server is running and player count is unknown (possible active session: '$($st.Lock['purpose'])'). Report to the user. Only the user may authorize -Force. See session.lock.template."
-            }
-            Write-Warning "[Lock] -Force: overriding an indeterminate lock ('$($st.Lock['purpose'])')."
         }
         'DeadForeign' {
             if (Test-PidAlive (Get-PidFromFile $ServerPidFile)) {
@@ -997,17 +951,12 @@ function Invoke-Status {
         Write-Host "session lock: $own"
         Write-Host "  purpose:    $($lock['purpose'])"
         Write-Host "  timer:      $(if ($expired) { 'expired' } else { 'fresh' }); ttl $($lock['ttl_minutes']) min; refreshed $(Get-LockAgeText $lock)"
-        if ($expired -and $serverAlive) {
+        if ($serverAlive) {
             $players = Get-ConnectedPlayerCount
-            if ($null -eq $players) {
-                Write-Host "  players:    unknown (could not query; treat as possibly active)"
-            }
-            elseif ($players -ge 1) {
-                Write-Host "  players:    $players connected (lock still LIVE: player connected)"
-            }
-            else {
-                Write-Host "  players:    0 connected (lock is dead; reclaimable)"
-            }
+            $note = if ($expired) {
+                if ($players -ge 1) { '  (lock still LIVE: player connected)' } else { '  (timer expired, no player; reclaimable)' }
+            } else { '' }
+            Write-Host "  players:    $players connected$note"
         }
     }
 

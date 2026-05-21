@@ -54,13 +54,12 @@ The agent runs the lifecycle end-to-end. The developer never types commands at t
 
 ### Lifecycle architecture
 
-`-Start` launches a hidden PowerShell host wrapper via `Start-Process`. The wrapper owns the dedicated server process: it spawns it with redirected stdin (and captures the server's stdout to `data/console.log`, used by the connected-player query that backs player-aware locking), polls `data/control.cmd` every 250 ms, and forwards each command into the server's stdin. The launcher returns as soon as the server has registered its PID. State files under `data/`:
+`-Start` launches a hidden PowerShell host wrapper via `Start-Process`. The wrapper owns the dedicated server process: it spawns it with redirected stdin, polls `data/control.cmd` every 250 ms, and forwards each command into the server's stdin. The launcher returns as soon as the server has registered its PID. State files under `data/`:
 
 - `data/host.pid`: PID of the host wrapper.
 - `data/server.pid`: PID of `rocketstation_DedicatedServer.exe`.
 - `data/control.cmd`: command queue. The agent writes via atomic rename; the wrapper reads and deletes. Only one command at a time can be pending.
-- `data/server.log`: Unity log written directly by the dedicated server (`-logFile <path>`).
-- `data/console.log`: the server's captured stdout. The `clients` command prints the connected-client count here; `-Status` and the lock liveness check scrape it for `Clients: <n>`.
+- `data/server.log`: Unity log written directly by the dedicated server (`-logFile <path>`). Player-aware lock liveness reads the connected-player count from here by counting client connect (`Client <name> (<id>) is ready`) and disconnect (`Client disconnected: ...`) events. The log truncates per launch, so the whole file is the current run. The `clients` / `status` console commands write to the in-game console, not this log, so they cannot be scraped.
 - `data/setting.xml`: server settings, written by the dedicated server itself on first run; persisted across restarts.
 
 The session lock lives at `session.lock` in the folder root, not under `data/`, so it survives a `data/` wipe; see "Session lock" above.
