@@ -52,9 +52,17 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-21 | 20 | 223 | 0 | 0 | 2 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-12) |
 | 2026-05-21 | 22 | 231 | 0 | 0 | 2 | insufficient ratings | 1.1.2 (Workshop updated 2026-05-21) |
 
+## Inspector Plus
+
+- Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3730349036
+- Published: 2026-05-21
+
+| Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
+|---|---|---|---|---|---|---|---|
+| 2026-05-21 | 1 | 1 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
+
 ## Not yet published
 
 These live under `Mods/` or `Plans/` but are not on the Steam Workshop yet. Promote each to its own section above when it goes live.
 
 - Equipment Plus
-- Inspector Plus (local-only developer tool; may never be published)
