@@ -59,7 +59,7 @@ Layout rules for mod `README.md` files and `About.xml` files live in `Mods/Templ
 
 - README / Description / InGameDescription content sync
 - Canonical one-sentence tagline, mirrored across GitHub, Workshop, and in-game
-- `<ChangeLog>` plain-text format, reverse-chronological order, 8000-character cap
+- `<ChangeLog>` (About.xml) latest version only, plain text, 8000-character cap; full version history in a per-mod `CHANGELOG.md`
 - `<About>` element order and XML-escape safety (`<WorkshopHandle>` numeric rule, etc.)
 - Per-element size caps (`<Description>` 8000, `<ChangeLog>` 8000)
 - "Reporting Issues" section placement in README and Workshop Description
@@ -168,6 +168,7 @@ These rules do not apply to `DEV.md` (gitignored) or any conversational scratch 
 | File | Location | Audience | Contents |
 |---|---|---|---|
 | `README.md` | Each mod's folder root (committed) | End users (GitHub readers, Workshop subscribers) | Feature overview, installation, settings tables, issue reporting, credits, license. Source of truth for user-facing content, mirrored into `About.xml`. |
+| `CHANGELOG.md` | Each mod's folder root (committed) | End users (GitHub readers) | Full version history, reverse-chronological, newest at the top. In-repo source of truth for the complete changelog; `About.xml` `<ChangeLog>` carries only the latest version's notes. A new top entry is prepended on every release. See `Mods/Template/LAYOUT.md`. |
 | `RESEARCH.md` | Each mod's folder root (committed) | Someone picking up the mod for the first time | Durable, project-scoped internals: architecture, file walkthroughs, patch catalog with formulas, decompiled game internals, multiplayer protocol, pitfalls, design decisions with rationale. No session state, no developer-specific paths. |
 | `DEV.md` | Monorepo root, gitignored | The developer | Machine-specific paths (game install, deploy target, MSBuild location, log paths, sibling-mod source dirs), workflow recipes, tooling inventory, per-developer collaboration preferences. Shared across every mod. |
 | `DEV.md.template` | Monorepo root, committed | A new contributor | Scaffold for `DEV.md`. Structure and section headers filled in; machine-specific values are placeholders. Copy to `DEV.md` and fill in. |
@@ -175,7 +176,7 @@ These rules do not apply to `DEV.md` (gitignored) or any conversational scratch 
 
 Required setup:
 
-- `README.md` and `RESEARCH.md` are committed per mod and kept in sync with the source when features or internals change.
+- `README.md`, `RESEARCH.md`, and `CHANGELOG.md` are committed per mod. `README.md` and `RESEARCH.md` stay in sync with the source as features or internals change; `CHANGELOG.md` gets a new top entry on every release (see `Mods/Template/LAYOUT.md`).
 - `DEV.md` at the monorepo root is gitignored. `DEV.md.template` at the monorepo root is the committed scaffold a new contributor copies to create their own `DEV.md`.
 - No other long-form knowledge files (`plan.md`, `NOTES.md`, session logs) should accumulate in committed form inside `Mods/`. Use `RESEARCH.md` for durable knowledge, `TODO.md` for pending work, and git history / conversation for everything else. `Plans/` mods may carry such files since the work-in-progress phase is where they have value; they consolidate into `RESEARCH.md` or are deleted when a mod graduates to `Mods/`.
 

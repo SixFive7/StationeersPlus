@@ -1,17 +1,18 @@
-# Mod layout: README.md and About.xml rules
+# Mod layout: README.md, CHANGELOG.md, and About.xml rules
 
-Canonical reference for README.md and About.xml layout conventions across every mod in this monorepo. When editing any `Mods/<ModName>/README.md`, any `Plans/<ModName>/README.md`, or any `About.xml` under those folders, apply every rule below.
+Canonical reference for README.md, CHANGELOG.md, and About.xml layout conventions across every mod in this monorepo. When editing any `README.md`, `CHANGELOG.md`, or `About.xml` under `Mods/<ModName>/` or `Plans/<ModName>/`, apply every rule below.
 
-A PostToolUse hook fires on Read / Edit / Write against these file paths and injects a reminder that points here. This file is the source of truth; repo-root `CLAUDE.md` no longer duplicates its contents.
+A PostToolUse hook fires on Read / Edit / Write of `README.md` and `About.xml` and injects a reminder that points here. (CHANGELOG.md is reached through the release flow in `Mods/Template/RELEASE.md` and through this file.) This file is the source of truth; repo-root `CLAUDE.md` no longer duplicates its contents.
 
 ## Scope
 
 Covered here:
 
 - README.md structure and tone
+- CHANGELOG.md full version history (per mod)
 - About.xml `<Description>` (Workshop BBCode)
 - About.xml `<InGameDescription>` (Unity TMP rich text)
-- About.xml `<ChangeLog>` (plain text)
+- About.xml `<ChangeLog>` (plain text, latest version only)
 - About.xml element order and XML-escape rules
 - About.xml per-element size caps
 - Reporting Issues section placement
@@ -44,29 +45,57 @@ Every mod has one canonical tagline: a single sentence describing the mod in its
 
 When the feature set changes, update all three. Short-form abbreviations and marketing-style rewrites that drift between surfaces are not allowed; the tagline is one sentence, identical content, three encodings.
 
-## Changelog lives in About.xml only
+## Changelog: full history in CHANGELOG.md, latest version in About.xml
 
-Steam Workshop consumes `About.xml` `<ChangeLog>` directly and submits its text as the per-update change note attached to each Workshop publish. Workshop renders the change note as **plain text**: BBCode tags (`[h2]`, `[list][*]`, `[b]`) appear as literal characters and do not format. Steamworks enforces an 8000-character cap on the submitted change note.
+The changelog lives in two files with different jobs, kept in sync on every release.
 
-Rules:
+- **`CHANGELOG.md` at the mod's folder root** is the full version history: every released version, reverse-chronological, newest at the top. The in-repo source of truth for the complete history. Markdown, rendered on GitHub. Every release prepends a new entry; nothing already shipped is removed.
+- **`About.xml` `<ChangeLog>`** is the current version's changes only (what changed since the previous published version). Plain text. Steam attaches it to this one update as the per-update change note and keeps every earlier update's note on the Workshop Change Notes tab on its own, so Steam preserves the per-version history without the mod resubmitting it. Every release replaces this body; it never accumulates. Carrying the whole history here is what eventually drives a long-lived mod past the 8000-character cap.
 
-- `<ChangeLog>` content is plain text only. Never use BBCode inside `<ChangeLog>`, even though the surrounding `<Description>` element uses BBCode heavily.
-- Keep the full version history inside `<ChangeLog>` in reverse-chronological order, newest at the top. Each Workshop publish submits the entire block, so the full history appears under that update's timestamp on the Workshop Change Notes tab.
-- No separate `CHANGELOG.md` file at the mod's root. `About.xml` `<ChangeLog>` is the single source of truth. GitHub readers follow the `## Changelog` section in `README.md`, which links to the Workshop change-notes URL and the `About.xml` file.
-- `About.xml` also carries `<Version>`. Bump both `<Version>` and `<ChangeLog>` whenever `PluginVersion` in the plugin's main class changes.
+This split is a hard rule: every mod, every release, every time. The new version goes to the top of `CHANGELOG.md` and replaces the `<ChangeLog>` body in `About.xml`.
 
-Entry format for each version in `<ChangeLog>`:
+### About.xml `<ChangeLog>` (latest version only)
+
+- Plain text only. Never use BBCode inside `<ChangeLog>`, even though the surrounding `<Description>` element uses BBCode heavily. Workshop renders the change note as plain text: BBCode tags (`[h2]`, `[list][*]`, `[b]`) appear as literal characters.
+- Exactly one version block: the version being released and the changes since the previous version. No older entries beneath it. Replace the body every release; never append.
+- The submitted change note is capped at 8000 characters. With one version per submission this is no longer a practical worry, but the cap still exists; the size-caps section below has the exact source.
+
+`<ChangeLog>` body (the entire element content for a release):
 
 ```
-v1.2.4: One-line summary
+v1.2.4: One-line summary of this version
+- Detail bullet
+- Another detail bullet
+```
+
+One version block only. Dashes for bullets. No `#`, no `[h3]`, no Markdown. Line breaks render as line breaks on Workshop.
+
+### CHANGELOG.md (full history)
+
+- One `CHANGELOG.md` per mod at the mod's folder root: `Mods/<ModName>/CHANGELOG.md` for released mods, `Plans/<ModName>/CHANGELOG.md` for work-in-progress. Required for every mod.
+- Full history, reverse-chronological, newest at the top. Every released version has an entry. Shipped entries are not rewritten (fix a typo, yes; rewrite the history, no).
+- Markdown. Each version is an H2 heading `## v<X.Y.Z>: one-line summary` followed by dash bullets. The newest entry's bullets are the same text as the current `About.xml` `<ChangeLog>` body; only the `##` heading prefix differs.
+- On every release, prepend the new version's entry to the top, in the same commit that bumps `<Version>` and rewrites the `About.xml` `<ChangeLog>` (see `Mods/Template/RELEASE.md` Rule 2).
+
+`CHANGELOG.md` shape:
+
+```
+# Changelog
+
+Full version history for {{Mod Display Name}}. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
+
+## v1.2.4: One-line summary of this version
 - Detail bullet
 - Another detail bullet
 
-v1.2.3: Previous version's summary
+## v1.2.3: Previous version's summary
 - ...
 ```
 
-Blank line between versions. Dashes for bullets. No `#`, no `[h3]`, no Markdown. Line breaks render as line breaks on Workshop.
+### Version bump and README link
+
+- `About.xml` also carries `<Version>`. On every release, whenever `PluginVersion` in the plugin's main class changes, bump `<Version>`, rewrite the `About.xml` `<ChangeLog>` to the new version's changes, and prepend the new entry to `CHANGELOG.md`.
+- `README.md` carries a `## Changelog` section that links to `CHANGELOG.md` (the full in-repo history) and to the Workshop change-notes URL. It does not reproduce the history inline.
 
 ## About.xml structure and XML safety
 
@@ -93,7 +122,7 @@ Steam Workshop enforces per-element size limits on `About.xml`. Exceeding a cap 
 Caps per element:
 
 - `<Description>`: 8000 characters including BBCode markup. Count the UTF-8 content inside the element, not the wrapping `<Description>...</Description>` tags.
-- `<ChangeLog>`: 8000 characters (also stated in "Changelog lives in About.xml only").
+- `<ChangeLog>`: 8000 characters (also stated in the changelog section above). With the latest-version-only rule this is rarely approached.
 - `<InGameDescription>`: approximately 1450 characters of CDATA content (markup included) before the body overflows the visible window of the StationeersLaunchPad in-game settings panel. Calibrated empirically against PowerTransmitterPlus: 1545 chars / 15 source lines overshot by one visible line; 1428 chars / 14 source lines fit. The effective ceiling depends on TMP rendering, panel dimensions, and per-bullet wrapping (long bullets that wrap to two visual lines burn the budget twice as fast as short ones), so treat as a guidance number not a hard byte limit. Verify in-game after every edit that adds or grows a bullet.
 
 Verify `<Description>` content size on every edit that touches it:

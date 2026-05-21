@@ -11,9 +11,10 @@ A release commit bumps exactly one mod's version. Never bump two mods' `<Version
 ## Rule 2: a release commit is exactly these edits, nothing else
 
 - `Mods/<ModName>/<ModName>/<ModName>.cs` (or `Plugin.cs`): `PluginVersion` bump.
-- `Mods/<ModName>/<ModName>/About/About.xml`: `<Version>` bump and new top-of-`<ChangeLog>` entry.
+- `Mods/<ModName>/<ModName>/About/About.xml`: `<Version>` bump and `<ChangeLog>` rewritten to the changes since the previous version (the current version only, never appended to a running history). See the changelog rule in `Mods/Template/LAYOUT.md`.
+- `Mods/<ModName>/CHANGELOG.md`: prepend the new version's entry to the top of the full history (the same notes as the new `<ChangeLog>` body, formatted as an `## v<X.Y.Z>` Markdown entry). See the changelog rule in `Mods/Template/LAYOUT.md`.
 
-Every release commit touches those two files and nothing else. Feature work goes in prior commits.
+Every release commit touches those three files and nothing else. Feature work goes in prior commits.
 
 ## Rule 3: always tag a release commit
 
@@ -50,7 +51,7 @@ The release commit and tag cover the source side. Uploading the new build to the
 
 1. **Verify the Workshop item updated correctly.** Open the mod's Workshop page through the Playwright browser (see "steamcommunity.com lookups must go through Playwright" in the repo `CLAUDE.md`) and confirm:
    - "Updated" date is today and the changenote count went up by one.
-   - The top `<ChangeLog>` entry on the page matches the new `v<X.Y.Z>` and its notes.
+   - The newest entry on the Workshop Change Notes tab matches the new `v<X.Y.Z>` and the notes you put in `<ChangeLog>`.
    - Description, preview image, and tags still render correctly (no broken BBCode, no missing image) per `Mods/Template/LAYOUT.md`.
    If anything is wrong, fix it and re-upload before considering the release done. Do not move the tag (Rule 4); a content-only re-upload does not need a new version, a code fix does.
 
