@@ -117,13 +117,16 @@ Rules:
 
 ## About.xml element size caps
 
-Steam Workshop enforces per-element size limits on `About.xml`. Exceeding a cap causes Steam to truncate the value mid-BBCode on the Workshop listing page and in the in-game mod browser, which visibly breaks the rendered layout even though the underlying BBCode is valid.
+The size caps below are enforced by StationeersLaunchPad's `Steam.ValidateForWorkshop(ModInfo)` method when you publish a local mod through the StationeersLaunchPad UI. Over-limit content blocks the publish: the validator returns an error, an alert shows the message, and the publish button is disabled. Nothing is truncated, and the base game applies no length cap when it parses About.xml. The numbers match Steam's own Workshop limits, so the validator pre-empts a Steam-side rejection. `<InGameDescription>` is the exception: it has no code-level cap; its guidance number is a visual overflow in the in-game settings panel. Full source detail and the all-element table are in `Research/GameSystems/ModMetadataLimits.md`.
 
 Caps per element:
 
-- `<Description>`: 8000 characters including BBCode markup. Count the UTF-8 content inside the element, not the wrapping `<Description>...</Description>` tags.
-- `<ChangeLog>`: 8000 characters (also stated in the changelog section above). With the latest-version-only rule this is rarely approached.
-- `<InGameDescription>`: approximately 1450 characters of CDATA content (markup included) before the body overflows the visible window of the StationeersLaunchPad in-game settings panel. Calibrated empirically against PowerTransmitterPlus: 1545 chars / 15 source lines overshot by one visible line; 1428 chars / 14 source lines fit. The effective ceiling depends on TMP rendering, panel dimensions, and per-bullet wrapping (long bullets that wrap to two visual lines burn the budget twice as fast as short ones), so treat as a guidance number not a hard byte limit. Verify in-game after every edit that adds or grows a bullet.
+- `<Name>`: 128 characters. Publish blocked above 128.
+- `<Description>`: 8000 characters including BBCode markup. Count the UTF-8 content inside the element, not the wrapping `<Description>...</Description>` tags. Publish blocked above 8000.
+- `<ChangeLog>`: 8000 characters (also stated in the changelog section above). Publish blocked above 8000; with the latest-version-only rule this is rarely approached.
+- `About/thumb.png`: 1 MB (1048576 bytes), and the file must exist. Publish blocked otherwise.
+- `<InGameDescription>`: approximately 1450 characters of CDATA content (markup included) before the body overflows the visible window of the StationeersLaunchPad in-game settings panel. This is a visual overflow, not a hard cap: there is no length check in code. Calibrated empirically against PowerTransmitterPlus: 1545 chars / 15 source lines overshot by one visible line; 1428 chars / 14 source lines fit. The effective ceiling depends on TMP rendering, panel dimensions, and per-bullet wrapping (long bullets that wrap to two visual lines burn the budget twice as fast as short ones), so treat as a guidance number not a hard byte limit. Verify in-game after every edit that adds or grows a bullet.
+- `<ModID>`, `<Author>`, `<Version>`, `<Tags>`: no size cap. (`<WorkshopHandle>` must still be a valid numeric ulong; see the XML-safety section above.)
 
 Verify `<Description>` content size on every edit that touches it:
 
