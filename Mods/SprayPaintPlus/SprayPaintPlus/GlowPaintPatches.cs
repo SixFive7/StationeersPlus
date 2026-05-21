@@ -35,9 +35,12 @@ namespace SprayPaintPlus
     // itself; Awake is inherited from a base. See
     // Research/Patterns/HarmonyInheritedMethodTrap.md.
     //
-    // Idempotent. Defensive: if the slot is already occupied (legacy save
-    // from before v1.4.0 with a can loaded), leave it visible so the player
-    // can still remove the can. Legacy-eject automation is on the v1.5.0 TODO.
+    // Idempotent. Defensive: if the slot is already occupied (any existing
+    // save that had a can loaded when the mod was added, whether a vanilla
+    // save or a pre-block one), leave it visible so the player can still
+    // remove the can. Once the can is removed and the world reloaded, the
+    // now-empty slot is blocked like any other. No auto-eject by design; see
+    // Research/Patterns/SlotInsertionBlock.md "Legacy-state handling".
     [HarmonyPatch]
     public class SprayGunSlotHiderPatch
     {

@@ -50,7 +50,7 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 *Flavour: classified ODA research paint; the datasheet redacts everything below "handle with gloves".*
 
 The **Spray Paint Gun** becomes a self-contained glow applicator. Point at any painted target and fire; the target keeps its existing color and gains a glow halo, visible in unlit rooms. Every vanilla paint color supports glow.
-- Gun is ammo-less. It no longer accepts spray cans; loading one is blocked at the UI and at the server
+- Gun is ammo-less. It no longer accepts spray cans; its can slot is hidden in the inventory
 - Gun never changes a target's color. To change color, paint with a plain can first; then fire the gun to add glow
 - Shift (single target) and Ctrl (checkered pattern) modifiers apply to gun-paint too
 - Right-click the gun to switch between **Add Glow** and **Remove Glow** modes (the vanilla on/off toggle, HUD label rebranded)
