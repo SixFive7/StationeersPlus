@@ -1,6 +1,12 @@
 # Changelog
 
-Full version history for Inspector Plus. The newest entry also appears in `About.xml` `<ChangeLog>`.
+Full version history for Inspector Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
+
+## v1.0.0: First public release
+- On-demand JSON snapshots of live scene objects: drop a request file in BepInEx/inspector/requests/ and read the result from BepInEx/inspector/snapshots/.
+- F8 dumps every MonoBehaviour in the current scene in one pass.
+- Captures private and public fields, computed properties, and Unity Transform positions, walking nested objects to a configurable depth with cycle detection.
+- Hard caps on snapshot size with a visible truncation marker so a dump never runs away.
 
 ## v0.2.0: Generic walker fixes for any Unity game
 - Inline-expand plain serializable classes instead of stringifying them as (TypeName); shared with the UnityEngine.Object path so the same filter, private-include, and skip rules apply.
