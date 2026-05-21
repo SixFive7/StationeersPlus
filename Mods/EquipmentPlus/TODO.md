@@ -2,6 +2,43 @@
 
 This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
 
+## BUG: AdvancedTablet logic-value writes are silently dropped for non-ISetable devices on a dedicated server
+
+Confirmed root cause (static analysis, 100% certain, 2026-05-21). Ready for implementation.
+
+**Symptom.** A remote client on a dedicated server uses the AdvancedTablet (ConfigCartridge click-to-write) to write a device-level LogicType value, and nothing happens: the value reads back 0, the device does not react. Originally hit with PowerTransmitterPlus `MicrowaveAutoAimTarget` on a dish, but the bug is general (see Scope). Works fine in single-player and when the host does it.
+
+**Root cause.** `ConfigCartridgePatches.WriteLogicValue` (`ConfigCartridgePatches.cs:456-473`) does this:
+
+- Host branch (`NetworkManager.IsServer`): `device.SetLogicValue(logicType, value)` directly. Works -- the device is resolved as a concrete `Device`/`ILogicable` and the call lands.
+- Client branch (`NetworkManager.IsClient`): sends the vanilla `SetLogicFromClient` message.
+
+The vanilla `SetLogicFromClient.Process` (Assembly-CSharp decompile line 258660-258682) applies the write ONLY if the target resolves as `ISetable`:
+
+```csharp
+if (!(Thing.Find<Thing>(LogicId) is ISetable setable))
+    WaitUntilFound(hostId, Process, Process, instanceId, 10f, "LogicMirror"); // retry then give up
+else if (setable.CanLogicWrite(LogicType))
+    setable.SetLogicValue(LogicType, Value);
+```
+
+`ISetable` is implemented by only a subset of devices (Transformer, Waypoint, LogicUnitBase, Stacker, AdvancedFurnace, SettableAtmosDevice, VendingMachineRefrigerated, AdvancedSuit, SuitBase). It is NOT implemented by `WirelessPower` / `PowerTransmitter` / `PowerReceiver` or their base `ElectricalInputOutput`, nor by plain `Device`. So for a non-`ISetable` target the cast fails, the write is diverted into `WaitUntilFound` (a 10s mirror-resolution retry intended for unresolved LogicMirror targets), and `SetLogicValue` is NEVER called. Hence zero effect, value reads back 0. The host branch avoids this because it calls `SetLogicValue` directly through `ILogicable`, never touching the `ISetable` gate.
+
+Full game-internals writeup: `Research/Protocols/LogicValueWriteMessages.md` ("SetLogicFromClient (id 37): the handheld / settable write, gated on ISetable"). Note the value is a full-precision `double` on this path -- float quantization is NOT involved (that is a different, RocketMotherboard-panel-only path).
+
+**Scope.** This is NOT specific to PowerTransmitterPlus or auto-aim. ANY device-level LogicType write via the AdvancedTablet from a remote client fails when the target device is `ILogicable` but not `ISetable` (dishes, and likely batteries, solar panels, and most plain `Device`s). The per-slot write path (`WriteLogicSlotValue` -> `SetLogicSlotFromClientMessage`, the Case 9 path) is unaffected because it already uses a custom server-resolving message, not the vanilla `ISetable`-gated one.
+
+**Fix (recommended).** Mirror the existing slot pattern: replace the client branch's vanilla `SetLogicFromClient` with a custom client->server message whose server-side `Process` resolves the target as `ILogicable` (which every `Device` is) and applies the write the same way the host branch does.
+
+- [ ] Add `SetLogicFromClientMessage` (device-level), parallel to the existing `SetLogicSlotFromClientMessage`. Fields: `long DeviceId; LogicType LogicType; double Value;`. Register it in `Plugin.cs` alongside the slot message.
+- [ ] `Process` server-side: `var d = Thing.Find<ILogicable>(DeviceId); if (d != null && d.CanLogicWrite(LogicType)) d.SetLogicValue(LogicType, Value);`. Keep the `CanLogicWrite` re-check as server-side authority (a remote client should not be able to write a non-writable LogicType). This mirrors the host branch but adds the safety gate the host branch currently relies on the client-side UI for.
+- [ ] Change `ConfigCartridgePatches.WriteLogicValue` client branch to send this new message instead of vanilla `SetLogicFromClient`.
+- [ ] Leave the host branch (`device.SetLogicValue(...)` direct) as-is; it already works.
+
+Alternative considered: route through the vanilla `SetLogicValueMessage` (id 104), whose `Process` resolves `Thing.Find<ILogicable>` with no `ISetable` gate. Workable (its value encoding defaults to full-precision `double` for a custom LogicType), but it couples to vanilla's per-type encoding table and is normally the RocketMotherboard panel's message; the custom-message approach above is more robust and matches the slot pattern already in the mod.
+
+**Verification.** On a dedicated server with a remote client: write a device-level LogicType to a non-`ISetable` device via the AdvancedTablet (e.g. PowerTransmitterPlus `MicrowaveAutoAimTarget` on a dish, with PowerTransmitterPlus installed) and confirm the value lands and reads back. Cross-check that a write to an `ISetable` device (e.g. a Transformer) still works. Host/single-player must remain unaffected. PowerTransmitterPlus's IC10 control test already proved the dish's server-side `SetLogicValue` works, so a successful tablet write end-to-end confirms the fix.
+
 ## Resume after compact (2026-04-27 evening session)
 
 User requested four items in one batch then paused for compaction. Pick up here:
