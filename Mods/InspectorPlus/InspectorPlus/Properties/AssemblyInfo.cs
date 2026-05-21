@@ -7,6 +7,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("InspectorPlus")]
 [assembly: AssemblyCopyright("Copyright 2026")]
 [assembly: ComVisible(false)]
-[assembly: Guid("a1b2c3d4-e5f6-7890-abcd-ef1234567890")]
+[assembly: Guid("e4d57e93-59f9-42ec-aa39-29f82b6f2b1d")]
 [assembly: AssemblyVersion(InspectorPlus.InspectorPlusPlugin.PluginVersion)]
 [assembly: AssemblyFileVersion(InspectorPlus.InspectorPlusPlugin.PluginVersion)]

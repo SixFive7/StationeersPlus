@@ -7,6 +7,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("PowerTransmitterPlus")]
 [assembly: AssemblyCopyright("Copyright 2026")]
 [assembly: ComVisible(false)]
-[assembly: Guid("d4e5f6a7-b8c9-4012-cdef-345678901234")]
+[assembly: Guid("d95af260-7e26-4c16-8792-e60657e03b13")]
 [assembly: AssemblyVersion(PowerTransmitterPlus.PowerTransmitterPlusPlugin.PluginVersion)]
 [assembly: AssemblyFileVersion(PowerTransmitterPlus.PowerTransmitterPlusPlugin.PluginVersion)]

@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{D4E5F6A7-B8C9-4012-CDEF-345678901234}</ProjectGuid>
+    <ProjectGuid>{D95AF260-7E26-4C16-8792-E60657E03B13}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>PowerTransmitterPlus</RootNamespace>
     <AssemblyName>PowerTransmitterPlus</AssemblyName>

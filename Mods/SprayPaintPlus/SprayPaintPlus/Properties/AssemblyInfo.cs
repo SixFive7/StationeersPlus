@@ -7,6 +7,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("SprayPaintPlus")]
 [assembly: AssemblyCopyright("Copyright 2026")]
 [assembly: ComVisible(false)]
-[assembly: Guid("f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+[assembly: Guid("514958e0-6f67-419e-9e36-88e25bd9ff51")]
 [assembly: AssemblyVersion(SprayPaintPlus.SprayPaintPlusPlugin.PluginVersion)]
 [assembly: AssemblyFileVersion(SprayPaintPlus.SprayPaintPlusPlugin.PluginVersion)]

@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <ProjectGuid>{E4D57E93-59F9-42EC-AA39-29F82B6F2B1D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>InspectorPlus</RootNamespace>
     <AssemblyName>InspectorPlus</AssemblyName>
