@@ -202,7 +202,7 @@ There is no `-Clean` action. Cleaning is the developer's call:
 
 - This file auto-loads when you touch any path inside `DedicatedServer/`. If your work involves only `DedicatedServer/dedicated-server.ps1` and never reads or writes inside this folder, read this file explicitly.
 - Never commit anything in this folder other than this `CLAUDE.md`. The `.gitignore` rule (`/DedicatedServer/* + !/DedicatedServer/CLAUDE.md`) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it.
-- All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`.
+- All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`. With no client connected the server simulation is paused and request files are not processed; for autonomous snapshots, enable InspectorPlus's `Force Unpause Without Client` setting (off by default) under `[Server - Headless]` in `install/BepInEx/config/net.inspectorplus.cfg`. See `Research/Workflows/InspectorPlusUsage.md`.
 
 ### Standard test loop (agent owns lifecycle)
 
