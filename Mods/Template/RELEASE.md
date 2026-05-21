@@ -11,7 +11,7 @@ A release commit bumps exactly one mod's version. Never bump two mods' `<Version
 ## Rule 2: a release commit is exactly these edits, nothing else
 
 - `Mods/<ModName>/<ModName>/<ModName>.cs` (or `Plugin.cs`): `PluginVersion` bump.
-- `Mods/<ModName>/<ModName>/About/About.xml`: `<Version>` bump and `<ChangeLog>` rewritten to the changes since the previous version (the current version only, never appended to a running history). See the changelog rule in `Mods/Template/LAYOUT.md`.
+- `Mods/<ModName>/<ModName>/About/About.xml`: `<Version>` bump and the new version's block prepended to `<ChangeLog>`. The body holds every change since the last actual Workshop release (usually just the current version; several if publishes were skipped; the full history if never published), so after the mod ships to the Workshop the next release starts the body fresh. See the changelog rule in `Mods/Template/LAYOUT.md`.
 - `Mods/<ModName>/CHANGELOG.md`: prepend the new version's entry to the top of the full history. Write it once in the shared changelog entry format (a `v<X.Y.Z>: summary` heading plus period-terminated bullets) and use the same wording in both places: the `## v<X.Y.Z>` Markdown form here and the plain-text form in the `<ChangeLog>` body. See the changelog entry format in `Mods/Template/LAYOUT.md`.
 
 Every release commit touches those three files and nothing else. Feature work goes in prior commits.

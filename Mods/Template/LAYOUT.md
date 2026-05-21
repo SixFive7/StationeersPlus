@@ -45,14 +45,17 @@ Every mod has one canonical tagline: a single sentence describing the mod in its
 
 When the feature set changes, update all three. Short-form abbreviations and marketing-style rewrites that drift between surfaces are not allowed; the tagline is one sentence, identical content, three encodings.
 
-## Changelog: full history in CHANGELOG.md, latest version in About.xml
+## Changelog: full history in CHANGELOG.md, unpublished changes in About.xml
 
 The changelog lives in two files with different jobs, kept in sync on every release.
 
 - **`CHANGELOG.md` at the mod's folder root** is the full version history: every released version, reverse-chronological, newest at the top. The in-repo source of truth for the complete history. Markdown, rendered on GitHub. Every release prepends a new entry; nothing already shipped is removed.
-- **`About.xml` `<ChangeLog>`** is the current version's changes only (what changed since the previous published version). Plain text. Steam attaches it to this one update as the per-update change note and keeps every earlier update's note on the Workshop Change Notes tab on its own, so Steam preserves the per-version history without the mod resubmitting it. Every release replaces this body; it never accumulates. Carrying the whole history here is what eventually drives a long-lived mod past the 8000-character cap.
+- **`About.xml` `<ChangeLog>`** is every change since the mod's last **actual Workshop release** (the last upload, not the last version tag), newest version first. Plain text. Steam records one change note per publish and keeps each earlier publish's note on the Workshop Change Notes tab, so this body only has to cover the span since the last real publish:
+  - Normally that is just the current version, because each version is published in turn.
+  - It is **several versions** when Workshop publishes were skipped: versions tagged but never uploaded accumulate here until the next publish carries them all.
+  - It is the **entire history** for a mod that has never been published (`<WorkshopHandle>0`); there is no prior release to count from. InspectorPlus is the worked example.
 
-This split is a hard rule: every mod, every release, every time. The new version goes to the top of `CHANGELOG.md` and replaces the `<ChangeLog>` body in `About.xml`.
+This split is a hard rule: every mod, every release, every time. Each release prepends the new version's block to both `CHANGELOG.md` and the `<ChangeLog>` body. The `<ChangeLog>` body is reset to the unpublished span only after the mod actually ships to the Workshop (the published blocks then live on Steam's Change Notes tab), so it stays short for a regularly-published mod and the 8000-character cap is only a worry when many publishes are skipped in a row.
 
 ### Changelog entry format (both files)
 
@@ -64,7 +67,7 @@ Every entry, in `CHANGELOG.md` and in the `About.xml` `<ChangeLog>`, uses the sa
 - Optional, used consistently within an entry: a leading category label on a bullet (`NEW:`, `FIX:`, `CHANGE:`) and a trailing `REQUIRES: ...` bullet for version or dependency requirements.
 - Encoding is the only thing that differs between the files. `About.xml` is plain text (no Markdown, no BBCode) and XML-escapes any literal `<` or `>` as `&lt;` / `&gt;`. `CHANGELOG.md` is Markdown and wraps tag-like tokens such as `` `<WorkshopHandle>` `` in backticks so they render.
 
-The newest `CHANGELOG.md` entry and the current `About.xml` `<ChangeLog>` body are the same text: same heading words, same bullets, same wording. Only the `## ` prefix, the backticks-vs-escaping, and Markdown-vs-plain-text differ. Write the entry once at release time and place it in both.
+Each version's `CHANGELOG.md` entry and its `About.xml` `<ChangeLog>` block are the same text: same heading words, same bullets, same wording. Only the `## ` prefix, the backticks-vs-escaping, and Markdown-vs-plain-text differ. Write the entry once at release time and place it in both. `CHANGELOG.md` keeps every version; `<ChangeLog>` keeps the versions since the last Workshop publish.
 
 Canonical example, the same release in each file.
 
@@ -86,19 +89,19 @@ v1.4.2: Fix the paint bucket deprecated-property warning
 - REQUIRES: All players on a server must run 1.4.2 (matching-version handshake).
 ```
 
-### About.xml `<ChangeLog>` (latest version only)
+### About.xml `<ChangeLog>` (changes since the last Workshop release)
 
 - Plain text only. Never use BBCode inside `<ChangeLog>`, even though the surrounding `<Description>` element uses BBCode heavily. Workshop renders the change note as plain text: BBCode tags (`[h2]`, `[list][*]`, `[b]`) appear as literal characters.
-- Exactly one version block: the version being released and the changes since the previous version. No older entries beneath it. Replace the body every release; never append.
-- The submitted change note is capped at 8000 characters. With one version per submission this is no longer a practical worry, but the cap still exists; the size-caps section below has the exact source.
+- One or more version blocks, newest first: every version since the last actual Workshop publish (see the changelog rule above). For most releases that is a single block; it is several for a mod with skipped publishes, and the full history for a mod never yet published. Each block uses the shared entry format.
+- The submitted change note is capped at 8000 characters. With the since-last-publish rule a regularly-published mod sits at one block and never approaches the cap; only a long run of skipped publishes could. The size-caps section below has the exact source.
 
-The `<ChangeLog>` body is exactly one version block in the shared entry format above: the heading line with no `##`, then the period-terminated bullets, and nothing beneath it. No `#`, no `[h3]`, no BBCode; line breaks render as line breaks on Workshop.
+Each `<ChangeLog>` version block uses the shared entry format above: the heading line with no `##`, then the period-terminated bullets. Multiple blocks are stacked newest-first with a blank line between them. No `#`, no `[h3]`, no BBCode; line breaks render as line breaks on Workshop.
 
 ### CHANGELOG.md (full history)
 
 - One `CHANGELOG.md` per mod at the mod's folder root: `Mods/<ModName>/CHANGELOG.md` for released mods, `Plans/<ModName>/CHANGELOG.md` for work-in-progress. Required for every mod.
 - Full history, reverse-chronological, newest at the top. Every released version has an entry. Shipped entries are not rewritten (fix a typo, yes; rewrite the history, no).
-- Markdown. Each version is an H2 heading `## v<X.Y.Z>: one-line summary` followed by dash bullets. The newest entry's bullets are the same text as the current `About.xml` `<ChangeLog>` body; only the `##` heading prefix differs.
+- Markdown. Each version is an H2 heading `## v<X.Y.Z>: one-line summary` followed by dash bullets. Each entry's bullets are the same text as that version's block in the `About.xml` `<ChangeLog>` (for the versions still carried there); only the `##` heading prefix differs.
 - On every release, prepend the new version's entry to the top, in the same commit that bumps `<Version>` and rewrites the `About.xml` `<ChangeLog>` (see `Mods/Template/RELEASE.md` Rule 2).
 
 `CHANGELOG.md` shape (each version entry in the shared format above, newest first):
@@ -146,7 +149,7 @@ Caps per element:
 
 - `<Name>`: 128 characters. Publish blocked above 128.
 - `<Description>`: 8000 characters including BBCode markup. Count the UTF-8 content inside the element, not the wrapping `<Description>...</Description>` tags. Publish blocked above 8000.
-- `<ChangeLog>`: 8000 characters (also stated in the changelog section above). Publish blocked above 8000; with the latest-version-only rule this is rarely approached.
+- `<ChangeLog>`: 8000 characters (also stated in the changelog section above). Publish blocked above 8000; with the since-last-publish rule a regularly-published mod stays well under, and only a long run of skipped publishes could approach it.
 - `About/thumb.png`: 1 MB (1048576 bytes), and the file must exist. Publish blocked otherwise.
 - `<InGameDescription>`: approximately 1450 characters of CDATA content (markup included) before the body overflows the visible window of the StationeersLaunchPad in-game settings panel. This is a visual overflow, not a hard cap: there is no length check in code. Calibrated empirically against PowerTransmitterPlus: 1545 chars / 15 source lines overshot by one visible line; 1428 chars / 14 source lines fit. The effective ceiling depends on TMP rendering, panel dimensions, and per-bullet wrapping (long bullets that wrap to two visual lines burn the budget twice as fast as short ones), so treat as a guidance number not a hard byte limit. Verify in-game after every edit that adds or grows a bullet.
 - `<ModID>`, `<Author>`, `<Version>`, `<Tags>`: no size cap. (`<WorkshopHandle>` must still be a valid numeric ulong; see the XML-safety section above.)
