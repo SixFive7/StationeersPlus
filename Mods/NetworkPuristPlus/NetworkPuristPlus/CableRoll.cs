@@ -30,8 +30,13 @@ namespace NetworkPuristPlus
     // -- its open ends are off the run axis), and no single canonical roll per run axis mates with every
     // corner: a corner's band-exit face is per-corner-rotation (not even a function of its leg-direction pair
     // -- the "L flipped over" cases), and a straight that runs between two corners with contradictory band
-    // faces can match at one end only. This choice mates with the most corners; a full corner-seam fix is a
-    // larger, separate feature (re-roll each corner-adjacent straight per its specific corner) -- see TODO.md.
+    // faces can match at one end only. This choice mates with the most corners, and it is the ACCEPTED FINAL
+    // behaviour -- a full corner-seam fix is deliberately not attempted. Fully fixing it means re-rolling each
+    // corner-adjacent straight to its specific corner (and a straight between two disagreeing corners can match
+    // one end only), and probably normalising the corners themselves; re-rolling a corner is connectivity-relevant,
+    // so it changes ConnectedCables iteration order -- the exact server-vs-client divergence CableNetwork.Merge
+    // desyncs on (see the SERVER-ONLY note on Normalise below, and Research/Patterns/MultiplayerStateMutation.md).
+    // The cosmetic gain is not worth that complexity or multiplayer risk, so the per-axis plurality roll stands.
     //
     // Long-variant cables (StructureCableSuperHeavyStraight3 / 5 / 10) are NOT touched here: they are
     // handled by the long-piece rebuild (ReplaceLongPiecesOnLoadPatch) and the build-time rewrite

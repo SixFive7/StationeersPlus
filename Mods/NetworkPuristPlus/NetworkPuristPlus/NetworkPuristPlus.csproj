@@ -66,9 +66,8 @@
     <Compile Include="LongVariantRegistry.cs" />
     <Compile Include="ReplaceLongPiecesOnLoadPatch.cs" />
     <Compile Include="CableRoll.cs" />
-    <Compile Include="NormalizeCableRollOnRegisterPatch.cs" />
+    <Compile Include="RewriteCableRollOnConstructPatch.cs" />
     <Compile Include="NormalizeCableRollOnLoadPatch.cs" />
-    <Compile Include="RewriteLongVariantOnConstructPatch.cs" />
     <Compile Include="HideLongVariantsStationpediaPatch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
