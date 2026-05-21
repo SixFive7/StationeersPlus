@@ -47,6 +47,16 @@ namespace PowerGridPlus.Patches
             var reachable = PassthroughTopology.GatherReachable(__instance);
             if (reachable == null) return; // not part of a passthrough component
 
+            // Dedupe with a HashSet (O(1) membership) rather than List.Contains (O(n)), so merging a
+            // component stays linear in its total device count instead of quadratic. Headroom for large
+            // bridged webs. Seed it with the local devices the vanilla refresh already placed in the list.
+            var seen = new HashSet<Device>();
+            for (int i = ____dataDeviceList.Count - 1; i >= 0; i--)
+            {
+                var local = ____dataDeviceList[i];
+                if (local != null) seen.Add(local);
+            }
+
             for (int n = 0; n < reachable.Count; n++)
             {
                 var remote = reachable[n].DeviceList;
@@ -54,7 +64,7 @@ namespace PowerGridPlus.Patches
                 {
                     var remoteDevice = remote[j];
                     if (remoteDevice == null) continue;
-                    if (!____dataDeviceList.Contains(remoteDevice))
+                    if (seen.Add(remoteDevice))
                         ____dataDeviceList.Add(remoteDevice);
                 }
             }
