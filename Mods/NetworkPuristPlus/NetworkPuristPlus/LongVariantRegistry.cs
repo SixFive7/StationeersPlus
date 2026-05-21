@@ -39,7 +39,7 @@ namespace NetworkPuristPlus
         internal static readonly List<Structure> LongVariants = new List<Structure>();
 
         // long-variant PrefabHash -> its segment count (3 / 5 / 10), from the trailing digit run. Diagnostic
-        // only -- the build-time rewrite reads the actual footprint cells off GridBounds, not this.
+        // only -- the on-load rebuild reads the actual footprint cells off GridBounds, not this.
         internal static readonly Dictionary<int, int> LongToCellCount = new Dictionary<int, int>();
 
         // How many build kits had long variants stripped from their option list. Diagnostic only.

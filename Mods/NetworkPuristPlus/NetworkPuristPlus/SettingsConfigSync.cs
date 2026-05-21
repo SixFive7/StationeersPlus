@@ -18,8 +18,8 @@ namespace NetworkPuristPlus
     //   does NOT re-run the prefab-time effects -- those happened at Prefab.OnPrefabsLoaded, before the
     //   join -- and it does not need to: a mismatched client was already rejected at join time.
     //
-    // The world rebuild + cable realign on load, and the build-time long-piece rewrite, are all
-    // host-authoritative (they run only where GameManager.RunSimulation), so the gameplay outcome is
+    // The world rebuild and cable realign on load are host-authoritative (they run only where
+    // GameManager.RunSimulation), so the gameplay outcome is
     // always the host's regardless of what this mirror holds on a client.
     internal static class SettingsConfigSync
     {

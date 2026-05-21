@@ -6,8 +6,8 @@ namespace NetworkPuristPlus
     // The six long-piece families. A long variant's family is decided from its single-tile base
     // name (regex group 1 + group 3: "Structure<word>Straight" with the digit run removed, any "Burnt"
     // suffix kept). The classification gates everything downstream: LongVariantRegistry.Build() only
-    // records a long variant in LongToBase if its family's toggle is on, and the strip / hide / rebuild /
-    // build-time rewrite all key off LongToBase, so a disabled family is left exactly as vanilla ships it.
+    // records a long variant in LongToBase if its family's toggle is on, and the strip / hide / rebuild
+    // all key off LongToBase, so a disabled family is left exactly as vanilla ships it.
     internal enum LongPieceFamily
     {
         GasPipe,             // StructurePipeStraight       (NOT insulated, NOT liquid -- the game just calls it "Pipe"; the setting name spells out "Gas Pipe" so it's not confused with the liquid pipe)
@@ -39,8 +39,8 @@ namespace NetworkPuristPlus
         internal static ConfigEntry<bool> Enabled;
 
         // Per-family toggles for the long-piece removal. Each gates, for that family: whether its long
-        // variants are stripped from build kits, hidden from the Stationpedia, rebuilt on load, and
-        // rewritten at build time. (Implementation: LongVariantRegistry.Build() only adds a long variant
+        // variants are stripped from build kits, hidden from the Stationpedia, and rebuilt on load.
+        // (Implementation: LongVariantRegistry.Build() only adds a long variant
         // to LongToBase if its family's toggle is on; everything downstream keys off LongToBase. The
         // family-base AutomaticSetup -- the merge-with-tool fix -- also runs only for the families whose
         // long variants are stripped, i.e. iff that family's toggle is on.) The gas / liquid distinction
@@ -55,7 +55,7 @@ namespace NetworkPuristPlus
         internal static ConfigEntry<bool> RemoveLongChutes;
         internal static ConfigEntry<bool> RemoveLongSuperHeavyCables;
 
-        // Cable-alignment toggle. When off: skip the on-load cable sweep, the Cable.OnRegistered re-roll,
+        // Cable-alignment toggle. When off: skip the on-load cable sweep, the build-time re-roll,
         // and the AutomaticSetup of cable prefabs that have no long variant (StructureCableStraight /
         // StructureCableStraightH -- the cursor half of the alignment feature for those tiers). The
         // family-base AutomaticSetup for stripped pipe/chute/super-heavy-cable bases is the merge-with-tool
@@ -70,61 +70,55 @@ namespace NetworkPuristPlus
                 new KeyValuePair<string, int>("Order", order),
                 new KeyValuePair<string, bool>("RequireRestart", true));
 
-        // The restart caveat appended to most descriptions (the prefab-load-time work runs once at startup).
-        private const string RestartNote =
-            " Requires a full Stationeers restart to take effect: the build-kit strip / Stationpedia hide / " +
-            "build-cursor setup runs once at startup, so toggling this while the game is running does nothing " +
-            "until you relaunch.";
-
         // Bind every entry. Call from Plugin.Awake before anything reads a value.
         internal static void Bind(ConfigFile config)
         {
             Enabled = config.Bind(
                 "Server - Pieces", "Enable Network Purist Plus", true,
                 Desc(
-                    "(Server-authoritative) Master switch. When off, the mod does nothing: long-piece variants stay in the build kits and the Stationpedia, no long run is rebuilt on load, no cable is realigned, and the build cursor is left untouched -- as if the mod were not installed. Requires a full Stationeers restart to take effect: the mod's startup work runs once at game launch, so toggling this on/off mid-session changes nothing until you relaunch. All players on a server must have the same value for this; a joining client whose value differs from the host's is rejected with a clear message.",
+                    "(Server-authoritative) Master switch. Turn it off and the mod sits idle: the long pieces stay, and nothing is rebuilt or realigned. Restart to apply.",
                     10));
 
             RemoveLongGasPipes = config.Bind(
                 "Server - Pieces", "Remove Long Gas Pipes", true,
                 Desc(
-                    "(Server-authoritative) Remove the long (3 / 5 / 10 segment) StructurePipeStraight variants (the basic pipe -- the game just calls it \"Pipe\"; named \"Gas Pipe\" here so it's not confused with the liquid pipe below): strip them from the pipe kit, hide them from the Stationpedia, rebuild placed long pipe runs from single tiles on load, and rewrite a long pipe placed mid-game into single tiles. No effect when the master toggle is off." + RestartNote + " All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) The basic pipe, called Gas Pipe here so it isn't mixed up with the liquid one. Takes its long version out of the build kit and the Stationpedia. Runs you've already built become single tiles the next time the save loads. Restart to apply.",
                     20));
 
             RemoveLongLiquidPipes = config.Bind(
                 "Server - Pieces", "Remove Long Liquid Pipes", true,
                 Desc(
-                    "(Server-authoritative) Remove the long (3 / 5 / 10 segment) StructurePipeLiquidStraight variants: strip them from the liquid-pipe kit, hide them from the Stationpedia, rebuild placed long liquid-pipe runs from single tiles on load, and rewrite a long liquid pipe placed mid-game into single tiles. No effect when the master toggle is off." + RestartNote + " All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) Takes the long liquid pipe out of the build kit and the Stationpedia. Existing runs become single tiles on the next save load. Restart to apply.",
                     30));
 
             RemoveLongInsulatedGasPipes = config.Bind(
                 "Server - Pieces", "Remove Long Insulated Gas Pipes", true,
                 Desc(
-                    "(Server-authoritative) Remove the long (3 / 5 / 10 segment) StructureInsulatedPipeStraight variants (the insulated gas pipe -- the game calls it \"Insulated Pipe\"; named \"Insulated Gas Pipe\" here, and the insulated liquid pipe has its own toggle below): strip them from the insulated-pipe kit, hide them from the Stationpedia, rebuild placed long runs from single tiles on load, and rewrite one placed mid-game into single tiles. No effect when the master toggle is off." + RestartNote + " All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) The insulated gas pipe, the game's Insulated Pipe (the insulated liquid one has its own toggle). Takes its long version out of the kit and the Stationpedia. Existing runs become single tiles on the next load. Restart to apply.",
                     40));
 
             RemoveLongInsulatedLiquidPipes = config.Bind(
                 "Server - Pieces", "Remove Long Insulated Liquid Pipes", true,
                 Desc(
-                    "(Server-authoritative) Remove the long (3 / 5 / 10 segment) StructureInsulatedPipeLiquidStraight variants (the insulated liquid pipe): strip them from the insulated-liquid-pipe kit, hide them from the Stationpedia, rebuild placed long runs from single tiles on load, and rewrite one placed mid-game into single tiles. No effect when the master toggle is off." + RestartNote + " All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) Takes the long insulated liquid pipe out of the kit and the Stationpedia. Existing runs become single tiles on the next load. Restart to apply.",
                     50));
 
             RemoveLongChutes = config.Bind(
                 "Server - Pieces", "Remove Long Chutes", true,
                 Desc(
-                    "(Server-authoritative) Remove the long (3 / 5 / 10 segment) StructureChuteStraight variants: strip them from the chute kit, hide them from the Stationpedia, rebuild placed long chute runs from single tiles on load (an item in transit inside a destroyed segment is lost), and rewrite a long chute placed mid-game into single tiles. No effect when the master toggle is off." + RestartNote + " All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) Takes the long chute out of the kit and the Stationpedia. Existing runs become single tiles on the next load. Anything riding through a segment as it is replaced is lost. Restart to apply.",
                     60));
 
             RemoveLongSuperHeavyCables = config.Bind(
                 "Server - Pieces", "Remove Long Super-Heavy Cables", true,
                 Desc(
-                    "(Server-authoritative) Remove the long (3 / 5 / 10 segment) StructureCableSuperHeavyStraight variants (the only cable tier that has long variants; includes the burnt damage-state siblings): strip them from the super-heavy cable kit, hide them from the Stationpedia, rebuild placed long super-heavy cable runs from single tiles on load, and rewrite one placed mid-game into single tiles. No effect when the master toggle is off." + RestartNote + " All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) Takes the long super-heavy cable out of the kit and the Stationpedia. It is the only cable that comes in long pieces, burnt ones included. Existing runs become single tiles on the next load. Restart to apply.",
                     70));
 
             AlignStraightCables = config.Bind(
                 "Server - Cables", "Align Straight Cables", true,
                 Desc(
-                    "(Server-authoritative) Re-roll every straight cable (all tiers) to one consistent orientation per run axis: existing runs when a save loads, freshly built ones the instant they register, and the build cursor for the straight-cable tiers that have no long variant. Cosmetic only -- connectivity, networks and colour are untouched. (The coloured band can still jump where a straight meets a corner cable -- corner pieces have a fixed band orientation and are not re-rolled.) The cable rotate key becomes preview-only. When off, none of that happens (a cable's roll is left wherever it was placed). The merge-with-tool fix for the stripped pipe / chute / super-heavy-cable kits is separate and is governed by the per-family toggles, not this one. No effect when the master toggle is off. Requires a full Stationeers restart to take effect: the on-load realignment and the build-cursor connection-type setup run once at startup, so toggling this mid-session has no effect until you relaunch. All players on a server must have the same value; a mismatch rejects the joining client.",
+                    "(Server-authoritative) Lines every straight cable up the same way so the coloured band runs straight instead of twisting from piece to piece. Cables already down get fixed on the next save load, new ones as you place them, and the cable build cursor gets a simpler 3-way rotate. Looks only, nothing electrical changes, and the rotate key on a cable just moves the preview. The band can still kink where a straight meets a corner. Restart to apply.",
                     10));
         }
 

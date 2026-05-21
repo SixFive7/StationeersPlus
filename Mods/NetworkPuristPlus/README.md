@@ -65,7 +65,7 @@ All settings are server-authoritative: the host's values are the ones that take 
 | Setting | Section | Default | What it does |
 |---|---|---|---|
 | Enable Network Purist Plus | Server - Pieces | on | Master switch. When off, the mod does nothing: long-piece variants stay in the build kits and the Stationpedia, no long run is rebuilt on load, no cable is realigned, the build cursor is left untouched. |
-| Remove Long Gas Pipes | Server - Pieces | on | Removes the long `StructurePipeStraight3` / `5` / `10` variants -- the basic pipe (the game just calls it "Pipe"; named "Gas Pipe" here so it's not confused with the liquid pipe): stripped from the kit, hidden from the Stationpedia, rebuilt from single tiles on load, rewritten if built mid-game. |
+| Remove Long Gas Pipes | Server - Pieces | on | Removes the long `StructurePipeStraight3` / `5` / `10` variants -- the basic pipe (the game just calls it "Pipe"; named "Gas Pipe" here so it's not confused with the liquid pipe): stripped from the kit, hidden from the Stationpedia, and rebuilt from single tiles on load. |
 | Remove Long Liquid Pipes | Server - Pieces | on | Same, for the long `StructurePipeLiquidStraight3` / `5` / `10` variants. |
 | Remove Long Insulated Gas Pipes | Server - Pieces | on | Same, for the long `StructureInsulatedPipeStraight3` / `5` / `10` variants -- the insulated **gas** pipe (the game calls it "Insulated Pipe"; named "Insulated Gas Pipe" here). The insulated liquid pipe has its own toggle below. |
 | Remove Long Insulated Liquid Pipes | Server - Pieces | on | Same, for the long `StructureInsulatedPipeLiquidStraight3` / `5` / `10` variants -- the insulated liquid pipe. |

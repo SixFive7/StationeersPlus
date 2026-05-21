@@ -39,9 +39,8 @@ namespace NetworkPuristPlus
     // The cosmetic gain is not worth that complexity or multiplayer risk, so the per-axis plurality roll stands.
     //
     // Long-variant cables (StructureCableSuperHeavyStraight3 / 5 / 10) are NOT touched here: they are
-    // handled by the long-piece rebuild (ReplaceLongPiecesOnLoadPatch) and the build-time rewrite
-    // (RewriteLongVariantOnConstructPatch); their single-tile replacements are born canonical and then
-    // pass through the on-register normalisation like any other freshly built cable.
+    // handled by the long-piece rebuild (ReplaceLongPiecesOnLoadPatch); its single-tile replacements are
+    // born canonical (the rebuild spawns them at CableRoll.Canonical) and re-checked by the on-load sweep.
     //
     // (Changing these constants means the next world load re-rolls every straight cable to the new canonical
     // -- one more one-time conversion, expected and cosmetic-only.)
