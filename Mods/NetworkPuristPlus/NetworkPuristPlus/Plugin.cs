@@ -15,10 +15,12 @@ namespace NetworkPuristPlus
     // Network Purist Plus removes the "long" straight pipe/cable/chute variants (the 3-, 5-, and
     // 10-segment pieces). It hides them from the build-kit mouse wheel and the Stationpedia, and
     // when a save loads it replaces every already-placed long run with the equivalent single-tile
-    // pieces so existing networks keep working; a long piece that turns up mid-game (a blueprint paste,
-    // another mod) is expanded into single tiles the moment it is built. It also aligns straight cables
-    // to one consistent orientation: existing runs on world load, freshly built ones as they are placed
-    // (so adjacent cables no longer show the band misaligned). Cosmetic only; nothing functional changes.
+    // pieces so existing networks keep working. The long variants are gone from the build menus, so
+    // there is no way to build one directly; a long piece that turns up some other way (a blueprint
+    // paste, another mod, the creative menu) is converted to single tiles on the next world load. It
+    // also aligns straight cables to one consistent orientation: existing runs on world load, freshly
+    // built ones as they are placed (so adjacent cables no longer show the band misaligned). Cosmetic
+    // only; nothing functional changes.
     //
     // v1.1: a settings panel (a master enable toggle, per-family long-piece toggles, a cable-alignment
     // toggle -- all server-authoritative; see Settings.cs) and network-version + settings enforcement on
@@ -32,7 +34,7 @@ namespace NetworkPuristPlus
     {
         public const string PluginGuid = "net.networkpuristplus";
         public const string PluginName = "NetworkPuristPlus";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.1.1";
 
         // The LaunchPadBooster mod handle. Registering it (and setting Networking.Required = true) makes
         // LaunchPadBooster reject a joining client that does not have NetworkPuristPlus, or has a different
@@ -117,7 +119,7 @@ namespace NetworkPuristPlus
                 MOD.Networking.JoinSuffixSerializer = this;
 
                 LongVariantRegistry.Build();          // map long -> base (per-family gated), hide from Stationpedia, strip kit wheels, set Straight on straight pieces / align cursors
-                new Harmony(PluginGuid).PatchAll();   // World.OnLoadingFinished (rebuild long pieces + align cables), Cable.OnRegistered (align as built), Constructor.SpawnConstruct (rewrite long placements), SPDADataHandler.HandleThingPageOverrides (re-hide)
+                new Harmony(PluginGuid).PatchAll();   // World.OnLoadingFinished (rebuild long pieces + align cables on load), MultiConstructor.Construct + Constructor.Construct (align a straight cable as it is built), SPDADataHandler.HandleThingPageOverrides (re-hide)
 
                 if (!Settings.MasterEnabled)
                     PlayerWarn($"v{PluginVersion}: the master toggle (Enable Network Purist Plus) is OFF -- the mod does nothing this session. (All players on a server must have the same value; a joining client whose value differs from the host's is rejected.)");
@@ -126,7 +128,7 @@ namespace NetworkPuristPlus
                 else if (LongVariantRegistry.LongToBase.Count == 0)
                     PlayerWarn($"v{PluginVersion}: no long-variant prefabs found to remove (every family toggle off, or the game version changed). Cable alignment still active.");
                 else
-                    PlayerLog($"v{PluginVersion} active: {LongVariantRegistry.LongToBase.Count} long-variant prefab(s) removed from build menus and the Stationpedia; {LongVariantRegistry.StrippedKitCount} kit(s) cleaned. Long pieces are rebuilt from single tiles on load and rewritten at build time" + (Settings.CableAlignmentEnabled ? "; straight cables are aligned to a consistent orientation on load and as they are built." : " (cable alignment is off).") + " Server-authoritative; all players must run the same version and settings.");
+                    PlayerLog($"v{PluginVersion} active: {LongVariantRegistry.LongToBase.Count} long-variant prefab(s) removed from build menus and the Stationpedia; {LongVariantRegistry.StrippedKitCount} kit(s) cleaned. Long pieces are rebuilt from single tiles on the next world load" + (Settings.CableAlignmentEnabled ? "; straight cables are aligned to a consistent orientation on load and as they are built." : " (cable alignment is off).") + " Server-authoritative; all players must run the same version and settings.");
             }
             catch (Exception e)
             {
