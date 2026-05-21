@@ -3,8 +3,10 @@ title: Side-car file persistence in save ZIPs
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-21
+verified_at: 2026-05-21
 sources:
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Util.Commands.LoadGameCommand.LoadGame
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Serialization.SaveLoadConstants
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Serialization.SaveHelper.Save
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Serialization.XmlSaveLoad.LoadWorld
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.UpdateThingsOnGameStartAction
@@ -402,11 +404,49 @@ For **critical save state** (e.g., equipment modifications, world changes), use 
 
 Not a replacement for critical save-breaking state (use ThingSaveData + registration for that). For glow-paint, this approach is superior to current GlowThingSaveData method because removal becomes non-fatal.
 
+## Save folder layout and the `load` command's resolution
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+
+A save on disk is a FOLDER under `saves/` whose world data is a single `*.save` ZIP (the archive `SaveHelper.Save` writes above, holding `world_meta.xml`, `world.xml`, `terrain.dat`, and any side-cars). The loose `world.xml` / `terrain.dat` files only ever exist in the temp extraction directory at load time (see `ExtractToTemp` above), never in the saves folder itself.
+
+The `load <name>` console command (the path the dedicated server's `-load` flag drives) resolves the name to that folder and requires exactly one `*.save` file in it (Assembly-CSharp.dll decompile lines 96534-96562):
+
+```csharp
+// Util.Commands.LoadGameCommand.LoadGame
+DirectoryInfo directoryInfo = new DirectoryInfo(filenameOrFullPath);
+if (directoryInfo.Exists) { ConsoleWindow.Print(FileCommand.LoadAtFullPath(directoryInfo.FullName)); return; }
+if (!directoryInfo.Exists) { directoryInfo = FileCommand.GetStationDirectory(filenameOrFullPath); }
+if (directoryInfo.Exists)
+{
+    FileInfo[] files = directoryInfo.GetFiles(SaveLoadConstants.SaveFileSearchPattern, SearchOption.TopDirectoryOnly);
+    if (files.Length != 1)
+        ConsoleWindow.PrintError(".save file not found at " + directoryInfo.FullName);
+    else
+        LoadHelper.LoadGame(files[0].FullName, filenameOrFullPath);
+    return;
+}
+// ... else falls through to starting a NEW world named <name> on the backupWorldName id
+```
+
+```csharp
+// Assets.Scripts.Serialization.SaveLoadConstants
+public static readonly string SaveFileExtension = ".save";
+public static readonly string SaveFileSearchPattern = "*.save";
+```
+
+Practical implications:
+
+- `GetFiles("*.save", TopDirectoryOnly)` must return EXACTLY ONE file. Zero (an empty or loose-file folder) and two-or-more both print `.save file not found at <dir>` and abort the load.
+- Seeding a save for the dedicated server means placing the world's single `<name>.save` ZIP inside `data/saves/<name>/`, NOT extracting it into loose `world.xml` / `terrain.dat` files. Extracting yields a folder with zero `*.save` files, so the load fails with `.save file not found` even though every world file is physically present. (Observed 2026-05-21: a hand-extracted Lunar save in `data/saves/Luna/` produced exactly this error; replacing the loose files with the original `Luna.save` ZIP loaded cleanly.)
+- A bare name is mapped to `<SavePath>/saves/<name>` via `GetStationDirectory`; on the dedicated server `<SavePath>` is the `-settings SavePath` value. A full path bypasses this via `LoadAtFullPath`.
+- When no matching save folder exists at all, `LoadGame` does NOT error; it starts a NEW world under `backupWorldName` (the second `load` argument / map id). A typo'd save name therefore silently starts a fresh world.
+
 ## Verification history
 
 - 2026-04-21: full verification pass against Assembly-CSharp.dll v0.2.6228.27061. Decompiled SaveHelper.Save (ZipOutputStream write path with 5 known entries), XmlSaveLoad.LoadWorld (no ZIP enumeration), Thing.OnFinishedLoad, GameManager.UpdateThingsOnGameStartAction (caller), GameManager.AutoSaveNow (multiplayer guard), and SaveHelper.CopyToHeadSave (file copy, not rebuild). Decompiled LaunchPadBooster.dll and confirmed no save/load extension hooks. Resolved: (A) confirmed ZipOutputStream-based complete rebuild with single seal point at Finish(), (B) confirmed save-copy via binary file copy (unknown entries already absent), (C) no user warning needed for optional side-car data. Recommended Postfix on SaveHelper.Save as concrete Harmony pattern.
 - 2026-04-21: added "SaveHelper.Save overload disambiguation" section after a live in-game test surfaced `HarmonyException: Ambiguous match for ... methodname=Save` at `PatchAll` time. Decompile verified `SaveHelper` declares two `Save` methods (public `(string, CancellationToken)` and private `(DirectoryInfo, string, bool, CancellationToken)`); every save path funnels through the private worker via `SaveGame` -> `Do*Save` dispatch. Documented the routing table and the required argument-type array in the `[HarmonyPatch]` attribute. Consequence of the bug: `PatchAll` throws on first ambiguous overload, so the ENTIRE mod's Harmony patches fail to apply, not just the ambiguous one.
 - 2026-04-21: conflict on "how the game reads save ZIPs at load time". Previous claim: "LoadWorld uses `ZipArchive.GetEntry(name)` for known filenames only; unknown entries remain in the archive untouched." New finding: the game does NOT open a ZipArchive at LoadWorld time. `LoadHelper.LoadGameTask` calls `ExtractToTemp(path)` first, which uses `ZipInputStream.GetNextEntry()` to extract every entry (known and unknown) to a temp directory as loose files. `CurrentWorldSave.World.FullName` is `<tempDir>/world.xml`, not a path into a ZIP. Fresh validator verdict: B is correct (the new finding). Result: added a "Load-time ZIP extraction (LoadHelper.ExtractToTemp)" section with the full decompile of `LoadHelper.LoadGameTask` and `ExtractToTemp`, rewrote the "ZIP read path (LoadWorld)" section to clarify that `LoadWorld` reads loose files not a ZIP, and updated the "Harmony interception strategy" section to replace the (wrong) "open the temp file in Update mode" recipe with the verified wrapped-UniTask pattern shipped in SprayPaintPlus v1.6.0. The side-car-on-load recipe was also corrected: consume `<tempDir>/<entry-name>` as a loose file in the `XmlSaveLoad.LoadWorld` postfix; attempting to reopen the save ZIP produces `End of Central Directory record could not be found` because the original ZIP was closed by `ExtractToTemp`.
+- 2026-05-21: added "Save folder layout and the `load` command's resolution" section. Sourced from `Util.Commands.LoadGameCommand.LoadGame` (decompile lines 96534-96562) and `SaveLoadConstants.SaveFileExtension` / `SaveFileSearchPattern` (lines 248112-248114). Additive (no existing claim contradicted): documents that the `load` command resolves a save folder to exactly one `*.save` file via `GetFiles("*.save", TopDirectoryOnly)`, so a dedicated-server save must be seeded as the `<name>.save` ZIP inside `data/saves/<name>/`, not as extracted loose files. Found while seeding the Lunar save for a Power Grid Plus passthrough test.
 
 ## Open questions
 
