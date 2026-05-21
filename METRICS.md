@@ -28,6 +28,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-12 | 360 | 972 | 40 | 26 | 15 | insufficient ratings | 1.7.1 (Workshop updated 2026-04-28) |
 | 2026-05-21 | 383 | 1033 | 43 | 31 | 15 | insufficient ratings | 1.7.1 (Workshop updated 2026-04-28) |
 | 2026-05-21 | 383 | 1033 | 43 | 31 | 15 | insufficient ratings | 1.8.0 (Workshop updated 2026-05-21) |
+| 2026-05-21 | 385 | 1039 | 43 | 32 | 15 | insufficient ratings | 1.8.0 (Workshop updated 2026-05-21) |
 
 ## Power Transmitter Plus
 
@@ -38,6 +39,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 |---|---|---|---|---|---|---|---|
 | 2026-05-12 | 161 | 653 | 27 | 18 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
 | 2026-05-21 | 187 | 710 | 27 | 20 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
+| 2026-05-21 | 188 | 712 | 27 | 20 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
 
 ## Network Purist Plus
 
@@ -48,6 +50,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 |---|---|---|---|---|---|---|---|
 | 2026-05-12 | 2 | 8 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-12) |
 | 2026-05-21 | 20 | 223 | 0 | 0 | 2 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-12) |
+| 2026-05-21 | 22 | 231 | 0 | 0 | 2 | insufficient ratings | 1.1.2 (Workshop updated 2026-05-21) |
 
 ## Not yet published
 
