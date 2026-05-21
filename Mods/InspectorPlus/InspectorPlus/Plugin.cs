@@ -19,6 +19,7 @@ namespace InspectorPlus
 
         internal static ManualLogSource Log;
         internal static ConfigEntry<KeyboardShortcut> SnapshotKey;
+        internal static ConfigEntry<bool> ForceUnpauseWhenHeadless;
 
         internal static string _watchDir;
         internal static string _outputDir;
@@ -32,6 +33,13 @@ namespace InspectorPlus
                 "Client - Snapshots", "Snapshot Key", new KeyboardShortcut(KeyCode.F8),
                 new ConfigDescription(
                     "(Client-local) Press this key in-game to write a full scene snapshot to BepInEx/inspector/snapshots/.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            ForceUnpauseWhenHeadless = Config.Bind(
+                "Server - Headless", "Force Unpause Without Client", false,
+                new ConfigDescription(
+                    "(Server-authoritative) Headless dedicated servers only: force the simulation to run with no client connected, so request-file snapshots can be captured by automated tooling without a player joining. Off by default. No effect on a client or single-player.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 

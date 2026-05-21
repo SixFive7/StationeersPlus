@@ -4,13 +4,14 @@ InspectorPlus is a local-only BepInEx plugin that dumps live game state to JSON 
 
 ## Architecture
 
-Five cooperating pieces:
+Six cooperating pieces:
 
 - `Plugin.cs`: BepInEx entry point. Starts a `FileSystemWatcher` on `BepInEx/inspector/requests/` and registers a key-press handler for F8. On request-file creation, parses the JSON and schedules a snapshot on the main thread.
 - `SnapshotRequest.cs`: the JSON request schema. Deserialised from request files dropped into the watched folder. Fields: `Types` (type-name filter), `Fields` (per-type field/property filter), `MaxDepth` (recursion cap), `IncludePrivate` (include non-public members), `MaxMonoBehaviours` (top-level object cap). Parsed by a minimal hand-rolled parser, not Newtonsoft; see Design decisions.
 - `ObjectWalker.cs`: the reflection-based traversal that produces the snapshot. Walks fields, properties, and Unity `Transform` positions; respects a configurable recursion depth; detects cycles to avoid infinite walks; enforces byte and nested-expansion caps and marks the result truncated when one is hit. Uses reflection against each candidate object and emits a nested JSON blob.
 - `MainThreadDispatcher.cs`: queues work produced off the main thread (file-watcher callbacks fire on a thread-pool thread) onto the Unity main thread, which is the only thread from which scene queries are safe. Implementation is a `Queue<Action>` guarded by a `lock`, drained from `Update()` on a persistent `GameObject`.
 - `RequestPollOnTickPatch.cs`: a Harmony postfix on `ElectricityManager.ElectricityTick` that pumps the request-file scan from the simulation tick. A headless dedicated server does not reliably drive `Update()` or coroutines, so this keeps request snapshots working server-side; on a client it is redundant with the `Update()` poll and the `FileSystemWatcher`.
+- `HeadlessUnpausePatch.cs`: an opt-in Harmony postfix on `GameManager.StartGame`. When the `Force Unpause Without Client` setting is on AND the process is in batch mode (a headless dedicated server), it unpauses the simulation so the request pump runs with no client connected. Default off; never fires on a client or single-player.
 
 ### Snapshot output format
 
@@ -32,7 +33,12 @@ Two rules the walker enforces to keep output sane:
 
 ## Harmony patches catalog
 
-InspectorPlus installs one Harmony patch: `RequestPollOnTickPatch`, a postfix on `ElectricityManager.ElectricityTick`. It exists only to pump the request-file scan on a headless dedicated server, where `MonoBehaviour.Update()` and coroutines do not fire reliably; it reads request files and never mutates game state. All state capture is read-only reflection in `ObjectWalker`; the plugin rewrites no game logic.
+InspectorPlus installs two Harmony patches:
+
+- `RequestPollOnTickPatch`, a postfix on `ElectricityManager.ElectricityTick`, pumps the request-file scan on a headless dedicated server where `MonoBehaviour.Update()` and coroutines do not fire reliably. It scans and processes request files and never mutates game state.
+- `HeadlessUnpausePatch`, a postfix on `GameManager.StartGame`, is opt-in (the `Force Unpause Without Client` setting, default off) and only acts under `Application.isBatchMode`. When both hold it unpauses the simulation so the tick, and therefore request processing, runs with no client connected. This is the one place the plugin changes game state, and only on an explicitly opted-in headless server; it never fires on a client or single-player.
+
+State capture itself is read-only reflection in `ObjectWalker`.
 
 ## Relevant central pages
 
