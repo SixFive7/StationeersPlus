@@ -54,21 +54,45 @@ The changelog lives in two files with different jobs, kept in sync on every rele
 
 This split is a hard rule: every mod, every release, every time. The new version goes to the top of `CHANGELOG.md` and replaces the `<ChangeLog>` body in `About.xml`.
 
+### Changelog entry format (both files)
+
+Every entry, in `CHANGELOG.md` and in the `About.xml` `<ChangeLog>`, uses the same shape so the two never drift:
+
+- A heading line naming the version: `v<X.Y.Z>: one-line summary`, sentence case, no trailing period. In `CHANGELOG.md` it is an H2 (`## v<X.Y.Z>: ...`); in `About.xml` it is the same line with no `##`.
+- One or more `- ` bullets beneath it. Each bullet is a complete statement that ends with a period.
+- Plain ASCII punctuation. No em or en dashes, and no `--` standing in for one; use commas, colons, semicolons, parentheses, or periods (the repo-wide style rule applies here too).
+- Optional, used consistently within an entry: a leading category label on a bullet (`NEW:`, `FIX:`, `CHANGE:`) and a trailing `REQUIRES: ...` bullet for version or dependency requirements.
+- Encoding is the only thing that differs between the files. `About.xml` is plain text (no Markdown, no BBCode) and XML-escapes any literal `<` or `>` as `&lt;` / `&gt;`. `CHANGELOG.md` is Markdown and wraps tag-like tokens such as `` `<WorkshopHandle>` `` in backticks so they render.
+
+The newest `CHANGELOG.md` entry and the current `About.xml` `<ChangeLog>` body are the same text: same heading words, same bullets, same wording. Only the `## ` prefix, the backticks-vs-escaping, and Markdown-vs-plain-text differ. Write the entry once at release time and place it in both.
+
+Canonical example, the same release in each file.
+
+`CHANGELOG.md`:
+
+```
+## v1.4.2: Fix the paint bucket deprecated-property warning
+- Replaced the deprecated Color.gamma read with the linear-space accessor; no visible change.
+- FIX: Painting a chute no longer logs a null-reference warning on dedicated servers.
+- REQUIRES: All players on a server must run 1.4.2 (matching-version handshake).
+```
+
+`About.xml` `<ChangeLog>`:
+
+```
+v1.4.2: Fix the paint bucket deprecated-property warning
+- Replaced the deprecated Color.gamma read with the linear-space accessor; no visible change.
+- FIX: Painting a chute no longer logs a null-reference warning on dedicated servers.
+- REQUIRES: All players on a server must run 1.4.2 (matching-version handshake).
+```
+
 ### About.xml `<ChangeLog>` (latest version only)
 
 - Plain text only. Never use BBCode inside `<ChangeLog>`, even though the surrounding `<Description>` element uses BBCode heavily. Workshop renders the change note as plain text: BBCode tags (`[h2]`, `[list][*]`, `[b]`) appear as literal characters.
 - Exactly one version block: the version being released and the changes since the previous version. No older entries beneath it. Replace the body every release; never append.
 - The submitted change note is capped at 8000 characters. With one version per submission this is no longer a practical worry, but the cap still exists; the size-caps section below has the exact source.
 
-`<ChangeLog>` body (the entire element content for a release):
-
-```
-v1.2.4: One-line summary of this version
-- Detail bullet
-- Another detail bullet
-```
-
-One version block only. Dashes for bullets. No `#`, no `[h3]`, no Markdown. Line breaks render as line breaks on Workshop.
+The `<ChangeLog>` body is exactly one version block in the shared entry format above: the heading line with no `##`, then the period-terminated bullets, and nothing beneath it. No `#`, no `[h3]`, no BBCode; line breaks render as line breaks on Workshop.
 
 ### CHANGELOG.md (full history)
 
@@ -77,19 +101,18 @@ One version block only. Dashes for bullets. No `#`, no `[h3]`, no Markdown. Line
 - Markdown. Each version is an H2 heading `## v<X.Y.Z>: one-line summary` followed by dash bullets. The newest entry's bullets are the same text as the current `About.xml` `<ChangeLog>` body; only the `##` heading prefix differs.
 - On every release, prepend the new version's entry to the top, in the same commit that bumps `<Version>` and rewrites the `About.xml` `<ChangeLog>` (see `Mods/Template/RELEASE.md` Rule 2).
 
-`CHANGELOG.md` shape:
+`CHANGELOG.md` shape (each version entry in the shared format above, newest first):
 
 ```
 # Changelog
 
 Full version history for {{Mod Display Name}}. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
-## v1.2.4: One-line summary of this version
-- Detail bullet
-- Another detail bullet
+## v1.4.2: One-line summary of this version
+- A change in this release, written as a complete statement ending with a period.
 
-## v1.2.3: Previous version's summary
-- ...
+## v1.4.1: Previous version's summary
+- An earlier change, same format.
 ```
 
 ### Version bump and README link

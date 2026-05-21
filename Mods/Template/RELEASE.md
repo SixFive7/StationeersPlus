@@ -12,9 +12,11 @@ A release commit bumps exactly one mod's version. Never bump two mods' `<Version
 
 - `Mods/<ModName>/<ModName>/<ModName>.cs` (or `Plugin.cs`): `PluginVersion` bump.
 - `Mods/<ModName>/<ModName>/About/About.xml`: `<Version>` bump and `<ChangeLog>` rewritten to the changes since the previous version (the current version only, never appended to a running history). See the changelog rule in `Mods/Template/LAYOUT.md`.
-- `Mods/<ModName>/CHANGELOG.md`: prepend the new version's entry to the top of the full history (the same notes as the new `<ChangeLog>` body, formatted as an `## v<X.Y.Z>` Markdown entry). See the changelog rule in `Mods/Template/LAYOUT.md`.
+- `Mods/<ModName>/CHANGELOG.md`: prepend the new version's entry to the top of the full history. Write it once in the shared changelog entry format (a `v<X.Y.Z>: summary` heading plus period-terminated bullets) and use the same wording in both places: the `## v<X.Y.Z>` Markdown form here and the plain-text form in the `<ChangeLog>` body. See the changelog entry format in `Mods/Template/LAYOUT.md`.
 
 Every release commit touches those three files and nothing else. Feature work goes in prior commits.
+
+Stay within the About.xml size caps when you edit it (full list in `Mods/Template/LAYOUT.md`): `<Name>` 128, `<Description>` 8000, `<ChangeLog>` 8000 characters, and `About/thumb.png` 1 MB are hard caps that StationeersLaunchPad enforces at publish time (`Steam.ValidateForWorkshop`). If any is exceeded the publish button is disabled and the upload is blocked, so an over-cap About.xml cannot ship. `<InGameDescription>` should stay near 1450 characters to avoid overflowing the in-game settings panel (visual only, not a publish blocker). Since `<ChangeLog>` now holds only the current version, `<Description>` is the element most likely to approach its cap; check it before tagging.
 
 ## Rule 3: always tag a release commit
 

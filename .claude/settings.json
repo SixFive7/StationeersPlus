@@ -291,6 +291,36 @@
             "type": "command",
             "if": "Write(*\\About\\About.xml)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\Mods\\\\\\\\*\\CHANGELOG.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\Plans\\\\\\\\*\\CHANGELOG.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Mods\\\\\\\\*\\CHANGELOG.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\Plans\\\\\\\\*\\CHANGELOG.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Mods\\\\\\\\*\\CHANGELOG.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\Plans\\\\\\\\*\\CHANGELOG.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/mod-content-hook.ps1"
           }
         ]
       },
