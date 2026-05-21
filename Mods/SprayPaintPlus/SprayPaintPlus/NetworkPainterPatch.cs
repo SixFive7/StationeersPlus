@@ -206,6 +206,21 @@ namespace SprayPaintPlus
                 }
             }
 
+            // ElevatorShaftNetwork.Shafts holds every shaft + level segment of
+            // one elevator (ElevatorLevel derives from ElevatorShaft, so the
+            // single list covers both). With-cable and without-cable build
+            // variants share these classes, so one walk covers every variant.
+            // The carriage (network.Carrage, a DynamicThing) is deliberately
+            // left out of the flood: it is a separate movable object, painted
+            // on its own. Only shaft/level seeds flood; painting the carriage
+            // directly falls through to a plain single-item paint.
+            if (SprayPaintPlusPlugin.NetworkPaintElevators.Value
+                && thing is ElevatorShaft elevatorShaft && elevatorShaft.ShaftNetwork != null)
+            {
+                PaintElevatorNetwork(elevatorShaft, elevatorShaft.ShaftNetwork, colorIndex, checkered);
+                return;
+            }
+
             // Wall branch must precede the LargeStructure branch because Wall
             // derives from LargeStructure. Walls flood by shared Room, not grid
             // adjacency. A wall with walls-painting disabled is *not* forwarded
@@ -310,6 +325,42 @@ namespace SprayPaintPlus
                     visited.Add(neighbor);
                     queue.Enqueue(neighbor);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Paints every shaft and level segment of one elevator. The carriage is
+        /// deliberately excluded (see the call site): it is a separate movable
+        /// object the player paints on its own.
+        /// Elevator segments stack vertically several world units apart, so the
+        /// world-position CheckeredCheck (tuned for 0.5-unit pipe/cable spacing)
+        /// never flips parity between neighbours and the checkered pattern would
+        /// collapse to a full flood. The checker therefore alternates by the
+        /// segment's vertical order, keyed off the seed's own segment so the seed
+        /// level always paints.
+        /// </summary>
+        private static void PaintElevatorNetwork(ElevatorShaft seed, ElevatorShaftNetwork network, int colorIndex, bool checkered)
+        {
+            List<ElevatorShaft> shafts = network.Shafts
+                .Where(s => s != null)
+                .OrderBy(s => s.GridPosition.y)
+                .ToList();
+
+            // Parity anchor is the seed's own segment so the seed level always
+            // paints. IndexOf is -1 only in degenerate cases (seed missing from
+            // the list); fall back to 0 so we still alternate cleanly.
+            int anchorIdx = shafts.IndexOf(seed);
+            if (anchorIdx < 0)
+                anchorIdx = 0;
+
+            for (int i = 0; i < shafts.Count; i++)
+            {
+                ElevatorShaft item = shafts[i];
+                if (ReferenceEquals(item, seed))
+                    continue;
+                if (checkered && (((i - anchorIdx) & 1) != 0))
+                    continue;
+                PaintSafe(item, colorIndex);
             }
         }
 

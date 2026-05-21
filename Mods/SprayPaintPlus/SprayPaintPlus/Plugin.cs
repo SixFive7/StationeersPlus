@@ -42,6 +42,7 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> NetworkPaintWalls;
         internal static ConfigEntry<bool> NetworkPaintLargeStructures;
         internal static ConfigEntry<bool> NetworkPaintRails;
+        internal static ConfigEntry<bool> NetworkPaintElevators;
         internal static ConfigEntry<bool> EnableGlowPaint;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
@@ -258,6 +259,17 @@ namespace SprayPaintPlus
                     "Only the server's value matters in multiplayer.",
                     null,
                     new KeyValuePair<string, int>("Order", 70)));
+
+            NetworkPaintElevators = Config.Bind(
+                "Server - Network Painting", "Network Paint Elevators", true,
+                new ConfigDescription(
+                    "(Server-authoritative) When spray-painting an elevator shaft or level, " +
+                    "every shaft and level segment on the same elevator is painted too. " +
+                    "The moving carriage is left out and painted on its own. " +
+                    "Has no effect if Enable Network Painting is disabled. " +
+                    "Only the server's value matters in multiplayer.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 80)));
         }
     }
 }

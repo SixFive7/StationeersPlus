@@ -28,16 +28,16 @@ Scroll your mouse wheel while holding a spray can to cycle through all available
 Right-click any paintable object while holding a spray can to copy that object's color onto the can. Left-click the next item to match, no hunting for the right color in the scroll cycle.
 - **Ctrl+right-click** picks the *as-built* color the target would have coming out of its kit / build flow, independent of any later repaint. Useful when a structure has been repainted and you want to restore its original kit color
 - **Shift+right-click** is reserved for future use (currently no-op)
-- Works on any paintable object: pipes, cables, chutes, rails, walls, large structures, placed kits
+- Works on any paintable object: pipes, cables, chutes, rails, walls, large structures, elevators, placed kits
 
 ### Infinite Spray Paint
 All spray cans have unlimited uses and produce no pollution. Both are configurable.
 
 ### Network Painting
-Spray-paint a pipe, cable, chute, or robotic arm rail and the entire connected network gets painted at once.
+Spray-paint a pipe, cable, chute, robotic arm rail, or elevator and the entire connected network gets painted at once.
 - **Hold Shift** to paint just a single item (or swap this default, see Settings)
 - **Hold Ctrl** for a checkered/alternating paint pattern
-- Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks, and robotic arm rail assemblies (rails, junctions, bypass pieces, and docks all share one paint set)
+- Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks, robotic arm rail assemblies (rails, junctions, bypass pieces, and docks all share one paint set), and elevators (every shaft and level segment shares one paint set, including the with-cable and without-cable build variants; the moving carriage is painted on its own)
 
 ### Room & Structure Painting
 Spray-paint a wall and every same-type wall bounding the same room is painted. Spray-paint a frame, girder, or any other large structure and all orthogonally-connected structures of the same exact type are painted with it.
@@ -66,7 +66,7 @@ You can remove Spray Paint Plus from an existing save without breaking it. Saves
 
 All features are configurable via the mod settings panel.
 
-Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the twelve entries under four headers:
+Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the thirteen entries under four headers:
 
 **Client - Preferences**:
 
@@ -99,6 +99,7 @@ Client settings are personal preference: each player sets them independently and
 | Network Paint Walls | On | Paint all same-type walls bounding the same room |
 | Network Paint Rails | On | Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke |
 | Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
+| Network Paint Elevators | On | Paint every shaft and level segment on the same elevator (the moving carriage is painted on its own) |
 
 ## Compatibility
 
