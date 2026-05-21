@@ -1,0 +1,90 @@
+# =============================================================================
+# Stationeers Dedicated Server - SESSION LOCK (single source of truth)
+# =============================================================================
+# This .template file is committed and is the authoritative description of the
+# session-lock mechanism. The ACTIVE lock is the sibling file `session.lock`
+# (gitignored), created and maintained by dedicated-server.ps1. Every other
+# reference (root CLAUDE.md, DedicatedServer/CLAUDE.md, the launcher help text,
+# the dedi-lock reminder hook) points here. Change the rules here, nowhere else.
+#
+# WHY THIS EXISTS
+#   One dedicated-server install is shared by every agent on this machine. A
+#   test is many start/stop cycles, so "is a server process running" is not a
+#   good enough signal: between a -Stop and the next -Start nothing runs, yet
+#   the session is still in progress. This lock marks "a session owns the dedi"
+#   across those gaps so a second agent does not walk in and stomp the saves,
+#   the deployed mods, or the running world.
+#
+# HOW IT WORKS
+#   - Acquire ONCE per session, before any mutating command:
+#       dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"
+#     It prints a short owner id. Pass that id as -As <id> on every mutating
+#     command for the rest of the session.
+#   - The lock covers ALL mutating actions: -Bootstrap, -DeployMods, -SyncMods,
+#     -Start, -Save, -SendCommand, -Stop. Read-only -Status and -Logs never need
+#     it. `-Status -As <id>` tells you whether you still hold it.
+#   - Liveness: the lock is LIVE while the timer is fresh
+#     (now - refreshed_at <= ttl_minutes) OR a player is currently connected to
+#     a running server. A live lock you do not own blocks you. An expired lock
+#     with no connected player is dead and is reclaimed automatically.
+#
+# THE PURPOSE STRING
+#   Keep it short and generic: "Playtesting network paint for SprayPaintPlus",
+#   "Reproducing the auto-aim bug for PowerTransmitterPlus". It exists so the
+#   user, when told another session holds the lock, can decide whether to wait,
+#   take it, or leave it alone. Write it for that reader.
+#
+# REFRESH DISCIPLINE (this is what stops agents starving each other)
+#   - The lock EXPIRES on a timer (ttl_minutes, default 10). That is deliberate:
+#     an idle or finished agent must lose the lock so others can use the dedi.
+#   - Refresh ONLY while you are actively driving a test that needs the server:
+#       dedicated-server.ps1 -RefreshLock -As <id>
+#     Every mutating command also refreshes it. A ~1 minute cadence during an
+#     active loop is comfortable against a 10-minute TTL.
+#   - NEVER refresh just to hold the server for an absent human, and NEVER spawn
+#     a background process whose only job is to refresh. Either one keeps the
+#     lock alive after you are gone and starves every other agent. The refresh
+#     must come from your own foreground actions.
+#
+# WAITING FOR A HUMAN (e.g. "join and play, tell me when done")
+#   - You are about to go idle, so you will NOT be refreshing. Tell the user the
+#     reservation in plain terms, for example: "Server reserved for about N
+#     minutes. If you join, it stays held for as long as you are connected. If
+#     nobody joins, it frees for other agents." Set -TtlMinutes to a sensible
+#     join window when you hand off.
+#   - While a player is actually connected the lock stays live on its own, no
+#     refresh needed. If nobody joins, the timer lapses and the dedi frees. That
+#     is intended: an agent waiting on a sleeping user must not block the others.
+#
+# RESUMING AFTER A GAP (mandatory)
+#   Time may have passed and your lock may be gone. BEFORE issuing any mutating
+#   command on resume, run:
+#       dedicated-server.ps1 -Status -As <id>
+#   - Still yours -> -RefreshLock -As <id> and continue.
+#   - Held by another session -> STOP. Do not touch the server. Tell the user
+#     what took it (the reported purpose) and that your reservation lapsed.
+#     Re-acquire only on the user's go-ahead.
+#
+# FORCE IS HUMAN-GATED
+#   -Force breaks a LIVE lock held by another session. An agent may use -Force
+#   ONLY when the user explicitly authorizes it in the conversation. Reclaiming
+#   an already-dead (expired, no player connected) lock is automatic and is NOT
+#   force.
+#
+# FIELDS (the active session.lock holds exactly these keys, one per line)
+#   owner         short id printed by -Lock; echo it back with -As
+#   purpose       short human-readable reason (see THE PURPOSE STRING)
+#   acquired_at   ISO 8601 UTC, when first acquired
+#   refreshed_at  ISO 8601 UTC, last refresh (drives the TTL)
+#   ttl_minutes   inactivity window before the timer lapses (default 10)
+#   host          machine name, for diagnostics
+# =============================================================================
+
+# Example values only. The real session.lock is written by dedicated-server.ps1;
+# do not hand-create it from this template.
+owner=EXAMPLE0
+purpose=Playtesting network paint for SprayPaintPlus
+acquired_at=2026-01-01T00:00:00Z
+refreshed_at=2026-01-01T00:00:00Z
+ttl_minutes=10
+host=EXAMPLE-PC

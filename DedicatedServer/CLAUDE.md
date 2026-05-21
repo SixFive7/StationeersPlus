@@ -2,7 +2,7 @@
 
 This folder holds a self-contained Stationeers Dedicated Server install used to test the mods in this monorepo against multiplayer code paths. It is isolated from the developer's client install and from any client save folder.
 
-The folder is gitignored except for this file. Anything that lands in `install/` or `data/` is local-only and never committed.
+The folder is gitignored except for this file, the launcher `dedicated-server.ps1`, and `session.lock.template`. Anything that lands in `install/` or `data/` is local-only and never committed.
 
 ## Layout
 
@@ -27,6 +27,20 @@ If the developer has not placed a save anywhere and a test asks for `-Start -Loa
 
 The server's `BepInEx/` tree, including StationeersLaunchPad and its sibling plugins (LaunchPadBooster, StationeersMods.Interface, StationeersMods.Shared, NetworkBufferFix), must match the client's exactly. The bootstrap step copies these from the path documented in `DEV.md` and exposed to MSBuild as `$(StationeersPath)`. Whenever the developer updates the client, run `-Bootstrap` again to re-sync. The launcher does NOT auto-detect drift; if versions diverge the StationeersLaunchPad join handshake rejects clients with a version-mismatch error, which is the cue to re-bootstrap.
 
+## Session lock (acquire before anything)
+
+One dedicated-server install is shared by every agent on this machine, and a test is many start/stop cycles. "Is a server process running" is therefore not enough to tell whether a session is in progress: between a `-Stop` and the next `-Start` nothing runs, yet the session is still active. The session lock marks "a session owns the dedi" across those gaps so a second agent does not stomp the saves, the deployed mods, or the world.
+
+**The single source of truth for the lock rules is `DedicatedServer/session.lock.template`. Read it before driving the server.** The active lock is `DedicatedServer/session.lock` (gitignored), managed by the launcher. The essentials:
+
+- **Acquire once, before any mutating command:** `dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. It prints a short owner id; pass `-As <id>` on every mutating command after that (`-Bootstrap`, `-DeployMods`, `-SyncMods`, `-Start`, `-Save`, `-SendCommand`, `-Stop`). Read-only `-Status` / `-Logs` never need it.
+- **The purpose is for the user.** Keep it short and generic. When you hit a lock you do not own, do not proceed: show its purpose to the user and let the user decide. Never use `-Force` on your own; it is human-gated.
+- **It expires on a timer (default 10 min) so an idle agent frees the dedi.** Refresh (`-RefreshLock -As <id>`, or any mutating command) about once a minute ONLY while actively driving a test. Never refresh just to hold the server for an absent human, and never spawn a background refresher; either one starves other agents.
+- **A connected player keeps the lock live regardless of the timer.** An active playtest is protected; a server left idle with nobody connected frees up when the timer lapses.
+- **Waiting for the developer to join:** tell them the reservation window in plain terms, set `-TtlMinutes` to a sensible join window, then go idle. Do not poll-refresh.
+- **On resume after any gap, re-check ownership first:** `dedicated-server.ps1 -Status -As <id>`. If another session holds it, stop, tell the user what took it (the reported purpose), and re-acquire only on their go-ahead.
+- **Release when done:** `-Unlock -As <id>`, or `-Stop -As <id> -Release`.
+
 ## Operations
 
 The launcher lives next to this file at `DedicatedServer/dedicated-server.ps1`. It reads:
@@ -40,15 +54,18 @@ The agent runs the lifecycle end-to-end. The developer never types commands at t
 
 ### Lifecycle architecture
 
-`-Start` launches a hidden PowerShell host wrapper via `Start-Process`. The wrapper owns the dedicated server process: it spawns it with redirected stdin, polls `data/control.cmd` every 250 ms, and forwards each command into the server's stdin. The launcher returns as soon as the server has registered its PID. State files under `data/`:
+`-Start` launches a hidden PowerShell host wrapper via `Start-Process`. The wrapper owns the dedicated server process: it spawns it with redirected stdin (and captures the server's stdout to `data/console.log`, used by the connected-player query that backs player-aware locking), polls `data/control.cmd` every 250 ms, and forwards each command into the server's stdin. The launcher returns as soon as the server has registered its PID. State files under `data/`:
 
 - `data/host.pid`: PID of the host wrapper.
 - `data/server.pid`: PID of `rocketstation_DedicatedServer.exe`.
 - `data/control.cmd`: command queue. The agent writes via atomic rename; the wrapper reads and deletes. Only one command at a time can be pending.
 - `data/server.log`: Unity log written directly by the dedicated server (`-logFile <path>`).
+- `data/console.log`: the server's captured stdout. The `clients` command prints the connected-client count here; `-Status` and the lock liveness check scrape it for `Clients: <n>`.
 - `data/setting.xml`: server settings, written by the dedicated server itself on first run; persisted across restarts.
 
-When the server exits (clean quit, crash, or force-kill), the host wrapper's `finally` block removes `host.pid`, `server.pid`, and any stale control file. If the host wrapper itself is killed (force-kill, machine reboot), the server can be left orphaned; `-Status` detects that case and `-Stop` cleans it up.
+The session lock lives at `session.lock` in the folder root, not under `data/`, so it survives a `data/` wipe; see "Session lock" above.
+
+When the server exits (clean quit, crash, or force-kill), the host wrapper's `finally` block removes `host.pid`, `server.pid`, and any stale control file. The session lock is deliberately NOT removed on server exit: it spans the whole session across stop/start cycles and is released only by `-Unlock` / `-Stop -Release`, or when its timer lapses with no player connected. If the host wrapper itself is killed (force-kill, machine reboot), the server can be left orphaned; `-Status` detects that case and `-Stop` cleans it up.
 
 ### Bootstrap (one-time, or after a client update)
 
@@ -201,23 +218,25 @@ There is no `-Clean` action. Cleaning is the developer's call:
 ## Notes for agents
 
 - This file auto-loads when you touch any path inside `DedicatedServer/`. If your work involves only `DedicatedServer/dedicated-server.ps1` and never reads or writes inside this folder, read this file explicitly.
-- Never commit anything in this folder other than this `CLAUDE.md`. The `.gitignore` rule (`/DedicatedServer/* + !/DedicatedServer/CLAUDE.md`) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it.
+- Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, and `session.lock.template`. The `.gitignore` rule (`/DedicatedServer/*` plus `!` exceptions for those three files) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The active `session.lock` is gitignored and must never be committed.
 - All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`. With no client connected the server simulation is paused and request files are not processed; for autonomous snapshots, enable InspectorPlus's `Force Unpause Without Client` setting (off by default) under `[Server - Headless]` in `install/BepInEx/config/net.inspectorplus.cfg`. See `Research/Workflows/InspectorPlusUsage.md`.
 
 ### Standard test loop (agent owns lifecycle)
 
-1. Build the mod(s) under test via the developer's MSBuild flow (see `DEV.md`).
-2. `DedicatedServer/dedicated-server.ps1 -DeployMods -Mod <X>` (or all mods, no `-Mod` flag).
-3. `DedicatedServer/dedicated-server.ps1 -Start -New <Map>`, OR ask the developer for a save name and use `-Start -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
-4. Wait until the server is ready: poll `DedicatedServer/dedicated-server.ps1 -Logs -Grep 'World loaded'` (or another readiness marker) before asking the developer to join. Timing varies by save size; budget 10-60 s.
-5. Tell the developer: "Server is up at `127.0.0.1:28016`, no password. Join with the regular client via Direct Connect when you are ready." That is the only manual step.
-6. Run the test. Drop InspectorPlus request files into `install/BepInEx/inspector/requests/`, read snapshots out of `install/BepInEx/inspector/snapshots/`. Use `-SendCommand -Command 'status'` or `-Logs -Grep <pattern>` to check server-side state.
-7. To preserve state for a follow-up session: `-Save -Name <SaveName>`. Confirmation comes back via the log.
-8. Tear down: `-Stop` (no save needed, throws away the run) or `-Stop -SaveAs <SaveName>` (saves first, then quits cleanly).
+1. Acquire the session lock: `DedicatedServer/dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. Note the printed owner id and pass `-As <id>` on every mutating command below. Rules: `session.lock.template`.
+2. Build the mod(s) under test via the developer's MSBuild flow (see `DEV.md`).
+3. `DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod <X>` (or all mods, no `-Mod` flag).
+4. `DedicatedServer/dedicated-server.ps1 -Start -As <id> -New <Map>`, OR ask the developer for a save name and use `-Start -As <id> -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
+5. Wait until the server is ready: poll `DedicatedServer/dedicated-server.ps1 -Logs -Grep 'World loaded'` (or another readiness marker) before asking the developer to join. Timing varies by save size; budget 10-60 s.
+6. Tell the developer: "Server is up at `127.0.0.1:28016`, no password. Join with the regular client via Direct Connect when you are ready." If you then go idle waiting on them, state the reservation window (`-TtlMinutes`) and that a connected player holds the lock open. That is the only manual step.
+7. Run the test. While actively driving it, refresh the lock about once a minute (any mutating command refreshes it; otherwise `-RefreshLock -As <id>`). Drop InspectorPlus request files into `install/BepInEx/inspector/requests/`, read snapshots out of `install/BepInEx/inspector/snapshots/`. Use `-SendCommand -As <id> -Command 'status'` or `-Logs -Grep <pattern>` to check server-side state.
+8. If you resume after a gap, re-check ownership first: `-Status -As <id>`. If another session now holds the lock, stop and tell the user what took it.
+9. To preserve state for a follow-up session: `-Save -As <id> -Name <SaveName>`. Confirmation comes back via the log.
+10. Tear down and release: `-Stop -As <id> -Release` (no save, throws away the run) or `-Stop -As <id> -SaveAs <SaveName> -Release` (saves first, then quits cleanly). Omit `-Release` only if you are keeping the lock for an immediate follow-up.
 
 ### Sanity checks before declaring "ready for the developer"
 
-- `-Status` shows both host wrapper and server alive.
+- `-Status -As <id>` shows both host wrapper and server alive, and the lock is YOURS.
 - `-Logs -Grep 'Patches applied successfully'` returns one line per deployed mod.
 - `-Logs -Grep '\[Error\]|\[Fatal\]'` is empty (or lists only known-benign warnings).
 

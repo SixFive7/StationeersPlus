@@ -66,6 +66,31 @@
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(*DedicatedServer*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "PowerShell(*DedicatedServer*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*DedicatedServer*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*DedicatedServer*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+          }
+        ]
       }
     ],
     "PostToolUse": [

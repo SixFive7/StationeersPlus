@@ -102,6 +102,38 @@
     With -SyncMods: path to the source modconfig.xml. Default
     %USERPROFILE%\Documents\My Games\Stationeers\modconfig.xml.
 
+.PARAMETER Lock
+    Acquire the session lock for this whole test session (it spans many
+    start/stop cycles). Requires -Purpose. Prints a short owner id to reuse via
+    -As. Rules: DedicatedServer/session.lock.template.
+
+.PARAMETER RefreshLock
+    Bump the lock timer while actively driving a test. Requires -As.
+
+.PARAMETER Unlock
+    Release the session lock. Requires -As, or human-authorized -Force.
+
+.PARAMETER Purpose
+    With -Lock: short human-readable reason, e.g. "Playtesting network paint for
+    SprayPaintPlus". Shown to the user when another session is blocked.
+
+.PARAMETER As
+    The owner id printed by -Lock. Pass it on every mutating command so the
+    launcher knows the command comes from the lock holder.
+
+.PARAMETER Force
+    Break a LIVE lock held by another session (with -Lock / -Unlock / -Stop).
+    Agents may use this ONLY when the user explicitly authorizes it.
+
+.PARAMETER TtlMinutes
+    With -Lock / -RefreshLock: inactivity window before the lock timer lapses.
+    Default 10. A running server with a connected player keeps the lock live
+    regardless of the timer.
+
+.PARAMETER Release
+    With -Stop: also release the session lock after stopping (when it is yours,
+    already dead, or you were authorized to -Force).
+
 .PARAMETER HostMode
     Internal: run as the host wrapper. Invoked by -Start via Start-Process.
     Do not invoke directly.
@@ -125,6 +157,7 @@ param(
     [switch] $Stop,
     [string] $SaveAs,
     [int]    $TimeoutSeconds = 30,
+    [switch] $Release,
 
     [switch] $SendCommand,
     [string] $Command,
@@ -142,6 +175,14 @@ param(
     [switch] $SyncMods,
     [string] $FromModConfig,
 
+    [switch] $Lock,
+    [switch] $RefreshLock,
+    [switch] $Unlock,
+    [string] $Purpose,
+    [string] $As,
+    [switch] $Force,
+    [int]    $TtlMinutes = 10,
+
     [switch] $HostMode
 )
 
@@ -158,6 +199,10 @@ $LogFile       = Join-Path $DataDir 'server.log'
 $ControlFile   = Join-Path $DataDir 'control.cmd'
 $ServerPidFile = Join-Path $DataDir 'server.pid'
 $HostPidFile   = Join-Path $DataDir 'host.pid'
+
+$LockFile       = Join-Path $ServerRoot 'session.lock'
+$LockTemplate   = Join-Path $ServerRoot 'session.lock.template'
+$ConsoleLogFile = Join-Path $DataDir 'console.log'
 
 # ---- environment helpers --------------------------------------------------
 
@@ -204,9 +249,169 @@ function Test-PidAlive {
     [bool](Get-Process -Id $TargetPid -ErrorAction SilentlyContinue)
 }
 
+# ---- session lock ---------------------------------------------------------
+# Mechanism and rules: session.lock.template (single source of truth). The lock
+# spans a whole test session (many start/stop cycles) so a second agent cannot
+# stomp the shared install. Liveness = timer fresh OR a player connected.
+
+function Get-NowUtc {
+    [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+}
+
+function Read-Lock {
+    # Returns an ordered hashtable of lock fields, or $null if no usable lock.
+    if (-not (Test-Path $LockFile)) { return $null }
+    $fields = [ordered]@{}
+    foreach ($line in (Get-Content -ErrorAction SilentlyContinue $LockFile)) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith('#')) { continue }
+        $eq = $t.IndexOf('=')
+        if ($eq -lt 1) { continue }
+        $fields[$t.Substring(0, $eq).Trim()] = $t.Substring($eq + 1).Trim()
+    }
+    if (-not $fields.Contains('owner')) { return $null }
+    return $fields
+}
+
+function Write-Lock {
+    param([Parameter(Mandatory)] $Fields)
+    $sb = [System.Text.StringBuilder]::new()
+    [void]$sb.AppendLine('# Stationeers Dedicated Server - ACTIVE session lock (auto-managed; do not hand-edit).')
+    [void]$sb.AppendLine('# Mechanism and rules: session.lock.template (single source of truth).')
+    foreach ($k in $Fields.Keys) {
+        [void]$sb.AppendLine("$k=$($Fields[$k])")
+    }
+    $tmp = "$LockFile.tmp"
+    Set-Content -Path $tmp -Value $sb.ToString() -Encoding utf8 -NoNewline
+    Move-Item -Path $tmp -Destination $LockFile -Force
+}
+
+function Test-LockTimerExpired {
+    param([Parameter(Mandatory)] $Lock)
+    $ttl = 10
+    if ($Lock.Contains('ttl_minutes')) { [void][int]::TryParse($Lock['ttl_minutes'], [ref]$ttl) }
+    if (-not $Lock.Contains('refreshed_at')) { return $true }
+    try {
+        $r = [DateTime]::Parse($Lock['refreshed_at'],
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
+    } catch { return $true }
+    return (([DateTime]::UtcNow - $r).TotalMinutes -gt $ttl)
+}
+
+function Get-LockAgeText {
+    param([Parameter(Mandatory)] $Lock)
+    try {
+        $r = [DateTime]::Parse($Lock['refreshed_at'],
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
+        return "$([int](([DateTime]::UtcNow - $r).TotalMinutes)) min ago"
+    } catch { return 'unknown' }
+}
+
+function Get-ConnectedPlayerCount {
+    # Returns [int] connected-client count, or $null if it cannot be determined
+    # (server/host not both alive, or no parseable response). Consulted lazily,
+    # only to break the "expired timer but a server is still running" tie.
+    $serverPidVal = Get-PidFromFile $ServerPidFile
+    $hostPidVal   = Get-PidFromFile $HostPidFile
+    if (-not (Test-PidAlive $serverPidVal) -or -not (Test-PidAlive $hostPidVal)) { return $null }
+
+    $sinks = @($ConsoleLogFile, $LogFile)
+    $startLens = @{}
+    foreach ($s in $sinks) { if (Test-Path $s) { $startLens[$s] = (Get-Item $s).Length } }
+
+    try { Send-ServerCommand -Cmd 'clients' -WaitForFreeSeconds 5 } catch { return $null }
+
+    $deadline = (Get-Date).AddSeconds(6)
+    while ((Get-Date) -lt $deadline) {
+        foreach ($s in $sinks) {
+            if (-not (Test-Path $s)) { continue }
+            $startLen = if ($startLens.ContainsKey($s)) { $startLens[$s] } else { 0 }
+            if ((Get-Item $s).Length -le $startLen) { continue }
+            try {
+                $stream = [System.IO.File]::Open($s, 'Open', 'Read', 'ReadWrite')
+                try {
+                    $stream.Seek($startLen, 'Begin') | Out-Null
+                    $reader = [System.IO.StreamReader]::new($stream)
+                    $new = $reader.ReadToEnd()
+                    $reader.Close()
+                } finally { $stream.Close() }
+                $m = [regex]::Match($new, 'Clients:\s*(\d+)')
+                if ($m.Success) { return [int]$m.Groups[1].Value }
+            } catch { }
+        }
+        Start-Sleep -Milliseconds 300
+    }
+    return $null
+}
+
+function Get-LockState {
+    # States: None, Mine, LiveForeign, DeadForeign, Indeterminate.
+    param([string] $CallerId)
+    $lock = Read-Lock
+    if (-not $lock) { return [pscustomobject]@{ State = 'None'; Lock = $null; Players = $null } }
+    if ($CallerId -and $lock['owner'] -eq $CallerId) {
+        return [pscustomobject]@{ State = 'Mine'; Lock = $lock; Players = $null }
+    }
+    if (-not (Test-LockTimerExpired $lock)) {
+        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $lock; Players = $null }
+    }
+    # Timer expired. Player-aware tie-break only if a server is still running.
+    if (-not (Test-PidAlive (Get-PidFromFile $ServerPidFile))) {
+        return [pscustomobject]@{ State = 'DeadForeign'; Lock = $lock; Players = 0 }
+    }
+    $players = Get-ConnectedPlayerCount
+    if ($null -eq $players) {
+        return [pscustomobject]@{ State = 'Indeterminate'; Lock = $lock; Players = $null }
+    }
+    if ($players -ge 1) {
+        # A player is connected: an active session self-renews so a brief
+        # disconnect still gets a full TTL grace.
+        $lock['refreshed_at'] = Get-NowUtc
+        Write-Lock $lock
+        return [pscustomobject]@{ State = 'LiveForeign'; Lock = $lock; Players = $players }
+    }
+    return [pscustomobject]@{ State = 'DeadForeign'; Lock = $lock; Players = 0 }
+}
+
+function Format-ForeignLock {
+    param([Parameter(Mandatory)] $State)
+    $lk = $State.Lock
+    $players = if ($State.Players) { "; $($State.Players) player(s) connected" } else { '' }
+    return "    purpose : $($lk['purpose'])`n    owner   : $($lk['owner'])`n    active  : $(Get-LockAgeText $lk)$players"
+}
+
+function Assert-MutatingAllowed {
+    # Gate for every mutating action except -Stop (which has its own gate).
+    param([Parameter(Mandatory)] [string] $Action)
+    $st = Get-LockState -CallerId $As
+    switch ($st.State) {
+        'Mine' {
+            $lk = $st.Lock
+            $lk['refreshed_at'] = Get-NowUtc
+            Write-Lock $lk
+            return
+        }
+        'None' {
+            throw "[$Action] No session lock is held. Acquire one first:`n    dedicated-server.ps1 -Lock -Purpose `"<what you are testing>`"`nthen pass -As <id> on every mutating command. See session.lock.template."
+        }
+        'DeadForeign' {
+            throw "[$Action] No live session lock is held (a previous lock expired). Re-acquire:`n    dedicated-server.ps1 -Lock -Purpose `"<what you are testing>`"`nSee session.lock.template."
+        }
+        'LiveForeign' {
+            throw "[$Action] The dedicated server is locked by another session.`n$(Format-ForeignLock $st)`nDo NOT proceed. Report this purpose to the user and let the user decide. Only the user may authorize -Force. See session.lock.template."
+        }
+        'Indeterminate' {
+            throw "[$Action] A previous lock's timer expired but a server is still running and the connected-player count could not be read (possible active session: '$($st.Lock['purpose'])'). Do NOT auto-reclaim. Report to the user. See session.lock.template."
+        }
+    }
+}
+
 # ---- bootstrap ------------------------------------------------------------
 
 function Invoke-Bootstrap {
+    Assert-MutatingAllowed -Action 'Bootstrap'
     Write-Host "[Bootstrap] Verifying environment..."
     $stationeers = Get-StationeersPath
     $steamcmd    = Get-SteamcmdPath
@@ -305,6 +510,7 @@ function Invoke-Bootstrap {
 # ---- deploy mods ----------------------------------------------------------
 
 function Invoke-DeployMods {
+    Assert-MutatingAllowed -Action 'DeployMods'
     if (-not (Test-Path $ServerExe)) {
         throw "Server not bootstrapped. Run -Bootstrap first."
     }
@@ -350,6 +556,7 @@ function Invoke-DeployMods {
 # ---- start (detached) -----------------------------------------------------
 
 function Invoke-Start {
+    Assert-MutatingAllowed -Action 'Start'
     if (-not (Test-Path $ServerExe)) {
         throw "Server not bootstrapped. Run -Bootstrap first."
     }
@@ -446,7 +653,31 @@ function Invoke-HostMode {
     $psi.WorkingDirectory       = $InstallDir
     $psi.CreateNoWindow         = $true
 
-    $proc = [System.Diagnostics.Process]::Start($psi)
+    # Player-aware lock support: capture the server's stdout to console.log so a
+    # 'clients' query can be read back (the count prints to the console, not the
+    # Unity -logFile). Best-effort; if capture cannot be set up the server still
+    # runs and connected-player count falls back to "unknown". See
+    # session.lock.template.
+    $consoleWriter = $null
+    try {
+        $consoleWriter = [System.IO.StreamWriter]::new($ConsoleLogFile, $false)
+        $consoleWriter.AutoFlush = $true
+        $psi.RedirectStandardOutput = $true
+    } catch {
+        $consoleWriter = $null
+    }
+
+    $proc = [System.Diagnostics.Process]::new()
+    $proc.StartInfo = $psi
+    if ($consoleWriter) {
+        $outputHandler = {
+            param($sender, $e)
+            if ($null -ne $e.Data) { $consoleWriter.WriteLine($e.Data) }
+        }.GetNewClosure()
+        $proc.add_OutputDataReceived($outputHandler)
+    }
+    [void]$proc.Start()
+    if ($consoleWriter) { try { $proc.BeginOutputReadLine() } catch { } }
     Set-Content -Path $ServerPidFile -Value $proc.Id
 
     try {
@@ -471,6 +702,7 @@ function Invoke-HostMode {
     }
     finally {
         try { $proc.StandardInput.Close() } catch { }
+        if ($consoleWriter) { try { $consoleWriter.Flush(); $consoleWriter.Close() } catch { } }
         Remove-Item -Force -ErrorAction SilentlyContinue $ServerPidFile
         Remove-Item -Force -ErrorAction SilentlyContinue $HostPidFile
         Remove-Item -Force -ErrorAction SilentlyContinue $ControlFile
@@ -507,6 +739,7 @@ function Send-ServerCommand {
 }
 
 function Invoke-SendCommand {
+    Assert-MutatingAllowed -Action 'SendCommand'
     if (-not $Command) { throw "-SendCommand requires -Command <text>." }
     Send-ServerCommand -Cmd $Command
     Write-Host "[SendCommand] Queued: $Command"
@@ -546,6 +779,7 @@ function Wait-LogPattern {
 }
 
 function Invoke-Save {
+    Assert-MutatingAllowed -Action 'Save'
     if (-not $Name) { throw "-Save requires -Name <SaveName>." }
     Send-ServerCommand -Cmd ('save "{0}"' -f $Name)
     Write-Host "[Save] Queued save '$Name'. Waiting for confirmation (up to ${WaitSeconds}s)..."
@@ -560,38 +794,13 @@ function Invoke-Save {
 
 # ---- stop ----------------------------------------------------------------
 
-function Invoke-Stop {
+function Stop-ServerProcesses {
+    # Tear down server + host wrapper and clean pid/control files. Does NOT
+    # touch the session lock. Used by -Stop and by -Lock reclaim of a dead lock.
     $serverPidVal = Get-PidFromFile $ServerPidFile
     $hostPidVal   = Get-PidFromFile $HostPidFile
-    $serverAlive  = Test-PidAlive $serverPidVal
-    $hostAlive    = Test-PidAlive $hostPidVal
 
-    if (-not $serverAlive -and -not $hostAlive) {
-        Write-Host "[Stop] Nothing running."
-        foreach ($f in @($HostPidFile, $ServerPidFile, $ControlFile)) {
-            Remove-Item -Force $f -ErrorAction SilentlyContinue
-        }
-        return
-    }
-
-    if ($SaveAs -and $serverAlive -and $hostAlive) {
-        Write-Host "[Stop] Saving as '$SaveAs' first..."
-        try {
-            Send-ServerCommand -Cmd ('save "{0}"' -f $SaveAs)
-            $confirmed = Wait-LogPattern -Pattern ("Saved.*" + [regex]::Escape($SaveAs)) -TimeoutSec $TimeoutSeconds
-            if (-not $confirmed) {
-                Write-Warning "[Stop] No save confirmation within ${TimeoutSeconds}s; continuing with quit."
-            }
-        }
-        catch {
-            Write-Warning "[Stop] Save failed: $_"
-        }
-    }
-    elseif ($SaveAs) {
-        Write-Warning "[Stop] -SaveAs ignored: server or host wrapper is not running."
-    }
-
-    if ($serverAlive -and $hostAlive) {
+    if ((Test-PidAlive $serverPidVal) -and (Test-PidAlive $hostPidVal)) {
         Write-Host "[Stop] Sending 'quit' via host wrapper..."
         try { Send-ServerCommand -Cmd 'quit' } catch { Write-Warning "[Stop] $_" }
 
@@ -613,7 +822,139 @@ function Invoke-Stop {
     foreach ($f in @($HostPidFile, $ServerPidFile, $ControlFile)) {
         Remove-Item -Force $f -ErrorAction SilentlyContinue
     }
+}
+
+function Invoke-Stop {
+    # -Stop is allowed unless a LIVE foreign lock exists (so orphan / expired
+    # cleanup needs no ceremony). It does not require -As. -Release also frees
+    # the lock when it is yours, already dead, or you were authorized to -Force.
+    $st = Get-LockState -CallerId $As
+    if ($st.State -eq 'LiveForeign') {
+        if (-not $Force) {
+            throw "[Stop] Refusing to stop a server held by another live session.`n$(Format-ForeignLock $st)`nReport to the user. Only the user may authorize -Force. See session.lock.template."
+        }
+        Write-Warning "[Stop] -Force: stopping a server held by another live session ('$($st.Lock['purpose'])')."
+    }
+    elseif ($st.State -eq 'Indeterminate' -and -not $Force) {
+        throw "[Stop] A lock expired but a server is running and the connected-player count is unknown (possible active session: '$($st.Lock['purpose'])'). Report to the user. Only the user may authorize -Force. See session.lock.template."
+    }
+
+    $serverAlive = Test-PidAlive (Get-PidFromFile $ServerPidFile)
+    $hostAlive   = Test-PidAlive (Get-PidFromFile $HostPidFile)
+
+    if (-not $serverAlive -and -not $hostAlive) {
+        Write-Host "[Stop] Nothing running."
+        foreach ($f in @($HostPidFile, $ServerPidFile, $ControlFile)) {
+            Remove-Item -Force $f -ErrorAction SilentlyContinue
+        }
+    }
+    else {
+        if ($SaveAs -and $serverAlive -and $hostAlive) {
+            Write-Host "[Stop] Saving as '$SaveAs' first..."
+            try {
+                Send-ServerCommand -Cmd ('save "{0}"' -f $SaveAs)
+                $confirmed = Wait-LogPattern -Pattern ("Saved.*" + [regex]::Escape($SaveAs)) -TimeoutSec $TimeoutSeconds
+                if (-not $confirmed) {
+                    Write-Warning "[Stop] No save confirmation within ${TimeoutSeconds}s; continuing with quit."
+                }
+            }
+            catch {
+                Write-Warning "[Stop] Save failed: $_"
+            }
+        }
+        elseif ($SaveAs) {
+            Write-Warning "[Stop] -SaveAs ignored: server or host wrapper is not running."
+        }
+        Stop-ServerProcesses
+    }
+
+    if ($Release) {
+        $lock = Read-Lock
+        if (-not $lock) {
+            Write-Host "[Stop] No session lock to release."
+        }
+        elseif (($As -and $lock['owner'] -eq $As) -or $Force -or (Test-LockTimerExpired $lock)) {
+            Remove-Item -Force -ErrorAction SilentlyContinue $LockFile
+            Write-Host "[Stop] Session lock released."
+        }
+        else {
+            Write-Warning "[Stop] -Release ignored: lock held by '$($lock['owner'])', not you. Use -Unlock -As <id>, or get user authorization for -Force."
+        }
+    }
     Write-Host "[Stop] Done."
+}
+
+# ---- session lock actions -------------------------------------------------
+
+function Invoke-Lock {
+    if (-not $Purpose) {
+        throw "-Lock requires -Purpose `"<short reason>`", e.g. -Purpose `"Playtesting network paint for SprayPaintPlus`". See session.lock.template."
+    }
+    $st = Get-LockState -CallerId $As
+    switch ($st.State) {
+        'Mine' {
+            $owner = $st.Lock['owner']
+            Write-Lock ([ordered]@{
+                owner = $owner; purpose = $Purpose
+                acquired_at = $st.Lock['acquired_at']; refreshed_at = (Get-NowUtc)
+                ttl_minutes = $TtlMinutes; host = $env:COMPUTERNAME
+            })
+            Write-Host "[Lock] Re-asserted session lock (owner $owner). Pass -As $owner on mutating commands."
+            return
+        }
+        'LiveForeign' {
+            if (-not $Force) {
+                throw "Cannot acquire: the dedicated server is locked by another session.`n$(Format-ForeignLock $st)`nReport this purpose to the user. Only the user may authorize -Force. See session.lock.template."
+            }
+            Write-Warning "[Lock] -Force: breaking a live lock held by '$($st.Lock['purpose'])' (owner $($st.Lock['owner']))."
+        }
+        'Indeterminate' {
+            if (-not $Force) {
+                throw "Cannot acquire: a previous lock expired but a server is running and player count is unknown (possible active session: '$($st.Lock['purpose'])'). Report to the user. Only the user may authorize -Force. See session.lock.template."
+            }
+            Write-Warning "[Lock] -Force: overriding an indeterminate lock ('$($st.Lock['purpose'])')."
+        }
+        'DeadForeign' {
+            if (Test-PidAlive (Get-PidFromFile $ServerPidFile)) {
+                Write-Warning "[Lock] Reclaiming an expired lock; stopping its orphaned server first."
+                Stop-ServerProcesses
+            }
+        }
+    }
+    $owner = [guid]::NewGuid().ToString('N').Substring(0, 8)
+    Write-Lock ([ordered]@{
+        owner = $owner; purpose = $Purpose
+        acquired_at = (Get-NowUtc); refreshed_at = (Get-NowUtc)
+        ttl_minutes = $TtlMinutes; host = $env:COMPUTERNAME
+    })
+    Write-Host "[Lock] Acquired session lock."
+    Write-Host "[Lock]   owner   : $owner   (pass -As $owner on every mutating command)"
+    Write-Host "[Lock]   purpose : $Purpose"
+    Write-Host "[Lock]   ttl     : $TtlMinutes min (refresh with -RefreshLock -As $owner while actively testing)"
+    Write-Host "[Lock] Rules: session.lock.template."
+}
+
+function Invoke-RefreshLock {
+    if (-not $As) { throw "-RefreshLock requires -As <id> (the owner id printed by -Lock)." }
+    $lock = Read-Lock
+    if (-not $lock) { throw "No session lock to refresh. Acquire one: -Lock -Purpose `"<reason>`"." }
+    if ($lock['owner'] -ne $As) {
+        throw "Refresh refused: the lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$As'. Your reservation has lapsed. Report to the user; do not touch the server. See session.lock.template."
+    }
+    $lock['refreshed_at'] = Get-NowUtc
+    if ($PSBoundParameters.ContainsKey('TtlMinutes')) { $lock['ttl_minutes'] = $TtlMinutes }
+    Write-Lock $lock
+    Write-Host "[RefreshLock] Refreshed (owner $As, ttl $($lock['ttl_minutes']) min)."
+}
+
+function Invoke-Unlock {
+    $lock = Read-Lock
+    if (-not $lock) { Write-Host "[Unlock] No session lock present."; return }
+    if (-not ($As -and $lock['owner'] -eq $As) -and -not $Force) {
+        throw "Unlock refused: the lock is held by owner '$($lock['owner'])' (purpose: $($lock['purpose'])), not '$As'. Report to the user. Only the user may authorize -Force. See session.lock.template."
+    }
+    Remove-Item -Force -ErrorAction SilentlyContinue $LockFile
+    Write-Host "[Unlock] Session lock released (was owner $($lock['owner']))."
 }
 
 # ---- status & logs --------------------------------------------------------
@@ -644,6 +985,32 @@ function Invoke-Status {
         Write-Host "pending cmd:  $pending"
     }
 
+    $lock = Read-Lock
+    if (-not $lock) {
+        Write-Host "session lock: none"
+    }
+    else {
+        $expired = Test-LockTimerExpired $lock
+        $own = if ($As -and $lock['owner'] -eq $As) { 'YOURS' }
+               elseif ($As) { "held by another session ($($lock['owner']))" }
+               else { "owner $($lock['owner'])" }
+        Write-Host "session lock: $own"
+        Write-Host "  purpose:    $($lock['purpose'])"
+        Write-Host "  timer:      $(if ($expired) { 'expired' } else { 'fresh' }); ttl $($lock['ttl_minutes']) min; refreshed $(Get-LockAgeText $lock)"
+        if ($expired -and $serverAlive) {
+            $players = Get-ConnectedPlayerCount
+            if ($null -eq $players) {
+                Write-Host "  players:    unknown (could not query; treat as possibly active)"
+            }
+            elseif ($players -ge 1) {
+                Write-Host "  players:    $players connected (lock still LIVE: player connected)"
+            }
+            else {
+                Write-Host "  players:    0 connected (lock is dead; reclaimable)"
+            }
+        }
+    }
+
     if ($serverAlive -and -not $hostAlive) {
         Write-Warning "Server is alive but host wrapper is gone. Use -Stop to terminate the orphan."
     }
@@ -665,6 +1032,7 @@ function Invoke-Logs {
 # ---- sync mods ------------------------------------------------------------
 
 function Invoke-SyncMods {
+    Assert-MutatingAllowed -Action 'SyncMods'
     if (-not (Test-Path $ServerExe)) {
         throw "Server not bootstrapped. Run -Bootstrap first."
     }
@@ -758,6 +1126,9 @@ function Invoke-SyncMods {
 # ---- dispatch -------------------------------------------------------------
 
 if ($HostMode)    { Invoke-HostMode;    return }
+if ($Lock)        { Invoke-Lock;        return }
+if ($RefreshLock) { Invoke-RefreshLock; return }
+if ($Unlock)      { Invoke-Unlock;      return }
 if ($Bootstrap)   { Invoke-Bootstrap;   return }
 if ($DeployMods)  { Invoke-DeployMods;  return }
 if ($SyncMods)    { Invoke-SyncMods;    return }
@@ -771,19 +1142,26 @@ if ($Logs)        { Invoke-Logs;        return }
 Write-Host @"
 Stationeers Dedicated Server launcher.
 
-Operations manual: DedicatedServer/CLAUDE.md
+Operations manual:  DedicatedServer/CLAUDE.md
+Session-lock rules: DedicatedServer/session.lock.template (READ FIRST)
 
-Setup:
-  DedicatedServer/dedicated-server.ps1 -Bootstrap
-  DedicatedServer/dedicated-server.ps1 -SyncMods [-FromModConfig <path>]
-  DedicatedServer/dedicated-server.ps1 -DeployMods [-Mod <name>] [-Configuration Release|Debug]
+Session lock (acquire before ANY mutating command; pass -As <id> thereafter):
+  DedicatedServer/dedicated-server.ps1 -Lock -Purpose "<what you are testing>" [-TtlMinutes 10]
+  DedicatedServer/dedicated-server.ps1 -RefreshLock -As <id>      (while actively testing)
+  DedicatedServer/dedicated-server.ps1 -Unlock -As <id>           (release when done)
+  Breaking another session's LIVE lock (-Force) is human-gated: only on the user's say-so.
+
+Setup (mutating; needs the lock):
+  DedicatedServer/dedicated-server.ps1 -Bootstrap -As <id>
+  DedicatedServer/dedicated-server.ps1 -SyncMods -As <id> [-FromModConfig <path>]
+  DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> [-Mod <name>] [-Configuration Release|Debug]
 
 Lifecycle (agent-driven, all non-blocking unless noted):
-  DedicatedServer/dedicated-server.ps1 -Start  -Load <SaveName> -Map <Map>  [-GamePort N -UpdatePort N]
-  DedicatedServer/dedicated-server.ps1 -Start  -New <Map>                    [-GamePort N -UpdatePort N]
-  DedicatedServer/dedicated-server.ps1 -Status
+  DedicatedServer/dedicated-server.ps1 -Start -As <id> -Load <SaveName> -Map <Map>  [-GamePort N -UpdatePort N]
+  DedicatedServer/dedicated-server.ps1 -Start -As <id> -New <Map>                    [-GamePort N -UpdatePort N]
+  DedicatedServer/dedicated-server.ps1 -Status [-As <id>]
   DedicatedServer/dedicated-server.ps1 -Logs [-Tail N] [-Grep pattern]
-  DedicatedServer/dedicated-server.ps1 -Save -Name <SaveName>           (waits for log confirmation)
-  DedicatedServer/dedicated-server.ps1 -SendCommand -Command '<text>'
-  DedicatedServer/dedicated-server.ps1 -Stop [-SaveAs <SaveName>]       (waits for clean exit)
+  DedicatedServer/dedicated-server.ps1 -Save -As <id> -Name <SaveName>          (waits for log confirmation)
+  DedicatedServer/dedicated-server.ps1 -SendCommand -As <id> -Command '<text>'
+  DedicatedServer/dedicated-server.ps1 -Stop -As <id> [-SaveAs <SaveName>] [-Release]   (waits for clean exit)
 "@

@@ -304,9 +304,11 @@ Rule of thumb: if a human modder would naturally write the same sentence because
 
 ## Tool: DedicatedServer for multiplayer testing
 
-`DedicatedServer/` at the repo root holds a self-contained Stationeers Dedicated Server install used for multiplayer playtests of these mods. The directory is gitignored except for `DedicatedServer/CLAUDE.md` (the operating manual: bootstrap, mod deploy, launch, the exact CLI flag set) and `DedicatedServer/dedicated-server.ps1` (the launcher script itself).
+`DedicatedServer/` at the repo root holds a self-contained Stationeers Dedicated Server install used for multiplayer playtests of these mods. The directory is gitignored except for `DedicatedServer/CLAUDE.md` (the operating manual: bootstrap, mod deploy, launch, the exact CLI flag set), `DedicatedServer/dedicated-server.ps1` (the launcher script itself), and `DedicatedServer/session.lock.template` (the session-lock rules).
 
 Read `DedicatedServer/CLAUDE.md` before running, modifying, or proposing changes that touch the dedicated server. The folder doc auto-loads when you touch any path inside the folder, including the launcher script.
+
+The dedicated server is a shared single-instance resource: every agent on this machine contends for one install. Before driving it you MUST acquire a session lock (`dedicated-server.ps1 -Lock -Purpose "<reason>"`) and pass `-As <id>` on every mutating command. The lock spans a whole test session across many start/stop cycles, expires on a timer so an idle agent does not starve others, and is held open while a player is connected. Force-breaking another session's lock is human-gated: never do it without the user's explicit say-so. The complete, authoritative rules live at `DedicatedServer/session.lock.template`; read it before figuring out how to drive the server.
 
 The launcher reads `<StationeersPath>` from `Directory.Build.props` and `STEAMCMD_PATH` from the environment (set per `DEV.md`). It contains no developer-specific paths.
 

@@ -73,10 +73,12 @@ playwright/output/
 Web/_staging/
 
 ## Dedicated server tree (see DedicatedServer/CLAUDE.md)
-## Everything inside DedicatedServer/ is local-only except CLAUDE.md and the launcher script.
+## Everything inside DedicatedServer/ is local-only except CLAUDE.md, the launcher
+## script, and the session-lock rules template. The active session.lock stays ignored.
 /DedicatedServer/*
 !/DedicatedServer/CLAUDE.md
 !/DedicatedServer/dedicated-server.ps1
+!/DedicatedServer/session.lock.template
 
 ## Test / benchmark / coverage output
 TestResults/
