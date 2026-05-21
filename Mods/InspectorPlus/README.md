@@ -12,9 +12,12 @@ Not intended for end-user gameplay. Subscribe only if you are writing or debuggi
 
 ## Installation
 
+Subscribe on the Steam Workshop, or install manually:
+
 1. Copy `InspectorPlus.dll` and the `About/` folder into your Stationeers local mods directory
 2. Restart the game
-3. The `BepInEx/inspector/requests/` and `BepInEx/inspector/snapshots/` folders are created automatically on first load
+
+The `BepInEx/inspector/requests/` and `BepInEx/inspector/snapshots/` folders are created automatically on first load.
 
 ## Features
 
@@ -39,7 +42,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 
 ## Changelog
 
-Version history lives in [`InspectorPlus/About/About.xml`](InspectorPlus/About/About.xml) under `<ChangeLog>`. Once the mod is published to the Steam Workshop, entries will also appear on the Workshop Change Notes tab with every release.
+Full version history is in [CHANGELOG.md](CHANGELOG.md). After each release the same notes appear on the mod's Steam Workshop Change Notes tab.
 
 ## License
 

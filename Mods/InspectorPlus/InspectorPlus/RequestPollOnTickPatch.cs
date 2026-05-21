@@ -16,12 +16,10 @@ namespace InspectorPlus
     //     submitted by the FileSystemWatcher never executes.
     //
     // ElectricityTick, in contrast, is driven by the game's own simulation
-    // tick (see DishProbe.ElectricityTickProbe -- once StartGameUnpauseProbe
-    // force-unpauses after StartGame, ElectricityTick fires every tick of the
-    // simulation: empirically Tick #1, #2, #3, #60, #120, #180, ... on a
-    // dedicated server with no client connected). It is on the main thread,
-    // so request processing (which calls into Unity / scene objects via
-    // ObjectWalker) is safe.
+    // tick whenever the world is running, on the main thread, so request
+    // processing (which calls into Unity / scene objects via ObjectWalker) is
+    // safe. On a client this patch is redundant with the Update() poll; on a
+    // headless server with no client it is the only reliable pump.
     //
     // We throttle the scan to every PollEveryNTicks ticks to keep overhead
     // negligible (a Directory.GetFiles is cheap, but no need to do it every

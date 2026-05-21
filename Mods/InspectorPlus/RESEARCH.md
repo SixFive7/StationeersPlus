@@ -4,16 +4,17 @@ InspectorPlus is a local-only BepInEx plugin that dumps live game state to JSON 
 
 ## Architecture
 
-Four cooperating pieces:
+Five cooperating pieces:
 
 - `Plugin.cs`: BepInEx entry point. Starts a `FileSystemWatcher` on `BepInEx/inspector/requests/` and registers a key-press handler for F8. On request-file creation, parses the JSON and schedules a snapshot on the main thread.
-- `SnapshotRequest.cs`: the JSON request schema. Deserialised from request files dropped into the watched folder. Fields: `Types` (type-name filter), `Fields` (per-type field/property filter), `MaxDepth` (recursion cap). Parsed by a minimal hand-rolled parser, not Newtonsoft; see Design decisions.
-- `ObjectWalker.cs`: the reflection-based traversal that produces the snapshot. Walks fields, properties, and Unity `Transform` positions; respects a configurable recursion depth; detects cycles to avoid infinite walks. Uses reflection against each candidate object and emits a nested JSON blob.
-- `MainThreadDispatcher.cs`: queues work produced off the main thread (file-watcher callbacks fire on a thread-pool thread) onto the Unity main thread, which is the only thread from which scene queries are safe. Implementation is a simple `ConcurrentQueue<Action>` pumped from `Update()` on a persistent `GameObject`.
+- `SnapshotRequest.cs`: the JSON request schema. Deserialised from request files dropped into the watched folder. Fields: `Types` (type-name filter), `Fields` (per-type field/property filter), `MaxDepth` (recursion cap), `IncludePrivate` (include non-public members), `MaxMonoBehaviours` (top-level object cap). Parsed by a minimal hand-rolled parser, not Newtonsoft; see Design decisions.
+- `ObjectWalker.cs`: the reflection-based traversal that produces the snapshot. Walks fields, properties, and Unity `Transform` positions; respects a configurable recursion depth; detects cycles to avoid infinite walks; enforces byte and nested-expansion caps and marks the result truncated when one is hit. Uses reflection against each candidate object and emits a nested JSON blob.
+- `MainThreadDispatcher.cs`: queues work produced off the main thread (file-watcher callbacks fire on a thread-pool thread) onto the Unity main thread, which is the only thread from which scene queries are safe. Implementation is a `Queue<Action>` guarded by a `lock`, drained from `Update()` on a persistent `GameObject`.
+- `RequestPollOnTickPatch.cs`: a Harmony postfix on `ElectricityManager.ElectricityTick` that pumps the request-file scan from the simulation tick. A headless dedicated server does not reliably drive `Update()` or coroutines, so this keeps request snapshots working server-side; on a client it is redundant with the `Update()` poll and the `FileSystemWatcher`.
 
 ### Snapshot output format
 
-Snapshots land in `BepInEx/inspector/snapshots/` as `snapshot_<yyyyMMdd_HHmmss_fff>.json`. Top level is an object keyed by type name; each value is a list of instances with their sampled fields/properties. Unity `Transform` and `Vector3` values are stringified as `(x, y, z)` for readability. The usage recipe (request lifecycle, F8 dump, file cleanup) is covered centrally; see [../../Research/Workflows/InspectorPlusUsage.md](../../Research/Workflows/InspectorPlusUsage.md).
+Snapshots land in `BepInEx/inspector/snapshots/` as `snapshot_<yyyyMMdd_HHmmss_fff>.json`. The top level is an object with `timestamp`, `frame`, `gameTime`, and an `objects` array; each entry carries `_type`, `_name`, and, for components, `_gameObject`, `_active`, and `_position`, plus a `fields` object of sampled fields and properties. Unity `Vector3` values and `Transform` positions are emitted as `[x, y, z]` arrays. A snapshot that hits a size cap gets a `_truncated` marker. The usage recipe (request lifecycle, F8 dump, file cleanup) is covered centrally; see [../../Research/Workflows/InspectorPlusUsage.md](../../Research/Workflows/InspectorPlusUsage.md).
 
 ### ObjectWalker filtering rules
 
@@ -31,12 +32,12 @@ Two rules the walker enforces to keep output sane:
 
 ## Harmony patches catalog
 
-InspectorPlus installs no Harmony patches. The plugin is a pure BepInEx plugin that runs alongside the game and never rewrites game methods.
+InspectorPlus installs one Harmony patch: `RequestPollOnTickPatch`, a postfix on `ElectricityManager.ElectricityTick`. It exists only to pump the request-file scan on a headless dedicated server, where `MonoBehaviour.Update()` and coroutines do not fire reliably; it reads request files and never mutates game state. All state capture is read-only reflection in `ObjectWalker`; the plugin rewrites no game logic.
 
 ## Relevant central pages
 
 - [../../Research/Patterns/FileSystemWatcherMainThread.md](../../Research/Patterns/FileSystemWatcherMainThread.md) - `FileSystemWatcher.Created` fires on a thread-pool thread and can fire while the writer still holds the file open; the plugin's main-thread bridge and `FileShare.ReadWrite` retry loop both come from this rule.
-- [../../Research/Patterns/MainThreadDispatcher.md](../../Research/Patterns/MainThreadDispatcher.md) - The `ConcurrentQueue<Action>` drain pattern behind `MainThreadDispatcher.cs`.
+- [../../Research/Patterns/MainThreadDispatcher.md](../../Research/Patterns/MainThreadDispatcher.md) - The main-thread `Action` queue drain pattern behind `MainThreadDispatcher.cs`.
 - [../../Research/Patterns/UnityFakeNull.md](../../Research/Patterns/UnityFakeNull.md) - `obj == null` returns true even when the managed wrapper is still alive; `ObjectWalker` uses the `!obj` check before dereferencing Unity-derived fields.
 - [../../Research/Workflows/InspectorPlusUsage.md](../../Research/Workflows/InspectorPlusUsage.md) - How other mods' development workflows use this plugin: request schema, snapshot lifecycle, F8 dump, cleanup rules.
 - [../../Research/Workflows/ModProjectSetup.md](../../Research/Workflows/ModProjectSetup.md) - BepInEx plugin scaffold this mod is built on.

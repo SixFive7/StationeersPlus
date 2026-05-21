@@ -32,19 +32,13 @@ namespace InspectorPlus
 
         private IEnumerator PollLoop(string watchDir, Action<string> processFile)
         {
-            int tick = 0;
             while (true)
             {
                 yield return new WaitForSecondsRealtime(2f);
-                tick++;
                 string[] files = null;
                 try { files = Directory.GetFiles(watchDir, "*.json"); }
-                catch (Exception ex) { InspectorPlusPlugin.Log.LogError($"InspectorPlus[POLL] coroutine list failed: {ex.Message}"); }
-                if (files == null) continue;
-                if (tick % 10 == 0)
-                    InspectorPlusPlugin.Log.LogInfo($"InspectorPlus[POLL] coroutine tick {tick}, frame {Time.frameCount}, found {files.Length} request(s)");
-                if (files.Length == 0) continue;
-                InspectorPlusPlugin.Log.LogInfo($"InspectorPlus[POLL] coroutine tick {tick}, frame {Time.frameCount}: processing {files.Length} request(s)");
+                catch (Exception ex) { InspectorPlusPlugin.Log.LogError($"Coroutine request scan failed: {ex.Message}"); }
+                if (files == null || files.Length == 0) continue;
                 foreach (var f in files) processFile(f);
             }
         }

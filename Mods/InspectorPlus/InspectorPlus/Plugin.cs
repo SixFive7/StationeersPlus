@@ -4,6 +4,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -28,8 +29,11 @@ namespace InspectorPlus
             Log = Logger;
 
             SnapshotKey = Config.Bind(
-                "General", "Snapshot Key", new KeyboardShortcut(KeyCode.F8),
-                "Press this key in-game to write a full snapshot to the output folder.");
+                "Client - Snapshots", "Snapshot Key", new KeyboardShortcut(KeyCode.F8),
+                new ConfigDescription(
+                    "(Client-local) Press this key in-game to write a full scene snapshot to BepInEx/inspector/snapshots/.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
 
             _watchDir = Path.Combine(Paths.BepInExRootPath, "inspector", "requests");
             _outputDir = Path.Combine(Paths.BepInExRootPath, "inspector", "snapshots");
@@ -40,31 +44,28 @@ namespace InspectorPlus
             StartFileWatcher();
 
             Log.LogInfo($"InspectorPlus {PluginVersion} loaded. Watching: {_watchDir}");
-            Log.LogInfo("InspectorPlus[POLL] build with polling fallback active");
 
             try
             {
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll(typeof(InspectorPlusPlugin).Assembly);
-                Log.LogInfo("InspectorPlus[PROBE] Harmony patches applied (DishProbe)");
+                Log.LogInfo("Harmony patches applied");
             }
             catch (Exception ex)
             {
-                Log.LogError($"InspectorPlus[PROBE] Harmony patch failed: {ex}");
+                Log.LogError($"Harmony patch failed: {ex}");
             }
 
-            // The Plugin's own Update() does not appear to fire inside the
-            // dedicated server's headless main loop. Coroutines, however, run
-            // on a separate driver and remain reliable. Run polling from a
+            // Update() and coroutines do not fire reliably inside the dedicated
+            // server's headless main loop, so request polling also runs from a
             // coroutine on the long-lived MainThreadDispatcher GameObject.
             try
             {
                 MainThreadDispatcher.StartPollingCoroutine(_watchDir, ProcessRequestFileInline);
-                Log.LogInfo("InspectorPlus[POLL] coroutine polling started");
             }
             catch (Exception ex)
             {
-                Log.LogError($"InspectorPlus[POLL] coroutine start failed: {ex}");
+                Log.LogError($"Coroutine polling start failed: {ex}");
             }
         }
 
@@ -112,7 +113,6 @@ namespace InspectorPlus
             try
             {
                 var initial = Directory.GetFiles(_watchDir, "*.json");
-                Log.LogInfo($"InspectorPlus[POLL] StartFileWatcher: initial scan found {initial.Length} pending request(s)");
                 foreach (var existing in initial)
                 {
                     ProcessRequestFileInline(existing);
@@ -120,7 +120,7 @@ namespace InspectorPlus
             }
             catch (Exception ex)
             {
-                Log.LogError($"InspectorPlus[POLL] initial scan failed: {ex}");
+                Log.LogError($"Initial request scan failed: {ex}");
             }
         }
 
@@ -128,7 +128,6 @@ namespace InspectorPlus
         {
             try
             {
-                Log.LogInfo($"InspectorPlus[POLL] processing: {Path.GetFileName(fullPath)}");
                 var requestJson = File.ReadAllText(fullPath);
                 var request = SnapshotRequest.Parse(requestJson);
                 TakeSnapshot(request);
@@ -136,18 +135,16 @@ namespace InspectorPlus
             }
             catch (Exception ex)
             {
-                Log.LogError($"InspectorPlus[POLL] processing {Path.GetFileName(fullPath)} failed: {ex}");
+                Log.LogError($"Processing {Path.GetFileName(fullPath)} failed: {ex}");
             }
         }
 
         // Called from a Harmony postfix on ElectricityManager.ElectricityTick (see
-        // RequestPollOnTickPatch.cs). The dedicated server's headless main loop
-        // does not drive MonoBehaviour.Update() or coroutines reliably, so the
-        // Plugin.Update()-based and MainThreadDispatcher-coroutine-based polling
-        // both stall after world load. ElectricityTick, in contrast, is invoked
-        // from the server's game-thread tick driver and fires regularly (every
-        // simulation tick) once force-unpause has run, so it is a reliable
-        // main-thread pump for our request-file scan + processing.
+        // RequestPollOnTickPatch.cs). The dedicated server's headless main loop does
+        // not drive MonoBehaviour.Update() or coroutines reliably, so the Update- and
+        // coroutine-based polling can stall after world load. ElectricityTick runs on
+        // the server's game-thread tick driver whenever the simulation is running, so
+        // it is a reliable main-thread pump for the request-file scan.
         internal static void ProcessPendingRequests()
         {
             try
@@ -159,7 +156,7 @@ namespace InspectorPlus
             }
             catch (Exception ex)
             {
-                Log.LogError($"InspectorPlus[POLL] ProcessPendingRequests failed: {ex}");
+                Log.LogError($"ProcessPendingRequests failed: {ex}");
             }
         }
 
@@ -176,7 +173,6 @@ namespace InspectorPlus
                 var files = Directory.GetFiles(_watchDir, "*.json");
                 if (files.Length > 0)
                 {
-                    Log.LogInfo($"InspectorPlus[POLL] tick: found {files.Length} request(s)");
                     foreach (var existing in files)
                     {
                         ProcessRequestFileInline(existing);
@@ -185,7 +181,7 @@ namespace InspectorPlus
             }
             catch (Exception ex)
             {
-                Log.LogError($"InspectorPlus[POLL] tick failed: {ex}");
+                Log.LogError($"Request poll failed: {ex}");
             }
         }
 
@@ -198,7 +194,6 @@ namespace InspectorPlus
             {
                 try
                 {
-                    Log.LogInfo($"Request file detected: {e.Name}");
                     var requestJson = File.ReadAllText(e.FullPath);
                     var request = SnapshotRequest.Parse(requestJson);
                     TakeSnapshot(request);
