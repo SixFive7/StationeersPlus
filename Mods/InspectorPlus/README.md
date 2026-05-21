@@ -12,7 +12,7 @@ Not intended for end-user gameplay. Subscribe only if you are writing or debuggi
 
 ## Installation
 
-Subscribe on the Steam Workshop, or install manually:
+[Subscribe on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3730349036), or install manually:
 
 1. Copy `InspectorPlus.dll` and the `About/` folder into your Stationeers local mods directory
 2. Restart the game
@@ -42,7 +42,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 
 ## Changelog
 
-Full version history is in [CHANGELOG.md](CHANGELOG.md). After each release the same notes appear on the mod's Steam Workshop Change Notes tab.
+Full version history is in [CHANGELOG.md](CHANGELOG.md). Each release also appears on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3730349036).
 
 ## License
 
