@@ -3,7 +3,7 @@
   <Name>Inspector Plus</Name>
   <ModID>net.inspectorplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.0.0</Version>
+  <Version>1.1.0</Version>
   <Description>[h1]Inspector Plus[/h1]
 
 Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
@@ -41,11 +41,8 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.0.0: First public release
-- On-demand JSON snapshots of live scene objects: drop a request file in BepInEx/inspector/requests/ and read the result from BepInEx/inspector/snapshots/.
-- F8 dumps every MonoBehaviour in the current scene in one pass.
-- Captures private and public fields, computed properties, and Unity Transform positions, walking nested objects to a configurable depth with cycle detection.
-- Hard caps on snapshot size with a visible truncation marker so a dump never runs away.
+v1.1.0: Headless server snapshot toggle
+- New optional Force Unpause Without Client setting (Server - Headless, off by default). On a headless dedicated server it runs the simulation with no client connected so request-file snapshots can be captured by automated tooling; no effect on a client or single-player.
   </ChangeLog>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>

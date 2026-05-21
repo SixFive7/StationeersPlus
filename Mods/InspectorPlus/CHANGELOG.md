@@ -2,6 +2,9 @@
 
 Full version history for Inspector Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.1.0: Headless server snapshot toggle
+- New optional Force Unpause Without Client setting (Server - Headless, off by default). On a headless dedicated server it runs the simulation with no client connected so request-file snapshots can be captured by automated tooling; no effect on a client or single-player.
+
 ## v1.0.0: First public release
 - On-demand JSON snapshots of live scene objects: drop a request file in BepInEx/inspector/requests/ and read the result from BepInEx/inspector/snapshots/.
 - F8 dumps every MonoBehaviour in the current scene in one pass.
