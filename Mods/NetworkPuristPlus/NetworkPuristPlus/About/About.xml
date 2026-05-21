@@ -3,7 +3,7 @@
   <Name>Network Purist Plus</Name>
   <ModID>net.networkpuristplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.1</Version>
+  <Version>1.1.2</Version>
   <Description>[h1]Network Purist Plus[/h1]
 
 Removes the long (3-, 5-, and 10-segment) straight pipe, chute, and super-heavy cable variants and aligns straight cables to one consistent orientation; existing worlds are converted when a save loads.
@@ -37,7 +37,7 @@ In the in-game mod settings panel, under [b]Server - Pieces[/b] and [b]Server - 
 
 [h2]Limitations[/h2]
 [list]
-[*]Rebuilt pipe runs are emptied: the gas inside a long pipe run is deleted when the run is rebuilt from single tiles, by design -- the game's atmospherics-event system loses a pipe network's gas when its pipes are replaced this way, and there is no clean workaround. Re-pressurise the new pipes. Layout, rotation, colour and connectivity are preserved; only the gas is lost. Happens on the first load after installing, and again for any long pipe that enters a world later (NetworkUpgrader, a blueprint paste, the build-time rewrite).
+[*]Rebuilt pipe runs are emptied: the gas inside a long pipe run is deleted when the run is rebuilt from single tiles, by design -- the game's atmospherics-event system loses a pipe network's gas when its pipes are replaced this way, and there is no clean workaround. Re-pressurise the new pipes. Layout, rotation, colour and connectivity are preserved; only the gas is lost. Happens on the first load after installing, and again for any long pipe that enters a world later (NetworkUpgrader, a blueprint paste, the creative menu).
 [*]An item physically in transit inside a long chute segment at the moment it is rebuilt is deleted, also by design. Items sitting in chute bins are unaffected.
 [*]Straight cables align to each other, but the coloured band can still jump where a straight meets a corner cable: corner pieces have a fixed band orientation and aren't re-rolled (re-rolling a corner would change connectivity, not just looks), and no single per-axis orientation mates with every corner. The mod picks the one that mates with the most.
 [*]The rotate key no longer changes a placed straight cable's roll -- a built cable always snaps to the canonical orientation for its run axis. This is the cable-alignment feature; it affects the build preview, not gameplay.
@@ -63,10 +63,8 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.1.1: Multiplayer cable-alignment fix
-- A freshly built straight cable is set to the canonical orientation before it is created, instead of just after it registers. In multiplayer the cable now shows the same orientation on every player's screen the instant it is built; the previous version aligned it just after creation, which could leave a just-built cable mis-rolled on other players' screens until the next world load. Covers normal placement, the rotate key, ZoopMod drag-builds, and the merge-with-tool action. A blueprint paste (BlueprintMod) is realigned on the next world load instead, by the on-load sweep.
-- Cable alignment runs on the host (or in single-player) only, as a safeguard so a client never changes a cable's rotation locally.
-- Clarified the description: a long piece that enters a world some other way (a blueprint paste, NetworkUpgrader, the creative menu, another mod) is converted to single tiles on the next world load. The long variants are removed from the build menus, so there is no way to build one directly.
+v1.1.2: Settings descriptions corrected
+- Reworded the in-game settings descriptions, and the matching note in the Workshop description, so they no longer mention the build-time long-piece rewrite that was removed in v1.1.1. The behaviour is unchanged: long pieces are taken out of the build kits and rebuilt from single tiles when a save loads.
   </ChangeLog>
   <WorkshopHandle>3724874914</WorkshopHandle>
   <Tags>

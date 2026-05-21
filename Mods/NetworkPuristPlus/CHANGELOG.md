@@ -2,6 +2,9 @@
 
 Full version history for Network Purist Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.1.2: Settings descriptions corrected
+- Reworded the in-game settings descriptions, and the matching note in the Workshop description, so they no longer mention the build-time long-piece rewrite that was removed in v1.1.1. The behaviour is unchanged: long pieces are taken out of the build kits and rebuilt from single tiles when a save loads.
+
 ## v1.1.1: Multiplayer cable-alignment fix
 - A freshly built straight cable is set to the canonical orientation before it is created, instead of just after it registers. In multiplayer the cable now shows the same orientation on every player's screen the instant it is built; the previous version aligned it just after creation, which could leave a just-built cable mis-rolled on other players' screens until the next world load. Covers normal placement, the rotate key, ZoopMod drag-builds, and the merge-with-tool action. A blueprint paste (BlueprintMod) is realigned on the next world load instead, by the on-load sweep.
 - Cable alignment runs on the host (or in single-player) only, as a safeguard so a client never changes a cable's rotation locally.

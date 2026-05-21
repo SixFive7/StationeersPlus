@@ -34,7 +34,7 @@ namespace NetworkPuristPlus
     {
         public const string PluginGuid = "net.networkpuristplus";
         public const string PluginName = "NetworkPuristPlus";
-        public const string PluginVersion = "1.1.1";
+        public const string PluginVersion = "1.1.2";
 
         // The LaunchPadBooster mod handle. Registering it (and setting Networking.Required = true) makes
         // LaunchPadBooster reject a joining client that does not have NetworkPuristPlus, or has a different
