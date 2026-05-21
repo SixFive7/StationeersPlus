@@ -5,8 +5,12 @@
   <Author>SixFive7</Author>
   <Version>0.1.1</Version>
   <Description>Diagnostic mod. Writes a CSV row to BepInEx/DeepMinerLogger/logs/ on every atmospheric tick where any tracked Combustion Deep Miner state changes. Temporary. Not for Workshop.</Description>
-  <ChangeLog>v0.1.1: Fixed chamber gas-ratio reads (use GasMixture.GetGasTypeRatio method) and CombustionEnergy read (it is a field, not a property). Dropped rVolatiles column.
-v0.1.0: Initial build.</ChangeLog>
+  <ChangeLog>
+v0.1.1: Fixed chamber gas-ratio reads and CombustionEnergy read
+- Fixed chamber gas-ratio reads (use the GasMixture.GetGasTypeRatio method).
+- Fixed CombustionEnergy read (it is a field, not a property).
+- Dropped the rVolatiles column.
+  </ChangeLog>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>

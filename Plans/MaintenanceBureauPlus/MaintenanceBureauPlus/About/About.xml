@@ -62,12 +62,12 @@ Open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v0.1.0: Initial prototype
-- Ambient chat listener on global chat
-- 100 curated officer personas rotating per request cycle
-- Five to fifteen conversational hoops per cycle, bounds configurable
-- Global incident-damage repair triggered on approval
-- Lander-capsule blackout wrapped around the sweep
-- Persona memory persisted across server restarts
+- Ambient chat listener on global chat.
+- 100 curated officer personas rotating per request cycle.
+- Five to fifteen conversational hoops per cycle, bounds configurable.
+- Global incident-damage repair triggered on approval.
+- Lander-capsule blackout wrapped around the sweep.
+- Persona memory persisted across server restarts.
   </ChangeLog>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>

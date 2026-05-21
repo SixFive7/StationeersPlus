@@ -56,7 +56,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v0.1.0: Initial release
-- Describe the first public release here. Plain text only, no BBCode. Steam Workshop renders ChangeLog as plain text.
+- Describe the first public release here as one or more complete statements, each ending with a period.
   </ChangeLog>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>

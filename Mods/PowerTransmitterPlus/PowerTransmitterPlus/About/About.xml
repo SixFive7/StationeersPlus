@@ -114,77 +114,8 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
 v1.7.2: Beam pulse position no longer jumps when power flow rate updates
-- Pulse stripes now integrate position incrementally each frame instead of multiplying total elapsed time by the current speed, so a speed change only affects future motion. Previously every speed change retroactively rescaled the stripes' world position, producing visible position jumps. Most noticeable with mods that update source-draw rates frequently, such as Re-Volt's proportional power sharing
-- No multiplayer protocol change; v1.7.1 and v1.7.2 clients are wire-compatible
-
-v1.7.1: Long-distance auto-aim pairs now establish links reliably
-- Two dishes auto-aimed at each other now solve a joint mutual-aim geometry instead of each chasing the other's stale pose. Long-range pairs (150 m+) that previously slewed close but never linked now establish on the first servo settle
-- The link probe between transmitter and receiver was widened from a hairline raycast to a 0.5 m sphere cast filtered to receiver dish targets, so any sub-degree aim residual or mid-slew jitter still establishes the link
-- A post-load auto-aim pass re-solves every cached pair after each save load, so existing saves pick up the joint-solve improvement without players having to clear and reset auto-aim, and any cached target whose Thing has been deconstructed is cleared cleanly
-- All players on a server must be on v1.7.1 or newer; the LaunchPad version handshake rejects mixed installs
-
-v1.7.0: Joining multiplayer clients now receive host config at join time
-- The seven host-authoritative settings (Cost Factor, Beam Color, Beam Width, Emission Intensity, Stripe Wavelength, Scroll Speed, Trough Brightness) now ride the IJoinSuffixSerializer payload alongside the auto-aim cache. The earlier rebroadcast on NetworkManager.PlayerConnected fired before the joiner entered the broadcast list and silently missed them; live SettingChanged updates were never affected and still flow as before
-- All players on a server must be on v1.7.0 or newer; the LaunchPad version handshake rejects mixed installs
-
-v1.6.2: Auto-aim cache stays in sync mid-session for joined multiplayer clients
-- Piggybacks the cached target ReferenceId onto each WirelessPower's per-tick delta via an unused NetworkUpdateFlags bit so host-side target changes re-sync clients on the next tick
-- All players on a server must be on v1.6.2 or newer; the LaunchPad handshake rejects mixed installs
-
-v1.6.1: Auto-aim cache now reaches joining multiplayer clients
-- Switched join-time push to IJoinSuffixSerializer (v1.6.0's PlayerConnected broadcast fired before the joiner entered the broadcast list)
-- All players on a server must be on v1.6.1 or newer; the LaunchPad handshake rejects mixed installs
-
-v1.6.0: Auto-aim targets persist across save/load
-- MicrowaveAutoAimTarget now returns the correct ReferenceId after loading a save (was 0 in v1.5.x even though the dish was still aimed correctly). Persistence is via a side-car XML file in the save ZIP; world.xml stays vanilla so uninstalling the mod leaves no broken save state
-- All players on a server must be on v1.6.0 or newer; the LaunchPad handshake rejects mixed installs
-
-v1.5.1: Beam visibility now follows link state, not power flow
-- The beam between linked dishes is now drawn whenever the link is up, regardless of whether power is flowing. Previously the beam only appeared while power was being delivered, so a freshly-formed link with no load looked like no link at all
-- The pulse train continues to indicate power flow: scrolling stripes when power is moving, stationary "standing waves" when the link is up but no power is moving
-- All players on a server must be on v1.5.1 or newer; the LaunchPad version handshake rejects mixed installs
-
-v1.5.0: Wall and ceiling placement for transmitter and receiver dishes
-- Transmitter and receiver dishes can now be built on walls and ceilings as well as on the floor. The placement cursor accepts every face the player aims at, and the rotate hotkeys cover yaw, pitch, and roll once the cursor is on a non-floor face. Any combination of mount surfaces can form a link as long as the two dishes point at each other
-- Auto-Aim accuracy improved across orientations so a single MicrowaveAutoAimTarget write reliably forms the link on non-floor pairs
-- New server-authoritative setting Allow Non-Floor Placement (default on) under Server - Placement. When off, vanilla floor-only placement is preserved
-- Allow Non-Floor Placement requires a full Stationeers restart to take effect. Mismatches between client and host are caught at join time with a readable error
-- All players on a server must be on v1.5.0 or newer; the LaunchPad version handshake rejects mixed installs
-
-v1.4.0: Enable Auto-Aim server toggle with join-time handshake
-- New server-authoritative setting Enable Auto-Aim (default on) under Server - Features. When off, MicrowaveAutoAimTarget is unregistered entirely (no LogicType, no IC10 constant, no tablet entry, no Harmony patches)
-- Mismatched clients are rejected at join time via LaunchPadBooster IJoinValidator. Requires a Stationeers restart to take effect
-- All players on a server must be on v1.4.0 or newer; the LaunchPadBooster handshake rejects mixed installs
-
-v1.3.1: Drop LogicType numeric values from user-facing docs
-- Logic Readouts and Auto-Aim tables in the Workshop description no longer show per-name numeric IDs (6571-6576). The ID numbers are implementation detail; players write IC10 against the names, not the numbers
-- Simplified the "Custom logic type range" Compatibility note to describe the collision avoidance without spelling out the exact range
-- No gameplay change, no wire-format change
-
-v1.3.0: Reorganize in-game settings panel into Server - &lt;Topic&gt; groups
-- The seven settings now live in three collapsible groups: Server - Distance (Cost Factor), Server - Pulse (Stripe Wavelength, Scroll Speed, Trough Brightness), Server - Visual (Beam Color, Beam Width, Emission Intensity)
-- Entries within each group use a deliberate order instead of alphabetical (master tweaks first, secondary ones after)
-- Existing player configuration values reset to defaults on first launch after updating. The section names changed, so BepInEx treats the old stored values as orphaned and re-seeds with defaults
-- No gameplay change, no multiplayer protocol change
-
-v1.2.0: Trough Brightness now syncs from host and takes effect live
-- Host beam Trough Brightness is now broadcast alongside the other visual settings, so clients always match the host's look
-- Changing Trough Brightness on the host applies immediately to all connected clients (previously required a game restart because it was baked into a cached stripe texture)
-- All players on a server must have v1.2.0; the LaunchPad handshake rejects mixed versions automatically
-
-v1.1.5: Fix About.xml parse error caused by an unescaped &lt;WorkshopHandle&gt; tag inside the v1.1.1 changelog entry
-
-v1.1.4: Repoint Reporting Issues and Source Code links to the StationeersPlus monorepo
-
-v1.1.3: Fix custom LogicType names rendering red in the on-screen syntax highlighter on computer and laptop screens
-
-v1.1.2: Remove the Shader Name config entry; beam shader is now a fixed Legacy Shaders/Particles/Additive fallback chain
-
-v1.1.1: Workshop preview pipeline (added &lt;WorkshopHandle&gt; to About.xml and Preview.png / thumb.png copy to build output)
-
-v1.1.0: New MicrowaveLinkedPartner readout returning the linked partner ReferenceId on both transmitter and receiver. Host beam visual settings now always sync to all clients in multiplayer
-
-v1.0.0: Initial release. Visible beam between linked microwave dishes; scrolling pulses scaled by throughput; source-draw overhead replacing vanilla distance derate (k factor, server-authoritative); four power readouts (Source / Destination / TransmissionLoss / Efficiency) on both ends; writable MicrowaveAutoAimTarget for IC10 aim; full multiplayer-authoritative simulation
+- Pulse stripes now integrate position incrementally each frame instead of multiplying total elapsed time by the current speed, so a speed change only affects future motion. Previously every speed change retroactively rescaled the stripes' world position, producing visible position jumps. Most noticeable with mods that update source-draw rates frequently, such as Re-Volt's proportional power sharing.
+- No multiplayer protocol change; v1.7.1 and v1.7.2 clients are wire-compatible.
   </ChangeLog>
   <WorkshopHandle>3707677512</WorkshopHandle>
   <Tags>
