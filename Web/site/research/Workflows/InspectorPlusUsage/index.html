@@ -5994,6 +5994,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#headless-dedicated-server-no-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headless dedicated server (no client)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#request-shape" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6423,6 +6434,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#headless-dedicated-server-no-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headless dedicated server (no client)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#request-shape" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6589,16 +6611,18 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-05-21.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
               <li><code>Mods/InspectorPlus/RESEARCH.md:21-23</code></li>
+            
+              <li><code>Mods/InspectorPlus/InspectorPlus/HeadlessUnpausePatch.cs</code></li>
             
           </ul>
         </details>
@@ -6664,25 +6688,37 @@
 <li>Drop a request JSON into the watched request folder to produce a programmatic snapshot. The plugin processes the file, writes a snapshot, then deletes the request.</li>
 <li>Press F8 in-game to dump every MonoBehaviour in the scene to a snapshot file.</li>
 </ol>
-<h2 id="request-shape">Request shape<a class="headerlink" href="#request-shape" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h2 id="headless-dedicated-server-no-client">Headless dedicated server (no client)<a class="headerlink" href="#headless-dedicated-server-no-client" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
 
-<p>Requests are JSON with three fields documented in <code>SnapshotRequest.cs</code>:</p>
+<p>On a headless dedicated server with no client connected the simulation is paused, and on a headless build neither <code>MonoBehaviour.Update()</code> nor coroutines fire. The request pump runs off the simulation tick (<code>ElectricityManager.ElectricityTick</code>), so while the world is paused a dropped request file is never processed and no snapshot is written.</p>
+<p>To capture snapshots in that case without a player joining, enable the opt-in setting (default off) before starting the server, either in the in-game settings panel under <code>Server - Headless</code>, or by adding to <code>BepInEx/config/net.inspectorplus.cfg</code>:</p>
+<div class="language-ini highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[Server - Headless]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="na">Force Unpause Without Client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">true</span>
+</span></code></pre></div>
+<p>With it on, InspectorPlus unpauses the simulation after <code>StartGame</code> on a batch-mode server, so the tick, and therefore request processing, runs. The setting is gated on <code>Application.isBatchMode</code> and never fires on a client or single-player session. Added in InspectorPlus v1.1.0.</p>
+<p>When a client is connected (a normal playtest) the server is already running and the toggle is unnecessary; on a client or single-player, <code>Update()</code> drives the pump directly.</p>
+<h2 id="request-shape">Request shape<a class="headerlink" href="#request-shape" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+
+<p>Requests are JSON with five fields documented in <code>SnapshotRequest.cs</code>:</p>
 <ul>
 <li><code>Types</code>: type-name filter. Narrows the walk to instances of the listed types.</li>
 <li><code>Fields</code>: per-type field / property filter. Narrows the emitted members to the listed names.</li>
-<li><code>MaxDepth</code>: recursion cap. Controls how deep the reflection walk descends through nested object graphs.</li>
+<li><code>MaxDepth</code>: recursion cap (default 3). Controls how deep the reflection walk descends through nested object graphs.</li>
+<li><code>IncludePrivate</code>: when true, also walk non-public fields and properties (default false, public members only).</li>
+<li><code>MaxMonoBehaviours</code>: cap on how many top-level objects a snapshot serializes (default 10000).</li>
 </ul>
 <p>Narrow <code>Types</code> and <code>Fields</code> precisely. A full-scene dump is cheap to produce but noisy to read; targeted requests are the default.</p>
 <h2 id="interpreting-output">Interpreting output<a class="headerlink" href="#interpreting-output" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
 
-<p>Top level is an object keyed by type name; each value is a list of instances with their sampled fields / properties. Unity <code>Transform</code> and <code>Vector3</code> values are stringified as <code>(x, y, z)</code> for readability.</p>
+<p>Top level is an object with <code>timestamp</code>, <code>frame</code>, <code>gameTime</code>, and an <code>objects</code> array. Each entry carries <code>_type</code>, <code>_name</code>, and, for components, <code>_gameObject</code>, <code>_active</code>, and <code>_position</code>, plus a <code>fields</code> object of the sampled fields and properties. Unity <code>Vector3</code> values and <code>Transform</code> positions are emitted as <code>[x, y, z]</code> arrays. A snapshot that hits a size cap gets a <code>_truncated</code> marker.</p>
 <p>Use this structure directly:</p>
 <ul>
 <li>To confirm "did field X update," diff a baseline snapshot against a post-action snapshot.</li>
-<li>To confirm "the partner reference is non-null," look up the type key and read the target field on the listed instances.</li>
-<li>To confirm "there are N instances of this type live in the scene," count entries in the type's list.</li>
+<li>To confirm "the partner reference is non-null," find the entry by <code>_type</code> and read the target member under <code>fields</code>.</li>
+<li>To confirm "there are N instances of this type live in the scene," count the <code>objects</code> entries with that <code>_type</code>.</li>
 </ul>
 <h2 id="common-requests">Common requests<a class="headerlink" href="#common-requests" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -6702,13 +6738,14 @@
 
 <p>Snapshots are evidence, not durable artifacts. After a session, delete the snapshot files read during debugging and any stray request files still sitting in the request folder. Snapshots have timestamped filenames with no automatic rotation. Stray request files are worse: if the plugin failed to process one, it will be picked up the next time the game launches.</p>
 <p>Central pages cite the request pattern, not a snapshot file path. Another developer reading the page months later cannot open a snapshot that was deleted at the end of the original session; the request pattern is reproducible. Write citations in the form:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Verified via InspectorPlus on 2026-04-20 in game version 0.2.6228.27061. Request: types=[PowerTransmitter], fields=[_linkedReceiver, _linkedReceiverDistance, _powerProvided].
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Verified via InspectorPlus on 2026-04-20 in game version 0.2.6228.27061. Request: types=[PowerTransmitter], fields=[_linkedReceiver, _linkedReceiverDistance, _powerProvided].
 </span></code></pre></div>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0003 and the surrounding sections of <code>Mods/InspectorPlus/RESEARCH.md</code>.</li>
+<li>2026-05-21: corrected the request-field list (added <code>IncludePrivate</code>, <code>MaxMonoBehaviours</code>) and the output-format description (an <code>objects</code> array with <code>[x, y, z]</code> values, not an object keyed by type name with <code>(x, y, z)</code>) to match the shipped <code>ObjectWalker</code>; added the Headless dedicated server section for the InspectorPlus v1.1.0 <code>Force Unpause Without Client</code> toggle. Verified via InspectorPlus on 2026-05-21 in game version 0.2.6228.27061. Request: maxMonoBehaviours=25, maxDepth=2 on a fresh dedicated-server world.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
