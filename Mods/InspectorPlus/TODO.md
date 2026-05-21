@@ -1,5 +1,7 @@
 # Inspector Plus TODO
 
+This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
+
 ## Release posture decision
 
 - [ ] **Decide: public Workshop mod, or local developer-only tool?** The current state is provisionally public-Workshop-conforming (full README, template-shaped About.xml with Features / Compatibility / Reporting Issues / License sections, Preview image placeholder files, Apache 2.0 LICENSE + NOTICE). This was the direction chosen when the template was rolled out. If it should instead stay strictly local:

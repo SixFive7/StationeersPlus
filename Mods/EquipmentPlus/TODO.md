@@ -1,6 +1,6 @@
 # Equipment Plus: TODO
 
-Open work items only. Done items live in git history.
+This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
 
 ## Resume after compact (2026-04-27 evening session)
 

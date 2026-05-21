@@ -1,5 +1,7 @@
 # PowerTransmitterPlus TODO
 
+This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
+
 ## Auto-aim write does not land on a dedicated server (unverified; may be an EquipmentPlus bug)
 
 Setting `MicrowaveAutoAimTarget` from the in-game configuration tablet on a dedicated server is a no-op: the value reads back 0 and the dish does not slew. Reproduced 2026-05-18 against game 0.2.6228.27061 with the user as a remote client to a local dedicated server.
@@ -15,3 +17,13 @@ Diagnostic next steps (from `Research/Protocols/LogicValueWriteMessages.md`):
 - Check whether the relevant tablet UI control is `float`-typed (lossy for a 64-bit ReferenceId) vs `double`-typed.
 
 Verify with an IC10 write (`s d0 MicrowaveAutoAimTarget <refId>`) as a control: that path calls `Device.SetLogicValue` server-side and should fire the patch, isolating whether the problem is the tablet write path or the auto-aim logic itself.
+
+## Playtest before cutting a release with the reset-postfix fix
+
+The reset-postfix fix (commit 14946c5: gate the `RotatableBehaviour.TargetHorizontal/Vertical` reset postfixes on `NetworkManager.IsServer`, and have `ClearCache` raise `AutoAimUpdateFlag`) is committed but NOT yet released -- the latest tag v1.7.2 predates it. Before cutting the release that ships it, verify in a real session. Note the open question above: the user-visible "auto-aim broken on dedicated server" symptom may be an upstream tablet-write bug, so confirm the IC10 control path first.
+
+- [ ] **IC10 control test (isolates this mod from the tablet path).** On a dedicated server: `s d0 MicrowaveAutoAimTarget <refId>`. This calls `Device.SetLogicValue` server-side and should fire the patch even if the tablet write path is broken. Confirm the dish slews and the link establishes. If this works but the tablet does not, the fault is the tablet path (likely EquipmentPlus AdvancedTablet), not this mod.
+- [ ] **Single-player.** Auto-aim a TX-RX pair, link establishes, power flows. Manual TargetHorizontal override clears the cache (IC10 reads `MicrowaveAutoAimTarget` as 0).
+- [ ] **Multiplayer, host + client.** Host sets the target; client IC10 reads back the target id without flickering to 0 as the dish slews. This is the specific bug the fix addresses.
+- [ ] **Multiplayer manual override.** Either peer overrides TargetHorizontal; both peers read `MicrowaveAutoAimTarget` as 0 (the `ClearCache` flag-raise propagates the clear).
+- [ ] **Long-distance (150-200m) joint solve** still establishes the link.

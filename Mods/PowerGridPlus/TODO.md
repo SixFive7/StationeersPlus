@@ -1,6 +1,22 @@
 # Power Grid Plus -- TODO
 
+This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
+
 Pending work for the in-progress mod. The design brief and decision log (D1-D13) live in `RESEARCH.md`; game internals live in the central `Research/` knowledge base.
+
+## Pre-release playtest (added 2026-05-21)
+
+This mod has never been released (still 0.1.0) and its runtime behaviour is unplaytested. Before the first release cut, playtest:
+
+- [ ] **Power simulation baseline (single-player).** A world with batteries, transformers, APCs, and a multi-provider / multi-consumer network. Confirm power distributes, cable burns fire on overload and mixed-tier, voltage-tier enforcement works, burn-reason tooltips appear on wreckage.
+- [ ] **Deterministic Merge sort, single-player.** Cut + place a cable in a 50+ cable network. No console errors; the surviving network is the lowest-`ReferenceId` of the two merged (the sort runs unconditionally, so single-player always picks the lower id).
+- [ ] **Deterministic Merge sort, multiplayer (the load-bearing test).** Host + one client, two cable networks of different sizes. Client cuts to split, then places a cable bridging them. Both peers' tablet must show the SAME surviving `CableNetworkId`. Repeat with the host bridging. This is the direct verification that the class-B fix lands. See commit 14946c5 and `Research/Patterns/MultiplayerStateMutation.md`.
+- [ ] **Late-join client.** Join a save with cable networks; client reads the same `CableNetworkId` per cable as the host.
+- [ ] **LogicPassthroughMode write from a client tablet.** Confirm the host-side device list still refreshes (the new `IsServer` gate on `SetLogicValue` must not break the tablet-routed-through-host write path).
+
+## Known vanilla bugs worked around
+
+- **`CableNetwork.DataDeviceList.get` checks the wrong dirty flag.** Confirmed still present in game 0.2.6228.27061 (decompile lines 253519-253529): the getter refreshes on `PowerDeviceListDirty`, not `DataDeviceListDirty`, so a `DirtyDataDeviceList()`-only call leaves `_dataDeviceList` stale on the next read. PowerGridPlus already works around this by calling `DirtyPowerAndDataDeviceLists()` everywhere (see `TransformerPassthroughLogicPatches` / `InheritedLogicablePassthroughLogicPatches`) instead of the data-only dirty. Keep using the both-sides dirty unless/until the game fixes the accessor; if it ever does, the workaround stays correct (it just over-dirties the power list by one refresh). Documented in `Research/GameClasses/CableNetwork.md` "Field shape and accessor quirk".
 
 ## Decisions and deviations from the 2026-05-12 / 05-13 build sessions
 
@@ -79,24 +95,7 @@ After the first pass the user asked for everything stubbed/deferred/needing-a-ca
 
 ## Implementation backlog
 
-- [ ] **Stationpedia entry for `LogicPassthroughMode`.** The newly-added writable logic slot (6577) on `Transformer` has every UI integration except Stationpedia. PowerTransmitterPlus ships `StationpediaPatches.cs` that postfixes `Stationpedia.PopulateLogicVariables` and calls `Stationpedia.Register(...)` for each entry in its `LogicTypeRegistry.All`. Mirror that file as `Mods/PowerGridPlus/PowerGridPlus/StationpediaPatches.cs` so the in-game wiki shows a page for `LogicPassthroughMode` with the description already on the `CustomLogicType` record. ~40 lines; idempotent via best-effort reflection per the PowerTransmitterPlus pattern.
-
-- [x] **Per-port tier rules for two-port devices.** Implemented 2026-05-14, revised 2026-05-15 to make the transformer rule bidirectional + actively-bridging-gated:
-  - **APC**: both `InputConnection.GetCable()` and `OutputConnection.GetCable()` must be on the same tier. If they differ, the lower-tier side's adjacent cable burns via `VoltageTier.BurnPortMismatchCable` when the relevant network has `powerFlow > 0`. (`WirelessPower` subclasses inherit the same shape but only one port is cable-wired in practice; rule vacuous on them.)
-  - **Transformer**: per-variant UNORDERED tier-pair via `VoltageTier.GetTransformerTierMap`. Small `{heavy, normal}`, Medium `{heavy, heavy}`, Large `{superHeavy, heavy}`. Direction is interchangeable (e.g. a Small wired heavy-in/normal-out OR normal-in/heavy-out both validate -- the latter is the step-up / generation case).
-  - **Transformer burn trigger** (stricter than the per-network powerFlow gate): the burn fires ONLY when (a) the tier-pair rule is violated AND (b) `Transformer.OnOff == true` AND (c) `Transformer._powerProvided > 0` (actively bridging on both sides). When triggered, BOTH adjacent cables burn via `VoltageTier.BurnTransformerBothCables`. The transformer itself is never destroyed (expensive to build); the wreckage tooltips on both cables are the player signal.
-  - **Cursor reject for cables** (scope confirmed: cables only, never transformers/devices):
-    - Cable's tier must be in the variant's pair. Otherwise rejected.
-    - Asymmetric variants (Small, Large): when exactly ONE side is already wired, the new cable's tier must DIFFER from that side's tier; otherwise rejected. (Mirror of the APC rule, which requires SAME tier.)
-    - Symmetric variant (Medium): only the pair-membership check applies.
-    - Both sides already wired: cable-to-cable network-tier check covers extension cases.
-  - **PowerGridTick** tracks `_portMismatchTransformerForBurn` (Transformer) and `_portMismatchCableForBurn` (Cable + APC owner) separately; `ApplyState_New` priority is mixed-tier > transformer-active-violation (both cables) > APC mismatch (single cable) > misplaced single-port device (single cable). Each network burns at most one resolution per tick via `_tierResolutionPending`. Both-cable burn is idempotent: the other network's tick instance running the same check is a no-op because Unity's destroyed-object null overload returns true after Break().
-
-- [x] **Boundary cable pick refinement.** Implemented 2026-05-14: `VoltageTier.ResolveMixedTierNetwork` now does a first pass picking only lowest-tier cables that have at least one grid-adjacent higher-tier cable (via `Cable.ConnectedCables(NetworkType.Power)`). Falls back to the previous "any lowest-tier" rule when the grid-adjacency pass returns nothing (defensive for torn networks mid-rebuild). The transformer / APC port-mismatch burns already pick the adjacent cable directly via `Connection.GetCable()` so they are boundary-correct by construction.
-
-- [x] **Retroactive tier enforcement.** Decision (2026-05-14): D11 stays, no grace period, no opt-in. A loaded save with pre-existing mixed-tier networks burns its boundary cables on the first power-flowing tick after load. The earlier Option-C proposal (default-off opt-in for retroactive enforcement) is rejected. Rationale per the user: "Just burn everything that needs burning in the new rules. No old save grace."
-
-- [x] **Device-side server-hardening (Direction C).** Removed (2026-05-14): the user trusts players ("It is not a competitive game"). The reactive cable-burn deterrent is sufficient.
+- [ ] **Stationpedia entry for `LogicPassthroughMode`.** The writable logic slot (6577) on transformers, stationary batteries, and linked transmitter / receiver dishes has every UI integration except Stationpedia. PowerTransmitterPlus ships `StationpediaPatches.cs` that postfixes `Stationpedia.PopulateLogicVariables` and calls `Stationpedia.Register(...)` for each entry in its `LogicTypeRegistry.All`. Mirror that file as `Mods/PowerGridPlus/PowerGridPlus/StationpediaPatches.cs` so the in-game wiki shows a page for `LogicPassthroughMode` with the description already on the `CustomLogicType` record. ~40 lines; idempotent via best-effort reflection per the PowerTransmitterPlus pattern.
 
 ## Considered features (not yet decided)
 
@@ -107,8 +106,6 @@ These would all sit on top of the v1 design. None needs a new prefab, so they st
 - [ ] **Craftable RTG (nuclear recipe).** Add a survival crafting recipe for the RTG (`RadioscopicThermalGenerator`; the prefab exists and currently only deconstructs as a "Creative RTG"). Use vanilla nuclear materials (uranium-line ores / refined products -- check what's craftable without a third-party "Processed Uranium" dependency). Recipe-only (no new prefab), so it fits the pure-patch stance; mechanically the same kind of `RecipeData` / gamedata patch as NEW-2's cost bump. Precedents: [CraftableRTG](https://steamcommunity.com/sharedfiles/filedetails/?id=3026880031), [Survival RTG](https://steamcommunity.com/sharedfiles/filedetails/?id=2464235697), [Nuclear Recipes](https://steamcommunity.com/sharedfiles/filedetails/?id=3004097828). Under D13 a crafted RTG goes on `heavy` cable like every generator. Config-toggled. Decide which machine prints it, the recipe, and whether it stays "Creative RTG" on deconstruction or returns the kit.
 
 ## Verification tasks
-
-- [x] **Load test (done 2026-05-12 + re-verified 2026-05-13 across rounds 2 and 3).** Deployed to the dedicated server alongside the user's full ~50-mod set (Re-Volt was *not* in that set, so no PowerTick conflict), started a fresh `-New Moon` world. Result: BepInEx loaded the plugin, `Plugin.Awake` ran (config bound), `Prefab.OnPrefabsLoaded` fired, and `harmony.PatchAll()` applied **all** patch classes -- including the four reverse patches (`PowerTick.CacheState`/`CheckForRecursiveProviders`, `Device.SetPower`, `Battery.get_IsOperable`), every assumed-from-Re-Volt signature, the new universal-base `Thing.GetPassiveTooltip` postfix (filtered to `CableRuptured`), and the `CableRuptured.OnRegistered` postfix -- with **no exceptions** across all three rounds. The mod is structurally sound and patches apply; what's *not* yet verified is runtime behaviour.
 
 - [ ] **In-game behaviour test (round 1 -- ported Re-Volt simulation).** On a populated save (the developer provides one), confirm:
   - Power flows on a normal-cable network with loads + a small generator.
@@ -156,9 +153,8 @@ These would all sit on top of the v1 design. None needs a new prefab, so they st
 
 ## Open decisions and housekeeping
 
+- [ ] **Completely revisit the mod tagline.** The current tagline ("Reworks the Stationeers power simulation and turns the three cable tiers into three separate transmission voltages") predates the logic-passthrough and deterministic-network-merge features, so it no longer reflects the mod's full feature set, and it is already a long single sentence. Rework it from scratch for the current feature-complete state, then re-sync it across the three surfaces per `Mods/Template/LAYOUT.md`: the GitHub repo description, the `About.xml` `<Description>` opening line, and the `<InGameDescription>` subtitle.
 - [ ] **Push or keep `master` local.** Master is well ahead of `origin/master` with the in-development commits. The mod isn't on the Workshop yet, no public consumer; the only question is whether to mirror the local history up to origin so it isn't at risk of an accidental hard reset. Decide: push, or sit on the local branch until first Workshop publish.
-- [x] **`Mods/PowerGridPlus/RESEARCH.md` rewrite.** Done in 2026-05-14: the renamed PLAN.md was converted into the proper RESEARCH.md shape (overview / architecture / file walkthrough / patch catalog / decision log with round-2 + round-3 supersedes notes / pitfalls / open questions). The forward-looking plan content is preserved as the decision log.
-- [x] **In-chat burn message (declined).** Confirmed declined 2026-05-14: the burned-cable wreckage hover tooltip is the only player-facing feedback for tier mismatches. No chat hook. Mod has zero in-chat messages.
 - [ ] **Considered features -- pick one (or none) and start scoping.** Cable-heat dissipation (flavour), Absorb Omni Transmitter Settings (scope widening), Craftable RTG (recipe-only). Details in the "Considered features" section below.
 - [ ] **`Settings.cs` Heavy-Cable Device List vs draw verification.** The hardcoded high-draw machine whitelist (`CarbonSequester`, `FurnaceBase`, `ArcFurnace`, `Centrifuge`, `Recycler`, `IceCrusher`, `HydraulicPipeBender`, `DeepMiner`) was assembled from community consensus; only the first three are verified-by-decompile to draw >5 kW. Drop or extend by playing through with an InspectorPlus `types=[Device], fields=[DisplayName, UsedPower, MaxUsedPower, GetUsedPower(network)]` sweep on a high-load save.
 - [ ] **Real `MaxVoltage` of heavy / superHeavy cable** -- recorded as an Open Question in `Research/GameClasses/Cable.md`. Needed for any "burn at exactly the right wattage" tuning; also informs how aggressive the gradual-burn rate is on heavy vs normal.

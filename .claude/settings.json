@@ -338,6 +338,26 @@
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/release-hook.ps1"
           }
         ]
+      },
+      {
+        "matcher": "Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Read(*\\TODO.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\TODO.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\TODO.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/todo-content-hook.ps1"
+          }
+        ]
       }
     ],
     "Stop": [

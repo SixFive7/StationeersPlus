@@ -1,6 +1,8 @@
 # Maintenance Bureau Plus - TODO
 
-Tracks the work for v1, then the deferred v1.x / v1.5 / v2 list. Conventions match the monorepo: `- [ ]` open, `- [x]` done.
+This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
+
+Tracks the work for v1, then the deferred v1.x / v1.5 / v2 list.
 
 ---
 
@@ -313,5 +315,3 @@ Before v1 release:
 - [ ] Review persona #11 (Vilhelm Orr), #14 (Lothar Schein), #28 (Rosamund Fickle), #31 (Barnabas Ulmen), #71 (Horatio Pinn), #74 (Emrys Dobbler), #91 (Pascal Umber-Vogel) for tone fit. Sub-agent flagged these as borderline against the "not magical, not supernatural, not too whimsical" constraint.
 - [ ] Update `RESEARCH.md` (mod-local) when architecture or patch behavior changes. Game-internals go to central `Research/`, not here.
 - [ ] Before every publish, verify `<Description>` under 7900 characters.
-- [x] Replace reflection shims with concrete game-API calls. Decompilation against 0.2.6228.27061 confirmed `Human.AllHumans`, `human.DamageState.Damage(ChangeDamageType.Set, v, DamageUpdateType.Stun)`, `Prefab.Find<LanderCapsule>("LanderCapsule")` (string required, no parameterless overload), `OnServer` in the global namespace, `Structure.IsBroken` property, and that `ChatMessage` has no channel field. All shims removed from `ApprovalEvent.cs`, `RepairSweep.cs`, `TelemetryCollector.cs`.
-- [x] Swap `Newtonsoft.Json` for `UnityEngine.JsonUtility`. `OfficerPersona` converted to `[Serializable]` public fields; `PersonaMemoryStore` uses a private `MemoryFile` carrier class because JsonUtility cannot serialize a top-level `List<T>`. Matches the `Mods/InspectorPlus` convention of avoiding Newtonsoft.
