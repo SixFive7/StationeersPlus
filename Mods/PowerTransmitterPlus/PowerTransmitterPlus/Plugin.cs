@@ -65,6 +65,14 @@ namespace PowerTransmitterPlus
         internal static ConfigEntry<bool> EnableNonFloorPlacement;
         internal static bool NonFloorPlacementPatched;
 
+        // Verbose diagnostic logging for the beam visibility evaluator. When
+        // on, every BeamManager.ReevaluateVisibility call logs the predicate
+        // result and its sub-terms (link reference, both dishes' OnOff, live
+        // aim angle). The log fires on the trigger thread BEFORE the
+        // dispatch-to-main, so it works on a headless dedicated server too
+        // (where the MainThreadDispatcher.Update does not pump and the
+        // visible Show / Hide would not run). Default off in normal play.
+        internal static ConfigEntry<bool> BeamDiagnosticLogging;
 
         void Awake()
         {
@@ -134,6 +142,13 @@ namespace PowerTransmitterPlus
                     null,
                     new KeyValuePair<string, int>("Order", 10),
                     new KeyValuePair<string, bool>("RequireRestart", true)));
+
+            BeamDiagnosticLogging = Config.Bind(
+                "Client - Debug", "Beam Diagnostic Logging", false,
+                new ConfigDescription(
+                    "(Client-local) When on, the mod logs every beam visibility re-evaluation with the predicate result and sub-terms (link reference, both dishes' OnOff, live aim angle). Useful when debugging beam show / hide issues, or running headless validation on a dedicated server: the log fires server-side on every state-change trigger even though the beam itself only renders on a client. Off in normal play to keep the log clean.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
 
             // Capture once, here, before any code path reads LogicTypeRegistry.
             // AutoAimPatched is the authoritative flag for the rest of the
