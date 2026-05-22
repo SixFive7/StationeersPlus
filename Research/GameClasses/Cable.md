@@ -3,9 +3,10 @@ title: Cable
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-13
+verified_at: 2026-05-22
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Cable
+  - $(StationeersPath)\rocketstation_Data\resources.assets :: Cable prefab MaxVoltage / CableType (read 2026-05-22 via UnityPy + generated type tree)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 293196-293256 (NetworkType / ConnectionRole / Connection), 371283-371673 (Cable)
   - Plans/PowerGridPlus/PLAN.md (phase 3 research)
 related:
@@ -22,7 +23,7 @@ tags: [power, prefab]
 Vanilla placed power-cable structure. `Assets.Scripts.Objects.Electrical.Cable`. Each placed cable segment is a `Cable` instance; a connected island of cables forms one `CableNetwork`. The coil item the player carries is a separate `MultiMergeConstructor`-style item; the placed structures it builds are `Cable` (the 1-cell piece and the `StructureCableSuperHeavyStraight3/5/10` long pieces, see [MultiMergeConstructor](./MultiMergeConstructor.md)).
 
 ## Class hierarchy and key fields
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
 ```csharp
 public class Cable : SmallSingleGrid, IGridMergeable, ISmartRotatable, IRocketInternals, IRocketComponent
@@ -69,7 +70,7 @@ Full hierarchy: `Thing -> Structure -> SmallGrid -> SmallSingleGrid -> Cable`. (
 Notes:
 
 - **Three cable tiers ship in the base game**: `Cable.Type { normal, heavy, superHeavy }` (line 371285). `normal` is the in-game "Cable" family (and the insulated variant); `heavy` is "Heavy Cable"; `superHeavy` is "Super Heavy Cable" (the long `StructureCableSuperHeavyStraight3/5/10` pieces and the 1-cell super-heavy piece). There is no "small vs medium" distinction in vanilla; `normal` covers everything below `heavy`.
-- **`MaxVoltage` is the rupture threshold in watts, despite the name.** It is a per-prefab serialized field (`[Header("Cables")] public float MaxVoltage = 5000f;`, line 371295); `5000f` is only the C# default. The real `heavy` and `superHeavy` values live in the prefab/asset data, not in the decompile (verify via InspectorPlus: `types=[Cable], fields=[CableType, MaxVoltage, DisplayName, PrefabHash, BlockMergeWithOtherCables]` on a save with one of each cable, or extract the prefab). The Stationpedia uses it: a cable page's break text is `StringManager.Get(cable.MaxVoltage) + "W"`.
+- **`MaxVoltage` is the rupture threshold in watts, despite the name.** It is a per-prefab serialized field (`[Header("Cables")] public float MaxVoltage = 5000f;`, line 371295); `5000f` is only the C# default. Per-tier values, read from `$(StationeersPath)\rocketstation_Data\resources.assets` via UnityPy with a generated type tree (type trees are stripped from this build's serialized files): `normal = 5000 W`, `heavy = 100000 W` (20x normal), `superHeavy = 500000 W` (100x normal). Every cable prefab in a tier carries the same `MaxVoltage`; all 29 cable prefabs ship in `resources.assets` (10 normal, 8 heavy, 11 superHeavy). The Stationpedia uses it: a cable page's break text is `StringManager.Get(cable.MaxVoltage) + "W"`.
 - **`CableType` is consulted only inside `Cable` itself**, for collision / merge decisions (see below). It does NOT participate in network membership: `IsConnected` / `ConnectedCables` / `CableNetwork.Merge` ignore `CableType`. So a `heavy` cable and a `normal` cable that are grid-adjacent will NOT visually merge into one mesh, but DO end up on the same `CableNetwork` and are electrically one network.
 
 ## Connection model: NetworkType / ConnectionRole / Connection
@@ -259,8 +260,8 @@ To attach a per-wreckage reason from the caller side (where it is known), the ca
 
 - 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 293196-293256 and 371283-371673; verbatim excerpts of `NetworkType`/`ConnectionRole`/`Connection`, `Cable` class header + `Type` enum + `MaxVoltage`, `Cable._IsCollision`/`CanReplace`/`WillMergeWhenPlaced`, `Cable.OnRegistered`/`CanConstruct`/`Break`. The `superHeavy` tier and the `StructureCableSuperHeavyStraight3/5/10` long pieces corroborate the existing [MultiMergeConstructor](./MultiMergeConstructor.md) page. Re-Volt mod source (`RevoltTick : PowerTick`) corroborates `MaxVoltage` as the burn threshold.
 - 2026-05-13: added the **Wreckage: CableRuptured** section. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 371300 (`Cable.RupturedPrefab : CableRuptured`), 371821-371851 (full `CableRuptured` class body), 288582-288610+ (`PassiveTooltip` struct), 300658 (`Thing.GetPassiveTooltip` base signature). Resolves one open question (the super-heavy coil prefab name is `ItemCableCoilSuperHeavy`, found in `$(StationeersPath)\rocketstation_Data\StreamingAssets\Data\electronics.xml` while wiring NEW-2's cost overlay -- entry already shipped in `Mods/PowerGridPlus/PowerGridPlus/GameData/cable-recipes.xml`). Sourced from a Power Grid Plus burn-reason-tooltip research pass.
+- 2026-05-22: filled in the per-tier `MaxVoltage` values in the **Class hierarchy and key fields** section: `normal = 5000 W`, `heavy = 100000 W`, `superHeavy = 500000 W`. Extracted from `$(StationeersPath)\rocketstation_Data\resources.assets` via UnityPy. Type trees are stripped from this build's serialized files, so a Mono `TypeTreeGenerator` (UnityPy's, requires the `TypeTreeGeneratorAPI` native extension) was attached to the UnityPy environment over `$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll` plus the other 144 DLLs in `Managed/`, and `obj.read_typetree()` resolved each Cable MonoBehaviour's per-script tree on demand. 29 cable prefabs scanned (10 normal, 8 heavy, 11 superHeavy); all live in `resources.assets`; `MaxVoltage` is constant within each tier; `normal = 5000` matches the C# field default in the decompile as a sanity check. Resolves the matching Open Question (removed). Restamped the **Class hierarchy and key fields** section.
 
 ## Open questions
 
-- Real `MaxVoltage` values for the `heavy` and `superHeavy` cable prefabs (prefab serialized data, not in the decompile). Need InspectorPlus or a prefab extract.
 - Code names of the heavy / insulated coil items (`ItemCableCoilHeavy`? the insulated variant's prefab name) and how the insulated cable avoids burning (a separate prefab with a very high `MaxVoltage`, or a flag not visible in the decompile?). Super-heavy coil is `ItemCableCoilSuperHeavy` (confirmed 2026-05-13). Verify the rest against `Prefab.AllPrefabs` / the Stationpedia / the prefab list.
