@@ -3,17 +3,19 @@ title: Device
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-13
+verified_at: 2026-05-22
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Pipes.Device
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct), 253820-253850 (CableNetwork.AddDevice -> ConnectedCableNetworks.Add)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 297636-299221 (Thing.OnOff/Powered/PoweredValue/Error and backing fields), 349675 (Device.IsOperable), 373803 (ElectricalInputOutput.IsOperable), 327392 (IPowered), 386861-386894 (PowerReceiver.LinkedPowerTransmitter)
   - Plans/PowerGridPlus/PLAN.md, Mods/PowerGridPlus/RESEARCH.md
 related:
   - ./Cable.md
   - ./CableNetwork.md
+  - ./WirelessPower.md
   - ../GameSystems/StructurePlacementValidation.md
   - ../Patterns/CursorAdjacencyLookup.md
-tags: [power, prefab]
+tags: [power, prefab, network]
 ---
 
 # Device
@@ -219,8 +221,129 @@ public virtual bool AllowSetPower(CableNetwork cableNetwork)        // line 3507
 
 A device whose `PowerCable` is null (no adjacent power cable) silently returns `-1f` from `GetUsedPower` / `GetGeneratedPower`, which `PowerTick` reads as "not on this network". Many subclasses override these three methods; the `PowerCable == null || PowerCable.CableNetwork != cableNetwork` guard is replicated almost verbatim across vanilla power devices (lines 165086, 169955, 344689, 345179, 350698, 350707, 359403, 371227, 374356, 375228, 387488, 397078, 398880, 401392).
 
+## Operational-state surface: OnOff, Powered, PoweredValue, Error, IsOperable
+<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+
+The "is this device switched on, and does it actually have power right now" question is answered by a set of animator-state-backed properties declared on `Thing` (the universal base), refined by `IsOperable` overrides further down the hierarchy. None of these live on `Device` itself; they are inherited.
+
+### Thing-level state properties (declared on `Thing`, line 297636)
+<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+
+All four are `public virtual`, backed by a Unity `Animator` integer parameter, and cached per-frame. Source `Assets/Scripts/Objects/Thing.cs`:
+
+```csharp
+public virtual bool OnOff                                              // line 299160
+{
+    get
+    {
+        if (HasOnOffState && !HasBaseAnimator)
+            return InteractOnOff.State == 1;
+        if (ThreadedManager.IsThread || _frameOnOffUpdated == Time.frameCount)
+            return _onOff;
+        _onOff = (bool)BaseAnimator && HasOnOffState && BaseAnimator.GetInteger(Interactable.OnOffState) == 1;
+        _frameOnOffUpdated = Time.frameCount;
+        return _onOff;
+    }
+    set { /* writes Interactable.OnOffState on the animator + _onOff */ }
+}
+
+public virtual bool Powered => PoweredValue >= 1;                      // line 299193
+
+public virtual int PoweredValue                                       // line 299195
+{
+    get
+    {
+        if (HasPowerState && !HasBaseAnimator)
+            return InteractPowered.State;
+        if (ThreadedManager.IsThread || _framePoweredUpdated == Time.frameCount)
+            return _powered;
+        _powered = ((bool)BaseAnimator && HasPowerState) ? BaseAnimator.GetInteger(Interactable.PoweredState) : 0;
+        _framePoweredUpdated = Time.frameCount;
+        return _powered;
+    }
+    set { /* writes Interactable.PoweredState on the animator + _powered */ }
+}
+
+public virtual int Error                                              // line 298838
+{
+    get
+    {
+        if (HasErrorState && !HasBaseAnimator)
+            return InteractError.State;
+        if (ThreadedManager.IsThread || _frameErrorUpdated == Time.frameCount)
+            return _error;
+        _frameErrorUpdated = Time.frameCount;
+        _error = (((bool)BaseAnimator && HasErrorState) ? BaseAnimator.GetInteger(Interactable.ErrorState) : 0);
+        return _error;
+    }
+    set { /* writes Interactable.ErrorState on the animator + _error */ }
+}
+```
+
+Backing fields (also on `Thing`): `private bool _onOff;` (line 298075), `protected int _powered;` (line 298079), `private int _error;`, plus the per-frame guards `_frameOnOffUpdated` / `_framePoweredUpdated` / `_frameErrorUpdated`. The `Has*State` flags (`HasOnOffState`, `HasPowerState`, `HasErrorState`, line 298143-298154) are `[ReadOnly]` bools set at prefab-init from the animator's parameter list; a device whose prefab animator has no `Powered` parameter reports `Powered == false` always.
+
+Caching / threading semantics that matter for a mod reader:
+
+- On the **main thread**, the getter reads the live `Animator.GetInteger(...)` once per frame and caches into the `_xxx` field (keyed by `Time.frameCount`). Subsequent same-frame reads return the cache.
+- On a **background thread** (`ThreadedManager.IsThread`, e.g. inside `PowerTick.ApplyState` on the UniTask ThreadPool worker), the getter short-circuits to the cached `_onOff` / `_powered` / `_error` field WITHOUT touching the `Animator` (Unity API calls from a worker thread crash the player). So from a power-tick-adjacent patch these properties are safe to read and return last-frame's value. This is exactly why PowerTransmitterPlus reads `t.OnOff` / `t.Error` from its power-tick postfixes without a `MainThreadDispatcher` round-trip (`Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicReadoutPatches.cs:44`: `if (t == null || !t.OnOff || t.Error == 1) return 0f;`).
+
+### Network sync: animator state, server-driven
+<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+
+`OnOff`, `PoweredValue`, and `Error` are **server-authoritative and synced to clients as part of the `Thing` animator-state replication**, not as bespoke `NetworkUpdateFlags` bits. The write path is always through `OnServer.Interact(Interactable, int)` on the host, which sets the `Interactable.State` and drives the corresponding animator integer; the animator-state delta then ships to clients. The power state specifically is set every power tick from `IPowered.OnPowerTick()` implementations via `OnServer.Interact(base.InteractPowered, 0|1)` (dozens of call sites; e.g. lines 277774/277781, 279291/279306, 308728/308732, 326535/326540). `OnOff` is toggled by player interaction or logic-write, again funnelled through `OnServer.Interact(base.InteractOnOff, ...)`.
+
+Implication: a client reading `device.Powered` / `device.OnOff` / `device.Error` sees the host's value (synced), so these are valid to read on either side. A mod must NOT write them on a client; do gameplay writes on the server (`NetworkManager.IsServer`) and let the existing animator sync propagate.
+
+### IsOperable: the closest thing to a single "on and powered" predicate (but it is NOT that)
+<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+
+`IsOperable` is a `protected` property (not the public combined predicate one might hope for). Two declarations matter on the dish hierarchy:
+
+```csharp
+// Device, line 349675
+protected virtual bool IsOperable
+{
+    get
+    {
+        if (base.IsStructureCompleted) return !IsBroken;
+        return false;
+    }
+}
+
+// ElectricalInputOutput : Device, line 373803
+protected override bool IsOperable
+{
+    get
+    {
+        if (OutputNetwork != null && InputNetwork == OutputNetwork)
+            return false;        // input and output shorted to the same network
+        return base.IsOperable;  // -> IsStructureCompleted && !IsBroken
+    }
+}
+```
+
+`IsOperable` does NOT consult `OnOff` or `Powered`. It means "structurally complete, not broken, and (for two-port devices) not self-shorted." `protected` visibility means a mod cannot read it directly without reflection. It feeds `Error`, not the other way around (see `WirelessPower.CheckError` below).
+
+Beware a naming collision: a parallel `DraggableThing`-family hierarchy (`PortableAtmospherics`, `DynamicGenerator`, etc.) declares `IsOperable` as a **method** `public virtual bool IsOperable()` (lines 277715, 279310, 289260) returning `true` by default. That method is unrelated to the `Device` property and is not on the dish path.
+
+### How to read "on and powered, right now" for a Device subclass
+<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+
+There is no single vanilla property meaning "switched on AND receiving power." The canonical runtime check is the explicit conjunction the game itself uses across power code:
+
+```
+isLiveAndWorking = device.OnOff && device.Powered && device.Error == 0;
+```
+
+- `OnOff` (public bool): the switch state. Player/logic controlled, server-set, synced.
+- `Powered` (public bool, == `PoweredValue >= 1`): set by the power tick when the device's network actually delivered its demand this tick. Server-set, synced. This is the "not browned out" signal.
+- `Error == 0` (public int, 0 = ok / 1 = error): excludes the misconfigured / self-shorted / broken case. Server-set from `IsOperable`, synced.
+
+All three are public on `Thing`, so a mod reads them directly off any `Device` instance (including `PowerTransmitter` / `PowerReceiver`) on either client or server, including from a background power-tick thread (cached value). For the dish pair specifically, `PowerReceiver.LinkedPowerTransmitter`'s setter also drives `Mode` (1 = linked, 0 = unlinked) via `OnServer.Interact(base.InteractMode, ...)` (line 386885), so `receiver.Mode == 1` is the synced "is linked" signal distinct from "is powered."
+
 ## Verification history
 
+- 2026-05-22: added "Operational-state surface: OnOff, Powered, PoweredValue, Error, IsOperable" section. Additive; no existing content changed. Driving question: how does a mod (PowerTransmitterPlus beam fix) know a dish device is switched on and actually powered right now. Findings sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`: `Thing.OnOff` (line 299160), `Thing.Powered`/`PoweredValue` (lines 299193/299195), `Thing.Error` (line 298838), backing fields and `Has*State` flags (lines 298075-298154), `Device.IsOperable` property (line 349675), `ElectricalInputOutput.IsOperable` override (line 373803), the `OnServer.Interact(base.InteractPowered, ...)` power-tick write pattern (lines 277774-334419 passim), `IPowered` interface (line 327392, declares only `void OnPowerTick()`), and `PowerReceiver.LinkedPowerTransmitter` setter driving `Mode` (line 386885). The `IsOperable()`-method-vs-`IsOperable`-property naming collision (DraggableThing family at lines 277715/279310/289260 vs Device property) noted to prevent a future mis-patch. Cross-checked against `Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicReadoutPatches.cs:44` which already uses `!t.OnOff || t.Error == 1`.
 - 2026-05-13: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct, GetGeneratedPower/GetUsedPower/AllowSetPower) and 253820-253850 (CableNetwork.AddDevice). Cross-checked against the Power Grid Plus phase 3 research dive (Mods/PowerGridPlus/RESEARCH.md). Single-write-site finding for `PowerCable` confirmed by exhaustive grep against `set_PowerCable` and `PowerCable = ` in the decomp (only matches: lines 350786, 350790 in `FindPowerCable`).
 
 ## Open questions
