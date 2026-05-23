@@ -96,7 +96,7 @@ Files under `Mods/PowerGridPlus/PowerGridPlus/`. Headers in Re-Volt-derived file
 
 ### Logic passthrough (original)
 
-- **`LogicTypeRegistry.cs`** -- declares `LogicPassthroughMode` as `LogicType` ushort 6577 (the value is read from the central `StationeersPlus.Shared.LogicTypeNumbers` constant linked into this csproj from `Patterns/Logic/LogicTypeNumbers.cs`). `CustomLogicType` record carries name + description; `All` is the registry array consumed by every integration patch (Logicable arrays, IC10 constants, EnumGetName postfixes, Stationpedia -- the last one is pending, see TODO).
+- **`LogicTypeRegistry.cs`** -- declares `LogicPassthroughMode` as `LogicType` ushort 6577 (the value is read from the central `StationeersPlus.Shared.LogicTypeNumbers` constant linked into this csproj from `Patterns/Logic/LogicTypeNumbers.cs`). `CustomLogicType` record carries name + description; `All` is the registry array consumed by every integration patch (Logicable arrays, IC10 constants, EnumGetName postfixes, and Stationpedia page registration in `StationpediaPatches.cs`).
 - **`PassthroughModeStore.cs`** -- the in-memory mode store. `ConcurrentDictionary<long, int>` keyed by `Thing.ReferenceId` (generalised from `Transformer` to any supported `Thing`). `GetMode(thing)` falls through to `GetDefaultMode(thing)` when no override exists. `GetDefaultMode` returns 1 for the `StructureTransformerSmall` and `StructureTransformerSmallReversed` prefabs and for every `Battery`, `PowerTransmitter`, and `PowerReceiver`; every other transformer (and anything else) defaults to 0. `SetMode` normalises any non-zero write to 1. `AreaPowerControl` is never stored here: it has no per-device mode.
 - **`PassthroughSideCar.cs`** -- the XML side-car. Static `PendingSaveSnapshot` is captured in the `SaveHelper.Save` prefix; `WriteSideCar(zipPath, data)` rebuilds the save ZIP with an extra entry `pwrgridplus-passthrough.xml`; `ReadSideCarFromDir(tempDir)` reads it back during load from the temp-extracted save tree.
 - **`Patches/TransformerPassthroughLogicPatches.cs`** -- the `Transformer`-specific logic glue (patches `Transformer` directly because it overrides the four `Logicable` methods). Prefix on `CanLogicRead` and `CanLogicWrite` returns true when `logicType == LogicPassthroughMode`. Prefix on `GetLogicValue` returns the stored mode (or default by prefab). Prefix on `SetLogicValue` is server-only (`if (!NetworkManager.IsServer) return false;`): it writes the new mode, then dirties both `InputNetwork` and `OutputNetwork`'s data device lists so the merge re-runs on the next refresh. A client tablet write routes through the host.
@@ -109,6 +109,7 @@ Files under `Mods/PowerGridPlus/PowerGridPlus/`. Headers in Re-Volt-derived file
 - **`Ic10ConstantsPatcher.cs`** -- one-time reflection injection into `ProgrammableChip.AllConstants` (so `s d0 LogicPassthroughMode 1` compiles in an IC10 script) and `ProgrammableChip.InternalEnums` `ScriptEnum<LogicType>` / `BasicEnum<LogicType>` (so screen-rendered code highlights the name correctly). Called from `Plugin.OnPrefabsLoaded` after `Harmony.PatchAll()`. Guarded by an `_applied` flag.
 - **`Patches/LogicableInitializePatch.cs`** -- postfix on `Logicable.Initialize` that appends `LogicPassthroughMode` into the static `Logicable.LogicTypes` / `LogicTypeNames` arrays plus `Logicable.LogicTypeNamesRedirects` (sort-order index) plus `EnumCollections.LogicTypes` (the tablet-UI dropdown source) plus `ScreenDropdownBase.LogicTypes` (the on-screen IC10 syntax-preview source). Guarded by an `_injected` flag; idempotent.
 - **`Patches/EnumNamePatches.cs`** -- three postfixes. `Enum.GetName(typeof(LogicType), value)`, `EnumCollection<LogicType, ushort>.GetName(value)`, and `EnumCollection<LogicType, ushort>.GetNameFromValue(value)` all fall back to `LogicTypeRegistry.TryGetName` when the vanilla lookup returns null.
+- **`StationpediaPatches.cs`** (project root, mirrors PowerTransmitterPlus) -- best-effort Stationpedia integration. A postfix on `Stationpedia.PopulateLogicVariables` (resolved via `AccessTools.TypeByName` + `TargetMethod()` / `Prepare()`, so it no-ops if the game refactors the method) calls `Stationpedia.Register(...)` for each `LogicTypeRegistry.All` entry, building a `StationpediaPage` keyed `LogicType<Name>` from the registry's description. Without it the per-device `LogicPassthroughMode` rows hyperlink to a page vanilla never builds: the vanilla central-page builder calls `LogicBase.GetLogicDescription`, whose default arm throws for a custom value (caught and skipped). Wrapped in try/catch; non-fatal.
 
 ### Network merge determinism (original)
 
@@ -168,6 +169,7 @@ Every Harmony patch, with target method, prefix / postfix / reverse, gating conf
 | `EnumNamePatches` | `Enum.GetName(typeof(LogicType), value)` | postfix | always | Returns the registered name when the vanilla lookup is null. |
 | `EnumNamePatches` | `EnumCollection<LogicType, ushort>.GetName(value)` | postfix | always | Same. |
 | `EnumNamePatches` | `EnumCollection<LogicType, ushort>.GetNameFromValue(value)` | postfix | always | Same. |
+| `StationpediaPopulateLogicVariablesPatch` | `Stationpedia.PopulateLogicVariables` | postfix | always (best-effort, `Prepare`-gated) | Registers a central `LogicType<Name>` Stationpedia page per `LogicTypeRegistry.All` entry so the custom logic type's wiki page exists (vanilla skips it because `GetLogicDescription` throws for custom values). |
 | `MergeDeterminismPatches` | `CableNetwork.Merge(List<CableNetwork>)` | prefix | always | Sorts the merge-input list by `ReferenceId` so the surviving network is deterministic across multiplayer peers. |
 | `MergeDeterminismPatches` | `StructureNetwork.Merge(List<StructureNetwork>, out)` | prefix | always | Same deterministic sort for structure networks (rocket / robotic-arm / landing-pad). |
 
@@ -275,6 +277,18 @@ Verified on the dedicated server with the Lunar save (2026-05-21, game 0.2.6228.
 
 Trade-offs: (1) propagation is server-gated, so a client's cross-network data list can be briefly stale after a far-network change until its own next refresh -- cosmetic, server (IC10) reads stay correct, self-heals. (2) Transitivity makes every mode-1-bridged network in a connected web mutually logic-transparent, so a batch write reaches all matching devices across the whole component (the entire tower), not just the nearest -- intended, but worth knowing on heavily-bridged bases.
 
+### 2026-05-23: cable heat dissipation rejected as unworkable
+
+A `Server - Cable Heat Dissipation` feature was considered (idea borrowed from the [Deadly Electricity](https://steamcommunity.com/sharedfiles/filedetails/?id=3575959825) mod): each tick, convert a small fraction of a cable network's throughput into thermal energy deposited into the cable's local atmosphere, so wires get warm under load. Decompile research into Stationeers grid topology and cable placement showed the feature is unworkable in practice, and it was dropped before any code landed.
+
+The blocking fact is the cable's coordinate resolution. A cable's `WorldGrid` resolves to a single 2 m large cell via `GridCenter()` on its `Transform.position`. There is no finer-grained atmosphere resolution; `AtmosphericsManager.AllWorldAtmospheresLookUp` is keyed by 2 m cells only. The placement system biases face-mounted cables (the body-side-bias documented for face-mounted structures in `Research/GameClasses/Cladding.md`) into the cell containing the supporting frame, so a cable visibly running along the room side of a wall still anchors to the wall's cell, not the room's.
+
+The consequence is severe: every cable mounted on a fully-built frame -- whether buried in the cable channel or laid on a visible outer surface -- atmospherically belongs to the frame's sealed cell. That cell has no atmosphere entry at all (`GridController.CanContainAtmos` returns false; `RoomController.GetRoom` returns null; the only fallback is `PlanetaryAtmosphereSimulation.ReadOnlyGlobal`, which is the world climate and not safe to write to). The engine's own pattern for this case is `Atmosphere.CalculateThingEntropy` at decompile line 417511: `if (!CanContainAtmos) return Zero` -- no sink, no dissipation. The only configurations that would actually couple a cable to a real atmosphere are floor-laid cables in genuinely open cells and cables inside iron-frame-stage frames (build index 1, `HasPartialFrame = true`). In any normal mid-to-late-game base, near-zero cables qualify.
+
+That makes the feature pointless. Under a "quiet drop when sealed" implementation it would silently no-op for almost every cable in play, failing the wires-get-warm intent. Under an "accumulate-and-burn when sealed" implementation it would blanket-punish the standard placement pattern of running cables inside walls and structures, which players cannot reasonably avoid. Either implementation is bad in a different way, and there is no third option the grid topology allows.
+
+Dropped from consideration; no implementation work, no config surface, no settings group. The general-purpose heat-emission API research produced during this investigation stays useful for any future feature that emits heat from something with a real atmosphere reference (a device, a pipe, or a Thing on the atmospheric thing list); see `Research/GameSystems/HeatEmissionToAtmosphere.md`.
+
 ---
 
 ## 9. Config surface (current state)
@@ -335,8 +349,6 @@ Items not yet resolved either way. Implementation backlog (decided but not yet b
 - **Real `MaxVoltage` values** for `heavy` and `superHeavy` cable prefabs. Recorded as an Open Question in `Research/GameClasses/Cable.md`.
 - **Heavy and insulated cable coil prefab names.** Super-heavy is resolved (`ItemCableCoilSuperHeavy`); the heavy and insulated names are needed if the NEW-2 cost rule ever extends to them.
 - **Cross-mod interaction with `MoreCables`' extra tiers.** That mod adds two cable types above the vanilla set; the voltage-tier rule would need to classify them (treat as `superHeavy`-equivalent, reject, or configurable). Not specified yet because no in-game testing has been done alongside MoreCables.
-- **Stationpedia for `LogicPassthroughMode`.** Every other UI integration is wired (IC10 constants, tablet dropdown, screen syntax preview, Enum.GetName fallback); the Stationpedia page is the one missing surface. Tracked as an Implementation backlog item in `TODO.md`.
-
 ---
 
 ## Appendix A: Re-Volt vs Power Grid Plus feature matrix
