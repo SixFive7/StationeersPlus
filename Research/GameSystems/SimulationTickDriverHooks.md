@@ -14,7 +14,7 @@ tags: [power, threading, harmony]
 
 # Simulation tick driver hooks
 
-How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for `DedicatedServer/dev-plugins/RuntimeProbe/` and `Mods/InspectorPlus/`.
+How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for `DedicatedServer/dev-plugins/ScenarioRunner/` and `Mods/InspectorPlus/`.
 
 ## The chain
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
@@ -43,7 +43,7 @@ On a headless dedicated server:
 - A `FileSystemWatcher` callback fires on a ThreadPool thread, so any Unity API call from it crashes. Routing through the dispatcher only helps if the dispatcher is alive.
 - The GameTick-driven subsystem Tick methods, in contrast, fire on every simulation cycle whenever `RunSimulation` is true. A Harmony postfix on `ElectricityManager.ElectricityTick` is the simplest reliable pump.
 
-`Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs` already uses this pattern for its request poller; `DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/SimTickPump.cs` follows the same convention so the two cohabit cleanly.
+`Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs` already uses this pattern for its request poller; `DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs` follows the same convention so the two cohabit cleanly.
 
 ## Threading constraint on the postfix
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
@@ -67,7 +67,7 @@ Implications for what the postfix can read:
 ## Dedup across multiple pumps
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
-A diagnostic plugin that wants redundancy (the ElectricityTick was blocked, so the atmospheric tick pumps instead) can register postfixes on multiple subsystem ticks and dedupe by `UnityEngine.Time.frameCount` inside the dispatcher. `RuntimeProbe`'s `ScenarioRunner.OnSimTick()` records `_lastTickFrame = Time.frameCount` and bails on repeated calls from the same frame, so a second pump source only adds redundancy, never extra cost or scenario double-fires.
+A diagnostic plugin that wants redundancy (the ElectricityTick was blocked, so the atmospheric tick pumps instead) can register postfixes on multiple subsystem ticks and dedupe by `UnityEngine.Time.frameCount` inside the dispatcher. `ScenarioRunner`'s `Dispatcher.OnSimTick()` records `_lastTickFrame = Time.frameCount` and bails on repeated calls from the same frame, so a second pump source only adds redundancy, never extra cost or scenario double-fires.
 
 ## Verification history
 

@@ -1,10 +1,10 @@
 using Assets.Scripts.Networks;
 using HarmonyLib;
 
-namespace RuntimeProbe
+namespace ScenarioRunner
 {
     /// <summary>
-    ///     Pumps the RuntimeProbe scenario dispatcher from a Harmony postfix on
+    ///     Pumps the ScenarioRunner dispatcher from a Harmony postfix on
     ///     <c>ElectricityManager.ElectricityTick</c>.
     ///
     ///     Why ElectricityTick and not a more general hook: on a headless dedicated
@@ -18,12 +18,12 @@ namespace RuntimeProbe
     ///     <c>AtmosphericsManager</c> equivalent, etc), and they fire whenever
     ///     <c>GameManager.RunSimulation</c> is true. Patching ElectricityTick is
     ///     the convention <c>InspectorPlus</c> already uses for its request poller;
-    ///     RuntimeProbe follows the same convention so the two cohabit cleanly.
+    ///     ScenarioRunner follows the same convention so the two cohabit cleanly.
     ///
     ///     If a future scenario needs to fire on an atmospheric tick instead (e.g.
     ///     to inspect Atmosphere or gas state between solver passes), add a second
     ///     Harmony patch class targeting that manager's tick driver and call
-    ///     <see cref="ScenarioRunner.OnSimTick"/> from its postfix. The dispatcher
+    ///     <see cref="Dispatcher.OnSimTick"/> from its postfix. The dispatcher
     ///     dedupes by frame, so multiple pumps converge to one probe call per
     ///     simulation frame.
     /// </summary>
@@ -32,7 +32,7 @@ namespace RuntimeProbe
     {
         public static void Postfix()
         {
-            ScenarioRunner.OnSimTick();
+            Dispatcher.OnSimTick();
         }
     }
 }

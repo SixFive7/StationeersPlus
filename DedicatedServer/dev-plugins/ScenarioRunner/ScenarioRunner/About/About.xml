@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <Name>RuntimeProbe</Name>
-  <ModID>net.runtimeprobe</ModID>
+  <Name>ScenarioRunner</Name>
+  <ModID>net.scenariorunner</ModID>
   <Author>SixFive7</Author>
   <Version>0.1.0</Version>
   <Description>Developer tooling. Scenario-driven runtime probe for the Stationeers dedicated server. Not a player-facing mod; do not ship.</Description>
@@ -11,6 +11,6 @@
     <Tag>StationeersLaunchPad</Tag>
     <Tag>tools</Tag>
   </Tags>
-  <InGameDescription><![CDATA[<size="30"><color=#ffa500>RuntimeProbe</color></size>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>ScenarioRunner</color></size>
 Developer tooling. Not a player-facing mod.]]></InGameDescription>
 </ModMetadata>

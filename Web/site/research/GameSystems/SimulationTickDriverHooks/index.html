@@ -6894,7 +6894,7 @@ related:
 tags: [power, threading, harmony]</p>
 <hr />
 <h1 id="simulation-tick-driver-hooks">Simulation tick driver hooks<a class="headerlink" href="#simulation-tick-driver-hooks" title="Permanent link">&para;</a></h1>
-<p>How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for <code>DedicatedServer/dev-plugins/RuntimeProbe/</code> and <code>Mods/InspectorPlus/</code>.</p>
+<p>How to drive a diagnostic plugin from the game's per-tick simulation chain. Background for <code>DedicatedServer/dev-plugins/ScenarioRunner/</code> and <code>Mods/InspectorPlus/</code>.</p>
 <h2 id="the-chain">The chain<a class="headerlink" href="#the-chain" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
@@ -6919,7 +6919,7 @@ tags: [power, threading, harmony]</p>
 <li>A <code>FileSystemWatcher</code> callback fires on a ThreadPool thread, so any Unity API call from it crashes. Routing through the dispatcher only helps if the dispatcher is alive.</li>
 <li>The GameTick-driven subsystem Tick methods, in contrast, fire on every simulation cycle whenever <code>RunSimulation</code> is true. A Harmony postfix on <code>ElectricityManager.ElectricityTick</code> is the simplest reliable pump.</li>
 </ul>
-<p><code>Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs</code> already uses this pattern for its request poller; <code>DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/SimTickPump.cs</code> follows the same convention so the two cohabit cleanly.</p>
+<p><code>Mods/InspectorPlus/InspectorPlus/RequestPollOnTickPatch.cs</code> already uses this pattern for its request poller; <code>DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs</code> follows the same convention so the two cohabit cleanly.</p>
 <h2 id="threading-constraint-on-the-postfix">Threading constraint on the postfix<a class="headerlink" href="#threading-constraint-on-the-postfix" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
@@ -6939,7 +6939,7 @@ tags: [power, threading, harmony]</p>
 <h2 id="dedup-across-multiple-pumps">Dedup across multiple pumps<a class="headerlink" href="#dedup-across-multiple-pumps" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
-<p>A diagnostic plugin that wants redundancy (the ElectricityTick was blocked, so the atmospheric tick pumps instead) can register postfixes on multiple subsystem ticks and dedupe by <code>UnityEngine.Time.frameCount</code> inside the dispatcher. <code>RuntimeProbe</code>'s <code>ScenarioRunner.OnSimTick()</code> records <code>_lastTickFrame = Time.frameCount</code> and bails on repeated calls from the same frame, so a second pump source only adds redundancy, never extra cost or scenario double-fires.</p>
+<p>A diagnostic plugin that wants redundancy (the ElectricityTick was blocked, so the atmospheric tick pumps instead) can register postfixes on multiple subsystem ticks and dedupe by <code>UnityEngine.Time.frameCount</code> inside the dispatcher. <code>ScenarioRunner</code>'s <code>Dispatcher.OnSimTick()</code> records <code>_lastTickFrame = Time.frameCount</code> and bails on repeated calls from the same frame, so a second pump source only adds redundancy, never extra cost or scenario double-fires.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-26: page created. Sourced from a RuntimeProbe refactor that pulled the same hook out of PgpVerifyHelper and generalised it. Decompile cross-references at the line numbers above were re-confirmed against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> during the same session. The crash stack quoted in "Threading constraint on the postfix" is the 2026-05-25 live repro recorded in <code>Research/Patterns/ThingEnumerationOffMainThread.md</code>.</li>

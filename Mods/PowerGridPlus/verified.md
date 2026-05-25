@@ -33,7 +33,7 @@ Game versions referenced: 0.2.6228.27061 unless otherwise noted.
 - **Negative path is silent.** 2026-05-25. With neither Re-Volt nor
   MoreCables loaded, `TryFindIncompatibleMod` returns false and PGP's
   `Plugin.OnPrefabsLoaded` proceeds with `Harmony.PatchAll`. Observed
-  alongside every RuntimeProbe (then PgpVerifyHelper) run that did not have Re-Volt mirrored
+  alongside every ScenarioRunner (then PgpVerifyHelper, then RuntimeProbe) run that did not have Re-Volt mirrored
   in: PGP logs `Power Grid Plus patches applied` with no preceding refuse
   line.
 
@@ -41,14 +41,14 @@ Game versions referenced: 0.2.6228.27061 unless otherwise noted.
 
 All eight sub-checks against the developer's Luna save (a populated multi-mod
 station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
-14 fuses). Driven by `DedicatedServer/dev-plugins/RuntimeProbe/` (then named PgpVerifyHelper in `Plans/`; renamed and moved 2026-05-26). Commit: `1247d99`.
+14 fuses). Driven by `DedicatedServer/dev-plugins/ScenarioRunner/` (was `Plans/PgpVerifyHelper/` at test time; renamed to RuntimeProbe and moved 2026-05-26, then renamed again to ScenarioRunner 2026-05-26). Commit: `1247d99`.
 
 - **Power flows on a normal-cable network with loads + a small generator.**
   Seven `StructureTransformerSmall` / `StructureTransformerSmallReversed`
   instances on Luna are actively conducting (`UsedPower=10`,
   `OutputNetwork.CurrentLoad` between 100 W and 1200 W). Power propagates
   source -> heavy spine -> transformer -> normal spur -> load through PGP's
-  rewritten tick. Captured via RuntimeProbe `pgp-transformer-conservation`
+  rewritten tick. Captured via ScenarioRunner `pgp-transformer-conservation`
   scenario.
 
 - **Transformer does not generate free power.**
@@ -59,7 +59,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   incoming watts from `____powerProvided`) are firing as intended.
 
 - **Stationary battery `Charge Efficiency < 1.0` actually loses energy.**
-  Two paired runs of RuntimeProbe's `pgp-battery-efficiency-probe`. The probe
+  Two paired runs of ScenarioRunner's `pgp-battery-efficiency-probe`. The probe
   directly calls `Battery.ReceivePower(InputNetwork, powerAdded)` and reads
   the resulting `PowerStored` delta.
 
@@ -84,7 +84,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   numbers and were not separately read with an in-game chip; they fall
   out of the patch trivially.
 
-- **APC has no idle power drain.** RuntimeProbe's `pgp-apc-idle-probe`
+- **APC has no idle power drain.** ScenarioRunner's `pgp-apc-idle-probe`
   logged each `AreaPowerControl`'s attached `Battery.PowerStored` every
   five ElectricityTicks across 145 ticks (29 snapshots per APC). 13 of 16
   APCs on Luna show exactly `+0.00` delta over the snapshot window. The
@@ -100,7 +100,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   `PowerTickPatches.CheckForRecursiveProviders` reverse-patch is not
   invoked because `EnableRecursiveNetworkLimits` defaults off.
 
-- **Cable burn at sustained > 5 kW.** RuntimeProbe's `pgp-cable-burn-probe`
+- **Cable burn at sustained > 5 kW.** ScenarioRunner's `pgp-cable-burn-probe`
   reflect-invokes `PowerGridPlus.Power.PowerGridTick.TestBurnCable(10000,
   10000)` against every CableNetwork:
 
@@ -146,7 +146,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   (`Battery Backup Light (third-party, ...) detected; Power Grid Plus
   emergency-light patches are inactive.`).
 
-- **Luna ground-truth inventory.** RuntimeProbe's `inventory` scenario:
+- **Luna ground-truth inventory.** ScenarioRunner's `inventory` scenario:
   23 batteries (18 `StationBatteryNuclear` from MorePowerMod + 5 vanilla
   `StructureBattery` / `StructureBatteryMedium`), 41 transformers, 16
   AreaPowerControl, 121 CableNetwork (in `OcclusionManager.AllThings` and
@@ -172,7 +172,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   Re-Volt 1:1 would either silent-no-op (HarmonyX rejects the
   parameter-mismatched prefix and vanilla `UsePower` still drains the
   battery) or bind `powerUsed = 0` (body becomes a no-op). The PGP
-  retarget at `UsePower` is correct. The 2026-05-25 RuntimeProbe (then PgpVerifyHelper)
+  retarget at `UsePower` is correct. The 2026-05-25 ScenarioRunner (then PgpVerifyHelper, then RuntimeProbe)
   apc-idle-probe run also serves as dynamic corroboration: idle APCs
   do not bleed `Battery.PowerStored` and APCs with downstream draw do.
 
@@ -221,12 +221,13 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   XML more compactly than the game's serializer); the loader accepts
   both shapes. Commit: `d688e3e`.
 
-- **`DedicatedServer/dev-plugins/RuntimeProbe/` runs scenarios from a Harmony postfix on
+- **`DedicatedServer/dev-plugins/ScenarioRunner/` runs scenarios from a Harmony postfix on
   `ElectricityManager.ElectricityTick`.** 2026-05-25. Five working
   scenarios so far: `inventory`, `battery-charge-snapshot`,
   `transformer-conservation`, `battery-efficiency-probe`,
   `apc-idle-probe`, `cable-burn-probe`. Configured via
-  `install/BepInEx/config/net.pgpverifyhelper.cfg`. Output lives in
+  `install/BepInEx/config/net.scenariorunner.cfg` (was `net.pgpverifyhelper.cfg`
+  at the time of the test). Output lives in
   `install/BepInEx/LogOutput.log`, NOT `data/server.log`. Commit:
   `1247d99`.
 
@@ -244,7 +245,7 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   and every Harmony prefix is registered twice -> each prefix's side
   effects double. Observed first-hand: `Battery.ReceivePower` deltas of
   10000 instead of 5000 at `BatteryChargeEfficiency = 1.0`. Fix: keep
-  the DLL in exactly one path. For RuntimeProbe (then PgpVerifyHelper) and PowerGridPlus on
+  the DLL in exactly one path. For ScenarioRunner (then PgpVerifyHelper, then RuntimeProbe) and PowerGridPlus on
   this dedi, the canonical path is `data/mods/Local_<X>/` (loaded via
   StationeersLaunchPad through `install/modconfig.xml`); the
   `install/BepInEx/plugins/<X>/` copies are removed.

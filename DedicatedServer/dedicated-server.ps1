@@ -518,7 +518,7 @@ function Invoke-DeployMods {
         # Explicit -Mod: accept Mods/<name>/, Plans/<name>/, or
         # DedicatedServer/dev-plugins/<name>/. Mods/ wins on a tie. Plans/ and
         # dev-plugins/ entries are work-in-progress / dev-only tooling (e.g.
-        # RuntimeProbe); they are not auto-deployed when -Mod is omitted.
+        # ScenarioRunner); they are not auto-deployed when -Mod is omitted.
         $candidate = Join-Path $modsRoot $Mod
         if (-not (Test-Path $candidate)) {
             $candidate = Join-Path $plansRoot $Mod

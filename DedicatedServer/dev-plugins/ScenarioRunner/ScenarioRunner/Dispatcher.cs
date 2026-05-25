@@ -8,7 +8,7 @@ using Assets.Scripts.Objects.Electrical;
 using BepInEx.Logging;
 using UnityEngine;
 
-namespace RuntimeProbe
+namespace ScenarioRunner
 {
     /// <summary>
     ///     Drives scenarios from the simulation tick. State is global; one instance per
@@ -34,7 +34,7 @@ namespace RuntimeProbe
     ///     internals; <see cref="GetModType"/> / <see cref="GetModInstanceField"/> are
     ///     starting points.
     /// </summary>
-    internal static class ScenarioRunner
+    internal static class Dispatcher
     {
         private static ManualLogSource _log;
         private static string _scenario = "";
@@ -86,7 +86,7 @@ namespace RuntimeProbe
             }
             catch (Exception e)
             {
-                _log?.LogError($"[RuntimeProbe] scenario '{_scenario}' tick threw: {e}");
+                _log?.LogError($"[ScenarioRunner] scenario '{_scenario}' tick threw: {e}");
             }
         }
 
@@ -122,7 +122,7 @@ namespace RuntimeProbe
 
                 default:
                     if (_ticksSeen == _delayTicks)
-                        _log?.LogWarning($"[RuntimeProbe] unknown scenario '{_scenario}'; doing nothing.");
+                        _log?.LogWarning($"[ScenarioRunner] unknown scenario '{_scenario}'; doing nothing.");
                     return;
             }
         }
@@ -168,7 +168,7 @@ namespace RuntimeProbe
             var cableNetCount = CableNetwork.AllCableNetworks.ActiveCount;
 
             _log?.LogInfo(
-                $"[RuntimeProbe] inventory @ tick {_ticksSeen}: " +
+                $"[ScenarioRunner] inventory @ tick {_ticksSeen}: " +
                 $"Battery={_batteries.Count}, Transformer={_transformers.Count}, " +
                 $"AreaPowerControl={_apcs.Count}, CableNetwork={cableNetCount}, " +
                 $"CableFuse={_fuses.Count}");
@@ -178,7 +178,7 @@ namespace RuntimeProbe
             var byType = _batteries.GroupBy(b => b.GetType().Name).OrderByDescending(g => g.Count());
             foreach (var g in byType)
             {
-                _log?.LogInfo($"[RuntimeProbe]   {g.Key}: {g.Count()}");
+                _log?.LogInfo($"[ScenarioRunner]   {g.Key}: {g.Count()}");
             }
         }
 
@@ -201,7 +201,7 @@ namespace RuntimeProbe
             {
                 if (b == null) continue;
                 _log?.LogInfo(
-                    $"[RuntimeProbe] BCS tick={_ticksSeen} ref={b.ReferenceId} " +
+                    $"[ScenarioRunner] BCS tick={_ticksSeen} ref={b.ReferenceId} " +
                     $"prefab={b.PrefabName} OnOff={b.OnOff} Mode={b.Mode} " +
                     $"PowerStored={b.PowerStored:F2} PowerMaximum={b.PowerMaximum:F2}");
             }
@@ -219,7 +219,7 @@ namespace RuntimeProbe
         {
             if (GetModAssembly(assemblyName) != null) return true;
             if (_ticksSeen == _delayTicks)
-                _log?.LogWarning($"[RuntimeProbe] scenario '{scenarioId}' requires mod assembly '{assemblyName}' to be loaded; skipping.");
+                _log?.LogWarning($"[ScenarioRunner] scenario '{scenarioId}' requires mod assembly '{assemblyName}' to be loaded; skipping.");
             return false;
         }
 
@@ -254,7 +254,7 @@ namespace RuntimeProbe
                 var inLoad = t.InputNetwork != null ? t.InputNetwork.CurrentLoad : float.NaN;
                 var outLoad = t.OutputNetwork != null ? t.OutputNetwork.CurrentLoad : float.NaN;
                 _log?.LogInfo(
-                    $"[RuntimeProbe] TC tick={_ticksSeen} ref={t.ReferenceId} " +
+                    $"[ScenarioRunner] TC tick={_ticksSeen} ref={t.ReferenceId} " +
                     $"prefab={t.PrefabName} OnOff={t.OnOff} Setting={t.Setting} " +
                     $"UsedPower={t.UsedPower} InCurrentLoad={inLoad} OutCurrentLoad={outLoad}");
             }
@@ -292,12 +292,12 @@ namespace RuntimeProbe
             }
             if (target == null)
             {
-                _log?.LogWarning("[RuntimeProbe] pgp-battery-efficiency-probe: no OnOff Battery with headroom + InputNetwork; nothing to probe.");
+                _log?.LogWarning("[ScenarioRunner] pgp-battery-efficiency-probe: no OnOff Battery with headroom + InputNetwork; nothing to probe.");
                 return;
             }
 
             _log?.LogInfo(
-                $"[RuntimeProbe] BEP target: ref={target.ReferenceId} prefab={target.PrefabName} " +
+                $"[ScenarioRunner] BEP target: ref={target.ReferenceId} prefab={target.PrefabName} " +
                 $"PowerStored={target.PowerStored:F2} PowerMaximum={target.PowerMaximum:F2} " +
                 $"BatteryChargeEfficiency_setting={PgpBatteryChargeEfficiency()}");
 
@@ -307,7 +307,7 @@ namespace RuntimeProbe
             target.ReceivePower(target.InputNetwork, 5000f);
             var afterA = target.PowerStored;
             _log?.LogInfo(
-                $"[RuntimeProbe] BEP A: powerAdded=5000 before={beforeA:F2} after={afterA:F2} delta={afterA - beforeA:F2}");
+                $"[ScenarioRunner] BEP A: powerAdded=5000 before={beforeA:F2} after={afterA:F2} delta={afterA - beforeA:F2}");
 
             // Probe B: small powerAdded below the 500 W trickle floor.
             //   Expected at any eff: delta = 200 (trickle floor: charged = powerAdded).
@@ -315,7 +315,7 @@ namespace RuntimeProbe
             target.ReceivePower(target.InputNetwork, 200f);
             var afterB = target.PowerStored;
             _log?.LogInfo(
-                $"[RuntimeProbe] BEP B: powerAdded=200  before={beforeB:F2} after={afterB:F2} delta={afterB - beforeB:F2}");
+                $"[ScenarioRunner] BEP B: powerAdded=200  before={beforeB:F2} after={afterB:F2} delta={afterB - beforeB:F2}");
         }
 
         private static double PgpBatteryChargeEfficiency()
@@ -360,7 +360,7 @@ namespace RuntimeProbe
                 var stored = bat != null ? bat.PowerStored : float.NaN;
                 var pmax = bat != null ? bat.PowerMaximum : float.NaN;
                 _log?.LogInfo(
-                    $"[RuntimeProbe] APC tick={_ticksSeen} ref={a.ReferenceId} " +
+                    $"[ScenarioRunner] APC tick={_ticksSeen} ref={a.ReferenceId} " +
                     $"prefab={a.PrefabName} OnOff={a.OnOff} UsedPower={a.UsedPower} " +
                     $"BatteryStored={stored:F2} BatteryMax={pmax:F2}");
             }
@@ -394,11 +394,11 @@ namespace RuntimeProbe
                 {
                     overloaded++;
                     _log?.LogInfo(
-                        $"[RuntimeProbe] CBP tick={_ticksSeen} netRef={n.ReferenceId} " +
+                        $"[ScenarioRunner] CBP tick={_ticksSeen} netRef={n.ReferenceId} " +
                         $"Required={req:F2} Current={cur:F2} Potential={n.PotentialLoad:F2}");
                 }
             });
-            _log?.LogInfo($"[RuntimeProbe] CBP tick={_ticksSeen} summary: {overloaded} networks at >5kW (Required or Current)");
+            _log?.LogInfo($"[ScenarioRunner] CBP tick={_ticksSeen} summary: {overloaded} networks at >5kW (Required or Current)");
 
             if (!_cbpReflectionFired)
             {
@@ -412,12 +412,12 @@ namespace RuntimeProbe
             try
             {
                 var asm = GetModAssembly(PGP_ASSEMBLY);
-                if (asm == null) { _log?.LogWarning("[RuntimeProbe] CBP reflection probe: PowerGridPlus assembly missing."); return; }
+                if (asm == null) { _log?.LogWarning("[ScenarioRunner] CBP reflection probe: PowerGridPlus assembly missing."); return; }
                 var tickType = asm.GetType("PowerGridPlus.Power.PowerGridTick");
-                if (tickType == null) { _log?.LogWarning("[RuntimeProbe] CBP reflection probe: PowerGridPlus.Power.PowerGridTick type not found."); return; }
+                if (tickType == null) { _log?.LogWarning("[ScenarioRunner] CBP reflection probe: PowerGridPlus.Power.PowerGridTick type not found."); return; }
                 var testBurnCable = tickType.GetMethod("TestBurnCable",
                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-                if (testBurnCable == null) { _log?.LogWarning("[RuntimeProbe] CBP reflection probe: TestBurnCable method not found."); return; }
+                if (testBurnCable == null) { _log?.LogWarning("[ScenarioRunner] CBP reflection probe: TestBurnCable method not found."); return; }
 
                 int probedNets = 0;
                 int wouldBurn = 0;
@@ -450,13 +450,13 @@ namespace RuntimeProbe
                 });
 
                 _log?.LogInfo(
-                    $"[RuntimeProbe] CBP reflection probe: probedNets={probedNets} " +
+                    $"[ScenarioRunner] CBP reflection probe: probedNets={probedNets} " +
                     $"wouldBurn={wouldBurn} normalNets={normalCableNets} heavyNets={heavyCableNets} " +
                     $"superHeavyNets={superHeavyCableNets} (synthetic powerUsed=10000 W against TestBurnCable)");
             }
             catch (Exception e)
             {
-                _log?.LogError($"[RuntimeProbe] CBP reflection probe threw: {e.Message}");
+                _log?.LogError($"[ScenarioRunner] CBP reflection probe threw: {e.Message}");
             }
         }
     }

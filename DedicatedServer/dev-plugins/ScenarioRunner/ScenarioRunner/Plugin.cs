@@ -5,10 +5,10 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-namespace RuntimeProbe
+namespace ScenarioRunner
 {
     /// <summary>
-    ///     RuntimeProbe is a developer plugin that runs scenario-driven runtime probes
+    ///     ScenarioRunner is a developer plugin that runs scenario-driven runtime probes
     ///     on the Stationeers dedicated server. Scenarios are read-and-log diagnostics
     ///     and reflection-driven calls into other mods' patch surfaces, pumped from a
     ///     simulation tick so the probe fires on every game tick the world is running.
@@ -24,8 +24,8 @@ namespace RuntimeProbe
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string PluginGuid = "net.runtimeprobe";
-        public const string PluginName = "RuntimeProbe";
+        public const string PluginGuid = "net.scenariorunner";
+        public const string PluginName = "ScenarioRunner";
         public const string PluginVersion = "0.1.0";
 
         internal static ManualLogSource Log;
@@ -47,7 +47,7 @@ namespace RuntimeProbe
                     "PowerGridPlus-specific scenarios (require the net.powergridplus plugin loaded; otherwise no-op): " +
                     "'pgp-transformer-conservation', 'pgp-battery-efficiency-probe', " +
                     "'pgp-apc-idle-probe', 'pgp-cable-burn-probe'. " +
-                    "See DedicatedServer/dev-plugins/RuntimeProbe/README.md for the full catalogue."));
+                    "See DedicatedServer/dev-plugins/ScenarioRunner/README.md for the full catalogue."));
 
             DelayTicks = Config.Bind(
                 "Probe", "Delay Ticks", 5,
@@ -76,9 +76,9 @@ namespace RuntimeProbe
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
 
-                ScenarioRunner.Initialize(Log, Scenario.Value, DelayTicks.Value, LogInventoryOnFirstTick.Value);
+                Dispatcher.Initialize(Log, Scenario.Value, DelayTicks.Value, LogInventoryOnFirstTick.Value);
 
-                Log.LogInfo($"{PluginName} patches applied; ScenarioRunner armed for '{Scenario.Value}'");
+                Log.LogInfo($"{PluginName} patches applied; Dispatcher armed for '{Scenario.Value}'");
             }
             catch (Exception e)
             {

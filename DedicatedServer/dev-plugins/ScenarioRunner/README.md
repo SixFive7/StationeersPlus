@@ -1,6 +1,6 @@
-# RuntimeProbe
+# ScenarioRunner
 
-Developer tooling. A scenario-driven runtime probe for the Stationeers dedicated server. Loads as a BepInEx plugin via StationeersLaunchPad; each scenario is a small read-and-log or reflection-driven probe that fires from a Harmony postfix on a simulation tick. Lives next to the dedi launcher at `DedicatedServer/dev-plugins/RuntimeProbe/`; ships nowhere else.
+Developer tooling. A scenario-driven runtime probe for the Stationeers dedicated server. Loads as a BepInEx plugin via StationeersLaunchPad; each scenario is a small read-and-log or reflection-driven probe that fires from a Harmony postfix on a simulation tick. Lives next to the dedi launcher at `DedicatedServer/dev-plugins/ScenarioRunner/`; ships nowhere else.
 
 ## Why this exists
 
@@ -10,25 +10,25 @@ Some questions about how a mod actually behaves on a live save are easier to ans
 - "What state does this collection settle to over N ticks?" -> have a scenario log it every N ticks and diff first vs last offline.
 - "If I flip this config, what changes in the simulation?" -> run twice across two `-Start` cycles with the config flipped between them.
 
-`tools/save-edit/` is the offline counterpart: it manipulates persisted save state. `RuntimeProbe` observes the running simulation. The two compose: edit the save offline to set up a controlled scenario, then load it with RuntimeProbe active to observe behaviour at known tick offsets. Full overview in `DedicatedServer/CLAUDE.md` under *Manipulating world state without a client*.
+`tools/save-edit/` is the offline counterpart: it manipulates persisted save state. `ScenarioRunner` observes the running simulation. The two compose: edit the save offline to set up a controlled scenario, then load it with ScenarioRunner active to observe behaviour at known tick offsets. Full overview in `DedicatedServer/CLAUDE.md` under *Manipulating world state without a client*.
 
 ## Build and deploy
 
 ```powershell
-dotnet build DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe.sln -c Release
-DedicatedServer/dedicated-server.ps1 -Lock -Purpose "RuntimeProbe scenario run"
-DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod RuntimeProbe -Configuration Release
+dotnet build DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
+DedicatedServer/dedicated-server.ps1 -Lock -Purpose "ScenarioRunner scenario run"
+DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
 ```
 
-The `-DeployMods -Mod RuntimeProbe` resolves under `DedicatedServer/dev-plugins/` (the launcher searches `Mods/`, then `Plans/`, then `DedicatedServer/dev-plugins/`).
+The `-DeployMods -Mod ScenarioRunner` resolves under `DedicatedServer/dev-plugins/` (the launcher searches `Mods/`, then `Plans/`, then `DedicatedServer/dev-plugins/`).
 
-StationeersLaunchPad loads the plugin from `DedicatedServer/data/mods/Local_RuntimeProbe/` (mirrored from the dev-plugins source on first deploy). The matching `<Local Enabled>` entry in `DedicatedServer/install/modconfig.xml` is added on first deploy too.
+StationeersLaunchPad loads the plugin from `DedicatedServer/data/mods/Local_ScenarioRunner/` (mirrored from the dev-plugins source on first deploy). The matching `<Local Enabled>` entry in `DedicatedServer/install/modconfig.xml` is added on first deploy too.
 
-Important: do NOT also copy the DLL into `DedicatedServer/install/BepInEx/plugins/RuntimeProbe/`. With the same DLL in both `install/BepInEx/plugins/` and `data/mods/Local_<X>/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. We hit this exact trap during PGP battery-efficiency verification and got delta=10000 instead of 5000. The launcher's dev-plugin path stays on the `data/mods/` route only.
+Important: do NOT also copy the DLL into `DedicatedServer/install/BepInEx/plugins/ScenarioRunner/`. With the same DLL in both `install/BepInEx/plugins/` and `data/mods/Local_<X>/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. We hit this exact trap during PGP battery-efficiency verification and got delta=10000 instead of 5000. The launcher's dev-plugin path stays on the `data/mods/` route only.
 
 ## Configuration
 
-Settings appear in `DedicatedServer/install/BepInEx/config/net.runtimeprobe.cfg` after first launch.
+Settings appear in `DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg` after first launch.
 
 | Key | Default | What it does |
 |---|---|---|
@@ -38,7 +38,7 @@ Settings appear in `DedicatedServer/install/BepInEx/config/net.runtimeprobe.cfg`
 
 ## Pump
 
-A Harmony postfix on `ElectricityManager.ElectricityTick` (`DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/SimTickPump.cs`) calls `ScenarioRunner.OnSimTick()` each simulation tick the world is running. `OnSimTick` deduplicates by `Time.frameCount` so multiple pump sources converge to one scenario call per simulation frame. To add a second pump (for example, on an atmospheric tick), add another `[HarmonyPatch]` class that targets that method and calls `ScenarioRunner.OnSimTick()` from its postfix.
+A Harmony postfix on `ElectricityManager.ElectricityTick` (`DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/SimTickPump.cs`) calls `Dispatcher.OnSimTick()` each simulation tick the world is running. `OnSimTick` deduplicates by `Time.frameCount` so multiple pump sources converge to one scenario call per simulation frame. To add a second pump (for example, on an atmospheric tick), add another `[HarmonyPatch]` class that targets that method and calls `Dispatcher.OnSimTick()` from its postfix.
 
 ElectricityTick is the chosen pump because (a) it is a public static method on a manager class, (b) it is the same pump InspectorPlus uses for its request poller, and (c) it fires whenever `GameManager.RunSimulation` is true. On a headless dedicated server `MonoBehaviour.Update` does not reliably fire after world load, so an Update-based pump cannot replace this. See `Research/Patterns/ThingEnumerationOffMainThread.md` for the threading constraints on what the postfix can safely read.
 
@@ -65,7 +65,7 @@ All of these gracefully no-op and log a warning if PowerGridPlus is not loaded.
 
 ## Adding a new scenario
 
-Edit `RuntimeProbe/ScenarioRunner.cs`:
+Edit `ScenarioRunner/Dispatcher.cs`:
 
 1. Add a `case` to the `Tick` switch matching the scenario id.
 2. Add a `Scenario_*` method.
@@ -77,14 +77,14 @@ Naming: mod-specific scenarios get a mod-tag prefix. `pgp-` for PowerGridPlus to
 
 ## Output
 
-Every scenario emits structured `[RuntimeProbe] ...` lines to the BepInEx log at `DedicatedServer/install/BepInEx/LogOutput.log`. NOT `DedicatedServer/data/server.log`: that file carries Unity / game logs, not BepInEx plugin output. Grep:
+Every scenario emits structured `[ScenarioRunner] ...` lines to the BepInEx log at `DedicatedServer/install/BepInEx/LogOutput.log`. NOT `DedicatedServer/data/server.log`: that file carries Unity / game logs, not BepInEx plugin output. Grep:
 
 ```powershell
-Select-String -Path DedicatedServer/install/BepInEx/LogOutput.log -Pattern '\[RuntimeProbe\]'
+Select-String -Path DedicatedServer/install/BepInEx/LogOutput.log -Pattern '\[ScenarioRunner\]'
 ```
 
 ## Limitations
 
 - **Reads and logs only.** Some scenarios call existing patched methods (`Battery.ReceivePower`, `PowerGridTick.TestBurnCable`) for side-effect probing, but the plugin does not spawn new Things in the world. For that, use `tools/save-edit/` to write the world state offline before `-Start`.
-- **Server-side only.** Reads `OcclusionManager.AllThings` and `CableNetwork.AllCableNetworks` from the simulation thread. A connected client reads from its own simulation; clients see effects of the scenario (e.g. cable burns, battery state changes) via normal state-sync but do not receive RuntimeProbe log lines.
+- **Server-side only.** Reads `OcclusionManager.AllThings` and `CableNetwork.AllCableNetworks` from the simulation thread. A connected client reads from its own simulation; clients see effects of the scenario (e.g. cable burns, battery state changes) via normal state-sync but do not receive ScenarioRunner log lines.
 - **No client-UI assertions.** Cursor previews, wreckage tooltips, settings-panel rendering, IC10 chip reads -- all require a connected client.

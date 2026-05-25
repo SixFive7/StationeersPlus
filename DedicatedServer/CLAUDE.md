@@ -221,6 +221,7 @@ There is no `-Clean` action. Cleaning is the developer's call:
 - This file auto-loads when you touch any path inside `DedicatedServer/`. If your work involves only `DedicatedServer/dedicated-server.ps1` and never reads or writes inside this folder, read this file explicitly.
 - Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, `session.lock.template`, and source code under `dev-plugins/`. The `.gitignore` rule (`/DedicatedServer/*` plus `!` exceptions for those four targets) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The active `session.lock`, the entire `install/` tree, the entire `data/` tree, and the `dev-plugins/<X>/<X>/bin/` and `obj/` build outputs all stay gitignored.
 - All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`. With no client connected the server simulation is paused and request files are not processed; for autonomous snapshots, enable InspectorPlus's `Force Unpause Without Client` setting (off by default) under `[Server - Headless]` in `install/BepInEx/config/net.inspectorplus.cfg`. See `Research/Workflows/InspectorPlusUsage.md`.
+- **`ScenarioRunner` is the in-server probe tool for this dedi.** It lives at `DedicatedServer/dev-plugins/ScenarioRunner/`, loads as a BepInEx plugin via StationeersLaunchPad, and runs scenario-driven read-and-log or reflection-driven probes from a Harmony postfix on `ElectricityManager.ElectricityTick`. Use it when an InspectorPlus snapshot is the wrong shape, for example when you need state evolution across many ticks or you need to stimulate a method (`Battery.ReceivePower`, `PowerGridTick.TestBurnCable`) rather than just read. Full manual: `DedicatedServer/dev-plugins/ScenarioRunner/README.md`. Scenario catalogue, pump details, and the threading constraints on what the postfix can read all live there. The Path B section below has the operational walkthrough.
 
 ## Manipulating world state without a client (Path B + Path D)
 
@@ -248,44 +249,44 @@ What Path D does well:
 
 What Path D does badly (use Path B instead):
 - Wiring fresh Things into a coherent CableNetwork. Adjacency-based registration is decided by `Cable.OnRegistered`, not by the XML. Hand-positioning cells correctly for adjacency is error-prone.
-- Anything that depends on a specific simulation tick (e.g. "snap state after the third simulation tick"). Use RuntimeProbe for that.
+- Anything that depends on a specific simulation tick (e.g. "snap state after the third simulation tick"). Use ScenarioRunner for that.
 
-### Path B: in-game scenario plugin (`dev-plugins/RuntimeProbe/`)
+### Path B: in-game scenario plugin (`dev-plugins/ScenarioRunner/`)
 
-Use Path B for changes to LIVE simulation state and for RUNTIME OBSERVATION at a known simulation tick. `RuntimeProbe` is a developer BepInEx plugin that lives at `DedicatedServer/dev-plugins/RuntimeProbe/`, next to this CLAUDE.md and the launcher. It loads via StationeersLaunchPad, runs a scenario picked by a config string, and logs structured `[RuntimeProbe] ...` lines to `install/BepInEx/LogOutput.log`. An agent greps the log instead of staging InspectorPlus request files.
+Use Path B for changes to LIVE simulation state and for RUNTIME OBSERVATION at a known simulation tick. `ScenarioRunner` is a developer BepInEx plugin that lives at `DedicatedServer/dev-plugins/ScenarioRunner/`, next to this CLAUDE.md and the launcher. It loads via StationeersLaunchPad, runs a scenario picked by a config string, and logs structured `[ScenarioRunner] ...` lines to `install/BepInEx/LogOutput.log`. An agent greps the log instead of staging InspectorPlus request files.
 
-It is intentionally NOT in `Mods/` or `Plans/`: it never ships to the Workshop, never graduates to a release mod, and only makes sense paired with the dedi launcher. `dev-plugins/` is the home for this category. New dev-plugins follow the same shape (`<Name>/<Name>.sln` + `<Name>/<Name>/` source folder + `About/`) and slot in next to `RuntimeProbe/`.
+It is intentionally NOT in `Mods/` or `Plans/`: it never ships to the Workshop, never graduates to a release mod, and only makes sense paired with the dedi launcher. `dev-plugins/` is the home for this category. New dev-plugins follow the same shape (`<Name>/<Name>.sln` + `<Name>/<Name>/` source folder + `About/`) and slot in next to `ScenarioRunner/`.
 
 Build and deploy:
 
 ```
-dotnet build DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe.sln -c Release
-DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod RuntimeProbe -Configuration Release
+dotnet build DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
+DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
 # The launcher's -Mod search order is Mods/<name>/, then Plans/<name>/, then
 # DedicatedServer/dev-plugins/<name>/. -DeployMods writes the DLL to
 # install/BepInEx/plugins/<Mod>/ as usual.
 ```
 
-`-DeployMods` only writes to `install/BepInEx/plugins/`. RuntimeProbe ALSO needs to be loaded by StationeersLaunchPad, which scans `data/mods/Local_*` per `install/modconfig.xml`. For a first-time deploy on a fresh dedi install, mirror the source folder once:
+`-DeployMods` only writes to `install/BepInEx/plugins/`. ScenarioRunner ALSO needs to be loaded by StationeersLaunchPad, which scans `data/mods/Local_*` per `install/modconfig.xml`. For a first-time deploy on a fresh dedi install, mirror the source folder once:
 
 ```
 # One-time: mirror About + the built DLL to data/mods/ so StationeersLaunchPad picks it up.
-mkdir -p DedicatedServer/data/mods/Local_RuntimeProbe
-cp -r DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/About DedicatedServer/data/mods/Local_RuntimeProbe/
-cp DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/bin/Release/RuntimeProbe.dll DedicatedServer/data/mods/Local_RuntimeProbe/
+mkdir -p DedicatedServer/data/mods/Local_ScenarioRunner
+cp -r DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/About DedicatedServer/data/mods/Local_ScenarioRunner/
+cp DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/bin/Release/ScenarioRunner.dll DedicatedServer/data/mods/Local_ScenarioRunner/
 
 # Then add an entry to install/modconfig.xml before </ModConfig>:
 #   <Local Enabled="true">
-#     <Path Value="C:\<repo>\DedicatedServer\data\mods\Local_RuntimeProbe" />
+#     <Path Value="C:\<repo>\DedicatedServer\data\mods\Local_ScenarioRunner" />
 #   </Local>
 ```
 
-Critical: with the same DLL in BOTH `install/BepInEx/plugins/RuntimeProbe/` AND `data/mods/Local_RuntimeProbe/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. Pick ONE path. The convention on this dedi is `data/mods/Local_<X>/` via StationeersLaunchPad; the `install/BepInEx/plugins/RuntimeProbe/` copy that `-DeployMods` writes should be deleted after the first deploy. (A future launcher revision will pick the right path automatically.)
+Critical: with the same DLL in BOTH `install/BepInEx/plugins/ScenarioRunner/` AND `data/mods/Local_ScenarioRunner/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. Pick ONE path. The convention on this dedi is `data/mods/Local_<X>/` via StationeersLaunchPad; the `install/BepInEx/plugins/ScenarioRunner/` copy that `-DeployMods` writes should be deleted after the first deploy. (A future launcher revision will pick the right path automatically.)
 
 Configure the scenario:
 
 ```
-# Edit install/BepInEx/config/net.runtimeprobe.cfg:
+# Edit install/BepInEx/config/net.scenariorunner.cfg:
 #   Scenario = inventory                       (general)
 #   Scenario = battery-charge-snapshot         (general; needs no mod)
 #   Scenario = pgp-transformer-conservation    (requires PowerGridPlus loaded)
@@ -293,12 +294,12 @@ Configure the scenario:
 #   Scenario = pgp-apc-idle-probe              (requires PowerGridPlus loaded)
 #   Scenario = pgp-cable-burn-probe            (requires PowerGridPlus loaded)
 DedicatedServer/dedicated-server.ps1 -Start -As <id> -Load <save> -Map <Map>
-grep "\[RuntimeProbe\]" DedicatedServer/install/BepInEx/LogOutput.log
+grep "\[ScenarioRunner\]" DedicatedServer/install/BepInEx/LogOutput.log
 ```
 
-Mod-specific scenarios are prefixed (e.g. `pgp-` for PowerGridPlus); they no-op with a warning if the named mod is absent. Add new scenarios by editing `DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/ScenarioRunner.cs`, adding a `case` to the switch and a `Scenario_*` method, then rebuilding. Full scenario catalogue and authoring guide in `DedicatedServer/dev-plugins/RuntimeProbe/README.md`.
+Mod-specific scenarios are prefixed (e.g. `pgp-` for PowerGridPlus); they no-op with a warning if the named mod is absent. Add new scenarios by editing `DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.cs`, adding a `case` to the switch and a `Scenario_*` method, then rebuilding. Full scenario catalogue and authoring guide in `DedicatedServer/dev-plugins/ScenarioRunner/README.md`.
 
-Why a plugin and why this pump source: on a headless dedicated server `MonoBehaviour.Update` does not fire after world load, and the top-level `GameManager.GameTick` is an async UniTask state machine that switches to a ThreadPool worker (which crashes `UnityEngine.Object.FindObjectsOfType` calls; see `Research/Patterns/ThingEnumerationOffMainThread.md`). RuntimeProbe drives off a Harmony postfix on `ElectricityManager.ElectricityTick`, the same pump InspectorPlus uses, so scenario code runs once per simulation tick when `GameManager.RunSimulation` is true. The scenario dispatcher deduplicates by `Time.frameCount`, so adding a second pump (e.g. an atmospheric tick) is safe: a second Harmony patch class targets that method and calls `ScenarioRunner.OnSimTick()` from its postfix; the dispatcher fires the scenario only once per simulation frame regardless of how many pumps registered.
+Why a plugin and why this pump source: on a headless dedicated server `MonoBehaviour.Update` does not fire after world load, and the top-level `GameManager.GameTick` is an async UniTask state machine that switches to a ThreadPool worker (which crashes `UnityEngine.Object.FindObjectsOfType` calls; see `Research/Patterns/ThingEnumerationOffMainThread.md`). ScenarioRunner drives off a Harmony postfix on `ElectricityManager.ElectricityTick`, the same pump InspectorPlus uses, so scenario code runs once per simulation tick when `GameManager.RunSimulation` is true. The dispatcher deduplicates by `Time.frameCount`, so adding a second pump (e.g. an atmospheric tick) is safe: a second Harmony patch class targets that method and calls `Dispatcher.OnSimTick()` from its postfix; the dispatcher fires the scenario only once per simulation frame regardless of how many pumps registered.
 
 ### Composing the two
 
@@ -306,7 +307,7 @@ Most verification flows are best as Path D + Path B together:
 1. Path D copies the developer's save, sets the world to a known state (turn off unrelated providers, set Setting on a transformer to a known value).
 2. Path B observes the simulation under that state, dumping the relevant fields to the log on a known tick offset.
 
-Save edit always finishes before `-Start`. Scenario logs always come from after `-Start` plus `Delay Ticks` ticks. Agents should reach for save-edit first (cheap and reversible), then RuntimeProbe for the runtime read.
+Save edit always finishes before `-Start`. Scenario logs always come from after `-Start` plus `Delay Ticks` ticks. Agents should reach for save-edit first (cheap and reversible), then ScenarioRunner for the runtime read.
 
 ### Standard test loop (agent owns lifecycle)
 
