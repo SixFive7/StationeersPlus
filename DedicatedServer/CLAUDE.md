@@ -107,6 +107,8 @@ The launcher does not build for you. Build first via the developer's normal MSBu
 
 This step is per-invocation and explicit so the agent driving the test always controls which mods at which build configuration are present on the server. Whenever code changes, re-run `-DeployMods` before `-Start`.
 
+**Stop the server first.** `-DeployMods` (and `-SyncMods`) refuses to run if the dedi or its host wrapper is alive: on Windows the Mono runtime holds an exclusive file lock on every loaded plugin DLL, so overwriting `install/BepInEx/plugins/<X>/<X>.dll` mid-flight fails with a sharing violation or, worse, leaves a half-written DLL the next `-Start` picks up as broken plugin bytes. The correct order is always: `-Lock` (once per session), then `-Stop` (if anything is alive), then build, then `-DeployMods`, then `-Start`. The launcher enforces the alive-server check; the doc rule is here so the agent does not need to discover it by hitting the error.
+
 **Important**: `-SyncMods` and `-DeployMods` deploy via different mechanisms. `-SyncMods` writes to `data/mods/<Source>_<DirName>/` (loaded by StationeersLaunchPad's `LocalModSource`). `-DeployMods` writes to `install/BepInEx/plugins/<X>/<X>.dll` (loaded by BepInEx's Chainloader). Running both for the same mod can produce duplicate-load conflicts (see the StationeersLaunchPad duplicate-load fatal documented in `DEV.md`). When testing this repo's own mods against the user's full Workshop set, prefer `-SyncMods` alone (the user's modconfig already lists this repo's mods as Workshop or Local, so they get the user's chosen version) and skip `-DeployMods` unless you specifically want to override one of them with a freshly-built variant.
 
 ### Start
@@ -220,18 +222,90 @@ There is no `-Clean` action. Cleaning is the developer's call:
 - Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, and `session.lock.template`. The `.gitignore` rule (`/DedicatedServer/*` plus `!` exceptions for those three files) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The active `session.lock` is gitignored and must never be committed.
 - All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`. With no client connected the server simulation is paused and request files are not processed; for autonomous snapshots, enable InspectorPlus's `Force Unpause Without Client` setting (off by default) under `[Server - Headless]` in `install/BepInEx/config/net.inspectorplus.cfg`. See `Research/Workflows/InspectorPlusUsage.md`.
 
+## Manipulating world state without a client (Path B + Path D)
+
+A connected client is the high-friction way to set up a verification scenario. Two lower-friction paths exist; both are headless-driven so an agent can run them end-to-end without asking the developer to play. Pick the path that fits the operation; they compose freely.
+
+### Path D: offline save-zip edit (`tools/save-edit/`)
+
+Use Path D for changes to PERSISTED world state: adding or modifying Things, retargeting `CableNetworkId` references, toggling `OnOff` on a device that will be loaded later. The tool reads a save ZIP, mutates `world.xml`, writes a new ZIP. Game is not running. No lock needed for the edit itself; the lock is only needed when starting the server with the resulting save.
+
+```
+python tools/save-edit/stationeers_save.py list   <save.zip> [--prefab P] [--type StructureSaveData] [--limit N]
+python tools/save-edit/stationeers_save.py show   <save.zip> --ref <ReferenceId>
+python tools/save-edit/stationeers_save.py set    <save.zip> <out.zip> --ref <ReferenceId> --field <xpath> --value <V>
+python tools/save-edit/stationeers_save.py clone  <save.zip> <out.zip> --ref <template-ref> --pos X,Y,Z [--rot QX,QY,QZ,QW]
+python tools/save-edit/stationeers_save.py add-network  <save.zip> <out.zip> --id <NetworkId>
+python tools/save-edit/stationeers_save.py drop-network <save.zip> <out.zip> --id <NetworkId>
+```
+
+Always work on a COPY in `data/saves/`. The original Luna save is the developer's; agents may copy it to `data/saves/Luna_pgp_task1/` (or similar) and edit freely there. Full rules: `tools/save-edit/README.md` and `Research/Protocols/SaveFileStructure.md` / `Research/Protocols/WorldXml.md`.
+
+What Path D does well:
+- Set OnOff, Setting, Mode, CurrentBuildState, DamageState fields on existing Things.
+- Clone an existing Thing to a new world position (the type-specific tail of the XML is preserved verbatim; only `ReferenceId` and position change).
+- Add or drop CableNetworkIds from the top-level list.
+
+What Path D does badly (use Path B instead):
+- Wiring fresh Things into a coherent CableNetwork. Adjacency-based registration is decided by `Cable.OnRegistered`, not by the XML. Hand-positioning cells correctly for adjacency is error-prone.
+- Anything that depends on a specific simulation tick (e.g. "snap state after the third ElectricityTick"). Use PgpVerifyHelper for that.
+
+### Path B: in-game scenario plugin (`Plans/PgpVerifyHelper/`)
+
+Use Path B for changes to LIVE simulation state and for RUNTIME OBSERVATION at a known tick. PgpVerifyHelper is a BepInEx plugin that, after world load, runs a scenario picked by a config string. Each scenario logs structured lines to the server log; the agent greps the log instead of staging InspectorPlus request files.
+
+Build, deploy, run:
+
+```
+dotnet build Plans/PgpVerifyHelper/PgpVerifyHelper.sln -c Release
+DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod PgpVerifyHelper -Configuration Release
+# (the launcher resolves -Mod under Plans/ as well as Mods/)
+
+# StationeersLaunchPad load (REQUIRED for the dedi-server entry-point scan).
+# -DeployMods only copies the DLL to install/BepInEx/plugins/<Mod>/. The dedi
+# server's StationeersLaunchPad-driven BepInEx Awake also needs the mod folder
+# at data/mods/Local_<Mod>/ with About/ + the DLL, plus a <Local Enabled="true">
+# entry in install/modconfig.xml. The launcher does not do this for Plans/ mods
+# automatically yet (TODO); for now mirror it by hand:
+mkdir -p DedicatedServer/data/mods/Local_PgpVerifyHelper
+cp -r Plans/PgpVerifyHelper/PgpVerifyHelper/About DedicatedServer/data/mods/Local_PgpVerifyHelper/
+cp Plans/PgpVerifyHelper/PgpVerifyHelper/bin/Release/PgpVerifyHelper.dll DedicatedServer/data/mods/Local_PgpVerifyHelper/
+# Then add an entry to install/modconfig.xml before </ModConfig>:
+#   <Local Enabled="true">
+#     <Path Value="C:\Source\SixFive7\StationeersPlus\DedicatedServer\data\mods\Local_PgpVerifyHelper" />
+#   </Local>
+
+# Edit install/BepInEx/config/net.pgpverifyhelper.cfg: Scenario = "inventory" (or another id)
+DedicatedServer/dedicated-server.ps1 -Start -As <id> -Load <save> -Map <Map>
+# Scenario output lands in install/BepInEx/LogOutput.log, NOT data/server.log.
+grep "PgpVerifyHelper" DedicatedServer/install/BepInEx/LogOutput.log
+```
+
+Scenario ids today: `inventory`, `battery-charge-snapshot`, `transformer-conservation`. Full list and behaviour in `Plans/PgpVerifyHelper/README.md`. Add new scenarios by editing `ScenarioRunner.Tick` and rebuilding.
+
+Why a plugin: on a headless dedicated server `MonoBehaviour.Update` does not fire after world load; InspectorPlus's request poller goes quiet after the first hit. PgpVerifyHelper drives off a Harmony postfix on `ElectricityManager.ElectricityTick`, the same pump InspectorPlus uses, so scenario code runs on the simulation thread at a coherent post-tick state.
+
+### Composing the two
+
+Most verification flows are best as Path D + Path B together:
+1. Path D copies the developer's save, sets the world to a known state (turn off unrelated providers, set Setting on a transformer to a known value).
+2. Path B observes the simulation under that state, dumping the relevant fields to the log on a known tick offset.
+
+Save edit always finishes before `-Start`. Scenario logs always come from after `-Start` plus `Delay Ticks` ticks. Agents should reach for save-edit first (cheap and reversible), then PgpVerifyHelper for the runtime read.
+
 ### Standard test loop (agent owns lifecycle)
 
 1. Acquire the session lock: `DedicatedServer/dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. Note the printed owner id and pass `-As <id>` on every mutating command below. Rules: `session.lock.template`.
-2. Build the mod(s) under test via the developer's MSBuild flow (see `DEV.md`).
-3. `DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod <X>` (or all mods, no `-Mod` flag).
-4. `DedicatedServer/dedicated-server.ps1 -Start -As <id> -New <Map>`, OR ask the developer for a save name and use `-Start -As <id> -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
-5. Wait until the server is ready: poll `DedicatedServer/dedicated-server.ps1 -Logs -Grep 'World loaded'` (or another readiness marker) before asking the developer to join. Timing varies by save size; budget 10-60 s.
-6. Tell the developer: "Server is up at `127.0.0.1:28016`, no password. Join with the regular client via Direct Connect when you are ready." If you then go idle waiting on them, state the reservation window (`-TtlMinutes`) and that a connected player holds the lock open. That is the only manual step.
-7. Run the test. While actively driving it, refresh the lock about once a minute (any mutating command refreshes it; otherwise `-RefreshLock -As <id>`). Drop InspectorPlus request files into `install/BepInEx/inspector/requests/`, read snapshots out of `install/BepInEx/inspector/snapshots/`. Use `-SendCommand -As <id> -Command 'status'` or `-Logs -Grep <pattern>` to check server-side state.
-8. If you resume after a gap, re-check ownership first: `-Status -As <id>`. If another session now holds the lock, stop and tell the user what took it.
-9. To preserve state for a follow-up session: `-Save -As <id> -Name <SaveName>`. Confirmation comes back via the log.
-10. Tear down and release: `-Stop -As <id> -Release` (no save, throws away the run) or `-Stop -As <id> -SaveAs <SaveName> -Release` (saves first, then quits cleanly). Omit `-Release` only if you are keeping the lock for an immediate follow-up.
+2. If a previous run is still alive (`-Status` shows host or server PID up), `-Stop -As <id>` first. Required before any rebuild + redeploy: the Mono runtime holds an exclusive file lock on every loaded plugin DLL, so `-DeployMods` on a running server fails or corrupts the DLL in place. The launcher enforces this check, but the test loop should never hit it.
+3. Build the mod(s) under test via the developer's MSBuild flow (see `DEV.md`).
+4. `DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod <X>` (or all mods, no `-Mod` flag).
+5. `DedicatedServer/dedicated-server.ps1 -Start -As <id> -New <Map>`, OR ask the developer for a save name and use `-Start -As <id> -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
+6. Wait until the server is ready: poll `DedicatedServer/dedicated-server.ps1 -Logs -Grep 'World loaded'` (or another readiness marker) before asking the developer to join. Timing varies by save size; budget 10-60 s.
+7. Tell the developer: "Server is up at `127.0.0.1:28016`, no password. Join with the regular client via Direct Connect when you are ready." If you then go idle waiting on them, state the reservation window (`-TtlMinutes`) and that a connected player holds the lock open. That is the only manual step.
+8. Run the test. While actively driving it, refresh the lock about once a minute (any mutating command refreshes it; otherwise `-RefreshLock -As <id>`). Drop InspectorPlus request files into `install/BepInEx/inspector/requests/`, read snapshots out of `install/BepInEx/inspector/snapshots/`. Use `-SendCommand -As <id> -Command 'status'` or `-Logs -Grep <pattern>` to check server-side state.
+9. If you resume after a gap, re-check ownership first: `-Status -As <id>`. If another session now holds the lock, stop and tell the user what took it.
+10. To preserve state for a follow-up session: `-Save -As <id> -Name <SaveName>`. Confirmation comes back via the log.
+11. Tear down and release: `-Stop -As <id> -Release` (no save, throws away the run) or `-Stop -As <id> -SaveAs <SaveName> -Release` (saves first, then quits cleanly). Omit `-Release` only if you are keeping the lock for an immediate follow-up.
 
 ### Sanity checks before declaring "ready for the developer"
 

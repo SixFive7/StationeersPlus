@@ -1,6 +1,6 @@
 # Power Grid Plus
 
-Reworks the Stationeers power simulation and turns the three cable tiers into three separate transmission voltages.
+Reworks Stationeers wired power: proportional load sharing, three cable tiers as separate transmission voltages, logic-transparent transformer / battery / dish bridges, and deterministic multiplayer cable-network ids.
 
 Work in progress. Not on the Workshop yet. A pure-patch mod: no new craftable devices, no asset bundle. The simulation half is derived from Sukasa's [Re-Volt](https://github.com/sukasa/revolt) (MIT); the three-tier voltage backbone is new. Design notes and the decision log live in `RESEARCH.md`; pending work lives in `TODO.md`.
 

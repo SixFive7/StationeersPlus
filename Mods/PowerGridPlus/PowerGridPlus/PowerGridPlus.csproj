@@ -95,11 +95,13 @@
     <Compile Include="PassthroughModeStore.cs" />
     <Compile Include="PassthroughSideCar.cs" />
     <Compile Include="Ic10ConstantsPatcher.cs" />
+    <Compile Include="StationpediaPatches.cs" />
     <Compile Include="Patches\TransformerPassthroughLogicPatches.cs" />
     <Compile Include="Patches\InheritedLogicablePassthroughLogicPatches.cs" />
     <Compile Include="Patches\PassthroughSaveLoadPatches.cs" />
     <Compile Include="Patches\LogicableInitializePatch.cs" />
     <Compile Include="Patches\EnumNamePatches.cs" />
+    <Compile Include="Patches\EmergencyLightPatches.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

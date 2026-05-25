@@ -41,6 +41,9 @@ namespace PowerGridPlus
         // --- Server - Power Transmitters ---
         internal static ConfigEntry<bool> EnablePowerTransmitterLogicPassthrough;
 
+        // --- Server - Emergency Lights ---
+        internal static ConfigEntry<bool> EnableEmergencyLights;
+
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
         {
             if (requireRestart)
@@ -161,6 +164,17 @@ namespace PowerGridPlus
                      "LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 = transparent, 0 = opaque. " +
                      "Defaults to mode 1 for every transmitter and receiver. Bridging requires the pair to be linked (auto-aim " +
                      "or manual link); an unlinked dish has nothing to bridge to. Per-device mode is persisted across save / load.", 10));
+
+            // --- Server - Emergency Lights ---
+            EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,
+                Desc("(Server-authoritative) When true, Wall Light Battery devices behave as emergency backup lights: the lamp " +
+                     "stays off while the cable grid powers it, and switches on (powered by its internal battery cell) when " +
+                     "grid power is lost. Set a specific light's Mode to 1 to opt that light out (vanilla wall-light " +
+                     "behaviour). When this master is off, Wall Light Batteries behave vanilla regardless of Mode. Equivalent " +
+                     "to alliephante's Battery Backup Light mod, with the per-tick Powered re-assert preserved so the lit " +
+                     "emergency light does not flicker on the host. If the third-party Battery Backup Light mod is also " +
+                     "installed, these patches yield to it (and you keep the flicker); uninstall that mod to switch to the " +
+                     "Power Grid Plus implementation.", 10));
         }
     }
 }

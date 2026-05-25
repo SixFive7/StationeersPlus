@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>PgpVerifyHelper</Name>
+  <ModID>net.pgpverifyhelper</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>Developer tooling. Scenario-driven verification helper for Power Grid Plus and related power mods. Not a player-facing mod; do not ship.</Description>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+    <Tag>tools</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>PgpVerifyHelper</color></size>
+Developer tooling. Not a player-facing mod.]]></InGameDescription>
+</ModMetadata>

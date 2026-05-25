@@ -1,0 +1,199 @@
+// Emergency-light behaviour for Stationeers Wall Light Battery devices.
+//
+// Inspired by the Battery Backup Light mod by alliephante (MIT License, Copyright (c) 2025 alliephante):
+// https://github.com/alliephante/StationeersEmergencyBatteryLight
+//
+// The upstream mod's transpiler removes the vanilla per-tick WallLightBattery.CheckPowerState() call
+// from WallLightBattery.OnPowerTick. On the host that removal turns an otherwise benign two-writer
+// interaction into a visible ~1.5 s on/off flicker on lit emergency lights: every power tick the cable
+// network's tick writes Powered=false on a cable-power-starved device, and the only thing that turns
+// it back on is the reactive Interactable cascade through CheckPowerState, which lands on a different
+// thread/frame phase and beats out of phase with the off-write. The flicker is purely host-side;
+// connected clients have RunSimulation=false and never run OnServer.Interact, so the ping-pong does
+// not surface as a visible flicker on the client.
+//
+// This reimplementation runs as a HarmonyPostfix on WallLightBattery.OnPowerTick, AFTER the vanilla
+// CheckPowerState call. The vanilla per-tick Powered re-assert is preserved, so a cell-powered emergency
+// light stays stably lit while its cable network is dead. The OnOff toggle logic (Mode 0, three-tick
+// shortfall latch, OnServer.Interact(InteractOnOff, ...)) matches the upstream behaviour; the latch is
+// held in an in-memory dictionary keyed by Thing.ReferenceId rather than via extra interactables, since
+// it does not need to persist across saves or sync to clients (the host computes a fresh latch from the
+// live network state within a few ticks of any startup).
+
+using System;
+using System.Collections.Concurrent;
+using System.Linq;
+using Assets.Scripts;
+using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Items;
+using Assets.Scripts.Objects.Structures;
+using HarmonyLib;
+
+// WallLightBattery.WasPoweredByCableLastTick is private (game v0.2.6228.27061); bind once via
+// Harmony's AccessTools so the call sites stay readable.
+
+namespace PowerGridPlus.Patches
+{
+    /// <summary>
+    ///     Shared helpers for the emergency-light patches: the two-tick shortfall latch and the
+    ///     conflict-detection gate that lets a user's existing Battery Backup Light install keep
+    ///     working when both mods are present.
+    /// </summary>
+    internal static class EmergencyLightSupport
+    {
+        // Two-tick shortfall latch keyed by Thing.ReferenceId. Transient; the latch rebuilds itself
+        // from the live network state within three ticks of any startup. Value is
+        // (this-tick-shortfall, last-tick-shortfall), shifted at the end of every tick.
+        internal static readonly ConcurrentDictionary<long, (bool prev, bool prev2)> ShortfallLatch =
+            new ConcurrentDictionary<long, (bool, bool)>();
+
+        // Fast accessor for WallLightBattery.WasPoweredByCableLastTick (private property:
+        // _lastPoweredByCableOnTick >= GameManager.GameTickCount). Bound once at class load.
+        internal static readonly Func<WallLightBattery, bool> WasPoweredByCableLastTick =
+            AccessTools.MethodDelegate<Func<WallLightBattery, bool>>(
+                AccessTools.PropertyGetter(typeof(WallLightBattery), "WasPoweredByCableLastTick"));
+
+        // Type name of the third-party Battery Backup Light mod's plugin class. We scan the
+        // AppDomain for this type rather than querying BepInEx Chainloader.PluginInfos, because
+        // StationeersLaunchPad-loaded mods are not registered with BepInEx Chainloader at all,
+        // so the PluginInfos dictionary does not contain them. Verified empirically on game
+        // v0.2.6228.27061: SLP loads Workshop_*/Local_* mods through its own mechanism and only
+        // BepInEx-bootstrap-loaded plugins (StationeersLaunchPad itself, NetworkBufferFix,
+        // InspectorPlus, Power Grid Plus) show up in PluginInfos.
+        internal const string UpstreamPluginTypeName = "BatteryLight.Scripts.BatteryLightPlugin";
+
+        private static bool _upstreamCheckDone;
+        private static bool _upstreamLoaded;
+
+        // Returns true when the third-party Battery Backup Light mod is NOT loaded, i.e. when it is
+        // safe for our patches to drive the emergency-light behaviour. Cached after first call.
+        internal static bool UpstreamMissing()
+        {
+            if (_upstreamCheckDone) return !_upstreamLoaded;
+
+            try
+            {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    try
+                    {
+                        if (asm.GetType(UpstreamPluginTypeName, throwOnError: false) != null)
+                        {
+                            _upstreamLoaded = true;
+                            break;
+                        }
+                    }
+                    catch { /* unreflectable assembly, skip */ }
+                }
+            }
+            catch { _upstreamLoaded = false; }
+            _upstreamCheckDone = true;
+
+            if (_upstreamLoaded)
+            {
+                Plugin.Log.LogInfo(
+                    "Battery Backup Light (third-party, " + UpstreamPluginTypeName + ") detected; " +
+                    "Power Grid Plus emergency-light patches are inactive. Uninstall that mod to switch " +
+                    "to the Power Grid Plus flicker-free implementation.");
+            }
+            return !_upstreamLoaded;
+        }
+    }
+
+    /// <summary>
+    ///     Adds a Mode interactable to the StructureWallLightBattery source prefab so a player can opt
+    ///     individual lights out of emergency-light behaviour (Mode 0 = emergency backup, Mode 1 = plain
+    ///     wall light that may also draw from its internal cell). Idempotent: skipped when the prefab
+    ///     already has a Mode interactable, which covers the migration case from a save that was
+    ///     previously running the third-party Battery Backup Light mod.
+    /// </summary>
+    [HarmonyPatch(typeof(Prefab), "LoadAll")]
+    public static class WallLightBatteryPrefabPatch
+    {
+        [HarmonyPrefix]
+        public static void AddModeInteractable()
+        {
+            if (!Settings.EnableEmergencyLights.Value) return;
+            if (!EmergencyLightSupport.UpstreamMissing()) return;
+
+            try
+            {
+                Thing prefab = null;
+                foreach (var thing in WorldManager.Instance.SourcePrefabs)
+                {
+                    if (thing != null && thing.PrefabName == "StructureWallLightBattery")
+                    {
+                        prefab = thing;
+                        break;
+                    }
+                }
+                if (prefab == null)
+                {
+                    Plugin.Log.LogWarning("StructureWallLightBattery prefab not found; emergency-light Mode interactable not added.");
+                    return;
+                }
+
+                if (prefab.Interactables.Any(i => i != null && i.Action == InteractableType.Mode))
+                    return;
+
+                var mode = new Interactable
+                {
+                    Action = InteractableType.Mode,
+                    ActionName = "Mode",
+                    JoinInProgressSync = true,
+                    Parent = prefab,
+                };
+                prefab.Interactables.Add(mode);
+                Plugin.Log.LogInfo("Added Mode interactable to StructureWallLightBattery for emergency-light behaviour.");
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError("Failed to add Mode interactable to StructureWallLightBattery: " + e);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Per-tick emergency-light toggle. Runs as a postfix after vanilla WallLightBattery.OnPowerTick
+    ///     so the vanilla CheckPowerState re-assert is preserved and a cell-powered emergency light
+    ///     stays stably lit. The Mode 0 / shortfall-latch / OnServer.Interact(InteractOnOff,...) logic
+    ///     matches the upstream Battery Backup Light behaviour, minus the flicker.
+    /// </summary>
+    [HarmonyPatch(typeof(WallLightBattery), "OnPowerTick")]
+    public static class WallLightBatteryEmergencyTickPatch
+    {
+        [HarmonyPostfix]
+        public static void EmergencyToggleOnOff(WallLightBattery __instance)
+        {
+            if (!Settings.EnableEmergencyLights.Value) return;
+            if (!EmergencyLightSupport.UpstreamMissing()) return;
+            if (__instance == null || __instance.Mode != 0) return;
+            if (!__instance.BatterySlot.Contains<BatteryCell>(out _)) return;
+
+            var refId = ((Thing)__instance).ReferenceId;
+            EmergencyLightSupport.ShortfallLatch.TryGetValue(refId, out var stored);
+            bool prevShortfall = stored.prev;
+            bool prevPrevShortfall = stored.prev2;
+
+            bool hasCable = __instance.PowerCableNetwork != null;
+            bool shortfall = hasCable && __instance.PowerCableNetwork.RequiredLoad > __instance.PowerCableNetwork.PotentialLoad;
+            bool gridFeedingNow = EmergencyLightSupport.WasPoweredByCableLastTick(__instance);
+
+            if (__instance.OnOff && gridFeedingNow && hasCable && !shortfall && !prevShortfall && !prevPrevShortfall)
+            {
+                // Grid is feeding the light and has been short-free for three consecutive ticks. Park
+                // the backup light off; vanilla power flow charges its internal cell.
+                OnServer.Interact(__instance.InteractOnOff, 0, true);
+            }
+            else if (!__instance.OnOff && !gridFeedingNow && (shortfall || prevShortfall || prevPrevShortfall || !hasCable))
+            {
+                // Cable stopped feeding the light AND the network is short (now or in the last two
+                // ticks) or the cable is gone entirely. Turn the backup light on; the cell powers
+                // the lamp until grid comes back or the cell empties.
+                OnServer.Interact(__instance.InteractOnOff, 1, true);
+            }
+
+            EmergencyLightSupport.ShortfallLatch[refId] = (shortfall, prevShortfall);
+        }
+    }
+}

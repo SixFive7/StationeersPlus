@@ -502,16 +502,29 @@ function Invoke-DeployMods {
     if (-not (Test-Path $ServerExe)) {
         throw "Server not bootstrapped. Run -Bootstrap first."
     }
-    $modsRoot = Join-Path $RepoRoot 'Mods'
+    $existingServer = Get-PidFromFile $ServerPidFile
+    $existingHost   = Get-PidFromFile $HostPidFile
+    if ((Test-PidAlive $existingServer) -or (Test-PidAlive $existingHost)) {
+        throw "Server is running (host PID $existingHost, server PID $existingServer). The Mono runtime holds an exclusive lock on every loaded plugin DLL on Windows; -DeployMods will fail with a sharing violation, or worse, leave a half-written DLL the next -Start picks up as broken plugin bytes. Run -Stop first."
+    }
+    $modsRoot  = Join-Path $RepoRoot 'Mods'
+    $plansRoot = Join-Path $RepoRoot 'Plans'
     if (-not (Test-Path $modsRoot)) {
         throw "Mods/ directory not found at repo root."
     }
 
     if ($Mod) {
-        $targets = @(Join-Path $modsRoot $Mod)
-        if (-not (Test-Path $targets[0])) {
-            throw "Mod folder not found: $($targets[0])"
+        # Explicit -Mod: accept either Mods/<name>/ or Plans/<name>/. Mods/ wins
+        # on a tie. Plans/ entries are work-in-progress dev tooling (e.g.
+        # PgpVerifyHelper); they are not auto-deployed when -Mod is omitted.
+        $candidate = Join-Path $modsRoot $Mod
+        if (-not (Test-Path $candidate)) {
+            $candidate = Join-Path $plansRoot $Mod
         }
+        if (-not (Test-Path $candidate)) {
+            throw "Mod folder not found under Mods/$Mod or Plans/$Mod."
+        }
+        $targets = @($candidate)
     }
     else {
         $targets = Get-ChildItem -Directory -Path $modsRoot |
@@ -984,6 +997,11 @@ function Invoke-SyncMods {
     Assert-MutatingAllowed -Action 'SyncMods'
     if (-not (Test-Path $ServerExe)) {
         throw "Server not bootstrapped. Run -Bootstrap first."
+    }
+    $existingServer = Get-PidFromFile $ServerPidFile
+    $existingHost   = Get-PidFromFile $HostPidFile
+    if ((Test-PidAlive $existingServer) -or (Test-PidAlive $existingHost)) {
+        throw "Server is running (host PID $existingHost, server PID $existingServer). StationeersLaunchPad has the synced mod files open for class scanning; overwriting them while loaded will fail with a sharing violation or leave a half-written tree. Run -Stop first."
     }
     if (-not $FromModConfig) {
         $FromModConfig = Join-Path $env:USERPROFILE "Documents\My Games\Stationeers\modconfig.xml"

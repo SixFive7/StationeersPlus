@@ -1,8 +1,8 @@
 ﻿# dedi-lock-hook.ps1
 # Fires PreToolUse when a command invokes dedicated-server.ps1, or when any
-# command or file edit touches the DedicatedServer/ tree (notably data/saves/).
-# Injects the session-lock reminder and points at the single source of truth,
-# DedicatedServer/session.lock.template.
+# command or file Read/Edit/Write touches the DedicatedServer/ tree. Injects the
+# session-lock reminder + the stop-before-deploy rule, and points at the single
+# sources of truth (DedicatedServer/session.lock.template, DedicatedServer/CLAUDE.md).
 #
 # Does NOT block. Reminder only (additionalContext, no permissionDecision), so
 # the normal permission flow for the underlying command is unchanged.
@@ -14,7 +14,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $message = @'
-[Dedicated-server session-lock reminder] The dedicated server is a shared single-instance resource. Before any mutating command (-Bootstrap, -DeployMods, -SyncMods, -Start, -Save, -SendCommand, -Stop) you must hold the session lock: acquire once with `dedicated-server.ps1 -Lock -Purpose "<reason>"`, then pass `-As <id>` on every mutating command. Direct edits under DedicatedServer/data/saves/ also belong to whoever holds the lock; do not clobber another session's save. The lock expires on a timer (refresh about once a minute while actively testing; never poll-refresh just to hold it for an absent human, and never spawn a background refresher). A connected player keeps it live, and you must re-check ownership with `-Status -As <id>` after any idle gap. Breaking another session's live lock with -Force is human-gated: only on the user's explicit say-so. Full rules: DedicatedServer/session.lock.template.
+[Dedicated-server session-lock reminder] The dedicated server is a shared single-instance resource. Before any mutating command (-Bootstrap, -DeployMods, -SyncMods, -Start, -Save, -SendCommand, -Stop) you must hold the session lock: acquire once with `dedicated-server.ps1 -Lock -Purpose "<reason>"`, then pass `-As <id>` on every mutating command. Direct edits under DedicatedServer/data/saves/ also belong to whoever holds the lock; do not clobber another session's save. The lock expires on a timer (refresh about once a minute while actively testing; never poll-refresh just to hold it for an absent human, and never spawn a background refresher). A connected player keeps it live, and you must re-check ownership with `-Status -As <id>` after any idle gap. Breaking another session's live lock with -Force is human-gated: only on the user's explicit say-so. -Stop the server before any -DeployMods or -SyncMods: Windows holds an exclusive file lock on loaded plugin DLLs, so deploying onto a running server either fails or leaves a half-written DLL the next -Start picks up as broken plugin bytes (the launcher enforces this check too). Full rules: DedicatedServer/session.lock.template + DedicatedServer/CLAUDE.md.
 '@
 
 $payload = @{

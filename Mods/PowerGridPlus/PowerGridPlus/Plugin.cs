@@ -34,6 +34,15 @@ namespace PowerGridPlus
         private void OnPrefabsLoaded()
         {
             Prefab.OnPrefabsLoaded -= OnPrefabsLoaded;
+
+            if (TryFindIncompatibleMod(out var modName))
+            {
+                Log.LogFatal($"{PluginName} refuses to load: incompatible mod '{modName}' is also loaded. " +
+                             "Both mods rewrite or extend the same vanilla power-tick / cable-type surface and would " +
+                             "silently fight or guess. Disable one of them. No patches applied.");
+                return;
+            }
+
             try
             {
                 MOD.Networking.Required = true;
@@ -50,6 +59,37 @@ namespace PowerGridPlus
             {
                 Log.LogFatal($"{PluginName} failed to apply patches: {e}");
             }
+        }
+
+        /// <summary>
+        ///     Detects mods whose patch surface overlaps Power Grid Plus and would silently fight or guess.
+        ///     Matches by loaded-assembly name because StationeersMods-loaded mods do not show up in
+        ///     <c>BepInEx.Bootstrap.Chainloader.PluginInfos</c> (Re-Volt loads through StationeersMods, not
+        ///     BepInEx directly).
+        /// </summary>
+        private static bool TryFindIncompatibleMod(out string modName)
+        {
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                var n = assemblies[i].GetName().Name;
+                // Re-Volt (Sukasa) ships its plugin assembly as "ReVolt.dll" with namespace "ReVolt".
+                if (string.Equals(n, "ReVolt", StringComparison.OrdinalIgnoreCase))
+                {
+                    modName = "Re-Volt";
+                    return true;
+                }
+                // MoreCables (spacebuilder2020) is not subscribed locally; match the most likely
+                // assembly-name variants without overreaching.
+                if (string.Equals(n, "MoreCables", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(n, "MoreCablesMod", StringComparison.OrdinalIgnoreCase))
+                {
+                    modName = "MoreCables";
+                    return true;
+                }
+            }
+            modName = null;
+            return false;
         }
     }
 }

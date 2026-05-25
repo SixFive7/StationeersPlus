@@ -68,7 +68,7 @@
         ]
       },
       {
-        "matcher": "Bash|PowerShell|Edit|Write",
+        "matcher": "Read|Bash|PowerShell|Edit|Write",
         "hooks": [
           {
             "type": "command",
@@ -78,6 +78,11 @@
           {
             "type": "command",
             "if": "PowerShell(*DedicatedServer*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*DedicatedServer*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/dedi-lock-hook.ps1"
           },
           {
