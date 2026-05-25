@@ -8,21 +8,31 @@ using Assets.Scripts.Objects.Electrical;
 using BepInEx.Logging;
 using UnityEngine;
 
-namespace PgpVerifyHelper
+namespace RuntimeProbe
 {
     /// <summary>
-    ///     Drives scenarios from the simulation tick. State is global; one instance per server run.
-    ///     Pumped from <see cref="ElectricityTickHook"/>.
+    ///     Drives scenarios from the simulation tick. State is global; one instance per
+    ///     server run. Pumped from <see cref="SimTickPump"/>.
+    ///
+    ///     Two kinds of scenarios:
+    ///       - General: work against vanilla types without depending on any specific mod.
+    ///         The framework just reads / iterates them. Examples: 'inventory',
+    ///         'battery-charge-snapshot'.
+    ///       - Mod-specific: exercise patched code paths on a specific mod (PowerGridPlus
+    ///         today). Prefix with the mod tag (e.g. 'pgp-' for PowerGridPlus) so it's
+    ///         clear which mod must be loaded. If the mod is absent, the scenario logs a
+    ///         warning and no-ops.
     ///
     ///     Adding a new scenario:
     ///       1. Add a case to <see cref="Tick"/> matching the scenario id.
-    ///       2. Document the id in <c>Plans/PgpVerifyHelper/README.md</c>.
+    ///       2. Add a Scenario_* method.
+    ///       3. Document the id in <c>README.md</c>.
     ///
-    ///     Anything that mutates world state (turning devices on or off, setting a transformer
-    ///     `Setting`, writing logic values) belongs in a scenario method here. Anything that only
-    ///     reads state should also live here so the output is a single, traceable log line per
-    ///     scenario tick: a snapshot taken at a known offset from a scenario action is far easier
-    ///     to interpret than a snapshot taken at an unknown moment.
+    ///     For mod-specific scenarios, gate on
+    ///     <see cref="IsAssemblyLoaded"/>(assemblyName) and log + return if the mod is
+    ///     absent. Use reflection (no build-time dependency) to reach the mod's
+    ///     internals; <see cref="GetModType"/> / <see cref="GetModInstanceField"/> are
+    ///     starting points.
     /// </summary>
     internal static class ScenarioRunner
     {
@@ -31,6 +41,7 @@ namespace PgpVerifyHelper
         private static int _delayTicks;
         private static bool _logInventoryOnFirstTick;
         private static long _ticksSeen;
+        private static int _lastTickFrame = -1;
         private static bool _firstTickFired;
 
         public static void Initialize(ManualLogSource log, string scenario, int delayTicks, bool logInventoryOnFirstTick)
@@ -40,11 +51,25 @@ namespace PgpVerifyHelper
             _delayTicks = Mathf.Max(0, delayTicks);
             _logInventoryOnFirstTick = logInventoryOnFirstTick;
             _ticksSeen = 0;
+            _lastTickFrame = -1;
             _firstTickFired = false;
+            _batteries.Clear();
+            _transformers.Clear();
+            _apcs.Clear();
+            _fuses.Clear();
         }
 
-        public static void OnElectricityTick()
+        /// <summary>
+        ///     Called from every pumping hook (see <see cref="SimTickPump"/>).
+        ///     Deduplicates by <see cref="Time.frameCount"/> so multiple hooks
+        ///     converge to one scenario tick per simulation frame.
+        /// </summary>
+        public static void OnSimTick()
         {
+            int frame = Time.frameCount;
+            if (frame == _lastTickFrame) return;
+            _lastTickFrame = frame;
+
             _ticksSeen++;
             if (_ticksSeen < _delayTicks) return;
 
@@ -61,7 +86,7 @@ namespace PgpVerifyHelper
             }
             catch (Exception e)
             {
-                _log?.LogError($"[PgpVerifyHelper] scenario '{_scenario}' tick threw: {e}");
+                _log?.LogError($"[RuntimeProbe] scenario '{_scenario}' tick threw: {e}");
             }
         }
 
@@ -79,38 +104,41 @@ namespace PgpVerifyHelper
                     Scenario_BatteryChargeSnapshot();
                     return;
 
-                case "transformer-conservation":
-                    Scenario_TransformerConservation();
+                case "pgp-transformer-conservation":
+                    Scenario_PgpTransformerConservation();
                     return;
 
-                case "battery-efficiency-probe":
-                    Scenario_BatteryEfficiencyProbe();
+                case "pgp-battery-efficiency-probe":
+                    Scenario_PgpBatteryEfficiencyProbe();
                     return;
 
-                case "apc-idle-probe":
-                    Scenario_ApcIdleProbe();
+                case "pgp-apc-idle-probe":
+                    Scenario_PgpApcIdleProbe();
                     return;
 
-                case "cable-burn-probe":
-                    Scenario_CableBurnProbe();
+                case "pgp-cable-burn-probe":
+                    Scenario_PgpCableBurnProbe();
                     return;
 
                 default:
                     if (_ticksSeen == _delayTicks)
-                        _log?.LogWarning($"[PgpVerifyHelper] unknown scenario '{_scenario}'; doing nothing.");
+                        _log?.LogWarning($"[RuntimeProbe] unknown scenario '{_scenario}'; doing nothing.");
                     return;
             }
         }
 
-        // ---- Scenario: inventory ----
-
-        // Cached snapshots of Things gathered via Thing.AllThings. We avoid
-        // UnityEngine.Object.FindObjectsOfType from the ElectricityTick postfix
+        // ---- General: cached per-type Thing lists ----
+        //
+        // Battery / Transformer / AreaPowerControl / CableFuse caches gathered via
+        // OcclusionManager.AllThings (a ConcurrentDensePool<Thing>). We avoid
+        // UnityEngine.Object.FindObjectsOfType<T> from the simulation-tick worker
         // because that hook runs on a UniTask ThreadPool worker (see
-        // Cysharp.Threading.Tasks.SwitchToThreadPoolAwaitable in the call stack)
-        // and FindObjectsOfType is Unity-main-thread-only; calling it off-thread
-        // crashes the engine native side intermittently. Thing.AllThings is a
-        // ConcurrentDensePool<Thing> and is safe to iterate from a worker.
+        // Cysharp.Threading.Tasks.SwitchToThreadPoolAwaitable in the call stack of
+        // GameManager.GameTick) and FindObjectsOfType is Unity-main-thread-only;
+        // calling it off-thread crashes the engine native side intermittently.
+        // OcclusionManager.AllThings is safe to iterate from any thread.
+        // See Research/Patterns/ThingEnumerationOffMainThread.md.
+
         private static readonly List<Battery> _batteries = new List<Battery>();
         private static readonly List<Transformer> _transformers = new List<Transformer>();
         private static readonly List<AreaPowerControl> _apcs = new List<AreaPowerControl>();
@@ -122,9 +150,6 @@ namespace PgpVerifyHelper
             _transformers.Clear();
             _apcs.Clear();
             _fuses.Clear();
-            // OcclusionManager.AllThings is a ConcurrentDensePool<Thing> at decompile line
-            // 199822; safe to iterate from a UniTask ThreadPool worker (unlike
-            // UnityEngine.Object.FindObjectsOfType).
             OcclusionManager.AllThings.ForEach(t =>
             {
                 if (t == null) return;
@@ -135,30 +160,33 @@ namespace PgpVerifyHelper
             });
         }
 
+        // ---- General scenario: inventory ----
+
         private static void LogInventory()
         {
             RebuildCaches();
             var cableNetCount = CableNetwork.AllCableNetworks.ActiveCount;
 
             _log?.LogInfo(
-                $"[PgpVerifyHelper] inventory @ tick {_ticksSeen}: " +
+                $"[RuntimeProbe] inventory @ tick {_ticksSeen}: " +
                 $"Battery={_batteries.Count}, Transformer={_transformers.Count}, " +
                 $"AreaPowerControl={_apcs.Count}, CableNetwork={cableNetCount}, " +
                 $"CableFuse={_fuses.Count}");
 
-            // Per-tier breakdown of batteries (useful when MorePowerMod nuclear cells are present).
+            // Per-concrete-type breakdown of batteries (useful when subclasses are loaded,
+            // e.g. MorePowerMod's StationBatteryNuclear).
             var byType = _batteries.GroupBy(b => b.GetType().Name).OrderByDescending(g => g.Count());
             foreach (var g in byType)
             {
-                _log?.LogInfo($"[PgpVerifyHelper]   {g.Key}: {g.Count()}");
+                _log?.LogInfo($"[RuntimeProbe]   {g.Key}: {g.Count()}");
             }
         }
 
-        // ---- Scenario: battery-charge-snapshot ----
+        // ---- General scenario: battery-charge-snapshot ----
         //
-        // Logs PowerStored / PowerMaximum / Mode for every Battery, once per tick.
-        // Used to compute charge-rate or efficiency deltas over a window. The agent
-        // greps the server log for these lines and computes the delta offline.
+        // Every BCS_LOG_EVERY_TICKS ticks, log PowerStored / PowerMaximum / OnOff / Mode
+        // for every Battery. Useful for any rate / efficiency delta diff over a window.
+        // Works without PowerGridPlus.
 
         private static int _bcsLastLogTick = int.MinValue;
         private const int BCS_LOG_EVERY_TICKS = 5;
@@ -173,22 +201,48 @@ namespace PgpVerifyHelper
             {
                 if (b == null) continue;
                 _log?.LogInfo(
-                    $"[PgpVerifyHelper] BCS tick={_ticksSeen} ref={b.ReferenceId} " +
+                    $"[RuntimeProbe] BCS tick={_ticksSeen} ref={b.ReferenceId} " +
                     $"prefab={b.PrefabName} OnOff={b.OnOff} Mode={b.Mode} " +
                     $"PowerStored={b.PowerStored:F2} PowerMaximum={b.PowerMaximum:F2}");
             }
         }
 
-        // ---- Scenario: transformer-conservation ----
+        // ---- Reflection helpers for mod-specific scenarios ----
+
+        private static System.Reflection.Assembly GetModAssembly(string assemblyName)
+        {
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(a => a.GetName().Name == assemblyName);
+        }
+
+        private static bool RequireModAssembly(string assemblyName, string scenarioId)
+        {
+            if (GetModAssembly(assemblyName) != null) return true;
+            if (_ticksSeen == _delayTicks)
+                _log?.LogWarning($"[RuntimeProbe] scenario '{scenarioId}' requires mod assembly '{assemblyName}' to be loaded; skipping.");
+            return false;
+        }
+
+        // ---- PowerGridPlus-specific scenarios ----
         //
-        // For every transformer, log Setting / _powerProvided / UsedPower plus the
-        // InputNetwork.CurrentLoad and OutputNetwork.CurrentLoad at the same moment so
-        // an agent can verify input draw equals output throughput + UsedPower.
+        // These require the 'PowerGridPlus' assembly to be loaded. They reach into PGP
+        // via reflection (no build-time dependency) so this plugin stays independent.
+
+        private const string PGP_ASSEMBLY = "PowerGridPlus";
+
+        // PGP scenario: transformer-conservation.
+        // For every Transformer, log Setting / UsedPower / InputNetwork.CurrentLoad /
+        // OutputNetwork.CurrentLoad so an agent can verify
+        //   InputNetwork.CurrentLoad ~= OutputNetwork.CurrentLoad + UsedPower.
+        // The four fields read here are vanilla; PGP's exploit-mitigation patch
+        // affects the values, not the field set. Strictly speaking this scenario does
+        // not depend on PGP being loaded -- but it is specifically aimed at verifying
+        // PGP's TransformerExploitPatches behaviour, so we tag it pgp-.
 
         private static int _tcLastLogTick = int.MinValue;
         private const int TC_LOG_EVERY_TICKS = 5;
 
-        private static void Scenario_TransformerConservation()
+        private static void Scenario_PgpTransformerConservation()
         {
             if (_ticksSeen - _tcLastLogTick < TC_LOG_EVERY_TICKS) return;
             _tcLastLogTick = (int)_ticksSeen;
@@ -200,31 +254,29 @@ namespace PgpVerifyHelper
                 var inLoad = t.InputNetwork != null ? t.InputNetwork.CurrentLoad : float.NaN;
                 var outLoad = t.OutputNetwork != null ? t.OutputNetwork.CurrentLoad : float.NaN;
                 _log?.LogInfo(
-                    $"[PgpVerifyHelper] TC tick={_ticksSeen} ref={t.ReferenceId} " +
+                    $"[RuntimeProbe] TC tick={_ticksSeen} ref={t.ReferenceId} " +
                     $"prefab={t.PrefabName} OnOff={t.OnOff} Setting={t.Setting} " +
                     $"UsedPower={t.UsedPower} InCurrentLoad={inLoad} OutCurrentLoad={outLoad}");
             }
         }
 
-        // ---- Scenario: battery-efficiency-probe ----
-        //
-        // Directly exercises PowerGridPlus's `Battery.ReceivePower` prefix patch
-        // (StationaryBatteryPatches.ChargeEfficiencyControl). The patch math is:
+        // PGP scenario: battery-efficiency-probe.
+        // One-shot. Directly invokes Battery.ReceivePower(InputNetwork, powerAdded)
+        // against the first OnOff Battery with headroom, logs PowerStored before /
+        // after each call. Used to verify PGP's
+        //   StationaryBatteryPatches.ChargeEfficiencyControl
+        // math:
         //   charged = BatteryChargeEfficiency * powerAdded
-        //   if (charged < 500) charged = powerAdded   // sub-500 W trickle floor
+        //   if (charged < 500) charged = powerAdded     // sub-500 W trickle floor
         //   PowerStored += charged (clamped)
-        // The probe fires the first scenario tick only, against the first OnOff
-        // Battery in the scene. It calls ReceivePower with TWO well-chosen powerAdded
-        // values and logs PowerStored before/after each, so an agent can diff against
-        // the expected delta for the configured BatteryChargeEfficiency.
-        //
-        // Run twice across two -Start cycles, once with BatteryChargeEfficiency=1.0
-        // and once with 0.5; the two log lines compared show the patch is firing.
+        // Run twice across two server starts, once at BatteryChargeEfficiency = 1.0
+        // and once at 0.5; the two log lines compared confirm the math.
 
         private static bool _bepProbeFired;
 
-        private static void Scenario_BatteryEfficiencyProbe()
+        private static void Scenario_PgpBatteryEfficiencyProbe()
         {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-battery-efficiency-probe")) return;
             if (_bepProbeFired) return;
             _bepProbeFired = true;
 
@@ -232,54 +284,45 @@ namespace PgpVerifyHelper
             Battery target = null;
             foreach (var b in _batteries)
             {
-                if (b != null && b.OnOff && b.InputNetwork != null)
+                if (b != null && b.OnOff && b.InputNetwork != null && b.PowerStored + 5000f <= b.PowerMaximum)
                 {
-                    // Prefer one with headroom so the clamp at PowerMaximum does not eat the delta.
-                    if (b.PowerStored + 5000f <= b.PowerMaximum)
-                    {
-                        target = b;
-                        break;
-                    }
+                    target = b;
+                    break;
                 }
             }
             if (target == null)
             {
-                _log?.LogWarning("[PgpVerifyHelper] efficiency-probe: no OnOff Battery with headroom + InputNetwork; nothing to probe.");
+                _log?.LogWarning("[RuntimeProbe] pgp-battery-efficiency-probe: no OnOff Battery with headroom + InputNetwork; nothing to probe.");
                 return;
             }
 
             _log?.LogInfo(
-                $"[PgpVerifyHelper] efficiency-probe target: ref={target.ReferenceId} prefab={target.PrefabName} " +
+                $"[RuntimeProbe] BEP target: ref={target.ReferenceId} prefab={target.PrefabName} " +
                 $"PowerStored={target.PowerStored:F2} PowerMaximum={target.PowerMaximum:F2} " +
-                $"BatteryChargeEfficiency_setting={Settings_BatteryChargeEfficiency()}");
+                $"BatteryChargeEfficiency_setting={PgpBatteryChargeEfficiency()}");
 
-            // Probe A: large powerAdded (5000 W) above the 500 W trickle floor.
-            //   Expected at eff=1.0: delta = 5000.
-            //   Expected at eff=0.5: delta = 2500.
+            // Probe A: large powerAdded above the 500 W trickle floor.
+            //   Expected at eff=1.0: delta = 5000.  At eff=0.5: delta = 2500.
             var beforeA = target.PowerStored;
             target.ReceivePower(target.InputNetwork, 5000f);
             var afterA = target.PowerStored;
             _log?.LogInfo(
-                $"[PgpVerifyHelper] efficiency-probe A: powerAdded=5000 before={beforeA:F2} after={afterA:F2} delta={afterA - beforeA:F2}");
+                $"[RuntimeProbe] BEP A: powerAdded=5000 before={beforeA:F2} after={afterA:F2} delta={afterA - beforeA:F2}");
 
-            // Probe B: small powerAdded (200 W) BELOW the 500 W trickle floor.
+            // Probe B: small powerAdded below the 500 W trickle floor.
             //   Expected at any eff: delta = 200 (trickle floor: charged = powerAdded).
             var beforeB = target.PowerStored;
             target.ReceivePower(target.InputNetwork, 200f);
             var afterB = target.PowerStored;
             _log?.LogInfo(
-                $"[PgpVerifyHelper] efficiency-probe B: powerAdded=200  before={beforeB:F2} after={afterB:F2} delta={afterB - beforeB:F2}");
+                $"[RuntimeProbe] BEP B: powerAdded=200  before={beforeB:F2} after={afterB:F2} delta={afterB - beforeB:F2}");
         }
 
-        // The probe needs to read PowerGridPlus's `BatteryChargeEfficiency` value to
-        // print it in the log line. Reach for it via reflection so PgpVerifyHelper
-        // does not need a build-time dependency on PowerGridPlus.
-        private static double Settings_BatteryChargeEfficiency()
+        private static double PgpBatteryChargeEfficiency()
         {
             try
             {
-                var asm = System.AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(a => a.GetName().Name == "PowerGridPlus");
+                var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) return double.NaN;
                 var settingsType = asm.GetType("PowerGridPlus.Settings");
                 if (settingsType == null) return double.NaN;
@@ -294,24 +337,18 @@ namespace PgpVerifyHelper
             catch { return double.NaN; }
         }
 
-        // ---- Scenario: apc-idle-probe ----
-        //
-        // Logs each AreaPowerControl's attached `Battery.PowerStored` (PGP's APC
-        // power-leak fix protects this on idle output networks) every 5 ticks across
-        // the whole run. Run for ~60 seconds (12 snapshots per APC). Diff the first
-        // and last value for every APC; if PGP's `AreaPowerControlPatches` is doing
-        // its job, an APC with no downstream draw should NOT decrease its battery.
-        //
-        // The Luna save has 16 APCs; some are upstream-of-load, some are isolated.
-        // Filter the log output to APCs whose `_powerProvided` was zero on the
-        // first tick (no downstream draw observed) and check that THEIR
-        // Battery.PowerStored stayed constant across the snapshot window.
+        // PGP scenario: apc-idle-probe.
+        // Logs each AreaPowerControl's attached Battery.PowerStored every 5 ticks.
+        // PGP's AreaPowerControlPatches stops APCs leaking battery when nothing is
+        // downstream. Diff first vs last across the window; idle APCs should hold
+        // constant.
 
         private static int _apcLastLogTick = int.MinValue;
         private const int APC_LOG_EVERY_TICKS = 5;
 
-        private static void Scenario_ApcIdleProbe()
+        private static void Scenario_PgpApcIdleProbe()
         {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-apc-idle-probe")) return;
             if (_ticksSeen - _apcLastLogTick < APC_LOG_EVERY_TICKS) return;
             _apcLastLogTick = (int)_ticksSeen;
 
@@ -323,36 +360,30 @@ namespace PgpVerifyHelper
                 var stored = bat != null ? bat.PowerStored : float.NaN;
                 var pmax = bat != null ? bat.PowerMaximum : float.NaN;
                 _log?.LogInfo(
-                    $"[PgpVerifyHelper] APC tick={_ticksSeen} ref={a.ReferenceId} " +
+                    $"[RuntimeProbe] APC tick={_ticksSeen} ref={a.ReferenceId} " +
                     $"prefab={a.PrefabName} OnOff={a.OnOff} UsedPower={a.UsedPower} " +
                     $"BatteryStored={stored:F2} BatteryMax={pmax:F2}");
             }
         }
 
-        // ---- Scenario: cable-burn-probe ----
-        //
-        // The vanilla and PGP cable burn checks both gate on `powerUsed > MaxVoltage`.
-        // To verify that PGP burns a normal cable when its network actually does
-        // sustained >5 kW throughput, we need a CableNetwork whose RequiredLoad and
-        // PotentialLoad both exceed 5000 W on a normal-cable spur. Luna does not
-        // naturally have one (its normal-cable networks all idle <500 W).
-        //
-        // This scenario logs every CableNetwork's RequiredLoad / CurrentLoad /
-        // PotentialLoad once at first tick + at second probe (every 25 ticks
-        // thereafter), with the weakest cable's MaxVoltage. Use it to confirm or
-        // refute "any network on this save sees >5 kW sustained": if none does,
-        // the cable-burn sub-check is fundamentally blocked on scene construction
-        // and the appropriate next step is to build a dedicated minimal save.
+        // PGP scenario: cable-burn-probe.
+        // Two parts. Periodic: list every CableNetwork with Required or Current > 5 kW
+        // (where normal cables would naturally burn). One-shot at tick (Delay+25):
+        // reflect-invoke PowerGridPlus.Power.PowerGridTick.TestBurnCable(10000,10000)
+        // against every network's PowerTick and tally would-burn counts by tier.
+        // Verifies PGP's burn-decision formula plus the NEW-1 super-heavy carve-out
+        // without needing a real overload.
 
         private static int _cbpLastLogTick = int.MinValue;
         private const int CBP_LOG_EVERY_TICKS = 25;
+        private static bool _cbpReflectionFired;
 
-        private static void Scenario_CableBurnProbe()
+        private static void Scenario_PgpCableBurnProbe()
         {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-cable-burn-probe")) return;
             if (_ticksSeen - _cbpLastLogTick < CBP_LOG_EVERY_TICKS) return;
             _cbpLastLogTick = (int)_ticksSeen;
 
-            // Pass 1: observe what's actually loaded.
             int overloaded = 0;
             CableNetwork.AllCableNetworks.ForEach(n =>
             {
@@ -363,35 +394,30 @@ namespace PgpVerifyHelper
                 {
                     overloaded++;
                     _log?.LogInfo(
-                        $"[PgpVerifyHelper] CBP tick={_ticksSeen} netRef={n.ReferenceId} " +
+                        $"[RuntimeProbe] CBP tick={_ticksSeen} netRef={n.ReferenceId} " +
                         $"Required={req:F2} Current={cur:F2} Potential={n.PotentialLoad:F2}");
                 }
             });
-            _log?.LogInfo($"[PgpVerifyHelper] CBP tick={_ticksSeen} summary: {overloaded} networks at >5kW (Required or Current)");
+            _log?.LogInfo($"[RuntimeProbe] CBP tick={_ticksSeen} summary: {overloaded} networks at >5kW (Required or Current)");
 
-            // Pass 2: directly exercise PowerGridTick.TestBurnCable via reflection with a
-            // synthetic powerUsed=10000 (2x the normal-cable MaxVoltage of 5000 W) so the
-            // burn-decision formula returns a Cable IFF a normal-cable network exists. This
-            // does not actually burn anything (we discard the returned Cable; Break() is not
-            // called). It verifies the burn-decision math in isolation from the natural
-            // simulation, since Luna's networks all idle below the 5 kW threshold.
-            if (_ticksSeen == _delayTicks + CBP_LOG_EVERY_TICKS)  // probe once
+            if (!_cbpReflectionFired)
             {
-                ProbeTestBurnCableViaReflection();
+                _cbpReflectionFired = true;
+                ProbePgpTestBurnCableViaReflection();
             }
         }
 
-        private static void ProbeTestBurnCableViaReflection()
+        private static void ProbePgpTestBurnCableViaReflection()
         {
             try
             {
-                var asm = System.AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(a => a.GetName().Name == "PowerGridPlus");
-                if (asm == null) { _log?.LogWarning("[PgpVerifyHelper] CBP: PowerGridPlus assembly not loaded; skipping reflection probe."); return; }
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                if (asm == null) { _log?.LogWarning("[RuntimeProbe] CBP reflection probe: PowerGridPlus assembly missing."); return; }
                 var tickType = asm.GetType("PowerGridPlus.Power.PowerGridTick");
-                if (tickType == null) { _log?.LogWarning("[PgpVerifyHelper] CBP: PowerGridPlus.Power.PowerGridTick type not found."); return; }
-                var testBurnCable = tickType.GetMethod("TestBurnCable", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-                if (testBurnCable == null) { _log?.LogWarning("[PgpVerifyHelper] CBP: TestBurnCable method not found."); return; }
+                if (tickType == null) { _log?.LogWarning("[RuntimeProbe] CBP reflection probe: PowerGridPlus.Power.PowerGridTick type not found."); return; }
+                var testBurnCable = tickType.GetMethod("TestBurnCable",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                if (testBurnCable == null) { _log?.LogWarning("[RuntimeProbe] CBP reflection probe: TestBurnCable method not found."); return; }
 
                 int probedNets = 0;
                 int wouldBurn = 0;
@@ -406,7 +432,6 @@ namespace PgpVerifyHelper
                     if (pt == null || pt.GetType() != tickType) return;
                     probedNets++;
 
-                    // Best effort: classify by min MaxVoltage across CableList.
                     float minMaxVoltage = float.PositiveInfinity;
                     if (n.CableList != null)
                     {
@@ -420,22 +445,18 @@ namespace PgpVerifyHelper
                     else if (minMaxVoltage == 100000f) heavyCableNets++;
                     else if (minMaxVoltage == 500000f) superHeavyCableNets++;
 
-                    // Synthetic 10 kW into a normal-cable network produces burnChance = 1.0;
-                    // _rng.NextDouble() >= 1.0 is always false so TestBurnCable always returns
-                    // a Cable when the cable list has any cables and the network's weakest
-                    // cable rating is <= 5 kW. (Super-heavy networks return null per NEW-1.)
                     var result = testBurnCable.Invoke(pt, new object[] { 10000.0f, 10000.0f });
                     if (result != null) wouldBurn++;
                 });
 
                 _log?.LogInfo(
-                    $"[PgpVerifyHelper] CBP reflection probe: probedNets={probedNets} " +
+                    $"[RuntimeProbe] CBP reflection probe: probedNets={probedNets} " +
                     $"wouldBurn={wouldBurn} normalNets={normalCableNets} heavyNets={heavyCableNets} " +
                     $"superHeavyNets={superHeavyCableNets} (synthetic powerUsed=10000 W against TestBurnCable)");
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
-                _log?.LogError($"[PgpVerifyHelper] CBP reflection probe threw: {e.Message}");
+                _log?.LogError($"[RuntimeProbe] CBP reflection probe threw: {e.Message}");
             }
         }
     }

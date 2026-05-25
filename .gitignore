@@ -74,11 +74,15 @@ Web/_staging/
 
 ## Dedicated server tree (see DedicatedServer/CLAUDE.md)
 ## Everything inside DedicatedServer/ is local-only except CLAUDE.md, the launcher
-## script, and the session-lock rules template. The active session.lock stays ignored.
+## script, the session-lock rules template, and source code under dev-plugins/.
+## The active session.lock and the dev-plugins build outputs stay ignored.
 /DedicatedServer/*
 !/DedicatedServer/CLAUDE.md
 !/DedicatedServer/dedicated-server.ps1
 !/DedicatedServer/session.lock.template
+!/DedicatedServer/dev-plugins/
+/DedicatedServer/dev-plugins/**/bin/
+/DedicatedServer/dev-plugins/**/obj/
 
 ## Test / benchmark / coverage output
 TestResults/

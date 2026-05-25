@@ -507,22 +507,27 @@ function Invoke-DeployMods {
     if ((Test-PidAlive $existingServer) -or (Test-PidAlive $existingHost)) {
         throw "Server is running (host PID $existingHost, server PID $existingServer). The Mono runtime holds an exclusive lock on every loaded plugin DLL on Windows; -DeployMods will fail with a sharing violation, or worse, leave a half-written DLL the next -Start picks up as broken plugin bytes. Run -Stop first."
     }
-    $modsRoot  = Join-Path $RepoRoot 'Mods'
-    $plansRoot = Join-Path $RepoRoot 'Plans'
+    $modsRoot       = Join-Path $RepoRoot 'Mods'
+    $plansRoot      = Join-Path $RepoRoot 'Plans'
+    $devPluginsRoot = Join-Path $RepoRoot 'DedicatedServer\dev-plugins'
     if (-not (Test-Path $modsRoot)) {
         throw "Mods/ directory not found at repo root."
     }
 
     if ($Mod) {
-        # Explicit -Mod: accept either Mods/<name>/ or Plans/<name>/. Mods/ wins
-        # on a tie. Plans/ entries are work-in-progress dev tooling (e.g.
-        # PgpVerifyHelper); they are not auto-deployed when -Mod is omitted.
+        # Explicit -Mod: accept Mods/<name>/, Plans/<name>/, or
+        # DedicatedServer/dev-plugins/<name>/. Mods/ wins on a tie. Plans/ and
+        # dev-plugins/ entries are work-in-progress / dev-only tooling (e.g.
+        # RuntimeProbe); they are not auto-deployed when -Mod is omitted.
         $candidate = Join-Path $modsRoot $Mod
         if (-not (Test-Path $candidate)) {
             $candidate = Join-Path $plansRoot $Mod
         }
         if (-not (Test-Path $candidate)) {
-            throw "Mod folder not found under Mods/$Mod or Plans/$Mod."
+            $candidate = Join-Path $devPluginsRoot $Mod
+        }
+        if (-not (Test-Path $candidate)) {
+            throw "Mod folder not found under Mods/$Mod, Plans/$Mod, or DedicatedServer/dev-plugins/$Mod."
         }
         $targets = @($candidate)
     }

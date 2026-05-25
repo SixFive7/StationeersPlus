@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{7A7C9D81-3F2B-4C5E-9F1A-2B3C4D5E6F71}</ProjectGuid>
+    <ProjectGuid>{4B2D8E91-7C3A-4E8B-A123-D6B5E8F1A2C4}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>PgpVerifyHelper</RootNamespace>
-    <AssemblyName>PgpVerifyHelper</AssemblyName>
+    <RootNamespace>RuntimeProbe</RootNamespace>
+    <AssemblyName>RuntimeProbe</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <LangVersion>latest</LangVersion>
     <FileAlignment>512</FileAlignment>
@@ -62,7 +62,7 @@
   <ItemGroup>
     <Compile Include="Plugin.cs" />
     <Compile Include="ScenarioRunner.cs" />
-    <Compile Include="ElectricityTickHook.cs" />
+    <Compile Include="SimTickPump.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

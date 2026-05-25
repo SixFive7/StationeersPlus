@@ -219,7 +219,7 @@ There is no `-Clean` action. Cleaning is the developer's call:
 ## Notes for agents
 
 - This file auto-loads when you touch any path inside `DedicatedServer/`. If your work involves only `DedicatedServer/dedicated-server.ps1` and never reads or writes inside this folder, read this file explicitly.
-- Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, and `session.lock.template`. The `.gitignore` rule (`/DedicatedServer/*` plus `!` exceptions for those three files) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The active `session.lock` is gitignored and must never be committed.
+- Never commit anything in this folder other than this `CLAUDE.md`, the launcher `dedicated-server.ps1`, `session.lock.template`, and source code under `dev-plugins/`. The `.gitignore` rule (`/DedicatedServer/*` plus `!` exceptions for those four targets) makes this automatic for `git add`, but `git add -f` would bypass it; do not bypass it. The active `session.lock`, the entire `install/` tree, the entire `data/` tree, and the `dev-plugins/<X>/<X>/bin/` and `obj/` build outputs all stay gitignored.
 - All InspectorPlus snapshot conventions apply on the server too. Drop request files in `install/BepInEx/inspector/requests/` and read `install/BepInEx/inspector/snapshots/`. With no client connected the server simulation is paused and request files are not processed; for autonomous snapshots, enable InspectorPlus's `Force Unpause Without Client` setting (off by default) under `[Server - Headless]` in `install/BepInEx/config/net.inspectorplus.cfg`. See `Research/Workflows/InspectorPlusUsage.md`.
 
 ## Manipulating world state without a client (Path B + Path D)
@@ -248,42 +248,57 @@ What Path D does well:
 
 What Path D does badly (use Path B instead):
 - Wiring fresh Things into a coherent CableNetwork. Adjacency-based registration is decided by `Cable.OnRegistered`, not by the XML. Hand-positioning cells correctly for adjacency is error-prone.
-- Anything that depends on a specific simulation tick (e.g. "snap state after the third ElectricityTick"). Use PgpVerifyHelper for that.
+- Anything that depends on a specific simulation tick (e.g. "snap state after the third simulation tick"). Use RuntimeProbe for that.
 
-### Path B: in-game scenario plugin (`Plans/PgpVerifyHelper/`)
+### Path B: in-game scenario plugin (`dev-plugins/RuntimeProbe/`)
 
-Use Path B for changes to LIVE simulation state and for RUNTIME OBSERVATION at a known tick. PgpVerifyHelper is a BepInEx plugin that, after world load, runs a scenario picked by a config string. Each scenario logs structured lines to the server log; the agent greps the log instead of staging InspectorPlus request files.
+Use Path B for changes to LIVE simulation state and for RUNTIME OBSERVATION at a known simulation tick. `RuntimeProbe` is a developer BepInEx plugin that lives at `DedicatedServer/dev-plugins/RuntimeProbe/`, next to this CLAUDE.md and the launcher. It loads via StationeersLaunchPad, runs a scenario picked by a config string, and logs structured `[RuntimeProbe] ...` lines to `install/BepInEx/LogOutput.log`. An agent greps the log instead of staging InspectorPlus request files.
 
-Build, deploy, run:
+It is intentionally NOT in `Mods/` or `Plans/`: it never ships to the Workshop, never graduates to a release mod, and only makes sense paired with the dedi launcher. `dev-plugins/` is the home for this category. New dev-plugins follow the same shape (`<Name>/<Name>.sln` + `<Name>/<Name>/` source folder + `About/`) and slot in next to `RuntimeProbe/`.
+
+Build and deploy:
 
 ```
-dotnet build Plans/PgpVerifyHelper/PgpVerifyHelper.sln -c Release
-DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod PgpVerifyHelper -Configuration Release
-# (the launcher resolves -Mod under Plans/ as well as Mods/)
+dotnet build DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe.sln -c Release
+DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod RuntimeProbe -Configuration Release
+# The launcher's -Mod search order is Mods/<name>/, then Plans/<name>/, then
+# DedicatedServer/dev-plugins/<name>/. -DeployMods writes the DLL to
+# install/BepInEx/plugins/<Mod>/ as usual.
+```
 
-# StationeersLaunchPad load (REQUIRED for the dedi-server entry-point scan).
-# -DeployMods only copies the DLL to install/BepInEx/plugins/<Mod>/. The dedi
-# server's StationeersLaunchPad-driven BepInEx Awake also needs the mod folder
-# at data/mods/Local_<Mod>/ with About/ + the DLL, plus a <Local Enabled="true">
-# entry in install/modconfig.xml. The launcher does not do this for Plans/ mods
-# automatically yet (TODO); for now mirror it by hand:
-mkdir -p DedicatedServer/data/mods/Local_PgpVerifyHelper
-cp -r Plans/PgpVerifyHelper/PgpVerifyHelper/About DedicatedServer/data/mods/Local_PgpVerifyHelper/
-cp Plans/PgpVerifyHelper/PgpVerifyHelper/bin/Release/PgpVerifyHelper.dll DedicatedServer/data/mods/Local_PgpVerifyHelper/
+`-DeployMods` only writes to `install/BepInEx/plugins/`. RuntimeProbe ALSO needs to be loaded by StationeersLaunchPad, which scans `data/mods/Local_*` per `install/modconfig.xml`. For a first-time deploy on a fresh dedi install, mirror the source folder once:
+
+```
+# One-time: mirror About + the built DLL to data/mods/ so StationeersLaunchPad picks it up.
+mkdir -p DedicatedServer/data/mods/Local_RuntimeProbe
+cp -r DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/About DedicatedServer/data/mods/Local_RuntimeProbe/
+cp DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/bin/Release/RuntimeProbe.dll DedicatedServer/data/mods/Local_RuntimeProbe/
+
 # Then add an entry to install/modconfig.xml before </ModConfig>:
 #   <Local Enabled="true">
-#     <Path Value="C:\Source\SixFive7\StationeersPlus\DedicatedServer\data\mods\Local_PgpVerifyHelper" />
+#     <Path Value="C:\<repo>\DedicatedServer\data\mods\Local_RuntimeProbe" />
 #   </Local>
-
-# Edit install/BepInEx/config/net.pgpverifyhelper.cfg: Scenario = "inventory" (or another id)
-DedicatedServer/dedicated-server.ps1 -Start -As <id> -Load <save> -Map <Map>
-# Scenario output lands in install/BepInEx/LogOutput.log, NOT data/server.log.
-grep "PgpVerifyHelper" DedicatedServer/install/BepInEx/LogOutput.log
 ```
 
-Scenario ids today: `inventory`, `battery-charge-snapshot`, `transformer-conservation`. Full list and behaviour in `Plans/PgpVerifyHelper/README.md`. Add new scenarios by editing `ScenarioRunner.Tick` and rebuilding.
+Critical: with the same DLL in BOTH `install/BepInEx/plugins/RuntimeProbe/` AND `data/mods/Local_RuntimeProbe/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. Pick ONE path. The convention on this dedi is `data/mods/Local_<X>/` via StationeersLaunchPad; the `install/BepInEx/plugins/RuntimeProbe/` copy that `-DeployMods` writes should be deleted after the first deploy. (A future launcher revision will pick the right path automatically.)
 
-Why a plugin: on a headless dedicated server `MonoBehaviour.Update` does not fire after world load; InspectorPlus's request poller goes quiet after the first hit. PgpVerifyHelper drives off a Harmony postfix on `ElectricityManager.ElectricityTick`, the same pump InspectorPlus uses, so scenario code runs on the simulation thread at a coherent post-tick state.
+Configure the scenario:
+
+```
+# Edit install/BepInEx/config/net.runtimeprobe.cfg:
+#   Scenario = inventory                       (general)
+#   Scenario = battery-charge-snapshot         (general; needs no mod)
+#   Scenario = pgp-transformer-conservation    (requires PowerGridPlus loaded)
+#   Scenario = pgp-battery-efficiency-probe    (requires PowerGridPlus loaded)
+#   Scenario = pgp-apc-idle-probe              (requires PowerGridPlus loaded)
+#   Scenario = pgp-cable-burn-probe            (requires PowerGridPlus loaded)
+DedicatedServer/dedicated-server.ps1 -Start -As <id> -Load <save> -Map <Map>
+grep "\[RuntimeProbe\]" DedicatedServer/install/BepInEx/LogOutput.log
+```
+
+Mod-specific scenarios are prefixed (e.g. `pgp-` for PowerGridPlus); they no-op with a warning if the named mod is absent. Add new scenarios by editing `DedicatedServer/dev-plugins/RuntimeProbe/RuntimeProbe/ScenarioRunner.cs`, adding a `case` to the switch and a `Scenario_*` method, then rebuilding. Full scenario catalogue and authoring guide in `DedicatedServer/dev-plugins/RuntimeProbe/README.md`.
+
+Why a plugin and why this pump source: on a headless dedicated server `MonoBehaviour.Update` does not fire after world load, and the top-level `GameManager.GameTick` is an async UniTask state machine that switches to a ThreadPool worker (which crashes `UnityEngine.Object.FindObjectsOfType` calls; see `Research/Patterns/ThingEnumerationOffMainThread.md`). RuntimeProbe drives off a Harmony postfix on `ElectricityManager.ElectricityTick`, the same pump InspectorPlus uses, so scenario code runs once per simulation tick when `GameManager.RunSimulation` is true. The scenario dispatcher deduplicates by `Time.frameCount`, so adding a second pump (e.g. an atmospheric tick) is safe: a second Harmony patch class targets that method and calls `ScenarioRunner.OnSimTick()` from its postfix; the dispatcher fires the scenario only once per simulation frame regardless of how many pumps registered.
 
 ### Composing the two
 
@@ -291,7 +306,7 @@ Most verification flows are best as Path D + Path B together:
 1. Path D copies the developer's save, sets the world to a known state (turn off unrelated providers, set Setting on a transformer to a known value).
 2. Path B observes the simulation under that state, dumping the relevant fields to the log on a known tick offset.
 
-Save edit always finishes before `-Start`. Scenario logs always come from after `-Start` plus `Delay Ticks` ticks. Agents should reach for save-edit first (cheap and reversible), then PgpVerifyHelper for the runtime read.
+Save edit always finishes before `-Start`. Scenario logs always come from after `-Start` plus `Delay Ticks` ticks. Agents should reach for save-edit first (cheap and reversible), then RuntimeProbe for the runtime read.
 
 ### Standard test loop (agent owns lifecycle)
 

@@ -128,7 +128,6 @@ These would all sit on top of the v1 design. None needs a new prefab, so they st
 
 ## Open decisions and housekeeping
 
-- [ ] **Push or keep `master` local.** Master is well ahead of `origin/master` with the in-development commits. The mod isn't on the Workshop yet, no public consumer; the only question is whether to mirror the local history up to origin so it isn't at risk of an accidental hard reset. Decide: push, or sit on the local branch until first Workshop publish.
 - [ ] **Considered features -- decide whether to scope Absorb Omni Transmitter Settings.** Only one item remains under "Considered features" below; pick it up or drop it.
 - [ ] **`Settings.cs` Heavy-Cable Device List vs draw verification.** The hardcoded high-draw machine whitelist (`CarbonSequester`, `FurnaceBase`, `ArcFurnace`, `Centrifuge`, `Recycler`, `IceCrusher`, `HydraulicPipeBender`, `DeepMiner`) was assembled from community consensus; only the first three are verified-by-decompile to draw >5 kW. Drop or extend by playing through with an InspectorPlus `types=[Device], fields=[DisplayName, UsedPower, MaxUsedPower, GetUsedPower(network)]` sweep on a high-load save.
 
