@@ -20,11 +20,9 @@ DedicatedServer/dedicated-server.ps1 -Lock -Purpose "ScenarioRunner scenario run
 DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
 ```
 
-The `-DeployMods -Mod ScenarioRunner` resolves under `DedicatedServer/dev-plugins/` (the launcher searches `Mods/`, then `Plans/`, then `DedicatedServer/dev-plugins/`).
+The `-DeployMods -Mod ScenarioRunner` resolves under `DedicatedServer/dev-plugins/` (the launcher searches `Mods/`, then `Plans/`, then `DedicatedServer/dev-plugins/`). Detecting a dev-plugins target, the launcher mirrors the DLL and `About/` folder into `DedicatedServer/data/mods/Local_ScenarioRunner/` (the StationeersLaunchPad load path) and appends a matching `<Local Enabled="true">` entry to `DedicatedServer/install/modconfig.xml` if one is not already present. Re-running `-DeployMods` is idempotent on the modconfig side. No manual file copy or hand-edit is required.
 
-StationeersLaunchPad loads the plugin from `DedicatedServer/data/mods/Local_ScenarioRunner/` (mirrored from the dev-plugins source on first deploy). The matching `<Local Enabled>` entry in `DedicatedServer/install/modconfig.xml` is added on first deploy too.
-
-Important: do NOT also copy the DLL into `DedicatedServer/install/BepInEx/plugins/ScenarioRunner/`. With the same DLL in both `install/BepInEx/plugins/` and `data/mods/Local_<X>/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. We hit this exact trap during PGP battery-efficiency verification and got delta=10000 instead of 5000. The launcher's dev-plugin path stays on the `data/mods/` route only.
+Dev-plugin deploys deliberately do NOT write to `DedicatedServer/install/BepInEx/plugins/ScenarioRunner/`. With the same DLL in both `install/BepInEx/plugins/` and `data/mods/Local_<X>/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. We hit this exact trap during PGP battery-efficiency verification and got delta=10000 instead of 5000. The launcher additionally removes any stale `install/BepInEx/plugins/<X>/<X>.dll` left over from a pre-mirror layout, so a repo that was previously deployed the other way self-heals on the next `-DeployMods`.
 
 ## Configuration
 

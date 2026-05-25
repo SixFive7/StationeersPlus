@@ -262,26 +262,11 @@ Build and deploy:
 ```
 dotnet build DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
 DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
-# The launcher's -Mod search order is Mods/<name>/, then Plans/<name>/, then
-# DedicatedServer/dev-plugins/<name>/. -DeployMods writes the DLL to
-# install/BepInEx/plugins/<Mod>/ as usual.
 ```
 
-`-DeployMods` only writes to `install/BepInEx/plugins/`. ScenarioRunner ALSO needs to be loaded by StationeersLaunchPad, which scans `data/mods/Local_*` per `install/modconfig.xml`. For a first-time deploy on a fresh dedi install, mirror the source folder once:
+The launcher detects a `DedicatedServer/dev-plugins/<X>/` target and mirrors the built DLL plus the `About/` folder into `DedicatedServer/data/mods/Local_<X>/` (the StationeersLaunchPad load path), then appends a matching `<Local Enabled="true">` entry to `DedicatedServer/install/modconfig.xml` if one is not already present. Re-running is idempotent. No hand-edit of `modconfig.xml` or manual file copy is required. The same launcher invocation against a `Mods/<X>/` or `Plans/<X>/` target keeps the pre-existing behaviour of writing the DLL to `install/BepInEx/plugins/<X>/<X>.dll`.
 
-```
-# One-time: mirror About + the built DLL to data/mods/ so StationeersLaunchPad picks it up.
-mkdir -p DedicatedServer/data/mods/Local_ScenarioRunner
-cp -r DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/About DedicatedServer/data/mods/Local_ScenarioRunner/
-cp DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/bin/Release/ScenarioRunner.dll DedicatedServer/data/mods/Local_ScenarioRunner/
-
-# Then add an entry to install/modconfig.xml before </ModConfig>:
-#   <Local Enabled="true">
-#     <Path Value="C:\<repo>\DedicatedServer\data\mods\Local_ScenarioRunner" />
-#   </Local>
-```
-
-Critical: with the same DLL in BOTH `install/BepInEx/plugins/ScenarioRunner/` AND `data/mods/Local_ScenarioRunner/`, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. Pick ONE path. The convention on this dedi is `data/mods/Local_<X>/` via StationeersLaunchPad; the `install/BepInEx/plugins/ScenarioRunner/` copy that `-DeployMods` writes should be deleted after the first deploy. (A future launcher revision will pick the right path automatically.)
+Dev-plugin deploys deliberately do NOT write to `install/BepInEx/plugins/<X>/`: with the same DLL in BOTH paths, BepInEx Chainloader and StationeersLaunchPad each load it, the plugin's `Awake` fires twice, every Harmony prefix is registered twice, and side-effecting patches double. The launcher additionally removes any stale `install/BepInEx/plugins/<X>/<X>.dll` left from a pre-mirror layout, so a repo previously deployed the other way self-heals on the next `-DeployMods`.
 
 Configure the scenario:
 

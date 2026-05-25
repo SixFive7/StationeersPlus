@@ -497,6 +497,90 @@ function Invoke-Bootstrap {
 
 # ---- deploy mods ----------------------------------------------------------
 
+function Add-ModConfigLocalEntry {
+    # Idempotently ensure install/modconfig.xml has a <Local Enabled="true">
+    # entry pointing at $LocalModDir. If the file is missing, bootstrap a fresh
+    # one with just Core + this entry. Returns $true when an entry was added,
+    # $false when the entry was already present.
+    param([Parameter(Mandatory)] [string] $LocalModDir)
+    $configPath = Join-Path $InstallDir 'modconfig.xml'
+    if (-not (Test-Path $configPath)) {
+        $fresh = @"
+<?xml version="1.0" encoding="utf-8"?>
+<ModConfig xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Core Enabled="true">
+    <Path />
+  </Core>
+  <Local Enabled="true">
+    <Path Value="$LocalModDir" />
+  </Local>
+</ModConfig>
+"@
+        Set-Content -Path $configPath -Value $fresh -Encoding utf8
+        return $true
+    }
+    $content = Get-Content -Raw $configPath
+    $needle = "Path Value=`"$LocalModDir`""
+    if ($content.IndexOf($needle, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        return $false
+    }
+    $block = "  <Local Enabled=`"true`">`r`n    <Path Value=`"$LocalModDir`" />`r`n  </Local>`r`n"
+    $newContent = $content.Replace('</ModConfig>', "$block</ModConfig>")
+    Set-Content -Path $configPath -Value $newContent -Encoding utf8 -NoNewline
+    return $true
+}
+
+function Deploy-DevPluginMirror {
+    # Deploy a DedicatedServer/dev-plugins/<X>/ target by mirroring it into the
+    # StationeersLaunchPad load path (data/mods/Local_<X>/) and ensuring the
+    # modconfig.xml has a matching <Local> entry. Defensively removes any stale
+    # install/BepInEx/plugins/<X>/<X>.dll left over from a pre-mirror layout, so
+    # the duplicate-load trap documented in DedicatedServer/CLAUDE.md cannot
+    # fire even on a repo that was previously deployed the other way.
+    param(
+        [Parameter(Mandatory)] [string] $ModDir,
+        [Parameter(Mandatory)] [string] $ModName,
+        [Parameter(Mandatory)] [string] $Configuration
+    )
+    $dllSrc = Join-Path $ModDir "$ModName\bin\$Configuration\$ModName.dll"
+    if (-not (Test-Path $dllSrc)) {
+        Write-Warning "[$ModName] $Configuration build not found at $dllSrc. Skipping."
+        return $false
+    }
+    $aboutSrc    = Join-Path $ModDir "$ModName\About"
+    $localModDir = Join-Path $DataDir "mods\Local_$ModName"
+    if (-not (Test-Path $localModDir)) {
+        New-Item -ItemType Directory -Path $localModDir -Force | Out-Null
+    }
+    # Mirror About/ (StationeersLaunchPad keys mods off Local_<X>/About/About.xml).
+    if (Test-Path $aboutSrc) {
+        $aboutDst = Join-Path $localModDir 'About'
+        if (Test-Path $aboutDst) { Remove-Item -Recurse -Force $aboutDst }
+        Copy-Item -Recurse -Path $aboutSrc -Destination $localModDir
+    }
+    else {
+        Write-Warning "[$ModName] no About/ folder at $aboutSrc; StationeersLaunchPad may not load this plugin without About.xml."
+    }
+    # Copy the DLL into the local mod folder.
+    Copy-Item -Path $dllSrc -Destination (Join-Path $localModDir "$ModName.dll") -Force
+
+    # Defensively remove a stale install/BepInEx/plugins/<X>/ copy. The
+    # dev-plugin path is data/mods/Local_<X>/ only; the duplicate would
+    # double every Harmony patch.
+    $bepInExPluginDll = Join-Path $InstallDir "BepInEx\plugins\$ModName\$ModName.dll"
+    if (Test-Path $bepInExPluginDll) {
+        Remove-Item -Force $bepInExPluginDll
+        Write-Host "[DeployMods] ${ModName}: removed stale duplicate at install/BepInEx/plugins/$ModName/$ModName.dll"
+    }
+
+    $added = Add-ModConfigLocalEntry -LocalModDir $localModDir
+    if ($added) {
+        Write-Host "[DeployMods] ${ModName}: added modconfig.xml Local entry -> $localModDir"
+    }
+    Write-Host "[DeployMods] $ModName -> $localModDir (dev-plugin)"
+    return $true
+}
+
 function Invoke-DeployMods {
     Assert-MutatingAllowed -Action 'DeployMods'
     if (-not (Test-Path $ServerExe)) {
@@ -537,11 +621,28 @@ function Invoke-DeployMods {
             ForEach-Object { $_.FullName }
     }
 
-    $serverPlugins = Join-Path $InstallDir 'BepInEx\plugins'
+    $serverPlugins  = Join-Path $InstallDir 'BepInEx\plugins'
+    $devPluginsRootNorm = (Resolve-Path $devPluginsRoot -ErrorAction SilentlyContinue)?.Path
     $deployed = 0
     $skipped  = 0
     foreach ($modDir in $targets) {
         $modName = Split-Path -Leaf $modDir
+        # Dev-plugins go to data/mods/Local_<X>/ with a modconfig entry.
+        # Mods/ and Plans/ go to install/BepInEx/plugins/<X>/<X>.dll as before.
+        $isDevPlugin = $false
+        if ($devPluginsRootNorm) {
+            $modDirNorm = (Resolve-Path $modDir).Path
+            $isDevPlugin = $modDirNorm.StartsWith($devPluginsRootNorm, [StringComparison]::OrdinalIgnoreCase)
+        }
+        if ($isDevPlugin) {
+            if (Deploy-DevPluginMirror -ModDir $modDir -ModName $modName -Configuration $Configuration) {
+                $deployed++
+            }
+            else {
+                $skipped++
+            }
+            continue
+        }
         $dllPath = Join-Path $modDir "$modName\bin\$Configuration\$modName.dll"
         if (-not (Test-Path $dllPath)) {
             Write-Warning "[$modName] $Configuration build not found at $dllPath. Skipping."
