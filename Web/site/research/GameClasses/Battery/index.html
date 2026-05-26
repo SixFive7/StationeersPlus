@@ -970,6 +970,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#powermaximum-default-and-vanilla-prefab-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerMaximum default and vanilla prefab variants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#power-tick-method-bodies-vanilla-rate-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power-tick method bodies (vanilla rate behaviour)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subclassing-notes-for-mods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6785,6 +6807,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#powermaximum-default-and-vanilla-prefab-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerMaximum default and vanilla prefab variants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#power-tick-method-bodies-vanilla-rate-behaviour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power-tick method bodies (vanilla rate behaviour)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subclassing-notes-for-mods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6907,7 +6951,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-17.
+           on 2026-05-26.
         </p>
       
       
@@ -7154,6 +7198,122 @@
 
 <p>Decompile line 370616: <code>public class Battery : ElectricalInputOutput, IRocketInternals, IRocketComponent, IChargable, IReferencable, IEvaluable, IRocketMassContributor</code>.</p>
 <p>Battery inherits <code>ElectricalInputOutput</code>, the same base as <code>Transformer</code> and <code>AreaPowerControl</code>. This means Battery has both <code>InputNetwork</code> and <code>OutputNetwork</code> cable network references at runtime. The <code>ChargeEfficiencyControl</code> patch in PowerGridPlus's <code>StationaryBatteryPatches.cs</code> exercises this via <code>cableNetwork == __instance.InputNetwork</code>. Implication: a station Battery acts as a power bridge with separate cable ports for the input (charging) and output (discharging) sides. Logic-passthrough patches that work for <code>Transformer</code> (bridging device lists across the InputNetwork / OutputNetwork pair) can be applied identically to <code>Battery</code>.</p>
+<h2 id="powermaximum-default-and-vanilla-prefab-variants">PowerMaximum default and vanilla prefab variants<a class="headerlink" href="#powermaximum-default-and-vanilla-prefab-variants" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+<p><code>Battery</code> declares one storage-capacity field (decompile line 370629):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="na">[Header(&quot;Battery&quot;)]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3600000f</span><span class="p">;</span>
+</span></code></pre></div>
+<p>The literal <code>3600000f</code> is the C# default. Prefabs override this in Unity asset data (the <code>Battery</code> MonoBehaviour serialised on the prefab GameObject), so a single <code>Battery</code> class drives every station battery variant at runtime with its own <code>PowerMaximum</code>.</p>
+<p>Vanilla prefab variants in Stationeers 0.2.6228.27061 (values from <code>rocketstation_Data/StreamingAssets/Language/en.resx</code>; the Stationpedia text labels these "watts" but the underlying field is energy in Joules):</p>
+<table>
+<thead>
+<tr>
+<th>Prefab</th>
+<th><code>PowerMaximum</code> (J)</th>
+<th>Approx. Wh</th>
+<th>Stationpedia key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StructureBattery</code> (Station Battery)</td>
+<td>3,600,000</td>
+<td>1,000 (1 kWh)</td>
+<td><code>Thing_StructureBattery_Description</code></td>
+</tr>
+<tr>
+<td><code>StructureBatteryLarge</code> (Station Battery Large)</td>
+<td>9,000,001</td>
+<td>~2,500 (~2.5 kWh)</td>
+<td><code>Thing_StructureBatteryLarge_Description</code></td>
+</tr>
+</tbody>
+</table>
+<p>No vanilla <code>StructureBatteryNuclear</code> exists. The only "nuclear battery" in base game is <code>ItemBatteryCellNuclear</code>, a handheld <code>BatteryCell</code> (see <code>HelmetBattery.md</code>), not a station-mounted <code>Battery</code> prefab. Third-party mods (e.g., MorePowerMod) introduce a <code>StationBatteryNuclear : Battery</code> subclass with its own <code>PowerMaximum</code> override; that is mod content, not vanilla.</p>
+<p>The <code>9000001</code> value is the literal in the en.resx string ("Able to store up to 9000001 watts of power") — the off-by-one (vs a clean 9,000,000) is the actual prefab value, not a typo in this page.</p>
+<h2 id="power-tick-method-bodies-vanilla-rate-behaviour">Power-tick method bodies (vanilla rate behaviour)<a class="headerlink" href="#power-tick-method-bodies-vanilla-rate-behaviour" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+<p><code>Battery</code> overrides all four <code>Device</code> power-tick methods. Verbatim from the decompile (lines 371098-371138):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">UsePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Error</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsOperable</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp</span><span class="p">(</span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">);</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">}</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ReceivePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">)</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">{</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Error</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsOperable</span><span class="p">)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">        </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp</span><span class="p">(</span><span class="n">powerAdded</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">);</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="p">}</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetUsedPower</span><span class="p">([</span><span class="n">NotNull</span><span class="p">]</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">{</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">IsOperable</span><span class="p">)</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp</span><span class="p">(</span><span class="n">PowerMaximum</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">);</span>
+</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="p">}</span>
+</span><span id="__span-5-25"><a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>
+</span><span id="__span-5-26"><a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGeneratedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-5-27"><a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="p">{</span>
+</span><span id="__span-5-28"><a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">IsOperable</span><span class="p">)</span>
+</span><span id="__span-5-29"><a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-5-30"><a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
+</span><span id="__span-5-31"><a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-5-32"><a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Max</span><span class="p">(</span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">);</span>
+</span><span id="__span-5-33"><a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Each method is side-keyed (<code>InputNetwork</code> for charge, <code>OutputNetwork</code> for discharge), matching the same pattern documented for <code>AreaPowerControl</code> and <code>Transformer</code> (see <code>AreaPowerControl.md</code> "Three power-tick methods, two sides").</p>
+<p>Vanilla rate behaviour, derived from the bodies above:</p>
+<ul>
+<li><strong><code>GetUsedPower(InputNetwork)</code></strong> returns <code>Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)</code>. The full remaining headroom in Joules. No per-tick cap.</li>
+<li><strong><code>GetGeneratedPower(OutputNetwork)</code></strong> returns <code>Max(PowerStored, 0)</code>. The full stored energy in Joules. No per-tick cap.</li>
+<li><strong><code>ReceivePower(InputNetwork, powerAdded)</code></strong> adds <code>powerAdded</code> directly to <code>PowerStored</code>, clamped to <code>[0, PowerMaximum]</code>. No lossy charging.</li>
+<li><strong><code>UsePower(OutputNetwork, powerUsed)</code></strong> subtracts <code>powerUsed</code> directly from <code>PowerStored</code>, clamped to <code>[0, PowerMaximum]</code>.</li>
+</ul>
+<p>Net consequence: a vanilla station Battery is rate-unlimited from the Battery side. The actual charge / discharge wattage observed in-game is capped only by:
+- Upstream <code>PotentialLoad</code> (network supply) on charge.
+- Downstream <code>CurrentLoad</code> (network demand) on discharge.
+- Cable tier carrying capacity of the connected network.</p>
+<p>A fully-charged 3,600,000 J Station Battery can in principle empty itself in a single power tick (0.5 s), supplying ~7.2 MW peak, if downstream demand and the cable network can absorb it. Conversely, an empty battery on a 7.2 MW supply will charge to full in one tick.</p>
+<p>This unbounded-per-tick behaviour is exactly the corner that <code>PowerGridPlus.Patches.StationaryBatteryPatches</code> exists to clamp: it Postfix-patches both <code>GetUsedPower</code> and <code>GetGeneratedPower</code> to cap the returned values at <code>PowerMaximum * Settings.MaxBatteryChargeRate.Value</code> and <code>PowerMaximum * Settings.MaxBatteryDischargeRate.Value</code> respectively. Defaults are 0.002 (charge) and 0.007 (discharge) of <code>PowerMaximum</code> per tick (Settings.cs lines 106, 110).</p>
+<p>Worked numbers under PowerGridPlus defaults (per-tick Joules ÷ 0.5 s tick = Watts; see <code>Research/GameSystems/PowerTickThreading.md</code> for the 2 Hz tick rate):</p>
+<table>
+<thead>
+<tr>
+<th>Prefab</th>
+<th>Charge per tick (J)</th>
+<th>Charge (W)</th>
+<th>Discharge per tick (J)</th>
+<th>Discharge (W)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StructureBattery</code> (3,600,000 J)</td>
+<td>7,200</td>
+<td>14,400</td>
+<td>25,200</td>
+<td>50,400</td>
+</tr>
+<tr>
+<td><code>StructureBatteryLarge</code> (9,000,001 J)</td>
+<td>18,000</td>
+<td>36,000</td>
+<td>63,000</td>
+<td>126,000</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>BatteryChargeEfficiency</code> patch on <code>ReceivePower</code> (lines 31-43 of <code>StationaryBatteryPatches.cs</code>) is a separate concern: it multiplies stored energy by <code>Settings.BatteryChargeEfficiency.Value</code> (default 1.0 = lossless) before clamping, with a 500 W trickle-charge bypass.</p>
 <h2 id="subclassing-notes-for-mods">Subclassing notes for mods<a class="headerlink" href="#subclassing-notes-for-mods" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
@@ -7164,6 +7324,7 @@
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla <code>StructureBatteryNuclear</code>), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> / <code>GetGeneratedPower</code> at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.</li>
 <li>2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that <code>Battery : ElectricalInputOutput, ...</code> mirrors <code>Transformer</code> and <code>AreaPowerControl</code> in having both <code>InputNetwork</code> and <code>OutputNetwork</code> cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.</li>
 <li>2026-04-28: page created. Verbatim findings from <code>ilspycmd -t Assets.Scripts.Objects.Electrical.Battery</code> against <code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll</code> at game version 0.2.6228.27061. Confirms the threshold ladder is identical to <code>BatteryCell.UpdateBatteryState</code> documented on <code>HelmetBattery.md</code>; the new content here is the segment-bar display logic (<code>SetRenderersState</code> segment counts, <code>displayModeMaterials</code> per-Mode lookup, and the <code>FlashingDisplay</code> 2 Hz Critical-mode coroutine). Triggered by a question about MorePowerMod's <code>StationBatteryNuclear</code> inheriting from <code>Battery</code>: when does the prefab's color change as charge drops? Answer is the threshold ladder above; vanilla material colors (red / orange / green) are set in the prefab <code>displayModeMaterials[]</code> array, not in code.</li>
 </ul>
