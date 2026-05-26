@@ -3,7 +3,7 @@ title: AreaPowerControl
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-22
+verified_at: 2026-05-26
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.AreaPowerControl
   - Mods/PowerGridPlus/PowerGridPlus/Patches/AreaPowerControlPatches.cs
@@ -130,6 +130,33 @@ So the call chain on each side is:
 
 Conclusion: **`UsePower` is the only method that decrements `Battery.PowerStored` on the output side. Battery drain into a downstream network goes through `UsePower`, not `GetUsedPower`. `GetUsedPower` is a query that returns a value; mutating the battery from inside `GetUsedPower` would double-debit (because `GetUsedPower` is called twice per tick on the InputNetwork inside `Initialise` and `ApplyState`).**
 
+## BatteryChargeRate and net throughput
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+The APC declares one tunable wattage field:
+
+```csharp
+[Header("Area Power Control")]
+[Tooltip("How many watts are used to charge the battery?")]
+public float BatteryChargeRate = 1000f;
+```
+
+(decompile line 369540)
+
+This is the only numeric cap inside `AreaPowerControl`. It is a watts (per-second) limit, and it applies only to charging the APC's INTERNAL `BatteryCell` from upstream surplus. Both call sites verify the gate:
+
+- `ReceivePower` clamps the per-tick charge delta to `Min(Battery.PowerDelta, BatteryChargeRate, powerAdded)` (line 369975).
+- `GetUsedPower` adds `Min(BatteryChargeRate, Battery.PowerDelta)` to the input-side reported load when the battery is not full (line 369995).
+
+What `BatteryChargeRate` does NOT cap:
+
+- Network-to-network throughput. The APC's input-side `GetUsedPower` returns `Mathf.Max(_powerProvided, UsedPower)` for the downstream consumption portion (line 369991), with no upper bound. Whatever the output-side devices demand this tick, the APC requests that much from the input network plus the (capped) charge demand.
+- Output-side discharge. `GetGeneratedPower(OutputNetwork)` returns the full `AvailablePower` = `InputNetwork.PotentialLoad + Battery.PowerStored` (line 369606-369617), with no rate cap. The battery can dump its entire `PowerStored` in a single tick if downstream demand and the cable-network limits permit.
+
+Net effect: the APC is effectively transparent for network-to-network power transfer. The 1000 W field name "BatteryChargeRate" is literal: it gates only the internal cell charging, not the bridge throughput.
+
+PowerGridPlus does NOT modify `BatteryChargeRate` and does NOT introduce a net-throughput cap on the APC. Its only `AreaPowerControl` patch is `UsePowerPatch` (battery-drain settlement, see next section). The `BatteryChargeRate` field stays at its vanilla 1000 W under the mod.
+
 ## Re-Volt 1.4.0 patch attribution: probable bug
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
@@ -208,8 +235,9 @@ Both correctly drain `Battery.PowerStored`. PGP's variant matches Re-Volt's inte
 If reverting PGP's `UsePowerPatch` to Re-Volt 1:1 (declaring it on `GetUsedPower` again), the patch would silently no-op as it does in Re-Volt, and PGP would fall back to vanilla `UsePower`. That would still drain the battery -- just with the `_powerProvided > 0` gate restored.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
+- 2026-05-26: added "BatteryChargeRate and net throughput" section. Documents the literal field value (1000f, line 369540), its two call sites in `ReceivePower` and `GetUsedPower`, and the explicit conclusion that this cap applies only to internal-cell charging and NOT to network-to-network throughput (`GetGeneratedPower` returns full `AvailablePower` uncapped; `_powerProvided` term in `GetUsedPower` is unbounded). Additive content; does not contradict prior sections.
 - 2026-05-22: page created during PowerGridPlus pre-release verification task 6 (APC patch correctness). Source: Re-Volt 1.4.0 `AreaPowerControllerPatches.cs` (MIT, (c) 2025 Sukasa) cross-checked against Stationeers 0.2.6228.27061 `AreaPowerControl` decompile (lines 369509-370046) and `PowerTick` decompile (lines 254512-254765). Verdict: PGP's retargeting of `UsePowerPatch` from `GetUsedPower` to `UsePower` is structurally correct (the patch body only matches `UsePower`'s signature, and `UsePower` is the only method that decrements `Battery.PowerStored` in the output-side call chain). Re-Volt's original attribution is a silent no-op at HarmonyX `PatchAll` time. Dynamic verification on a dedicated-server test save pending.
 
 ## Open questions

@@ -3,7 +3,7 @@ title: Battery (station-mounted)
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-17
+verified_at: 2026-05-26
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
 related:
@@ -153,6 +153,97 @@ Decompile line 370616: `public class Battery : ElectricalInputOutput, IRocketInt
 
 Battery inherits `ElectricalInputOutput`, the same base as `Transformer` and `AreaPowerControl`. This means Battery has both `InputNetwork` and `OutputNetwork` cable network references at runtime. The `ChargeEfficiencyControl` patch in PowerGridPlus's `StationaryBatteryPatches.cs` exercises this via `cableNetwork == __instance.InputNetwork`. Implication: a station Battery acts as a power bridge with separate cable ports for the input (charging) and output (discharging) sides. Logic-passthrough patches that work for `Transformer` (bridging device lists across the InputNetwork / OutputNetwork pair) can be applied identically to `Battery`.
 
+## PowerMaximum default and vanilla prefab variants
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+`Battery` declares one storage-capacity field (decompile line 370629):
+
+```csharp
+[Header("Battery")]
+public float PowerMaximum = 3600000f;
+```
+
+The literal `3600000f` is the C# default. Prefabs override this in Unity asset data (the `Battery` MonoBehaviour serialised on the prefab GameObject), so a single `Battery` class drives every station battery variant at runtime with its own `PowerMaximum`.
+
+Vanilla prefab variants in Stationeers 0.2.6228.27061 (values from `rocketstation_Data/StreamingAssets/Language/en.resx`; the Stationpedia text labels these "watts" but the underlying field is energy in Joules):
+
+| Prefab | `PowerMaximum` (J) | Approx. Wh | Stationpedia key |
+|---|---|---|---|
+| `StructureBattery` (Station Battery) | 3,600,000 | 1,000 (1 kWh) | `Thing_StructureBattery_Description` |
+| `StructureBatteryLarge` (Station Battery Large) | 9,000,001 | ~2,500 (~2.5 kWh) | `Thing_StructureBatteryLarge_Description` |
+
+No vanilla `StructureBatteryNuclear` exists. The only "nuclear battery" in base game is `ItemBatteryCellNuclear`, a handheld `BatteryCell` (see `HelmetBattery.md`), not a station-mounted `Battery` prefab. Third-party mods (e.g., MorePowerMod) introduce a `StationBatteryNuclear : Battery` subclass with its own `PowerMaximum` override; that is mod content, not vanilla.
+
+The `9000001` value is the literal in the en.resx string ("Able to store up to 9000001 watts of power") — the off-by-one (vs a clean 9,000,000) is the actual prefab value, not a typo in this page.
+
+## Power-tick method bodies (vanilla rate behaviour)
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+`Battery` overrides all four `Device` power-tick methods. Verbatim from the decompile (lines 371098-371138):
+
+```csharp
+public override void UsePower(CableNetwork cableNetwork, float powerUsed)
+{
+    if (Error != 1 && OnOff && cableNetwork == OutputNetwork && IsOperable)
+    {
+        PowerStored = Mathf.Clamp(PowerStored - powerUsed, 0f, PowerMaximum);
+    }
+}
+
+public override void ReceivePower(CableNetwork cableNetwork, float powerAdded)
+{
+    if (Error != 1 && OnOff && cableNetwork == InputNetwork && IsOperable)
+    {
+        PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum);
+    }
+}
+
+public override float GetUsedPower([NotNull] CableNetwork cableNetwork)
+{
+    if (InputNetwork == null || Error == 1 || cableNetwork != InputNetwork || !IsOperable)
+        return 0f;
+    if (!OnOff)
+        return 0f;
+    return Mathf.Clamp(PowerMaximum - PowerStored, 0f, PowerMaximum);
+}
+
+public override float GetGeneratedPower(CableNetwork cableNetwork)
+{
+    if (OutputNetwork == null || Error == 1 || cableNetwork != OutputNetwork || !IsOperable)
+        return 0f;
+    if (!OnOff)
+        return 0f;
+    return Mathf.Max(PowerStored, 0f);
+}
+```
+
+Each method is side-keyed (`InputNetwork` for charge, `OutputNetwork` for discharge), matching the same pattern documented for `AreaPowerControl` and `Transformer` (see `AreaPowerControl.md` "Three power-tick methods, two sides").
+
+Vanilla rate behaviour, derived from the bodies above:
+
+- **`GetUsedPower(InputNetwork)`** returns `Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)`. The full remaining headroom in Joules. No per-tick cap.
+- **`GetGeneratedPower(OutputNetwork)`** returns `Max(PowerStored, 0)`. The full stored energy in Joules. No per-tick cap.
+- **`ReceivePower(InputNetwork, powerAdded)`** adds `powerAdded` directly to `PowerStored`, clamped to `[0, PowerMaximum]`. No lossy charging.
+- **`UsePower(OutputNetwork, powerUsed)`** subtracts `powerUsed` directly from `PowerStored`, clamped to `[0, PowerMaximum]`.
+
+Net consequence: a vanilla station Battery is rate-unlimited from the Battery side. The actual charge / discharge wattage observed in-game is capped only by:
+- Upstream `PotentialLoad` (network supply) on charge.
+- Downstream `CurrentLoad` (network demand) on discharge.
+- Cable tier carrying capacity of the connected network.
+
+A fully-charged 3,600,000 J Station Battery can in principle empty itself in a single power tick (0.5 s), supplying ~7.2 MW peak, if downstream demand and the cable network can absorb it. Conversely, an empty battery on a 7.2 MW supply will charge to full in one tick.
+
+This unbounded-per-tick behaviour is exactly the corner that `PowerGridPlus.Patches.StationaryBatteryPatches` exists to clamp: it Postfix-patches both `GetUsedPower` and `GetGeneratedPower` to cap the returned values at `PowerMaximum * Settings.MaxBatteryChargeRate.Value` and `PowerMaximum * Settings.MaxBatteryDischargeRate.Value` respectively. Defaults are 0.002 (charge) and 0.007 (discharge) of `PowerMaximum` per tick (Settings.cs lines 106, 110).
+
+Worked numbers under PowerGridPlus defaults (per-tick Joules ÷ 0.5 s tick = Watts; see `Research/GameSystems/PowerTickThreading.md` for the 2 Hz tick rate):
+
+| Prefab | Charge per tick (J) | Charge (W) | Discharge per tick (J) | Discharge (W) |
+|---|---|---|---|---|
+| `StructureBattery` (3,600,000 J) | 7,200 | 14,400 | 25,200 | 50,400 |
+| `StructureBatteryLarge` (9,000,001 J) | 18,000 | 36,000 | 63,000 | 126,000 |
+
+The `BatteryChargeEfficiency` patch on `ReceivePower` (lines 31-43 of `StationaryBatteryPatches.cs`) is a separate concern: it multiplies stored energy by `Settings.BatteryChargeEfficiency.Value` (default 1.0 = lossless) before clamping, with a 500 W trickle-charge bypass.
+
 ## Subclassing notes for mods
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
@@ -163,6 +254,7 @@ A mod that subclasses `Battery` (e.g., `StationBatteryNuclear : Battery` in More
 
 ## Verification history
 
+- 2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla `StructureBatteryNuclear`), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of `UsePower` / `ReceivePower` / `GetUsedPower` / `GetGeneratedPower` at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.
 - 2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that `Battery : ElectricalInputOutput, ...` mirrors `Transformer` and `AreaPowerControl` in having both `InputNetwork` and `OutputNetwork` cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.
 - 2026-04-28: page created. Verbatim findings from `ilspycmd -t Assets.Scripts.Objects.Electrical.Battery` against `E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll` at game version 0.2.6228.27061. Confirms the threshold ladder is identical to `BatteryCell.UpdateBatteryState` documented on `HelmetBattery.md`; the new content here is the segment-bar display logic (`SetRenderersState` segment counts, `displayModeMaterials` per-Mode lookup, and the `FlashingDisplay` 2 Hz Critical-mode coroutine). Triggered by a question about MorePowerMod's `StationBatteryNuclear` inheriting from `Battery`: when does the prefab's color change as charge drops? Answer is the threshold ladder above; vanilla material colors (red / orange / green) are set in the prefab `displayModeMaterials[]` array, not in code.
 
