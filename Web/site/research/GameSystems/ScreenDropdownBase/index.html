@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/RespawnFlow/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/ScreenDropdownBase/">
       
       
-        <link rel="prev" href="../RepairMechanics/">
+        <link rel="prev" href="../SaveZipExtension/">
       
       
-        <link rel="next" href="../SaveDataRegistration/">
+        <link rel="next" href="../ScrollInputHandling/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>RespawnFlow - StationeersPlus</title>
+        <title>ScreenDropdownBase Dropdown Population - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#respawnflow" class="md-skip">
+        <a href="#screendropdownbase-dropdown-population" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              RespawnFlow
+              ScreenDropdownBase Dropdown Population
             
           </span>
         </div>
@@ -3731,37 +3731,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    RespawnFlow
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../RespawnFlow/" class="md-nav__link">
         
   
   
@@ -3777,59 +3750,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#full-respawn-flow-creates-new-human" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Full respawn flow creates new Human
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -3895,10 +3815,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../ScreenDropdownBase/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ScreenDropdownBase Dropdown Population
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3914,6 +3861,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#screendropdownbase-class-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScreenDropdownBase class structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dropdown-population-in-screenaction-and-screencondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dropdown population in ScreenAction and ScreenCondition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caching-and-snapshot-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caching and snapshot behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-custom-logictypes-dont-appear-in-motherboard-dropdowns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why custom LogicTypes don't appear in motherboard dropdowns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dropdown-options-filter-by-canlogicwrite-canlogicread-at-refresh-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dropdown options filter by CanLogicWrite / CanLogicRead at refresh time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -6757,10 +6801,54 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#full-respawn-flow-creates-new-human" class="md-nav__link">
+  <a href="#screendropdownbase-class-structure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Full respawn flow creates new Human
+        ScreenDropdownBase class structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dropdown-population-in-screenaction-and-screencondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dropdown population in ScreenAction and ScreenCondition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caching-and-snapshot-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caching and snapshot behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-custom-logictypes-dont-appear-in-motherboard-dropdowns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why custom LogicTypes don't appear in motherboard dropdowns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dropdown-options-filter-by-canlogicwrite-canlogicread-at-refresh-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dropdown options filter by CanLogicWrite / CanLogicRead at refresh time
       
     </span>
   </a>
@@ -6879,16 +6967,24 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-05-26.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (5)</summary>
           <ul>
             
-              <li><code>Plans/LLM/RESEARCH.md:493-495</code></li>
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:239469-239517</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:238727-238802</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:238907-239103</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:188524-188550</code></li>
+            
+              <li><code>Research/GameSystems/LogicType.md</code></li>
             
           </ul>
         </details>
@@ -6898,9 +6994,9 @@
           <summary><strong>Related pages</strong> (2)</summary>
           <ul>
             
-              <li><code>../GameClasses/Human.md</code></li>
+              <li><code>./LogicType.md</code></li>
             
-              <li><code>../GameClasses/LanderCapsule.md</code></li>
+              <li><code>./IC10SyntaxHighlighting.md</code></li>
             
           </ul>
         </details>
@@ -6916,27 +7012,123 @@
       
       
       
-        <span class="md-tag">entity</span>
+        <span class="md-tag">logic</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">ui</span>
       
     
   </nav>
 
 
 
-<h1 id="respawnflow">RespawnFlow<a class="headerlink" href="#respawnflow" title="Permanent link">&para;</a></h1>
-<p>The full Stationeers respawn path creates a brand-new <code>Human</code> rather than reviving the existing body. Important context for any mod that wants to manipulate "entering a capsule" (time-skip, knockout) without triggering respawn semantics.</p>
-<h2 id="full-respawn-flow-creates-new-human">Full respawn flow creates new Human<a class="headerlink" href="#full-respawn-flow-creates-new-human" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h1 id="screendropdownbase-dropdown-population">ScreenDropdownBase Dropdown Population<a class="headerlink" href="#screendropdownbase-dropdown-population" title="Permanent link">&para;</a></h1>
+<p><code>ScreenDropdownBase</code> is the base class for the LogicType dropdowns owned by <code>LogicMotherboard</code> (<code>Assembly-CSharp.decompiled.cs:315578</code>). The LogicMotherboard is the visual "if device X meets condition Y, then write Z" editor that installs into Big Screens, Wall Screens, and Consoles. The IC Editor cartridge (<code>ProgrammableChipMotherboard</code>, <code>Assembly-CSharp.decompiled.cs:317577</code>) is a different motherboard and has no LogicType dropdowns at all - it carries only a <code>ButtonDropdown _dropdown</code> for selecting which connected device is in scope for the IC10 source. Any "LogicType dropdown on a Big Screen" the player sees comes from a LogicMotherboard cartridge, not the IC Editor.</p>
+<p>The dropdowns are populated by two <code>ScreenDropdownBase</code> subclasses: <code>ScreenAction</code> (write side, instantiated from <code>LogicMotherboard.ActionPrefab</code>) and <code>ScreenCondition</code> (read side, instantiated from <code>LogicMotherboard.ConditionPrefab</code>). Both rebuild their option list dynamically every time <code>RefreshAll</code> or <code>OnDeviceChanged</code> fires, by iterating the static <code>ScreenDropdownBase.LogicTypes</code> array and filtering each entry through the currently-targeted <code>Parent.Device.CanLogicWrite(...)</code> (action side) or <code>Parent.Device.CanLogicRead(...)</code> (condition side).</p>
+<h2 id="screendropdownbase-class-structure">ScreenDropdownBase class structure<a class="headerlink" href="#screendropdownbase-class-structure" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
-<p>The full respawn creates an entirely new <code>Human</code> via <code>Human.CreateCharacter()</code>. This resets all stats, creates new organs, empties inventory (old items go into a CardboardBox on the ground). The old body becomes a <code>DynamicBodyBag</code>. None of this happens when you just create a <code>LanderCapsule</code> and move a living player into it.</p>
+<p>Assets.Scripts.UI.Motherboard.ScreenDropdownBase is the base class for motherboard condition/action dropdown UI. It maintains three static fields:</p>
+<p>public static List<Dropdown.OptionData> OptionData = new List<Dropdown.OptionData>();
+public static string[] LogicTypeNames = Enum.GetNames(typeof(LogicType));
+public static LogicType[] LogicTypes = new LogicType[LogicTypeNames.Length];
+private static bool _isInitialized;</p>
+<p>The LogicTypeNames and LogicTypes arrays are populated exactly once in Awake:</p>
+<p>protected virtual void Awake()
+{
+    if (!_isInitialized)
+    {
+        Array values = Enum.GetValues(typeof(LogicType));
+        for (int i = 0; i &lt; values.Length; i++)
+        {
+            LogicTypes[i] = (LogicType)values.GetValue(i);
+        }
+    }
+    Device.ReplaceRaycasters();
+    Type.ReplaceRaycasters();
+    Value.ReplaceRaycasters();
+}</p>
+<p>The _isInitialized flag prevents re-initialization, but it is never set to true in the game code. This means the population block theoretically runs every Awake, but the static arrays remain unchanged since they are not re-allocated.</p>
+<h2 id="dropdown-population-in-screenaction-and-screencondition">Dropdown population in ScreenAction and ScreenCondition<a class="headerlink" href="#dropdown-population-in-screenaction-and-screencondition" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+<p>ScreenAction and ScreenCondition subclasses use ScreenDropdownBase.LogicTypes to populate their Type dropdowns. ScreenAction.PopulateTypes iterates the frozen array and filters by device capability:</p>
+<p>public void PopulateTypes()
+{
+    Type.ClearOptions();
+    if (!Parent.Device) { /<em> ... </em>/ return; }
+    ScreenDropdownBase.OptionData.Clear();
+    int num = -1;
+    int num2 = 0;
+    LogicType[] logicTypes = ScreenDropdownBase.LogicTypes;
+    for (int i = 0; i &lt; logicTypes.Length; i++)
+    {
+        LogicType logicType = logicTypes[i];
+        if (Parent.Device.CanLogicWrite(logicType))
+        {
+            if (logicType == Parent.Type) num = num2;
+            ScreenDropdownBase.OptionData.Add(new Dropdown.OptionData
+            { text = logicType.ToString() });
+            num2++;
+        }
+    }
+    if (ScreenDropdownBase.OptionData.Count == 0) { /<em> ... </em>/ return; }
+    Type.interactable = true;
+    Type.AddOptions(ScreenDropdownBase.OptionData);
+}</p>
+<p>Every time the dropdown opens or RefreshAll is called, PopulateTypes rebuilds the OptionData list by filtering ScreenDropdownBase.LogicTypes. The dropdown options are live each render cycle, but the underlying LogicTypes array is frozen at startup.</p>
+<p>ScreenCondition.PopulateTypes follows the identical pattern, as does ScreenCondition.PopulateOperators which clears and rebuilds ScreenDropdownBase.OptionData for operator selection.</p>
+<h2 id="caching-and-snapshot-behavior">Caching and snapshot behavior<a class="headerlink" href="#caching-and-snapshot-behavior" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+<p>The dropdown options themselves are rebuilt dynamically every render, but the list of possible LogicType values comes from the frozen static array:</p>
+<p>Component                              When built              When frozen        Mutation point
+ScreenDropdownBase.LogicTypes array    First Awake() call     Never re-init      Enum.GetValues at Awake
+ScreenDropdownBase.OptionData list     Every PopulateTypes()  Per-cycle           Filters LogicTypes by device
+Dropdown UI options                    Every AddOptions()     Per-refresh         Unity Dropdown component</p>
+<p>Custom LogicTypes registered at runtime appear in:
+- EnumCollections.LogicTypes (extended via Harmony) - Tablet UI sees them
+- Logicable.LogicTypes (extended via Harmony) - NextLogicType cycling sees them
+- ScreenDropdownBase.LogicTypes (frozen at Awake) - Motherboard UI DOES NOT see them</p>
+<h2 id="why-custom-logictypes-dont-appear-in-motherboard-dropdowns">Why custom LogicTypes don't appear in motherboard dropdowns<a class="headerlink" href="#why-custom-logictypes-dont-appear-in-motherboard-dropdowns" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+<p>The three-registry architecture documented in LogicType.md requires extending ScreenDropdownBase.LogicTypes via the LogicableInitializePatch. However, this patch only works if it fires before any ScreenDropdownBase.Awake() is called. Since ScreenDropdownBase is instantiated when a Big Screen or Console spawns (typically during gameplay), and BepInEx plugin initialization runs in a separate phase, the race condition is common: the Awake fires before the Harmony patch extends the array.</p>
+<p>Additionally, ScreenDropdownBase has no explicit rebuild mechanism. Unlike EnumCollections.LogicTypes (rebuilt via Harmony postfix) or Logicable.LogicTypes (iterable via reflection), ScreenDropdownBase.LogicTypes is a frozen array with no setter or refresh hook. Once populated at Awake, it cannot be extended without either:</p>
+<ol>
+<li>Patching ScreenDropdownBase.Awake before any instance runs (risky; races with scene load)</li>
+<li>Patching ScreenDropdownBase.PopulateTypes postfix to inject missing types into OptionData each render (workaround; not integrated into game design)</li>
+</ol>
+<h2 id="dropdown-options-filter-by-canlogicwrite-canlogicread-at-refresh-time">Dropdown options filter by CanLogicWrite / CanLogicRead at refresh time<a class="headerlink" href="#dropdown-options-filter-by-canlogicwrite-canlogicread-at-refresh-time" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+
+<p>Each <code>PopulateTypes</code> call rebuilds <code>ScreenDropdownBase.OptionData</code> from scratch via <code>ClearOptions</code> + <code>AddOptions</code>, so the dropdown UI is not statically cached. The filter, however, is the targeted device's <code>CanLogicWrite(LogicType)</code> (<code>ScreenAction</code>, <code>Assembly-CSharp.decompiled.cs:238771</code>) or <code>CanLogicRead(LogicType)</code> (<code>ScreenCondition</code>, <code>Assembly-CSharp.decompiled.cs:239082</code>). A LogicType only appears in the dropdown if all three conditions hold simultaneously:</p>
+<ol>
+<li>The LogicType ushort is present in <code>ScreenDropdownBase.LogicTypes</code> at the moment of the call.</li>
+<li>The currently-bound <code>Parent.Device</code> is the actual target device (not null, not a stale prefab reference).</li>
+<li><code>Parent.Device.CanLogicWrite(logicType)</code> (action) or <code>CanLogicRead(logicType)</code> (condition) returns true for that specific device at that moment.</li>
+</ol>
+<p><code>PopulateTypes</code> is triggered by <code>Initialize(parent, index)</code>, <code>RefreshAll()</code>, and <code>OnDeviceChanged()</code> (<code>Assembly-CSharp.decompiled.cs:238734, 238740, 238746</code>). There is NO event that re-fires <code>PopulateTypes</code> when the <code>CanLogicWrite/Read</code> capability set of an already-selected device changes at runtime. Consequence: if a mod patches <code>CanLogicWrite</code> to add a new writable LogicType to a device that is already selected as the dropdown's <code>Parent.Device</code>, the dropdown will not pick up the new entry until the player triggers a refresh (re-selecting the device from the device dropdown is the standard trigger).</p>
+<p><code>PopulateValue</code> (<code>Assembly-CSharp.decompiled.cs:238804</code>) uses a hard-coded <code>switch (Parent.Type)</code> over <code>LogicType.None, Power, Activate, Open, Error, Lock, Mode, Color</code>. Any other LogicType (including every custom mod-registered LogicType) falls into the <code>default</code> arm, which surfaces the value as a raw number plus an "Enter New Value" option. Custom boolean-shaped LogicTypes (mode flags, on/off toggles) therefore do not render as "Off / On" or "False / True" in this dropdown - they render numerically. There is no extension point in the switch.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
 <ul>
-<li>2026-04-20: page created from the Research migration; verbatim content lifted from F0095q (Plans/LLM/RESEARCH.md:493-495).</li>
+<li>2026-05-26: page created. Decompiled ScreenDropdownBase at v0.2.6228.27061 from Assembly-CSharp.decompiled.cs lines 239469-239517. Verified that LogicTypes array is built in Awake via Enum.GetValues, with _isInitialized flag never set to true (incomplete game code). Traced dropdown population in ScreenAction.PopulateTypes (lines 238755-238802) and ScreenCondition.PopulateTypes (lines 239075-239103), confirming both re-fetch ScreenDropdownBase.LogicTypes and filter dynamically. Verified consistency with LogicType.md three-registry pattern.</li>
+<li>2026-05-26: intro corrected. Earlier draft attributed the LogicType dropdowns to "the IC Editor motherboard and other Big Screen/Console cartridges." Re-reading the decompile confirms the dropdowns belong to <code>LogicMotherboard</code> (<code>Assembly-CSharp.decompiled.cs:315578</code>), which owns <code>ConditionPrefab : ScreenCondition</code> and <code>ActionPrefab : ScreenAction</code>. The IC Editor cartridge is <code>ProgrammableChipMotherboard</code> (<code>Assembly-CSharp.decompiled.cs:317577</code>); its only dropdown is a <code>ButtonDropdown _dropdown</code> for device selection (line 317606), with no LogicType dropdown anywhere on it. Intro paragraph rewritten accordingly.</li>
+<li>2026-05-26: added "Dropdown options filter by CanLogicWrite / CanLogicRead at refresh time" section documenting the per-call dynamic filter, the three trigger points for <code>PopulateTypes</code>, the absence of a re-fire on capability changes, and the <code>PopulateValue</code> switch's hard-coded LogicType set that forces every custom LogicType into the numeric default arm.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>Why is _isInitialized never set to true in the game code? Is this intentional or a bug?</li>
+<li>Can a Harmony postfix to ScreenDropdownBase.PopulateTypes safely inject custom LogicTypes into OptionData without affecting other screens?</li>
+<li>What is the exact load order: when does ScreenDropdownBase.Awake fire relative to BepInEx plugin patch application?</li>
+<li>Sections "Caching and snapshot behavior" and "Why custom LogicTypes don't appear in motherboard dropdowns" claim that the <code>Awake</code> re-init destroys reflection-based extensions of <code>ScreenDropdownBase.LogicTypes</code>. A direct re-read of the <code>Awake</code> body (<code>Assembly-CSharp.decompiled.cs:239491-239504</code>) shows the loop bound is <code>values.Length</code> where <code>values = Enum.GetValues(typeof(LogicType))</code> - i.e. the underlying enum's count, which is fixed at game build time and unaffected by reflection-based array replacement on the static field. Indices at and beyond <code>values.Length</code> are not touched. This suggests an extension that replaces <code>ScreenDropdownBase.LogicTypes</code> with a longer array survives subsequent <code>Awake</code> calls intact for the appended slots. Needs fresh-validator review per WORKFLOW.md Rule 3 before the contested sections are rewritten.</li>
+</ul>
 
 
 
@@ -6976,7 +7168,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../RepairMechanics/" class="md-footer__link md-footer__link--prev" aria-label="Previous: RepairMechanics">
+          <a href="../SaveZipExtension/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Side-car file persistence in save ZIPs">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -6986,20 +7178,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                RepairMechanics
+                Side-car file persistence in save ZIPs
               </div>
             </div>
           </a>
         
         
           
-          <a href="../SaveDataRegistration/" class="md-footer__link md-footer__link--next" aria-label="Next: SaveDataRegistration">
+          <a href="../ScrollInputHandling/" class="md-footer__link md-footer__link--next" aria-label="Next: Scroll Input Handling">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                SaveDataRegistration
+                Scroll Input Handling
               </div>
             </div>
             <div class="md-footer__button md-icon">
