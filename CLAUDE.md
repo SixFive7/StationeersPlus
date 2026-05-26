@@ -198,15 +198,15 @@ and its per-mod `LogicTypeRegistry.cs` references `StationeersPlus.Shared.LogicT
 
 Three workflow rules govern the boundary between mod work and the central `Research/` knowledge base: read the mod's `RESEARCH.md` before touching any mod, curate decompiled-code findings into `Research/<category>/` on every touch, and apply the fresh-validator protocol when a new finding conflicts with existing verified content on a page. Full rules and the conflict-resolution prompt template live in `Research/WORKFLOW.md`. The decompile hook (`.claude/hooks/research-hook-decompile.ps1`) points at it; read `WORKFLOW.md` when the reminder surfaces or when starting mod work. Structural rules for pages under `Research/` (frontmatter schema, section stamps, Verification History conventions, Unsorted protocol, tag vocabulary) live in `Research/CLAUDE.md` and auto-load when you touch a `Research/` file.
 
-## Workflow: research commits are autonomous, code commits are not
+## Workflow: research commits are autonomous
 
-Additions or revisions inside `Research/` (the central knowledge base at the repo root) should be committed without asking, in logical groups, as soon as the research is done and validated per `Research/WORKFLOW.md` and `Research/CLAUDE.md`. This is a deliberate exception to the default "never commit unless explicitly asked" rule, because research findings are durable knowledge that loses value sitting in a working tree: other agents and the user lose access, and branch switches or stash discards can erase it.
+Additions or revisions inside `Research/` (the central knowledge base at the repo root) should be committed without asking, in logical groups, as soon as the research is done and validated per `Research/WORKFLOW.md` and `Research/CLAUDE.md`. This is one of two deliberate exceptions to the default "never commit unless explicitly asked" rule (the other is the autonomous publish lane, see the next section), because research findings are durable knowledge that loses value sitting in a working tree: other agents and the user lose access, and branch switches or stash discards can erase it.
 
-Code and other non-research changes are not covered. The user's deliverable in any given session is whatever they asked for outside `Research/`, and the user decides commit boundaries and timing for it. Never commit anything outside `Research/` autonomously, even when it sits in the same working tree as a research commit.
+Code and other source changes outside the two autonomous lanes are not covered. Source changes under `Mods/`, `Plans/`, `tools/`, `Web/content/`, `Web/overrides/`, `Web/mkdocs.yml`, or `Web/requirements.txt` still require user approval. The user's deliverable in any given session is whatever they asked for outside the two autonomous lanes, and the user decides commit boundaries and timing for it. Never commit anything outside `Research/` or `Web/site/` autonomously, even when it sits in the same working tree as an autonomous commit.
 
 Rules for an autonomous research commit:
 
-- Every staged path is under the central `Research/` directory. All other paths are off-limits to autonomous commits.
+- Every staged path is under the central `Research/` directory. All other paths are off-limits to autonomous research commits.
 - Content satisfies the curation rules in `Research/WORKFLOW.md` (validated, fresh-validator protocol applied where existing verified content is overwritten) and the structural rules in `Research/CLAUDE.md` (frontmatter, section stamps, Verification History, tag vocabulary).
 - The validation bar is the same as the section-stamp bar: do not commit a page or section unless you would, at this moment, stamp it as verified. If you would hesitate to stamp it, the commit is premature.
 - One coherent unit per commit: a single page, or a closely related set produced together. Not one omnibus commit at session end.
@@ -223,6 +223,35 @@ Scope and delegation:
 - Sub-agents do not commit. When a sub-agent produces additions under `Research/`, the main agent is responsible for reviewing, packaging into logical groups, and committing them.
 
 A `PreToolUse` hook (`.claude/hooks/research-commit-hook.ps1`, wired in `.claude/settings.json`) matches `git commit` invocations whose message starts with `Research:` and blocks the commit if any staged path is outside `Research/`. The hook turns the "explicit paths only" rule from convention into enforcement.
+
+## Workflow: site publish commits are autonomous
+
+Build output under `Web/site/` should be committed without asking immediately after running `.\tools\publish-web\build.ps1`, in the same turn as the rebuild, and followed by `.\tools\publish-web\deploy.ps1`. This is the second autonomous-commit lane, parallel to research commits. The motivation: the SMB mirror at `\\10.20.30.250\nvme-system\containers\stationeers\` is the public face of the project, and it should always match git HEAD. Leaving a rebuilt `Web/site/` uncommitted lets the public site drift from git, defeating the mirror invariant.
+
+The publish lane fires whenever publishable source has been committed in the current turn and a new build has been produced. Triggers:
+
+- After an autonomous `Research:` commit.
+- After a user-approved commit to `Web/content/`, `Web/overrides/`, `tools/`, `Web/mkdocs.yml`, or `Web/requirements.txt`.
+
+The non-research source itself still requires user approval (the rule above stands); only the rebuild commit and the SMB deploy are autonomous.
+
+Rules for an autonomous publish commit:
+
+- Every staged path is under `Web/site/`. All other paths are off-limits to autonomous publish commits.
+- Stage by explicit paths. Never `git add -A` or `git add .`. Verify with `git status` and `git diff --cached` before each commit that no path outside `Web/site/` has slipped in.
+- Commit message prefix: `Publish: <summary>`. Example: `Publish: rebuild after Patterns/StationeersLaunchPadSettingsGrouping`.
+- Announce each commit in user-facing text (the path(s) committed and the resulting SHA).
+- Local only. Do not push.
+- Always followed by `.\tools\publish-web\deploy.ps1` in the same turn. The commit without the deploy leaves the SMB share lagging git HEAD; the deploy without a fresh commit leaves the SMB share ahead of git HEAD. Both break the mirror invariant.
+
+Session-end flush: before ending a turn that committed any publishable source (autonomous `Research:` commit, or user-approved commit to other publishable source), run `build.ps1`, commit `Publish:`, and run `deploy.ps1`. Do not leave the public site lagging git HEAD across turn boundaries.
+
+Scope and delegation:
+
+- This rule covers `Web/site/` only. Hand-written `Web/content/`, `Web/overrides/`, and `tools/` source still require user approval per the previous section.
+- Sub-agents do not commit. When a sub-agent triggers a rebuild, the main agent handles the publish lane after the sub-agent's source work lands.
+
+A `PreToolUse` hook (`.claude/hooks/site-commit-hook.ps1`, wired in `.claude/settings.json`) matches `git commit` invocations whose message starts with `Publish:` and blocks the commit if any staged path is outside `Web/site/`. The hook turns the "explicit paths only" rule from convention into enforcement.
 
 ## Workflow: scratch and working files in .work/
 
@@ -383,19 +412,24 @@ The toolchain:
 - `tools/publish-web/build.ps1` runs the build. It wipes staging, assembles inputs, runs `python -m mkdocs build`, and removes staging.
 - `tools/publish-web/deploy.ps1` mirrors `Web/site/` to `\\10.20.30.250\nvme-system\containers\stationeers\` via robocopy `/MIR`. It refuses to mirror if `Web/site/` has fewer than 5 files (sanity check; would otherwise wipe the share).
 
-Four hooks enforce the publish flow:
+Five hooks govern the publish flow:
 
-- `web-publish-hook.ps1` (PostToolUse Edit|Write on `Research/`, `tools/`, `Web/content/`, `Web/overrides/`, `Web/mkdocs.yml`, `Web/requirements.txt`) injects a reminder that the site needs rebuild + deploy before end of turn.
+- `web-publish-hook.ps1` (PostToolUse Edit|Write on `Research/`, `tools/`, `Web/content/`, `Web/overrides/`, `Web/mkdocs.yml`, `Web/requirements.txt`) injects a reminder that the site needs rebuild + commit + deploy before end of turn.
 - `web-site-edit-hook.ps1` (PostToolUse Edit|Write on `Web/site/`) warns that direct edits to build output get clobbered on the next build.
-- `web-commit-hook.ps1` (PreToolUse Bash `*git commit*`) checks staged paths and warns if a commit touches publishable source without also staging `Web/site/`. Reminder only; does not block the commit.
-- `web-stop-hook.ps1` (Stop event) at end of turn checks `git status` and reminds to run build + deploy if any publishable source changed and `Web/site/` did not. This is the enforcement point; the per-edit hooks are early signals.
+- `site-commit-hook.ps1` (PreToolUse Bash `*git commit*`) enforces the autonomous publish lane: blocks any `Publish:` commit whose staged paths leave `Web/site/`. Symmetric to `research-commit-hook.ps1`. See "Workflow: site publish commits are autonomous" above.
+- `web-commit-hook.ps1` (PreToolUse Bash `*git commit*`) checks staged paths on non-autonomous commits and warns if a commit touches publishable source without also staging `Web/site/`. Reminder only; does not block. Skips `Research:` and `Publish:` autonomous prefixes (those have dedicated enforcer hooks above).
+- `web-stop-hook.ps1` (Stop event) at end of turn checks `git status` and reminds to finish the publish flow if any publishable source changed or `Web/site/` has uncommitted changes. This is the enforcement point; the per-edit hooks are early signals.
 
-The hooks inject reminders only. They do not run the build or the deploy. Doing so on every save would burn time on partial edits; once-per-turn at the Stop hook is the right cadence. The agent is expected to run the two commands explicitly when the reminder fires:
+The hooks inject reminders only. They do not run the build, the commit, or the deploy. Doing so on every save would burn time on partial edits; once-per-turn at the Stop hook is the right cadence. After a touch to publishable source, the agent runs the publish flow autonomously:
 
 ```powershell
 .\tools\publish-web\build.ps1
+git add Web/site/
+git commit -m "Publish: <summary>"
 .\tools\publish-web\deploy.ps1
 ```
+
+The `Publish:` commit is the second autonomous-commit lane (see "Workflow: site publish commits are autonomous"). Deploy follows immediately so the SMB mirror tracks git HEAD.
 
 Site building takes ~12 seconds for ~175 Research pages plus the tool wrappers. Deploy is a single robocopy `/MIR` pass.
 

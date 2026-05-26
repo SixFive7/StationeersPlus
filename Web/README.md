@@ -13,17 +13,23 @@ Source and build output for the public documentation site at https://stationeers
 | `_staging/` | no (gitignored) | Intermediate docs tree assembled by the build script; combines `content/` + `Research/` + `tools/*/index.html` |
 | `site/` | yes | Built static site. This is what gets mirrored to the SMB share at `\\10.20.30.250\nvme-system\containers\stationeers\` |
 
-## Build and deploy
+## Build, commit, and deploy
 
-From the repo root:
+From the repo root, after the source change has been committed (autonomous `Research:` commit or user-approved commit to other publishable source):
 
 ```powershell
-# Rebuild Web/site/ from Research/, tools/, and Web/content/
+# 1. Rebuild Web/site/ from Research/, tools/, and Web/content/
 .\tools\publish-web\build.ps1
 
-# Mirror Web/site/ to the SMB share
+# 2. Commit the rebuilt site (Web/site/ only; hook-enforced)
+git add Web/site/
+git commit -m "Publish: <summary>"
+
+# 3. Mirror Web/site/ to the SMB share
 .\tools\publish-web\deploy.ps1
 ```
+
+The commit step is the autonomous publish lane (`Publish:` prefix). Hook `site-commit-hook.ps1` enforces that only `Web/site/` paths are staged in a `Publish:` commit. See repo-root `CLAUDE.md` "Workflow: site publish commits are autonomous" for the full rules.
 
 The SMB share is treated as a downstream mirror. Never hand-edit files there; they will be overwritten on the next deploy.
 

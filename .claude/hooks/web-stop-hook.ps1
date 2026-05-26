@@ -1,8 +1,10 @@
 ﻿# web-stop-hook.ps1
-# Fires on the Stop event (end of agent turn). Checks whether any publishable
-# source path (Research/, tools/, Web/content/, Web/mkdocs.yml, etc.) has
-# uncommitted changes that have not been reflected in Web/site/. If so, injects
-# a reminder asking the agent to run build + deploy.
+# Fires on the Stop event (end of agent turn). Checks whether the publish flow
+# has been completed. Three working-tree states warrant a reminder:
+#   - Publishable source dirty, Web/site/ clean -> publish flow not started
+#   - Source clean, Web/site/ dirty            -> Publish: commit + deploy missing
+#   - Both dirty                                -> publish flow in progress but not finished
+# All-clean: nothing to do.
 #
 # This is the enforcement point. The earlier per-edit hooks are signals; this
 # one fires once per turn at the natural commit point.
@@ -52,29 +54,41 @@ foreach ($p in $paths) {
     if ($p -match $sitePattern) { $siteChanged += $p }
 }
 
-if ($sourceChanged.Count -eq 0) {
-    # No publishable source changes this turn; nothing to do.
+if ($sourceChanged.Count -eq 0 -and $siteChanged.Count -eq 0) {
+    # No publishable changes this turn; nothing to do.
     exit 0
 }
 
+# Build state-aware reminder lines.
+$stateLines = @()
+if ($sourceChanged.Count -gt 0) {
+    $srcSummary = ($sourceChanged | Select-Object -First 5) -join ', '
+    if ($sourceChanged.Count -gt 5) { $srcSummary += " (+$($sourceChanged.Count - 5) more)" }
+    $stateLines += "  - Publishable source uncommitted: $srcSummary"
+}
 if ($siteChanged.Count -gt 0) {
-    # Source AND site changed -- the agent likely already ran build/deploy.
-    # Skip the reminder; trust the shape.
-    exit 0
+    $stateLines += "  - Web/site/ uncommitted: $($siteChanged.Count) file(s)"
 }
-
-$srcSummary = ($sourceChanged | Select-Object -First 5) -join ', '
-if ($sourceChanged.Count -gt 5) { $srcSummary += " (+$($sourceChanged.Count - 5) more)" }
+$stateBlock = $stateLines -join "`n"
 
 $message = @"
-[Web publish -- end of turn] You modified publishable source this turn but Web/site/ has not been updated. The public site at https://stationeers.huisman.io will not reflect your changes until you run:
+[Web publish -- end of turn] The publish flow is incomplete. The public site at https://stationeers.huisman.io will lag git HEAD until you finish.
 
+State:
+$stateBlock
+
+Run the publish flow to completion before ending the turn:
+
+    # 1. Commit publishable source (Research: autonomous, or user-approved for other paths)
+    # 2. Rebuild
     .\tools\publish-web\build.ps1
+    # 3. Stage and commit Web/site/ with the autonomous Publish: prefix
+    git add Web/site/
+    git commit -m "Publish: <summary>"
+    # 4. Deploy
     .\tools\publish-web\deploy.ps1
 
-Source paths changed: $srcSummary
-
-If you genuinely do not want to publish (for example, you are mid-investigation and the change is throwaway), say so explicitly. Otherwise run the two commands now before ending the turn.
+The Publish: commit is the second autonomous-commit lane (see CLAUDE.md "Workflow: site publish commits are autonomous"). If you genuinely do not want to publish (mid-investigation, throwaway change), say so explicitly.
 "@
 
 $payload = @{

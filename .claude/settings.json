@@ -13,6 +13,11 @@
           {
             "type": "command",
             "if": "Bash(*git commit*)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/site-commit-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git commit*)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/web-commit-hook.ps1"
           }
         ]

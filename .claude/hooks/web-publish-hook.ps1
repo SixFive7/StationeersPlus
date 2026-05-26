@@ -17,14 +17,16 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $message = @'
 [Web publish] You changed a file that feeds the public documentation site at https://stationeers.huisman.io.
 
-Before ending the turn, run:
+Before ending the turn, run the publish flow (after committing the source change):
 
     .\tools\publish-web\build.ps1
+    git add Web/site/
+    git commit -m "Publish: <summary>"
     .\tools\publish-web\deploy.ps1
 
-Build regenerates Web/site/ from Research/, tools/, and Web/content/. Deploy mirrors Web/site/ to the SMB share at \\10.20.30.250\nvme-system\containers\stationeers\. The SMB share is a strict downstream copy of Web/site/; never hand-edit it.
+The `Publish:` commit is the second autonomous-commit lane (see CLAUDE.md "Workflow: site publish commits are autonomous"). Build regenerates Web/site/ from Research/, tools/, and Web/content/. Deploy mirrors Web/site/ to the SMB share at \\10.20.30.250\nvme-system\containers\stationeers\. The SMB share is a strict downstream copy of Web/site/; never hand-edit it.
 
-If multiple source files are changing this turn, you only need to run build/deploy once at the end -- not after every edit.
+If multiple source files are changing this turn, you only need to run the publish flow once at the end -- not after every edit.
 '@
 
 $payload = @{
