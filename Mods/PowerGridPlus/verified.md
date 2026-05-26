@@ -84,13 +84,24 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   numbers and were not separately read with an in-game chip; they fall
   out of the patch trivially.
 
-- **APC has no idle power drain.** ScenarioRunner's `pgp-apc-idle-probe`
-  logged each `AreaPowerControl`'s attached `Battery.PowerStored` every
-  five ElectricityTicks across 145 ticks (29 snapshots per APC). 13 of 16
-  APCs on Luna show exactly `+0.00` delta over the snapshot window. The
-  three APCs that did drain (-160, -100, -94 W) are supplying real
-  downstream draw (PGP's `AreaPowerControlPatches.UsePowerPatch` correctly
-  pulls from `Battery.PowerStored` when the output network has demand).
+- **APC has no idle power drain; APCs with downstream demand drain
+  correctly into their output network.** ScenarioRunner's
+  `pgp-apc-idle-probe` logged each `AreaPowerControl`'s attached
+  `Battery.PowerStored` every five ElectricityTicks. Two runs:
+
+  | Run | Ticks window | Snapshots / APC | Constant | Drained | Drain magnitudes (W) |
+  |---|---|---|---|---|---|
+  | 2026-05-25 | tick 5 .. ~145 | 29 | 13 / 16 | 3 / 16 | -160, -100, -94 |
+  | 2026-05-26 | tick 5 .. 53,885 | ~10,777 | 12 / 16 | 4 / 16 | -1200, -320, -229.70, -74.30 |
+
+  The 2026-05-26 run is a ~370x longer-baseline corroboration of the same
+  shape: APCs without downstream demand (empty cells, or fully-charged
+  cells with no draw) hold `Battery.PowerStored` exactly constant; APCs
+  with stored charge plus downstream draw bleed at a per-tick rate
+  matching their load. PGP's `AreaPowerControlPatches.UsePowerPatch`
+  (retargeted from Re-Volt's misattributed `GetUsedPower` prefix) pulls
+  from `Battery.PowerStored` exactly when the output network demands it,
+  and never when it does not.
 
 - **Recursive / looped networks with `Enable Recursive Network Limits =
   false` do not force-burn cables.** 121 active CableNetworks on Luna (a
