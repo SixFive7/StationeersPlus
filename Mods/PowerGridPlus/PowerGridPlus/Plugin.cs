@@ -50,7 +50,12 @@ namespace PowerGridPlus
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
 
-                CableCostPatches.ApplyRecipeCost();
+                // Run the runtime recipe override AFTER the game's GameData XML pipeline has processed
+                // every mod's overlays, so the configured multiplier always wins over any shipped overlay
+                // (including this mod's own GameData/cable-recipes.xml). Plugin.OnPrefabsLoaded runs before
+                // WorldManager.LoadGameDataAsync iterates mod GameData folders, so calling ApplyRecipeCost
+                // directly here lets the overlay clobber the runtime value.
+                WorldManager.OnGameDataLoaded += CableCostPatches.ApplyRecipeCost;
                 Ic10ConstantsPatcher.Apply();
 
                 Log.LogInfo($"{PluginName} patches applied");

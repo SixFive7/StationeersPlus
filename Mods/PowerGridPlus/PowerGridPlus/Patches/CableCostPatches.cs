@@ -16,10 +16,14 @@ namespace PowerGridPlus.Patches
     ///     patch-replaces the vanilla entry -- see <c>Research/GameSystems/RecipeDataLoading.md</c>), so the
     ///     default cost increase works with no runtime patching at all. <see cref="ApplyRecipeCost"/> then
     ///     re-applies the recipe at runtime when the configured multiplier differs from the overlay's 2x,
-    ///     so the config value wins. (Note: a dedicated-server deploy via <c>-DeployMods</c> copies only the
-    ///     DLL, not the <c>GameData/</c> folder, so on that test path the overlay is absent and only the
-    ///     runtime path -- when the multiplier is non-default -- applies. A real install ships the whole
-    ///     mod folder, including <c>GameData/</c>.)
+    ///     so the config value wins.
+    ///
+    ///     Subscribe via <c>WorldManager.OnGameDataLoaded</c> (wired in <c>Plugin.OnPrefabsLoaded</c>), NOT a
+    ///     direct call from there. <c>Plugin.OnPrefabsLoaded</c> fires before <c>WorldManager.LoadGameDataAsync</c>
+    ///     reads any mod's <c>GameData/</c> folder; a direct call would set the configured value, then the
+    ///     overlay would silently clobber it back to 2x. The <c>OnGameDataLoaded</c> event fires after every
+    ///     overlay has been processed and after the per-fabricator <c>GenerateRecipieList</c> calls, so
+    ///     re-adding the recipe here is the last write.
     /// </summary>
     internal static class CableCostPatches
     {

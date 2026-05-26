@@ -146,6 +146,24 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   (`Battery Backup Light (third-party, ...) detected; Power Grid Plus
   emergency-light patches are inactive.`).
 
+- **NEW-2 super-heavy cable cost multiplier respects the configured value.**
+  2026-05-26. Three rounds on a Luna copy at multiplier 2.0 / 3.0 / 1.0.
+  Initial run revealed a defect: `Plugin.OnPrefabsLoaded` fires before
+  `WorldManager.LoadGameDataAsync` reads the mod's `GameData/cable-recipes.xml`,
+  so the runtime patch was set first and the overlay then clobbered it back
+  to 2x in every round (InspectorPlus snapshots all showed Constantan=1,
+  Electrum=1 regardless of config). Fix: subscribe `CableCostPatches.ApplyRecipeCost`
+  to `WorldManager.OnGameDataLoaded` (decompile line 58771, fires at line 59106
+  after every overlay and `GenerateRecipieList` has run). After the fix:
+  multiplier=3.0 produces two recipe-patches in server.log (overlay first,
+  PGP runtime second 7s later) with BepInEx line
+  `Super-Heavy Cable Cost Multiplier 3 applied: ... Constantan 1.5, Electrum 1.5`;
+  multiplier=1.0 InspectorPlus snapshot of `DynamicThingRecipeComparable.AllRecipes`
+  shows `ItemCableCoilSuperHeavy`: Constantan=0.5, Electrum=0.5, Time=8, Energy=800
+  (the configured runtime value, replacing the overlay's 1.0/1.0). Plugin.cs +
+  CableCostPatches.cs header comment updated to reflect the OnGameDataLoaded
+  ordering.
+
 - **Luna ground-truth inventory.** ScenarioRunner's `inventory` scenario:
   23 batteries (18 `StationBatteryNuclear` from MorePowerMod + 5 vanilla
   `StructureBattery` / `StructureBatteryMedium`), 41 transformers, 16
