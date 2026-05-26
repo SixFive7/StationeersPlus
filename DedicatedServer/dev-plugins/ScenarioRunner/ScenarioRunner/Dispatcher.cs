@@ -124,6 +124,24 @@ namespace ScenarioRunner
                     Scenario_PgpTooltipFilterProbe();
                     return;
 
+                case "ptp-autoaim-cache-probe":
+                    Scenario_PtpAutoAimCacheProbe();
+                    return;
+
+                case "ptp-long-distance-link-probe":
+                    Scenario_PtpLongDistanceLinkProbe();
+                    return;
+
+                case "ptp-beam-predicate-probe":
+                    Scenario_PtpBeamPredicateProbe();
+                    return;
+
+                case "ptp-all":
+                    Scenario_PtpAutoAimCacheProbe();
+                    Scenario_PtpLongDistanceLinkProbe();
+                    Scenario_PtpBeamPredicateProbe();
+                    return;
+
                 default:
                     if (_ticksSeen == _delayTicks)
                         _log?.LogWarning($"[ScenarioRunner] unknown scenario '{_scenario}'; doing nothing.");
@@ -545,6 +563,394 @@ namespace ScenarioRunner
             {
                 _log?.LogError($"[ScenarioRunner] CBP reflection probe threw: {e.Message}");
             }
+        }
+
+        // ---- PowerTransmitterPlus-specific scenarios ----
+        //
+        // These require the 'PowerTransmitterPlus' assembly to be loaded. They reach
+        // into PTP via reflection (no build-time dependency) so this plugin stays
+        // independent. All probes are designed to run safely from the UniTask
+        // ThreadPool worker the simulation-tick hook executes on, so they avoid Unity
+        // APIs (no transform.position / transform.forward reads) and rely on cached
+        // managed state (Thing.OnOff cached field, LinkedReceiver reference, the
+        // PowerTransmitter._linkedReceiverDistance private float, NetworkUpdateFlags).
+
+        private const string PTP_ASSEMBLY = "PowerTransmitterPlus";
+
+        // Custom NetworkUpdateFlags bit PTP reserves for auto-aim cache sync. Matches
+        // PowerTransmitterPlus.AutoAimState.AutoAimUpdateFlag (a private const so we
+        // mirror the literal here instead of reflecting it out).
+        private const ushort PTP_AUTOAIM_UPDATE_FLAG = 0x2000;
+
+        // PTP scenario: ptp-autoaim-cache-probe.
+        // Verifies that PTP's reset postfixes
+        //   RotatableTargetHorizontalResetPatch / RotatableTargetVerticalResetPatch
+        // (commit 14946c5, gated on NetworkManager.IsServer) correctly clear the
+        // AutoAimState cache when TargetHorizontal is written from outside auto-aim,
+        // AND that AutoAimState.ClearCache raises the AutoAimUpdateFlag bit so the
+        // cleared state propagates to clients via the existing per-tick delta.
+        //
+        // Method: find transmitters that already have a non-zero cached auto-aim
+        // target (loaded from the save's auto-aim side-car). For each, write the
+        // current TargetHorizontal value back (no slew change). The Harmony postfix
+        // fires regardless of value change, so RotatableTargetHorizontalResetPatch
+        // runs, sees AutoAimState.SuppressReset == false (we are not inside an
+        // auto-aim write), passes the IsServer gate (server-side), and calls
+        // AutoAimState.ClearCache. ClearCache sets the cache box to 0 and raises
+        // dish.NetworkUpdateFlags |= AutoAimUpdateFlag.
+        //
+        // Verifies:
+        //   - The cache transitions from non-zero to 0 (covers TODO #1: SP override
+        //     clears the cache).
+        //   - The AutoAimUpdateFlag bit is set on the dish after the clear (covers
+        //     TODO #3 server-side: ClearCache flag-raise propagates the clear via
+        //     the existing per-tick payload; cannot verify the client receives and
+        //     applies the clear from server-side observation).
+        //
+        // Limit: skipping the cache-populate step. HandleWrite reads/writes Unity
+        // transforms in its solver and would crash from the worker thread. Existing
+        // cached entries from the save are used as the test fixture instead.
+
+        private static bool _ptpAutoAimCacheProbeFired;
+
+        private static void Scenario_PtpAutoAimCacheProbe()
+        {
+            if (!RequireModAssembly(PTP_ASSEMBLY, "ptp-autoaim-cache-probe")) return;
+            if (_ptpAutoAimCacheProbeFired) return;
+            _ptpAutoAimCacheProbeFired = true;
+
+            var asm = GetModAssembly(PTP_ASSEMBLY);
+            var autoAimStateType = asm.GetType("PowerTransmitterPlus.AutoAimState");
+            if (autoAimStateType == null)
+            {
+                _log?.LogError("[ScenarioRunner] PtpAACP: PowerTransmitterPlus.AutoAimState type not found");
+                return;
+            }
+            var getCachedTarget = autoAimStateType.GetMethod("GetCachedTarget",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var restoreCache = autoAimStateType.GetMethod("RestoreCache",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            if (getCachedTarget == null || restoreCache == null)
+            {
+                _log?.LogError("[ScenarioRunner] PtpAACP: required AutoAimState methods (GetCachedTarget, RestoreCache) not found");
+                return;
+            }
+
+            // Partition: dishes with an existing cached target (loaded from the
+            // save's side-car) vs linked-but-uncached. For uncached + linked we
+            // synthesize a cache via AutoAimState.RestoreCache (calls SetCache,
+            // managed-state-only writes; bypasses HandleWrite's solver which would
+            // be unsafe from the worker thread). Synthesised entries are tagged so
+            // log lines distinguish them.
+            var preserved = new List<PowerTransmitter>();
+            var linkedUncached = new List<PowerTransmitter>();
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (t is PowerTransmitter tx)
+                {
+                    long cache = (long)getCachedTarget.Invoke(null, new object[] { tx });
+                    if (cache != 0L) preserved.Add(tx);
+                    else if (tx.LinkedReceiver != null) linkedUncached.Add(tx);
+                }
+            });
+
+            var candidates = new List<(PowerTransmitter tx, bool synthetic)>();
+            foreach (var tx in preserved) candidates.Add((tx, false));
+
+            // Synthesise up to 3 additional entries if the save had none cached.
+            // RestoreCache(dish, targetId) -> SetCache(dish, targetId): puts the rx
+            // ReferenceId into the cache box and sets dish.NetworkUpdateFlags |=
+            // AutoAimUpdateFlag. No Unity API calls. Safe from the worker.
+            int wantSynth = Mathf.Min(3, linkedUncached.Count) - preserved.Count;
+            if (wantSynth > 0)
+            {
+                foreach (var tx in linkedUncached)
+                {
+                    if (wantSynth <= 0) break;
+                    var rx = tx.LinkedReceiver;
+                    if (rx == null) continue;
+                    restoreCache.Invoke(null, new object[] { tx, rx.ReferenceId });
+                    long verify = (long)getCachedTarget.Invoke(null, new object[] { tx });
+                    if (verify == rx.ReferenceId)
+                    {
+                        candidates.Add((tx, true));
+                        wantSynth--;
+                        _log?.LogInfo($"[ScenarioRunner] PtpAACP synth: tx={tx.ReferenceId} cache<-{rx.ReferenceId} (via RestoreCache)");
+                    }
+                    else
+                    {
+                        _log?.LogWarning($"[ScenarioRunner] PtpAACP synth FAIL: tx={tx.ReferenceId} expected cache={rx.ReferenceId} got={verify}");
+                    }
+                }
+            }
+
+            _log?.LogInfo($"[ScenarioRunner] PtpAACP: candidates={candidates.Count} (preserved={preserved.Count} synthetic={candidates.Count - preserved.Count})");
+
+            if (candidates.Count == 0)
+            {
+                _log?.LogWarning("[ScenarioRunner] PtpAACP SKIP: no candidates (no cached entries from save AND no linked TX-RX pairs to synthesise against). Need a save with at least one linked dish pair.");
+                return;
+            }
+
+            int probed = 0;
+            int clearOk = 0;
+            int flagOk = 0;
+
+            foreach (var entry in candidates)
+            {
+                if (probed >= 5) break;
+                var tx = entry.tx;
+                var origin = entry.synthetic ? "synth" : "saved";
+
+                long beforeCache = (long)getCachedTarget.Invoke(null, new object[] { tx });
+
+                // Clear the AutoAimUpdateFlag bit so we can observe ClearCache raising it.
+                tx.NetworkUpdateFlags = (ushort)(tx.NetworkUpdateFlags & ~PTP_AUTOAIM_UPDATE_FLAG);
+                ushort flagBefore = (ushort)(tx.NetworkUpdateFlags & PTP_AUTOAIM_UPDATE_FLAG);
+
+                try
+                {
+                    // Write current TargetHorizontal back via reflection (avoids needing to
+                    // import the RotatableBehaviour type into ScenarioRunner). Same value =
+                    // no slew change, but Harmony postfix still fires.
+                    var rbProp = tx.GetType().GetProperty("RotatableBehaviour");
+                    var rb = rbProp?.GetValue(tx);
+                    if (rb == null)
+                    {
+                        _log?.LogError($"[ScenarioRunner] PtpAACP[{probed}] tx={tx.ReferenceId} ({origin}) RotatableBehaviour property missing");
+                        probed++;
+                        continue;
+                    }
+                    var thProp = rb.GetType().GetProperty("TargetHorizontal");
+                    if (thProp == null)
+                    {
+                        _log?.LogError($"[ScenarioRunner] PtpAACP[{probed}] tx={tx.ReferenceId} ({origin}) TargetHorizontal property missing");
+                        probed++;
+                        continue;
+                    }
+                    var currentH = thProp.GetValue(rb);
+                    thProp.SetValue(rb, currentH);
+                }
+                catch (Exception e)
+                {
+                    _log?.LogError($"[ScenarioRunner] PtpAACP[{probed}] tx={tx.ReferenceId} ({origin}) override-write threw: {e.Message}");
+                    probed++;
+                    continue;
+                }
+
+                long afterCache = (long)getCachedTarget.Invoke(null, new object[] { tx });
+                ushort flagAfter = (ushort)(tx.NetworkUpdateFlags & PTP_AUTOAIM_UPDATE_FLAG);
+                bool cacheCleared = (afterCache == 0L);
+                bool flagSet = (flagAfter != 0);
+                if (cacheCleared) clearOk++;
+                if (flagSet) flagOk++;
+
+                _log?.LogInfo($"[ScenarioRunner] PtpAACP[{probed}] tx={tx.ReferenceId} ({origin}) " +
+                              $"beforeCache={beforeCache} afterCache={afterCache} " +
+                              $"flagBefore={flagBefore} flagAfter=0x{flagAfter:X4} " +
+                              $"clearOk={cacheCleared} flagSetOk={flagSet}");
+                probed++;
+            }
+
+            _log?.LogInfo($"[ScenarioRunner] PtpAACP summary: probed={probed} clearOk={clearOk}/{probed} flagSetOk={flagOk}/{probed}");
+            if (probed > 0 && clearOk == probed && flagOk == probed)
+                _log?.LogInfo("[ScenarioRunner] PtpAACP PASS: every probed dish cleared its auto-aim cache AND raised AutoAimUpdateFlag (0x2000) on manual TargetHorizontal override.");
+            else if (probed == 0)
+                _log?.LogWarning("[ScenarioRunner] PtpAACP SKIP: no candidates were probed.");
+            else
+                _log?.LogError($"[ScenarioRunner] PtpAACP FAIL: cache-clear {clearOk}/{probed}, flag-raise {flagOk}/{probed}.");
+        }
+
+        // PTP scenario: ptp-long-distance-link-probe.
+        // Observational. Enumerates every PowerTransmitter with a non-null
+        // LinkedReceiver, reads PowerTransmitter._linkedReceiverDistance (set by
+        // LinkPatch on every successful link probe) via reflection, and reports
+        // distance distribution. PASS if at least one linked pair is at >= 150 m,
+        // which is evidence the joint mutual-aim solver (v1.7.1 + LinkPatch's
+        // SphereCast widening) still establishes links at the user-tested range.
+        //
+        // Limit: observational, not proactive. The post-load auto-aim re-solve pass
+        // (AutoAimSaveLoadPatches) re-runs HandleWrite for every cached pair after
+        // every Thing.OnFinishedLoad has run, so a link being present at scenario
+        // tick time means it survived both initial deserialisation AND the joint
+        // solver's post-load fixed-point iteration. That is sufficient evidence the
+        // solver works at the observed range without us proactively breaking and
+        // re-establishing links.
+
+        private static bool _ptpLongDistanceLinkProbeFired;
+
+        private static void Scenario_PtpLongDistanceLinkProbe()
+        {
+            if (!RequireModAssembly(PTP_ASSEMBLY, "ptp-long-distance-link-probe")) return;
+            if (_ptpLongDistanceLinkProbeFired) return;
+            _ptpLongDistanceLinkProbeFired = true;
+
+            var distanceField = typeof(PowerTransmitter).GetField("_linkedReceiverDistance",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (distanceField == null)
+            {
+                _log?.LogError("[ScenarioRunner] PtpLDLP: PowerTransmitter._linkedReceiverDistance field not found");
+                return;
+            }
+
+            int total = 0;
+            int linked = 0;
+            int linkedLong = 0;
+            float maxDistance = 0f;
+            var longPairs = new List<string>();
+
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (!(t is PowerTransmitter tx)) return;
+                total++;
+                var rx = tx.LinkedReceiver;
+                if (rx == null) return;
+                linked++;
+
+                float d = (float)distanceField.GetValue(tx);
+                if (d > maxDistance) maxDistance = d;
+                if (d >= 150f)
+                {
+                    linkedLong++;
+                    longPairs.Add($"tx={tx.ReferenceId} rx={rx.ReferenceId} distance={d:F2}m");
+                }
+            });
+
+            _log?.LogInfo($"[ScenarioRunner] PtpLDLP summary: totalTX={total} linked={linked} linkedAtLongDistance(>=150m)={linkedLong} maxDistanceObserved={maxDistance:F2}m");
+            foreach (var p in longPairs)
+                _log?.LogInfo($"[ScenarioRunner] PtpLDLP[long] {p}");
+
+            if (total == 0)
+                _log?.LogWarning("[ScenarioRunner] PtpLDLP SKIP: no transmitters in scene.");
+            else if (linked == 0)
+                _log?.LogWarning("[ScenarioRunner] PtpLDLP SKIP: no linked TX-RX pairs in scene.");
+            else if (linkedLong > 0)
+                _log?.LogInfo($"[ScenarioRunner] PtpLDLP PASS: {linkedLong} linked TX-RX pair(s) at >=150m, indicating the joint mutual-aim solver and SphereCast link probe work at the user's tested range. Survived post-load re-solve pass.");
+            else
+                _log?.LogWarning($"[ScenarioRunner] PtpLDLP INCONCLUSIVE: no long-distance (>=150m) linked pairs in scene; max distance observed: {maxDistance:F2}m. Joint solver behaviour at >=150m cannot be verified against this save.");
+        }
+
+        // PTP scenario: ptp-beam-predicate-probe.
+        // Cross-checks PowerTransmitterPlus.BeamVisibility.ShouldShow against an
+        // independent classification of every PowerTransmitter in the scene by link
+        // state and OnOff (the two inputs we can read safely from the worker
+        // thread). The predicate also gates on aim validity (forward-antiparallel
+        // within 7 degrees), which is a Unity-transform read; we do not compute that
+        // here, so the linked + both-on case is informational (the predicate may
+        // legitimately return false for misaimed pairs).
+        //
+        // PASS if ShouldShow returns false for every unlinked TX, every linked-but-
+        // tx-off TX, and every linked-but-rx-off TX. Any TRUE in those categories is
+        // a predicate bug. The linked + both-on TRUE count is reported as a ratio:
+        // a population of links established and aimed should land most pairs there.
+
+        private static bool _ptpBeamPredicateProbeFired;
+
+        private static void Scenario_PtpBeamPredicateProbe()
+        {
+            if (!RequireModAssembly(PTP_ASSEMBLY, "ptp-beam-predicate-probe")) return;
+            if (_ptpBeamPredicateProbeFired) return;
+            _ptpBeamPredicateProbeFired = true;
+
+            var asm = GetModAssembly(PTP_ASSEMBLY);
+            var beamVisibilityType = asm.GetType("PowerTransmitterPlus.BeamVisibility");
+            if (beamVisibilityType == null)
+            {
+                _log?.LogError("[ScenarioRunner] PtpBPP: PowerTransmitterPlus.BeamVisibility type not found");
+                return;
+            }
+            var shouldShow = beamVisibilityType.GetMethod("ShouldShow",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            if (shouldShow == null)
+            {
+                _log?.LogError("[ScenarioRunner] PtpBPP: BeamVisibility.ShouldShow(PowerTransmitter) method not found");
+                return;
+            }
+
+            int totalTx = 0;
+            int unlinked = 0;
+            int unlinkedFalseOk = 0;
+            int linkedTxOff = 0;
+            int linkedTxOffFalseOk = 0;
+            int linkedRxOff = 0;
+            int linkedRxOffFalseOk = 0;
+            int linkedBothOn = 0;
+            int linkedBothOnTrue = 0;
+            int unexpected = 0;
+            var unexpectedSamples = new List<string>();
+
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (!(t is PowerTransmitter tx)) return;
+                totalTx++;
+
+                var rx = tx.LinkedReceiver;
+                bool actual;
+                try
+                {
+                    actual = (bool)shouldShow.Invoke(null, new object[] { tx });
+                }
+                catch (Exception e)
+                {
+                    _log?.LogError($"[ScenarioRunner] PtpBPP tx={tx.ReferenceId} ShouldShow threw: {e.Message}");
+                    return;
+                }
+
+                if (rx == null)
+                {
+                    unlinked++;
+                    if (!actual) unlinkedFalseOk++;
+                    else
+                    {
+                        unexpected++;
+                        if (unexpectedSamples.Count < 5)
+                            unexpectedSamples.Add($"unlinked TX shouldShow=true: tx={tx.ReferenceId}");
+                    }
+                }
+                else if (!tx.OnOff)
+                {
+                    linkedTxOff++;
+                    if (!actual) linkedTxOffFalseOk++;
+                    else
+                    {
+                        unexpected++;
+                        if (unexpectedSamples.Count < 5)
+                            unexpectedSamples.Add($"tx.OnOff=false shouldShow=true: tx={tx.ReferenceId} rx={rx.ReferenceId}");
+                    }
+                }
+                else if (!rx.OnOff)
+                {
+                    linkedRxOff++;
+                    if (!actual) linkedRxOffFalseOk++;
+                    else
+                    {
+                        unexpected++;
+                        if (unexpectedSamples.Count < 5)
+                            unexpectedSamples.Add($"rx.OnOff=false shouldShow=true: tx={tx.ReferenceId} rx={rx.ReferenceId}");
+                    }
+                }
+                else
+                {
+                    // Linked + both on. shouldShow then depends on aim validity, which we
+                    // cannot independently compute from the worker thread. Just report.
+                    linkedBothOn++;
+                    if (actual) linkedBothOnTrue++;
+                }
+            });
+
+            _log?.LogInfo($"[ScenarioRunner] PtpBPP totals: TX={totalTx} unlinked={unlinked} linkedTxOff={linkedTxOff} linkedRxOff={linkedRxOff} linkedBothOn={linkedBothOn}");
+            _log?.LogInfo($"[ScenarioRunner] PtpBPP negative checks (expect shouldShow=false): unlinked {unlinkedFalseOk}/{unlinked}, txOff {linkedTxOffFalseOk}/{linkedTxOff}, rxOff {linkedRxOffFalseOk}/{linkedRxOff}");
+            _log?.LogInfo($"[ScenarioRunner] PtpBPP linked+both-on -> shouldShow=true (aim-dependent): {linkedBothOnTrue}/{linkedBothOn}");
+            foreach (var s in unexpectedSamples)
+                _log?.LogError($"[ScenarioRunner] PtpBPP unexpected: {s}");
+
+            bool negativesPass = unlinkedFalseOk == unlinked && linkedTxOffFalseOk == linkedTxOff && linkedRxOffFalseOk == linkedRxOff;
+            if (totalTx == 0)
+                _log?.LogWarning("[ScenarioRunner] PtpBPP SKIP: no transmitters in scene.");
+            else if (negativesPass)
+                _log?.LogInfo("[ScenarioRunner] PtpBPP PASS: BeamVisibility.ShouldShow correctly returned false for every unlinked TX, every linked-but-tx-off TX, and every linked-but-rx-off TX. The linked+both-on aim-dependent ratio is informational.");
+            else
+                _log?.LogError($"[ScenarioRunner] PtpBPP FAIL: {unexpected} unexpected shouldShow=true result(s) for unlinked or switched-off TX.");
         }
     }
 }
