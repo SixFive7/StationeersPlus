@@ -46,7 +46,7 @@ namespace ScenarioRunner
                     "'battery-charge-snapshot' (every 5 ticks, log every Battery's PowerStored). " +
                     "PowerGridPlus-specific scenarios (require the net.powergridplus plugin loaded; otherwise no-op): " +
                     "'pgp-transformer-conservation', 'pgp-battery-efficiency-probe', " +
-                    "'pgp-apc-idle-probe', 'pgp-cable-burn-probe'. " +
+                    "'pgp-apc-idle-probe', 'pgp-cable-burn-probe', 'pgp-tooltip-filter-probe'. " +
                     "See DedicatedServer/dev-plugins/ScenarioRunner/README.md for the full catalogue."));
 
             DelayTicks = Config.Bind(

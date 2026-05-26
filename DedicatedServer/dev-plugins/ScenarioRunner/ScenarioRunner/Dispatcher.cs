@@ -120,6 +120,10 @@ namespace ScenarioRunner
                     Scenario_PgpCableBurnProbe();
                     return;
 
+                case "pgp-tooltip-filter-probe":
+                    Scenario_PgpTooltipFilterProbe();
+                    return;
+
                 default:
                     if (_ticksSeen == _delayTicks)
                         _log?.LogWarning($"[ScenarioRunner] unknown scenario '{_scenario}'; doing nothing.");
@@ -404,6 +408,89 @@ namespace ScenarioRunner
             {
                 _cbpReflectionFired = true;
                 ProbePgpTestBurnCableViaReflection();
+            }
+        }
+
+        // PGP scenario: tooltip-filter-probe.
+        // One-shot. Sweeps every Thing in the loaded scene, calls
+        // Thing.GetPassiveTooltip(null) on each, and inspects the resulting
+        // PassiveTooltip.Extended for the "<color=#ffa500>Burned:</color>" marker
+        // that PowerGridPlus.Patches.BurnReasonPatches.Thing_GetPassiveTooltip_Postfix
+        // appends. The postfix is gated by `__instance is CableRuptured`; any
+        // non-CableRuptured Thing whose Extended ends up carrying that marker is a
+        // filter bug. Reports totals plus up to five offender samples.
+        //
+        // Threading: the simulation-tick hook runs on a UniTask ThreadPool worker.
+        // Most GetPassiveTooltip overrides build strings from cached managed state
+        // and are safe to call off-thread, but some touch UnityEngine.Object members
+        // (transform.position, gameObject.activeSelf) which crash off the main
+        // thread. Each call is wrapped in try / catch; failed calls are counted
+        // separately. The aim is a high-coverage smoke test, not a 100% sweep --
+        // even with 30 % of Things failing we still have thousands of samples
+        // exercising the negative path.
+
+        private static bool _tfpFired;
+
+        private static void Scenario_PgpTooltipFilterProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-tooltip-filter-probe")) return;
+            if (_tfpFired) return;
+            _tfpFired = true;
+
+            int totalCalled = 0;
+            int totalFailed = 0;
+            int cableRupturedSeen = 0;
+            int cableRupturedWithBurned = 0;
+            int otherWithBurned = 0;
+            var offenders = new List<string>();
+
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (t == null) return;
+                PassiveTooltip tt;
+                try
+                {
+                    tt = t.GetPassiveTooltip(null);
+                }
+                catch
+                {
+                    totalFailed++;
+                    return;
+                }
+                totalCalled++;
+
+                bool isRuptured = t is CableRuptured;
+                bool hasBurned = !string.IsNullOrEmpty(tt.Extended) && tt.Extended.Contains("Burned:");
+
+                if (isRuptured)
+                {
+                    cableRupturedSeen++;
+                    if (hasBurned) cableRupturedWithBurned++;
+                }
+                else if (hasBurned)
+                {
+                    otherWithBurned++;
+                    if (offenders.Count < 5)
+                    {
+                        var snippet = tt.Extended.Length > 200 ? tt.Extended.Substring(0, 200) + "..." : tt.Extended;
+                        offenders.Add($"{t.GetType().Name} ref={t.ReferenceId} prefab={t.PrefabName} Extended='{snippet.Replace("\n", "\\n")}'");
+                    }
+                }
+            });
+
+            _log?.LogInfo(
+                $"[ScenarioRunner] TFP totalCalled={totalCalled} totalFailed={totalFailed} " +
+                $"CableRupturedSeen={cableRupturedSeen} CableRupturedWithBurned={cableRupturedWithBurned} " +
+                $"OtherWithBurned={otherWithBurned}");
+
+            if (otherWithBurned > 0)
+            {
+                _log?.LogError($"[ScenarioRunner] TFP filter bug: {otherWithBurned} non-CableRuptured Things have a 'Burned:' line in their tooltip.");
+                foreach (var o in offenders) _log?.LogError($"[ScenarioRunner] TFP offender: {o}");
+            }
+            else
+            {
+                _log?.LogInfo($"[ScenarioRunner] TFP filter pass: no non-CableRuptured Thing carried a 'Burned:' line.");
             }
         }
 
