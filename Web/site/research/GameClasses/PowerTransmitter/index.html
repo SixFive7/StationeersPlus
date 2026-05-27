@@ -2336,6 +2336,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#link-establishment-is-host-authoritative-only-the-tx-side-replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Link establishment is host-authoritative; only the TX side replicates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mod-extensions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7105,6 +7116,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#link-establishment-is-host-authoritative-only-the-tx-side-replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Link establishment is host-authoritative; only the TX side replicates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mod-extensions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7227,7 +7249,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-17.
+           on 2026-05-28.
         </p>
       
       
@@ -7543,6 +7565,15 @@ At the poles (<code>|d_local.y| ≈ 1</code>), <code>H</code> is undefined. Keep
 <li><code>PowerTransmitter.OnDestroy</code> (line 387183 onward) and <code>PowerReceiver.OnDestroy</code> (line 386904) both null-out the partner side.</li>
 </ul>
 <p>Cable-side networks are separate from the wireless network: the TX's cable port is on its own physical <code>CableNetwork</code> (the cable network ID seen as <code>OutputNetworkReferenceId</code> in <code>PowerTransmitterSaveData</code> is the cable-side network). Same for the RX. So a TX-RX pair touches four networks total: two wireless (one shared instance bridging both sides) and two physical cable networks (one wired to the TX side, one wired to the RX side). To bridge cable-side logic across a TX-RX link you traverse: caller cable network -&gt; caller's TX or RX -&gt; partner via <code>_linkedReceiver</code> / <code>_linkedPowerTransmitter</code> -&gt; partner's cable network.</p>
+<h2 id="link-establishment-is-host-authoritative-only-the-tx-side-replicates">Link establishment is host-authoritative; only the TX side replicates<a class="headerlink" href="#link-establishment-is-host-authoritative-only-the-tx-side-replicates" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p><code>PowerTransmitter.TryContactReceiver</code> (the raycast that sets <code>LinkedReceiver</code> and mirrors <code>LinkedReceiver.LinkedPowerTransmitter = this</code>) runs only on the host: its body is wrapped in <code>if (GameManager.RunSimulation &amp;&amp; GameManager.GameState == GameState.Running)</code>. Clients never establish the link locally; they receive it by replication. The two halves are asymmetric:</p>
+<ul>
+<li>TX side replicates. The <code>PowerTransmitter.LinkedReceiver</code> setter (line 387089) sets <code>NetworkUpdateFlags |= NetworkUpdateType.Thing.WirelessPower.Receiver</code> (line 387114) on the host. <code>PowerTransmitter.BuildUpdate</code> (line 387130) writes <code>LinkedReceiver?.ReferenceId ?? 0</code> under that flag; <code>ProcessUpdate</code> (line 387139) reads it back as <code>LinkedReceiver = Thing.Find&lt;PowerReceiver&gt;(reader.ReadInt64())</code>. <code>SerializeOnJoin</code> (387148) carries it too. So a client's <code>tx.LinkedReceiver</code> stays current.</li>
+<li>RX back-reference does NOT replicate. <code>PowerReceiver.LinkedPowerTransmitter</code>'s setter (line 386871) sets no <code>NetworkUpdateFlags</code> and is assigned only host-side, inside <code>TryContactReceiver</code>. There is no <code>BuildUpdate</code> / <code>ProcessUpdate</code> field carrying it. So on a client <code>rx.LinkedPowerTransmitter</code> stays null even while <code>tx.LinkedReceiver</code> points at that RX.</li>
+</ul>
+<p>Consequence for cross-link cable-side logic computed per-peer: a traversal that starts from the TX side (<code>tx.LinkedReceiver</code>) resolves on a client, but one that starts from the RX side (<code>rx.LinkedPowerTransmitter</code>) does not. A logic-passthrough merge is therefore symmetric on the host (both sides set in <code>TryContactReceiver</code>) but one-directional on a client (TX-cable side sees across the link; RX-cable side does not), unless the mod mirrors the back-reference on the client itself.</p>
 <h2 id="mod-extensions">Mod extensions<a class="headerlink" href="#mod-extensions" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
 
@@ -7550,9 +7581,10 @@ At the poles (<code>|d_local.y| ≈ 1</code>), <code>H</code> is undefined. Keep
 <li>PowerTransmitterPlus extends this class; see <a href="../../Mods/PowerTransmitterPlus/RESEARCH.md">../../Mods/PowerTransmitterPlus/RESEARCH.md</a> for distance-cost patches, AutoAim, and related extensions.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <ul>
+<li>2026-05-28: added "Link establishment is host-authoritative; only the TX side replicates". Confirmed <code>TryContactReceiver</code> is gated on <code>GameManager.RunSimulation</code> (host-only) in both vanilla and PowerTransmitterPlus (PTP prefix-replaces the body but keeps the gate); the <code>PowerTransmitter.LinkedReceiver</code> setter (387089) flags <code>NetworkUpdateType.Thing.WirelessPower.Receiver</code> (387114) and <code>BuildUpdate</code> / <code>ProcessUpdate</code> (387130-387146) carry it by ReferenceId; <code>PowerReceiver.LinkedPowerTransmitter</code> setter (386871) sets no flag and is assigned only host-side, so the back-reference does not replicate. Driving work: PowerGridPlus dish-link passthrough refresh, where this asymmetry makes the client merge one-directional. Additive; no prior claim contradicted, no fresh validator.</li>
 <li>2026-05-17: added "TX/RX wireless link topology (network bridging)" section, sourced from decompile lines 387065-387162 (PowerTransmitter), 386861-386911 (PowerReceiver), and 405441 (<code>WirelessPower : ElectricalInputOutput</code>). Documents the shared <code>WirelessNetwork</code> between linked TX and RX (<code>RX.InputNetwork = TX.OutputNetwork</code> assignment in the <code>LinkedPowerTransmitter</code> setter), the private fields backing the link (<code>_linkedReceiver</code>, <code>_linkedPowerTransmitter</code>, <code>_savedRecieverId</code> vanilla typo), the wire format used by <code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code>, the topology fact that a TX/RX pair touches four networks total (one shared wireless + two separate cable networks on each end), and the directional <code>InputNetwork</code>/<code>OutputNetwork</code> assignment on each side (TX: <code>InputNetwork</code>=cable, <code>OutputNetwork</code>=wireless; RX: <code>InputNetwork</code>=wireless, <code>OutputNetwork</code>=cable). Driving question: how would a logic-passthrough mod bridge cable-side logic across a TX-RX wireless link. Answer: in a <code>RefreshPowerAndDataDeviceLists</code> postfix, when iterating a Cable network's DeviceList and encountering a TX, the "other side" cable network is <code>tx.LinkedReceiver?.OutputNetwork</code>; encountering an RX, the other side is <code>rx.LinkedPowerTransmitter?.InputNetwork</code>.</li>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0035, F0036, F0037, F0038, F0039, F0042, F0044, F0050, F0052, F0053, F0219z, F0300, F0301. No conflicts.</li>
 <li>2026-04-20: removed PowerTransmitterPlus-specific subsections per Phase 6 Pass B editorial decision (GameClasses pages are strictly vanilla). Added mod-extensions pointer.</li>
