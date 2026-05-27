@@ -5961,6 +5961,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ijoinsuffixserializer-join-time-state-snapshot-to-a-joining-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IJoinSuffixSerializer: join-time state snapshot to a joining client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7016,6 +7027,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ijoinsuffixserializer-join-time-state-snapshot-to-a-joining-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IJoinSuffixSerializer: join-time state snapshot to a joining client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7127,7 +7149,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-23.
+           on 2026-05-28.
         </p>
       
       
@@ -7369,12 +7391,31 @@
 <p><code>ConnectionState.CloseWithError</code> is called with a multi-line string composed of each failing mod's <code>ProcessJoinValidate</code> error. The string includes <code>"server"</code> / <code>"client"</code> framing derived from <code>NetworkManager.IsServer</code> at the point of check, so the displayed message tells the player which side is missing or rejecting the value.</p>
 <h3 id="related-ijoinprefixserializer-and-iversionvalidator">Related: <code>IJoinPrefixSerializer</code> and <code>IVersionValidator</code><a class="headerlink" href="#related-ijoinprefixserializer-and-iversionvalidator" title="Permanent link">&para;</a></h3>
 <p><code>ModNetworking</code> also exposes <code>JoinPrefixSerializer</code> and <code>VersionValidator</code> hooks for the same general exchange, with different semantics. Not in scope on this page; see <code>IModNetworking</code> for the full surface.</p>
+<h2 id="ijoinsuffixserializer-join-time-state-snapshot-to-a-joining-client">IJoinSuffixSerializer: join-time state snapshot to a joining client<a class="headerlink" href="#ijoinsuffixserializer-join-time-state-snapshot-to-a-joining-client" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p><code>IJoinSuffixSerializer</code> is the hook for shipping a block of per-mod state to a joining client as part of the world snapshot. It is distinct from <code>IJoinValidator</code> (a pass/fail handshake) and from live <code>INetworkMessage</code> broadcasts (which only reach already-connected clients). A plugin implements it and assigns <code>MOD.Networking.JoinSuffixSerializer = this</code>.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">IJoinSuffixSerializer</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">void</span><span class="w"> </span><span class="nf">SerializeJoinSuffix</span><span class="p">(</span><span class="n">RocketBinaryWriter</span><span class="w"> </span><span class="n">writer</span><span class="p">);</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">void</span><span class="w"> </span><span class="nf">DeserializeJoinSuffix</span><span class="p">(</span><span class="n">RocketBinaryReader</span><span class="w"> </span><span class="n">reader</span><span class="p">);</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Invocation (verified from <code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/Plugin.cs:260-348</code>, <code>DistanceConfigSync.cs:9-23</code>, and <code>./PlayerConnectedThingFindTiming.md</code>):</p>
+<ul>
+<li>Host: <code>SerializeJoinSuffix</code> runs inside <code>NetworkServer.PackageJoinData</code> (LaunchPadBooster injects it into the join writer), appended to the world snapshot sent to the joiner.</li>
+<li>Client: <code>DeserializeJoinSuffix</code> runs inside <code>NetworkClient.ProcessJoinData</code>, at the position of the original <code>AtmosphericsManager.DeserializeOnJoin</code> call, which is AFTER <code>ProcessThings</code>. So every Thing is already deserialized and <code>Thing.Find</code> resolves device ids inside the deserializer.</li>
+<li>Fires only on a remote client join. Does NOT fire when the host loads its own world, nor in single-player (same gating as <code>IJoinValidator</code>).</li>
+<li>LaunchPadBooster length-prefixes each mod's section (SectionedWriter / Reader), so a schema change in one mod does not desync neighbours. Field write order in <code>SerializeJoinSuffix</code> MUST match read order in <code>DeserializeJoinSuffix</code>.</li>
+</ul>
+<p>Why this and not a <code>NetworkManager.PlayerConnected</code> broadcast: that hook fires BEFORE the joiner is added to <code>NetworkBase.Clients</code>, so an <code>INetworkMessage.SendAll</code> from a <code>PlayerConnected</code> postfix reaches existing clients but never the new joiner. PowerTransmitterPlus used the <code>PlayerConnected</code> rebroadcast through v1.6.x and removed it in v1.7.0 in favour of <code>IJoinSuffixSerializer</code> for exactly this reason. The established split: live <code>SendAll</code> for runtime changes to already-connected clients, <code>IJoinSuffixSerializer</code> for the initial snapshot to a joiner.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-23 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration. Primary source F0055 (PowerTransmitterPlus RESEARCH.md:676-692). Additional sources cited: F0025 (SprayPaintPlus RESEARCH.md:211-213), F0029c (SprayPaintPlus RESEARCH.md:149-151), F0312 (PowerTransmitterPlus/DistanceConfigSync.cs:66-72).</li>
 <li>2026-04-23: added "IJoinValidator: custom per-mod join validation" section. Verified against <code>LaunchPadBooster.dll</code> in game version 0.2.6228.27061 by decompilation of <code>IJoinValidator</code>, <code>IModNetworking</code>, <code>ModNetworking.PrepareJoinValidateData</code>, <code>ModNetworking</code> <code>VerifyPlayer</code> / <code>VerifyPlayerRequest</code> Harmony postfixes, and <code>ConnectionState.DoJoinValidateModCustom</code>. Finding: validator fires only on remote client-join exchanges; does NOT fire for host-own-world load or single-player.</li>
+<li>2026-05-28: added "IJoinSuffixSerializer: join-time state snapshot to a joining client". Verified from PowerTransmitterPlus <code>Plugin.cs:260-348</code> (implements <code>IJoinSuffixSerializer</code>; <code>SerializeJoinSuffix</code> / <code>DeserializeJoinSuffix</code> ship the auto-aim cache + seven config values) and <code>DistanceConfigSync.cs:9-23</code>, cross-referenced with <code>./PlayerConnectedThingFindTiming.md</code>. Documents the host <code>PackageJoinData</code> / client <code>ProcessJoinData</code>-after-<code>ProcessThings</code> invocation points, the remote-join-only gating, and why it replaced the v1.6.x <code>PlayerConnected</code> rebroadcast (which fires before the joiner is in <code>NetworkBase.Clients</code>). Additive (the page previously documented only <code>IJoinValidator</code>, with <code>IJoinPrefixSerializer</code> noted out of scope); no existing claim contradicted, so no fresh validator.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
