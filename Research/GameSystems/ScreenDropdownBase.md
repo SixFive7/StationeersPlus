@@ -3,7 +3,7 @@ title: ScreenDropdownBase Dropdown Population
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-26
+verified_at: 2026-05-28
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:239469-239517
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:238727-238802
@@ -85,29 +85,30 @@ Every time the dropdown opens or RefreshAll is called, PopulateTypes rebuilds th
 ScreenCondition.PopulateTypes follows the identical pattern, as does ScreenCondition.PopulateOperators which clears and rebuilds ScreenDropdownBase.OptionData for operator selection.
 
 ## Caching and snapshot behavior
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
-The dropdown options themselves are rebuilt dynamically every render, but the list of possible LogicType values comes from the frozen static array:
+The dropdown options themselves are rebuilt dynamically every render. The list of possible LogicType values comes from the static `ScreenDropdownBase.LogicTypes` array, seeded from the vanilla enum at Awake but extendable by reflection in a way that survives Awake (see "Awake does not clobber a reflection-extended array" below):
 
-Component                              When built              When frozen        Mutation point
-ScreenDropdownBase.LogicTypes array    First Awake() call     Never re-init      Enum.GetValues at Awake
-ScreenDropdownBase.OptionData list     Every PopulateTypes()  Per-cycle           Filters LogicTypes by device
-Dropdown UI options                    Every AddOptions()     Per-refresh         Unity Dropdown component
+Component                              When built             Re-init behavior                  Mutation point
+ScreenDropdownBase.LogicTypes array    Static init + Awake    Awake rewrites indices 0..vanilla-1 only   Enum.GetValues at Awake; reflection-appended tail survives
+ScreenDropdownBase.OptionData list     Every PopulateTypes()  Per-cycle                         Filters LogicTypes by device
+Dropdown UI options                    Every AddOptions()     Per-refresh                       Unity Dropdown component
 
 Custom LogicTypes registered at runtime appear in:
 - EnumCollections.LogicTypes (extended via Harmony) - Tablet UI sees them
 - Logicable.LogicTypes (extended via Harmony) - NextLogicType cycling sees them
-- ScreenDropdownBase.LogicTypes (frozen at Awake) - Motherboard UI DOES NOT see them
+- ScreenDropdownBase.LogicTypes (extended via reflection; the append survives Awake) - LogicMotherboard / screen dropdowns see them, gated by the per-device CanLogicWrite / CanLogicRead filter
 
-## Why custom LogicTypes don't appear in motherboard dropdowns
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+## Awake does not clobber a reflection-extended array
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
-The three-registry architecture documented in LogicType.md requires extending ScreenDropdownBase.LogicTypes via the LogicableInitializePatch. However, this patch only works if it fires before any ScreenDropdownBase.Awake() is called. Since ScreenDropdownBase is instantiated when a Big Screen or Console spawns (typically during gameplay), and BepInEx plugin initialization runs in a separate phase, the race condition is common: the Awake fires before the Harmony patch extends the array.
+A mod extends ScreenDropdownBase.LogicTypes by replacing the static field with a longer array (vanilla entries copied into indices 0..vanilla-1, custom values appended after), as PowerGridPlus does in LogicableInitializePatch.ExtendScreenDropdownBase. The extension is durable across ScreenDropdownBase.Awake() and does NOT race with it:
 
-Additionally, ScreenDropdownBase has no explicit rebuild mechanism. Unlike EnumCollections.LogicTypes (rebuilt via Harmony postfix) or Logicable.LogicTypes (iterable via reflection), ScreenDropdownBase.LogicTypes is a frozen array with no setter or refresh hook. Once populated at Awake, it cannot be extended without either:
+- Awake's fill loop is bounded by `Enum.GetValues(typeof(LogicType)).Length` (the underlying enum's fixed member count, decided at game build time), NOT by `LogicTypes.Length`. It only writes indices 0..vanilla-1.
+- Awake does not re-allocate LogicTypes; it writes into the existing array object. A reflection replacement installs the longer array, and subsequent Awake calls overwrite only the vanilla-index prefix, leaving the appended tail intact.
+- `_isInitialized` is never set true, so the fill loop runs on every Awake, but the two points above make the re-run idempotent for the appended tail.
 
-1. Patching ScreenDropdownBase.Awake before any instance runs (risky; races with scene load)
-2. Patching ScreenDropdownBase.PopulateTypes postfix to inject missing types into OptionData each render (workaround; not integrated into game design)
+Consequence: patch ordering does not matter. The Logicable.Initialize postfix may run before or after any ScreenDropdownBase.Awake; the appended entries survive either way, and there is no rebuild hook to call. A custom LogicType present in the extended array still only SHOWS in a given LogicMotherboard dropdown when that motherboard's targeted device passes the CanLogicWrite / CanLogicRead filter (see the section above) - that filter, not array freshness, is the real gate on visibility.
 
 ## Dropdown options filter by CanLogicWrite / CanLogicRead at refresh time
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
@@ -123,15 +124,15 @@ Each `PopulateTypes` call rebuilds `ScreenDropdownBase.OptionData` from scratch 
 `PopulateValue` (`Assembly-CSharp.decompiled.cs:238804`) uses a hard-coded `switch (Parent.Type)` over `LogicType.None, Power, Activate, Open, Error, Lock, Mode, Color`. Any other LogicType (including every custom mod-registered LogicType) falls into the `default` arm, which surfaces the value as a raw number plus an "Enter New Value" option. Custom boolean-shaped LogicTypes (mode flags, on/off toggles) therefore do not render as "Off / On" or "False / True" in this dropdown - they render numerically. There is no extension point in the switch.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 - 2026-05-26: page created. Decompiled ScreenDropdownBase at v0.2.6228.27061 from Assembly-CSharp.decompiled.cs lines 239469-239517. Verified that LogicTypes array is built in Awake via Enum.GetValues, with _isInitialized flag never set to true (incomplete game code). Traced dropdown population in ScreenAction.PopulateTypes (lines 238755-238802) and ScreenCondition.PopulateTypes (lines 239075-239103), confirming both re-fetch ScreenDropdownBase.LogicTypes and filter dynamically. Verified consistency with LogicType.md three-registry pattern.
 - 2026-05-26: intro corrected. Earlier draft attributed the LogicType dropdowns to "the IC Editor motherboard and other Big Screen/Console cartridges." Re-reading the decompile confirms the dropdowns belong to `LogicMotherboard` (`Assembly-CSharp.decompiled.cs:315578`), which owns `ConditionPrefab : ScreenCondition` and `ActionPrefab : ScreenAction`. The IC Editor cartridge is `ProgrammableChipMotherboard` (`Assembly-CSharp.decompiled.cs:317577`); its only dropdown is a `ButtonDropdown _dropdown` for device selection (line 317606), with no LogicType dropdown anywhere on it. Intro paragraph rewritten accordingly.
 - 2026-05-26: added "Dropdown options filter by CanLogicWrite / CanLogicRead at refresh time" section documenting the per-call dynamic filter, the three trigger points for `PopulateTypes`, the absence of a re-fire on capability changes, and the `PopulateValue` switch's hard-coded LogicType set that forces every custom LogicType into the numeric default arm.
+- 2026-05-28: conflict on "does Awake clobber a reflection-extended ScreenDropdownBase.LogicTypes array". Previous claim (sections "Caching and snapshot behavior" / "Why custom LogicTypes don't appear in motherboard dropdowns"): the array is frozen at Awake, motherboard UI cannot see reflection-appended custom types, and the patch must win a race against Awake. New finding: Awake's loop is bounded by the fixed enum member count and does not re-allocate the array, so an appended tail survives. Fresh validator verdict: Survives (Awake does not clobber the appended tail); loop bound is `Enum.GetValues(typeof(LogicType)).Length`, no re-allocation, `_isInitialized` never set. Result: renamed "Why custom LogicTypes don't appear in motherboard dropdowns" to "Awake does not clobber a reflection-extended array" and rewrote it; corrected the "Caching and snapshot behavior" bullet and framing; removed the corresponding Open Question.
 
 ## Open questions
 
 - Why is _isInitialized never set to true in the game code? Is this intentional or a bug?
 - Can a Harmony postfix to ScreenDropdownBase.PopulateTypes safely inject custom LogicTypes into OptionData without affecting other screens?
-- What is the exact load order: when does ScreenDropdownBase.Awake fire relative to BepInEx plugin patch application?
-- Sections "Caching and snapshot behavior" and "Why custom LogicTypes don't appear in motherboard dropdowns" claim that the `Awake` re-init destroys reflection-based extensions of `ScreenDropdownBase.LogicTypes`. A direct re-read of the `Awake` body (`Assembly-CSharp.decompiled.cs:239491-239504`) shows the loop bound is `values.Length` where `values = Enum.GetValues(typeof(LogicType))` - i.e. the underlying enum's count, which is fixed at game build time and unaffected by reflection-based array replacement on the static field. Indices at and beyond `values.Length` are not touched. This suggests an extension that replaces `ScreenDropdownBase.LogicTypes` with a longer array survives subsequent `Awake` calls intact for the appended slots. Needs fresh-validator review per WORKFLOW.md Rule 3 before the contested sections are rewritten.
+- What is the exact load order: when does ScreenDropdownBase.Awake fire relative to BepInEx plugin patch application? (Per the 2026-05-28 conflict resolution this does not affect whether reflection-appended LogicTypes survive; it only affects the first frame they become visible.)
