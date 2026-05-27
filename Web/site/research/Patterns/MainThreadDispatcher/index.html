@@ -5114,6 +5114,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-games-unitymainthreaddispatcher-and-why-mods-roll-their-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The game's UnityMainThreadDispatcher, and why mods roll their own
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6906,6 +6917,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-games-unitymainthreaddispatcher-and-why-mods-roll-their-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The game's UnityMainThreadDispatcher, and why mods roll their own
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7017,7 +7039,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-05-28.
         </p>
       
       
@@ -7125,11 +7147,76 @@
 <li>F0308 (MainThreadDispatcher.cs class header): implementation recipe (<code>ConcurrentQueue&lt;Action&gt;</code> + <code>DontDestroyOnLoad</code> + drain in <code>Update</code>).</li>
 <li>F0350 (LLM Plugin.cs: main-thread capture): pair the dispatcher with up-front value capture for background workers that consume main-thread state.</li>
 </ul>
+<h2 id="the-games-unitymainthreaddispatcher-and-why-mods-roll-their-own">The game's UnityMainThreadDispatcher, and why mods roll their own<a class="headerlink" href="#the-games-unitymainthreaddispatcher-and-why-mods-roll-their-own" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>Stationeers ships its own main-thread dispatcher, <code>UnityMainThreadDispatcher : ManagerBase</code> (decompile line 219184). It is usable in principle, but three properties make a self-owned mod-local dispatcher the safer default for a BepInEx mod.</p>
+<ol>
+<li><code>Instance()</code> throws when the dispatcher object is absent:</li>
+</ol>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">UnityMainThreadDispatcher</span><span class="w"> </span><span class="nf">Instance</span><span class="p">()</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">Exists</span><span class="p">())</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="p">(</span><span class="s">&quot;UnityMainThreadDispatcher could not find the UnityMainThreadDispatcher object. Please ensure you have added the MainThreadExecutor Prefab to your scene.&quot;</span><span class="p">);</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">_instance</span><span class="p">;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>_instance</code> is assigned in <code>ManagerAwake</code> (the <code>ManagerBase</code> lifecycle), so the dispatcher exists only once the <code>MainThreadExecutor</code> manager has spawned in the current scene. A plugin that enqueues from early load, the main menu, or any scene where the manager is not present gets an exception, not a no-op. A mod-local dispatcher created in <code>Plugin.Awake</code> is available the moment the plugin is alive.</p>
+<ol>
+<li><code>Enqueue(Action)</code> does not run the action directly. It wraps it in a coroutine started during <code>ManagerUpdate</code>:</li>
+</ol>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Enqueue</span><span class="p">(</span><span class="n">Action</span><span class="w"> </span><span class="n">action</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Enqueue</span><span class="p">(</span><span class="n">ActionWrapper</span><span class="p">(</span><span class="n">action</span><span class="p">));</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">private</span><span class="w"> </span><span class="n">IEnumerator</span><span class="w"> </span><span class="nf">ActionWrapper</span><span class="p">(</span><span class="n">Action</span><span class="w"> </span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">a</span><span class="p">();</span><span class="w"> </span><span class="k">yield</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1">// ManagerUpdate drains ExecutionQueue under: if (action.Target != null) action();</span>
+</span></code></pre></div>
+<p>Two consequences: the action runs via <code>StartCoroutine</code> (extra indirection; runs only while the dispatcher MonoBehaviour is active and <code>ManagerUpdate</code> pumps), and the <code>if (action.Target != null)</code> guard silently DROPS any queued delegate whose <code>Target</code> is null. In practice the queued item is a closure (non-null <code>Target</code>) so it runs, but a target-less delegate vanishes without error.</p>
+<ol>
+<li>The execution queue is shared with the engine's own usage (it also carries <code>ChunkThread</code> tasks via a second <code>TaskQueue</code>), and its pump is tied to the game's manager-update loop rather than the mod's control.</li>
+</ol>
+<p>Trade-off summary:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Game <code>UnityMainThreadDispatcher</code></th>
+<th>Mod-local dispatcher</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Availability</td>
+<td>Throws if the MainThreadExecutor manager is not in the scene; must guard with <code>Exists()</code> and have a fallback</td>
+<td>Guaranteed from <code>Plugin.Awake</code>; defensive no-op before Init</td>
+</tr>
+<tr>
+<td>Drain</td>
+<td><code>StartCoroutine(ActionWrapper)</code>; <code>Target != null</code> guard drops target-less delegates</td>
+<td>Direct <code>action()</code> in <code>Update()</code>; no Target gotcha</td>
+</tr>
+<tr>
+<td>Coupling</td>
+<td>Game manager-update loop + scene/prefab presence</td>
+<td>Mod-owned lifecycle, <code>DontDestroyOnLoad</code></td>
+</tr>
+<tr>
+<td>Queue</td>
+<td>Shared with engine (also <code>ChunkThread</code> tasks)</td>
+<td>Isolated to the mod</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>No extra GameObject</td>
+<td>One extra GameObject + Update tick (negligible); ~30 lines duplicated per mod</td>
+</tr>
+</tbody>
+</table>
+<p>Net: the game's dispatcher is usable if you guard <code>UnityMainThreadDispatcher.Exists()</code> and accept the coroutine / Target semantics, but the mod-local pattern above is what every dispatching mod in this repo uses, because it removes the throw-if-absent failure mode and the Target-drop gotcha for ~30 lines. When more than one mod needs it, consider promoting the helper to <code>Patterns/</code> shared code rather than copying it per mod.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; implementation verbatim from F0308, with underlying-cause detail from F0032 and the main-thread-capture addendum from F0350.</li>
+<li>2026-05-28: added "The game's UnityMainThreadDispatcher, and why mods roll their own". Read <code>UnityMainThreadDispatcher : ManagerBase</code> (decompile line 219184): <code>Instance()</code> throws when the MainThreadExecutor manager is absent; <code>Enqueue(Action)</code> wraps in an <code>ActionWrapper</code> coroutine and drains under an <code>if (action.Target != null)</code> guard that drops target-less delegates; the execution queue is shared with engine <code>ChunkThread</code> tasks. Documents the game-vs-mod-local trade-off. Additive (the page previously covered only the mod-local recipe); no existing claim contradicted, so no fresh validator.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
