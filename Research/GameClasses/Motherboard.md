@@ -125,8 +125,42 @@ Reinserting the motherboard ("replug") is the reliable manual refresh because `C
 
 To force a refresh without a replug, a caller must invoke a path that reaches `Motherboard.OnDeviceListChanged()` on the host computer's `CurrentMotherboard` - for example calling the host's `OnDeviceConnectToNetwork(device)` forwarder, or calling `CurrentMotherboard.OnDeviceListChanged()` directly on each affected computer after the device set changes.
 
+## Vanilla consumer-notification cascade: RefreshNetworkDevice
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+The path that tells consumers "this network's membership changed" is `CableNetwork.RefreshNetworkDevice` (`Assembly-CSharp.decompiled.cs:253861`):
+
+```csharp
+public void RefreshNetworkDevice(Device device)
+{
+    device.OnAddCableNetwork(this);
+    foreach (Device device2 in DeviceList)
+    {
+        if (!(device2 == device))
+            device2.OnDeviceConnectToNetwork(device);
+    }
+}
+```
+
+It fires `OnDeviceConnectToNetwork(device)` on every other device on the network: the cascade a real device-add rides. It is SEPARATE from the list rebuild. `CableNetwork.RefreshPowerAndDataDeviceLists` (`:253589`) and `HandleDataNetTransmissionDevice` (`:253630`) mutate the cached `_dataDeviceList` silently and fire no per-device callback (see [CableNetwork.md](./CableNetwork.md)). `AddDevice` (`:253852`) / `RemoveDevice` (`:253873`) additionally raise the static `CableNetwork.OnNetworkChanged` action (a coarse "some network changed" signal, distinct from the per-device cascade).
+
+Consequence: a passthrough merge that only dirties and rebuilds the data list changes WHAT is in `DataDeviceList` without firing the cascade, so no consumer is notified. To refresh consumers generically, the cascade (`OnDeviceConnectToNetwork`, e.g. by invoking `RefreshNetworkDevice` once per affected network) must be triggered explicitly.
+
+## Consumer signals: which devices react to what
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+Consumers split into two groups by the notification they react to:
+
+- React to `OnDeviceListChanged()`: motherboard cartridges. They do not watch the network directly; their host `Computer` forwards `OnDeviceConnectToNetwork` / `OnDeviceDisconnectFromNetwork` (and rename / cable-find events) to `CurrentMotherboard.OnDeviceListChanged()` (see "Computer host forwards OnDeviceListChanged"). Overriders: LogicMotherboard (`:315724`), ProgrammableChipMotherboard (`:317743`), RocketMotherboard (`:318694`), SolarControlMotherboard (`:318985`), SorterMotherboard (`:319238`), CommsMotherboard (`:312212`), ManufacturingMotherboard (`:313663`/`:317090`), and the Circuitboard base (`:322844`) with its airlock / air / camera / gas / graph / hash display subclasses (`:309950, 310519, 311181, 311818, 312682, 313019, 313215`). Base declaration `Circuitboard.OnDeviceListChanged()` (`:331066`) = `ParentComputer?.CheckStatus()`, virtual, overridable by any modded motherboard.
+- React to `OnDeviceConnectToNetwork(Device)` / `OnDeviceDisconnectFromNetwork(Device)` DIRECTLY (no Computer host): the IC housing `ProgrammableChip` (`:164259`/`:164271`) nulls its `_dataNetworkDevicesSorted` cache via `OnNetworkChange()`, and `LogicBase` sensors (`:384515`/`:384527`) null `_inputNetwork1DevicesSorted` / `_outputNetwork1DevicesSorted` the same way.
+
+Implication for a generic refresh: firing `OnDeviceListChanged()` on host Computers refreshes motherboards but MISSES the IC housings and sensors that have no Computer host. Firing the full cascade (`OnDeviceConnectToNetwork` on each device, e.g. via `RefreshNetworkDevice`) refreshes BOTH groups, plus any third-party device that follows the vanilla pattern of overriding these methods. The cascade is the generalizable trigger; `OnDeviceListChanged`-on-Computers is not.
+
+These notifications fire per-peer. `RefreshPowerAndDataDeviceLists` has no server gate and runs on clients too (each peer computes its own device lists locally from replicated device / cable state; `CableNetwork` membership is not itself replicated). So a refresh trigger that must reach client UI has to run on the client, and the list it recomputes is only correct if the inputs to the merge are present on the client.
+
 ## Verification history
 
+- 2026-05-28: added "Vanilla consumer-notification cascade: RefreshNetworkDevice" and "Consumer signals: which devices react to what". Verified `RefreshNetworkDevice` (`:253861`) fires `OnDeviceConnectToNetwork` per device; confirmed the silent rebuild (`RefreshPowerAndDataDeviceLists` `:253589`, `HandleDataNetTransmissionDevice` `:253630`) fires no cascade; read the IC-housing (`ProgrammableChip` `:164259`) and `LogicBase` sensor (`:384515`) connect/disconnect overrides directly (both null sorted caches via `OnNetworkChange`). Consumer overrider enumeration cross-checked against the OnDeviceListChanged grep across the decompile. Recorded per-peer execution of the refresh path for the multiplayer dimension.
 - 2026-05-28: page created. Traced the motherboard device-list source chain and rebuild triggers at game 0.2.6228.27061 from `Assembly-CSharp.decompiled.cs`. Directly read `LogicMotherboard.RebuildDeviceList` (315637-315656), `LogicMotherboard.OnDeviceListChanged` (315724-315731), `LogicMotherboard.OnInsertedToComputer` (315733-315744), and enumerated every `CurrentMotherboard.OnDeviceListChanged()` call site in the `Computer` host (372779-372884) plus the base `Motherboard.OnDeviceListChanged` (331066) and `OnSlaveStateChange` (330866). `ProgrammableChipMotherboard` triggers (`_DevicesChanged`, `HandleDeviceListChange`, `OnInsertedToComputer`, `ProcessUpdate` flag 256) read at 317673-317765. `CableNetwork.DataDeviceList` getter and `DirtyPowerAndDataDeviceLists` cross-referenced with [CableNetwork.md](./CableNetwork.md) and `Mods/PowerGridPlus/TODO.md:23` (decompile 253519-253529, 253657-253661).
 
 ## Open questions
