@@ -2012,6 +2012,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vanilla-consumer-notification-cascade-refreshnetworkdevice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vanilla consumer-notification cascade: RefreshNetworkDevice
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer-signals-which-devices-react-to-what" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer signals: which devices react to what
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6894,6 +6916,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vanilla-consumer-notification-cascade-refreshnetworkdevice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vanilla consumer-notification cascade: RefreshNetworkDevice
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer-signals-which-devices-react-to-what" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer signals: which devices react to what
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7160,8 +7204,35 @@
 <p>It does not call <code>OnDeviceListChanged()</code> on any device, does not call <code>OnDeviceConnectToNetwork</code> / <code>OnDeviceDisconnectFromNetwork</code>, and the motherboard does not subscribe to the dirty flags or to any network-changed event. Neither <code>LogicMotherboard</code> nor <code>ProgrammableChipMotherboard</code> overrides <code>OnDeviceConnectToNetwork</code>. Consequently, code that mutates the <em>contents</em> of <code>DataDeviceList</code> (for example, a Harmony postfix on <code>CableNetwork.RefreshPowerAndDataDeviceLists</code> that appends extra devices, gated by a runtime mode flag) and then calls <code>DirtyPowerAndDataDeviceLists()</code> will make <code>DataDeviceList</code> itself correct on the next read, but will NOT cause the host computer to re-fire <code>OnDeviceListChanged()</code>. The motherboard's <code>DisplayedDevices</code> / chip-list copy stays stale.</p>
 <p>Reinserting the motherboard ("replug") is the reliable manual refresh because <code>Computer</code> calls <code>CurrentMotherboard.OnInsertedToComputer(this)</code> on insertion, which calls <code>RebuildDeviceList()</code> / <code>HandleDeviceListChange()</code> directly, re-reading <code>DataDeviceList</code> from scratch.</p>
 <p>To force a refresh without a replug, a caller must invoke a path that reaches <code>Motherboard.OnDeviceListChanged()</code> on the host computer's <code>CurrentMotherboard</code> - for example calling the host's <code>OnDeviceConnectToNetwork(device)</code> forwarder, or calling <code>CurrentMotherboard.OnDeviceListChanged()</code> directly on each affected computer after the device set changes.</p>
+<h2 id="vanilla-consumer-notification-cascade-refreshnetworkdevice">Vanilla consumer-notification cascade: RefreshNetworkDevice<a class="headerlink" href="#vanilla-consumer-notification-cascade-refreshnetworkdevice" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>The path that tells consumers "this network's membership changed" is <code>CableNetwork.RefreshNetworkDevice</code> (<code>Assembly-CSharp.decompiled.cs:253861</code>):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">RefreshNetworkDevice</span><span class="p">(</span><span class="n">Device</span><span class="w"> </span><span class="n">device</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">device</span><span class="p">.</span><span class="n">OnAddCableNetwork</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Device</span><span class="w"> </span><span class="n">device2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">DeviceList</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">device2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">device</span><span class="p">))</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">            </span><span class="n">device2</span><span class="p">.</span><span class="n">OnDeviceConnectToNetwork</span><span class="p">(</span><span class="n">device</span><span class="p">);</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>It fires <code>OnDeviceConnectToNetwork(device)</code> on every other device on the network: the cascade a real device-add rides. It is SEPARATE from the list rebuild. <code>CableNetwork.RefreshPowerAndDataDeviceLists</code> (<code>:253589</code>) and <code>HandleDataNetTransmissionDevice</code> (<code>:253630</code>) mutate the cached <code>_dataDeviceList</code> silently and fire no per-device callback (see <a href="../CableNetwork/">CableNetwork.md</a>). <code>AddDevice</code> (<code>:253852</code>) / <code>RemoveDevice</code> (<code>:253873</code>) additionally raise the static <code>CableNetwork.OnNetworkChanged</code> action (a coarse "some network changed" signal, distinct from the per-device cascade).</p>
+<p>Consequence: a passthrough merge that only dirties and rebuilds the data list changes WHAT is in <code>DataDeviceList</code> without firing the cascade, so no consumer is notified. To refresh consumers generically, the cascade (<code>OnDeviceConnectToNetwork</code>, e.g. by invoking <code>RefreshNetworkDevice</code> once per affected network) must be triggered explicitly.</p>
+<h2 id="consumer-signals-which-devices-react-to-what">Consumer signals: which devices react to what<a class="headerlink" href="#consumer-signals-which-devices-react-to-what" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>Consumers split into two groups by the notification they react to:</p>
+<ul>
+<li>React to <code>OnDeviceListChanged()</code>: motherboard cartridges. They do not watch the network directly; their host <code>Computer</code> forwards <code>OnDeviceConnectToNetwork</code> / <code>OnDeviceDisconnectFromNetwork</code> (and rename / cable-find events) to <code>CurrentMotherboard.OnDeviceListChanged()</code> (see "Computer host forwards OnDeviceListChanged"). Overriders: LogicMotherboard (<code>:315724</code>), ProgrammableChipMotherboard (<code>:317743</code>), RocketMotherboard (<code>:318694</code>), SolarControlMotherboard (<code>:318985</code>), SorterMotherboard (<code>:319238</code>), CommsMotherboard (<code>:312212</code>), ManufacturingMotherboard (<code>:313663</code>/<code>:317090</code>), and the Circuitboard base (<code>:322844</code>) with its airlock / air / camera / gas / graph / hash display subclasses (<code>:309950, 310519, 311181, 311818, 312682, 313019, 313215</code>). Base declaration <code>Circuitboard.OnDeviceListChanged()</code> (<code>:331066</code>) = <code>ParentComputer?.CheckStatus()</code>, virtual, overridable by any modded motherboard.</li>
+<li>React to <code>OnDeviceConnectToNetwork(Device)</code> / <code>OnDeviceDisconnectFromNetwork(Device)</code> DIRECTLY (no Computer host): the IC housing <code>ProgrammableChip</code> (<code>:164259</code>/<code>:164271</code>) nulls its <code>_dataNetworkDevicesSorted</code> cache via <code>OnNetworkChange()</code>, and <code>LogicBase</code> sensors (<code>:384515</code>/<code>:384527</code>) null <code>_inputNetwork1DevicesSorted</code> / <code>_outputNetwork1DevicesSorted</code> the same way.</li>
+</ul>
+<p>Implication for a generic refresh: firing <code>OnDeviceListChanged()</code> on host Computers refreshes motherboards but MISSES the IC housings and sensors that have no Computer host. Firing the full cascade (<code>OnDeviceConnectToNetwork</code> on each device, e.g. via <code>RefreshNetworkDevice</code>) refreshes BOTH groups, plus any third-party device that follows the vanilla pattern of overriding these methods. The cascade is the generalizable trigger; <code>OnDeviceListChanged</code>-on-Computers is not.</p>
+<p>These notifications fire per-peer. <code>RefreshPowerAndDataDeviceLists</code> has no server gate and runs on clients too (each peer computes its own device lists locally from replicated device / cable state; <code>CableNetwork</code> membership is not itself replicated). So a refresh trigger that must reach client UI has to run on the client, and the list it recomputes is only correct if the inputs to the merge are present on the client.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-05-28: added "Vanilla consumer-notification cascade: RefreshNetworkDevice" and "Consumer signals: which devices react to what". Verified <code>RefreshNetworkDevice</code> (<code>:253861</code>) fires <code>OnDeviceConnectToNetwork</code> per device; confirmed the silent rebuild (<code>RefreshPowerAndDataDeviceLists</code> <code>:253589</code>, <code>HandleDataNetTransmissionDevice</code> <code>:253630</code>) fires no cascade; read the IC-housing (<code>ProgrammableChip</code> <code>:164259</code>) and <code>LogicBase</code> sensor (<code>:384515</code>) connect/disconnect overrides directly (both null sorted caches via <code>OnNetworkChange</code>). Consumer overrider enumeration cross-checked against the OnDeviceListChanged grep across the decompile. Recorded per-peer execution of the refresh path for the multiplayer dimension.</li>
 <li>2026-05-28: page created. Traced the motherboard device-list source chain and rebuild triggers at game 0.2.6228.27061 from <code>Assembly-CSharp.decompiled.cs</code>. Directly read <code>LogicMotherboard.RebuildDeviceList</code> (315637-315656), <code>LogicMotherboard.OnDeviceListChanged</code> (315724-315731), <code>LogicMotherboard.OnInsertedToComputer</code> (315733-315744), and enumerated every <code>CurrentMotherboard.OnDeviceListChanged()</code> call site in the <code>Computer</code> host (372779-372884) plus the base <code>Motherboard.OnDeviceListChanged</code> (331066) and <code>OnSlaveStateChange</code> (330866). <code>ProgrammableChipMotherboard</code> triggers (<code>_DevicesChanged</code>, <code>HandleDeviceListChange</code>, <code>OnInsertedToComputer</code>, <code>ProcessUpdate</code> flag 256) read at 317673-317765. <code>CableNetwork.DataDeviceList</code> getter and <code>DirtyPowerAndDataDeviceLists</code> cross-referenced with <a href="../CableNetwork/">CableNetwork.md</a> and <code>Mods/PowerGridPlus/TODO.md:23</code> (decompile 253519-253529, 253657-253661).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
