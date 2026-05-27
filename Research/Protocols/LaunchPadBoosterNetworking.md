@@ -3,7 +3,7 @@ title: LaunchPadBooster Networking
 type: Protocols
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-23
+verified_at: 2026-05-28
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:676-692
   - Mods/SprayPaintPlus/RESEARCH.md:211-213
@@ -230,11 +230,34 @@ Practical consequence: `IJoinValidator` cannot be used to enforce a host-side re
 
 `ModNetworking` also exposes `JoinPrefixSerializer` and `VersionValidator` hooks for the same general exchange, with different semantics. Not in scope on this page; see `IModNetworking` for the full surface.
 
+## IJoinSuffixSerializer: join-time state snapshot to a joining client
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+`IJoinSuffixSerializer` is the hook for shipping a block of per-mod state to a joining client as part of the world snapshot. It is distinct from `IJoinValidator` (a pass/fail handshake) and from live `INetworkMessage` broadcasts (which only reach already-connected clients). A plugin implements it and assigns `MOD.Networking.JoinSuffixSerializer = this`.
+
+```csharp
+public interface IJoinSuffixSerializer
+{
+    void SerializeJoinSuffix(RocketBinaryWriter writer);
+    void DeserializeJoinSuffix(RocketBinaryReader reader);
+}
+```
+
+Invocation (verified from `Mods/PowerTransmitterPlus/PowerTransmitterPlus/Plugin.cs:260-348`, `DistanceConfigSync.cs:9-23`, and `./PlayerConnectedThingFindTiming.md`):
+
+- Host: `SerializeJoinSuffix` runs inside `NetworkServer.PackageJoinData` (LaunchPadBooster injects it into the join writer), appended to the world snapshot sent to the joiner.
+- Client: `DeserializeJoinSuffix` runs inside `NetworkClient.ProcessJoinData`, at the position of the original `AtmosphericsManager.DeserializeOnJoin` call, which is AFTER `ProcessThings`. So every Thing is already deserialized and `Thing.Find` resolves device ids inside the deserializer.
+- Fires only on a remote client join. Does NOT fire when the host loads its own world, nor in single-player (same gating as `IJoinValidator`).
+- LaunchPadBooster length-prefixes each mod's section (SectionedWriter / Reader), so a schema change in one mod does not desync neighbours. Field write order in `SerializeJoinSuffix` MUST match read order in `DeserializeJoinSuffix`.
+
+Why this and not a `NetworkManager.PlayerConnected` broadcast: that hook fires BEFORE the joiner is added to `NetworkBase.Clients`, so an `INetworkMessage.SendAll` from a `PlayerConnected` postfix reaches existing clients but never the new joiner. PowerTransmitterPlus used the `PlayerConnected` rebroadcast through v1.6.x and removed it in v1.7.0 in favour of `IJoinSuffixSerializer` for exactly this reason. The established split: live `SendAll` for runtime changes to already-connected clients, `IJoinSuffixSerializer` for the initial snapshot to a joiner.
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-23 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 - 2026-04-20: page created from the Research migration. Primary source F0055 (PowerTransmitterPlus RESEARCH.md:676-692). Additional sources cited: F0025 (SprayPaintPlus RESEARCH.md:211-213), F0029c (SprayPaintPlus RESEARCH.md:149-151), F0312 (PowerTransmitterPlus/DistanceConfigSync.cs:66-72).
 - 2026-04-23: added "IJoinValidator: custom per-mod join validation" section. Verified against `LaunchPadBooster.dll` in game version 0.2.6228.27061 by decompilation of `IJoinValidator`, `IModNetworking`, `ModNetworking.PrepareJoinValidateData`, `ModNetworking` `VerifyPlayer` / `VerifyPlayerRequest` Harmony postfixes, and `ConnectionState.DoJoinValidateModCustom`. Finding: validator fires only on remote client-join exchanges; does NOT fire for host-own-world load or single-player.
+- 2026-05-28: added "IJoinSuffixSerializer: join-time state snapshot to a joining client". Verified from PowerTransmitterPlus `Plugin.cs:260-348` (implements `IJoinSuffixSerializer`; `SerializeJoinSuffix` / `DeserializeJoinSuffix` ship the auto-aim cache + seven config values) and `DistanceConfigSync.cs:9-23`, cross-referenced with `./PlayerConnectedThingFindTiming.md`. Documents the host `PackageJoinData` / client `ProcessJoinData`-after-`ProcessThings` invocation points, the remote-join-only gating, and why it replaced the v1.6.x `PlayerConnected` rebroadcast (which fires before the joiner is in `NetworkBase.Clients`). Additive (the page previously documented only `IJoinValidator`, with `IJoinPrefixSerializer` noted out of scope); no existing claim contradicted, so no fresh validator.
 
 ## Open questions
 
