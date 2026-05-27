@@ -929,6 +929,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#net-charge-ceiling-under-powergridplus-battery-stops-accumulating-once-downstream-load-reaches-batterychargerate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Net-charge ceiling under PowerGridPlus: battery stops accumulating once downstream load reaches BatteryChargeRate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6886,6 +6897,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#net-charge-ceiling-under-powergridplus-battery-stops-accumulating-once-downstream-load-reaches-batterychargerate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Net-charge ceiling under PowerGridPlus: battery stops accumulating once downstream load reaches BatteryChargeRate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6997,7 +7019,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-26.
+           on 2026-05-28.
         </p>
       
       
@@ -7271,10 +7293,53 @@
 </ul>
 <p>Both correctly drain <code>Battery.PowerStored</code>. PGP's variant matches Re-Volt's intended behaviour (which Re-Volt itself fails to achieve because of the patch-attribution mistake).</p>
 <p>If reverting PGP's <code>UsePowerPatch</code> to Re-Volt 1:1 (declaring it on <code>GetUsedPower</code> again), the patch would silently no-op as it does in Re-Volt, and PGP would fall back to vanilla <code>UsePower</code>. That would still drain the battery -- just with the <code>_powerProvided &gt; 0</code> gate restored.</p>
+<h2 id="net-charge-ceiling-under-powergridplus-battery-stops-accumulating-once-downstream-load-reaches-batterychargerate">Net-charge ceiling under PowerGridPlus: battery stops accumulating once downstream load reaches BatteryChargeRate<a class="headerlink" href="#net-charge-ceiling-under-powergridplus-battery-stops-accumulating-once-downstream-load-reaches-batterychargerate" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>PowerGridPlus's three-patch APC rewrite (<code>AreaPowerControlPatches.cs</code>, gated on <code>Settings.EnableAreaPowerControlFix.Value</code>, default ON) has a non-obvious steady-state consequence: when the APC's downstream load is at or above <code>BatteryChargeRate</code>, the internal cell's stored charge never accumulates, even with unlimited input-side supply. Below that load it fills normally. The crossover is exactly <code>BatteryChargeRate</code> (1000), independent of <code>UsedPower</code>.</p>
+<p>The three PGP patches in play (verbatim, <code>AreaPowerControlPatches.cs</code>):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1">// GetUsedPowerPatch -- input-side request</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">usedPower</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">UsedPower</span><span class="p">;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="n">usedPower</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">____powerProvided</span><span class="p">;</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Battery</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">Battery</span><span class="p">.</span><span class="n">IsCharged</span><span class="p">)</span><span class="w"> </span><span class="n">usedPower</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">(</span><span class="n">BatteryChargeRate</span><span class="p">,</span><span class="w"> </span><span class="n">Battery</span><span class="p">.</span><span class="n">PowerDelta</span><span class="p">);</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1">// UsePowerPatch -- output-side drain, EVERY tick the battery is non-empty</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Battery</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">Battery</span><span class="p">.</span><span class="n">IsEmpty</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">(</span><span class="n">Battery</span><span class="p">.</span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">);</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="n">Battery</span><span class="p">.</span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="n">powerUsed</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">}</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">____powerProvided</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">;</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="c1">// ReceivePowerPatch -- input-side settle + charge</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="n">powerAdded</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">UsedPower</span><span class="p">;</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">powerAdded</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">____powerProvided</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">;</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">____powerProvided</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0f</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">Battery</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Battery</span><span class="p">.</span><span class="n">IsCharged</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">(</span><span class="n">Battery</span><span class="p">.</span><span class="n">PowerDelta</span><span class="p">,</span><span class="w"> </span><span class="n">BatteryChargeRate</span><span class="p">,</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">);</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="n">Battery</span><span class="p">.</span><span class="n">PowerStored</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="n">____powerProvided</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Steady-state trace (battery non-empty, surplus input, continuous downstream demand <code>X</code> per tick, <code>UsedPower</code> = <code>u</code>, <code>BatteryChargeRate</code> = <code>R</code> = 1000):</p>
+<ol>
+<li><code>UsePower(Output, X)</code>: battery non-empty, so <code>drain = Min(Battery.PowerStored, X)</code>. With charge in hand, <code>drain = X</code>, <code>PowerStored -= X</code>, leftover <code>powerUsed = 0</code>, so <code>_powerProvided</code> unchanged.</li>
+<li><code>GetUsedPower(Input)</code> returns <code>u + _powerProvided + Min(R, PowerDelta) = u + _powerProvided + R</code>.</li>
+<li><code>ReceivePower(Input, supplied)</code> with <code>supplied = u + _powerProvided + R</code>: subtract <code>u</code> -&gt; <code>_powerProvided + R</code>; <code>_powerProvided -= (_powerProvided + R)</code> -&gt; <code>-R</code>; <code>&lt; 0</code>, so <code>num = Min(PowerDelta, R, _powerProvided+R) = R</code>; <code>PowerStored += R</code>; <code>_powerProvided += R</code> -&gt; <code>0</code>.</li>
+</ol>
+<p>Net <code>PowerStored</code> change per tick = <code>-X</code> (step 1) <code>+ R</code> (step 3) = <strong><code>R - X</code></strong>. The <code>u</code> term appears once with <code>+</code> in <code>GetUsedPower</code> and once with <code>-</code> in <code>ReceivePower</code> and cancels, so the crossover does not depend on <code>UsedPower</code>:</p>
+<ul>
+<li><code>X &lt; R</code>: net positive, cell fills.</li>
+<li><code>X = R</code>: net zero.</li>
+<li><code>X &gt; R</code>: net negative; the cell drains until it hits the near-empty regime, where <code>UsePower</code> can only drain what little is stored and the cell stays pinned near 0 (charging <code>R</code> per tick, drained <code>R</code>+ per tick). Visually the cell sits at Empty / Critical and looks like it "won't charge". With <code>R = 1000</code> against a multi-hundred-kJ <code>ItemBatteryCellNuclear</code>, one tick's <code>R</code> is a negligible fraction of <code>PowerMaximum</code>, so the cell never visibly leaves the bottom <code>BatteryCellState</code> band.</li>
+</ul>
+<p>This is the threshold a player observes as "the APC only charges when load is below ~1 kW": the in-game load figure crossing <code>BatteryChargeRate</code>'s literal <code>1000</code> value is the crossover, matching the <code>R - X</code> net derived above.</p>
+<p>Vanilla does NOT exhibit this ceiling. Vanilla <code>UsePower</code> drains the cell only when <code>_powerProvided &gt; 0</code> at the <em>start</em> of the call (a carried-over debit from a tick where input fell short). Under surplus input the input-side <code>ReceivePower</code> settles <code>_powerProvided</code> to exactly 0 (or negative) every tick, so the vanilla drain branch never fires and the cell accumulates <code>BatteryChargeRate</code> per tick regardless of downstream load (until input can no longer cover demand + charge, or the cell fills). The ceiling is therefore an artifact of PGP's "drain every tick" change interacting with the unchanged <code>BatteryChargeRate</code> charge cap, NOT a vanilla behaviour and NOT a new throughput cap (network-to-network transfer is still uncapped, per the "BatteryChargeRate and net throughput" section above; only the cell's net <em>accumulation</em> is bounded).</p>
+<p>Setting <code>EnableAreaPowerControlFix</code> to false restores vanilla <code>UsePower</code> (cell fills regardless of load, at the cost of vanilla's idle slow-leak that the fix exists to stop). <code>BatteryChargeRate</code> is per-prefab serialized data (C# default 1000f, line 369540), so the crossover cannot be retuned through PowerGridPlus config without an additional field patch.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <ul>
+<li>2026-05-28: added "Net-charge ceiling under PowerGridPlus" section. Documents the steady-state consequence of PGP's three-patch APC rewrite (<code>AreaPowerControlPatches.cs</code>, gated on <code>EnableAreaPowerControlFix</code>): the internal cell's net charge per tick is <code>BatteryChargeRate - downstreamDemand</code>, so the cell stops accumulating once continuous downstream load reaches <code>BatteryChargeRate</code> (1000). Derived the crossover is independent of <code>UsedPower</code> (it cancels between <code>GetUsedPower</code>'s <code>+u</code> and <code>ReceivePower</code>'s <code>-u</code>). Confirmed vanilla does NOT show the ceiling (vanilla <code>UsePower</code> drain gate <code>_powerProvided &gt; 0</code> never fires under surplus input, so the cell fills regardless of load). Corroborated by a developer's in-game observation on the APC-Luna save: "the APC only charges when load is below ~1 kW." Additive content; refines but does not contradict the "BatteryChargeRate and net throughput" and "Power Grid Plus deviation" sections. Full InspectorPlus before/after capture on a dedicated server still pending.</li>
 <li>2026-05-26: added "BatteryChargeRate and net throughput" section. Documents the literal field value (1000f, line 369540), its two call sites in <code>ReceivePower</code> and <code>GetUsedPower</code>, and the explicit conclusion that this cap applies only to internal-cell charging and NOT to network-to-network throughput (<code>GetGeneratedPower</code> returns full <code>AvailablePower</code> uncapped; <code>_powerProvided</code> term in <code>GetUsedPower</code> is unbounded). Additive content; does not contradict prior sections.</li>
 <li>2026-05-22: page created during PowerGridPlus pre-release verification task 6 (APC patch correctness). Source: Re-Volt 1.4.0 <code>AreaPowerControllerPatches.cs</code> (MIT, &copy; 2025 Sukasa) cross-checked against Stationeers 0.2.6228.27061 <code>AreaPowerControl</code> decompile (lines 369509-370046) and <code>PowerTick</code> decompile (lines 254512-254765). Verdict: PGP's retargeting of <code>UsePowerPatch</code> from <code>GetUsedPower</code> to <code>UsePower</code> is structurally correct (the patch body only matches <code>UsePower</code>'s signature, and <code>UsePower</code> is the only method that decrements <code>Battery.PowerStored</code> in the output-side call chain). Re-Volt's original attribution is a silent no-op at HarmonyX <code>PatchAll</code> time. Dynamic verification on a dedicated-server test save pending.</li>
 </ul>
