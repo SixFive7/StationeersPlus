@@ -3,7 +3,7 @@ title: AreaPowerControl
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-26
+verified_at: 2026-05-28
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.AreaPowerControl
   - Mods/PowerGridPlus/PowerGridPlus/Patches/AreaPowerControlPatches.cs
@@ -234,9 +234,59 @@ Both correctly drain `Battery.PowerStored`. PGP's variant matches Re-Volt's inte
 
 If reverting PGP's `UsePowerPatch` to Re-Volt 1:1 (declaring it on `GetUsedPower` again), the patch would silently no-op as it does in Re-Volt, and PGP would fall back to vanilla `UsePower`. That would still drain the battery -- just with the `_powerProvided > 0` gate restored.
 
-## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+## Net-charge ceiling under PowerGridPlus: battery stops accumulating once downstream load reaches BatteryChargeRate
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
+PowerGridPlus's three-patch APC rewrite (`AreaPowerControlPatches.cs`, gated on `Settings.EnableAreaPowerControlFix.Value`, default ON) has a non-obvious steady-state consequence: when the APC's downstream load is at or above `BatteryChargeRate`, the internal cell's stored charge never accumulates, even with unlimited input-side supply. Below that load it fills normally. The crossover is exactly `BatteryChargeRate` (1000), independent of `UsedPower`.
+
+The three PGP patches in play (verbatim, `AreaPowerControlPatches.cs`):
+
+```csharp
+// GetUsedPowerPatch -- input-side request
+usedPower += UsedPower;
+if (OutputNetwork != null) usedPower += ____powerProvided;
+if (Battery && !Battery.IsCharged) usedPower += Mathf.Min(BatteryChargeRate, Battery.PowerDelta);
+
+// UsePowerPatch -- output-side drain, EVERY tick the battery is non-empty
+if (Battery && !Battery.IsEmpty) {
+    float num = Mathf.Min(Battery.PowerStored, powerUsed);
+    Battery.PowerStored -= num;
+    powerUsed -= num;
+}
+____powerProvided += powerUsed;
+
+// ReceivePowerPatch -- input-side settle + charge
+powerAdded -= UsedPower;
+if (powerAdded <= 0f) return false;
+____powerProvided -= powerAdded;
+if (____powerProvided >= 0f || !Battery || Battery.IsCharged) return false;
+float num = Mathf.Min(Battery.PowerDelta, BatteryChargeRate, powerAdded);
+Battery.PowerStored += num;
+____powerProvided += num;
+```
+
+Steady-state trace (battery non-empty, surplus input, continuous downstream demand `X` per tick, `UsedPower` = `u`, `BatteryChargeRate` = `R` = 1000):
+
+1. `UsePower(Output, X)`: battery non-empty, so `drain = Min(Battery.PowerStored, X)`. With charge in hand, `drain = X`, `PowerStored -= X`, leftover `powerUsed = 0`, so `_powerProvided` unchanged.
+2. `GetUsedPower(Input)` returns `u + _powerProvided + Min(R, PowerDelta) = u + _powerProvided + R`.
+3. `ReceivePower(Input, supplied)` with `supplied = u + _powerProvided + R`: subtract `u` -> `_powerProvided + R`; `_powerProvided -= (_powerProvided + R)` -> `-R`; `< 0`, so `num = Min(PowerDelta, R, _powerProvided+R) = R`; `PowerStored += R`; `_powerProvided += R` -> `0`.
+
+Net `PowerStored` change per tick = `-X` (step 1) `+ R` (step 3) = **`R - X`**. The `u` term appears once with `+` in `GetUsedPower` and once with `-` in `ReceivePower` and cancels, so the crossover does not depend on `UsedPower`:
+
+- `X < R`: net positive, cell fills.
+- `X = R`: net zero.
+- `X > R`: net negative; the cell drains until it hits the near-empty regime, where `UsePower` can only drain what little is stored and the cell stays pinned near 0 (charging `R` per tick, drained `R`+ per tick). Visually the cell sits at Empty / Critical and looks like it "won't charge". With `R = 1000` against a multi-hundred-kJ `ItemBatteryCellNuclear`, one tick's `R` is a negligible fraction of `PowerMaximum`, so the cell never visibly leaves the bottom `BatteryCellState` band.
+
+This is the threshold a player observes as "the APC only charges when load is below ~1 kW": the in-game load figure crossing `BatteryChargeRate`'s literal `1000` value is the crossover, matching the `R - X` net derived above.
+
+Vanilla does NOT exhibit this ceiling. Vanilla `UsePower` drains the cell only when `_powerProvided > 0` at the *start* of the call (a carried-over debit from a tick where input fell short). Under surplus input the input-side `ReceivePower` settles `_powerProvided` to exactly 0 (or negative) every tick, so the vanilla drain branch never fires and the cell accumulates `BatteryChargeRate` per tick regardless of downstream load (until input can no longer cover demand + charge, or the cell fills). The ceiling is therefore an artifact of PGP's "drain every tick" change interacting with the unchanged `BatteryChargeRate` charge cap, NOT a vanilla behaviour and NOT a new throughput cap (network-to-network transfer is still uncapped, per the "BatteryChargeRate and net throughput" section above; only the cell's net *accumulation* is bounded).
+
+Setting `EnableAreaPowerControlFix` to false restores vanilla `UsePower` (cell fills regardless of load, at the cost of vanilla's idle slow-leak that the fix exists to stop). `BatteryChargeRate` is per-prefab serialized data (C# default 1000f, line 369540), so the crossover cannot be retuned through PowerGridPlus config without an additional field patch.
+
+## Verification history
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+- 2026-05-28: added "Net-charge ceiling under PowerGridPlus" section. Documents the steady-state consequence of PGP's three-patch APC rewrite (`AreaPowerControlPatches.cs`, gated on `EnableAreaPowerControlFix`): the internal cell's net charge per tick is `BatteryChargeRate - downstreamDemand`, so the cell stops accumulating once continuous downstream load reaches `BatteryChargeRate` (1000). Derived the crossover is independent of `UsedPower` (it cancels between `GetUsedPower`'s `+u` and `ReceivePower`'s `-u`). Confirmed vanilla does NOT show the ceiling (vanilla `UsePower` drain gate `_powerProvided > 0` never fires under surplus input, so the cell fills regardless of load). Corroborated by a developer's in-game observation on the APC-Luna save: "the APC only charges when load is below ~1 kW." Additive content; refines but does not contradict the "BatteryChargeRate and net throughput" and "Power Grid Plus deviation" sections. Full InspectorPlus before/after capture on a dedicated server still pending.
 - 2026-05-26: added "BatteryChargeRate and net throughput" section. Documents the literal field value (1000f, line 369540), its two call sites in `ReceivePower` and `GetUsedPower`, and the explicit conclusion that this cap applies only to internal-cell charging and NOT to network-to-network throughput (`GetGeneratedPower` returns full `AvailablePower` uncapped; `_powerProvided` term in `GetUsedPower` is unbounded). Additive content; does not contradict prior sections.
 - 2026-05-22: page created during PowerGridPlus pre-release verification task 6 (APC patch correctness). Source: Re-Volt 1.4.0 `AreaPowerControllerPatches.cs` (MIT, (c) 2025 Sukasa) cross-checked against Stationeers 0.2.6228.27061 `AreaPowerControl` decompile (lines 369509-370046) and `PowerTick` decompile (lines 254512-254765). Verdict: PGP's retargeting of `UsePowerPatch` from `GetUsedPower` to `UsePower` is structurally correct (the patch body only matches `UsePower`'s signature, and `UsePower` is the only method that decrements `Battery.PowerStored` in the output-side call chain). Re-Volt's original attribution is a silent no-op at HarmonyX `PatchAll` time. Dynamic verification on a dedicated-server test save pending.
 
