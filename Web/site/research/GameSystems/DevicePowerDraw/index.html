@@ -704,6 +704,8 @@
       
         
       
+        
+      
     
     
     
@@ -1854,6 +1856,34 @@
     
   
     LogicTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/LogicUnitBase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicUnitBase
   
 
     
@@ -3176,6 +3206,28 @@
     <span class="md-ellipsis">
       
         Vanilla generator outputs (which generators feed more than 5 kW into a network)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generator-detection-two-parallel-mechanisms-in-vanilla-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generator detection: two parallel mechanisms in vanilla code
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-enumeration-via-the-prefab-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime enumeration via the prefab registry
       
     </span>
   </a>
@@ -6812,6 +6864,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generator-detection-two-parallel-mechanisms-in-vanilla-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generator detection: two parallel mechanisms in vanilla code
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-enumeration-via-the-prefab-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime enumeration via the prefab registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6923,20 +6997,22 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-12.
+           on 2026-05-27.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Device, AdvancedFurnace, ArcFurnace, CarbonSequester, Transformer'}</code></li>
             
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 349604 (Device.UsedPower), 344409+ (AdvancedFurnace), 344837+ (ArcFurnace), 345293+ (CarbonSequester), 403311 (Transformer.OutputMaximum)'}</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 349604 (Device.UsedPower), 350696 (Device.GetGeneratedPower virtual), 350705 (Device.GetUsedPower virtual), 344409+ (AdvancedFurnace), 344837+ (ArcFurnace), 345293+ (CarbonSequester), 403311 (Transformer.OutputMaximum), 138702 (IPowerGenerator interface)'}</code></li>
             
               <li><code>Plans/PowerGridPlus/PLAN.md (NEW-3 / voltage-tier research)</code></li>
+            
+              <li><code>ScenarioRunner power-prefab-dump (DedicatedServer/dev-plugins/ScenarioRunner)</code></li>
             
           </ul>
         </details>
@@ -7089,9 +7165,50 @@
 </tbody>
 </table>
 <p>So the generators that <strong>must sit on <code>heavy</code> cable or higher</strong> under a "lowest tier rated for peak output" rule: <strong>RTG</strong> (50 kW), <strong>Solid Fuel Generator</strong> (~20 kW), <strong>Gas Fuel Generator</strong> (tens of kW), <strong>Stirling Engine</strong> (~6 kW, just over), and <strong>Large Wind Turbine</strong> (only ~1 kW normally, but ~20 kW during a high-wind event -- its <em>peak</em> is what matters). Solar panels, the small Wind Turbine, and the Turbine Generator stay on <code>normal</code>. Note the <em>field-total</em> trap: many small <code>normal</code>-rated generators on one <code>normal</code> network can sum past 5 kW and burn it even though no single unit does.</p>
+<h2 id="generator-detection-two-parallel-mechanisms-in-vanilla-code">Generator detection: two parallel mechanisms in vanilla code<a class="headerlink" href="#generator-detection-two-parallel-mechanisms-in-vanilla-code" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
+
+<p>The game uses two independent mechanisms to mark a device as a power generator. Both must be checked to enumerate generators exhaustively; many generators use only one of the two.</p>
+<p><strong>Mechanism 1: the <code>IPowerGenerator</code> interface.</strong> Declared at decompile line 138702 in <code>namespace Objects</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">IPowerGenerator</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IReferencable</span><span class="p">,</span><span class="w"> </span><span class="n">IEvaluable</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetMaxPowerGenerated</span><span class="p">();</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Implementers in vanilla (game version 0.2.6228.27061):</p>
+<ul>
+<li><code>WindTurbineGenerator : Device, ..., IPowerGenerator</code> (decompile line 138706)</li>
+<li><code>LargeWindTurbineGenerator : WindTurbineGenerator</code> (line 138218 — inherits the interface)</li>
+<li><code>SolarPanel : Electrical, IPowerGenerator</code> (~line 399768; see Research/GameClasses/SolarPanel.md)</li>
+</ul>
+<p><strong>Mechanism 2: the <code>Device.GetGeneratedPower(CableNetwork)</code> virtual.</strong> Declared at decompile line 350696:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGeneratedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span></code></pre></div>
+<p>This is the parallel of <code>GetUsedPower</code> (line 350705) on the same class. Subclasses override it to compute per-tick power output. Vanilla classes that override it but do NOT implement <code>IPowerGenerator</code>:</p>
+<ul>
+<li><code>Battery</code> (line 371127) — discharges generate power into the OutputNetwork side.</li>
+<li><code>Transformer</code> (line 403496) — output side is "generated" relative to the upstream network.</li>
+<li><code>WirelessPower.PowerReceiver</code> (line 386810) / <code>PowerTransmitter</code> (line 387028) / <code>PowerTransmitterOmni</code> (line 387268) — relays.</li>
+<li><code>RocketPowerUmbilicalFemale</code> (line 148191) / <code>RocketPowerUmbilicalMale</code> (line 148761) — rocket -&gt; ground bridge.</li>
+<li><code>RadioscopicThermalGenerator : Electrical, IRocketInternals, IRocketComponent</code> (line 395566; override at 395580). The 50 kW RTG.</li>
+<li><code>PowerGeneratorSlot : DeviceImport, ...</code> (line 400441; override at 400512). Base class for <code>SolidFuelGenerator</code> (line 400538).</li>
+<li><code>PowerGeneratorPipe : DeviceInputOutput, IThermal</code> (line 375414; override at 375517). Base class for <code>GasFuelGenerator</code> (line 375700).</li>
+<li><code>TurbineGenerator : Device, ISmartRotatable</code> (line 403819; override at 403973). The gas-pipe spinner.</li>
+<li><code>StirlingEngine : DeviceInputOutput, IThermal</code> (line 402334; override at 402686).</li>
+<li>Two more overrides at lines 370000 and 400139 — context-dependent (Battery has two and a similar shape repeats inside the same hierarchy).</li>
+</ul>
+<p><strong>Why this matters for tier classification.</strong> PowerGridPlus's voltage-tier check distinguishes generators (heavy-only) from consumers (normal+ if low draw, heavy+ if high draw). A type check that only walks <code>IPowerGenerator</code> implementers misses every generator that uses <code>GetGeneratedPower</code> instead — RTG, Solid Fuel, Gas Fuel, Turbine, Stirling. To catch all generators exhaustively, the classifier must walk both: <code>type.GetInterfaces().Any(i =&gt; i.Name == "IPowerGenerator")</code> OR <code>type.GetMethod("GetGeneratedPower", new[] { typeof(CableNetwork) }).DeclaringType != typeof(Device)</code>.</p>
+<h2 id="runtime-enumeration-via-the-prefab-registry">Runtime enumeration via the prefab registry<a class="headerlink" href="#runtime-enumeration-via-the-prefab-registry" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
+
+<p><code>Prefab.AllPrefabs</code> is a static <code>List&lt;Thing&gt;</code> populated at world-asset load (well before the first <code>ElectricityTick</code>). Every loaded prefab the game knows about lives there, including DLC-tagged prefabs (their <code>Thing.DLCType</code> carries the DLC enum value). The list is read-only after load and safe to iterate from any thread, including the simulation-tick worker.</p>
+<p><code>ScenarioRunner</code> exposes a <code>power-prefab-dump</code> scenario (<code>DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.cs</code>) that walks <code>Prefab.AllPrefabs</code> once on the first scenario tick and emits one log line per power-relevant prefab with: PrefabName, PrefabHash, full type FullName, prefab-default UsedPower, OverridesGetUsedPower flag, OverridesGetGeneratedPower flag, ImplementsIPowerGenerator flag, IsBattery / IsTransformer / IsWireless / IsAPC type-check flags, and DLC tag. Output is parseable structured text under <code>[ScenarioRunner] power-prefab-dump | ...</code> lines in the BepInEx log, framed by <code>START</code> and <code>END emitted=&lt;N&gt; totalPrefabs=&lt;M&gt;</code> markers.</p>
+<p>A vanilla <code>-New Lunar</code> dump on game 0.2.6228.27061 reported <code>emitted=410 totalPrefabs=2041</code> (332 vanilla, 78 mod-added in the test deployment). 1631 prefabs were filtered as non-power-relevant (Things, raw items, dynamic objects, etc.).</p>
+<p>This is the cheapest way to get an authoritative current-game list of power devices without trusting the decompile's static <code>UsedPower</code> literals (which are usually <code>10f</code> defaults overridden by prefab-asset data).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-12: page created. From a voltage-tier design check (planned mod "Power Grid Plus") against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>: <code>Device.UsedPower</code> default (line 349604), <code>AdvancedFurnace.GetUsedPower</code> (verbatim, ~line 344688), <code>ArcFurnace.GetUsedPower</code>/<code>_powerUsedDuringTick</code> (~line 344877+), <code>CarbonSequester.POWER_PER_UNIT_CARBON = 45000f</code> (line ~345293), <code>Transformer.OutputMaximum</code> default (line 403311). Per-device wattages confirmed to be prefab serialized data, not in the decompile.</li>
+<li>2026-05-27: added two new sections, "Generator detection: two parallel mechanisms in vanilla code" and "Runtime enumeration via the prefab registry". Sourced from the same decompile: <code>IPowerGenerator</code> interface at line 138702 (namespace <code>Objects</code>), <code>Device.GetGeneratedPower</code> virtual at line 350696, and grep of every <code>override.*GetGeneratedPower\(CableNetwork</code> in the decompile yielding 15 hits across Battery, Transformer, the wireless trio, the rocket umbilical pair, RTG, PowerGeneratorSlot/SolidFuelGenerator, PowerGeneratorPipe/GasFuelGenerator, TurbineGenerator, and StirlingEngine. Runtime methodology verified by <code>ScenarioRunner</code> <code>power-prefab-dump</code> scenario (<code>DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.cs</code>) returning <code>emitted=410 totalPrefabs=2041</code> on a vanilla <code>-New Lunar</code> start; the 410-line dump now lives at <code>.work/2026-05-27-pgp-device-classification/source2-runtime-dump.raw.log</code> for that session and is the basis of PowerGridPlus's per-device tier classification table.</li>
 <li>2026-05-12: added "Vanilla generator outputs" section. Sourced from the same decompile: <code>SolarPanel.MaxPowerGenerated = 500f</code> (line 399768) + <code>Research/GameClasses/SolarPanel.md</code> formula; <code>WindTurbineGenerator</code> base getters <code>MAXPowerOutput =&gt; 500f</code> / <code>MaxPowerOutputStorm =&gt; 1000f</code> / <code>WeatherUtilisationMultiplier =&gt; 3f</code> / <code>NoiseIntensity =&gt; 10f</code> (~lines 138758-138764) and <code>CalculateGenerationRate</code> (~138817-138865); <code>LargeWindTurbineGenerator</code> overrides <code>MAXPowerOutput =&gt; 1000f</code> / <code>MaxPowerOutputStorm =&gt; 20000f</code> / <code>WeatherUtilisationMultiplier =&gt; 20f</code> / <code>NoiseIntensity =&gt; 25f</code> (lines 138218-138242); <code>TurbineGenerator.MaxOutputPower = 90f</code> + <code>_generatedPower = num * MaxOutputPower</code> (~line 403849, ~403959); <code>StirlingEngine.maxPower = 6000f</code> (~line 402367); <code>PowerGeneratorSlot.PowerGenerated = 20000f</code> + <code>SolidFuelGenerator : PowerGeneratorSlot</code> (lines 400449, 400538); <code>GasFuelGenerator : PowerGeneratorPipe</code> (lines 375700, 375414); <code>RadioscopicThermalGenerator.PowerGenerated = 50000f</code> + <code>GetGeneratedPower</code> returns it flat (line 395568+).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>

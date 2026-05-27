@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/CreateStructureInstance/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/LogicUnitBase/">
       
       
-        <link rel="prev" href="../Constructor/">
+        <link rel="prev" href="../LogicTransmitter/">
       
       
-        <link rel="next" href="../CursorManager/">
+        <link rel="next" href="../MotionSensor/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>CreateStructureInstance - StationeersPlus</title>
+        <title>LogicUnitBase - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#createstructureinstance" class="md-skip">
+        <a href="#logicunitbase" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              CreateStructureInstance
+              LogicUnitBase
             
           </span>
         </div>
@@ -1287,37 +1287,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CreateStructureInstance
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../CreateStructureInstance/" class="md-nav__link">
         
   
   
@@ -1333,70 +1306,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#class-layout" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Class layout
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Notes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1966,10 +1875,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../LogicUnitBase/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicUnitBase
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1985,6 +1921,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-cablenetwork-connectors-kept-separate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two CableNetwork connectors, kept separate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-connection-carries-depends-on-the-cable-in-the-network-not-on-the-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a connection carries: depends on the cable in the network, not on the connector
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-is-the-only-persistent-logic-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting is the only persistent logic value
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#application-third-party-keypad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application: third-party Keypad
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -6798,10 +6820,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#class-layout" class="md-nav__link">
+  <a href="#two-cablenetwork-connectors-kept-separate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Class layout
+        Two CableNetwork connectors, kept separate
       
     </span>
   </a>
@@ -6809,10 +6831,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notes" class="md-nav__link">
+  <a href="#what-a-connection-carries-depends-on-the-cable-in-the-network-not-on-the-connector" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes
+        What a connection carries: depends on the cable in the network, not on the connector
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-is-the-only-persistent-logic-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting is the only persistent logic value
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#application-third-party-keypad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application: third-party Keypad
       
     </span>
   </a>
@@ -6931,16 +6975,20 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-25.
+           on 2026-05-27.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networking.CreateStructureInstance'}</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.LogicUnitBase'}</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:384220-384440</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/KeypadMod.decompiled.cs:54-447</code></li>
             
           </ul>
         </details>
@@ -6950,13 +6998,13 @@
           <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
-              <li><code>./Constructor.md</code></li>
+              <li><code>./CableNetwork.md</code></li>
             
-              <li><code>./MultiConstructor.md</code></li>
+              <li><code>./Device.md</code></li>
             
-              <li><code>../Protocols/ConstructionCreationMessage.md</code></li>
+              <li><code>./LogicTransmitter.md</code></li>
             
-              <li><code>../GameSystems/PlacementOrientation.md</code></li>
+              <li><code>../GameSystems/LogicType.md</code></li>
             
           </ul>
         </details>
@@ -6972,6 +7020,13 @@
       
       
       
+        <span class="md-tag">logic</span>
+      
+    
+      
+      
+      
+      
         <span class="md-tag">network</span>
       
     
@@ -6979,64 +7034,109 @@
       
       
       
-        <span class="md-tag">prefab</span>
+        <span class="md-tag">power</span>
       
     
   </nav>
 
 
 
-<h1 id="createstructureinstance">CreateStructureInstance<a class="headerlink" href="#createstructureinstance" title="Permanent link">&para;</a></h1>
-<p>Vanilla <code>Assets.Scripts.Networking.CreateStructureInstance</code>. Plain managed class used as the in-process placement-intent payload for <code>Constructor.SpawnConstruct</code> and as the constructor source for <code>ConstructionCreationMessage</code>. Carries the prefab reference, target grid cell, target Quaternion, owner ID, and optional custom color index.</p>
-<h2 id="class-layout">Class layout<a class="headerlink" href="#class-layout" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
-
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CreateStructureInstance</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Grid3</span><span class="w"> </span><span class="n">LocalGrid</span><span class="p">;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">LocalRotation</span><span class="p">;</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Structure</span><span class="w"> </span><span class="n">Prefab</span><span class="p">;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">GridController</span><span class="w"> </span><span class="n">GridController</span><span class="p">;</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">CustomColor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">OwnerClientId</span><span class="p">;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">WorldPosition</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">GridController</span><span class="p">.</span><span class="n">LocalToWorld</span><span class="p">(</span><span class="n">LocalGrid</span><span class="p">);</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">WorldRotation</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">LocalRotation</span><span class="p">;</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">CreateStructureInstance</span><span class="p">(</span><span class="n">Structure</span><span class="w"> </span><span class="n">prefabToCreate</span><span class="p">,</span><span class="w"> </span><span class="n">Structure</span><span class="w"> </span><span class="n">oldPrefab</span><span class="p">)</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="n">Prefab</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prefabToCreate</span><span class="p">;</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="n">LocalGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">WorldToLocal</span><span class="p">(</span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">);</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="n">LocalRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">ThingTransformLocalRotation</span><span class="p">;</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="n">GridController</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">GridController</span><span class="p">;</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="p">;</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="n">CustomColor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">CustomColor</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">oldPrefab</span><span class="p">.</span><span class="n">CustomColor</span><span class="p">.</span><span class="n">Index</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">CreateStructureInstance</span><span class="p">(</span><span class="n">Structure</span><span class="w"> </span><span class="n">prefabToCreate</span><span class="p">,</span><span class="w"> </span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid</span><span class="p">,</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">worldRotation</span><span class="p">,</span><span class="w"> </span><span class="kt">ulong</span><span class="w"> </span><span class="n">ownerClientId</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">colorIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">        </span><span class="n">Prefab</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prefabToCreate</span><span class="p">;</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">        </span><span class="n">GridController</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GridController</span><span class="p">.</span><span class="n">World</span><span class="p">;</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">        </span><span class="n">LocalGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">localGrid</span><span class="p">;</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">        </span><span class="n">LocalRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">worldRotation</span><span class="p">;</span>
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">        </span><span class="n">OwnerClientId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ownerClientId</span><span class="p">;</span>
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">        </span><span class="n">CustomColor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">colorIndex</span><span class="p">;</span>
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="p">}</span>
+<h1 id="logicunitbase">LogicUnitBase<a class="headerlink" href="#logicunitbase" title="Permanent link">&para;</a></h1>
+<p>Vanilla base class for the family of small "logic unit" devices: logic gates, math, memory, compare, batch reader/writer, and (via the Keypad workshop mod) the third-party keypad. Class declaration:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">LogicUnitBase</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">SmallDevice</span><span class="p">,</span><span class="w"> </span><span class="n">IPrefabHash</span><span class="p">,</span><span class="w"> </span><span class="n">ISetable</span><span class="p">,</span><span class="w"> </span><span class="n">ILogicable</span><span class="p">,</span><span class="w"> </span><span class="n">IReferencable</span><span class="p">,</span><span class="w"> </span><span class="n">IEvaluable</span><span class="p">,</span><span class="w"> </span><span class="n">ISmartRotatable</span>
 </span></code></pre></div>
-<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<p>Two cable connectors. Two separate <code>CableNetwork</code> references. The device does NOT bridge the two networks.</p>
+<h2 id="two-cablenetwork-connectors-kept-separate">Two CableNetwork connectors, kept separate<a class="headerlink" href="#two-cablenetwork-connectors-kept-separate" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
 
+<p><code>LogicUnitBase</code> holds exactly two <code>CableNetwork</code> references, one per physical connector on the prefab:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">private</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">_inputNetwork1</span><span class="p">;</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">private</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ILogicable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_inputNetwork1DevicesSorted</span><span class="p">;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">private</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">_outputNetwork1</span><span class="p">;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">private</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ILogicable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_outputNetwork1DevicesSorted</span><span class="p">;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Input1Index</span><span class="p">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">OutputIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</span></code></pre></div>
+<p>(<code>Assembly-CSharp.decompiled.cs:384234-384246</code>)</p>
+<p>The two integer <code>Input1Index = 0</code> and <code>OutputIndex = 1</code> are the <strong>socket indices on the prefab</strong>: the device exposes two <code>CableConnect</code> ports on its mesh, the first one is the input port, the second one is the output port. The base <code>Device</code> resolution machinery walks the connectors at those indices, finds the <code>CableNetwork</code> each is plugged into, and assigns to <code>InputNetwork1</code> / <code>OutputNetwork1</code> setters:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">InputNetwork1</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">get</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">_inputNetwork1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">set</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_inputNetwork1</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">value</span><span class="p">)</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">            </span><span class="n">_inputNetwork1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">            </span><span class="n">LogicNetworkChange</span><span class="p">();</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="p">}</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">public</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">OutputNetwork1</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="p">{</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="k">get</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">_outputNetwork1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="k">set</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_outputNetwork1</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">value</span><span class="p">)</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">            </span><span class="n">_outputNetwork1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">            </span><span class="n">LogicNetworkChange</span><span class="p">();</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(<code>Assembly-CSharp.decompiled.cs:384254-384296</code>)</p>
+<p>The setters keep the two networks as independent references. There is no field that merges them, no method that joins their <code>Devices</code> lists, and no propagation of power, signal, or device membership from one network to the other through the device.</p>
+<p>This is the classic "logic gate" topology in Stationeers: read input(s) from the input network, write the result to the output network. The two networks remain electrically and logically separate; what crosses between them is whatever this single device chooses to publish on its own <code>LogicType</code> slots.</p>
+<h2 id="what-a-connection-carries-depends-on-the-cable-in-the-network-not-on-the-connector">What a connection carries: depends on the cable in the network, not on the connector<a class="headerlink" href="#what-a-connection-carries-depends-on-the-cable-in-the-network-not-on-the-connector" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
+
+<p>Both connectors plug into a <code>CableNetwork</code>. A <code>CableNetwork</code> is the network the cables form, not a "power network" or "data network" by type. Whether the network carries power, data, or both is a property of the cables (regular cable carries power + data; heavy cable carries power only; data cable carries data only). The device just sees whatever the connected network exposes.</p>
+<p>Practical consequences:</p>
 <ul>
-<li><code>WorldRotation</code> is a getter aliased to <code>LocalRotation</code> - they are NOT separate channels in this struct. A Quaternion passed to either constructor lands in <code>LocalRotation</code> and surfaces unchanged on the <code>WorldRotation</code> getter. The <code>ConstructionCreationMessage</code> later writes both fields as the same value.</li>
-<li><code>WorldPosition</code> is computed from the grid by <code>GridController.LocalToWorld(LocalGrid)</code> at access time, not stored. Mutating <code>LocalGrid</code> after construction shifts the world position.</li>
-<li>The "old prefab" constructor is used by routines that respawn / replace an existing structure (e.g. swapping a placed prefab for a variant), reading the existing object's transform rather than fresh placement input.</li>
+<li>The Keypad (and any other <code>LogicUnitBase</code> device) draws power from whichever side has a cable carrying power. <code>((Thing)this).Powered</code> reflects whether the device received power this tick from any of its networks, not which connector that power came through.</li>
+<li>If only one side has power cables, the other side can still carry data without power.</li>
+<li>The device itself does NOT propagate power across the two networks. Plugging power into the input connector does not energise the output network through the keypad.</li>
 </ul>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<h2 id="setting-is-the-only-persistent-logic-value">Setting is the only persistent logic value<a class="headerlink" href="#setting-is-the-only-persistent-logic-value" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
 
+<p><code>LogicUnitBase.Setting</code> is the single double-precision value the device stores and serialises:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="na">[ByteArraySync]</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">Setting</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="p">{</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">get</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">_setting</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">set</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">setting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_setting</span><span class="p">;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="n">_setting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">RocketMath</span><span class="p">.</span><span class="n">Approximately</span><span class="p">(</span><span class="n">setting</span><span class="p">,</span><span class="w"> </span><span class="n">_setting</span><span class="p">))</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">            </span><span class="n">OnSettingChanged</span><span class="p">();</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="n">LogicChanged</span><span class="p">();</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">        </span><span class="k">this</span><span class="p">.</span><span class="n">OnLogicNetworkChanged</span><span class="o">?.</span><span class="n">Invoke</span><span class="p">();</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(<code>Assembly-CSharp.decompiled.cs:384310-384328</code>)</p>
+<p><code>Setting</code> is serialised under <code>LogicBaseSaveData.Setting</code> and synchronised across the network via <code>NetworkUpdateFlags |= 256</code> and <code>ProcessUpdate</code>. Subclasses (vanilla <code>LogicMemory</code>, <code>LogicMath</code>, third-party <code>Keypad</code>, etc.) treat <code>Setting</code> as their stored value; their tick logic decides when to recompute it from <code>InputNetwork1DevicesSorted</code> and when to publish it to <code>OutputNetwork1DevicesSorted</code>.</p>
+<h2 id="application-third-party-keypad">Application: third-party Keypad<a class="headerlink" href="#application-third-party-keypad" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
+
+<p>The Keypad workshop mod (Steam Workshop 3478434324) defines <code>Keypad : LogicUnitBase</code> (<code>KeypadMod.decompiled.cs:54</code>). Its C# code adds no extra cable connectors and overrides nothing in the connection or network code paths. The two connectors visible in-game are the inherited <code>Input1Index = 0</code> / <code>OutputIndex = 1</code> sockets from <code>LogicUnitBase</code>.</p>
+<p>In use:</p>
 <ul>
-<li>2026-04-25: page created during the placement-pipeline decompile pass.</li>
+<li>The keypad needs power to interact (<code>if (!((Thing)this).Powered) return val.Fail(GameStrings.DeviceNoPower);</code> at line 230). Power can come from a regular or data-carrying cable on either connector, whichever the player wires.</li>
+<li>Player-entered digits write to <code>((LogicUnitBase)this).Setting = num</code> (line 280) and pulse <code>(LogicType)3</code> (Activate) high for 550 ms, then low for 200 ms (<code>PulseMode</code> async, lines 108-131).</li>
+<li>The keypad exposes <code>Setting</code> (LogicType 12) as both readable and writable; vanilla <code>LogicType</code> slots delegate through <code>Device</code> to the same input/output network plumbing.</li>
+</ul>
+<p>The two networks remain separate exactly as the base class defines them: the keypad is a one-device-wide logic gate that emits its pulse to whatever logic devices share its <code>OutputNetwork1</code>, while its <code>InputNetwork1</code> is available for other devices to read its <code>Setting</code> via <code>(d r LogicReader.x = keypad.Setting)</code>.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-05-27: initial writeup against game version 0.2.6228.27061. Sources: decompile of <code>Assembly-CSharp.dll</code> (LogicUnitBase class definition at line 384220-384440) and decompile of <code>KeypadMod.dll</code> (Keypad subclass at line 54-447). Triggered by user question "the keypad from this mod has two connections; do they bridge power and logic?" Answer: no, the two connectors are an input network and an output network, each tracking a separate <code>CableNetwork</code>; the device does not bridge power or data across them.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
@@ -7079,7 +7179,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../Constructor/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Constructor">
+          <a href="../LogicTransmitter/" class="md-footer__link md-footer__link--prev" aria-label="Previous: LogicTransmitter">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -7089,20 +7189,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Constructor
+                LogicTransmitter
               </div>
             </div>
           </a>
         
         
           
-          <a href="../CursorManager/" class="md-footer__link md-footer__link--next" aria-label="Next: CursorManager">
+          <a href="../MotionSensor/" class="md-footer__link md-footer__link--next" aria-label="Next: MotionSensor">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                CursorManager
+                MotionSensor
               </div>
             </div>
             <div class="md-footer__button md-icon">
