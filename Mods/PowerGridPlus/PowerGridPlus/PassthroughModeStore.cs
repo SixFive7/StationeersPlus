@@ -59,9 +59,16 @@ namespace PowerGridPlus
             foreach (var pair in _byReference) yield return pair;
         }
 
-        internal static void RestoreFromSideCar(long referenceId, int mode)
+        // Set the mode by ReferenceId. Used by the save-load side-car restore, the
+        // join-time snapshot, and the live PassthroughModeMessage from the host.
+        internal static void SetModeByReference(long referenceId, int mode)
         {
             _byReference[referenceId] = mode != 0 ? 1 : 0;
+        }
+
+        internal static void RestoreFromSideCar(long referenceId, int mode)
+        {
+            SetModeByReference(referenceId, mode);
         }
     }
 }

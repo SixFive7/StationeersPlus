@@ -4,6 +4,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
+using LaunchPadBooster.Networking;
 
 namespace PowerGridPlus.Patches
 {
@@ -75,27 +76,16 @@ namespace PowerGridPlus.Patches
             int oldMode = PassthroughModeStore.GetMode((Thing)__instance);
             PassthroughModeStore.SetMode((Thing)__instance, newMode);
             if (oldMode != newMode)
-                DirtyBothSides(__instance);
-            return false;
-        }
-
-        private static void DirtyBothSides(Device l)
-        {
-            switch (l)
             {
-                case Battery battery:
-                    battery.InputNetwork?.DirtyPowerAndDataDeviceLists();
-                    battery.OutputNetwork?.DirtyPowerAndDataDeviceLists();
-                    break;
-                case PowerTransmitter tx:
-                    tx.InputNetwork?.DirtyPowerAndDataDeviceLists();
-                    tx.LinkedReceiver?.OutputNetwork?.DirtyPowerAndDataDeviceLists();
-                    break;
-                case PowerReceiver rx:
-                    rx.OutputNetwork?.DirtyPowerAndDataDeviceLists();
-                    rx.LinkedPowerTransmitter?.InputNetwork?.DirtyPowerAndDataDeviceLists();
-                    break;
+                // Dirty both sides' lists, refresh their consumers (motherboard dropdowns / IC-housing /
+                // sensor caches) across the passthrough component, and replicate the new mode to clients
+                // so they refresh too. The unified dirty helper in PassthroughTopology covers Battery /
+                // PowerTransmitter / PowerReceiver (and Transformer, used by the sibling patch).
+                PassthroughTopology.DirtyBridgeNetworks(__instance);
+                CableNetworkPatches.ScheduleCascadeForDevice(__instance);
+                new PassthroughModeMessage { DeviceId = __instance.ReferenceId, Mode = newMode }.SendAll(0L);
             }
+            return false;
         }
     }
 }

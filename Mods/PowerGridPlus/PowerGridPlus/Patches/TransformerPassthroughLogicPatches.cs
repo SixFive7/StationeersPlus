@@ -2,6 +2,7 @@ using Assets.Scripts.Networking;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
 using HarmonyLib;
+using LaunchPadBooster.Networking;
 
 namespace PowerGridPlus.Patches
 {
@@ -61,12 +62,13 @@ namespace PowerGridPlus.Patches
                 PassthroughModeStore.SetMode((Assets.Scripts.Objects.Thing)__instance, newMode);
                 if (oldMode != newMode)
                 {
-                    // Dirty BOTH the power and data flags. CableNetwork.DataDeviceList.get is buggy:
-                    // it checks PowerDeviceListDirty (not DataDeviceListDirty), so DirtyDataDeviceList
-                    // alone leaves the cached _dataDeviceList stale on next read. See
-                    // Research/GameClasses/CableNetwork.md "Field shape and accessor quirk".
-                    __instance.InputNetwork?.DirtyPowerAndDataDeviceLists();
-                    __instance.OutputNetwork?.DirtyPowerAndDataDeviceLists();
+                    // Dirty both sides' lists (DirtyBridgeNetworks dirties BOTH flags; DataDeviceList.get
+                    // checks the power flag, a vanilla quirk -- see Research/GameClasses/CableNetwork.md),
+                    // refresh their consumers (motherboard dropdowns / IC-housing / sensor caches) across
+                    // the passthrough component, and replicate the new mode to clients so they refresh too.
+                    PassthroughTopology.DirtyBridgeNetworks(__instance);
+                    CableNetworkPatches.ScheduleCascadeForDevice(__instance);
+                    new PassthroughModeMessage { DeviceId = __instance.ReferenceId, Mode = newMode }.SendAll(0L);
                 }
                 return false;
             }

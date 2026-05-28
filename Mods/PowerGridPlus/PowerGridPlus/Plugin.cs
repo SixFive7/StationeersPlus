@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using LaunchPadBooster;
+using LaunchPadBooster.Networking;
 using PowerGridPlus.Patches;
 
 namespace PowerGridPlus
@@ -14,7 +17,7 @@ namespace PowerGridPlus
     /// </summary>
     [BepInDependency("stationeers.launchpad", BepInDependency.DependencyFlags.HardDependency)]
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    public class Plugin : BaseUnityPlugin
+    public class Plugin : BaseUnityPlugin, IJoinSuffixSerializer
     {
         public const string PluginGuid = "net.powergridplus";
         public const string PluginName = "Power Grid Plus";
@@ -26,7 +29,15 @@ namespace PowerGridPlus
         private void Awake()
         {
             Log = Logger;
+            // Marshals the device-list refresh cascade (CableNetworkPatches) back to the main thread; it
+            // can be triggered from the UniTask power-worker thread. Shared helper linked from
+            // Patterns/Threading. See Research/Patterns/MainThreadDispatcher.md.
+            StationeersPlus.Shared.MainThreadDispatcher.Init(
+                "PowerGridPlus_MainThreadDispatcher", msg => Log?.LogError(msg));
             Settings.Bind(Config);
+            // Wire the host-side broadcast of the (server-authoritative) passthrough toggles now that the
+            // ConfigEntries exist; a live toggle then refreshes locally and replicates to clients.
+            PassthroughSettingsSync.HookHostBroadcast();
             Prefab.OnPrefabsLoaded += OnPrefabsLoaded;
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded; patches deferred to prefab load");
         }
@@ -46,6 +57,13 @@ namespace PowerGridPlus
             try
             {
                 MOD.Networking.Required = true;
+                // F: replicate per-device LogicPassthroughMode to clients. Live changes go out via
+                // PassthroughModeMessage; the full current state to a joining client via the
+                // IJoinSuffixSerializer below. Without this a client computes the data-device-list merge
+                // with default modes and its motherboard dropdowns diverge from the host.
+                MOD.Networking.RegisterMessage<PassthroughModeMessage>();
+                MOD.Networking.RegisterMessage<PassthroughSettingsMessage>();
+                MOD.Networking.JoinSuffixSerializer = this;
 
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
@@ -64,6 +82,49 @@ namespace PowerGridPlus
             {
                 Log.LogFatal($"{PluginName} failed to apply patches: {e}");
             }
+        }
+
+        // IJoinSuffixSerializer: ship the full set of explicit per-device LogicPassthroughMode overrides
+        // to a joining client as part of the world snapshot, so the client computes the same merged data
+        // device lists as the host from its first read. Fires only on a remote join (host PackageJoinData /
+        // client ProcessJoinData after ProcessThings); not in single-player or host-own-world load. Live
+        // post-join changes are handled by PassthroughModeMessage. Field order must match between the two
+        // methods. See Research/Protocols/LaunchPadBoosterNetworking.md.
+        public void SerializeJoinSuffix(RocketBinaryWriter writer)
+        {
+            var entries = new List<KeyValuePair<long, int>>(PassthroughModeStore.SnapshotEntries());
+            writer.WriteInt32(entries.Count);
+            foreach (var entry in entries)
+            {
+                writer.WriteInt64(entry.Key);
+                writer.WriteInt32(entry.Value);
+            }
+
+            // Then the four server-authoritative Enable*LogicPassthrough toggles (order must match
+            // DeserializeJoinSuffix), so the joining client computes the merge with the host's values.
+            writer.WriteBoolean(Settings.EnableTransformerLogicPassthrough.Value);
+            writer.WriteBoolean(Settings.EnableBatteryLogicPassthrough.Value);
+            writer.WriteBoolean(Settings.EnableAreaPowerControlLogicPassthrough.Value);
+            writer.WriteBoolean(Settings.EnablePowerTransmitterLogicPassthrough.Value);
+        }
+
+        public void DeserializeJoinSuffix(RocketBinaryReader reader)
+        {
+            int count = reader.ReadInt32();
+            for (int i = 0; i < count; i++)
+            {
+                long referenceId = reader.ReadInt64();
+                int mode = reader.ReadInt32();
+                PassthroughModeStore.SetModeByReference(referenceId, mode);
+            }
+
+            // Same order as SerializeJoinSuffix. SetSyncedValues (no refresh) suffices at join: the device
+            // lists build fresh once the join completes, using these effective values.
+            bool transformer = reader.ReadBoolean();
+            bool battery = reader.ReadBoolean();
+            bool apc = reader.ReadBoolean();
+            bool powerTransmitter = reader.ReadBoolean();
+            PassthroughSettingsSync.SetSyncedValues(transformer, battery, apc, powerTransmitter);
         }
 
         /// <summary>

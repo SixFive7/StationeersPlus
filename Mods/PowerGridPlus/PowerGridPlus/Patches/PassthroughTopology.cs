@@ -22,10 +22,10 @@ namespace PowerGridPlus.Patches
         /// <summary>True if any of the four passthrough server toggles is on. Cheap pre-check so the
         /// per-network walk is skipped entirely when passthrough is globally off.</summary>
         internal static bool AnyPassthroughEnabled() =>
-            Settings.EnableTransformerLogicPassthrough.Value
-            || Settings.EnableAreaPowerControlLogicPassthrough.Value
-            || Settings.EnableBatteryLogicPassthrough.Value
-            || Settings.EnablePowerTransmitterLogicPassthrough.Value;
+            PassthroughSettingsSync.EffectiveTransformer
+            || PassthroughSettingsSync.EffectiveApc
+            || PassthroughSettingsSync.EffectiveBattery
+            || PassthroughSettingsSync.EffectivePowerTransmitter;
 
         /// <summary>
         ///     If <paramref name="device"/> is an enabled, mode-1 bridge sitting on
@@ -38,27 +38,27 @@ namespace PowerGridPlus.Patches
             switch (device)
             {
                 case Transformer transformer:
-                    if (!Settings.EnableTransformerLogicPassthrough.Value) return null;
+                    if (!PassthroughSettingsSync.EffectiveTransformer) return null;
                     if (PassthroughModeStore.GetMode(transformer) == 0) return null;
                     return transformer.InputNetwork == from ? transformer.OutputNetwork : transformer.InputNetwork;
 
                 case AreaPowerControl apc:
                     // APC has no per-device mode; it bridges whenever its server toggle is on.
-                    if (!Settings.EnableAreaPowerControlLogicPassthrough.Value) return null;
+                    if (!PassthroughSettingsSync.EffectiveApc) return null;
                     return apc.InputNetwork == from ? apc.OutputNetwork : apc.InputNetwork;
 
                 case Battery battery:
-                    if (!Settings.EnableBatteryLogicPassthrough.Value) return null;
+                    if (!PassthroughSettingsSync.EffectiveBattery) return null;
                     if (PassthroughModeStore.GetMode(battery) == 0) return null;
                     return battery.InputNetwork == from ? battery.OutputNetwork : battery.InputNetwork;
 
                 case PowerTransmitter tx:
-                    if (!Settings.EnablePowerTransmitterLogicPassthrough.Value) return null;
+                    if (!PassthroughSettingsSync.EffectivePowerTransmitter) return null;
                     if (PassthroughModeStore.GetMode(tx) == 0) return null;
                     return tx.LinkedReceiver?.OutputNetwork;
 
                 case PowerReceiver rx:
-                    if (!Settings.EnablePowerTransmitterLogicPassthrough.Value) return null;
+                    if (!PassthroughSettingsSync.EffectivePowerTransmitter) return null;
                     if (PassthroughModeStore.GetMode(rx) == 0) return null;
                     return rx.LinkedPowerTransmitter?.InputNetwork;
 
@@ -102,6 +102,47 @@ namespace PowerGridPlus.Patches
             var result = new List<CableNetwork>(visited);
             result.Sort((a, b) => a.ReferenceId.CompareTo(b.ReferenceId));
             return result;
+        }
+
+        /// <summary>
+        ///     The two cable networks a bridging device joins, regardless of its current mode (a
+        ///     transformer / battery's input and output sides; a transmitter / receiver and its linked
+        ///     partner's far side). Yields only non-null networks. Used to dirty + refresh exactly the
+        ///     networks whose merged device list changes when this device's passthrough mode is written,
+        ///     for both the 0 -> 1 and 1 -> 0 directions (mode is not consulted here on purpose).
+        /// </summary>
+        internal static IEnumerable<CableNetwork> GetBridgeNetworks(Device device)
+        {
+            switch (device)
+            {
+                case Transformer t:
+                    if (t.InputNetwork != null) yield return t.InputNetwork;
+                    if (t.OutputNetwork != null) yield return t.OutputNetwork;
+                    break;
+                case Battery b:
+                    if (b.InputNetwork != null) yield return b.InputNetwork;
+                    if (b.OutputNetwork != null) yield return b.OutputNetwork;
+                    break;
+                case PowerTransmitter tx:
+                    if (tx.InputNetwork != null) yield return tx.InputNetwork;
+                    if (tx.LinkedReceiver?.OutputNetwork != null) yield return tx.LinkedReceiver.OutputNetwork;
+                    break;
+                case PowerReceiver rx:
+                    if (rx.OutputNetwork != null) yield return rx.OutputNetwork;
+                    if (rx.LinkedPowerTransmitter?.InputNetwork != null) yield return rx.LinkedPowerTransmitter.InputNetwork;
+                    break;
+            }
+        }
+
+        /// <summary>
+        ///     Dirties both sides' power and data device lists for a bridging device. Dirties BOTH flags
+        ///     because CableNetwork.DataDeviceList.get checks the power flag (vanilla quirk; see
+        ///     Research/GameClasses/CableNetwork.md). Replaces the per-patch inline dirty logic.
+        /// </summary>
+        internal static void DirtyBridgeNetworks(Device device)
+        {
+            foreach (var net in GetBridgeNetworks(device))
+                net.DirtyPowerAndDataDeviceLists();
         }
     }
 }

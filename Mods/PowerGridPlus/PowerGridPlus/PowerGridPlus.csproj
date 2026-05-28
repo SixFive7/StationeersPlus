@@ -89,10 +89,15 @@
     <Compile Include="Patches\BurnReasonPatches.cs" />
     <Compile Include="Patches\LogicPassthroughPatches.cs" />
     <Compile Include="Patches\PassthroughTopology.cs" />
+    <Compile Include="Patches\DishLinkPatches.cs" />
     <Compile Include="Patches\MergeDeterminismPatches.cs" />
     <Compile Include="..\..\..\Patterns\Logic\LogicTypeNumbers.cs" Link="Patterns\LogicTypeNumbers.cs" />
+    <Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />
     <Compile Include="LogicTypeRegistry.cs" />
     <Compile Include="PassthroughModeStore.cs" />
+    <Compile Include="PassthroughModeMessage.cs" />
+    <Compile Include="PassthroughSettingsMessage.cs" />
+    <Compile Include="PassthroughSettingsSync.cs" />
     <Compile Include="PassthroughSideCar.cs" />
     <Compile Include="Ic10ConstantsPatcher.cs" />
     <Compile Include="StationpediaPatches.cs" />
