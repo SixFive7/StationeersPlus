@@ -1,12 +1,12 @@
 # PowerTransmitterPlus TODO
 
-This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
+This file tracks open issues only. Entries are plain bullets, not `- [ ]` checkboxes; when an item is done, remove it rather than ticking it off. Completed work lives in git history.
 
 Implemented changes still awaiting an in-game or dedicated-server test do not belong here; record those in `PLAYTEST.md` (same folder).
 
 ## Migrate to the shared MainThreadDispatcher in Patterns/Threading/
 
-- [ ] **Replace the private `MainThreadDispatcher.cs` with the shared `Patterns/Threading/MainThreadDispatcher.cs`.** A generalized copy now lives at `Patterns/Threading/MainThreadDispatcher.cs` (namespace `StationeersPlus.Shared`, with a parameterized GameObject name and an error sink), linked into PowerGridPlus. PowerTransmitterPlus still carries its own `PowerTransmitterPlus/MainThreadDispatcher.cs`. When a PowerTransmitterPlus touch is already happening (to avoid a needless rebuild + release), drop the private copy: link the shared file in the `.csproj` (`<Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />`), change `MainThreadDispatcher.Init()` in `Plugin.cs` to `StationeersPlus.Shared.MainThreadDispatcher.Init("PowerTransmitterPlus_MainThreadDispatcher", msg => Log?.LogError(msg))`, point the `MainThreadDispatcher.Enqueue(...)` call sites in `BeamManager.cs` at the shared type, delete `MainThreadDispatcher.cs`, and remove its `<Compile Include>` entry. Behaviorally identical (the link pattern gives each mod its own per-assembly static state). See `Research/Patterns/MainThreadDispatcher.md` and `Patterns/Threading/README.md`.
+- **Replace the private `MainThreadDispatcher.cs` with the shared `Patterns/Threading/MainThreadDispatcher.cs`.** A generalized copy now lives at `Patterns/Threading/MainThreadDispatcher.cs` (namespace `StationeersPlus.Shared`, with a parameterized GameObject name and an error sink), linked into PowerGridPlus. PowerTransmitterPlus still carries its own `PowerTransmitterPlus/MainThreadDispatcher.cs`. When a PowerTransmitterPlus touch is already happening (to avoid a needless rebuild + release), drop the private copy: link the shared file in the `.csproj` (`<Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />`), change `MainThreadDispatcher.Init()` in `Plugin.cs` to `StationeersPlus.Shared.MainThreadDispatcher.Init("PowerTransmitterPlus_MainThreadDispatcher", msg => Log?.LogError(msg))`, point the `MainThreadDispatcher.Enqueue(...)` call sites in `BeamManager.cs` at the shared type, delete `MainThreadDispatcher.cs`, and remove its `<Compile Include>` entry. Behaviorally identical (the link pattern gives each mod its own per-assembly static state). See `Research/Patterns/MainThreadDispatcher.md` and `Patterns/Threading/README.md`.
 
 ## Client-side LinkedPowerTransmitter mirror (wireless link symmetry)
 
@@ -149,17 +149,17 @@ If option (a) sidecar field is chosen for source-draw plumbing on the transmitte
 
 ### Phasing
 
-- [ ] **Phase 1 -- Infrastructure.** Bump `positionCount` to N=5, distribute positions evenly along the line, build and assign a uniform `colorGradient` + `widthCurve` from the current single-color/single-width values. No new signals captured yet. Done when: beam renders visually identical to today; no visible regression on existing links.
-- [ ] **Phase 2 -- Canonical curve + single-player.** Capture `source_draw_W` (per file change list above), implement `NormalizePower` / `SampleColor` / `SampleWidth`, per-position sampling, gradient + width curve build, wire to `SetLinePower`. Done when: short link is uniform blue, long lossy link shows red-to-blue gradient, very-long link saturates both ends; no flicker introduced (pulse train unchanged so this should hold by construction).
-- [ ] **Phase 3 -- Multiplayer sync.** Add new fields to `BeamVisualConfigMessage`, extend `BeamVisualConfigSync` accessors, verify clients render the same gradient as host via InspectorPlus on a dedicated-server test. Done when: host + client agree on beam visuals across a 10 km link with a config change applied mid-session.
-- [ ] **Phase 4 -- Source-nozzle bloom + polish.** Enable `numCapVertices` cap on the LineRenderer at t=0, boosted gradient key when `NozzleBloomThreshold` exceeded. Done when: nozzle flare visible at extreme source draw, absent at moderate draw, smooth threshold crossing without popping.
+- **Phase 1 -- Infrastructure.** Bump `positionCount` to N=5, distribute positions evenly along the line, build and assign a uniform `colorGradient` + `widthCurve` from the current single-color/single-width values. No new signals captured yet. Done when: beam renders visually identical to today; no visible regression on existing links.
+- **Phase 2 -- Canonical curve + single-player.** Capture `source_draw_W` (per file change list above), implement `NormalizePower` / `SampleColor` / `SampleWidth`, per-position sampling, gradient + width curve build, wire to `SetLinePower`. Done when: short link is uniform blue, long lossy link shows red-to-blue gradient, very-long link saturates both ends; no flicker introduced (pulse train unchanged so this should hold by construction).
+- **Phase 3 -- Multiplayer sync.** Add new fields to `BeamVisualConfigMessage`, extend `BeamVisualConfigSync` accessors, verify clients render the same gradient as host via InspectorPlus on a dedicated-server test. Done when: host + client agree on beam visuals across a 10 km link with a config change applied mid-session.
+- **Phase 4 -- Source-nozzle bloom + polish.** Enable `numCapVertices` cap on the LineRenderer at t=0, boosted gradient key when `NozzleBloomThreshold` exceeded. Done when: nozzle flare visible at extreme source draw, absent at moderate draw, smooth threshold crossing without popping.
 
 ### Open items to confirm before writing code
 
-- [ ] Section name in the LaunchPad panel: stay with the existing `Server - Visual` section (plan default), or create a new `Server - Power Visual` group. Repo CLAUDE.md notes section header proliferation is a UX cost.
-- [ ] Existing `BeamColorHex` and `BeamWidth` semantically become the low/base anchors (plan default, no rename, no BepInEx reset). Alternative: rename to `ColorLowHex` / `WidthBase` for clarity, which would reset existing user configs.
-- [ ] Defaults for `ColorMidHex`, `ColorHighHex`, `WidthMax`, `WidthBloomThreshold`. Currently placeholders (`FF00FF` / `FF0000` / 0.25 / 0.7). User can request sample renders before locking, or accept and tune in playtest.
-- [ ] Source-draw plumbing choice: sidecar field on transmitter (cleaner separation, requires sync verification) vs. re-derive in `VisualiserPatches` from `delivered + k + distance` (simpler, one fewer touchpoint). Both are correct; pick on style during Phase 2.
+- Section name in the LaunchPad panel: stay with the existing `Server - Visual` section (plan default), or create a new `Server - Power Visual` group. Repo CLAUDE.md notes section header proliferation is a UX cost.
+- Existing `BeamColorHex` and `BeamWidth` semantically become the low/base anchors (plan default, no rename, no BepInEx reset). Alternative: rename to `ColorLowHex` / `WidthBase` for clarity, which would reset existing user configs.
+- Defaults for `ColorMidHex`, `ColorHighHex`, `WidthMax`, `WidthBloomThreshold`. Currently placeholders (`FF00FF` / `FF0000` / 0.25 / 0.7). User can request sample renders before locking, or accept and tune in playtest.
+- Source-draw plumbing choice: sidecar field on transmitter (cleaner separation, requires sync verification) vs. re-derive in `VisualiserPatches` from `delivered + k + distance` (simpler, one fewer touchpoint). Both are correct; pick on style during Phase 2.
 
 ### Verification approach
 

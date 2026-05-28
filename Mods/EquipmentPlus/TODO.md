@@ -1,6 +1,6 @@
 # Equipment Plus: TODO
 
-This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
+This file tracks open issues only. Entries are plain bullets, not `- [ ]` checkboxes; when an item is done, remove it rather than ticking it off. Completed work lives in git history.
 
 Implemented changes still awaiting an in-game or dedicated-server test do not belong here; record those in `PLAYTEST.md` (same folder).
 
@@ -32,10 +32,10 @@ Full game-internals writeup: `Research/Protocols/LogicValueWriteMessages.md` ("S
 
 **Fix (recommended).** Mirror the existing slot pattern: replace the client branch's vanilla `SetLogicFromClient` with a custom client->server message whose server-side `Process` resolves the target as `ILogicable` (which every `Device` is) and applies the write the same way the host branch does.
 
-- [ ] Add `SetLogicFromClientMessage` (device-level), parallel to the existing `SetLogicSlotFromClientMessage`. Fields: `long DeviceId; LogicType LogicType; double Value;`. Register it in `Plugin.cs` alongside the slot message.
-- [ ] `Process` server-side: `var d = Thing.Find<ILogicable>(DeviceId); if (d != null && d.CanLogicWrite(LogicType)) d.SetLogicValue(LogicType, Value);`. Keep the `CanLogicWrite` re-check as server-side authority (a remote client should not be able to write a non-writable LogicType). This mirrors the host branch but adds the safety gate the host branch currently relies on the client-side UI for.
-- [ ] Change `ConfigCartridgePatches.WriteLogicValue` client branch to send this new message instead of vanilla `SetLogicFromClient`.
-- [ ] Leave the host branch (`device.SetLogicValue(...)` direct) as-is; it already works.
+- Add `SetLogicFromClientMessage` (device-level), parallel to the existing `SetLogicSlotFromClientMessage`. Fields: `long DeviceId; LogicType LogicType; double Value;`. Register it in `Plugin.cs` alongside the slot message.
+- `Process` server-side: `var d = Thing.Find<ILogicable>(DeviceId); if (d != null && d.CanLogicWrite(LogicType)) d.SetLogicValue(LogicType, Value);`. Keep the `CanLogicWrite` re-check as server-side authority (a remote client should not be able to write a non-writable LogicType). This mirrors the host branch but adds the safety gate the host branch currently relies on the client-side UI for.
+- Change `ConfigCartridgePatches.WriteLogicValue` client branch to send this new message instead of vanilla `SetLogicFromClient`.
+- Leave the host branch (`device.SetLogicValue(...)` direct) as-is; it already works.
 
 Alternative considered: route through the vanilla `SetLogicValueMessage` (id 104), whose `Process` resolves `Thing.Find<ILogicable>` with no `ISetable` gate. Workable (its value encoding defaults to full-precision `double` for a custom LogicType), but it couples to vanilla's per-type encoding table and is normally the RocketMotherboard panel's message; the custom-message approach above is more robust and matches the slot pattern already in the mod.
 
@@ -119,7 +119,7 @@ Bundling note: A/B/C/E are independent edits across four files. C and B are pure
 
 ## Before next release
 
-- [ ] **Strip diagnostic logging.** One sweep covering `ConfigCartridgeState.ClickTrace` (`ConfigCartridgePatches.cs:52`), `ScrollDispatchState.ScrollTrace` (`ScrollDispatchPatches.cs`), per-state-transition `LogInfo` lines in `CycleTablet` / `CycleLens` / `HelmetBeamPatches`, the `[EquipmentPlus.rebind]` step trace, and the scroll-dispatch no-op spam. Then build + redeploy.
+- **Strip diagnostic logging.** One sweep covering `ConfigCartridgeState.ClickTrace` (`ConfigCartridgePatches.cs:52`), `ScrollDispatchState.ScrollTrace` (`ScrollDispatchPatches.cs`), per-state-transition `LogInfo` lines in `CycleTablet` / `CycleLens` / `HelmetBeamPatches`, the `[EquipmentPlus.rebind]` step trace, and the scroll-dispatch no-op spam. Then build + redeploy.
 
 ## Deferred (not blocking release)
 
