@@ -1,4 +1,4 @@
-# Maintenance Bureau Plus - TODO
+# Maintenance Bureau Plus TODO
 
 This file tracks open issues only. Entries are plain bullets, not `- [ ]` checkboxes; when an item is done, remove it rather than ticking it off. Completed work lives in git history.
 
@@ -14,7 +14,7 @@ Tracks the work for v1, then the deferred v1.x / v1.5 / v2 list.
 
 ### Where we are
 
-v1 source is compiled, deployed, and the plugin loads successfully in-game. The `ping` → `pong` hotpath works end-to-end, proving chat intercept + main-thread broadcast. The first real LLM turn currently takes minutes on a CPU-only 1.5B model because of prompt-ingestion cost; the most recent commit (`2f3ba73`) rewrites this to use `InteractiveExecutor` for KV-cache reuse across turns. **That commit has not been playtested yet** — that is the next step.
+v1 source is compiled, deployed, and the plugin loads successfully in-game. The `ping` -> `pong` hotpath works end-to-end, proving chat intercept + main-thread broadcast. The first real LLM turn currently takes minutes on a CPU-only 1.5B model because of prompt-ingestion cost; the most recent commit (`2f3ba73`) rewrites this to use `InteractiveExecutor` for KV-cache reuse across turns. **That commit has not been playtested yet** -- that is the next step.
 
 ### Deployment layout (important, non-obvious)
 
@@ -28,7 +28,7 @@ Side effect: the bureau is not listed in LaunchPad's in-game mod list and F3 log
 # Build (from repo root)
 dotnet build "Plans/MaintenanceBureauPlus/MaintenanceBureauPlus.sln" -c Release 2>&1 | tail -5
 
-# Deploy (requires game closed — DLL is locked while game runs)
+# Deploy (requires game closed -- DLL is locked while game runs)
 cp "Plans/MaintenanceBureauPlus/MaintenanceBureauPlus/bin/Release/MaintenanceBureauPlus.dll" \
    "E:/Steam/steamapps/common/Stationeers/BepInEx/plugins/MaintenanceBureauPlus/MaintenanceBureauPlus.dll"
 
@@ -64,11 +64,11 @@ Read these commits in order if you need to understand why the code is shaped the
 | `dc90d5d` | Decompile-verified game APIs for the repair event. Added to `Research/GameClasses/{Human,LanderCapsule,Structure,ChatMessage}.md` and `Research/Workflows/{KnockPlayerUnconscious,TriggerLanderCapsule}.md`. |
 | `c716fca` | Reflection shims resolved to concrete APIs, JsonUtility replaces Newtonsoft, `StunBlackout = 1000`. |
 | `b88859b` | Documented the LaunchPad native-DLL scan trap in `Research/Workflows/LaunchPadNativeDllTrap.md`. |
-| `134781a` | Preload LLamaSharp native libs via `kernel32!LoadLibrary` so `DllImport("llama")` resolves — Mono's default probe doesn't search `BepInEx/plugins/<mod>/runtimes/win-x64/native/`. |
+| `134781a` | Preload LLamaSharp native libs via `kernel32!LoadLibrary` so `DllImport("llama")` resolves -- Mono's default probe doesn't search `BepInEx/plugins/<mod>/runtimes/win-x64/native/`. |
 | `7e82e8f` | Harmony patches apply in `Awake` (not in a deferred `Update` branch that never fired). |
 | `3d5f903` | Switched Harmony target from `ChatMessage.Process` to `ChatMessage.PrintToConsole`; `Microsoft.Bcl.AsyncInterfaces` force-loaded in Awake before LLamaSharp touches `IAsyncEnumerable<T>`. Reflection-based async-enumerator drain lands. Emergency `MainThreadQueue.Drain()` at top of `Postfix`. |
-| `d4c96e6` | Fixed the reflection lookup to handle explicit interface implementations — LLamaSharp's compiler-generated state machine exposes `GetAsyncEnumerator` / `MoveNextAsync` / `DisposeAsync` as explicit impls with qualified names. |
-| `3af06d3` | Added `[LlmEngine] Inference start:` / `Inference done:` logging and the `ping` → `pong` hotpath to isolate LLM from broadcast flow. |
+| `d4c96e6` | Fixed the reflection lookup to handle explicit interface implementations -- LLamaSharp's compiler-generated state machine exposes `GetAsyncEnumerator` / `MoveNextAsync` / `DisposeAsync` as explicit impls with qualified names. |
+| `3af06d3` | Added `[LlmEngine] Inference start:` / `Inference done:` logging and the `ping` -> `pong` hotpath to isolate LLM from broadcast flow. |
 | `ff05052` | Replaced 14 kB LLM-driven persona-selection prompt with a local `PickRandomUnseenPersona()` that biases away from officers named in `PersonaMemoryStore` super-summaries. |
 | `2f3ba73` | **Most recent.** InteractiveExecutor migration for in-cycle turns. Turn 1 sends the full ~2 kB system block once and caches it; turns 2+ send ~100 char deltas. Also fixed Dispose to cap shutdown delay at 500 ms and skip native disposal. |
 
@@ -81,9 +81,9 @@ Read these commits in order if you need to understand why the code is shaped the
 5. **Harmony target for chat must be `ChatMessage.PrintToConsole`**, not `ChatMessage.Process`. The host's own outgoing chat does not call `Process` locally; it calls `PrintToConsole` then `NetworkServer.SendToClients`. Both host-send and client-receive paths hit `PrintToConsole`.
 6. **`Update()` does not fire on BepInEx plugins on Stationeers** (at least in our testing). Don't design any logic around Update ticking. Drain main-thread queues from Harmony postfixes on methods that DO fire.
 7. **LLamaSharp's `StatelessExecutor` re-tokenizes the full prompt every call.** For multi-turn conversations, `InteractiveExecutor` keeps the KV cache.
-8. **`Engine.Dispose()` on shutdown must not wait long** for the worker thread — native llama code can ignore cancellation for minutes. Cap Join at 500 ms and do not call native `Dispose` on the model/context; the OS reclaims on process exit.
+8. **`Engine.Dispose()` on shutdown must not wait long** for the worker thread -- native llama code can ignore cancellation for minutes. Cap Join at 500 ms and do not call native `Dispose` on the model/context; the OS reclaims on process exit.
 9. **Stun damage write**: `human.DamageState.Damage(ChangeDamageType.Set, value, DamageUpdateType.Stun)`. `EntityDamageState` auto-forwards Stun writes to the brain organ; no need to reach `human.OrganBrain.DamageState` directly.
-10. **LanderCapsule spawn recipe**: `Prefab.Find<LanderCapsule>("LanderCapsule")` — the overload REQUIRES the string argument; the older research note with a parameterless `Find<T>()` was wrong and is corrected in `Research/Workflows/TriggerLanderCapsule.md`.
+10. **LanderCapsule spawn recipe**: `Prefab.Find<LanderCapsule>("LanderCapsule")` -- the overload REQUIRES the string argument; the older research note with a parameterless `Find<T>()` was wrong and is corrected in `Research/Workflows/TriggerLanderCapsule.md`.
 
 ### Immediate next steps (pick up here)
 
@@ -114,14 +114,14 @@ The InteractiveExecutor latency playtest (commit `2f3ba73`) is in `PLAYTEST.md`;
 
 ### Research pages relevant to this mod
 
-- [`Research/Workflows/LaunchPadNativeDllTrap.md`](../../Research/Workflows/LaunchPadNativeDllTrap.md) — why we deploy as a BepInEx plugin.
-- [`Research/Workflows/KnockPlayerUnconscious.md`](../../Research/Workflows/KnockPlayerUnconscious.md) — stun-on-brain mechanism for the approval event.
-- [`Research/Workflows/TriggerLanderCapsule.md`](../../Research/Workflows/TriggerLanderCapsule.md) — three-call capsule spawn recipe.
-- [`Research/GameClasses/Human.md`](../../Research/GameClasses/Human.md) — `Human.AllHumans` enumeration.
-- [`Research/GameClasses/LanderCapsule.md`](../../Research/GameClasses/LanderCapsule.md) — Slots, InteractMode, descent constants.
-- [`Research/GameClasses/Structure.md`](../../Research/GameClasses/Structure.md) — `IsBroken` property for the repair-sweep exclusion filter.
-- [`Research/GameClasses/ChatMessage.md`](../../Research/GameClasses/ChatMessage.md) — chat-channel-doesn't-exist finding and the loop guard (`HumanId == -1`).
-- [`Research/Patterns/AsyncEnumerator472.md`](../../Research/Patterns/AsyncEnumerator472.md) — manual async-enumerator drain pattern (since superseded by the reflection-based one in `LlmEngine`, but the page still explains why it's needed).
+- [`Research/Workflows/LaunchPadNativeDllTrap.md`](../../Research/Workflows/LaunchPadNativeDllTrap.md) -- why we deploy as a BepInEx plugin.
+- [`Research/Workflows/KnockPlayerUnconscious.md`](../../Research/Workflows/KnockPlayerUnconscious.md) -- stun-on-brain mechanism for the approval event.
+- [`Research/Workflows/TriggerLanderCapsule.md`](../../Research/Workflows/TriggerLanderCapsule.md) -- three-call capsule spawn recipe.
+- [`Research/GameClasses/Human.md`](../../Research/GameClasses/Human.md) -- `Human.AllHumans` enumeration.
+- [`Research/GameClasses/LanderCapsule.md`](../../Research/GameClasses/LanderCapsule.md) -- Slots, InteractMode, descent constants.
+- [`Research/GameClasses/Structure.md`](../../Research/GameClasses/Structure.md) -- `IsBroken` property for the repair-sweep exclusion filter.
+- [`Research/GameClasses/ChatMessage.md`](../../Research/GameClasses/ChatMessage.md) -- chat-channel-doesn't-exist finding and the loop guard (`HumanId == -1`).
+- [`Research/Patterns/AsyncEnumerator472.md`](../../Research/Patterns/AsyncEnumerator472.md) -- manual async-enumerator drain pattern (since superseded by the reflection-based one in `LlmEngine`, but the page still explains why it's needed).
 
 ### Reverting
 

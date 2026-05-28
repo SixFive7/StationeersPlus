@@ -48,5 +48,5 @@ This mod has never been released (still 0.1.0). It compiles and loads cleanly on
 
 - **Heavy-cable device-list draw sweep.** The high-draw machine whitelist in `VoltageTier.IsHighDrawMachine` (`CarbonSequester`, `FurnaceBase`, `ArcFurnace`, `Centrifuge`, `Recycler`, `IceCrusher`, `HydraulicPipeBender`, `DeepMiner`) was assembled from community consensus; only the first three are verified-by-decompile to draw >5 kW. Confirm which of the rest actually exceed 5 kW.
   - Mode: single-player, high-load save.
-  - Observe: InspectorPlus sweep `types=[Device], fields=[DisplayName, UsedPower, MaxUsedPower, GetUsedPower(network)]`.
+  - Observe: InspectorPlus sweep covering each whitelist machine, capturing `UsedPower` / `MaxUsedPower` / `OperatingTemperature`. Request file + playbook staged at `.work/2026-05-28-pgp-heavy-cable-sweep/` (the `.work/` tree is gitignored, so regenerate on a fresh clone).
   - Follow-up (stays in `TODO.md`): based on the measured draws, drop or extend the whitelist in `VoltageTier.IsHighDrawMachine`.
