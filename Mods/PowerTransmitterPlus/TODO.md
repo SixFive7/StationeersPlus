@@ -2,6 +2,31 @@
 
 This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
 
+## Migrate to the shared MainThreadDispatcher in Patterns/Threading/
+
+- [ ] **Replace the private `MainThreadDispatcher.cs` with the shared `Patterns/Threading/MainThreadDispatcher.cs`.** A generalized copy now lives at `Patterns/Threading/MainThreadDispatcher.cs` (namespace `StationeersPlus.Shared`, with a parameterized GameObject name and an error sink), linked into PowerGridPlus. PowerTransmitterPlus still carries its own `PowerTransmitterPlus/MainThreadDispatcher.cs`. When a PowerTransmitterPlus touch is already happening (to avoid a needless rebuild + release), drop the private copy: link the shared file in the `.csproj` (`<Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />`), change `MainThreadDispatcher.Init()` in `Plugin.cs` to `StationeersPlus.Shared.MainThreadDispatcher.Init("PowerTransmitterPlus_MainThreadDispatcher", msg => Log?.LogError(msg))`, point the `MainThreadDispatcher.Enqueue(...)` call sites in `BeamManager.cs` at the shared type, delete `MainThreadDispatcher.cs`, and remove its `<Compile Include>` entry. Behaviorally identical (the link pattern gives each mod its own per-assembly static state). See `Research/Patterns/MainThreadDispatcher.md` and `Patterns/Threading/README.md`.
+
+## Client-side LinkedPowerTransmitter mirror (wireless link symmetry)
+
+Not needed for PowerTransmitterPlus's own features today (see "why optional" below); tracked because PowerTransmitterPlus is the natural owner of dish-link state, and a sibling mod (Power Grid Plus) currently works around this gap itself. Pick this up only when a PowerTransmitterPlus touch is already happening (avoid a needless rebuild + release).
+
+**The vanilla gap.** A wireless TX/RX dish link is established host-side only: `PowerTransmitter.TryContactReceiver` is gated on `GameManager.RunSimulation` (true only on the host), and it sets both `tx.LinkedReceiver = rx` and `rx.LinkedPowerTransmitter = tx`. Replication to clients is asymmetric:
+- `PowerTransmitter.LinkedReceiver` IS replicated: its setter sets `NetworkUpdateFlags |= NetworkUpdateType.Thing.WirelessPower.Receiver`, and `PowerTransmitter.BuildUpdate` / `ProcessUpdate` carry `LinkedReceiver?.ReferenceId` (decompile ~387130-387146). `SerializeOnJoin` carries it too.
+- `PowerReceiver.LinkedPowerTransmitter` is NOT replicated: its setter (decompile ~386871) sets no `NetworkUpdateFlags`, and nothing serializes it. It is assigned only inside the host-only `TryContactReceiver`.
+
+So on a multiplayer client, `tx.LinkedReceiver` points at the receiver, but `rx.LinkedPowerTransmitter` stays null. Any code that resolves the link starting from the RECEIVER side gets null on a client.
+
+**Why optional for PowerTransmitterPlus.** PowerTransmitterPlus only reads `tx.LinkedReceiver` for beam endpoints / visibility (`BeamVisibility`, `BeamManager`). Its reads of `rx.LinkedPowerTransmitter` (owning-transmitter resolution in `RotationPatches` / `OnOffPatches`, and `MicrowaveLinkedPartner` in `LogicReadoutPatches`) are all null-guarded and degrade to a no-op or 0 on a client. Auto-aim uses `DishTarget` / `RayTransform`, not the back-reference. So PowerTransmitterPlus-only games are functionally fine with the null back-reference.
+
+**When it matters / how to fix.** Any consumer that needs the RX->TX direction on a client. Fix: a client-only Harmony postfix on `PowerTransmitter.ProcessUpdate` (gated `if (!NetworkManager.IsServer)`) that mirrors the back-reference after vanilla applies the replicated `LinkedReceiver`:
+- when `tx.LinkedReceiver != null` and `tx.LinkedReceiver.LinkedPowerTransmitter != tx`, set `tx.LinkedReceiver.LinkedPowerTransmitter = tx`;
+- when the link just changed and the previous receiver still back-points at this tx, clear it.
+Make it idempotent (only write when the value differs). The RX setter's side effect `InputNetwork = value.OutputNetwork` is the correct client-side state (matches host); its `OnServer.Interact` is `RunSimulation`-gated and skipped on the client. This mirrors PowerTransmitterPlus's existing host-side write in `LinkPatch.cs` (`bestRx.LinkedPowerTransmitter = __instance`) onto the client.
+
+**How Power Grid Plus does it now.** `Mods/PowerGridPlus/PowerGridPlus/Patches/DishLinkPatches.cs` (`RefreshLink`) performs exactly this client-gated, idempotent mirror, because Power Grid Plus's logic-passthrough merge needs the link symmetric on clients (otherwise the receiver-cable-side network cannot see the transmitter-cable-side devices: `GetOtherSide(rx)` reads `rx.LinkedPowerTransmitter`). Power Grid Plus also dirties + refreshes the affected cable networks' device-list consumers on the same link change.
+
+**Composition if both mods are active.** Both would write the same value, so they compose without conflict: Power Grid Plus's `!= tx` guard skips when the back-reference is already correct, so whichever mod's postfix runs first wins and the other is a harmless no-op. If PowerTransmitterPlus implements this mirror (becoming the single owner of dish-link state), Power Grid Plus's mirror becomes redundant and could be dropped from `DishLinkPatches` to centralise ownership; coordinate that change across both mods in the same pass. Until then, leave Power Grid Plus's mirror in place. Do NOT have either mod clear the back-reference in a way the other would fight; keep both idempotent.
+
 ## Real-client multiplayer playtests before cutting v1.7.3
 
 ScenarioRunner has verified the server-side mechanism for every TODO item that could be reached without a connected client (see `verified.md`):
