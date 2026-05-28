@@ -84,9 +84,10 @@ namespace PowerGridPlus.Patches
     }
 
     // Per-Thing restore. Fires in Thing.OnFinishedLoad postfix. For each supported
-    // bridging device (Transformer, Battery, PowerTransmitter, PowerReceiver) with
-    // a side-car entry, restore its saved mode and dirty the affected networks so
-    // the cached data-device lists rebuild with the restored value on next read.
+    // bridging device (Transformer, Battery, AreaPowerControl, PowerTransmitter,
+    // PowerReceiver) with a side-car entry, restore its saved mode and dirty the
+    // affected networks so the cached data-device lists rebuild with the restored
+    // value on next read.
     // Devices without a side-car entry (legacy saves, fresh placements) fall through
     // to PassthroughModeStore.GetDefaultMode via GetMode on next read.
     [HarmonyPatch(typeof(Thing), nameof(Thing.OnFinishedLoad))]
@@ -113,6 +114,11 @@ namespace PowerGridPlus.Patches
                     PassthroughModeStore.RestoreFromSideCar(battery.ReferenceId, savedMode);
                     battery.InputNetwork?.DirtyPowerAndDataDeviceLists();
                     battery.OutputNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+                case AreaPowerControl apc:
+                    PassthroughModeStore.RestoreFromSideCar(apc.ReferenceId, savedMode);
+                    apc.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    apc.OutputNetwork?.DirtyPowerAndDataDeviceLists();
                     break;
                 case PowerTransmitter tx:
                     PassthroughModeStore.RestoreFromSideCar(tx.ReferenceId, savedMode);

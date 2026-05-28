@@ -150,11 +150,14 @@ namespace PowerGridPlus
                      "no longer slowly drain their battery when nothing is connected downstream.", 10));
 
             EnableAreaPowerControlLogicPassthrough = config.Bind("Server - Area Power Control", "Enable APC Logic Passthrough", true,
-                Desc("(Server-authoritative) When true, Area Power Controllers are logic-transparent: an IC10 or logic " +
-                     "reader wired to one side of an APC can read and write devices wired to the other side. Power is " +
-                     "unaffected -- the APC's downstream side still meters and gates power normally. Turn this off to " +
-                     "restore the vanilla behaviour where an APC breaks the logic network the same way it breaks the power " +
-                     "network.", 20));
+                Desc("(Server-authoritative) Master kill-switch for Area Power Control logic-passthrough. When true, " +
+                     "Area Power Controllers honour the per-device LogicPassthroughMode logic value (writable via IC10 " +
+                     "or a logic writer): 1 makes the APC logic-transparent (devices on either cable side are visible " +
+                     "across, and the APC's own logic ports are visible from both), 0 keeps vanilla logic-opaque " +
+                     "behaviour where the APC breaks the logic network the same way it breaks the power network. Every " +
+                     "APC defaults to mode 1 (enabled); per-device mode is persisted across save / load. When this master " +
+                     "is false, every APC behaves vanilla-opaque regardless of its per-device mode. Power is unaffected " +
+                     "either way: the APC's downstream side always meters and gates power normally.", 20));
 
             // --- Server - Power Transmitters ---
             EnablePowerTransmitterLogicPassthrough = config.Bind("Server - Power Transmitters", "Enable Power Transmitter Logic Passthrough", true,

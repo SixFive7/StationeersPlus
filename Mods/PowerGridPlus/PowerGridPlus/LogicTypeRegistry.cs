@@ -28,7 +28,7 @@ namespace PowerGridPlus
             {
                 Name = "LogicPassthroughMode",
                 Value = LogicPassthroughModeValue,
-                Description = "Writable. 0 = the device breaks the logic network the same way it breaks the power network (vanilla). 1 = the device is logic-transparent: IC10 / logic readers on one side see devices on the other side, and the device's own logic ports are visible from both. Applies to transformers, stationary batteries, and linked power transmitter / receiver dishes. Persists across save / load. Default 1 on stationary batteries, transmitter / receiver dishes, and the small transformer and its reversed variant; default 0 on every other transformer.",
+                Description = "Writable. 0 = the device breaks the logic network the same way it breaks the power network (vanilla). 1 = the device is logic-transparent: IC10 / logic readers on one side see devices on the other side, and the device's own logic ports are visible from both. Applies to transformers, stationary batteries, Area Power Controllers, and linked power transmitter / receiver dishes. Persists across save / load. Default 1 on stationary batteries, Area Power Controllers, transmitter / receiver dishes, and the small transformer and its reversed variant; default 0 on every other transformer.",
             },
         };
 

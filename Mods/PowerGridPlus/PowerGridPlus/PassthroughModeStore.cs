@@ -6,16 +6,18 @@ using Assets.Scripts.Objects.Electrical;
 namespace PowerGridPlus
 {
     // Per-Thing LogicPassthroughMode state. Keyed by Thing.ReferenceId, value is
-    // 0 or 1. Used for Transformer, Battery, PowerTransmitter, and PowerReceiver.
+    // 0 or 1. Used for Transformer, Battery, AreaPowerControl, PowerTransmitter,
+    // and PowerReceiver.
     //
     // Per-PrefabName defaults:
     //   - Small Transformer + Reversed: 1 (logic-transparent out of the box).
     //   - Other Transformer variants:    0 (vanilla-opaque).
     // Per-type defaults (anything without a specific PrefabName override):
-    //   - Battery:          1 (logic-transparent across input / output cable ports).
-    //   - PowerTransmitter: 1 (logic-transparent across the wireless link to its receiver).
-    //   - PowerReceiver:    1 (logic-transparent across the wireless link to its transmitter).
-    //   - Everything else:  0.
+    //   - Battery:           1 (logic-transparent across input / output cable ports).
+    //   - AreaPowerControl:  1 (logic-transparent across input / output cable ports).
+    //   - PowerTransmitter:  1 (logic-transparent across the wireless link to its receiver).
+    //   - PowerReceiver:     1 (logic-transparent across the wireless link to its transmitter).
+    //   - Everything else:   0.
     //
     // Persistence: PassthroughSideCar reads / writes a sidecar XML inside the save
     // ZIP. PassthroughSaveLoadPatches restores state in Thing.OnFinishedLoad for
@@ -49,6 +51,7 @@ namespace PowerGridPlus
                     return 1;
             }
             if (thing is Battery) return 1;
+            if (thing is AreaPowerControl) return 1;
             if (thing is PowerTransmitter) return 1;
             if (thing is PowerReceiver) return 1;
             return 0;

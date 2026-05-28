@@ -43,8 +43,8 @@ namespace PowerGridPlus.Patches
                     return transformer.InputNetwork == from ? transformer.OutputNetwork : transformer.InputNetwork;
 
                 case AreaPowerControl apc:
-                    // APC has no per-device mode; it bridges whenever its server toggle is on.
                     if (!PassthroughSettingsSync.EffectiveApc) return null;
+                    if (PassthroughModeStore.GetMode(apc) == 0) return null;
                     return apc.InputNetwork == from ? apc.OutputNetwork : apc.InputNetwork;
 
                 case Battery battery:
@@ -122,6 +122,10 @@ namespace PowerGridPlus.Patches
                 case Battery b:
                     if (b.InputNetwork != null) yield return b.InputNetwork;
                     if (b.OutputNetwork != null) yield return b.OutputNetwork;
+                    break;
+                case AreaPowerControl apc:
+                    if (apc.InputNetwork != null) yield return apc.InputNetwork;
+                    if (apc.OutputNetwork != null) yield return apc.OutputNetwork;
                     break;
                 case PowerTransmitter tx:
                     if (tx.InputNetwork != null) yield return tx.InputNetwork;
