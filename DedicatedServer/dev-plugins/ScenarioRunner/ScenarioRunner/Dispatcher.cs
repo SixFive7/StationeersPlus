@@ -889,7 +889,11 @@ namespace ScenarioRunner
             };
 
             int posPass = 0, posFail = 0, negPass = 0, negFail = 0;
-            const string FOOTER_SENTINEL = "--- Power Grid Plus ---";
+            // Sentinel matches the {HEADER:POWER GRID PLUS} token literal that PGP emits in the
+            // raw GetThingDescription output. The token is expanded to TMP markup later by
+            // Localization.ParseHelpText during Stationpedia.PopulateThingPages, but the scenario
+            // calls GetThingDescription directly so it sees the pre-parse text.
+            const string FOOTER_SENTINEL = "{HEADER:POWER GRID PLUS}";
 
             foreach (var p in positives)
             {

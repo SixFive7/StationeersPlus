@@ -122,19 +122,20 @@ For mods that want live updates of the Stationpedia entry on a config change, th
 `Mods/PowerGridPlus/PowerGridPlus/StationpediaPatches.cs` `BuildApcFooter` and `BuildBatteryFooter` build footer text like:
 
 ```
-\n\n--- Power Grid Plus ---\n
+\n\n{HEADER:POWER GRID PLUS}\n
 Charge rate: capped at 1 kW (server config "APC Battery Charge Rate"). ...\n
 Output: capped at the output cable's MaxVoltage. ...\n
 Cable tier: input and output cables must be the same tier; mismatched cables burn at the junction when power flows.\n
 Bug fix: the vanilla idle-leak is closed. Battery does not slowly drain when nothing is connected downstream.
 ```
 
-This passes ParseHelpText unchanged (no `{TOKEN:...}` patterns, no rich-text tags). TMP renders the `\n\n` separator as a blank line, then a divider line of dashes, then bullet-style sentences. Render correctness verified statically against the pipeline above; no in-game UI test required.
+The `{HEADER:POWER GRID PLUS}` token is the one tagged expansion in the footer. `ParseHelpText` rewrites it to `<size=120%><b>POWER GRID PLUS</b></size>`, giving the section the same visual treatment vanilla uses for `POWER OUTPUT` headings. The body sentences contain no `{TOKEN:...}` patterns so they pass through unchanged. TMP renders the `\n\n` separator as a blank line, then the bold heading, then the body lines.
 
-Optional polish to match vanilla section-header convention: replace the dashes divider with `{HEADER:POWER GRID PLUS}`. The token expands to `<size=120%><b>POWER GRID PLUS</b></size>` and renders as a bold heading matching vanilla's `POWER OUTPUT` blocks.
+Render correctness verified statically against the pipeline above plus the `pgp-rate-cap-probe` ScenarioRunner scenario that asserts the `{HEADER:POWER GRID PLUS}` sentinel string is present in `Localization.GetThingDescription` output for the five affected prefabs.
 
 ## Verification history
 
+- 2026-05-28 (later): updated the "Worked example: PowerGridPlus footer" section to reflect commit 2def43c's follow-up polish that swapped the dashes divider `--- Power Grid Plus ---` for the `{HEADER:POWER GRID PLUS}` token. The example now demonstrates a single ParseHelpText-expanded token rather than a plain-text divider, which is the more idiomatic vanilla pattern. No other section changed. Pipeline analysis stands.
 - 2026-05-28: page created during PowerGridPlus rate-cap rollout verification. The ScenarioRunner `pgp-rate-cap-probe` scenario confirmed the footer text reaches `Localization.GetThingDescription` correctly. This page documents the rest of the pipeline (ParseHelpText, page cache, TMP render path) so the question "will my footer render correctly?" can be answered by static analysis instead of requiring an in-game eyeball check. Sourced from decompile lines 194901 (ParseHelpText), 231023 / 231964 (Stationpedia.Initialize / PopulateThingPages), 232041 (Description assignment), 233798 (PageDescription field), 233983 / 234508 (CheckAndSetTextElement -> TMP.text). en.resx samples at lines 2756, 2816, 3270, 3534, 3804, 6576.
 
 ## Open questions

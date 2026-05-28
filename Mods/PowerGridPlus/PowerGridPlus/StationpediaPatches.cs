@@ -97,7 +97,7 @@ namespace PowerGridPlus
         {
             float rate = Settings.ApcBatteryChargeRate.Value;
             return
-                "\n\n--- Power Grid Plus ---\n" +
+                "\n\n{HEADER:POWER GRID PLUS}\n" +
                 $"Charge rate: capped at {FormatWatts(rate)} (server config \"APC Battery Charge Rate\"). " +
                 "Further capped by the input cable's remaining MaxVoltage after this APC's own downstream pass-through is subtracted -- " +
                 "so a single APC cannot blow its input cable just by charging on top of what it is already passing through.\n" +
@@ -114,7 +114,7 @@ namespace PowerGridPlus
             string dischargeTime = dischargeW > 0f ? FormatSeconds(capacityJ / (dischargeW * 2f)) : "n/a";
 
             return
-                "\n\n--- Power Grid Plus ---\n" +
+                "\n\n{HEADER:POWER GRID PLUS}\n" +
                 $"Capacity: {FormatJoules(capacityJ)} ({name}).\n" +
                 $"Charge rate: capped at {FormatWatts(chargeW)} (server config \"{chargeConfigName}\"). " +
                 $"Full charge takes about {chargeTime} of wall-clock time at the cap.\n" +
