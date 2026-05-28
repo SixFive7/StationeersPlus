@@ -140,6 +140,18 @@ Validates args, refuses if a server or host wrapper is already alive (use `-Stop
 
 If `-Load <SaveName>` references a save that does not exist under `data/saves/`, the call fails. Either copy a tier-2 source save into `data/saves/<SaveName>/` first, or use `-Start -New <Map>` for a fresh world.
 
+### Waiting for the world to be ready
+
+`-Start` returns once the dedicated-server process is alive, which is before the world finishes loading and the simulation tick begins. The interval between PID-up and tickable-world is dominated by save size on `-Load` (a populated Lunar save can take several minutes; an empty map a handful of seconds). Three patterns confirm "world is loaded and ticking" cleanly. Pick by latency budget; each is bounded and complete on its own.
+
+**Sentinel InspectorPlus request (recommended).** Drop a minimal probe request file into `install/BepInEx/inspector/requests/probe.json` immediately after `-Start`, then poll for the file to be deleted. The InspectorPlus pump runs off `ElectricityManager.ElectricityTick`, processes the request once a snapshot is produced, and deletes the request file from the requests folder; the deletion is the readiness signal. With `Force Unpause Without Client = true` in `install/BepInEx/config/net.inspectorplus.cfg` (see "Notes for agents" below and `Research/Workflows/InspectorPlusUsage.md` "Headless dedicated server"), the simulation ticks with no client connected, so the consumption is bounded by world-load time plus one simulation tick. A minimal valid probe is `{"types": ["CableNetwork"], "maxMonoBehaviours": 1}` written as `probe.json`. After the request is consumed, read the matching snapshot under `install/BepInEx/inspector/snapshots/` or delete it. No write to `data/saves/`, no save churn.
+
+**Named probe save via `-Save`.** Right after `-Start`, run `dedicated-server.ps1 -Save -As <id> -Name __ready_probe__ -WaitSeconds 600`. The launcher queues `save "__ready_probe__"` on the server's stdin via the control file and blocks until `Saved...__ready_probe__` appears in `data/server.log`. The save command is only processed after world load completes and the tick is running, so the confirmation line is a synchronous readiness gate. Remove `data/saves/__ready_probe__/` afterwards if the probe save is not wanted. Use this when the test loop is going to save state anyway.
+
+**First-autosave grep.** With the launcher's default `AutoSave true`, the dedi emits `<HH:MM:SS>: Starting AutoSave for <SaveName>` to `data/server.log` the first time AutoSave fires after world load. Wait with `until grep -q "Starting AutoSave for <SaveName>" DedicatedServer/data/server.log; do sleep 5; done`. Reliable and zero-setup, but slow: the wait is bounded by world-load time plus the AutoSave period (default a few minutes). Reach for this when neither InspectorPlus nor `-Save` is available.
+
+`-Status` reports that the server PID is alive long before the world is tickable; use it to confirm "the process did not die," not to confirm "the world is ready." Per-mod `Patches applied` lines in `install/BepInEx/LogOutput.log` fire during prefab load before world load; they confirm the mod loaded, not that the world is loaded.
+
 ### Status
 
 ```
@@ -301,7 +313,7 @@ Save edit always finishes before `-Start`. Scenario logs always come from after 
 3. Build the mod(s) under test via the developer's MSBuild flow (see `DEV.md`).
 4. `DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod <X>` (or all mods, no `-Mod` flag).
 5. `DedicatedServer/dedicated-server.ps1 -Start -As <id> -New <Map>`, OR ask the developer for a save name and use `-Start -As <id> -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
-6. Wait until the server is ready: poll `DedicatedServer/dedicated-server.ps1 -Logs -Grep 'World loaded'` (or another readiness marker) before asking the developer to join. Timing varies by save size; budget 10-60 s.
+6. Wait until the world is loaded and the simulation is ticking, before asking the developer to join or running any probe. Pick a readiness pattern from "Waiting for the world to be ready" above; the sentinel InspectorPlus request is the default. Timing varies by save size; budget seconds for an empty map up to several minutes for a populated save.
 7. Tell the developer: "Server is up at `127.0.0.1:28016`, no password. Join with the regular client via Direct Connect when you are ready." If you then go idle waiting on them, state the reservation window (`-TtlMinutes`) and that a connected player holds the lock open. That is the only manual step.
 8. Run the test. While actively driving it, refresh the lock about once a minute (any mutating command refreshes it; otherwise `-RefreshLock -As <id>`). Drop InspectorPlus request files into `install/BepInEx/inspector/requests/`, read snapshots out of `install/BepInEx/inspector/snapshots/`. Use `-SendCommand -As <id> -Command 'status'` or `-Logs -Grep <pattern>` to check server-side state.
 9. If you resume after a gap, re-check ownership first: `-Status -As <id>`. If another session now holds the lock, stop and tell the user what took it.
