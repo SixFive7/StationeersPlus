@@ -942,6 +942,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pattern-presence-in-other-ledger-based-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern presence in other ledger-based classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6938,6 +6949,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pattern-presence-in-other-ledger-based-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern presence in other ledger-based classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7365,10 +7387,101 @@
 <p>This is the threshold a player observes as "the APC only charges when load is below ~1 kW": the in-game load figure crossing <code>BatteryChargeRate</code>'s literal <code>1000</code> value is the crossover, matching the <code>R - X</code> net derived above.</p>
 <p>Vanilla does NOT exhibit this ceiling. Vanilla <code>UsePower</code> drains the cell only when <code>_powerProvided &gt; 0</code> at the <em>start</em> of the call (a carried-over debit from a tick where input fell short). Under surplus input the input-side <code>ReceivePower</code> settles <code>_powerProvided</code> to exactly 0 (or negative) every tick, so the vanilla drain branch never fires and the cell accumulates <code>BatteryChargeRate</code> per tick regardless of downstream load (until input can no longer cover demand + charge, or the cell fills). The ceiling is therefore an artifact of PGP's "drain every tick" change interacting with the unchanged <code>BatteryChargeRate</code> charge cap, NOT a vanilla behaviour and NOT a new throughput cap (network-to-network transfer is still uncapped, per the "BatteryChargeRate and net throughput" section above; only the cell's net <em>accumulation</em> is bounded).</p>
 <p>Setting <code>EnableAreaPowerControlFix</code> to false restores vanilla <code>UsePower</code> (cell fills regardless of load, at the cost of vanilla's idle slow-leak that the fix exists to stop). <code>BatteryChargeRate</code> is per-prefab serialized data (C# default 1000f, line 369540), so the crossover cannot be retuned through PowerGridPlus config without an additional field patch.</p>
+<h2 id="pattern-presence-in-other-ledger-based-classes">Pattern presence in other ledger-based classes<a class="headerlink" href="#pattern-presence-in-other-ledger-based-classes" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>The <code>_powerProvided</code> ledger field that drives the net-charge ceiling above is not unique to <code>AreaPowerControl</code>. Four vanilla classes carry a <code>_powerProvided</code> field (<code>grep "_powerProvided"</code> over the decompile returns these line ranges):</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Decompile line</th>
+<th>Has internal energy storage?</th>
+<th>Patched by PowerGridPlus?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AreaPowerControl</code></td>
+<td>369546</td>
+<td>Yes (<code>BatteryCell</code> in slot 0)</td>
+<td>yes -- <code>AreaPowerControlPatches.cs</code></td>
+</tr>
+<tr>
+<td><code>Transformer</code></td>
+<td>403323</td>
+<td>No</td>
+<td>yes -- <code>TransformerExploitPatches.cs</code></td>
+</tr>
+<tr>
+<td><code>PowerReceiver</code></td>
+<td>386867</td>
+<td>No</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>PowerTransmitter</code></td>
+<td>387083</td>
+<td>No</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>Only <code>AreaPowerControl</code> couples <code>_powerProvided</code> to an energy store. The other three use the ledger purely to gate request math: vanilla <code>Transformer.GetUsedPower</code> returns <code>Min((float)Setting + UsedPower, _powerProvided)</code> (line 403493) and vanilla <code>PowerReceiver.GetUsedPower</code> returns <code>Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)</code> (line 387025); both use <code>_powerProvided</code> as an upper bound on what to request from upstream, not as a debit to drain from a buffer. With no storage to mis-drain, the APC's net-charge asymmetry has no analogue in those classes.</p>
+<p>Verbatim vanilla <code>Transformer</code> power-tick methods (lines 403459-403507):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">UsePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Error</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="p">)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="n">_powerProvided</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="p">}</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ReceivePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">)</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">{</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">InputNetwork</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">        </span><span class="n">_powerProvided</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">;</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">}</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetUsedPower</span><span class="p">([</span><span class="n">NotNull</span><span class="p">]</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="p">{</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">InputNetwork</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">!</span><span class="n">OnOff</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mf">0f</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">UsedPower</span><span class="p">;</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">Setting</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">UsedPower</span><span class="p">,</span><span class="w"> </span><span class="n">_powerProvided</span><span class="p">);</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="p">}</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGeneratedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="p">{</span>
+</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">Setting</span><span class="p">,</span><span class="w"> </span><span class="n">InputNetwork</span><span class="p">.</span><span class="n">PotentialLoad</span><span class="p">);</span>
+</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Vanilla <code>Transformer.UsePower</code> has no battery-drain branch and no <code>_powerProvided &gt; 0</code> gate -- it just increments the ledger. The asymmetry that produces the APC bug literally cannot exist here.</p>
+<p>PGP's <code>TransformerExploitPatches.cs</code> accordingly does NOT patch <code>UsePower</code>. It replaces <code>GetGeneratedPower</code> (subtracts <code>_powerProvided</code> from upstream <code>PotentialLoad</code> so a transformer simultaneously offering and being drawn from does not double-count its share), <code>GetUsedPower</code> (adds <code>UsedPower</code> as an explicit additive term so the transformer charges its own quiescent draw to upstream), and <code>ReceivePower</code> (subtracts <code>UsedPower</code> from incoming power before settling the ledger). None of these touch any energy store. Verbatim from <code>Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerExploitPatches.cs</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// GetGeneratedPowerPatch</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">__result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">__instance</span><span class="p">.</span><span class="n">Setting</span><span class="p">,</span><span class="w"> </span><span class="n">__instance</span><span class="p">.</span><span class="n">InputNetwork</span><span class="p">.</span><span class="n">PotentialLoad</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">____powerProvided</span><span class="p">);</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1">// GetUsedPowerPatch</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">__result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">__instance</span><span class="p">.</span><span class="n">Setting</span><span class="p">,</span><span class="w"> </span><span class="n">____powerProvided</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">__instance</span><span class="p">.</span><span class="n">UsedPower</span><span class="p">;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1">// ReceivePowerPatch</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="n">powerAdded</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">__instance</span><span class="p">.</span><span class="n">UsedPower</span><span class="p">;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">powerAdded</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0.0f</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">____powerProvided</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">;</span>
+</span></code></pre></div>
+<p><code>PowerReceiver</code> (wireless RX, lines 386980-387025) and <code>PowerTransmitter</code> (wireless TX, lines 387220-387280) follow the same shape as Transformer: ledger-only, no storage. PowerGridPlus does not patch either of them; they retain full vanilla behaviour and are out of scope of the APC charge-ceiling bug.</p>
+<p>Station-mounted <code>Battery</code> (documented in <a href="../Battery/">Battery.md</a>) is the other class with internal energy storage, but it does NOT carry a <code>_powerProvided</code> field. Its vanilla <code>UsePower</code> / <code>ReceivePower</code> write directly into <code>PowerStored</code> without a ledger (decompile lines 371098-371138). PGP's <code>StationaryBatteryPatches.cs</code> adds per-tick caps on <code>GetUsedPower</code> (charge headroom) and <code>GetGeneratedPower</code> (discharge availability) and rewrites <code>ReceivePower</code> to apply <code>BatteryChargeEfficiency</code>, but does NOT touch <code>UsePower</code>. There is no <code>_powerProvided &gt; 0</code> gate to remove and no equivalent immediate-vs-deferred settlement issue.</p>
+<p>The station <code>Battery</code> does carry an intentional asymmetry of its own under PowerGridPlus defaults (<code>MaxBatteryChargeRate = 0.002</code>, <code>MaxBatteryDischargeRate = 0.007</code> -- discharge cap is 3.5x the charge cap), so a Battery whose continuous downstream draw equals its discharge cap will slowly net-drain rather than hold equilibrium. That is a design choice (batteries are a reserve, not a generator) and is exposed as a tunable in the BepInEx config; it is not a bug surface comparable to the APC ceiling, where the asymmetry is fixed at the literal <code>BatteryChargeRate = 1000f</code> field and the player has no config to retune it.</p>
+<p>Net conclusion: the net-charge ceiling is localised to <code>AreaPowerControl</code>. The proximate cause -- PGP's <code>UsePower</code> patch removing vanilla's <code>_powerProvided &gt; 0</code> drain gate -- does not appear in any other PGP-patched class. The other <code>_powerProvided</code> users either have no <code>UsePower</code> patch (Transformer, by Re-Volt design) or are unpatched entirely (PowerReceiver, PowerTransmitter), and the only other storage-bearing electrical class (<code>Battery</code>) uses a different mechanism without a ledger.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <ul>
+<li>2026-05-28: added "Pattern presence in other ledger-based classes" section. Sweeps the four vanilla classes that carry a <code>_powerProvided</code> field (decompile lines 369546, 403323, 386867, 387083) and confirms that the APC's net-charge ceiling bug pattern is structurally impossible in <code>Transformer</code>, <code>PowerReceiver</code>, <code>PowerTransmitter</code>, and the station-mounted <code>Battery</code>: the other three <code>_powerProvided</code> users have no internal energy storage to mis-drain (vanilla <code>Transformer.UsePower</code> only increments the ledger; lines 403459-403465), and the only other storage-bearing electrical class (<code>Battery</code>) has no <code>_powerProvided</code> ledger and is not patched on <code>UsePower</code> by PowerGridPlus. Documents PGP's TransformerExploitPatches verbatim and confirms it does not patch <code>UsePower</code>. Notes the station <code>Battery</code>'s intentional charge/discharge asymmetry under PGP defaults (<code>0.002</code> / <code>0.007</code>) is a separate, configurable design choice and not the same bug shape. Additive content; does not contradict prior sections.</li>
 <li>2026-05-28: added "Net-charge ceiling under PowerGridPlus" section. Documents the steady-state consequence of PGP's three-patch APC rewrite (<code>AreaPowerControlPatches.cs</code>, gated on <code>EnableAreaPowerControlFix</code>): the internal cell's net charge per tick is <code>BatteryChargeRate - downstreamDemand</code>, so the cell stops accumulating once continuous downstream load reaches <code>BatteryChargeRate</code> (1000). Derived the crossover is independent of <code>UsedPower</code> (it cancels between <code>GetUsedPower</code>'s <code>+u</code> and <code>ReceivePower</code>'s <code>-u</code>). Confirmed vanilla does NOT show the ceiling (vanilla <code>UsePower</code> drain gate <code>_powerProvided &gt; 0</code> never fires under surplus input, so the cell fills regardless of load). Corroborated by a developer's in-game observation on the APC-Luna save: "the APC only charges when load is below ~1 kW." Additive content; refines but does not contradict the "BatteryChargeRate and net throughput" and "Power Grid Plus deviation" sections. Full InspectorPlus before/after capture on a dedicated server still pending.</li>
 <li>2026-05-26: added "BatteryChargeRate and net throughput" section. Documents the literal field value (1000f, line 369540), its two call sites in <code>ReceivePower</code> and <code>GetUsedPower</code>, and the explicit conclusion that this cap applies only to internal-cell charging and NOT to network-to-network throughput (<code>GetGeneratedPower</code> returns full <code>AvailablePower</code> uncapped; <code>_powerProvided</code> term in <code>GetUsedPower</code> is unbounded). Additive content; does not contradict prior sections.</li>
 <li>2026-05-22: page created during PowerGridPlus pre-release verification task 6 (APC patch correctness). Source: Re-Volt 1.4.0 <code>AreaPowerControllerPatches.cs</code> (MIT, &copy; 2025 Sukasa) cross-checked against Stationeers 0.2.6228.27061 <code>AreaPowerControl</code> decompile (lines 369509-370046) and <code>PowerTick</code> decompile (lines 254512-254765). Verdict: PGP's retargeting of <code>UsePowerPatch</code> from <code>GetUsedPower</code> to <code>UsePower</code> is structurally correct (the patch body only matches <code>UsePower</code>'s signature, and <code>UsePower</code> is the only method that decrements <code>Battery.PowerStored</code> in the output-side call chain). Re-Volt's original attribution is a silent no-op at HarmonyX <code>PatchAll</code> time. Dynamic verification on a dedicated-server test save pending.</li>
