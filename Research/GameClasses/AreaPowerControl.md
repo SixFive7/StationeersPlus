@@ -234,10 +234,51 @@ Both correctly drain `Battery.PowerStored`. PGP's variant matches Re-Volt's inte
 
 If reverting PGP's `UsePowerPatch` to Re-Volt 1:1 (declaring it on `GetUsedPower` again), the patch would silently no-op as it does in Re-Volt, and PGP would fall back to vanilla `UsePower`. That would still drain the battery -- just with the `_powerProvided > 0` gate restored.
 
-## Net-charge ceiling under PowerGridPlus: battery stops accumulating once downstream load reaches BatteryChargeRate
+## PGP post-b3baffb (2026-05-28): cable-headroom and cable-tier output cap
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
-PowerGridPlus's three-patch APC rewrite (`AreaPowerControlPatches.cs`, gated on `Settings.EnableAreaPowerControlFix.Value`, default ON) has a non-obvious steady-state consequence: when the APC's downstream load is at or above `BatteryChargeRate`, the internal cell's stored charge never accumulates, even with unlimited input-side supply. Below that load it fills normally. The crossover is exactly `BatteryChargeRate` (1000), independent of `UsedPower`.
+After commit `b3baffb` (2026-05-28), `AreaPowerControlPatches.cs` no longer carries a `UsePower` prefix. Vanilla `UsePower` runs unmodified, retaining the `_powerProvided > 0` drain gate that drains the cell only on a real shortfall. PGP's APC patches today, gated on `Settings.EnableAreaPowerControlFix.Value` (default ON):
+
+- **`ReceivePowerPatch` (prefix)**: closes the upstream leak. Subtracts `UsedPower` first, settles `_powerProvided`, then charges the cell using `ComputeChargeCap(__instance)` instead of the vanilla `BatteryChargeRate` field.
+- **`GetUsedPowerPatch` (prefix)**: input-side demand = `UsedPower + _powerProvided + Min(ComputeChargeCap, Battery.PowerDelta)`.
+- **`TrackPassthroughPatch` (postfix, new)**: stashes last tick's `powerUsed` per APC into a `ConcurrentDictionary<long, float>` keyed by `ReferenceId`. Provides the pass-through value used by `ComputeChargeCap`.
+- **`GetGeneratedPowerPatch` (postfix, new)**: clamps APC output supply at `outputCable.MaxVoltage`. A single APC cannot supply more than its output cable physically carries.
+
+`ComputeChargeCap` formula (verbatim, `AreaPowerControlPatches.cs`):
+
+```csharp
+float configCap = Settings.ApcBatteryChargeRate.Value;        // default 1000 W
+if (configCap <= 0f) return 0f;
+var inputCable = apc.InputConnection?.GetCable();
+if (inputCable == null) return configCap;
+float maxVoltage = inputCable.MaxVoltage;
+if (maxVoltage <= 0f) return 0f;
+float passthrough = 0f;
+_lastPassthrough.TryGetValue(apc.ReferenceId, out passthrough);
+float cableSpare = maxVoltage - passthrough;
+if (cableSpare <= 0f) return 0f;
+return Mathf.Min(configCap, cableSpare);
+```
+
+Steady-state behaviour under surplus upstream (downstream demand `X`, configCap `R = 1000`):
+
+1. `GetGeneratedPower(Output)` returns `min(AvailablePower, outputCable.MaxVoltage)`.
+2. Vanilla `UsePower(Output, X)`: drains the cell ONLY when `_powerProvided > 0` (carried-over shortfall debit). Under surplus, `_powerProvided` is settled to `<= 0` by `ReceivePower`, the drain branch never fires, then `_powerProvided += X`.
+3. `GetUsedPower(Input)` requests `UsedPower + _powerProvided + min(R, MaxVoltage - passthrough)` from upstream.
+4. `ReceivePower(Input)`: settles `_powerProvided` and charges cell up to `ComputeChargeCap`.
+
+The pre-b3baffb `R - X` ceiling no longer applies. Under surplus upstream the cell accumulates `ComputeChargeCap` per tick regardless of downstream draw, until the cell fills or upstream supply falls short. When upstream falls short, vanilla `UsePower` drains the cell for the shortfall -- buffer semantics, the APC's intended role.
+
+Per-device, NOT per-network. Other APCs / batteries on the same input cable are NOT subtracted from `cableSpare`. The cable can still overload from combined load of multiple devices; that's handled by PGP's existing cable burn-on-overload mechanism, not this cap. The cap only ensures a single device cannot blow its own cable by adding charge demand on top of its own pass-through.
+
+`EnableAreaPowerControlFix = false` reverts `ReceivePower` / `GetUsedPower` / `GetGeneratedPower` to vanilla (no leak fix, no cable caps). Since vanilla `UsePower` runs in both branches now, the toggle no longer affects the `UsePower` path.
+
+Verified headlessly 2026-05-28 via the `pgp-rate-cap-probe` ScenarioRunner scenario against `APC-Luna.save`: 8/8 wired APCs pass both `ComputeChargeCap` and `GetGeneratedPower` cap checks across normal (5 kW) and heavy (100 kW) cable tiers.
+
+## HISTORICAL: pre-b3baffb net-charge ceiling (PGP versions before 2026-05-28)
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+**Status: FIXED in commit `b3baffb` (2026-05-28).** This section preserved for context: the analysis explains why the ceiling existed and what motivated the rewrite. The PGP code described here is no longer in the tree; see the section above for current behaviour. Three earlier-PGP patches had this non-obvious steady-state consequence: when the APC's downstream load was at or above `BatteryChargeRate`, the internal cell's stored charge never accumulated, even with unlimited input-side supply. Below that load it filled normally. The crossover was exactly `BatteryChargeRate` (1000), independent of `UsedPower`.
 
 The three PGP patches in play (verbatim, `AreaPowerControlPatches.cs`):
 
@@ -281,7 +322,7 @@ This is the threshold a player observes as "the APC only charges when load is be
 
 Vanilla does NOT exhibit this ceiling. Vanilla `UsePower` drains the cell only when `_powerProvided > 0` at the *start* of the call (a carried-over debit from a tick where input fell short). Under surplus input the input-side `ReceivePower` settles `_powerProvided` to exactly 0 (or negative) every tick, so the vanilla drain branch never fires and the cell accumulates `BatteryChargeRate` per tick regardless of downstream load (until input can no longer cover demand + charge, or the cell fills). The ceiling is therefore an artifact of PGP's "drain every tick" change interacting with the unchanged `BatteryChargeRate` charge cap, NOT a vanilla behaviour and NOT a new throughput cap (network-to-network transfer is still uncapped, per the "BatteryChargeRate and net throughput" section above; only the cell's net *accumulation* is bounded).
 
-Setting `EnableAreaPowerControlFix` to false restores vanilla `UsePower` (cell fills regardless of load, at the cost of vanilla's idle slow-leak that the fix exists to stop). `BatteryChargeRate` is per-prefab serialized data (C# default 1000f, line 369540), so the crossover cannot be retuned through PowerGridPlus config without an additional field patch.
+Setting `EnableAreaPowerControlFix` to false restored vanilla `UsePower` (cell fills regardless of load, at the cost of vanilla's idle slow-leak that the fix exists to stop). `BatteryChargeRate` was per-prefab serialized data (C# default 1000f, line 369540), so the crossover could not be retuned through PowerGridPlus config without an additional field patch. (Both points obsolete post-b3baffb: vanilla `UsePower` always runs now regardless of the toggle, and the new `Settings.ApcBatteryChargeRate` config retunes the cap.)
 
 ## Pattern presence in other ledger-based classes
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
@@ -360,6 +401,7 @@ Net conclusion: the net-charge ceiling is localised to `AreaPowerControl`. The p
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
+- 2026-05-28 (later): added "PGP post-b3baffb (2026-05-28): cable-headroom and cable-tier output cap" section reflecting commit `b3baffb` and reframed the prior "Net-charge ceiling" section as historical (the `UsePowerPatch` that produced the ceiling is removed; vanilla `UsePower` now runs unmodified). The earlier analysis is preserved verbatim under a HISTORICAL heading because it explains why the bug existed and what the rewrite addressed. Verified headlessly via `pgp-rate-cap-probe` ScenarioRunner scenario: 8/8 wired APCs on `APC-Luna.save` pass `ComputeChargeCap` (per-device, cable-bounded) and `GetGeneratedPower` (output cable MaxVoltage cap) checks across normal and heavy cable tiers.
 - 2026-05-28: added "Pattern presence in other ledger-based classes" section. Sweeps the four vanilla classes that carry a `_powerProvided` field (decompile lines 369546, 403323, 386867, 387083) and confirms that the APC's net-charge ceiling bug pattern is structurally impossible in `Transformer`, `PowerReceiver`, `PowerTransmitter`, and the station-mounted `Battery`: the other three `_powerProvided` users have no internal energy storage to mis-drain (vanilla `Transformer.UsePower` only increments the ledger; lines 403459-403465), and the only other storage-bearing electrical class (`Battery`) has no `_powerProvided` ledger and is not patched on `UsePower` by PowerGridPlus. Documents PGP's TransformerExploitPatches verbatim and confirms it does not patch `UsePower`. Notes the station `Battery`'s intentional charge/discharge asymmetry under PGP defaults (`0.002` / `0.007`) is a separate, configurable design choice and not the same bug shape. Additive content; does not contradict prior sections.
 - 2026-05-28: added "Net-charge ceiling under PowerGridPlus" section. Documents the steady-state consequence of PGP's three-patch APC rewrite (`AreaPowerControlPatches.cs`, gated on `EnableAreaPowerControlFix`): the internal cell's net charge per tick is `BatteryChargeRate - downstreamDemand`, so the cell stops accumulating once continuous downstream load reaches `BatteryChargeRate` (1000). Derived the crossover is independent of `UsedPower` (it cancels between `GetUsedPower`'s `+u` and `ReceivePower`'s `-u`). Confirmed vanilla does NOT show the ceiling (vanilla `UsePower` drain gate `_powerProvided > 0` never fires under surplus input, so the cell fills regardless of load). Corroborated by a developer's in-game observation on the APC-Luna save: "the APC only charges when load is below ~1 kW." Additive content; refines but does not contradict the "BatteryChargeRate and net throughput" and "Power Grid Plus deviation" sections. Full InspectorPlus before/after capture on a dedicated server still pending.
 - 2026-05-26: added "BatteryChargeRate and net throughput" section. Documents the literal field value (1000f, line 369540), its two call sites in `ReceivePower` and `GetUsedPower`, and the explicit conclusion that this cap applies only to internal-cell charging and NOT to network-to-network throughput (`GetGeneratedPower` returns full `AvailablePower` uncapped; `_powerProvided` term in `GetUsedPower` is unbounded). Additive content; does not contradict prior sections.
