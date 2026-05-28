@@ -5,6 +5,7 @@ using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.Objects.Pipes;
 using BepInEx.Logging;
 using UnityEngine;
 
@@ -102,6 +103,10 @@ namespace ScenarioRunner
 
                 case "battery-charge-snapshot":
                     Scenario_BatteryChargeSnapshot();
+                    return;
+
+                case "power-prefab-dump":
+                    Scenario_PowerPrefabDump();
                     return;
 
                 case "pgp-transformer-conservation":
@@ -226,6 +231,151 @@ namespace ScenarioRunner
                     $"[ScenarioRunner] BCS tick={_ticksSeen} ref={b.ReferenceId} " +
                     $"prefab={b.PrefabName} OnOff={b.OnOff} Mode={b.Mode} " +
                     $"PowerStored={b.PowerStored:F2} PowerMaximum={b.PowerMaximum:F2}");
+            }
+        }
+
+        // ---- General scenario: power-prefab-dump ----
+        //
+        // One-shot. Iterates Prefab.AllPrefabs and emits a structured line for every
+        // power-relevant prefab (non-zero UsedPower, IPowerGenerator, Battery,
+        // Transformer, WirelessPower, AreaPowerControl, or a class that overrides
+        // GetUsedPower). Each line carries PrefabName, type FullName, UsedPower
+        // literal, override flag, interface flags, and DLC tag.
+        //
+        // Use this to build a classification list of every base-game powered device
+        // (e.g. for PowerGridPlus's cable-tier table). Run on a fresh -New world;
+        // the prefab registry is populated at OnPrefabsLoaded so no save is needed.
+        //
+        // Threading: all reads are managed-state only (Type.GetType, prefab fields,
+        // reflection introspection). No Unity API calls -> safe from the UniTask
+        // worker the simulation-tick hook runs on.
+
+        private static bool _powerPrefabDumpFired;
+
+        private static void Scenario_PowerPrefabDump()
+        {
+            if (_powerPrefabDumpFired) return;
+            _powerPrefabDumpFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] power-prefab-dump START");
+
+                var deviceGetUsedPower = typeof(Device).GetMethod(
+                    "GetUsedPower",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                    null,
+                    new[] { typeof(CableNetwork) },
+                    null);
+                var deviceGetGeneratedPower = typeof(Device).GetMethod(
+                    "GetGeneratedPower",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                    null,
+                    new[] { typeof(CableNetwork) },
+                    null);
+                // IPowerGenerator lives in the top-level `Objects` namespace (game v0.2.6228.27061,
+                // decompile line 138702 in `namespace Objects`). Don't search by bare-name — use
+                // every prefab's own interface list at iteration time instead, which is robust to
+                // future namespace moves and catches inherited interface implementations.
+
+                int total = 0;
+                int emitted = 0;
+
+                foreach (var prefab in Prefab.AllPrefabs)
+                {
+                    if (prefab == null) continue;
+                    total++;
+
+                    var type = prefab.GetType();
+                    string prefabName = prefab.PrefabName ?? "";
+                    int prefabHash = prefab.PrefabHash;
+
+                    float usedPower = (prefab is Device dev) ? dev.UsedPower : 0f;
+
+                    bool overridesGetUsedPower = false;
+                    bool overridesGetGeneratedPower = false;
+                    if (prefab is Device)
+                    {
+                        if (deviceGetUsedPower != null)
+                        {
+                            var concrete = type.GetMethod(
+                                "GetUsedPower",
+                                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                                null,
+                                new[] { typeof(CableNetwork) },
+                                null);
+                            overridesGetUsedPower = concrete != null
+                                && concrete.DeclaringType != deviceGetUsedPower.DeclaringType;
+                        }
+                        if (deviceGetGeneratedPower != null)
+                        {
+                            var concrete = type.GetMethod(
+                                "GetGeneratedPower",
+                                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                                null,
+                                new[] { typeof(CableNetwork) },
+                                null);
+                            overridesGetGeneratedPower = concrete != null
+                                && concrete.DeclaringType != deviceGetGeneratedPower.DeclaringType;
+                        }
+                    }
+
+                    bool implementsIPowerGenerator = false;
+                    foreach (var iface in type.GetInterfaces())
+                    {
+                        if (iface.Name == "IPowerGenerator") { implementsIPowerGenerator = true; break; }
+                    }
+                    bool isBattery = prefab is Battery;
+                    bool isTransformer = prefab is Transformer;
+                    bool isWireless = prefab is WirelessPower;
+                    bool isAPC = prefab is AreaPowerControl;
+
+                    bool relevant = usedPower != 0f
+                        || overridesGetUsedPower
+                        || overridesGetGeneratedPower
+                        || implementsIPowerGenerator
+                        || isBattery
+                        || isTransformer
+                        || isWireless
+                        || isAPC;
+                    if (!relevant) continue;
+
+                    string dlcTag = ExtractDlcTag(prefab);
+                    string usedPowerStr = usedPower.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] power-prefab-dump | PrefabName={prefabName} | " +
+                        $"PrefabHash={prefabHash} | Type={type.FullName} | " +
+                        $"UsedPower={usedPowerStr} | " +
+                        $"OverridesGetUsedPower={overridesGetUsedPower} | " +
+                        $"OverridesGetGeneratedPower={overridesGetGeneratedPower} | " +
+                        $"ImplementsIPowerGenerator={implementsIPowerGenerator} | " +
+                        $"IsBattery={isBattery} | IsTransformer={isTransformer} | " +
+                        $"IsWireless={isWireless} | IsAPC={isAPC} | DLC={dlcTag}");
+                    emitted++;
+                }
+
+                _log?.LogInfo($"[ScenarioRunner] power-prefab-dump END emitted={emitted} totalPrefabs={total}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] power-prefab-dump threw: {e}");
+            }
+        }
+
+        private static string ExtractDlcTag(Thing prefab)
+        {
+            try
+            {
+                var dlcTypeProp = prefab.GetType().GetProperty("DLCType");
+                var dlcValue = dlcTypeProp?.GetValue(prefab);
+                if (dlcValue == null) return "base";
+                string s = dlcValue.ToString();
+                return s == "None" ? "base" : s;
+            }
+            catch
+            {
+                return "unknown";
             }
         }
 

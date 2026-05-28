@@ -43,7 +43,8 @@ namespace ScenarioRunner
                 new ConfigDescription(
                     "Scenario id to run after world load. Empty string disables the probe. " +
                     "General scenarios: 'inventory' (counts of power entities by type), " +
-                    "'battery-charge-snapshot' (every 5 ticks, log every Battery's PowerStored). " +
+                    "'battery-charge-snapshot' (every 5 ticks, log every Battery's PowerStored), " +
+                    "'power-prefab-dump' (one-shot dump of every power-relevant prefab in the registry). " +
                     "PowerGridPlus-specific scenarios (require the net.powergridplus plugin loaded; otherwise no-op): " +
                     "'pgp-transformer-conservation', 'pgp-battery-efficiency-probe', " +
                     "'pgp-apc-idle-probe', 'pgp-cable-burn-probe', 'pgp-tooltip-filter-probe'. " +

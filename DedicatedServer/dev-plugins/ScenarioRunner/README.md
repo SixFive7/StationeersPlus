@@ -49,6 +49,7 @@ ElectricityTick is the chosen pump because (a) it is a public static method on a
 | `""` (default) | Probe is dormant. Plugin still loads; no scenario fires. |
 | `inventory` | Counts of every power entity in the loaded scene, plus a per-concrete-type Battery breakdown (so subclasses like `StationBatteryNuclear` show separately). Fired once on the first scenario tick. |
 | `battery-charge-snapshot` | Every five simulation ticks, log `PowerStored`, `PowerMaximum`, `OnOff`, `Mode` for every `Battery`. Diff offline to compute rate / efficiency deltas over a window. |
+| `power-prefab-dump` | One-shot. Iterates `Prefab.AllPrefabs` and emits a structured `power-prefab-dump | PrefabName=... | Type=... | UsedPower=... | OverridesGetUsedPower=... | ImplementsIPowerGenerator=... | IsBattery=... | IsTransformer=... | IsWireless=... | IsAPC=... | DLC=...` line per power-relevant prefab (any of: non-zero UsedPower, IPowerGenerator, Battery, Transformer, WirelessPower, AreaPowerControl, or a class that overrides `GetUsedPower(CableNetwork)`). Includes START / END markers with emit count. Use it to build a classification list of every base-game powered device. Run on a fresh `-New` world; the prefab registry is populated at `Prefab.OnPrefabsLoaded` so no save is needed. |
 
 ### PowerGridPlus-specific (require `net.powergridplus` loaded)
 
