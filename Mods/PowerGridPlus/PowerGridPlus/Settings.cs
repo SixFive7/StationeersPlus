@@ -23,8 +23,12 @@ namespace PowerGridPlus
 
         // --- Server - Batteries ---
         internal static ConfigEntry<bool> EnableBatteryLimits;
-        internal static ConfigEntry<float> MaxBatteryChargeRate;
-        internal static ConfigEntry<float> MaxBatteryDischargeRate;
+        internal static ConfigEntry<float> StationBatteryChargeRate;
+        internal static ConfigEntry<float> StationBatteryDischargeRate;
+        internal static ConfigEntry<float> LargeBatteryChargeRate;
+        internal static ConfigEntry<float> LargeBatteryDischargeRate;
+        internal static ConfigEntry<float> NuclearBatteryChargeRate;
+        internal static ConfigEntry<float> NuclearBatteryDischargeRate;
         internal static ConfigEntry<float> BatteryChargeEfficiency;
         internal static ConfigEntry<bool> EnableBatteryLogicAdditions;
         internal static ConfigEntry<bool> EnableBatteryLogicPassthrough;
@@ -36,6 +40,7 @@ namespace PowerGridPlus
 
         // --- Server - Area Power Control ---
         internal static ConfigEntry<bool> EnableAreaPowerControlFix;
+        internal static ConfigEntry<float> ApcBatteryChargeRate;
         internal static ConfigEntry<bool> EnableAreaPowerControlLogicPassthrough;
 
         // --- Server - Power Transmitters ---
@@ -100,32 +105,51 @@ namespace PowerGridPlus
 
             // --- Server - Batteries ---
             EnableBatteryLimits = config.Bind("Server - Batteries", "Enable Battery Limits", true,
-                Desc("(Server-authoritative) When true, stationary batteries are charge- and discharge-rate limited (a " +
-                     "battery cannot dump or absorb its full capacity in one tick).", 10));
+                Desc("(Server-authoritative) When true, stationary batteries are charge- and discharge-rate limited. " +
+                     "Each per-prefab cap below applies, plus a per-device cable-headroom cap so a single battery " +
+                     "cannot exceed the rating of the cable it is wired to. With this off, batteries behave vanilla " +
+                     "(no per-tick rate cap; only the cable's own overload mechanism applies).", 10));
 
-            MaxBatteryChargeRate = config.Bind("Server - Batteries", "Max Battery Charge Rate", 0.002f,
-                Desc("(Server-authoritative) Maximum stationary-battery charge rate per tick, as a fraction of the " +
-                     "battery's maximum stored energy. Only used when Enable Battery Limits is on.", 20));
+            StationBatteryChargeRate = config.Bind("Server - Batteries", "Station Battery Charge Rate", 5000f,
+                Desc("(Server-authoritative) Maximum charge wattage for the small Station Battery (StructureBattery). " +
+                     "Per device, not per network. Capped further by the input cable's MaxVoltage so a single battery " +
+                     "cannot blow its own cable just by charging.", 20));
 
-            MaxBatteryDischargeRate = config.Bind("Server - Batteries", "Max Battery Discharge Rate", 0.007f,
-                Desc("(Server-authoritative) Maximum stationary-battery discharge rate per tick, as a fraction of the " +
-                     "battery's maximum stored energy. Only used when Enable Battery Limits is on.", 30));
+            StationBatteryDischargeRate = config.Bind("Server - Batteries", "Station Battery Discharge Rate", 10000f,
+                Desc("(Server-authoritative) Maximum discharge wattage for the small Station Battery " +
+                     "(StructureBattery). Per device, not per network. Capped further by the output cable's MaxVoltage.", 30));
+
+            LargeBatteryChargeRate = config.Bind("Server - Batteries", "Large Station Battery Charge Rate", 25000f,
+                Desc("(Server-authoritative) Maximum charge wattage for the Large Station Battery " +
+                     "(StructureBatteryLarge). Per device. Capped further by the input cable's MaxVoltage.", 40));
+
+            LargeBatteryDischargeRate = config.Bind("Server - Batteries", "Large Station Battery Discharge Rate", 50000f,
+                Desc("(Server-authoritative) Maximum discharge wattage for the Large Station Battery " +
+                     "(StructureBatteryLarge). Per device. Capped further by the output cable's MaxVoltage.", 50));
+
+            NuclearBatteryChargeRate = config.Bind("Server - Batteries", "Nuclear Battery Charge Rate", 25000f,
+                Desc("(Server-authoritative) Maximum charge wattage for the Nuclear Battery (StructureBatteryNuclear, " +
+                     "from the third-party MorePowerMod). No effect if MorePowerMod is not installed.", 60));
+
+            NuclearBatteryDischargeRate = config.Bind("Server - Batteries", "Nuclear Battery Discharge Rate", 50000f,
+                Desc("(Server-authoritative) Maximum discharge wattage for the Nuclear Battery (StructureBatteryNuclear, " +
+                     "from the third-party MorePowerMod). No effect if MorePowerMod is not installed.", 70));
 
             BatteryChargeEfficiency = config.Bind("Server - Batteries", "Battery Charge Efficiency", 1.0f,
                 Desc("(Server-authoritative) Fraction of incoming power a stationary battery actually stores. 1.0 is " +
                      "lossless; lower it to lose energy to charging inefficiency. (Trickle charges below 500 W are stored " +
-                     "in full regardless, to avoid a battery never topping off.)", 40));
+                     "in full regardless, to avoid a battery never topping off.)", 80));
 
             EnableBatteryLogicAdditions = config.Bind("Server - Batteries", "Enable Battery Logic Additions", true,
                 Desc("(Server-authoritative) When true, stationary batteries expose their max charge rate (Import Quantity) " +
-                     "and max discharge rate (Export Quantity) as logic values.", 50));
+                     "and max discharge rate (Export Quantity) as logic values.", 90));
 
             EnableBatteryLogicPassthrough = config.Bind("Server - Batteries", "Enable Battery Logic Passthrough", true,
                 Desc("(Server-authoritative) Master kill-switch for stationary-battery logic-passthrough. When true, batteries " +
                      "honour the per-device LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 makes the " +
                      "battery logic-transparent (devices on either cable side are visible across), 0 keeps vanilla logic-opaque " +
                      "behaviour. Every battery defaults to mode 1 (enabled); per-device mode is persisted across save / load. " +
-                     "When this master is false, every battery behaves vanilla-opaque regardless of its per-device mode.", 60));
+                     "When this master is false, every battery behaves vanilla-opaque regardless of its per-device mode.", 100));
 
             // --- Server - Transformers ---
             EnableTransformerExploitMitigation = config.Bind("Server - Transformers", "Enable Transformer Exploit Mitigation", true,
@@ -146,8 +170,18 @@ namespace PowerGridPlus
 
             // --- Server - Area Power Control ---
             EnableAreaPowerControlFix = config.Bind("Server - Area Power Control", "Enable APC Power Fix", true,
-                Desc("(Server-authoritative) When true, Area Power Controllers no longer leak a small amount of power and " +
-                     "no longer slowly drain their battery when nothing is connected downstream.", 10));
+                Desc("(Server-authoritative) When true, Area Power Controllers (a) no longer leak a small amount of power " +
+                     "and slowly drain their battery when nothing is connected downstream, (b) apply the cable-headroom " +
+                     "cap on charge so a single APC cannot exceed its input cable's MaxVoltage by adding charge demand " +
+                     "on top of its pass-through, and (c) apply the cable cap on output so a single APC cannot supply " +
+                     "more than its output cable's MaxVoltage. With this off, the APC behaves vanilla (the original " +
+                     "free-power exploit returns and the cable caps do not apply).", 10));
+
+            ApcBatteryChargeRate = config.Bind("Server - Area Power Control", "APC Battery Charge Rate", 1000f,
+                Desc("(Server-authoritative) Maximum wattage an APC pulls from upstream to charge its internal cell. " +
+                     "Per device, not per network. Capped further by the input cable's remaining headroom after the " +
+                     "APC's own downstream pass-through is subtracted, so a single APC can never blow its own cable " +
+                     "just by charging on top of what it is already passing through. Vanilla default is 1000.", 15));
 
             EnableAreaPowerControlLogicPassthrough = config.Bind("Server - Area Power Control", "Enable APC Logic Passthrough", true,
                 Desc("(Server-authoritative) Master kill-switch for Area Power Control logic-passthrough. When true, " +

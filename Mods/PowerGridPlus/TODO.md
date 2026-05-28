@@ -10,6 +10,20 @@ Pending work for the in-progress mod. The design brief and decision log (D1-D13)
 
 - **Rewrite `Mods/PowerGridPlus/RESEARCH.md` into the canonical shape.** The file is still partly the forward-looking `PLAN.md` it was renamed from in May 2026: design brief, decision log (D1-D13), Re-Volt feature matrix, work phases. The repo-wide RESEARCH.md shape per the root `CLAUDE.md` is: architecture overview, file walkthrough, patch catalog with formulas, decompiled game internals, multiplayer protocol, pitfalls, design decisions with rationale. Convert in place: keep the durable parts (decision log, Re-Volt feature matrix, design rationale, mod-landscape appendix); drop the stale parts (the "work phases" section, anything that reads as still-to-do is already in this file); add the file walkthrough (every `*.cs` under `PowerGridPlus/PowerGridPlus/` with a one-paragraph "what it patches and why") and the patch catalog (per Harmony patch: target, prefix/postfix/transpiler, formula or behaviour, source file). Leave the central game internals in `Research/`; `RESEARCH.md` should reference them, not duplicate them. Cross-check against `Mods/SprayPaintPlus/RESEARCH.md` and `Mods/PowerTransmitterPlus/RESEARCH.md` for the target shape.
 
+## Transformer overload protection (added 2026-05-28)
+
+- **If a transformer is overloaded, turn it off with an error state.** When throughput exceeds the transformer's rated limit, switch the transformer off and surface an error state (the standard on-device error indicator and a logic-readable error flag if one exists) instead of letting the overload propagate or silently degrading. Decide the exact threshold (rated max vs. a configurable margin), whether the off-state latches until the player resets it or auto-clears once load drops, and which transformer prefabs are in scope (Small / Medium / Large -- presumably all). Check `Research/GameClasses/Transformer.md` for the existing error/state surface before designing the patch.
+
+- **Newly placed transformers default their Setting to OutputMaximum.** Today a freshly built transformer reads Setting = 0 and supplies nothing until the player turns the knob. Postfix the transformer's build-complete path so the Setting initialises at `OutputMaximum`. Player can still dial down if they want a brownout-style throttle.
+
+- **Repurpose the transformer knob as a brownout priority dial.** Once rate caps cover the "how much flows through" question elsewhere, the existing dial / Setting could carry a brownout priority semantic instead: low-priority zones shed first when grid is undersupplied, high-priority zones hold. Needs the priority semantic to land in `PowerGridTick` first; coordinate with whichever player-priority work happens to PowerGridTick. Mutually exclusive with the previous bullet -- pick one direction before implementing.
+
+## Battery + APC rate-cap follow-ups (added 2026-05-28)
+
+- **Batteries shed a percentage of (dis)charge as heat.** Both charge and discharge should dump a configurable fraction of the throughput as heat into the surrounding atmosphere via the existing `EnergyToHeatRatio` hook (Battery already inherits this from `ElectricalInputOutput`). Percentage TBD; default 0 keeps current behaviour. Applies to vanilla Battery, BatteryLarge, and the third-party Nuclear variant via the shared base class.
+
+- **Network-wide battery charge balancing.** Every power tick, batteries on the same cable network actively redistribute stored charge so all sit at the same `PowerRatio`. One additional pass at the end of `PowerGridTick.ApplyState_New` walks the network's Battery list and averages stored energy proportionally to capacity. Removes the "this one battery is empty while that other is full" failure mode players hit with mixed bank ages.
+
 ## Known vanilla bugs worked around
 
 - **`CableNetwork.DataDeviceList.get` checks the wrong dirty flag.** Confirmed still present in game 0.2.6228.27061 (decompile lines 253519-253529): the getter refreshes on `PowerDeviceListDirty`, not `DataDeviceListDirty`, so a `DirtyDataDeviceList()`-only call leaves `_dataDeviceList` stale on the next read. PowerGridPlus already works around this by calling `DirtyPowerAndDataDeviceLists()` everywhere (see `TransformerPassthroughLogicPatches` / `InheritedLogicablePassthroughLogicPatches`) instead of the data-only dirty. Keep using the both-sides dirty unless/until the game fixes the accessor; if it ever does, the workaround stays correct (it just over-dirties the power list by one refresh). Documented in `Research/GameClasses/CableNetwork.md` "Field shape and accessor quirk".
@@ -109,5 +123,6 @@ These would all sit on top of the v1 design. None needs a new prefab, so they st
 ## Pointers
 
 - `RESEARCH.md` -- the design brief and decision log D1-D13 (was `PLAN.md`; needs the proper `RESEARCH.md` rewrite).
-- `Research/GameClasses/Cable.md`, `PowerTick.md`, `Transformer.md`; `Research/GameSystems/StructurePlacementValidation.md`, `DevicePowerDraw.md`, `RecipeDataLoading.md` -- the curated game internals this mod relies on.
+- `Research/GameClasses/Cable.md`, `PowerTick.md`, `Transformer.md`, `AreaPowerControl.md`, `Battery.md`; `Research/GameSystems/StructurePlacementValidation.md`, `DevicePowerDraw.md`, `RecipeDataLoading.md`, `PowerTickThreading.md` -- the curated game internals this mod relies on.
+- `Mods/PowerTransmitterPlus/` -- the sibling mod that handles wireless TX/RX improvements (per-prefab capacity, link quality, range). Wireless changes go there, not here.
 - `.work/revolt-source/` -- read-only clone of Re-Volt (the upstream this mod derives from).
