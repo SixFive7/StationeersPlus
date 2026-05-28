@@ -54,7 +54,7 @@ The agent runs the lifecycle end-to-end. The developer never types commands at t
 
 ### Lifecycle architecture
 
-`-Start` launches a hidden PowerShell host wrapper via `Start-Process`. The wrapper owns the dedicated server process: it spawns it with redirected stdin, polls `data/control.cmd` every 250 ms, and forwards each command into the server's stdin. The launcher returns as soon as the server has registered its PID. State files under `data/`:
+`-Start` launches a hidden PowerShell host wrapper via the .NET `ProcessStartInfo` API with `CreateNoWindow = true`, so no console host is allocated and no foreground focus claim is queued (the older `Start-Process -WindowStyle Hidden` approach allocated a conhost window that briefly stole focus on Win10/11 before `SW_HIDE` was honored). The wrapper owns the dedicated server process: it spawns it with redirected stdin, polls `data/control.cmd` every 250 ms, and forwards each command into the server's stdin. The launcher returns as soon as the server has registered its PID. State files under `data/`:
 
 - `data/host.pid`: PID of the host wrapper.
 - `data/server.pid`: PID of `rocketstation_DedicatedServer.exe`.

@@ -135,8 +135,9 @@
     already dead, or you were authorized to -Force).
 
 .PARAMETER HostMode
-    Internal: run as the host wrapper. Invoked by -Start via Start-Process.
-    Do not invoke directly.
+    Internal: run as the host wrapper. Spawned by -Start via .NET
+    ProcessStartInfo with CreateNoWindow set, so no console window is allocated
+    and no foreground focus is claimed. Do not invoke directly.
 #>
 [CmdletBinding()]
 param(
@@ -695,11 +696,17 @@ function Invoke-Start {
     if ($Load) { $wrapperArgs += @('-Load', $Load, '-Map', $Map) }
     else       { $wrapperArgs += @('-New', $New) }
 
-    $hostProc = Start-Process `
-        -FilePath $pwsh `
-        -ArgumentList $wrapperArgs `
-        -WindowStyle Hidden `
-        -PassThru
+    # CreateNoWindow skips conhost allocation entirely; Start-Process -WindowStyle Hidden flashes a brief focus claim on Win10/11.
+    $wrapperArgString = ($wrapperArgs | ForEach-Object {
+        if ($_ -match '\s|"') { '"' + ($_ -replace '"', '\"') + '"' } else { "$_" }
+    }) -join ' '
+    $hostPsi = [System.Diagnostics.ProcessStartInfo]::new()
+    $hostPsi.FileName         = $pwsh
+    $hostPsi.Arguments        = $wrapperArgString
+    $hostPsi.UseShellExecute  = $false
+    $hostPsi.CreateNoWindow   = $true
+    $hostPsi.WorkingDirectory = $ServerRoot
+    $hostProc = [System.Diagnostics.Process]::Start($hostPsi)
     Set-Content -Path $HostPidFile -Value $hostProc.Id
 
     Write-Host "[Start] Host wrapper launched (PID $($hostProc.Id))."
