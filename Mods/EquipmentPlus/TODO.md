@@ -117,6 +117,10 @@ User wants the viewport-aware snap implemented now alongside A/B/C.
 
 Bundling note: A/B/C/E are independent edits across four files. C and B are pure source edits, no decompile needed. A and E both need a quick decompile pass first. Recommended: do C (5 min), then B (15 min), then A (30 min including decompile), then E (45 min including decompile + the trickier per-frame snap question). One build + deploy at the end. Keep diagnostic logging in for these edits -- they'll help diagnose any regression. The diagnostic-strip pass stays a separate later todo.
 
+## Feature: auto turn on/off devices on (un)equip
+
+- Auto-toggle a device's `OnOff` state when it is equipped or unequipped (e.g. helmet light, jetpack, suit, tablet). Equipping turns it on, unequipping turns it off. Likely needs a per-device-class opt-in list and a client setting to disable; check power gating before turning on (mirror the `HelmetHasPower` helper planned in Item A above).
+
 ## Before next release
 
 - **Strip diagnostic logging.** One sweep covering `ConfigCartridgeState.ClickTrace` (`ConfigCartridgePatches.cs:52`), `ScrollDispatchState.ScrollTrace` (`ScrollDispatchPatches.cs`), per-state-transition `LogInfo` lines in `CycleTablet` / `CycleLens` / `HelmetBeamPatches`, the `[EquipmentPlus.rebind]` step trace, and the scroll-dispatch no-op spam. Then build + redeploy.
