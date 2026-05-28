@@ -283,9 +283,84 @@ Vanilla does NOT exhibit this ceiling. Vanilla `UsePower` drains the cell only w
 
 Setting `EnableAreaPowerControlFix` to false restores vanilla `UsePower` (cell fills regardless of load, at the cost of vanilla's idle slow-leak that the fix exists to stop). `BatteryChargeRate` is per-prefab serialized data (C# default 1000f, line 369540), so the crossover cannot be retuned through PowerGridPlus config without an additional field patch.
 
+## Pattern presence in other ledger-based classes
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+The `_powerProvided` ledger field that drives the net-charge ceiling above is not unique to `AreaPowerControl`. Four vanilla classes carry a `_powerProvided` field (`grep "_powerProvided"` over the decompile returns these line ranges):
+
+| Class | Decompile line | Has internal energy storage? | Patched by PowerGridPlus? |
+|---|---|---|---|
+| `AreaPowerControl` | 369546 | Yes (`BatteryCell` in slot 0) | yes -- `AreaPowerControlPatches.cs` |
+| `Transformer` | 403323 | No | yes -- `TransformerExploitPatches.cs` |
+| `PowerReceiver` | 386867 | No | no |
+| `PowerTransmitter` | 387083 | No | no |
+
+Only `AreaPowerControl` couples `_powerProvided` to an energy store. The other three use the ledger purely to gate request math: vanilla `Transformer.GetUsedPower` returns `Min((float)Setting + UsedPower, _powerProvided)` (line 403493) and vanilla `PowerReceiver.GetUsedPower` returns `Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)` (line 387025); both use `_powerProvided` as an upper bound on what to request from upstream, not as a debit to drain from a buffer. With no storage to mis-drain, the APC's net-charge asymmetry has no analogue in those classes.
+
+Verbatim vanilla `Transformer` power-tick methods (lines 403459-403507):
+
+```csharp
+public override void UsePower(CableNetwork cableNetwork, float powerUsed)
+{
+    if (Error != 1 && OnOff && cableNetwork == OutputNetwork)
+    {
+        _powerProvided += powerUsed;
+    }
+}
+
+public override void ReceivePower(CableNetwork cableNetwork, float powerAdded)
+{
+    if ((InputNetwork == null || cableNetwork == InputNetwork) && OnOff && InputNetwork != null)
+    {
+        _powerProvided -= powerAdded;
+    }
+}
+
+public override float GetUsedPower([NotNull] CableNetwork cableNetwork)
+{
+    if (InputNetwork == null || OutputNetwork == null || cableNetwork != InputNetwork) return 0f;
+    if (Error == 1) return !OnOff ? 0f : UsedPower;
+    if (!OnOff) return 0f;
+    return Mathf.Min((float)Setting + UsedPower, _powerProvided);
+}
+
+public override float GetGeneratedPower(CableNetwork cableNetwork)
+{
+    if (OutputNetwork == null || Error == 1 || cableNetwork != OutputNetwork) return 0f;
+    if (!OnOff || InputNetwork == null) return 0f;
+    return Mathf.Min((float)Setting, InputNetwork.PotentialLoad);
+}
+```
+
+Vanilla `Transformer.UsePower` has no battery-drain branch and no `_powerProvided > 0` gate -- it just increments the ledger. The asymmetry that produces the APC bug literally cannot exist here.
+
+PGP's `TransformerExploitPatches.cs` accordingly does NOT patch `UsePower`. It replaces `GetGeneratedPower` (subtracts `_powerProvided` from upstream `PotentialLoad` so a transformer simultaneously offering and being drawn from does not double-count its share), `GetUsedPower` (adds `UsedPower` as an explicit additive term so the transformer charges its own quiescent draw to upstream), and `ReceivePower` (subtracts `UsedPower` from incoming power before settling the ledger). None of these touch any energy store. Verbatim from `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerExploitPatches.cs`:
+
+```csharp
+// GetGeneratedPowerPatch
+__result = Mathf.Min((float)__instance.Setting, __instance.InputNetwork.PotentialLoad - ____powerProvided);
+
+// GetUsedPowerPatch
+__result = Mathf.Min((float)__instance.Setting, ____powerProvided) + __instance.UsedPower;
+
+// ReceivePowerPatch
+powerAdded -= __instance.UsedPower;
+if (powerAdded < 0.0f) return false;
+____powerProvided -= powerAdded;
+```
+
+`PowerReceiver` (wireless RX, lines 386980-387025) and `PowerTransmitter` (wireless TX, lines 387220-387280) follow the same shape as Transformer: ledger-only, no storage. PowerGridPlus does not patch either of them; they retain full vanilla behaviour and are out of scope of the APC charge-ceiling bug.
+
+Station-mounted `Battery` (documented in [Battery.md](./Battery.md)) is the other class with internal energy storage, but it does NOT carry a `_powerProvided` field. Its vanilla `UsePower` / `ReceivePower` write directly into `PowerStored` without a ledger (decompile lines 371098-371138). PGP's `StationaryBatteryPatches.cs` adds per-tick caps on `GetUsedPower` (charge headroom) and `GetGeneratedPower` (discharge availability) and rewrites `ReceivePower` to apply `BatteryChargeEfficiency`, but does NOT touch `UsePower`. There is no `_powerProvided > 0` gate to remove and no equivalent immediate-vs-deferred settlement issue.
+
+The station `Battery` does carry an intentional asymmetry of its own under PowerGridPlus defaults (`MaxBatteryChargeRate = 0.002`, `MaxBatteryDischargeRate = 0.007` -- discharge cap is 3.5x the charge cap), so a Battery whose continuous downstream draw equals its discharge cap will slowly net-drain rather than hold equilibrium. That is a design choice (batteries are a reserve, not a generator) and is exposed as a tunable in the BepInEx config; it is not a bug surface comparable to the APC ceiling, where the asymmetry is fixed at the literal `BatteryChargeRate = 1000f` field and the player has no config to retune it.
+
+Net conclusion: the net-charge ceiling is localised to `AreaPowerControl`. The proximate cause -- PGP's `UsePower` patch removing vanilla's `_powerProvided > 0` drain gate -- does not appear in any other PGP-patched class. The other `_powerProvided` users either have no `UsePower` patch (Transformer, by Re-Volt design) or are unpatched entirely (PowerReceiver, PowerTransmitter), and the only other storage-bearing electrical class (`Battery`) uses a different mechanism without a ledger.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
+- 2026-05-28: added "Pattern presence in other ledger-based classes" section. Sweeps the four vanilla classes that carry a `_powerProvided` field (decompile lines 369546, 403323, 386867, 387083) and confirms that the APC's net-charge ceiling bug pattern is structurally impossible in `Transformer`, `PowerReceiver`, `PowerTransmitter`, and the station-mounted `Battery`: the other three `_powerProvided` users have no internal energy storage to mis-drain (vanilla `Transformer.UsePower` only increments the ledger; lines 403459-403465), and the only other storage-bearing electrical class (`Battery`) has no `_powerProvided` ledger and is not patched on `UsePower` by PowerGridPlus. Documents PGP's TransformerExploitPatches verbatim and confirms it does not patch `UsePower`. Notes the station `Battery`'s intentional charge/discharge asymmetry under PGP defaults (`0.002` / `0.007`) is a separate, configurable design choice and not the same bug shape. Additive content; does not contradict prior sections.
 - 2026-05-28: added "Net-charge ceiling under PowerGridPlus" section. Documents the steady-state consequence of PGP's three-patch APC rewrite (`AreaPowerControlPatches.cs`, gated on `EnableAreaPowerControlFix`): the internal cell's net charge per tick is `BatteryChargeRate - downstreamDemand`, so the cell stops accumulating once continuous downstream load reaches `BatteryChargeRate` (1000). Derived the crossover is independent of `UsedPower` (it cancels between `GetUsedPower`'s `+u` and `ReceivePower`'s `-u`). Confirmed vanilla does NOT show the ceiling (vanilla `UsePower` drain gate `_powerProvided > 0` never fires under surplus input, so the cell fills regardless of load). Corroborated by a developer's in-game observation on the APC-Luna save: "the APC only charges when load is below ~1 kW." Additive content; refines but does not contradict the "BatteryChargeRate and net throughput" and "Power Grid Plus deviation" sections. Full InspectorPlus before/after capture on a dedicated server still pending.
 - 2026-05-26: added "BatteryChargeRate and net throughput" section. Documents the literal field value (1000f, line 369540), its two call sites in `ReceivePower` and `GetUsedPower`, and the explicit conclusion that this cap applies only to internal-cell charging and NOT to network-to-network throughput (`GetGeneratedPower` returns full `AvailablePower` uncapped; `_powerProvided` term in `GetUsedPower` is unbounded). Additive content; does not contradict prior sections.
 - 2026-05-22: page created during PowerGridPlus pre-release verification task 6 (APC patch correctness). Source: Re-Volt 1.4.0 `AreaPowerControllerPatches.cs` (MIT, (c) 2025 Sukasa) cross-checked against Stationeers 0.2.6228.27061 `AreaPowerControl` decompile (lines 369509-370046) and `PowerTick` decompile (lines 254512-254765). Verdict: PGP's retargeting of `UsePowerPatch` from `GetUsedPower` to `UsePower` is structurally correct (the patch body only matches `UsePower`'s signature, and `UsePower` is the only method that decrements `Battery.PowerStored` in the output-side call chain). Re-Volt's original attribution is a silent no-op at HarmonyX `PatchAll` time. Dynamic verification on a dedicated-server test save pending.
