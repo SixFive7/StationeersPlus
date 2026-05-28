@@ -323,6 +323,11 @@ namespace PowerGridPlus
                 return true;
             if (IsTierExempt(device))
                 return true;
+            // Third-party Force Field Door mod (Workshop 3328065049): pressure-driven power profile
+            // ranges from 100 W idle to 100 kW under heavy load, which spans every cable tier. Treat
+            // it as tier-agnostic by name so we do not take a hard reference on the mod assembly.
+            if (device.GetType().FullName == "forcefielddoormod.ForceFieldDoor")
+                return true;
             if (IsGenerator(device) || IsStationaryBattery(device))
                 return tier == Cable.Type.heavy;
             if (IsHighDrawMachine(device))
