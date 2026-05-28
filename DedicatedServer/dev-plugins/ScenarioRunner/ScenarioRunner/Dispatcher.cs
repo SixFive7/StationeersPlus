@@ -129,6 +129,10 @@ namespace ScenarioRunner
                     Scenario_PgpTooltipFilterProbe();
                     return;
 
+                case "pgp-rate-cap-probe":
+                    Scenario_PgpRateCapProbe();
+                    return;
+
                 case "ptp-autoaim-cache-probe":
                     Scenario_PtpAutoAimCacheProbe();
                     return;
@@ -660,6 +664,273 @@ namespace ScenarioRunner
             {
                 _log?.LogInfo($"[ScenarioRunner] TFP filter pass: no non-CableRuptured Thing carried a 'Burned:' line.");
             }
+        }
+
+        // PGP scenario: rate-cap-probe.
+        // One-shot. Verifies the 2026-05-28 APC + Battery rate-cap rewrite:
+        //   1. APC GetUsedPower(InputNetwork) respects the per-device charge cap
+        //      (configured cap further bounded by input cable MaxVoltage minus the
+        //      pass-through tracked by PGP's UsePower postfix).
+        //   2. APC GetGeneratedPower(OutputNetwork) <= output cable MaxVoltage.
+        //   3. Battery GetUsedPower / GetGeneratedPower respect the per-prefab caps
+        //      (5/10, 25/50, 25/50 kW for StructureBattery, StructureBatteryLarge,
+        //      StationBatteryNuclear), further cable-bounded.
+        //   4. Battery.GetLogicValue(ImportQuantity / ExportQuantity) returns the
+        //      configured per-prefab cap (not cable-bounded -- intent, not capacity).
+        //   5. Localization.GetThingDescription(prefabName) for the affected prefabs
+        //      contains the "Power Grid Plus" footer string. Negative case:
+        //      "StructureBatteryNuclear" does NOT have a footer (wrong name), but
+        //      "StationBatteryNuclear" does.
+        //
+        // All reads / reflection-driven invocations are managed-state only and safe
+        // from the UniTask ThreadPool worker.
+
+        private static bool _rcpFired;
+
+        private static void Scenario_PgpRateCapProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-rate-cap-probe")) return;
+            if (_rcpFired) return;
+            _rcpFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] RCP START");
+                if (_apcs.Count == 0 || _batteries.Count == 0) RebuildCaches();
+
+                ProbePgpRateCap_Apcs();
+                ProbePgpRateCap_Batteries();
+                ProbePgpRateCap_Stationpedia();
+
+                _log?.LogInfo("[ScenarioRunner] RCP END");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] RCP threw: {e}");
+            }
+        }
+
+        private static void ProbePgpRateCap_Apcs()
+        {
+            var asm = GetModAssembly(PGP_ASSEMBLY);
+            var settingsType = asm?.GetType("PowerGridPlus.Settings");
+            var apcChargeRateField = settingsType?.GetField("ApcBatteryChargeRate",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var apcConfigVal = ReadConfigFloat(apcChargeRateField);
+
+            var apcPatchType = asm?.GetType("PowerGridPlus.Patches.AreaPowerControlPatches");
+            var computeChargeCap = apcPatchType?.GetMethod("ComputeChargeCap",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+            int total = 0;
+            int outputCapPass = 0;
+            int outputCapFail = 0;
+            int chargeCapPass = 0;
+            int chargeCapFail = 0;
+            int wired = 0;
+
+            foreach (var apc in _apcs)
+            {
+                if (apc == null) continue;
+                total++;
+
+                var inCable = apc.InputConnection?.GetCable();
+                var outCable = apc.OutputConnection?.GetCable();
+                if (inCable == null || outCable == null) continue;
+                wired++;
+
+                float inMax = inCable.MaxVoltage;
+                float outMax = outCable.MaxVoltage;
+
+                // Verify GetGeneratedPower clamp at output cable MaxVoltage.
+                float gen = 0f;
+                if (apc.OutputNetwork != null)
+                    gen = apc.GetGeneratedPower(apc.OutputNetwork);
+                bool outCapOk = gen <= outMax + 0.01f;
+                if (outCapOk) outputCapPass++; else outputCapFail++;
+
+                // Verify ComputeChargeCap stays inside (configured cap, input cable spare) and
+                // is non-negative.
+                float cc = float.NaN;
+                if (computeChargeCap != null)
+                {
+                    try { cc = (float)computeChargeCap.Invoke(null, new object[] { apc }); }
+                    catch { /* swallow */ }
+                }
+                bool ccOk = !float.IsNaN(cc)
+                    && cc >= 0f
+                    && cc <= apcConfigVal + 0.01f
+                    && cc <= inMax + 0.01f;
+                if (ccOk) chargeCapPass++; else chargeCapFail++;
+
+                _log?.LogInfo(
+                    $"[ScenarioRunner] RCP APC ref={apc.ReferenceId} prefab={apc.PrefabName} " +
+                    $"inMax={inMax:F0} outMax={outMax:F0} gen={gen:F2} outCapOk={outCapOk} " +
+                    $"chargeCap={cc:F2} (config={apcConfigVal:F0}) chargeCapOk={ccOk}");
+            }
+
+            _log?.LogInfo(
+                $"[ScenarioRunner] RCP APC summary: total={total} wired={wired} " +
+                $"outputCap pass={outputCapPass} fail={outputCapFail} " +
+                $"chargeCap pass={chargeCapPass} fail={chargeCapFail}");
+        }
+
+        private static void ProbePgpRateCap_Batteries()
+        {
+            var asm = GetModAssembly(PGP_ASSEMBLY);
+            var batPatchType = asm?.GetType("PowerGridPlus.Patches.StationaryBatteryPatches");
+            var getChargeCap = batPatchType?.GetMethod("GetChargeCap",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var getDischargeCap = batPatchType?.GetMethod("GetDischargeCap",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var effChargeCap = batPatchType?.GetMethod("EffectiveChargeCap",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var effDischargeCap = batPatchType?.GetMethod("EffectiveDischargeCap",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+            int total = 0;
+            int wired = 0;
+            int usedPowerPass = 0;
+            int usedPowerFail = 0;
+            int genPowerPass = 0;
+            int genPowerFail = 0;
+            int logicImportPass = 0;
+            int logicImportFail = 0;
+            int logicExportPass = 0;
+            int logicExportFail = 0;
+            int infinityDefaultCount = 0;
+
+            // Group by prefab to keep the log short. Pick up to 2 instances per prefab.
+            var perPrefab = new Dictionary<string, int>();
+
+            foreach (var bat in _batteries)
+            {
+                if (bat == null) continue;
+                total++;
+                if (bat.InputConnection?.GetCable() == null) continue;
+                wired++;
+
+                string prefab = bat.PrefabName ?? "?";
+
+                float configCharge = float.NaN, configDischarge = float.NaN;
+                if (getChargeCap != null) configCharge = (float)getChargeCap.Invoke(null, new object[] { bat });
+                if (getDischargeCap != null) configDischarge = (float)getDischargeCap.Invoke(null, new object[] { bat });
+                if (float.IsInfinity(configCharge)) infinityDefaultCount++;
+
+                float effC = float.NaN, effD = float.NaN;
+                if (effChargeCap != null) effC = (float)effChargeCap.Invoke(null, new object[] { bat });
+                if (effDischargeCap != null) effD = (float)effDischargeCap.Invoke(null, new object[] { bat });
+
+                float usedPower = bat.InputNetwork != null ? bat.GetUsedPower(bat.InputNetwork) : 0f;
+                float genPower = bat.OutputNetwork != null ? bat.GetGeneratedPower(bat.OutputNetwork) : 0f;
+                bool usedOk = usedPower <= effC + 0.01f;
+                bool genOk = genPower <= effD + 0.01f;
+                if (usedOk) usedPowerPass++; else usedPowerFail++;
+                if (genOk) genPowerPass++; else genPowerFail++;
+
+                // Logic value reads: ImportQuantity should be GetChargeCap (configured, not effective).
+                double importV = 0, exportV = 0;
+                try
+                {
+                    importV = bat.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.ImportQuantity);
+                    exportV = bat.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.ExportQuantity);
+                }
+                catch { }
+                bool importOk = System.Math.Abs(importV - configCharge) < 0.01 || (float.IsInfinity(configCharge) && double.IsInfinity(importV));
+                bool exportOk = System.Math.Abs(exportV - configDischarge) < 0.01 || (float.IsInfinity(configDischarge) && double.IsInfinity(exportV));
+                if (importOk) logicImportPass++; else logicImportFail++;
+                if (exportOk) logicExportPass++; else logicExportFail++;
+
+                if (!perPrefab.TryGetValue(prefab, out var c)) c = 0;
+                if (c < 2)
+                {
+                    perPrefab[prefab] = c + 1;
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] RCP Battery ref={bat.ReferenceId} prefab={prefab} " +
+                        $"configCharge={configCharge:F0} configDischarge={configDischarge:F0} " +
+                        $"effCharge={effC:F0} effDischarge={effD:F0} " +
+                        $"usedPower={usedPower:F2} usedOk={usedOk} " +
+                        $"genPower={genPower:F2} genOk={genOk} " +
+                        $"import={importV:F0} importOk={importOk} " +
+                        $"export={exportV:F0} exportOk={exportOk}");
+                }
+            }
+
+            _log?.LogInfo(
+                $"[ScenarioRunner] RCP Battery summary: total={total} wired={wired} " +
+                $"infinityDefault={infinityDefaultCount} " +
+                $"usedPower pass={usedPowerPass} fail={usedPowerFail} " +
+                $"genPower pass={genPowerPass} fail={genPowerFail} " +
+                $"logicImport pass={logicImportPass} fail={logicImportFail} " +
+                $"logicExport pass={logicExportPass} fail={logicExportFail}");
+        }
+
+        private static void ProbePgpRateCap_Stationpedia()
+        {
+            var locType = AccessUtil_TypeByName("Assets.Scripts.Localization") ?? AccessUtil_TypeByName("Localization");
+            var getDesc = locType?.GetMethod("GetThingDescription", new[] { typeof(string) });
+            if (getDesc == null)
+            {
+                _log?.LogWarning("[ScenarioRunner] RCP Stationpedia: Localization.GetThingDescription not found");
+                return;
+            }
+
+            var positives = new[] {
+                "StructureAreaPowerControl",
+                "StructureAreaPowerControlReversed",
+                "StructureBattery",
+                "StructureBatteryLarge",
+                "StationBatteryNuclear",
+            };
+            var negatives = new[] {
+                "StructureBatteryNuclear",   // wrong name (Structure-, not Station-); must NOT have footer
+                "StructureTransformer",      // not touched by us; must NOT have footer
+                "StructureRefrigerator",     // unrelated; must NOT have footer
+            };
+
+            int posPass = 0, posFail = 0, negPass = 0, negFail = 0;
+            const string FOOTER_SENTINEL = "--- Power Grid Plus ---";
+
+            foreach (var p in positives)
+            {
+                string desc = null;
+                try { desc = getDesc.Invoke(null, new object[] { p }) as string; } catch { }
+                bool ok = desc != null && desc.Contains(FOOTER_SENTINEL);
+                if (ok) posPass++; else posFail++;
+                _log?.LogInfo($"[ScenarioRunner] RCP Stationpedia[+] prefab={p} footer={ok} (descLen={(desc?.Length ?? -1)})");
+            }
+            foreach (var p in negatives)
+            {
+                string desc = null;
+                try { desc = getDesc.Invoke(null, new object[] { p }) as string; } catch { }
+                bool noFooter = desc == null || !desc.Contains(FOOTER_SENTINEL);
+                if (noFooter) negPass++; else negFail++;
+                _log?.LogInfo($"[ScenarioRunner] RCP Stationpedia[-] prefab={p} noFooter={noFooter}");
+            }
+
+            _log?.LogInfo($"[ScenarioRunner] RCP Stationpedia summary: positives pass={posPass}/{positives.Length} negatives pass={negPass}/{negatives.Length}");
+        }
+
+        private static System.Type AccessUtil_TypeByName(string name)
+        {
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var t = asm.GetType(name);
+                if (t != null) return t;
+            }
+            return null;
+        }
+
+        private static float ReadConfigFloat(System.Reflection.FieldInfo field)
+        {
+            try
+            {
+                var entry = field?.GetValue(null);
+                var valueProp = entry?.GetType().GetProperty("Value");
+                var v = valueProp?.GetValue(entry);
+                return v is float f ? f : float.NaN;
+            }
+            catch { return float.NaN; }
         }
 
         private static void ProbePgpTestBurnCableViaReflection()
