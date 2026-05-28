@@ -118,11 +118,28 @@ Trade-off summary:
 
 Net: the game's dispatcher is usable if you guard `UnityMainThreadDispatcher.Exists()` and accept the coroutine / Target semantics, but the mod-local pattern above is what every dispatching mod in this repo uses, because it removes the throw-if-absent failure mode and the Target-drop gotcha for ~30 lines. When more than one mod needs it, consider promoting the helper to `Patterns/` shared code rather than copying it per mod.
 
+## Headless dedicated server: Update does not pump after world load
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+A `MonoBehaviour.Update`-drained queue stalls server-side on a headless dedicated server once the world has loaded. The repo's dedicated-server doc captures this constraint (`DedicatedServer/CLAUDE.md`, "Path B: in-game scenario plugin" section):
+
+> on a headless dedicated server `MonoBehaviour.Update` does not fire after world load, and the top-level `GameManager.GameTick` is an async UniTask state machine that switches to a ThreadPool worker
+
+`ScenarioRunner` (`DedicatedServer/dev-plugins/ScenarioRunner/`) consequently pumps its scenario dispatcher from a Harmony postfix on `ElectricityManager.ElectricityTick` rather than `MonoBehaviour.Update`. That pump is gated on `GameManager.RunSimulation`, so it fires only while the simulation is unpaused: with a client connected, or with InspectorPlus's `Force Unpause Without Client` setting enabled in `net.inspectorplus.cfg`'s `[Server - Headless]` section.
+
+Implication for the mod-local `MainThreadDispatcher` pattern above: a self-owned `Update()` drain is sufficient for client-side and host-as-client usage (the rendering loop fires `Update` reliably), but server-side enqueues on a headless dedi accumulate without draining. Two recovery patterns:
+
+1. Skip headless dedi support if the dispatcher's only consumers run client-side or only matter when a UI is present. A motherboard-dropdown refresh cascade falls into this category: the dropdown lives on a rendering client, not on the server, so a stalled queue server-side is invisible. The host-as-client case still works because the host has a rendering loop.
+2. Add a second pump from a simulation-tick Harmony postfix that calls the dispatcher's drain method directly. The pattern is the one ScenarioRunner uses for its scenario dispatcher: a separate `[HarmonyPatch(typeof(ElectricityManager), nameof(ElectricityManager.ElectricityTick))]` postfix that invokes `Dispatcher.Drain()`. `ElectricityTick` is on the Unity main thread; other ticks can be ThreadPool workers (see `../GameSystems/PowerTickThreading.md`). For the second pump to be wirable, the dispatcher's drain must be a public method, not just a private `Update()`.
+
+When choosing between these, weigh whether ANY enqueue can originate server-side under headless conditions: if every enqueue site is on a code path that only runs with a UI present, pattern 1 is sufficient and adds no machinery; otherwise pattern 2 is required for headless soundness.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 - 2026-04-20: page created from the Research migration; implementation verbatim from F0308, with underlying-cause detail from F0032 and the main-thread-capture addendum from F0350.
 - 2026-05-28: added "The game's UnityMainThreadDispatcher, and why mods roll their own". Read `UnityMainThreadDispatcher : ManagerBase` (decompile line 219184): `Instance()` throws when the MainThreadExecutor manager is absent; `Enqueue(Action)` wraps in an `ActionWrapper` coroutine and drains under an `if (action.Target != null)` guard that drops target-less delegates; the execution queue is shared with engine `ChunkThread` tasks. Documents the game-vs-mod-local trade-off. Additive (the page previously covered only the mod-local recipe); no existing claim contradicted, so no fresh validator.
+- 2026-05-28: added "Headless dedicated server: Update does not pump after world load". Documents the constraint already captured in `DedicatedServer/CLAUDE.md` (the dedicated-server doc points at `Research/Patterns/ThingEnumerationOffMainThread.md` for the `GameTick` worker-thread half but is the only place the no-`Update` half lives). Cites ScenarioRunner's `ElectricityManager.ElectricityTick` postfix as the in-repo precedent for the sim-tick pump workaround. Surfaced while running the Power Grid Plus passthrough-refresh dedi playtest on a copy of `APC-Luna.save`: the mod's cascade-refresh queue is enqueued from `PassthroughModeStore.RestoreFromSideCar` and the cascade engine, but the dedi has no rendering motherboard consumer to notify, so the stalled-queue case is invisible from snapshots; the constraint is documented as repo lore, not independently re-verified this session. Additive; no existing claim contradicted; no fresh validator.
 
 ## Open questions
 
