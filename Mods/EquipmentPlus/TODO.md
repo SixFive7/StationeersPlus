@@ -2,6 +2,8 @@
 
 This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
 
+Implemented changes still awaiting an in-game or dedicated-server test do not belong here; record those in `PLAYTEST.md` (same folder).
+
 ## BUG: AdvancedTablet logic-value writes are silently dropped for non-ISetable devices on a dedicated server
 
 Confirmed root cause (static analysis, 100% certain, 2026-05-21). Ready for implementation.
@@ -111,29 +113,13 @@ User wants the viewport-aware snap implemented now alongside A/B/C.
 3. Item B: decompile-check `InventoryManager.NormalMode` (does it do non-scroll work that our prefix would skip if we returned false?), then change Prefix signature to `bool` and add the suppression on any modifier. Build + redeploy.
 4. Item A: decompile-find helmet battery slot class + power-source field, write `HelmetHasPower` helper, gate the OFF→ON path in `HandleScroll`. Build + redeploy.
 5. Item E (S2): decompile-check `ScrollPanel` for visible-range API, write `IsSelectionVisible` helper, make the wheel-tick snap conditional, decide on the per-frame postfix policy (keep unconditional with movement detection vs make conditional with fallback). Build + redeploy.
-6. Re-test A/B/C/E in single-player. Multiplayer test list (Case 1-Case 11) still pending friend.
+6. Re-test A/B/C/E in single-player. The multiplayer test list (Case 1-Case 11) is in `PLAYTEST.md`.
 
 Bundling note: A/B/C/E are independent edits across four files. C and B are pure source edits, no decompile needed. A and E both need a quick decompile pass first. Recommended: do C (5 min), then B (15 min), then A (30 min including decompile), then E (45 min including decompile + the trickier per-frame snap question). One build + deploy at the end. Keep diagnostic logging in for these edits — they'll help diagnose any regression. The diagnostic-strip pass stays a separate later todo.
 
 ## Before next release
 
 - [ ] **Strip diagnostic logging.** One sweep covering `ConfigCartridgeState.ClickTrace` (`ConfigCartridgePatches.cs:52`), `ScrollDispatchState.ScrollTrace` (`ScrollDispatchPatches.cs`), per-state-transition `LogInfo` lines in `CycleTablet` / `CycleLens` / `HelmetBeamPatches`, the `[EquipmentPlus.rebind]` step trace, and the scroll-dispatch no-op spam. Then build + redeploy.
-
-## Pending in-game / multiplayer testing
-
-- [ ] **Multiplayer test checklist (deferred until friend online).** Two-player coverage:
-  - Case 1 — Both holding a tablet, A: Ctrl+scroll cycles A's cartridges; B sees A's tablet update via vanilla state-sync.
-  - Case 2 — A has tablet in off-hand, A: Ctrl+scroll triggers `SwapHands` (A-local; B sees no swap visualization).
-  - Case 3 — A has tablet in toolbelt, active hand empty, A: Ctrl+scroll equips via `OnServer.MoveToSlot`; B observes the move.
-  - Case 4 — A has tablet in toolbelt, active hand has SmartStow-able item, A: Ctrl+scroll. ⚠️ Risk: 1-frame yield may be insufficient on internet-latency multiplayer and false-fail the stow check; watch the log for the false fallback into the swap path.
-  - Case 5 — A has tablet in toolbelt, active hand item NOT SmartStow-able and NOT type-compatible with toolbelt slot, off-hand empty, A: Ctrl+scroll → 3-way swap via off-hand.
-  - Case 6 — Same as Case 5 but off-hand also occupied → abort with local console message "[EquipmentPlus] No room to swap..."; B sees nothing.
-  - Case 7 — A wears lens, B wears different lens, A: LeftShift+scroll → A's lens cycles; B sees A's chip change via `SensorLensesSync.ActiveSensorFlag`.
-  - Case 8 — A scrolling while B disconnects mid-action; A's coroutine completes or fails gracefully, no NREs.
-  - Case 9 (Item 7) — B (remote client) clicks a writable slot logic line on a host's device; the server applies via `SetLogicSlotFromClient` and replicates back to all clients.
-  - Case 10 (Item 6) — B adjusts helmet beam; A sees B's beam visibly tighten/widen via `SetBeamSettingsMessage` rebroadcast.
-  - Case 11 (Item 6) — B adjusts beam, host saves, B disconnects, host reloads, B reconnects → B's beam restored at saved angle (host log: "Restored N helmet-beam entries from host join").
-  - Mitigation if Case 4 hits the latency issue: extend the yield to multiple frames OR poll a state predicate (`yield until activeHandSlot.Get() != prevOccupant || N frames elapsed`).
 
 ## Deferred (not blocking release)
 

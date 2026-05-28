@@ -16,7 +16,7 @@ Shared conventions for all Stationeers mods under this monorepo. `Mods/<ModName>
 
 ## Seed new mods from Mods/Template/
 
-`Mods/Template/` is a copy-ready mod scaffold. When starting a new mod, copy `Mods/Template/` to `Mods/NewModName/`, rename `Template.sln` / `Template.csproj` / the inner `Template/` folder to `NewModName`, and fill in the `{{placeholders}}` in each file. The template carries the canonical README structure, `About.xml` section layout, `.csproj` boilerplate, and preview-image placeholder files with their required dimensions documented inline.
+`Mods/Template/` is a copy-ready mod scaffold. When starting a new mod, copy `Mods/Template/` to `Mods/NewModName/`, rename `Template.sln` / `Template.csproj` / the inner `Template/` folder to `NewModName`, and fill in the `{{placeholders}}` in each file. The template carries the canonical README structure, `About.xml` section layout, `.csproj` boilerplate, the `TODO.md` / `PLAYTEST.md` work-tracking placeholders, and preview-image placeholder files with their required dimensions documented inline.
 
 Every rule below applies to the Template as well; the Template is the reference implementation of these rules.
 
@@ -170,6 +170,8 @@ These rules do not apply to `DEV.md` (gitignored) or any conversational scratch 
 | `README.md` | Each mod's folder root (committed) | End users (GitHub readers, Workshop subscribers) | Feature overview, installation, settings tables, issue reporting, credits, license. Source of truth for user-facing content, mirrored into `About.xml`. |
 | `CHANGELOG.md` | Each mod's folder root (committed) | End users (GitHub readers) | Full version history, reverse-chronological, newest at the top. In-repo source of truth for the complete changelog; `About.xml` `<ChangeLog>` carries only the latest version's notes. A new top entry is prepended on every release. See `Mods/Template/LAYOUT.md`. |
 | `RESEARCH.md` | Each mod's folder root (committed) | Someone picking up the mod for the first time | Durable, project-scoped internals: architecture, file walkthroughs, patch catalog with formulas, decompiled game internals, multiplayer protocol, pitfalls, design decisions with rationale. No session state, no developer-specific paths. |
+| `TODO.md` | Each mod's folder root (committed); also one at the monorepo root for cross-mod work | Whoever picks up the mod next | Open issues only: work still to do. Items are removed when done, not checked off; completed work lives in git history. Implemented-but-untested work goes in `PLAYTEST.md`, not here. |
+| `PLAYTEST.md` | Each mod's folder root (committed) | Whoever runs the next playtest | Implemented changes awaiting in-game confirmation (single-player, multiplayer, or the dedicated server). One entry per pending test with everything a tester needs. Removed when the test passes, fails, or the player signals it is done. See "Playtests: PLAYTEST.md per mod". |
 | `DEV.md` | Monorepo root, gitignored | The developer | Machine-specific paths (game install, deploy target, MSBuild location, log paths, sibling-mod source dirs), workflow recipes, tooling inventory, per-developer collaboration preferences. Shared across every mod. |
 | `DEV.md.template` | Monorepo root, committed | A new contributor | Scaffold for `DEV.md`. Structure and section headers filled in; machine-specific values are placeholders. Copy to `DEV.md` and fill in. |
 | `METRICS.md` | Monorepo root, committed | The developer / maintainer | Dated snapshots of each published mod's Steam Workshop numbers (subscribers, unique visitors, favorites, collection inclusions, comments, rating, shipped version). Append a row per check; never edit old rows. Updated for every published mod as the final step of the release workflow (`Mods/Template/RELEASE.md` Rule 7). |
@@ -178,7 +180,25 @@ Required setup:
 
 - `README.md`, `RESEARCH.md`, and `CHANGELOG.md` are committed per mod. `README.md` and `RESEARCH.md` stay in sync with the source as features or internals change; `CHANGELOG.md` gets a new top entry on every release (see `Mods/Template/LAYOUT.md`).
 - `DEV.md` at the monorepo root is gitignored. `DEV.md.template` at the monorepo root is the committed scaffold a new contributor copies to create their own `DEV.md`.
-- No other long-form knowledge files (`plan.md`, `NOTES.md`, session logs) should accumulate in committed form inside `Mods/`. Use `RESEARCH.md` for durable knowledge, `TODO.md` for pending work, and git history / conversation for everything else. `Plans/` mods may carry such files since the work-in-progress phase is where they have value; they consolidate into `RESEARCH.md` or are deleted when a mod graduates to `Mods/`.
+- No other long-form knowledge files (`plan.md`, `NOTES.md`, session logs) should accumulate in committed form inside `Mods/`. Use `RESEARCH.md` for durable knowledge, `TODO.md` for pending work, `PLAYTEST.md` for implemented changes awaiting an in-game test, and git history / conversation for everything else. `Plans/` mods may carry such files since the work-in-progress phase is where they have value; they consolidate into `RESEARCH.md` or are deleted when a mod graduates to `Mods/`.
+
+## Playtests: PLAYTEST.md per mod
+
+Every mod folder under `Mods/` and `Plans/` carries a `PLAYTEST.md` next to its `TODO.md`. It holds implemented changes that are waiting on an in-game test, so `TODO.md` stays a list of work still to do and does not fill up with finished-but-unverified code.
+
+The split between the two files:
+
+- `TODO.md` is work not yet done: design, research, audits, features to build, refactors, bugs to investigate.
+- `PLAYTEST.md` is code already written whose behavior can only be confirmed by running the game: single-player, a hosted multiplayer session, or the dedicated server under `DedicatedServer/`. An agent moves an item here (or splits one, leaving the not-yet-done part in `TODO.md`) the moment the implementation lands and the only thing left is to watch it work.
+
+Rules an agent follows:
+
+- **Add** a playtest after changing code that needs an in-game check. Capture everything a tester needs: what changed (commit if there is one), single-player vs multiplayer / dedicated-server, the save or world to set up, the exact in-game steps, what to watch (InspectorPlus request files, specific log lines, on-screen behavior, IC10 reads), and the expected result. Point at any staged `.work/<date>-<slug>/` request files or playbook. Lean on InspectorPlus per "Tool: InspectorPlus for live runtime state" so the developer's manual role collapses to "load save, do the thing."
+- **Check before adding.** Scan the existing `PLAYTEST.md` entries first; if a pending test already covers the change, extend that entry instead of adding a duplicate. One place to see what is already queued for testing is the second reason the file exists.
+- **Remove** a playtest when one of these happens: a run confirms it works (remove it); a run shows it broken (remove it and add a fresh `TODO.md` item for the fix, or keep working on it now); or the player signals the playtest has been done (remove it). Outcomes live in git history.
+- **Remove, do not check off.** Like `TODO.md`, finished items are deleted, not marked done. Entries are plain bullets, never `- [ ]` checkboxes, so nothing invites a "ticked but still present" state.
+
+Each `PLAYTEST.md` restates this function and these rules at the top, so the file is self-documenting. `Mods/Template/PLAYTEST.md` is the seed; a new mod copied from the Template inherits it with the `{{Mod Display Name}}` placeholder, the same way `TODO.md` is seeded. A mod with nothing to test keeps the header and the single line `No pending playtests.`
 
 ## Workflow: shared patterns under `Patterns/`
 

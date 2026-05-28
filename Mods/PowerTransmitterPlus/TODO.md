@@ -2,6 +2,8 @@
 
 This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
 
+Implemented changes still awaiting an in-game or dedicated-server test do not belong here; record those in `PLAYTEST.md` (same folder).
+
 ## Migrate to the shared MainThreadDispatcher in Patterns/Threading/
 
 - [ ] **Replace the private `MainThreadDispatcher.cs` with the shared `Patterns/Threading/MainThreadDispatcher.cs`.** A generalized copy now lives at `Patterns/Threading/MainThreadDispatcher.cs` (namespace `StationeersPlus.Shared`, with a parameterized GameObject name and an error sink), linked into PowerGridPlus. PowerTransmitterPlus still carries its own `PowerTransmitterPlus/MainThreadDispatcher.cs`. When a PowerTransmitterPlus touch is already happening (to avoid a needless rebuild + release), drop the private copy: link the shared file in the `.csproj` (`<Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />`), change `MainThreadDispatcher.Init()` in `Plugin.cs` to `StationeersPlus.Shared.MainThreadDispatcher.Init("PowerTransmitterPlus_MainThreadDispatcher", msg => Log?.LogError(msg))`, point the `MainThreadDispatcher.Enqueue(...)` call sites in `BeamManager.cs` at the shared type, delete `MainThreadDispatcher.cs`, and remove its `<Compile Include>` entry. Behaviorally identical (the link pattern gives each mod its own per-assembly static state). See `Research/Patterns/MainThreadDispatcher.md` and `Patterns/Threading/README.md`.
@@ -26,25 +28,6 @@ Make it idempotent (only write when the value differs). The RX setter's side eff
 **How Power Grid Plus does it now.** `Mods/PowerGridPlus/PowerGridPlus/Patches/DishLinkPatches.cs` (`RefreshLink`) performs exactly this client-gated, idempotent mirror, because Power Grid Plus's logic-passthrough merge needs the link symmetric on clients (otherwise the receiver-cable-side network cannot see the transmitter-cable-side devices: `GetOtherSide(rx)` reads `rx.LinkedPowerTransmitter`). Power Grid Plus also dirties + refreshes the affected cable networks' device-list consumers on the same link change.
 
 **Composition if both mods are active.** Both would write the same value, so they compose without conflict: Power Grid Plus's `!= tx` guard skips when the back-reference is already correct, so whichever mod's postfix runs first wins and the other is a harmless no-op. If PowerTransmitterPlus implements this mirror (becoming the single owner of dish-link state), Power Grid Plus's mirror becomes redundant and could be dropped from `DishLinkPatches` to centralise ownership; coordinate that change across both mods in the same pass. Until then, leave Power Grid Plus's mirror in place. Do NOT have either mod clear the back-reference in a way the other would fight; keep both idempotent.
-
-## Real-client multiplayer playtests before cutting v1.7.3
-
-ScenarioRunner has verified the server-side mechanism for every TODO item that could be reached without a connected client (see `verified.md`):
-
-- Reset-postfix manual-override clears the cache and raises `AutoAimUpdateFlag` on the host (commit 14946c5).
-- Long-distance (>= 150 m) joint mutual-aim solver still establishes the link.
-- `BeamVisibility.ShouldShow` predicate returns false for every unlinked / off transmitter and true for linked + both-on + aimed pairs (commit 53739fa).
-- Zero-power-but-linked still shows the beam (by code construction; no `Powered` / `VisualizerIntensity` gate in the predicate).
-
-What remains is what fundamentally needs a connected client: the client-side cache state and the client-side beam render cannot be observed from a headless ScenarioRunner run. Before cutting v1.7.3, run a single host + client session and confirm the two below.
-
-- [ ] **MP auto-aim cache stability and propagation, observed by a client.** Host (dedicated server or single-machine host) is on the v1.7.3 build with the reset-postfix fix from commit 14946c5. A real client is on the same build and connected. With a TX-RX pair on auto-aim:
-  - (a) IC10 read of `MicrowaveAutoAimTarget` on the **client** side does not flicker to 0 while the host slews the dish. (Pre-fix bug: client's `RotatableTargetHorizontalResetPatch` fired on every replicated servo-target write and wiped the client's cache.)
-  - (b) When either peer writes `RotatableBehaviour.TargetHorizontal` manually (tablet, IC10 `s d0 Horizontal`, in-world R-key), **both** peers' IC10 reads of `MicrowaveAutoAimTarget` drop to 0. (Verifies `ClearCache`'s `AutoAimUpdateFlag` propagation lands on the client and triggers `ApplyDeltaUpdate(0)`.)
-
-- [ ] **MP beam render observed by a client.** Host on v1.7.3, real client connected. With a linked TX-RX pair:
-  - (a) Toggling either dish on or off makes the beam hide / re-show on the **client** within one frame. Both directions, both dishes.
-  - (b) Commanding the TX to slew away makes the beam vanish on the client at roughly 7 degrees of off-axis movement (not at slew completion) and re-show symmetrically on slew-back. Validates the predicate's aim check runs against client-local `RayTransform.forward` and the new `WirelessPower.Horizontal` / `Vertical` setter triggers fire on the client per the per-tick servo-target replication.
 
 ## Visualize source power vs delivered power as a spatial gradient along the beam
 

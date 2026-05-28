@@ -2,6 +2,8 @@
 
 This file tracks open issues only. When an item is done, remove it rather than marking it done. Completed work lives in git history.
 
+Implemented changes still awaiting an in-game or dedicated-server test do not belong here; record those in `PLAYTEST.md` (same folder).
+
 Tracks the work for v1, then the deferred v1.x / v1.5 / v2 list.
 
 ---
@@ -85,16 +87,13 @@ Read these commits in order if you need to understand why the code is shaped the
 
 ### Immediate next steps (pick up here)
 
-1. **Playtest commit `2f3ba73` (InteractiveExecutor).** Restart Stationeers, load save, type 3-4 chat messages spaced a few seconds apart. Check `LogOutput.log` for:
-   - Turn 1: `[LlmEngine] Inference start: mode=interactive promptChars=~2200` and an `Inference done: N ms`.
-   - Turns 2+: `promptChars` under 200, `Inference done` ms should drop significantly (ideally order of magnitude).
-   - If turn 2 `promptChars` is still ~2200, the interactive cache isn't engaging.
-   - Also confirm `[LlmEngine] Dispose starting.` → `Dispose done.` within a second when the game exits. If shutdown is still slow, report the timing.
-2. **If interactive latency is still too slow** for the UX: options listed under "What could shrink the prompt further" in the conversation on 2026-04-22 — trim `GlobalBureauPreamble` from 955 chars, trim `ApprovalTagRules` from 592 chars, or switch model to a smaller quant. Pick after seeing the turn-2 timings.
-3. **Native-DLL extraction for Workshop deploy.** See the "Playtest gate" first bullet below; this blocks publishing.
-4. **`PickRandomUnseenPersona` code review.** Six points queued below.
-5. **Remove the `[DEBUG-APPROVE]` hook** before any public release.
-6. **(Optional, non-blocking) Investigate why `Update()` doesn't fire.** Currently worked around by postfix-drain, which is sufficient for functionality but adds latency (replies land when next message arrives). Not urgent.
+The InteractiveExecutor latency playtest (commit `2f3ba73`) is in `PLAYTEST.md`; the items below follow from its outcome.
+
+1. **If interactive latency is still too slow** for the UX: options listed under "What could shrink the prompt further" in the conversation on 2026-04-22: trim `GlobalBureauPreamble` from 955 chars, trim `ApprovalTagRules` from 592 chars, or switch model to a smaller quant. Pick after seeing the `PLAYTEST.md` inference-latency turn-2 timings.
+2. **Native-DLL extraction for Workshop deploy.** See the "Playtest gate" first bullet below; this blocks publishing.
+3. **`PickRandomUnseenPersona` code review.** Six points queued below.
+4. **Remove the `[DEBUG-APPROVE]` hook** before any public release.
+5. **(Optional, non-blocking) Investigate why `Update()` doesn't fire.** Currently worked around by postfix-drain, which is sufficient for functionality but adds latency (replies land when next message arrives). Not urgent.
 
 ### Key files (for orientation)
 
