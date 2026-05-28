@@ -7405,34 +7405,29 @@
 - Cable tier carrying capacity of the connected network.</p>
 <p>A fully-charged 3,600,000 J Station Battery can in principle empty itself in a single power tick (0.5 s), supplying ~7.2 MW peak, if downstream demand and the cable network can absorb it. Conversely, an empty battery on a 7.2 MW supply will charge to full in one tick.</p>
 <p>This unbounded-per-tick behaviour is exactly the corner that <code>PowerGridPlus.Patches.StationaryBatteryPatches</code> exists to clamp: it Postfix-patches both <code>GetUsedPower</code> and <code>GetGeneratedPower</code> to cap the returned values at <code>PowerMaximum * Settings.MaxBatteryChargeRate.Value</code> and <code>PowerMaximum * Settings.MaxBatteryDischargeRate.Value</code> respectively. Defaults are 0.002 (charge) and 0.007 (discharge) of <code>PowerMaximum</code> per tick (Settings.cs lines 106, 110).</p>
-<p>Worked numbers under PowerGridPlus defaults (per-tick Joules ÷ 0.5 s tick = Watts; see <code>Research/GameSystems/PowerTickThreading.md</code> for the 2 Hz tick rate):</p>
+<p>Worked numbers under PowerGridPlus defaults (per-tick Joules; tick interval is 500 ms per <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a>):</p>
 <table>
 <thead>
 <tr>
 <th>Prefab</th>
-<th>Charge per tick (J)</th>
-<th>Charge (W)</th>
-<th>Discharge per tick (J)</th>
-<th>Discharge (W)</th>
+<th>Charge cap (J/tick = displayed W)</th>
+<th>Discharge cap (J/tick = displayed W)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>StructureBattery</code> (3,600,000 J)</td>
 <td>7,200</td>
-<td>14,400</td>
 <td>25,200</td>
-<td>50,400</td>
 </tr>
 <tr>
 <td><code>StructureBatteryLarge</code> (9,000,001 J)</td>
 <td>18,000</td>
-<td>36,000</td>
 <td>63,000</td>
-<td>126,000</td>
 </tr>
 </tbody>
 </table>
+<p>These numbers are how the game labels them in Stationpedia / device tooltips (the field value is shown as "W"). The actual wall-clock wattage is the field value divided by the 0.5 s tick interval, i.e. exactly double these numbers (so a 7,200 J/tick charge cap is physically 14,400 W of energy flow over real time). The doubling does NOT appear in the in-game UI and does NOT change which devices a Battery can run on a given tick; reason in the game's units when comparing against a player's observed numbers. See <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a> "Tick interval and the watts-vs-joules-per-tick labelling convention" for the convention.</p>
 <p>The <code>BatteryChargeEfficiency</code> patch on <code>ReceivePower</code> (lines 31-43 of <code>StationaryBatteryPatches.cs</code>) is a separate concern: it multiplies stored energy by <code>Settings.BatteryChargeEfficiency.Value</code> (default 1.0 = lossless) before clamping, with a 500 W trickle-charge bypass.</p>
 <h2 id="subclassing-notes-for-mods">Subclassing notes for mods<a class="headerlink" href="#subclassing-notes-for-mods" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -7444,6 +7439,7 @@
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a>. No factual change to the underlying patches.</li>
 <li>2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla <code>StructureBatteryNuclear</code>), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> / <code>GetGeneratedPower</code> at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.</li>
 <li>2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that <code>Battery : ElectricalInputOutput, ...</code> mirrors <code>Transformer</code> and <code>AreaPowerControl</code> in having both <code>InputNetwork</code> and <code>OutputNetwork</code> cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.</li>
 <li>2026-04-28: page created. Verbatim findings from <code>ilspycmd -t Assets.Scripts.Objects.Electrical.Battery</code> against <code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll</code> at game version 0.2.6228.27061. Confirms the threshold ladder is identical to <code>BatteryCell.UpdateBatteryState</code> documented on <code>HelmetBattery.md</code>; the new content here is the segment-bar display logic (<code>SetRenderersState</code> segment counts, <code>displayModeMaterials</code> per-Mode lookup, and the <code>FlashingDisplay</code> 2 Hz Critical-mode coroutine). Triggered by a question about MorePowerMod's <code>StationBatteryNuclear</code> inheriting from <code>Battery</code>: when does the prefab's color change as charge drops? Answer is the threshold ladder above; vanilla material colors (red / orange / green) are set in the prefab <code>displayModeMaterials[]</code> array, not in code.</li>

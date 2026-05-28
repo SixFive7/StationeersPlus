@@ -3786,6 +3786,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tick-interval-and-the-watts-vs-joules-per-tick-labelling-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tick interval and the watts-vs-joules-per-tick labelling convention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6894,6 +6905,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tick-interval-and-the-watts-vs-joules-per-tick-labelling-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tick interval and the watts-vs-joules-per-tick labelling convention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7005,7 +7027,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-05-28.
         </p>
       
       
@@ -7106,10 +7128,34 @@
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>// in Update() on the main thread. Patches enqueue closures from any thread,
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>// the closure body runs safely on the main thread one frame later.
 </span></code></pre></div>
+<h2 id="tick-interval-and-the-watts-vs-joules-per-tick-labelling-convention">Tick interval and the watts-vs-joules-per-tick labelling convention<a class="headerlink" href="#tick-interval-and-the-watts-vs-joules-per-tick-labelling-convention" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>The power tick fires once per <code>GameTick</code>. From the decompile:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// line 188884</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">DefaultTickSpeedMs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">500</span><span class="p">;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1">// line 189061</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">GameTickSpeedMs</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">DefaultTickSpeedMs</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1">// line 189063</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">GameTickSpeedSeconds</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">GameTickSpeedMs</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1000f</span><span class="p">;</span>
+</span></code></pre></div>
+<p><code>GameTick</code> is the only loop that drives <code>ElectricityManager.ElectricityTick()</code> (decompile line 189484), and <code>ElectricityTick</code> iterates every <code>CableNetwork.OnPowerTick()</code> which in turn runs <code>PowerTick.Initialise</code> / <code>CalculateState</code> / <code>ApplyState</code>. So the power-tick interval is exactly <code>GameTickSpeedMs = 500 ms = 0.5 s</code>, i.e. 2 Hz.</p>
+<p>The 500 ms interval has a consequence for units that is worth stating once, because the game itself is inconsistent about it:</p>
+<ul>
+<li><strong><code>Battery.PowerStored</code>, <code>BatteryCell.PowerStored</code>, and <code>Battery.PowerMaximum</code> are in Joules.</strong> Stationpedia text labels these as "watts" ("Able to store up to 3600000 watts of power" for <code>StructureBattery</code>), but the underlying field is energy. A 3,600,000 unit Station Battery holds 3,600,000 J = 1 kWh. The Stationpedia label is wrong; the numeric value is right as Joules.</li>
+<li><strong><code>AreaPowerControl.BatteryChargeRate = 1000f</code> is a per-tick Joules cap.</strong> Its tooltip labels it "How many watts are used to charge the battery?" but the code applies it as a one-tick budget: <code>Mathf.Min(BatteryChargeRate, Battery.PowerDelta)</code> is added directly to <code>Battery.PowerStored</code> (decompile lines 369975, 369995). The field is therefore J/tick, not W.</li>
+<li><strong><code>GetUsedPower(network)</code> and <code>GetGeneratedPower(network)</code> return values that the network sums into <code>Required</code> / <code>Potential</code> and that flow through <code>ConsumePower</code> / <code>ApplyPower</code> straight into <code>ReceivePower(net, num)</code> / <code>UsePower(net, num)</code>, where they are again added directly to <code>PowerStored</code> or to <code>_powerProvided</code>.</strong> These are also J/tick all the way through. A heater whose <code>UsedPower</code> is 500 contributes 500 J/tick to its network's <code>Required</code> and consumes 500 J/tick of stored battery energy.</li>
+<li><strong>Stationpedia / device tooltips show the raw field value labelled as W.</strong> A device with <code>UsedPower = 500</code> displays as "500 W" in the player UI even though the per-tick cost is 500 J and the actual wall-clock power draw is 500 / 0.5 = 1000 W.</li>
+</ul>
+<p>Net consequence: the entire in-game economy treats "watts" and "joules per tick" as the same number throughout. Player observations like "the APC only charges when downstream load is below 1 kW" track the in-game label (1000 = <code>BatteryChargeRate</code>) rather than the strict-physics wattage (which would be 2 kW). When reasoning about absolute energy flow over wall-clock seconds, multiply field values by 2 to get true Watts; when reasoning about in-game balance / what the player sees, use the field value directly.</p>
+<p>This page is the canonical place for that convention. Other pages that quote numbers (<code>Battery.md</code>, <code>AreaPowerControl.md</code>, settings docs) should cite the field value as-is and link here rather than doing the doubling inline, to avoid two parallel number systems.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <ul>
+<li>2026-05-28: added "Tick interval and the watts-vs-joules-per-tick labelling convention" section. Documents <code>DefaultTickSpeedMs = 500</code> (decompile line 188884), the call-chain <code>GameTick -&gt; ElectricityManager.ElectricityTick -&gt; CableNetwork.OnPowerTick -&gt; PowerTick.Initialise/CalculateState/ApplyState</code> (line 189484), and the in-game convention that "watts" labels and "joules per tick" values are the same number numerically even though they differ by a factor of 2 in real units. This corrects a sloppy "J/tick x 2 = W" formula previously used in <code>Battery.md</code>'s rate-cap table; the in-game-displayed wattage is the field value as-is, not doubled.</li>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0032 (primary), F0048, F0308, and F0364.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
