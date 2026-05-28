@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/ILRepackPerModCopy/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/StationpediaDescriptionRendering/">
       
       
-        <link rel="prev" href="../HarmonyPrefixReturnBool/">
+        <link rel="prev" href="../StationeersNamespaces/">
       
       
-        <link rel="next" href="../InGameConsoleOutput/">
+        <link rel="next" href="../SubcomponentGrafting/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>ILRepackPerModCopy - StationeersPlus</title>
+        <title>StationpediaDescriptionRendering - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#ilrepack-each-mod-carries-its-own-embedded-library-copy" class="md-skip">
+        <a href="#stationpedia-description-rendering-text-to-tmp-pipeline" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ILRepackPerModCopy
+              StationpediaDescriptionRendering
             
           </span>
         </div>
@@ -4891,37 +4891,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ILRepackPerModCopy
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../ILRepackPerModCopy/" class="md-nav__link">
         
   
   
@@ -4937,98 +4910,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#problem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Problem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#solution-recipe" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Solution / recipe
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Solution / recipe">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#structural-enforcement-over-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Structural enforcement over convention
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cited-verifications" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cited verifications
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -5570,10 +5451,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../StationpediaDescriptionRendering/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationpediaDescriptionRendering
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -5589,6 +5497,136 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vanilla-newline-convention-literal-n-no-markup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vanilla newline convention: literal \n, no markup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#localizationparsehelptext-token-catalogue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Localization.ParseHelpText: token catalogue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-tokens-to-avoid-emitting-from-a-postfix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What tokens to avoid emitting from a postfix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#textmeshpro-newline-behaviour-pagedescription-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextMeshPro newline behaviour (PageDescription component)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stationpediapagedescription-cache-once-at-game-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StationpediaPage.Description cache: once at game load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#render-path-plain-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Render path: plain assignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-example-powergridplus-footer-post-b3baffb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked example: PowerGridPlus footer (post-b3baffb)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -6886,10 +6924,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#problem" class="md-nav__link">
+  <a href="#the-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Problem
+        The pipeline
       
     </span>
   </a>
@@ -6897,38 +6935,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#solution-recipe" class="md-nav__link">
+  <a href="#vanilla-newline-convention-literal-n-no-markup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Solution / recipe
+        Vanilla newline convention: literal \n, no markup
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Solution / recipe">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#structural-enforcement-over-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Structural enforcement over convention
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cited-verifications" class="md-nav__link">
+  <a href="#localizationparsehelptext-token-catalogue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cited verifications
+        Localization.ParseHelpText: token catalogue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-tokens-to-avoid-emitting-from-a-postfix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What tokens to avoid emitting from a postfix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#textmeshpro-newline-behaviour-pagedescription-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextMeshPro newline behaviour (PageDescription component)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stationpediapagedescription-cache-once-at-game-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StationpediaPage.Description cache: once at game load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#render-path-plain-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Render path: plain assignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-example-powergridplus-footer-post-b3baffb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked example: PowerGridPlus footer (post-b3baffb)
       
     </span>
   </a>
@@ -7037,61 +7113,178 @@
               <article class="md-content__inner md-typeset">
                 
   
+    <aside class="research-meta" markdown>
+      
+        <p class="research-meta-type">
+          <strong>Category:</strong> Patterns
+        </p>
+      
+      
+        <p class="research-meta-verified">
+          <strong>Verified</strong>
+           in game version <code>0.2.6228.27061</code>
+           on 2026-05-28.
+        </p>
+      
+      
+      
+        <details class="research-meta-sources">
+          <summary><strong>Sources</strong> (4)</summary>
+          <ul>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Localization.ParseHelpText'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.UI.Stationpedia.PopulateThingPages'}</code></li>
+            
+              <li><code>rocketstation_Data/StreamingAssets/Language/en.resx (vanilla description corpus)</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code></li>
+            
+          </ul>
+        </details>
+      
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (2)</summary>
+          <ul>
+            
+              <li><code>../GameClasses/Stationpedia.md</code></li>
+            
+              <li><code>../GameSystems/StationpediaPageRendering.md</code></li>
+            
+          </ul>
+        </details>
+      
+    </aside>
+  
   
                   
 
+  <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">stationpedia</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">ui</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">unity</span>
+      
+    
+  </nav>
 
 
-<hr />
-<p>title: ILRepack: each mod carries its own embedded-library copy
-type: Patterns
-created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
-sources:
-  - Plans/StationpediaPlus/PLAN.md:3558-3571 (F0219ac, primary)
-  - Plans/StationpediaPlus/PLAN.md:3538-3547 (F0219aa)
-related:
-  - ./BestEffortIntegration.md
-tags: [harmony, packaging]</p>
-<hr />
-<h1 id="ilrepack-each-mod-carries-its-own-embedded-library-copy">ILRepack: each mod carries its own embedded-library copy<a class="headerlink" href="#ilrepack-each-mod-carries-its-own-embedded-library-copy" title="Permanent link">&para;</a></h1>
-<p>When a shared library is ILRepack'd into each consuming mod's assembly, every mod loads its OWN copy with OWN static state and OWN Harmony patches. Harmony handles multiple postfixes on the same target method by running them in sequence; each mod sees only its own registrations. This constrains how a shared library can coordinate across consumers, but produces predictable, additive behavior with no mod-ordering surprises.</p>
-<h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
-<p>F0219ac (Plans/StationpediaPlus/PLAN.md:3558-3571, primary):</p>
-<blockquote>
-<p>Under ILRepack, each mod's embedded library copy installs its OWN Harmony patches on the same game methods. Harmony handles multiple postfixes on one target by running them in sequence. Each mod's copy only knows about its own registrations (static state is per-copy). No shared registry of all mods' specs. Multiple mods extending the same device page each get their own <code>&lt;ModName&gt;Details</code> GameObject. Multiple mods hiding reference pages each maintain their own <code>HiddenKeys</code> HashSet, filter runs via multiple postfixes that each remove their own keys, additive effect. Harmony instance IDs derived from consuming mod's plugin GUID so two mods' patches don't clash.</p>
-</blockquote>
-<h2 id="solution-recipe">Solution / recipe<a class="headerlink" href="#solution-recipe" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h1 id="stationpedia-description-rendering-text-to-tmp-pipeline">Stationpedia description rendering: text-to-TMP pipeline<a class="headerlink" href="#stationpedia-description-rendering-text-to-tmp-pipeline" title="Permanent link">&para;</a></h1>
+<p>How a vanilla device description in <code>en.resx</code> becomes pixels in the Stationpedia UI. Useful for any mod that wants to extend a description via a Harmony postfix on <code>Localization.GetThingDescription</code>: tells you what conventions to follow, what tokens you must NOT emit, and where text gets cached.</p>
+<h2 id="the-pipeline">The pipeline<a class="headerlink" href="#the-pipeline" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
-<p>Design implications for a shared library that ships ILRepack'd into consumers:</p>
-<ol>
-<li><strong>Static state is per-copy.</strong> A <code>static Dictionary&lt;&gt;</code> inside the library holds one instance per consuming mod. Do not design APIs that rely on "every consumer shares this state."</li>
-<li><strong>Harmony patches are per-copy and run in sequence.</strong> A postfix from mod A and a postfix from mod B on the same method both execute, in a deterministic sequence. Each postfix sees the result of the previous.</li>
-<li><strong>Harmony instance IDs must be unique.</strong> Derive the Harmony ID from the consuming mod's plugin GUID (<code>new Harmony(consumerGuid)</code>), not a library-owned constant. Two copies of the library using the same Harmony ID would clash.</li>
-<li><strong>No shared registry.</strong> The library cannot expose "give me all registrations from every mod using this library." Each copy only sees its own. For cross-mod coordination, use a separate IPC channel (BepInEx event, LaunchPadBooster message, filesystem dropbox).</li>
-</ol>
-<h3 id="structural-enforcement-over-convention">Structural enforcement over convention<a class="headerlink" href="#structural-enforcement-over-convention" title="Permanent link">&para;</a></h3>
-<p>F0219aa (Plans/StationpediaPlus/PLAN.md:3538-3547) adds a generalizable consequence for API design:</p>
-<blockquote>
-<p>User explicitly rejected CLAUDE.md conventions / code-review discipline for SPA tooltip integration. "CLAUDE.md rules are not deterministic (humans forget; reviews miss). Compiled code is deterministic." Chosen enforcement: <code>LogicTypePageBuilder.Register(spec)</code> invokes <code>SpaBridge.TryEnrichLogicTooltips</code> automatically for every device in <code>spec.RelatedDeviceKeys</code>. Mod authors cannot accidentally skip SPA tooltip enrichment.</p>
-</blockquote>
-<p>The generalizable nugget: CLAUDE.md rules are per-repo, so they cannot enforce behavior inside a consuming mod's code. ILRepack-distributed libraries live inside each consumer's compiled binary; the library's API shape is what enforces correctness. Structural enforcement (build the right thing by construction) beats convention-based enforcement (tell authors to follow a rule) when the authors are in different repos the library cannot see.</p>
-<h2 id="cited-verifications">Cited verifications<a class="headerlink" href="#cited-verifications" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Localization.GetThingDescription(prefabName)         // reads en.resx Thing_&lt;Name&gt;_Description key
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt;  Localization.ParseHelpText(text)               // expands {TOKEN:...} macros, preserves \n
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       -&gt;  StationpediaPage.Description = parsed     // cached ONCE at Stationpedia.PopulateThingPages
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>            -&gt;  TextMeshProUGUI.text = page.Description   // render
+</span></code></pre></div>
+<p>Postfixes on <code>GetThingDescription</code> see the raw text from <code>en.resx</code> before <code>ParseHelpText</code> runs, so they can append free-form text and have it flow through the rest of the pipeline naturally. The catch: macro tokens emitted by the postfix WILL be expanded by <code>ParseHelpText</code>. See "What tokens to avoid emitting" below.</p>
+<h2 id="vanilla-newline-convention-literal-n-no-markup">Vanilla newline convention: literal <code>\n</code>, no markup<a class="headerlink" href="#vanilla-newline-convention-literal-n-no-markup" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
+<p>Sampled descriptions in <code>rocketstation_Data/StreamingAssets/Language/en.resx</code>:</p>
 <ul>
-<li>F0219ac: primary source with full pattern statement (per-copy state, per-copy patches, Harmony instance IDs, additive effect).</li>
-<li>F0219aa: generalizable consequence for library API design.</li>
+<li><code>Thing_StructureBattery_Description</code> (line 2816): four paragraphs separated by raw LF. Uses <code>{HEADER:POWER OUTPUT}</code>, <code>{LINK:...}</code>, <code>{THING:...}</code>.</li>
+<li><code>Thing_StructureAreaPowerControl_Description</code> (line 2756): three paragraphs, raw LF, no headers.</li>
+<li><code>Thing_StructureBatteryLarge_Description</code> (line 6576): four paragraphs, raw LF, <code>{HEADER:POWER OUTPUT}</code>.</li>
+<li><code>Thing_StructureFurnace_Description</code> (line 3270): three paragraphs, raw LF, <code>{GAS:Oxygen}</code>, <code>{LINK:IngotPage;ingots}</code>.</li>
+<li><code>Thing_StructureTransformer_Description</code> (line 3804): two paragraphs, raw LF.</li>
+<li><code>Thing_StructureSolarPanel_Description</code> (line 3534): single paragraph.</li>
 </ul>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p>Pattern: paragraph breaks use a single literal <code>\n</code> (LF in the XML body). No <code>&lt;br&gt;</code> tag, no <code>[hr]</code>, no BBCode. Rich-text styling is delegated entirely to <code>{HEADER:...}</code> and <code>{LINK:...}</code> token expansion -- the raw text body contains no <code>&lt;b&gt;</code>/<code>&lt;i&gt;</code>/<code>&lt;color&gt;</code> tags.</p>
+<h2 id="localizationparsehelptext-token-catalogue"><code>Localization.ParseHelpText</code>: token catalogue<a class="headerlink" href="#localizationparsehelptext-token-catalogue" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
+<p>Verbatim (decompile line 194901):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">ParseHelpText</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">helpText</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="n">ReplaceThings</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">          </span><span class="c1">// {THING:X}      -&gt; &lt;link=ThingX&gt;&lt;color=...&gt;...&lt;/color&gt;&lt;/link&gt;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">ReplaceGases</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">           </span><span class="c1">// {GAS:X}        -&gt; styled link</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">ReplaceReagents</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">        </span><span class="c1">// {REAGENT:X}    -&gt; styled link</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">ReplaceSlots</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="n">ReplaceColors</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="n">ReplaceHelpHeadings</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">    </span><span class="c1">// {HEADER:X}     -&gt; &lt;size=120%&gt;&lt;b&gt;X&lt;/b&gt;&lt;/size&gt;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="n">ReplaceHelpMargin</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">      </span><span class="c1">// {POS:n}        -&gt; &lt;pos=n&gt;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">ReplaceHelpLinks</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">       </span><span class="c1">// {LINK:id;name} -&gt; &lt;link=id&gt;&lt;color=#0080FFFF&gt;name&lt;/color&gt;&lt;/link&gt;</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="n">ReplaceHelpList</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">        </span><span class="c1">// {LIST:n}       -&gt; &lt;indent=n&gt;</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">ReplaceLogicTypes</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span><span class="w">      </span><span class="c1">// {LOGICTYPE:X}</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="n">ReplaceLogicSlotTypes</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="n">ReplaceInput</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">);</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="n">ReplaceHelpMacro</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;{LIST}&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;indent=10&gt;&quot;</span><span class="p">);</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="n">ReplaceHelpMacro</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">helpText</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;{/LIST}&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;/indent&gt;&quot;</span><span class="p">);</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">helpText</span><span class="p">;</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>\n</code> is never touched, escaped, or stripped. The function only expands tokens of the form <code>{TOKEN:value}</code> and the two literal-match macros <code>{LIST}</code> / <code>{/LIST}</code>. The resulting string is fed directly into TextMeshPro, which interprets the embedded <code>&lt;link=...&gt;</code>, <code>&lt;color=...&gt;</code>, <code>&lt;size=...&gt;</code>, <code>&lt;b&gt;</code> tags from token expansion.</p>
+<h2 id="what-tokens-to-avoid-emitting-from-a-postfix">What tokens to avoid emitting from a postfix<a class="headerlink" href="#what-tokens-to-avoid-emitting-from-a-postfix" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p>A mod that postfixes <code>GetThingDescription</code> must NOT emit any of these literal strings unless the mod actually wants them expanded:</p>
 <ul>
-<li>2026-04-20: page created from the Research migration; F0219ac primary, F0219aa providing the structural-enforcement corollary.</li>
+<li><code>{THING:&lt;prefabName&gt;}</code> -- expanded to a TMP <code>&lt;link&gt;</code> pointing at the prefab's Stationpedia page. If the prefab name doesn't exist, the result is an <code>&lt;N:English:...&gt;</code> sentinel.</li>
+<li><code>{LINK:id;displayName}</code> -- expanded to a generic TMP <code>&lt;link&gt;</code> with blue text.</li>
+<li><code>{HEADER:title}</code> -- expanded to a bold, 120%-size heading.</li>
+<li><code>{GAS:gasName}</code>, <code>{REAGENT:name}</code>, <code>{SLOT:type}</code>, <code>{COLOR:name}</code>, <code>{LOGICTYPE:name}</code>, <code>{LOGICSLOTTYPE:name}</code> -- styled links.</li>
+<li><code>{POS:n}</code> -- TMP <code>&lt;pos&gt;</code> tag.</li>
+<li><code>{LIST:n}</code>, <code>{LIST}</code>, <code>{/LIST}</code> -- indentation.</li>
+<li><code>{INPUT:...}</code> -- key-binding lookup.</li>
+</ul>
+<p>Plain text with <code>\n</code>, <code>\n\n</code> paragraph breaks, and ASCII punctuation passes through unchanged. If a postfix wants TMP styling, embed the raw TMP tag directly (<code>&lt;b&gt;...&lt;/b&gt;</code>, <code>&lt;color=#XXX&gt;...&lt;/color&gt;</code>) -- ParseHelpText doesn't touch them, TMP renders them at the end.</p>
+<h2 id="textmeshpro-newline-behaviour-pagedescription-component">TextMeshPro newline behaviour (<code>PageDescription</code> component)<a class="headerlink" href="#textmeshpro-newline-behaviour-pagedescription-component" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p><code>PageDescription</code> is declared <code>public TextMeshProUGUI PageDescription;</code> at decompile line 233798. Grep for <code>paragraphSpacing</code> / <code>lineSpacing</code> in the decompile returns zero hits, meaning the Stationpedia uses the TMP component's prefab defaults. In a default TMP component:</p>
+<ul>
+<li><code>\n</code> -&gt; one hard line break.</li>
+<li><code>\n\n</code> -&gt; one blank line (two hard breaks).</li>
+<li><code>paragraphSpacing = 0</code> (default) -&gt; visual paragraph gap equals one line height.</li>
+</ul>
+<p>Vanilla descriptions get their paragraph effect from <code>\n</code> alone (single line break, visually one blank line gap because each line carries normal line height). A postfix using <code>\n\n</code> produces a slightly wider visual gap before its appended content, which is acceptable for "this is an additive section" framing.</p>
+<h2 id="stationpediapagedescription-cache-once-at-game-load"><code>StationpediaPage.Description</code> cache: once at game load<a class="headerlink" href="#stationpediapagedescription-cache-once-at-game-load" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p><code>Stationpedia.PopulateThingPages()</code> (decompile line 231964) iterates <code>Prefab.AllPrefabs</code> once and stores the parsed text:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">page3</span><span class="p">.</span><span class="n">Description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">ParseHelpText</span><span class="p">(</span><span class="n">Localization</span><span class="p">.</span><span class="n">GetThingDescription</span><span class="p">(</span><span class="n">allPrefab</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">));</span>
+</span></code></pre></div>
+<p>Called from <code>Stationpedia.Initialize()</code> (line 231023). After this runs, <code>StationpediaPage.Description</code> is fixed for the session. A <code>GetThingDescription</code> postfix sees the call exactly once during page population and again on every separate caller (tooltips, build-state hover, etc.) -- those non-Stationpedia surfaces DO see live config values from a postfix; only the Stationpedia page itself is cache-locked until restart.</p>
+<p>For mods that want live updates of the Stationpedia entry on a config change, the page would need to be re-built (either re-call <code>PopulateThingPages</code> or directly mutate <code>StationpediaPage.Description</code> for the affected key). The vanilla flow does not support this; it would be a custom mod feature.</p>
+<h2 id="render-path-plain-assignment">Render path: plain assignment<a class="headerlink" href="#render-path-plain-assignment" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p><code>CheckAndSetTextElement(PageDescription, page.Description)</code> (line 234508) ends in <code>textMesh.text = text2;</code> (line 233983). No further string transformation between the cached <code>StationpediaPage.Description</code> and the TMP component's <code>text</code> field. Whatever the cache holds is what TMP renders.</p>
+<h2 id="worked-example-powergridplus-footer-post-b3baffb">Worked example: PowerGridPlus footer (post-b3baffb)<a class="headerlink" href="#worked-example-powergridplus-footer-post-b3baffb" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+
+<p><code>Mods/PowerGridPlus/PowerGridPlus/StationpediaPatches.cs</code> <code>BuildApcFooter</code> and <code>BuildBatteryFooter</code> build footer text like:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>\n\n--- Power Grid Plus ---\n
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Charge rate: capped at 1 kW (server config &quot;APC Battery Charge Rate&quot;). ...\n
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Output: capped at the output cable&#39;s MaxVoltage. ...\n
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>Cable tier: input and output cables must be the same tier; mismatched cables burn at the junction when power flows.\n
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>Bug fix: the vanilla idle-leak is closed. Battery does not slowly drain when nothing is connected downstream.
+</span></code></pre></div>
+<p>This passes ParseHelpText unchanged (no <code>{TOKEN:...}</code> patterns, no rich-text tags). TMP renders the <code>\n\n</code> separator as a blank line, then a divider line of dashes, then bullet-style sentences. Render correctness verified statically against the pipeline above; no in-game UI test required.</p>
+<p>Optional polish to match vanilla section-header convention: replace the dashes divider with <code>{HEADER:POWER GRID PLUS}</code>. The token expands to <code>&lt;size=120%&gt;&lt;b&gt;POWER GRID PLUS&lt;/b&gt;&lt;/size&gt;</code> and renders as a bold heading matching vanilla's <code>POWER OUTPUT</code> blocks.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-05-28: page created during PowerGridPlus rate-cap rollout verification. The ScenarioRunner <code>pgp-rate-cap-probe</code> scenario confirmed the footer text reaches <code>Localization.GetThingDescription</code> correctly. This page documents the rest of the pipeline (ParseHelpText, page cache, TMP render path) so the question "will my footer render correctly?" can be answered by static analysis instead of requiring an in-game eyeball check. Sourced from decompile lines 194901 (ParseHelpText), 231023 / 231964 (Stationpedia.Initialize / PopulateThingPages), 232041 (Description assignment), 233798 (PageDescription field), 233983 / 234508 (CheckAndSetTextElement -&gt; TMP.text). en.resx samples at lines 2756, 2816, 3270, 3534, 3804, 6576.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
@@ -7101,6 +7294,9 @@ tags: [harmony, packaging]</p>
 
 
 
+
+  
+  
 
 
 
@@ -7131,7 +7327,7 @@ tags: [harmony, packaging]</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../HarmonyPrefixReturnBool/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Harmony Prefix must return bool to block the original">
+          <a href="../StationeersNamespaces/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Stationeers namespace pitfalls">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -7141,20 +7337,20 @@ tags: [harmony, packaging]</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Harmony Prefix must return bool to block the original
+                Stationeers namespace pitfalls
               </div>
             </div>
           </a>
         
         
           
-          <a href="../InGameConsoleOutput/" class="md-footer__link md-footer__link--next" aria-label="Next: InGameConsoleOutput">
+          <a href="../SubcomponentGrafting/" class="md-footer__link md-footer__link--next" aria-label="Next: Sub-component grafting from a vanilla prefab">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                InGameConsoleOutput
+                Sub-component grafting from a vanilla prefab
               </div>
             </div>
             <div class="md-footer__button md-icon">
