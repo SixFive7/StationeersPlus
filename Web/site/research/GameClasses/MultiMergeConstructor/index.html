@@ -2098,6 +2098,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#build-costs-connection-types-and-kit-constructables-ordering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build costs, connection types, and kit Constructables ordering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-the-merge-cost-delta-num4-go-negative-no-in-vanilla" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can the merge cost delta num4 go negative? No (in vanilla)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Can the merge cost delta num4 go negative? No (in vanilla)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#confirmed-bypass-zoopmod-via-inventorymanageruseprimarycomplete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Confirmed bypass: ZoopMod via InventoryManager.UsePrimaryComplete
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#igridmergeable" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6993,6 +7032,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#build-costs-connection-types-and-kit-constructables-ordering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build costs, connection types, and kit Constructables ordering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#can-the-merge-cost-delta-num4-go-negative-no-in-vanilla" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can the merge cost delta num4 go negative? No (in vanilla)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Can the merge cost delta num4 go negative? No (in vanilla)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#confirmed-bypass-zoopmod-via-inventorymanageruseprimarycomplete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Confirmed bypass: ZoopMod via InventoryManager.UsePrimaryComplete
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#igridmergeable" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7143,13 +7221,13 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-11.
+           on 2026-05-31.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (7)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.MultiMergeConstructor'}</code></li>
@@ -7157,6 +7235,12 @@
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Pipes.Piping'}</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.Cable'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Util.SmartRotate (ConnectionType enum line 217830, _ConstructRotationList lines 217899/218448-218472, OrientationLookup)'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.ToolBasic / ToolUse / BuildState (EntryQuantity)'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\resources.assets :': 'build costs (BuildStates[0].Tool.EntryQuantity), baked ConnectionType, kit Constructables order (read 2026-05-31 via UnityPy + generated type tree; scripts in .work/2026-05-31-merge-num4-negative/)'}</code></li>
             
               <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Language\english.xml</code></li>
             
@@ -7317,6 +7401,159 @@
 <li>With <code>ToolExit</code> in the off hand and a ghost overlapping an existing pipe/cable, the kit <em>absorbs</em> the existing piece(s) into the larger variant, charging only the material difference. This is the "upgrade a straight run in place" affordance.</li>
 <li>Only <code>Piping</code>, <code>Cable</code>, and <code>StructureFuselage</code> have a merge branch here. <code>Chute</code> does not implement <code>IGridMergeable</code>, so the chute kit's long variants go through the plain <code>base.Construct</code> path (place-as-is); they are not merge-absorbed.</li>
 </ul>
+<h2 id="build-costs-connection-types-and-kit-constructables-ordering">Build costs, connection types, and kit Constructables ordering<a class="headerlink" href="#build-costs-connection-types-and-kit-constructables-ordering" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+
+<p>The merge-cost delta <code>num4</code> (the last argument to <code>base.Construct</code>, the quantity consumed from the kit stack) is <code>Constructables[num2].BuildStates[0].Tool.EntryQuantity - Constructables[index].BuildStates[0].Tool.EntryQuantity</code>. Both <code>BuildStates[0].Tool</code> (<code>ToolUse : ToolBasic</code>, <code>Assembly-CSharp</code> line 297369/294809) and the kit <code>Constructables</code> list (<code>List&lt;Structure&gt;</code>, line 288246) are serialized Unity prefab fields, NOT loaded from any <code>StreamingAssets</code> XML (grep of <code>StreamingAssets</code> for <code>EntryQuantity</code> returns nothing). They were read from <code>$(StationeersPath)\rocketstation_Data\resources.assets</code> via UnityPy + a generated type tree (the same technique as the per-tier <code>MaxVoltage</code> extraction documented in <code>Research/GameClasses/Cable.md</code>; load all 146 <code>Managed/*.dll</code> into a <code>TypeTreeGenerator</code>, attach to the <code>UnityPy.load(rocketstation_Data)</code> env, <code>obj.read_typetree()</code> per MonoBehaviour). <code>ToolBasic.EntryQuantity</code> is a plain <code>public int</code>; the arithmetic at line 288456 uses the raw integer (the <code>StringManager.Get(EntryQuantity)</code> calls at lines 297416/297448 are display-only tooltip formatting and do not change the stored value).</p>
+<p><code>SmartRotate.ConnectionType</code> (the construction enum, <code>Assembly-CSharp</code> line 217830) values referenced below: <code>Elbow=0, SideOutletElbow=1, Straight=2, Tee=3, SideOutletTee=4, Cross=5, SideOutletCross=6, SixWayCross=7, Exhaustive=8, StraightAsymmetric=3000</code>. <code>GetConnectionType()</code> on <code>Cable</code>/<code>Piping</code>/<code>Chute</code> just returns the serialized <code>ConnectionType</code> field (lines 335820, 371578); the C# field default is <code>Exhaustive</code>, but every placeable prefab overrides it at editor bake time, so the baked value is what matters and must be read from the asset, not inferred from the decompile.</p>
+<p><strong>Per-prefab build cost (<code>EntryQuantity</code>) and connection type</strong> (<code>StraightAsym</code> = <code>StraightAsymmetric</code>; <code>EQ</code> = <code>EntryQuantity</code> in kit stack units). The 1-cell straight base of every family is <strong><code>Straight</code> (2), cost 1, <code>IsStraight=1</code></strong> -- it is NOT the C# default <code>Exhaustive</code>/<code>None</code>. The long variants are <strong><code>StraightAsymmetric</code> (3000)</strong> with the family merge-block flag set (<code>Piping.DontAllowMergingWithWrench=1</code> / <code>Cable.BlockMergeWithOtherCables=1</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Prefab</th>
+<th>ConnType</th>
+<th>EQ</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StructurePipeStraight</code></td>
+<td>Straight</td>
+<td>1</td>
+<td>1-cell base, IsStraight=1</td>
+</tr>
+<tr>
+<td><code>StructurePipeStraight3 / 5 / 10</code></td>
+<td>StraightAsym</td>
+<td>3 / 4 / 8</td>
+<td>long; DontAllowMergingWithWrench=1</td>
+</tr>
+<tr>
+<td><code>StructurePipeCorner</code></td>
+<td>Elbow</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructurePipeTJunction</code></td>
+<td>Tee</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructurePipeCrossJunction</code></td>
+<td>Cross</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructurePipeCrossJunction3 / 4 / 5 / 6</code></td>
+<td>SideOutletElbow / SideOutletTee / SideOutletCross / SixWayCross</td>
+<td>2 / 3 / 3 / 3</td>
+<td>outlet-count junctions</td>
+</tr>
+<tr>
+<td><code>StructureCableStraight</code> (normal)</td>
+<td>Straight</td>
+<td>1</td>
+<td>1-cell base</td>
+</tr>
+<tr>
+<td><code>StructureCableCorner</code></td>
+<td>Elbow</td>
+<td>1</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructureCableCorner3 / 4</code></td>
+<td>SideOutletElbow / SideOutletTee</td>
+<td>2 / 3</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructureCableJunction</code></td>
+<td>Tee</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructureCableJunction4 / 5 / 6</code></td>
+<td>Cross / SideOutletCross / SixWayCross</td>
+<td>2 / 3 / 3</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructureCableSuperHeavyStraight</code></td>
+<td>Straight</td>
+<td>1</td>
+<td>1-cell base</td>
+</tr>
+<tr>
+<td><code>StructureCableSuperHeavyStraight3 / 5 / 10</code></td>
+<td>StraightAsym</td>
+<td>3 / 4 / 7</td>
+<td>long; BlockMergeWithOtherCables=1 (note 10 = <strong>7</strong>, not 8)</td>
+</tr>
+<tr>
+<td><code>StructureCableSuperHeavyJunction / 4 / 5 / 6</code></td>
+<td>Tee / Cross / SideOutletCross / SixWayCross</td>
+<td>2 / 2 / 3 / 3</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructureCableSuperHeavyCorner / 3 / 4</code></td>
+<td>Elbow / SideOutletElbow / SideOutletTee</td>
+<td>1 / 3 / 3</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StructureChuteStraight</code></td>
+<td>Straight</td>
+<td>1</td>
+<td>1-cell base, IsStraight field absent (Chute)</td>
+</tr>
+<tr>
+<td><code>StructureChuteStraight3 / 5 / 10</code></td>
+<td>StraightAsym</td>
+<td>3 / 4 / 8</td>
+<td>long</td>
+</tr>
+</tbody>
+</table>
+<p>Heavy cable (<code>StructureCableStraightH</code> etc.), insulated pipe, liquid pipe, and insulated-liquid-pipe families mirror the normal-cable / gas-pipe cost+type pattern exactly (1-cell straight = Straight/1; corner = Elbow/1; T = Tee/2; cross = Cross/2; the side-outlet junctions = &#8532;/3/3; long = StraightAsym &frac34;/8). Heavy cable's <code>SideOutletElbow</code> (<code>StructureCableCornerH3</code>) costs <strong>3</strong> (whereas normal cable's <code>StructureCableCorner3</code> costs <strong>2</strong>) -- the one inter-family cost difference. Full per-prefab dump (743 structure prefabs) in <code>.work/2026-05-31-merge-num4-negative/structures.csv</code>.</p>
+<p><strong>Cables do NOT all cost 1.</strong> Normal/heavy/super-heavy cable junctions cost 2-3 (Tee=2, Cross=2, the side-outlet variants=&#8532;). Only the 1-cell straight and the simple corner (Elbow) cost 1. So the "all cable variants cost 1, therefore cable <code>num4</code> is always &gt;= 0" premise is false as stated; cable <code>num4 &gt;= 0</code> holds for a different reason (below).</p>
+<p><strong>Kit <code>Constructables</code> ordering</strong> (index 0 is always the 1-cell <code>Straight</code> base; junctions occupy the middle; the long <code>StraightAsymmetric</code> variants are appended LAST). Verified for all merge-capable kits by resolving the serialized <code>Constructables</code> PPtr list (cross-file <code>m_FileID</code> resolved via each file's externals):</p>
+<ul>
+<li><code>ItemKitPipe</code> / <code>ItemKitInsulatedPipe</code> / <code>ItemKitPipeLiquid</code> / <code>ItemKitInsulatedLiquidPipe</code> (11 entries): <code>[0]</code> Straight, <code>[1]</code> Corner(Elbow), <code>[2]</code> TJunction(Tee), <code>[3]</code> CrossJunction(Cross), <code>[4]</code> CrossJunction5(SideOutletCross), <code>[5]</code> CrossJunction6(SixWayCross), <code>[6]</code> CrossJunction3(SideOutletElbow), <code>[7]</code> CrossJunction4(SideOutletTee), <code>[8]</code> Straight3, <code>[9]</code> Straight5, <code>[10]</code> Straight10.</li>
+<li><code>ItemCableCoil</code> / <code>ItemCableCoilHeavy</code> (8 entries, no long variants): <code>[0]</code> Straight, <code>[1]</code> Corner(Elbow), <code>[2]</code> Junction(Tee), <code>[3]</code> Junction4(Cross), <code>[4]</code> Junction5(SideOutletCross), <code>[5]</code> Junction6(SixWayCross), <code>[6]</code> Corner3(SideOutletElbow), <code>[7]</code> Corner4(SideOutletTee).</li>
+<li><code>ItemCableCoilSuperHeavy</code> (11 entries): same <code>[0..7]</code> as above, then <code>[8]</code> Straight3, <code>[9]</code> Straight5, <code>[10]</code> Straight10.</li>
+<li><code>ItemKitChute</code> (12 entries, plain <code>MultiConstructor</code> merge path -- Chute is not <code>IGridMergeable</code>): <code>[0]</code> Straight, <code>[1]</code> Corner, <code>[2]</code> Window, <code>[3]</code> Junction, <code>[4]</code> FlipFlopSplitter, <code>[5]</code> Valve, <code>[6]</code> Overflow, <code>[7]</code> Inlet, <code>[8]</code> Outlet, <code>[9]</code> Straight3, <code>[10]</code> Straight5, <code>[11]</code> Straight10. (Resolves the prior open question: the chute long variants ARE serialized <code>Constructables</code> members, placed as-is.)</li>
+</ul>
+<p>Full ordered dump in <code>.work/2026-05-31-merge-num4-negative/kits_resolved.json</code>. This confirms the ZoopMod assumption that <code>Constructables[0]</code> is the 1-cell base straight (see "Implications for a 'remove the long pieces' mod" above).</p>
+<h2 id="can-the-merge-cost-delta-num4-go-negative-no-in-vanilla">Can the merge cost delta num4 go negative? No (in vanilla)<a class="headerlink" href="#can-the-merge-cost-delta-num4-go-negative-no-in-vanilla" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+
+<p><code>num4 &lt; 0</code> would crash <code>Stackable</code>'s <code>RemoveRange</code>-style consumption (a negative <code>quantity</code> into <code>List.RemoveRange</code>). In vanilla, with the build costs and connection types above, <strong><code>num4</code> is always in <code>[0..2]</code> -- never negative.</strong> Three independent gates, in <code>Construct</code>'s own code path and in the placement validators that gate the click that reaches <code>Construct</code>, each block the negative case. The merge branch only engages for <code>Piping</code> and <code>Cable</code> (lines 288354-288372); <code>Chute</code> never reaches this code (<code>base.Construct</code> place-as-is).</p>
+<ol>
+<li>
+<p><strong>Merged type <code>M</code> (driving <code>num2</code>) can only be one of 8 junction/straight types, never <code>StraightAsymmetric</code> or <code>Exhaustive</code>.</strong> The resolver loop (lines 288413-288422) searches <code>OrientationLookup[ct]</code> for <code>ct</code> in exactly <code>{Elbow, SideOutletElbow, Straight, Tee, SideOutletTee, Cross, SideOutletCross, SixWayCross}</code>, first hit wins (fallback <code>Elbow</code>). <code>num2</code> = first <code>Constructables</code> entry whose <code>GetConnectionType()</code> == that <code>M</code>. So <code>cost(num2)</code> is always a junction/straight cost in <code>{1,2,3}</code> -- a long-variant cost (&frac34;/&#8542;) can never be selected as the merged result.</p>
+</li>
+<li>
+<p><strong><code>M</code>'s open-end count is always &gt;= the existing piece's open-end count.</strong> <code>combined[i] = Math.Max(permNew[i], permOld[i])</code> (lines 288393-288399), so <code>combined</code> pointwise-contains the existing piece's open-end pattern <code>permOld</code>. Every key in <code>OrientationLookup[M]</code> is a rotation of <code>M</code>'s base face-pattern (<code>_ConstructRotationList</code>, lines 218448-218472), and rotation preserves the open-end count; <code>combined</code> is one such key, so <code>popcount(M) = popcount(combined) &gt;= popcount(permOld) = popcount(E)</code>, where <code>E = gridMergeable2.GetConnectionType()</code> is the existing piece's type and <code>index</code> = first <code>Constructables</code> entry with type <code>E</code>. The merge can only ADD open ends (merge a straight into a tee, a tee into a cross), never remove them. Cost is monotonic in outlet count across the kit (Straight/Elbow=1 at 2 ends; Tee/SideOutletElbow=2 at 3 ends; Cross=2, SideOutletTee=3 at 4 ends; SideOutletCross=3 at 5; SixWayCross=3 at 6), so <code>cost(M) &gt;= cost(E)</code> for every reachable transition.</p>
+</li>
+<li>
+<p><strong>A long <code>StraightAsymmetric</code> variant can never be the existing piece <code>E</code>.</strong> <code>Piping.CanReplace</code> (line 363974) rejects the merge (<code>CannotMergeIMergeable</code>) when EITHER the new ghost has <code>DontAllowMergingWithWrench</code> OR the existing cell's pipe is <code>Piping { DontAllowMergingWithWrench: not false }</code>. <code>Cable._IsCollision</code> (line 371561) returns collision when EITHER the existing OR the new cable has <code>BlockMergeWithOtherCables</code> (same-tier branch: <code>if (!cable.BlockMergeWithOtherCables) return BlockMergeWithOtherCables; return true;</code>). Every long variant carries its family flag, so a long piece neither merges as the ghost nor can be merged onto as the existing piece. Without this gate, an existing long piece would set <code>index</code> to the FIRST <code>StraightAsymmetric</code> kit entry (always the <code>...Straight3</code>, cost 3 -- not the 10-variant's own cost, because <code>index</code> is the first match) and <code>num2</code> to a 2-end junction, which would give <code>num4 = 2 - 3 = -1</code>; the gate makes that scenario unreachable.</p>
+</li>
+</ol>
+<p>Authoritative enumeration: over all 7 merge-capable kits, every reachable <code>(E, M)</code> transition (using a 24-proper-cube-rotation reachability model that is a strict SUPERSET of the game's actual <code>RotationsList</code> orbits, so the bound holds a fortiori), <code>num4 in [0..2]</code>. The most-negative arithmetic value that an UNCONSTRAINED <code>(E, M)</code> pairing could produce is <code>-2</code> (<code>existing = SideOutletCross</code>/cost-3 junction, <code>merged = Straight</code>/cost-1), but that pairing is doubly unreachable: it violates gate 2 (a 5-end cross cannot merge down to a 2-end straight) and would also need the open-ends to shrink. Simulation scripts and outputs: <code>.work/2026-05-31-merge-num4-negative/{sim_final.py, orbit_check.py, sim3.py}</code>.</p>
+<p>Caveat (out of vanilla scope): a THIRD-PARTY mod that adds a kit whose junction entries are cheaper than the existing piece they can merge from, or that bypasses <code>CanReplace</code> / <code>_IsCollision</code> (e.g. a custom placement path), or that re-bakes a long variant's <code>ConnectionType</code> to one of the 8 searched types while leaving it in <code>Constructables</code>, could reintroduce a negative <code>num4</code>. The "No tool required for pipe/cable merging" mod (id 3571613419) only removes the <code>ToolExit</code> requirement (the off-hand check), not the <code>DontAllowMergingWithWrench</code> / <code>BlockMergeWithOtherCables</code> gates, so it does not reopen the long-variant case. The bypass caveat is NOT hypothetical -- ZoopMod is exactly such a caller; see the next subsection.</p>
+<h3 id="confirmed-bypass-zoopmod-via-inventorymanageruseprimarycomplete">Confirmed bypass: ZoopMod via InventoryManager.UsePrimaryComplete<a class="headerlink" href="#confirmed-bypass-zoopmod-via-inventorymanageruseprimarycomplete" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+
+<p>Gate 3 is the placement <em>validator</em>, and it does NOT live in <code>Construct</code>. <code>MultiMergeConstructor.Construct</code> has no <code>CanReplace</code>/<code>_IsCollision</code> check of its own; the gate is in <code>InventoryManager</code>'s <code>Update</code>-time placement loop. It computes <code>flag2 = ConstructionCursor.CanConstruct().CanConstruct</code> and, when <code>!IsAuthoringMode &amp;&amp; ConstructionCursor is IGridMergeable gridMergeable</code>, ANDs in <code>gridMergeable.CanReplace(multiConstructor, inactiveHandItem).CanConstruct</code> (lines 270691-270712). Only when <code>flag2 &amp;&amp; KeyManager.GetMouseDown("Primary")</code> does it stash <code>_usePrimaryPosition</code>/<code>_usePrimaryRotation</code> and call <code>UsePrimaryComplete()</code> (lines 270733-270750). <code>UsePrimaryComplete()</code> itself (line 271013) performs NO validation -- it just does <code>OnServer.UseMultiConstructor(Parent, ActiveHand.SlotId, InactiveHand.SlotId, _usePrimaryPosition, _usePrimaryRotation, ConstructionPanel.BuildIndex, IsAuthoringMode, ParentBrain.ClientId, SpawnPrefab)</code> (line 271019), which calls the 6-arg <code>MultiConstructor.Construct</code> (<code>OnServer.UseMultiConstructor</code>, line 40078).</p>
+<p>So any caller that invokes the private parameterless <code>UsePrimaryComplete()</code> directly skips the <code>CanConstruct</code>/<code>CanReplace</code> gate. <strong>ZoopMod does exactly this</strong>: <code>ZoopMod.Zoop.Placement.ZoopBuildExecutor.BuildAll</code> reflectively sets <code>_usePrimaryPosition</code> / <code>_usePrimaryRotation</code> (private fields) and <code>ConstructionPanel.BuildIndex</code>, then <code>Invoke</code>s the private parameterless <code>UsePrimaryComplete()</code> once per planned cell (verified from <code>github.com/Nivvdiy/ZoopModRecovered</code>, <code>Zoop/Placement/ZoopBuildExecutor.cs</code>, commit <code>1f02493</code>). It runs <code>CanReplace</code> only at <em>preview</em> time against the pre-batch world (<code>ZoopPreviewValidator.cs</code>) and does not re-scan for pieces it placed earlier in the same batch. Therefore a ZoopMod batch CAN drive a merge onto an existing long (<code>StraightAsymmetric</code>) variant -- the exact case gate 3 blocks for the interactive cursor -- which makes <code>index</code> resolve to the first <code>StraightAsymmetric</code> kit entry (cost 3) while <code>num2</code> resolves to a cheaper junction/straight, giving a negative <code>num4</code> (collinear merge to <code>Straight</code>: <code>1 - 3 = -2</code>; perpendicular to a <code>Tee</code>/<code>Cross</code>: <code>2 - 3 = -1</code>). The negative flows <code>num4 -&gt; base.Construct(7-arg) -&gt; if (!authoringMode) OnUseItem(num4, null) -&gt; List.RemoveRange(_, num4)</code> and throws <code>ArgumentOutOfRangeException ("count")</code>. With no try/catch around its per-cell invoke, that aborts ZoopMod's whole <code>BuildAll</code> coroutine (the <code>MoveNext()</code> frame in the crash trace) and skips its <code>CancelPlacement()</code> cleanup.</p>
+<p><code>Mods/NetworkPuristPlus/</code>'s lever-1 strip (removing the long variants from each kit's <code>Constructables</code>) removes the merge target entirely, so when its master + family toggles are on it <em>prevents</em> this crash rather than causing it. The crash is reachable when the long variants remain in the kit: NetworkPuristPlus master/family toggle off, a long-variant family NetworkPuristPlus does not manage, or a load-order gap where the strip has not run. Note the version dependency of the <em>symptom</em>: the <code>OnUseItem</code> <code>RemoveRange</code> at line 335443 is gated by <code>StackedGeneCollections != null</code>, which on 0.2.6228.27061 is allocated only on <code>Plant</code> -- a kit's list is null, so on this exact build the negative <code>num4</code> skips <code>RemoveRange</code> and instead runs <code>Quantity -= (int)quantity</code> (a negative subtraction = silent item <em>duplication</em>) rather than throwing. The reporter's crash at <code>RemoveRange</code> therefore indicates a build where that consumption path is reached for a kit; the negative <code>num4</code> is the root defect on every build, so a fix should sanitize the quantity, not the version-specific <code>RemoveRange</code>.</p>
 <h2 id="igridmergeable">IGridMergeable<a class="headerlink" href="#igridmergeable" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
 
@@ -7381,12 +7618,20 @@
 <li>2026-05-11: conflict on "<code>StructureConveyorStraightLong</code> status". Previous claim: it is a distinct multi-cell buildable variant the player selects from the (plain <code>MultiConstructor</code>) <code>ItemKitConveyor</code> kit, with no merge-absorb. New finding: the <code>StructureConveyor*</code> prefabs and <code>ItemKitConveyor</code> are cut content from the pre-chute "Flexi-belt" era — prefabs and string entries still ship registered, but no conveyor-specific C# class exists in <code>Assembly-CSharp</code> (only leftovers: <code>LoreFactions.Recurso</code>, a "Conveyors" audio bucket, <code>CrateType.ConveyorSupplies</code>, the never-set <code>DynamicThing.OnConveyor</code> bool, the chute-related <code>DeviceImportExport.ImportConveyorPosition</code> transforms); spawnable via the creative spawner, errors on build. Fresh validator verdict: B is correct — the "buildable variant you select from the kit" wording was unsupported (the page cited only the <code>english.xml</code> name list for it; the DLL has no construction wiring referencing the conveyor prefabs and <code>OnConveyor</code> is dead code). Result: rewrote the conveyor paragraph in "The 'long' straight-piece prefab family"; created <code>Research/GameSystems/ConveyorBeltCutContent.md</code> (full inventory) and linked it from <code>related:</code>.</li>
 <li>2026-05-11: <code>Pipe.OnDestroy</code> gas-transfer dance, and the standalone-network gas-loss it causes when rebuilding. <code>Pipe.OnDestroy</code> (<code>Assembly-CSharp</code> line ~363201): snapshots <code>ConnectedPipes()</code> (before removal), <code>PipeNetwork?.Remove(this)</code>, then if <code>RunSimulation</code> copies the <em>whole</em> network gas (<code>GasMixture gasMixture = GasMixtureHelper.Create(); gasMixture.Set(pipeNetwork.Atmosphere.GasMixture);</code>), calls <code>networkedPipe.PipeNetwork.RebuildNetworkServer(networkedPipe)</code> for each connected pipe (and collects their networks into <code>list2</code>), then queues <code>NetworkAtmosphereEvent.DivideNetworkAtmosphere(list2, gasMixture)</code> (or <code>..., pipeNetwork.Atmosphere)</code> when <code>pipeNetwork.Atmosphere.IsAwaitingEvent</code>). Consequence for a "destroy each long pipe + <code>Constructor.SpawnConstruct</code> the N×1-cell base" rebuild: <code>OnServer.Destroy</code> is deferred to end-of-frame, all of a network's long pipes get destroyed together, each <code>OnDestroy</code> queues its own <code>DivideNetworkAtmosphere</code>, and for a network that consisted <em>entirely</em> of long variants the gas does not make it to the rebuilt single-tile network — field-confirmed: NetworkPuristPlus rebuilding a standalone gas-edited <code>StructurePipeStraight 10/5/3</code> run (4 mol O2 + 16 mol N2 + 123 kJ in a 190 L network) left the rebuilt 18×<code>StructurePipeStraight</code> (correctly networked, correct 190 L <code>&lt;Volume&gt;</code>) with <code>Oxygen=0 Nitrogen=0 Energy=0</code>; the original network id is gone, the rebuilt pipes are in a brand-new network with an empty atmosphere. Mixed networks (long pipes alongside regular pipes/devices) keep the gas because there are surviving pipes for the divide. Fix used in <code>Mods/NetworkPuristPlus/</code> v1.0: capture each affected <code>PipeNetwork.Atmosphere.GasMixture</code> (via <code>GasMixtureHelper.Create().Set(...)</code>) and its <code>ReferenceId</code> <em>before</em> destroying anything from it; after a 3-frame <code>WaitForEndOfFrame</code>-equivalent settle (so the deferred destroys + queued atmospherics events have run), if a sample rebuilt pipe's <code>PipeNetwork.ReferenceId != original</code> (the original network died) <code>Atmosphere.Add(capturedGas)</code> into the rebuilt network. Cables/chutes carry no gas, so this only applies to <code>Pipe</code>-derived long variants. Relevant types/namespaces: <code>Pipe</code> <code>Assets.Scripts.Objects.Pipes</code>, <code>PipeNetwork : AtmosphericsNetwork</code> <code>Assets.Scripts.Networks</code>, <code>Atmosphere : IReferencable,...</code> <code>Assets.Scripts.Atmospherics</code> (NOT the unrelated static <code>Assets.Scripts.Networking.Atmosphere</code>), <code>GasMixture</code> (struct) / <code>GasMixtureHelper</code> <code>Assets.Scripts.Atmospherics</code>, <code>Atmosphere.Add(GasMixture)</code> line ~190674.</li>
 <li>2026-05-11: correction to the "Detecting a long-straight variant" subsection — the footprint test does NOT work on a prefab. <code>Structure.GridBounds</code> is <code>new GridBounds()</code> (the empty parameterless ctor; <code>_gridsSmall</code> empty) until <code>Structure.CachePrefabBounds()</code> -&gt; <code>GridBounds = new GridBounds(this)</code> runs, and <code>CachePrefabBounds()</code> is called from <code>Structure.SetPrefab(Thing prefab)</code> (when a Thing is <em>instantiated</em> from a prefab), not from <code>Prefab.RegisterExisting</code> / <code>Prefab.LoadAll</code>. So on a never-yet-instantiated prefab at <code>Prefab.OnPrefabsLoaded</code> time, <code>GridBounds.GetLocalSmallGrid(Vector3.zero, Quaternion.identity)</code> returns a <em>zero-length</em> <code>Grid3[]</code>, and <code>Structure.BlockingGrids</code> is a <code>Grid3[1]</code> placeholder — neither reveals the real N cells. Field-confirmed: NetworkPuristPlus v1.0's first build gated prefab-time classification on <code>footprint &gt; 1 cell</code> and consequently classified ZERO long variants (every candidate skipped at the footprint check; log line <code>[Warning:NetworkPuristPlus] ... no long-variant prefabs found</code>). Corrected approach: at prefab-load time classify by NAME only — a <code>Structure</code> whose prefab name matches <code>^(Structure[A-Za-z]+Straight)(\d+)(Burnt)?$</code> AND whose de-numbered name (<code>group1 + group3</code>) is a registered <code>Structure</code> (optionally also <code>s is SmallGrid</code> and/or the <code>Cable.BlockMergeWithOtherCables</code> / <code>Piping.DontAllowMergingWithWrench</code> family flags); the <code>english.xml</code> <code>&lt;Key&gt;...Straight[0-9]+&lt;/Key&gt;</code> sweep confirms nothing outside the six families matches, so name+base-exists is precise. The footprint IS reliable on a placed <em>instance</em> (it has been instantiated, so <code>CachePrefabBounds</code> has run) — that is where the on-load rebuild reads <code>GetLocalSmallGrid(ThingTransformPosition, ThingTransformRotation)</code> to get the run's cells. The "Detecting a long-straight variant, and the implementation recipe" code sample / parenthetical above still shows the prefab-footprint version and should be updated to the name-based predicate. (Confirmed by runtime behavior + decompile — <code>GridBounds = new GridBounds()</code> at <code>Assembly-CSharp</code> line ~295232, <code>CachePrefabBounds</code> at ~297131 called from <code>SetPrefab</code> at ~295701; not a fresh-validator pass.) NetworkPuristPlus v1.0 (rebuilt with the name-based predicate + per-rebuilt-piece <code>Logger.LogInfo</code>) is the reference implementation.</li>
-<li>2026-05-11 (later): supersedes the gas-handling described in the earlier "<code>Pipe.OnDestroy</code> gas-transfer dance" entry — the capture-then-<code>Atmosphere.Add</code> re-inject <strong>does not work</strong>. Field-tested in NetworkPuristPlus: capturing each affected <code>PipeNetwork.Atmosphere.GasMixture</code> (via <code>GasMixtureHelper.Create().Set(...)</code>) before destroying and re-injecting it (<code>Atmosphere.Add(...)</code>) into the rebuilt network 3 frames later — the re-inject ran (log line <code>restored gas to N rebuilt pipe network(s)</code>) but the rebuilt network's atmosphere still ended at <code>Oxygen=0 Nitrogen=0 Energy=0</code> in the resulting save. Could not distinguish between (a) the captured <code>GasMixture</code> struct not actually copying the gas, (b) <code>Atmosphere.Add</code> not taking, or &copy; a late queued <code>NetworkAtmosphereEvent.DivideNetworkAtmosphere</code> overwriting it — would need runtime instrumentation (log captured / before-Add / after-Add mole counts, and the <code>AtmosphericsManager</code> event drain). Also: the gas loss is <strong>not</strong> limited to networks made entirely of long variants — it happens even when a regular 1-cell pipe is at the end of the long run. So: a destroy-then-<code>SpawnConstruct</code> rebuild of a pipe run loses the run's gas, full stop. NetworkPuristPlus v1.0 therefore ships <strong>without</strong> gas preservation (the rebuilt single-tile pipes start empty; layout / rotation / colour / network connectivity ARE preserved); the gas-handling code was removed. A working fix is an open problem (likely: hook the <code>AtmosphericsManager</code> event-drain so you re-inject after all <code>DivideNetworkAtmosphere</code> events have processed, and <em>set</em> rather than <em>add</em> the rebuilt network's atmosphere; or place the single-tile replacements before destroying the long pipes so the network never dies). Cables and chutes carry no gas, so this only concerns <code>Pipe</code>-derived long variants.</li>
+<li>
+<p>2026-05-11 (later): supersedes the gas-handling described in the earlier "<code>Pipe.OnDestroy</code> gas-transfer dance" entry — the capture-then-<code>Atmosphere.Add</code> re-inject <strong>does not work</strong>. Field-tested in NetworkPuristPlus: capturing each affected <code>PipeNetwork.Atmosphere.GasMixture</code> (via <code>GasMixtureHelper.Create().Set(...)</code>) before destroying and re-injecting it (<code>Atmosphere.Add(...)</code>) into the rebuilt network 3 frames later — the re-inject ran (log line <code>restored gas to N rebuilt pipe network(s)</code>) but the rebuilt network's atmosphere still ended at <code>Oxygen=0 Nitrogen=0 Energy=0</code> in the resulting save. Could not distinguish between (a) the captured <code>GasMixture</code> struct not actually copying the gas, (b) <code>Atmosphere.Add</code> not taking, or &copy; a late queued <code>NetworkAtmosphereEvent.DivideNetworkAtmosphere</code> overwriting it — would need runtime instrumentation (log captured / before-Add / after-Add mole counts, and the <code>AtmosphericsManager</code> event drain). Also: the gas loss is <strong>not</strong> limited to networks made entirely of long variants — it happens even when a regular 1-cell pipe is at the end of the long run. So: a destroy-then-<code>SpawnConstruct</code> rebuild of a pipe run loses the run's gas, full stop. NetworkPuristPlus v1.0 therefore ships <strong>without</strong> gas preservation (the rebuilt single-tile pipes start empty; layout / rotation / colour / network connectivity ARE preserved); the gas-handling code was removed. A working fix is an open problem (likely: hook the <code>AtmosphericsManager</code> event-drain so you re-inject after all <code>DivideNetworkAtmosphere</code> events have processed, and <em>set</em> rather than <em>add</em> the rebuilt network's atmosphere; or place the single-tile replacements before destroying the long pipes so the network never dies). Cables and chutes carry no gas, so this only concerns <code>Pipe</code>-derived long variants.</p>
+</li>
+<li>
+<p>2026-05-31: extracted the serialized build costs (<code>BuildStates[0].Tool.EntryQuantity</code>), baked <code>SmartRotate.ConnectionType</code>, and ordered <code>Constructables</code> lists from <code>$(StationeersPath)\rocketstation_Data\resources.assets</code> via UnityPy + generated type tree (743 structure prefabs, 207 kits). Added two sections: "Build costs, connection types, and kit Constructables ordering" and "Can the merge cost delta num4 go negative? No (in vanilla)". Key facts, all NEW/additive (no contradiction with prior page content): 1-cell straight base = <code>Straight</code>(2)/cost 1 (NOT the C# default <code>Exhaustive</code>); long variants = <code>StraightAsymmetric</code>(3000)/cost &frac34;/8 (super-heavy cable 10-variant = 7, the one off-pattern cost); cable junctions cost 2-3 (so "all cables cost 1" is false); kit order is always <code>[0]</code> 1-cell straight, junctions in the middle, long variants appended last. Negative-<code>num4</code> analysis: vanilla <code>num4 in [0..2]</code>, never negative, blocked by three gates -- (1) the merged type can only be one of 8 junction/straight types so <code>cost(num2) in {1,2,3}</code>, never a long-variant cost; (2) <code>combined = Math.Max(permNew, permOld)</code> forces <code>popcount(M) &gt;= popcount(E)</code> so the merge only adds open ends and <code>cost(M) &gt;= cost(E)</code>; (3) <code>Piping.CanReplace</code> (363974) / <code>Cable._IsCollision</code> (371561) reject any merge where the existing or new piece carries <code>DontAllowMergingWithWrench</code> / <code>BlockMergeWithOtherCables</code>, so a long <code>StraightAsymmetric</code> piece can never be the existing piece <code>E</code>. Verified by faithful resolver simulation over a 24-cube-rotation superset of the game's <code>RotationsList</code> orbits. Scripts/outputs in <code>.work/2026-05-31-merge-num4-negative/</code>. Resolved the chute-kit open question (see below). Not a fresh-validator pass (all additive).</p>
+</li>
+<li>
+<p>2026-05-31 (later): confirmed the gate-3 "bypass <code>CanReplace</code>" caveat is NOT hypothetical -- it is the mechanism behind a reported ZoopMod + long-variant crash. The <code>CanConstruct</code>+<code>CanReplace</code> merge gate lives in <code>InventoryManager</code>'s <code>Update</code>-time placement loop (lines 270691-270733), gated by <code>flag2 &amp;&amp; KeyManager.GetMouseDown("Primary")</code>, BEFORE the private <code>UsePrimaryComplete()</code> (line 271013), which itself does no validation and calls <code>OnServer.UseMultiConstructor</code> directly (line 271019 -&gt; 6-arg <code>MultiConstructor.Construct</code>, <code>OnServer.UseMultiConstructor</code> at line 40078). ZoopMod (<code>ZoopBuildExecutor.BuildAll</code>, repo <code>github.com/Nivvdiy/ZoopModRecovered</code> commit <code>1f02493</code>) reflectively invokes <code>UsePrimaryComplete()</code> per cell, bypassing the gate, so it can merge onto a long <code>StraightAsymmetric</code> variant and drive <code>num4</code> negative (<code>1 - 3 = -2</code>). Added the "Confirmed bypass: ZoopMod via InventoryManager.UsePrimaryComplete" subsection (with the version note that on 0.2.6228.27061 the <code>OnUseItem</code> <code>RemoveRange</code> is <code>StackedGeneCollections</code>-gated, so a kit hits silent duplication rather than the throw on this exact build). NetworkPuristPlus's <code>Constructables</code> strip is protective (removes the merge target) when its toggles are on, not causal. Verified by direct decompile reads of <code>UsePrimaryComplete</code> / the placement loop / <code>OnServer.UseMultiConstructor</code> and the ZoopMod source. Not a fresh-validator pass (additive; consistent with the gate-3 caveat already on the page). See also <code>Research/GameClasses/Stackable.md</code>.</p>
+</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The exact <code>ToolExit</code> item for each kit (likely a wrench-class tool; <code>MergeRequiresTool</code> shows it as a coloured display name at runtime). Confirm by inspecting the kit prefabs in-game.</li>
-<li>How the chute kit exposes <code>StructureChuteStraight3/5/10</code> given <code>Chute</code> does not implement <code>IGridMergeable</code> — presumably as plain <code>Constructables</code> entries placed as-is (the <code>MultiMergeConstructor.Construct</code> merge path only handles <code>Piping</code> / <code>Cable</code> / <code>StructureFuselage</code>, so chute long variants must go through <code>base.Construct</code>), but the kit's serialized <code>Constructables</code> membership is unconfirmed.</li>
+<li><del>How the chute kit exposes <code>StructureChuteStraight3/5/10</code></del> RESOLVED 2026-05-31: they are plain <code>Constructables</code> entries (<code>ItemKitChute</code> indices 9/10/11, <code>StraightAsymmetric</code> type, cost &frac34;/8), placed as-is via <code>base.Construct</code> since <code>Chute</code> is not <code>IGridMergeable</code>. See "Build costs, connection types, and kit Constructables ordering".</li>
 </ul>
 
 
