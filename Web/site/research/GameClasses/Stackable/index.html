@@ -2680,10 +2680,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
+  <a href="#resolved-live-verified-on-the-dedicated-server-game-02622827061-2026-05-31" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Open questions
+        Resolved (live-verified on the dedicated server, game 0.2.6228.27061, 2026-05-31)
       
     </span>
   </a>
@@ -6987,10 +6987,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
+  <a href="#resolved-live-verified-on-the-dedicated-server-game-02622827061-2026-05-31" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Open questions
+        Resolved (live-verified on the dedicated server, game 0.2.6228.27061, 2026-05-31)
       
     </span>
   </a>
@@ -7087,16 +7087,18 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-30.
+           on 2026-05-31.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (5)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Items.Stackable'}</code></li>
+            
+              <li><code>{'DedicatedServer ScenarioRunner probe `merge-long-variant-num4` (live runtime read on game 0.2.6228.27061, 2026-05-31)': 'stock ItemKitPipe StackedGeneCollections != null; num4 = -2 on 5 merge-capable kits'}</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.MultiConstructor'}</code></li>
             
@@ -7156,7 +7158,7 @@
 
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Stackable</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Item</span><span class="p">,</span><span class="w"> </span><span class="n">IQuantity</span><span class="p">,</span><span class="w"> </span><span class="n">ITradable</span><span class="p">,</span><span class="w"> </span><span class="n">IEvaluable</span><span class="p">,</span><span class="w"> </span><span class="n">IReferencable</span><span class="p">,</span><span class="w"> </span><span class="n">IMergeable</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">GeneCollection</span><span class="o">&gt;</span><span class="w"> </span><span class="n">StackedGeneCollections</span><span class="p">;</span><span class="w">   </span><span class="c1">// null unless the stack carries genetics (Plant, seeds)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">GeneCollection</span><span class="o">&gt;</span><span class="w"> </span><span class="n">StackedGeneCollections</span><span class="p">;</span><span class="w">   </span><span class="c1">// non-null EMPTY list on every stackable (Unity serializes a public List&lt;T&gt; field as empty, not null); only Plant fills it</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="na">[Header(&quot;Stackable&quot;)]</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="na">[SerializeField]</span>
@@ -7186,7 +7188,7 @@
 </span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="p">}</span>
 </span></code></pre></div>
-<p><code>StackedGeneCollections</code> is normally <code>null</code>. It is allocated (<code>new List&lt;GeneCollection&gt;(MaxQuantity)</code>) only on the genetics-bearing subclass <code>Plant</code> (<code>Assets.Scripts.Objects.Items.Plant</code>, decompile line 337701 and via split/merge <code>range</code> assignment at 338438/338470/338495/338526). A plain construction kit prefab carries <code>StackedGeneCollections == null</code>. This matters for the crash condition below: the <code>RemoveRange</code> line only executes when <code>StackedGeneCollections != null</code>.</p>
+<p>The C# code only allocates it (<code>new List&lt;GeneCollection&gt;(MaxQuantity)</code>) on the genetics-bearing subclass <code>Plant</code> (<code>Assets.Scripts.Objects.Items.Plant</code>, decompile line 337701 and via split/merge <code>range</code> assignment at 338438/338470/338495/338526). <strong>But the field is a public serialized <code>List&lt;T&gt;</code> on a MonoBehaviour, and Unity deserializes such a field as a non-null EMPTY list, never null.</strong> So every stackable prefab/instance (ores, sheets, and the construction kits) carries <code>StackedGeneCollections != null</code> with <code>Count == 0</code>; only <code>Plant</code> ever puts entries in it. <strong>Live-verified on the dedicated server (game 0.2.6228.27061): a stock <code>ItemKitPipe</code> instance reports <code>StackedGeneCollections != null</code></strong> (ScenarioRunner <code>merge-long-variant-num4</code> probe). This is decisive for the crash below: the <code>RemoveRange</code> line runs on a plain kit (the <code>!= null</code> guard passes), so a negative <code>quantity</code> throws -- no genetics or mod carry-over needed. (An earlier draft of this page inferred <code>null</code> from the decompiled C# alone, where only <code>Plant</code> allocates it; the live runtime read corrected that.)</p>
 <p><code>Quantity</code>'s setter auto-destroys the stack at <code>Quantity &lt;= 0</code> (<code>DestroyItemAtZero</code>) when <code>RunSimulation</code>. A negative quantity passed to <code>OnUseItem</code> <em>increases</em> <code>Quantity</code> (see below), so it does not trip this guard.</p>
 <h2 id="onuseitem-and-the-negative-quantity-removerange-crash">OnUseItem and the negative-quantity RemoveRange crash<a class="headerlink" href="#onuseitem-and-the-negative-quantity-removerange-crash" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-30 -->
@@ -7250,7 +7252,7 @@
 <p>Two preconditions for the crash via this method:</p>
 <ol>
 <li><code>quantity &lt; 0</code> reaching <code>OnUseItem</code>. The producer is <code>MultiMergeConstructor.Construct</code> (next section).</li>
-<li><code>GameManager.RunSimulation == true</code> AND <code>StackedGeneCollections != null</code>. The <code>RunSimulation</code> half is satisfied on the host / single-player (and on the server processing the multi-construct). The <code>StackedGeneCollections != null</code> half is the open question: a plain kit prefab has it <code>null</code>, in which case the <code>RemoveRange</code> block is skipped and no crash occurs at this line. Because the reported stack trace lands on <code>Stackable.OnUseItem -&gt; List.RemoveRange</code>, the kit instance at crash time had a non-null <code>StackedGeneCollections</code> (or the negative-quantity bug is the same shape on a stackable that does carry one). See "Open questions".</li>
+<li><code>GameManager.RunSimulation == true</code> (host / single-player, or the server processing the multi-construct). The other half, <code>StackedGeneCollections != null</code>, holds for ANY stackable -- Unity serializes the field as a non-null empty list (live-verified on a stock <code>ItemKitPipe</code>, 0.2.6228.27061). With <code>Count == 0</code> and <code>quantity == -2</code>, the guard <code>0 - (-2) = 2 &gt;= 0</code> passes and <code>RemoveRange(2, -2)</code> throws on the negative <code>count</code>. The crash fires on a plain kit on the host; no mod is needed to populate the list.</li>
 </ol>
 <h2 id="multimergeconstructorconstruct-where-the-negative-quantity-comes-from">MultiMergeConstructor.Construct: where the negative quantity comes from<a class="headerlink" href="#multimergeconstructorconstruct-where-the-negative-quantity-comes-from" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-30 -->
@@ -7307,9 +7309,9 @@
 <ul>
 <li>A <code>MultiMergeConstructor</code> kit (pipe / Super-Heavy cable / fuselage form).</li>
 <li>A merge that resolves to a <code>connectionType</code> whose matching <code>Constructables</code> entry has a <em>lower</em> <code>BuildStates[0].Tool.EntryQuantity</code> than the existing piece's matching entry.</li>
-<li>The kit instance has a non-null <code>StackedGeneCollections</code> (so the <code>RemoveRange</code> line runs at all), on the host / single-player.</li>
+<li>On the host / single-player (<code>RunSimulation</code>). The <code>StackedGeneCollections != null</code> guard is always satisfied (Unity empty-list default, live-verified on a stock kit), so it never gates the crash.</li>
 </ul>
-<p>A batch/drag builder (ZoopMod-style) or a mod that injects extra <code>Constructables</code> variants with mismatched <code>EntryQuantity</code> values, or that repeats merges, is the most likely way to reach a cost-decreasing merge that vanilla play does not normally exercise. The "non-negative count" guard gap means the game has no defense once <code>num4 &lt; 0</code> reaches <code>OnUseItem</code>. The <code>StackedGeneCollections != null</code> precondition (genetics list on a construction kit) is unusual for a stock kit and is the part most plausibly introduced or enabled by a mod interaction; this is the unresolved piece (see Open questions). See <code>MultiMergeConstructor.md</code> for the ZoopMod placement-path notes (<code>InventoryManager.UsePrimaryComplete</code> -&gt; <code>CreateStructureMessage.Process</code> -&gt; <code>multiConstructor.Construct</code>), which is one route that re-runs <code>Construct</code> host-side without per-piece error recovery.</p>
+<p>A batch/drag builder (ZoopMod-style) is the realistic trigger: in normal interactive play the placement cursor's <code>CanReplace</code> / <code>_IsCollision</code> validation blocks merging onto a long (<code>StraightAsymmetric</code>) variant, but ZoopMod reflectively calls <code>InventoryManager.UsePrimaryComplete</code>, which performs no such validation, so the merge onto a long variant executes and <code>num4 = EntryQuantity(result) - EntryQuantity(long) &lt; 0</code> reaches <code>OnUseItem</code>. The "non-negative count" guard gap means the game has no defense once <code>num4 &lt; 0</code> reaches <code>OnUseItem</code>. The <code>StackedGeneCollections != null</code> guard is NOT a barrier: Unity gives every stackable a non-null empty list (live-verified on a stock <code>ItemKitPipe</code>, 0.2.6228.27061), so the negative <code>num4</code> reaches <code>RemoveRange</code> and throws on the host -- no mod is needed to populate the list. See <code>MultiMergeConstructor.md</code> "Confirmed bypass: ZoopMod via InventoryManager.UsePrimaryComplete" for the full placement-path analysis.</p>
 <h2 id="related-removerange-sites-not-the-crash-site">Related RemoveRange sites (NOT the crash site)<a class="headerlink" href="#related-removerange-sites-not-the-crash-site" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-30 -->
 
@@ -7323,11 +7325,13 @@
 
 <ul>
 <li>2026-05-30: page created while diagnosing an <code>ArgumentOutOfRangeException ("count")</code> from <code>List.RemoveRange</code> in <code>Stackable.OnUseItem</code> on the multi-construct code path (<code>OnServer.UseMultiConstructor</code> -&gt; <code>MultiMergeConstructor.Construct</code> -&gt; <code>MultiConstructor.Construct</code> -&gt; <code>Stackable.OnUseItem</code>). All bodies lifted verbatim from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> (<code>Stackable</code> class header 335033, <code>Stackable.OnUseItem</code> 335433-335453, <code>OnServer.UseMultiConstructor</code> 40078-40091, <code>MultiConstructor.Construct</code> arity-8 288278-288292, <code>MultiMergeConstructor.Construct</code> merge tail 288338-288458, <code>UseStackableMessage.Process</code> 259214-259223, <code>Plant.RemoveQuantity</code> 338383-338395). The <code>OnUseItem</code> guard gap (guards <code>index</code> via <code>Count - quantity &gt;= 0</code> but not <code>count = quantity &lt; 0</code>) confirmed against raw IL (<code>ilspycmd -t Assets.Scripts.Objects.Stackable -il</code>, method body IL_0042-IL_005e). Negative-quantity producer identified as <code>num4 = EntryQuantity(result) - EntryQuantity(existing)</code> in <code>MultiMergeConstructor.Construct</code>. Additive page; no existing page contradicted. Existing <code>MultiConstructor.md</code> and <code>MultiMergeConstructor.md</code> cover the <code>Construct</code> bodies up to the <code>OnUseItem(quantity, null)</code> call but not the <code>OnUseItem</code> body itself, so this page fills that gap and cross-links.</li>
+<li>2026-05-31: <strong>live-verified on the dedicated server (game 0.2.6228.27061)</strong> via a <code>ScenarioRunner</code> probe (<code>merge-long-variant-num4</code>), and a <strong>fresh-validator correction</strong>. The page previously stated a stock kit's <code>StackedGeneCollections</code> is <code>null</code> (inferred from the decompiled C#, where only <code>Plant</code> calls <code>new List&lt;&gt;</code>), treated the non-null requirement as a likely mod interaction, and said the negative <code>num4</code> would silently inflate <code>Quantity</code> rather than throw on this build. The runtime read overturns that: a public serialized <code>List&lt;T&gt;</code> field on a MonoBehaviour is deserialized by Unity as a non-null EMPTY list (never null), so a stock <code>ItemKitPipe</code> reports <code>StackedGeneCollections != null</code>. Therefore the negative-<code>num4</code> <code>RemoveRange(2, -2)</code> <strong>throws on a plain kit on the host with no mod needed</strong> -- the crash is not mod- or version-gated on this build. Also confirmed live: <code>num4 = EntryQuantity(StructurePipeStraight = 1) - EntryQuantity(StructurePipeStraight3 = 3) = -2</code> (and -3 / -7 for the 5 / 10 variants) on all 5 merge-capable kits (pipe, liquid pipe, insulated pipe, insulated-liquid pipe, super-heavy cable); chute kits carry the long entries but their base is not <code>IGridMergeable</code>, so the merge branch is never reached. And confirmed <code>NetworkPuristPlus</code>, when active, strips the <code>StraightAsymmetric</code> entries from those kits (<code>ItemKitPipe</code> 11 -&gt; 8 options), removing the merge-onto-long precondition (it is protective, not causal). Corrected: the class-shape comment, the <code>StackedGeneCollections</code> paragraph, both crash preconditions, the base-game-reachable section, and the open questions (now resolved below).</li>
 </ul>
-<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
+<h2 id="resolved-live-verified-on-the-dedicated-server-game-02622827061-2026-05-31">Resolved (live-verified on the dedicated server, game 0.2.6228.27061, 2026-05-31)<a class="headerlink" href="#resolved-live-verified-on-the-dedicated-server-game-02622827061-2026-05-31" title="Permanent link">&para;</a></h2>
+<p>ScenarioRunner probe <code>merge-long-variant-num4</code> reproduced the game's own <code>index</code>/<code>num2</code> resolution over the live kit <code>Constructables</code>, reading each entry's runtime <code>GetConnectionType()</code> + <code>BuildStates[0].Tool.EntryQuantity</code>:</p>
 <ul>
-<li>Whether a stock <code>MultiMergeConstructor</code> kit instance can have a non-null <code>StackedGeneCollections</code> at runtime, or whether the crash requires a mod/interaction to populate it. <code>StackedGeneCollections</code> is allocated only on <code>Plant</code> in vanilla; a plain kit should have it <code>null</code>, in which case the <code>RemoveRange</code> line is skipped and the negative quantity merely inflates <code>Quantity</code> (without throwing). The reported stack trace reaching <code>List.RemoveRange</code> means it was non-null at crash time; determining how (mod, save-state carryover, or a kit subclass that allocates it) needs runtime inspection (InspectorPlus: <code>types=[MultiMergeConstructor, MultiConstructor]</code>, <code>fields=[StackedGeneCollections, quantity, Constructables]</code> on the held kit before the merge that crashes).</li>
-<li>The exact in-game merge that yields <code>EntryQuantity(result) &lt; EntryQuantity(existing)</code>. Confirm by reading the <code>BuildStates[0].Tool.EntryQuantity</code> of each kit's <code>Constructables</code> variants (per-prefab serialized values, not in the DLL) and identifying which (existing-piece, combined-result) pair has a decreasing cost. A merge that downgrades a higher-outlet junction to a lower-cost straight/elbow is the likely shape.</li>
+<li><strong>A stock kit DOES have a non-null <code>StackedGeneCollections</code></strong> -- a non-null empty list (Unity serializes the public <code>List&lt;GeneCollection&gt;</code> field as empty, never null). A stock <code>ItemKitPipe</code> reported <code>StackedGeneCollections != null</code>. So the <code>RemoveRange</code> line runs and the negative <code>quantity</code> throws on a plain kit; no mod or genetics carry-over is required. (The prior "open question" assumed <code>null</code> from the decompiled C#; the runtime read overturned it. The earlier "silent <code>Quantity</code> inflation instead of a throw" reading was wrong for this build.)</li>
+<li><strong>The merge that yields the negative delta</strong> is "merge a single straight onto an existing long (<code>StraightAsymmetric</code>) variant." Live kit costs: <code>Constructables[0]</code> (the 1-cell <code>Straight</code> base) <code>EntryQuantity = 1</code>; the first <code>StraightAsymmetric</code> entry (<code>StructurePipeStraight3</code>) <code>EntryQuantity = 3</code>. A collinear merge resolves <code>num2</code> -&gt; idx 0 (cost 1) and <code>index</code> -&gt; idx 8 (cost 3), so <code>num4 = 1 - 3 = -2</code> (and -3 / -7 for the 5 / 10 variants). Confirmed on 5 merge-capable kits (pipe, liquid pipe, insulated pipe, insulated-liquid pipe, super-heavy cable). Chute kits carry the long entries but their base is not <code>IGridMergeable</code>, so the merge branch is never reached (placed as-is). See <code>MultiMergeConstructor.md</code> "Confirmed bypass" and "Build costs ...".</li>
 </ul>
 
 
