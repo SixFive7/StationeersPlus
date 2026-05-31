@@ -2304,13 +2304,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pressureexternal-the-pressure-cap" class="md-nav__link">
+  <a href="#pressureexternal-logic-writable-on-the-powered-vent-canlogicwrite-override" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PressureExternal (the pressure cap)
+        PressureExternal: logic-writable on the Powered Vent (CanLogicWrite override)
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="PressureExternal: logic-writable on the Powered Vent (CanLogicWrite override)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mode-changes-reset-pressureexternal-resetvent-set-pressureexternal-after-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode changes reset PressureExternal (ResetVent): set PressureExternal AFTER Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -7052,13 +7069,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pressureexternal-the-pressure-cap" class="md-nav__link">
+  <a href="#pressureexternal-logic-writable-on-the-powered-vent-canlogicwrite-override" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PressureExternal (the pressure cap)
+        PressureExternal: logic-writable on the Powered Vent (CanLogicWrite override)
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="PressureExternal: logic-writable on the Powered Vent (CanLogicWrite override)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mode-changes-reset-pressureexternal-resetvent-set-pressureexternal-after-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mode changes reset PressureExternal (ResetVent): set PressureExternal AFTER Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -7191,7 +7225,7 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (5)</summary>
           <ul>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Pipes.VentDirection (enum)'}</code></li>
@@ -7201,6 +7235,8 @@
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Pipes.PoweredVentSingleGrid.ExchangeWithWorld'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Pipes.ActiveVent.OnAtmosphericTick'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Pipes.PoweredVent (CanLogicRead, CanLogicWrite, GetLogicValue, SetLogicValue, ExternalPressure, InternalPressure, ResetVent)'}</code></li>
             
           </ul>
         </details>
@@ -7263,11 +7299,84 @@
 </span></code></pre></div>
 <p>where <code>atmosphere</code> is the cloned world/room atmosphere (<code>CloneGlobalAtmosphere(base.WorldGrid, 0L)</code>) and <code>targetAtmosphere =&gt; ConnectedPipeNetwork.Atmosphere</code>.</p>
 <p><code>PoweredVentSingleGrid.ExchangeWithWorld</code> and <code>ActiveVent.OnAtmosphericTick</code> use the identical pattern: <code>Inward</code> -&gt; <code>PumpGasToPipe</code>, <code>Outward</code> -&gt; <code>PumpGasToWorld</code>. The semantics are shared across the whole active-vent family.</p>
-<h2 id="pressureexternal-the-pressure-cap">PressureExternal (the pressure cap)<a class="headerlink" href="#pressureexternal-the-pressure-cap" title="Permanent link">&para;</a></h2>
+<h2 id="pressureexternal-logic-writable-on-the-powered-vent-canlogicwrite-override">PressureExternal: logic-writable on the Powered Vent (CanLogicWrite override)<a class="headerlink" href="#pressureexternal-logic-writable-on-the-powered-vent-canlogicwrite-override" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
-<p><code>LogicType.PressureExternal</code> maps to the vent's <code>ExternalPressure</code> field (<code>PoweredVent</code> exposes it as a readable/writable logic value; the property default seen on the related airlock-control class is <code>101f</code> kPa). It is the pressure target the vent pumps toward and is passed straight into the <code>PumpGasToPipe</code> / <code>PumpGasToWorld</code> / <code>InwardsPressureRequired</code> / <code>OutwardsPressureRequired</code> calls as the limit. A vent stops doing useful work once the relevant side reaches <code>ExternalPressure</code>.</p>
+<p><code>LogicType.PressureExternal</code> maps to the vent's <code>ExternalPressure</code> field. The Large Powered Vent (<code>PoweredVent</code> / <code>PoweredVentMultiGrid</code> / <code>PoweredVentSingleGrid</code>) <strong>overrides <code>CanLogicWrite</code> / <code>CanLogicRead</code> to expose <code>PressureExternal</code> directly</strong>. This is easy to miss and a common review error: the base <code>Logicable.CanLogicWrite</code> writable set is only <code>{Color, Activate, Open, Mode, Lock, On}</code> and does NOT include <code>PressureExternal</code>, so a chain-walk that stops at the base wrongly concludes the write is rejected. The <code>PoweredVent</code> override adds it (verbatim, decompile lines 364303-364349):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CanLogicRead</span><span class="p">(</span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">logicType</span><span class="p">)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Setting</span><span class="p">:</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Maximum</span><span class="p">:</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Ratio</span><span class="p">:</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">PressureExternal</span><span class="p">:</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">        </span><span class="c1">// &lt;-- readable</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="k">default</span><span class="p">:</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">CanLogicRead</span><span class="p">(</span><span class="n">logicType</span><span class="p">);</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CanLogicWrite</span><span class="p">(</span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="p">)</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="p">{</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">logicType</span><span class="p">)</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Setting</span><span class="p">:</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Maximum</span><span class="p">:</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">Ratio</span><span class="p">:</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">PressureExternal</span><span class="p">:</span>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">        </span><span class="c1">// &lt;-- writable</span>
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">    </span><span class="k">default</span><span class="p">:</span>
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">CanLogicWrite</span><span class="p">(</span><span class="n">logicType</span><span class="p">);</span>
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="p">}</span>
+</span><span id="__span-2-30"><a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>
+</span><span id="__span-2-31"><a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="nf">GetLogicValue</span><span class="p">(</span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="p">)</span>
+</span><span id="__span-2-32"><a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="p">{</span>
+</span><span id="__span-2-33"><a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">logicType</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">PressureExternal</span><span class="p">)</span>
+</span><span id="__span-2-34"><a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">ExternalPressure</span><span class="p">.</span><span class="n">ToDouble</span><span class="p">();</span>
+</span><span id="__span-2-35"><a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GetLogicValue</span><span class="p">(</span><span class="n">logicType</span><span class="p">);</span>
+</span><span id="__span-2-36"><a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a><span class="p">}</span>
+</span><span id="__span-2-37"><a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>
+</span><span id="__span-2-38"><a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetLogicValue</span><span class="p">(</span><span class="n">LogicType</span><span class="w"> </span><span class="n">logicType</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="k">value</span><span class="p">)</span>
+</span><span id="__span-2-39"><a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a><span class="p">{</span>
+</span><span id="__span-2-40"><a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">SetLogicValue</span><span class="p">(</span><span class="n">logicType</span><span class="p">,</span><span class="w"> </span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-2-41"><a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">logicType</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LogicType</span><span class="p">.</span><span class="n">PressureExternal</span><span class="p">)</span>
+</span><span id="__span-2-42"><a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a><span class="w">        </span><span class="n">ExternalPressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">PressurekPa</span><span class="p">(</span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-2-43"><a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>sb</code>/<code>sbn LARGE_POWERED_VENT ... PressureExternal &lt;value&gt;</code> <strong>does take effect</strong> on a Large Powered Vent; it is NOT silently rejected. The <code>ExternalPressure</code> setter clamps to <code>[Chemistry.Pressure.Minimum, Chemistry.Pressure.Maximum] = [0, 1000000]</code> kPa, so a write of <code>100000</code> is in range (not clamped). The field default is <code>_externalPressure = Chemistry.OneAtmosphere</code> (~101.325 kPa).</p>
+<p><code>ExternalPressure</code> is the pressure target the vent pumps toward, passed straight into the pump calls as the limit: <code>pressureToMove = Min(pressureToMove, ExternalPressure - worldPressure)</code> for Outward (<code>PumpGasToWorld</code>) and <code>Min(pressureToMove, worldPressure - ExternalPressure)</code> for Inward (<code>PumpGasToPipe</code>). A vent stops doing useful work once the relevant side reaches <code>ExternalPressure</code>.</p>
 <p>Setting <code>PressureExternal</code> to a very large number (IC10 scripts commonly write <code>100000</code>, i.e. 100000 kPa) effectively removes the cap so the vent keeps pumping until the source side is exhausted (vacuum on the Inward source, or the pipe is drained on the Outward source). This is the "unlimit the vent" idiom. There is no separate enable flag for unlimited mode; a large <code>PressureExternal</code> is the mechanism.</p>
+<h3 id="mode-changes-reset-pressureexternal-resetvent-set-pressureexternal-after-mode">Mode changes reset PressureExternal (ResetVent): set PressureExternal AFTER Mode<a class="headerlink" href="#mode-changes-reset-pressureexternal-resetvent-set-pressureexternal-after-mode" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+
+<p>Changing the vent's <code>Mode</code> calls <code>ResetVent()</code> synchronously (the <code>Mode</code> logic write routes through the interaction system to <code>OnInteractableUpdated</code>, which calls <code>ResetVent</code> when <code>interactable.Action == Mode</code>). <code>ResetVent</code> <strong>overwrites <code>ExternalPressure</code></strong> based on the new direction (decompile lines 364237-364252):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ResetVent</span><span class="p">()</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Mode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w">   </span><span class="c1">// Outward</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">            </span><span class="n">ExternalPressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">OneAtmosphere</span><span class="p">;</span><span class="w">   </span><span class="c1">// ~101.325 kPa</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">            </span><span class="n">InternalPressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PressurekPa</span><span class="p">.</span><span class="n">Zero</span><span class="p">;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="k">else</span><span class="w">             </span><span class="c1">// Inward</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">            </span><span class="n">ExternalPressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PressurekPa</span><span class="p">.</span><span class="n">Zero</span><span class="p">;</span><span class="w">          </span><span class="c1">// 0 -&gt; evacuates to vacuum</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">            </span><span class="n">InternalPressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DefaultMaxPressure</span><span class="p">;</span><span class="w">        </span><span class="c1">// 50662.5 kPa</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Note: on <code>PoweredVent</code>, <code>InternalPressure</code>'s setter is empty (<code>get =&gt; Chemistry.Pressure.Maximum; set { }</code>, lines 364188-364197), so the <code>InternalPressure = ...</code> assignments in <code>ResetVent</code> are no-ops; only <code>ExternalPressure</code> actually changes.</p>
+<p>Consequences for IC10:</p>
+<ul>
+<li>A script that wants a custom <code>PressureExternal</code> MUST write it AFTER the last <code>Mode</code> write to that vent, or the <code>Mode</code> write's <code>ResetVent</code> clobbers it back to the per-direction default. This is the real reason behind the common "set <code>Mode</code>, then re-set <code>PressureExternal</code>" idiom (often mislabeled a "yield bug"). No <code>yield</code> is required between the two writes: <code>ResetVent</code> fires synchronously during the <code>Mode</code> write, before any tick boundary, so <code>PressureExternal</code> written on the next line in the same tick survives.</li>
+<li>An Inward vent left at its post-<code>ResetVent</code> default (<code>ExternalPressure = 0</code>) evacuates its room all the way to vacuum with no explicit <code>PressureExternal</code> write. That is why pump-to-vacuum routines only need to raise <code>PressureExternal</code> on the Outward (fill) vent.</li>
+</ul>
 <h2 id="ic10-usage-notes">IC10 usage notes<a class="headerlink" href="#ic10-usage-notes" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
@@ -7279,6 +7388,7 @@
 
 <ul>
 <li>2026-05-31: page created from a read of Assembly-CSharp decompile (.work/decomp/0.2.6228.27061) while reviewing an IC10 airlock script. <code>VentDirection</code> enum, <code>PoweredVentMultiGrid.ExchangeWithWorld</code>, <code>PoweredVentSingleGrid.ExchangeWithWorld</code>, and <code>ActiveVent.OnAtmosphericTick</code> all read directly. Inward -&gt; PumpGasToPipe (room empties), Outward -&gt; PumpGasToWorld (room fills) confirmed across all three. Additive page; no prior content contradicted.</li>
+<li>2026-05-31: added "PressureExternal: logic-writable on the Powered Vent (CanLogicWrite override)" and "Mode changes reset PressureExternal (ResetVent)" sections from a direct read of <code>PoweredVent.CanLogicRead</code>/<code>CanLogicWrite</code>/<code>GetLogicValue</code>/<code>SetLogicValue</code>/<code>ExternalPressure</code>/<code>InternalPressure</code>/<code>ResetVent</code> (decompile lines 364171-364349). Records that <code>PoweredVent</code> overrides <code>CanLogicWrite</code> to return <code>true</code> for <code>PressureExternal</code> (so the IC10 write is NOT silently rejected on a Large Powered Vent, despite the base <code>Logicable</code> writable set excluding it), and that a <code>Mode</code> change synchronously resets <code>ExternalPressure</code> via <code>ResetVent</code> (Outward-&gt;1 atm, Inward-&gt;0), so <code>PressureExternal</code> must be written after the last <code>Mode</code> write. Resolved a reviewer conflict over whether the "unlimit the vent" write takes effect on the Large Powered Vent: it does. Additive; no prior claim on this page contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
