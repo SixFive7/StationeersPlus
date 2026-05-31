@@ -2,6 +2,9 @@
 
 Full version history for Network Purist Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.1.3: Guard against the ZoopMod long-piece merge crash
+- Added a safety guard for a crash that can hit when ZoopMod drag-builds a pipe or cable across an existing long straight piece (the 3, 5, and 10 segment variants). The game computes a negative item cost for that merge and the build crashes; the guard clamps the cost to zero so the build continues. The root cause is in ZoopMod and the base game and has been reported to the ZoopMod author. The guard runs whenever the mod is enabled, including with the long-piece removal toggles turned off, which is the setup that leaves long pieces in the game to trip over.
+
 ## v1.1.2: Settings descriptions corrected
 - Reworded the in-game settings descriptions, and the matching note in the Workshop description, so they no longer mention the build-time long-piece rewrite that was removed in v1.1.1. The behaviour is unchanged: long pieces are taken out of the build kits and rebuilt from single tiles when a save loads.
 
