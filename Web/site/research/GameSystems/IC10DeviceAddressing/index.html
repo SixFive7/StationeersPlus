@@ -29,7 +29,7 @@
     
     
       
-        <title>IC10 device addressing (pin, alias, ReferenceId) - StationeersPlus</title>
+        <title>IC10DeviceAddressing - StationeersPlus</title>
       
     
     
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              IC10 device addressing (pin, alias, ReferenceId)
+              IC10DeviceAddressing
             
           </span>
         </div>
@@ -559,6 +559,8 @@
   
     
     
+      
+        
       
         
       
@@ -1386,6 +1388,34 @@
     
   
     Device
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/DoorAirPass/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Door / Airlock CanAirPass (atmosphere gating) and the ForceFieldDoor mod override
   
 
     
@@ -2994,6 +3024,8 @@
       
         
       
+        
+      
     
     
     
@@ -3340,7 +3372,7 @@
   <span class="md-ellipsis">
     
   
-    IC10 device addressing (pin, alias, ReferenceId)
+    IC10DeviceAddressing
   
 
     
@@ -3358,7 +3390,7 @@
   <span class="md-ellipsis">
     
   
-    IC10 device addressing (pin, alias, ReferenceId)
+    IC10DeviceAddressing
   
 
     
@@ -3483,6 +3515,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#batch-read-empty-set-return-value-per-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch-read empty-set return value per mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3528,6 +3571,34 @@
     
   
     IC10 Execution Tick Rate and Yield Semantics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../IC10SourceLimits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IC10SourceLimits
   
 
     
@@ -7124,6 +7195,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#batch-read-empty-set-return-value-per-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch-read empty-set return value per mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7225,73 +7307,29 @@
               <article class="md-content__inner md-typeset">
                 
   
-    <aside class="research-meta" markdown>
-      
-        <p class="research-meta-type">
-          <strong>Category:</strong> GameSystems
-        </p>
-      
-      
-        <p class="research-meta-verified">
-          <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-26.
-        </p>
-      
-      
-      
-        <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
-          <ul>
-            
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.ProgrammableChip (parser switch, _L_Operation, _LD_Operation, _S_Operation, _SD_Operation, _Operation._MakeDeviceVariable, _Operation_I, syntax-help formatter)'}</code></li>
-            
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.ProgrammableChip (_BRDSE_Operation, _BRDNS_Operation, _BDSE_Operation, _BDNS_Operation, _SDSE_Operation, _SDNS_Operation)'}</code></li>
-            
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.ProgrammableChip (_PUSH_Operation, _POP_Operation, _StackPointerIndex, RETURN_ADDRESS_STRING / STACK_POINTER_STRING auto-aliases)'}</code></li>
-            
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.CircuitHousing.GetLogicableFromId'}</code></li>
-            
-          </ul>
-        </details>
-      
-      
-        <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
-          <ul>
-            
-              <li><code>./LogicType.md</code></li>
-            
-              <li><code>./IC10ExecutionTick.md</code></li>
-            
-          </ul>
-        </details>
-      
-    </aside>
-  
   
                   
 
-  <nav class="md-tags" >
-    
-      
-      
-      
-      
-        <span class="md-tag">ic10</span>
-      
-    
-      
-      
-      
-      
-        <span class="md-tag">logic</span>
-      
-    
-  </nav>
 
 
-
+<hr />
+<p>title: IC10 device addressing (pin, alias, ReferenceId)
+type: GameSystems
+created_in: 0.2.6228.27061
+verified_in: 0.2.6228.27061
+verified_at: 2026-05-31
+sources:
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Device.BatchRead (four overloads; per-mode empty-set return: Maximum=-Infinity, Average=NaN, Sum/Minimum=0)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip._LB_Operation / _LBN_Operation / _SB_Operation / _SBN_Operation.Execute (batch read/write dispatch; sb/sbn write every matching device, no BATCH_MODE operand)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (parser switch, _L_Operation, _LD_Operation, _S_Operation, _SD_Operation, _Operation._MakeDeviceVariable, _Operation_I, syntax-help formatter)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_BRDSE_Operation, _BRDNS_Operation, _BDSE_Operation, _BDNS_Operation, _SDSE_Operation, _SDNS_Operation)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_PUSH_Operation, _POP_Operation, _StackPointerIndex, RETURN_ADDRESS_STRING / STACK_POINTER_STRING auto-aliases)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.CircuitHousing.GetLogicableFromId
+related:
+  - ./LogicType.md
+  - ./IC10ExecutionTick.md
+tags: [ic10, logic]</p>
+<hr />
 <h1 id="ic10-device-addressing">IC10 device addressing<a class="headerlink" href="#ic10-device-addressing" title="Permanent link">&para;</a></h1>
 <p>IC10 supports three forms for the "which device" operand of read/write instructions: a pin reference (<code>d0</code>..<code>d5</code>, <code>dr0</code>..<code>dr5</code>, <code>db</code>), an alias defined via <code>alias</code>, or a numeric ReferenceId (<code>$hex</code> literal, decimal literal, or a register holding the value). Some opcodes accept all three forms, others are restricted to ReferenceId only.</p>
 <h2 id="opcode-list-and-accepted-device-operand-forms">Opcode list and accepted device-operand forms<a class="headerlink" href="#opcode-list-and-accepted-device-operand-forms" title="Permanent link">&para;</a></h2>
@@ -7611,16 +7649,105 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
 
 <p>Note the asymmetry: batch instructions (<code>sb</code>, <code>sbn</code>, <code>sbs</code>, <code>lb</code>, <code>lbn</code>, <code>lbs</code>, <code>lbns</code>) are <strong>silent no-ops on empty result sets</strong>. <code>sb PowerTransmitters On 1</code> with zero matching transmitters on the network does not throw; it just iterates an empty list. Reads (<code>lb</code>, <code>lbn</code>) with no match return <code>0</code> rather than throwing, controlled by the <code>BATCH_MODE</code> operand (Average / Sum / Minimum / Maximum). So the only addressing path that needs runtime existence guards is the <code>*d</code> family and <code>l</code>/<code>s</code>/<code>ls</code>/<code>ss</code>/<code>lr</code>/<code>get</code>/<code>put</code> when fed a numeric/register form (which dispatches to <code>GetLogicableFromId</code> and throws <code>DeviceNotFound</code> on null).</p>
+<blockquote>
+<p>Correction (2026-05-31): the claim above that reads "with no match return <code>0</code>" is only true for Sum and Minimum. The empty-set return value depends on the batch mode and is NOT uniformly 0 (Maximum returns <code>-Infinity</code>, Average returns <code>NaN</code>). See "Batch-read empty-set return value per mode" below for the per-mode breakdown read directly from <code>Device.BatchRead</code>. This sentence is left intact pending the fresh-validator pass logged in Open Questions.</p>
+</blockquote>
+<h2 id="batch-read-empty-set-return-value-per-mode">Batch-read empty-set return value per mode<a class="headerlink" href="#batch-read-empty-set-return-value-per-mode" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+
+<p>The four <code>Device.BatchRead</code> overloads (<code>Assembly-CSharp.dll :: Assets.Scripts.Objects.Device.BatchRead</code>, the <code>(method, LogicType, deviceHash, devices)</code> and <code>(method, LogicType, deviceHash, nameHash, devices)</code> forms that back <code>lb</code> / <code>lbn</code>, plus the two <code>LogicSlotType</code> forms for <code>lbs</code> / <code>lbns</code>) all share the same per-mode initialisation and empty-set handling. When ZERO devices in the batch list match the prefab hash (and name hash, for the <code>lbn</code> form), the accumulator loop body never executes and the seed value is returned as-is, except for the two modes that post-process the seed:</p>
+<table>
+<thead>
+<tr>
+<th><code>BATCH_MODE</code></th>
+<th>int</th>
+<th>Seed before loop</th>
+<th>Empty-set return</th>
+<th>Reset guard present?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Average</code></td>
+<td>0</td>
+<td><code>num2 = 0</code>, <code>num = 0</code></td>
+<td><strong><code>NaN</code></strong> (<code>0.0 / (double)0</code>)</td>
+<td>n/a (division by zero count)</td>
+</tr>
+<tr>
+<td><code>Sum</code></td>
+<td>1</td>
+<td><code>num2 = 0</code></td>
+<td><code>0</code></td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><code>Minimum</code></td>
+<td>2</td>
+<td><code>num2 = double.PositiveInfinity</code></td>
+<td><code>0</code></td>
+<td>YES: <code>if (num2 &gt;= double.PositiveInfinity) num2 = 0.0;</code></td>
+</tr>
+<tr>
+<td><code>Maximum</code></td>
+<td>3</td>
+<td><code>num2 = double.NegativeInfinity</code></td>
+<td><strong><code>-Infinity</code></strong></td>
+<td>NO (no symmetric reset)</td>
+</tr>
+</tbody>
+</table>
+<p>The asymmetry is the trap. <code>Minimum</code> explicitly resets its <code>+Infinity</code> sentinel back to <code>0</code> after the loop, but <code>Maximum</code> has <strong>no corresponding <code>if (num2 &lt;= double.NegativeInfinity) num2 = 0.0;</code></strong>, so the <code>-Infinity</code> sentinel leaks straight into the destination register. Verbatim <code>Maximum</code> branch (named overload, the unnamed overload is identical):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">case</span><span class="w"> </span><span class="n">LogicBatchMethod</span><span class="p">.</span><span class="n">Maximum</span><span class="p">:</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">double</span><span class="p">.</span><span class="n">NegativeInfinity</span><span class="p">;</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">devices</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">count</span><span class="o">--</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">        </span><span class="n">ILogicable</span><span class="w"> </span><span class="n">logicable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">devices</span><span class="p">[</span><span class="n">count</span><span class="p">];</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">logicable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">logicable</span><span class="p">.</span><span class="n">GetPrefabHash</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">deviceHash</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">logicable</span><span class="p">.</span><span class="n">GetNameHash</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">nameHash</span><span class="p">)</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">logicValue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">logicable</span><span class="p">.</span><span class="n">GetLogicValue</span><span class="p">(</span><span class="n">logicType</span><span class="p">);</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">logicValue</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">num2</span><span class="p">))</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">                </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">logicValue</span><span class="p">;</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">    </span><span class="k">break</span><span class="p">;</span><span class="w">   </span><span class="c1">// &lt;-- no reset; returns num2 == double.NegativeInfinity when nothing matched</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Contrast the <code>Minimum</code> branch, which does reset:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">case</span><span class="w"> </span><span class="n">LogicBatchMethod</span><span class="p">.</span><span class="n">Minimum</span><span class="p">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">double</span><span class="p">.</span><span class="n">PositiveInfinity</span><span class="p">;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="c1">// ... loop ...</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num2</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="kt">double</span><span class="p">.</span><span class="n">PositiveInfinity</span><span class="p">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">        </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="k">break</span><span class="p">;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Consequences for IC10 register values (registers are <code>double</code>, so <code>-Infinity</code> and <code>NaN</code> are representable and propagate):</p>
+<ul>
+<li><code>lb</code> / <code>lbn ... Maximum</code> against an empty match set yields <code>-Infinity</code>. A <code>bgtz</code> / <code>bgez</code> / <code>bltz</code> test against <code>-Infinity</code> behaves as the ordinary float comparison (<code>-Infinity &gt; 0</code> is false; <code>-Infinity &lt; anything-finite</code> is true). A <code>seq rX &lt;reg&gt; 0</code> equality test against <code>-Infinity</code> is <strong>false</strong>, so an "is this flag 0 / is the door closed" check built on <code>lbn ... Maximum</code> never sees the closed/zero state when the device is missing or misnamed.</li>
+<li><code>Average</code> against an empty match set yields <code>NaN</code>. Every comparison against <code>NaN</code> is false (<code>NaN &gt; 0</code>, <code>NaN &lt;= 0</code>, <code>NaN == 0</code> all false), so both branches of a conditional can fall through unexpectedly.</li>
+<li>Only <code>Sum</code> and <code>Minimum</code> give the intuitive <code>0</code> on an empty set.</li>
+</ul>
+<p>This is distinct from the write side: <code>sb</code> / <code>sbn</code> have no <code>BATCH_MODE</code> operand, iterate the whole batch list, and write to every device whose <code>GetPrefabHash()</code> (and <code>GetNameHash()</code> for <code>sbn</code>) matches. Zero matches is a genuine silent no-op (loop body never runs, no exception). A typo'd name hash or an unplaced device therefore makes the write vanish with no diagnostic.</p>
 <h2 id="verification-history">Verification History<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-04-26: Page created from decompiled <code>Assembly-CSharp.dll</code> (game version 0.2.6228.27061). Replaces an earlier draft of this page that cited a Steam Community forum post and contained a fabricated <code>sbns</code> opcode and an inaccurate description of <code>ld</code>/<code>sd</code> arity. Source for every claim is now the DLL paths in the frontmatter <code>sources</code> block.</li>
 <li>2026-04-26: Added "Existence-check opcodes for guarding ReferenceId addressing" and "Batch-op safety for missing devices" sections from <code>_BRDSE_Operation</code> / <code>_BRDNS_Operation</code> / <code>_BDSE_Operation</code> / <code>_BDNS_Operation</code> / <code>_SDSE_Operation</code> / <code>_SDNS_Operation</code> decompiles. Documents that all six existence checks route through <code>GetLogicableFromId</code> and therefore inherit the data-network membership constraint.</li>
 <li>2026-04-26: Added "<code>define</code> names work for <code>sd</code> but NOT for <code>brdns</code> / <code>bdns</code> / <code>bdse</code> / <code>brdse</code> / <code>sdse</code> / <code>sdns</code>" section. Discovered while debugging a real <code>brdns BasePowerTransmitter 2</code> failure ("incorrect variable") in a user script that used <code>define</code> to name device IDs. Root cause: <code>_MakeDeviceVariable</code> falls through to <code>DeviceAliasVariable</code>, whose <code>GetDevice</code> calls <code>GetAliasType</code> which only consults <code>_Aliases</code>, never <code>_Defines</code>. The dedicated <code>*d</code> opcodes (<code>ld</code>/<code>sd</code>/<code>getd</code>/<code>putd</code>) bypass <code>_MakeDeviceVariable</code> and use <code>IntValuedVariable</code> directly, which does consult <code>_Defines</code>, so <code>define</code> works there.</li>
 <li>2026-04-26: Added "Stack-driven iteration over a list of ReferenceIds" section from <code>_PUSH_Operation</code>, <code>_POP_Operation</code>, <code>_StackPointerIndex = 16</code>, and the <code>STACK_POINTER_STRING = "sp"</code> / <code>RETURN_ADDRESS_STRING = "ra"</code> constants plus the <code>_ALIAS_Operation(this, 0, "sp", "r16").Execute(0)</code> startup wiring. Documents the extensibility pattern (one <code>push $hex # name</code> line per ReferenceId at the top, fixed <code>pop</code>-loop below) for IC10 scripts that link N pairs of devices identically across networks.</li>
+<li>2026-05-31: Added "Batch-read empty-set return value per mode" section from a direct read of all four <code>Device.BatchRead</code> overloads. Establishes that the empty-set return is NOT uniformly 0: <code>Maximum</code> returns <code>double.NegativeInfinity</code> (no reset guard) and <code>Average</code> returns <code>NaN</code> (<code>0.0/0</code>), while only <code>Sum</code> and <code>Minimum</code> return <code>0</code>. This contradicts the blanket "Reads (<code>lb</code>, <code>lbn</code>) with no match return <code>0</code>" sentence in the older "Batch-op safety for missing devices" section (2026-04-26). Per Research/WORKFLOW.md Rule 3, changing the older verified sentence requires a fresh validator; this agent could not spawn one (running as a sub-agent with no Task tool). The new section was added as ADDITIVE content (allowed without a validator), the older sentence was annotated with a forward-pointing correction but left factually intact, and the conflict is logged in Open Questions for the fresh-validator pass. Also expanded the frontmatter <code>sources</code> to cite <code>Device.BatchRead</code> and the <code>_LB</code>/<code>_LBN</code>/<code>_SB</code>/<code>_SBN_Operation.Execute</code> dispatch confirming <code>lb</code>/<code>lbn</code> call <code>BatchRead</code> and <code>sb</code>/<code>sbn</code> write every matching device with no <code>BATCH_MODE</code> operand.</li>
 </ul>
 <h2 id="open-questions">Open Questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Behaviour of <code>ld</code> / <code>sd</code> when the supplied numeric id has bit 31 set (long ReferenceId outside <code>int.MinValue..int.MaxValue</code>). Decompile shows <code>int</code> narrowing at <code>_DeviceId.GetVariableValue</code> and at <code>GetLogicableFromId(int)</code>, but the runtime sign-extension / overflow path was not exercised. ReferenceIds in normal play fit in 32 bits, so the case may never arise.</li>
+<li>CONFLICT pending fresh-validator pass (raised 2026-05-31): the "Batch-op safety for missing devices" section (2026-04-26) states reads "with no match return <code>0</code>", but a direct read of <code>Device.BatchRead</code> shows the empty-set return is mode-dependent: <code>Maximum</code> returns <code>double.NegativeInfinity</code> and <code>Average</code> returns <code>NaN</code>; only <code>Sum</code> and <code>Minimum</code> return <code>0</code> (see the "Batch-read empty-set return value per mode" section). The newer section was added as additive content and the older sentence carries a forward-pointing correction note, but the older sentence has not been rewritten because Research/WORKFLOW.md Rule 3 requires a fresh sub-agent to change existing verified content and the discovering agent had no Task tool. Resolution step for the main agent: spawn a fresh validator with the bare question "what does <code>lb</code>/<code>lbn</code> with batch mode <code>Maximum</code> return into the destination register when zero devices on the IC10 data network match the prefab/name selector, in game version 0.2.6228.27061?", citing <code>Assembly-CSharp.dll :: Assets.Scripts.Objects.Device.BatchRead</code>. On a <code>-Infinity</code> verdict, rewrite the older sentence to point at the per-mode table and drop this entry.</li>
 </ul>
 
 
@@ -7628,9 +7755,6 @@
 
 
 
-
-  
-  
 
 
 
