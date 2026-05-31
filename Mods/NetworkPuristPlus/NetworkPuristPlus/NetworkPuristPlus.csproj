@@ -67,6 +67,7 @@
     <Compile Include="ReplaceLongPiecesOnLoadPatch.cs" />
     <Compile Include="CableRoll.cs" />
     <Compile Include="RewriteCableRollOnConstructPatch.cs" />
+    <Compile Include="ClampNegativeMergeQuantityPatch.cs" />
     <Compile Include="NormalizeCableRollOnLoadPatch.cs" />
     <Compile Include="HideLongVariantsStationpediaPatch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
