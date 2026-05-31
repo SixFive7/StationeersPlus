@@ -3,8 +3,10 @@ title: IC10 device addressing (pin, alias, ReferenceId)
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-26
+verified_at: 2026-05-31
 sources:
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Device.BatchRead (four overloads; per-mode empty-set return: Maximum=-Infinity, Average=NaN, Sum/Minimum=0)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip._LB_Operation / _LBN_Operation / _SB_Operation / _SBN_Operation.Execute (batch read/write dispatch; sb/sbn write every matching device, no BATCH_MODE operand)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (parser switch, _L_Operation, _LD_Operation, _S_Operation, _SD_Operation, _Operation._MakeDeviceVariable, _Operation_I, syntax-help formatter)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_BRDSE_Operation, _BRDNS_Operation, _BDSE_Operation, _BDNS_Operation, _SDSE_Operation, _SDNS_Operation)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ProgrammableChip (_PUSH_Operation, _POP_Operation, _StackPointerIndex, RETURN_ADDRESS_STRING / STACK_POINTER_STRING auto-aliases)
@@ -263,9 +265,68 @@ This pattern also resolves the `define`-vs-`alias` asymmetry from the previous s
 
 ## Batch-op safety for missing devices
 
-<!-- verified: 0.2.6228.27061 @ 2026-04-26 -->
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
-Note the asymmetry: batch instructions (`sb`, `sbn`, `sbs`, `lb`, `lbn`, `lbs`, `lbns`) are **silent no-ops on empty result sets**. `sb PowerTransmitters On 1` with zero matching transmitters on the network does not throw; it just iterates an empty list. Reads (`lb`, `lbn`) with no match return `0` rather than throwing, controlled by the `BATCH_MODE` operand (Average / Sum / Minimum / Maximum). So the only addressing path that needs runtime existence guards is the `*d` family and `l`/`s`/`ls`/`ss`/`lr`/`get`/`put` when fed a numeric/register form (which dispatches to `GetLogicableFromId` and throws `DeviceNotFound` on null).
+Note the asymmetry between writes and reads. On the WRITE side, batch instructions (`sb`, `sbn`, `sbs`) are **silent no-ops on empty result sets**: `sb PowerTransmitters On 1` with zero matching transmitters on the network does not throw; it just iterates an empty list. On the READ side (`lb`, `lbn`, `lbs`, `lbns`), an empty match set also does not throw, but the returned value is **mode-dependent and is NOT uniformly `0`**: only `Sum` and `Minimum` return `0`; `Maximum` returns `-Infinity` and `Average` returns `NaN` (verbatim source in "Batch-read empty-set return value per mode" below). So no batch op throws on a missing device, but a batch READ with `Maximum`/`Average` returns a poison value that silently corrupts the comparison it feeds. The addressing paths that actually THROW on a missing device (and therefore need an existence guard like `bdse`/`bdns`) are the `*d` family and `l`/`s`/`ls`/`ss`/`lr`/`get`/`put` when fed a numeric/register form (which dispatches to `GetLogicableFromId` and throws `DeviceNotFound` on null).
+
+## Batch-read empty-set return value per mode
+
+<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+
+The four `Device.BatchRead` overloads (`Assembly-CSharp.dll :: Assets.Scripts.Objects.Device.BatchRead`, the `(method, LogicType, deviceHash, devices)` and `(method, LogicType, deviceHash, nameHash, devices)` forms that back `lb` / `lbn`, plus the two `LogicSlotType` forms for `lbs` / `lbns`) all share the same per-mode initialisation and empty-set handling. When ZERO devices in the batch list match the prefab hash (and name hash, for the `lbn` form), the accumulator loop body never executes and the seed value is returned as-is, except for the two modes that post-process the seed:
+
+| `BATCH_MODE` | int | Seed before loop | Empty-set return | Reset guard present? |
+|---|---|---|---|---|
+| `Average` | 0 | `num2 = 0`, `num = 0` | **`NaN`** (`0.0 / (double)0`) | n/a (division by zero count) |
+| `Sum` | 1 | `num2 = 0` | `0` | n/a |
+| `Minimum` | 2 | `num2 = double.PositiveInfinity` | `0` | YES: `if (num2 >= double.PositiveInfinity) num2 = 0.0;` |
+| `Maximum` | 3 | `num2 = double.NegativeInfinity` | **`-Infinity`** | NO (no symmetric reset) |
+
+The asymmetry is the trap. `Minimum` explicitly resets its `+Infinity` sentinel back to `0` after the loop, but `Maximum` has **no corresponding `if (num2 <= double.NegativeInfinity) num2 = 0.0;`**, so the `-Infinity` sentinel leaks straight into the destination register. Verbatim `Maximum` branch (named overload, the unnamed overload is identical):
+
+```csharp
+case LogicBatchMethod.Maximum:
+{
+    num2 = double.NegativeInfinity;
+    int count = devices.Count;
+    while (count-- > 0)
+    {
+        ILogicable logicable = devices[count];
+        if (logicable != null && logicable.GetPrefabHash() == deviceHash && logicable.GetNameHash() == nameHash)
+        {
+            double logicValue = logicable.GetLogicValue(logicType);
+            if (!(logicValue <= num2))
+            {
+                num2 = logicValue;
+            }
+        }
+    }
+    break;   // <-- no reset; returns num2 == double.NegativeInfinity when nothing matched
+}
+```
+
+Contrast the `Minimum` branch, which does reset:
+
+```csharp
+case LogicBatchMethod.Minimum:
+{
+    num2 = double.PositiveInfinity;
+    // ... loop ...
+    if (num2 >= double.PositiveInfinity)
+    {
+        num2 = 0.0;
+    }
+    break;
+}
+```
+
+Consequences for IC10 register values (registers are `double`, so `-Infinity` and `NaN` are representable and propagate):
+
+- `lb` / `lbn ... Maximum` against an empty match set yields `-Infinity`. A `bgtz` / `bgez` / `bltz` test against `-Infinity` behaves as the ordinary float comparison (`-Infinity > 0` is false; `-Infinity < anything-finite` is true). A `seq rX <reg> 0` equality test against `-Infinity` is **false**, so an "is this flag 0 / is the door closed" check built on `lbn ... Maximum` never sees the closed/zero state when the device is missing or misnamed.
+- `Average` against an empty match set yields `NaN`. Every comparison against `NaN` is false (`NaN > 0`, `NaN <= 0`, `NaN == 0` all false), so both branches of a conditional can fall through unexpectedly.
+- Only `Sum` and `Minimum` give the intuitive `0` on an empty set.
+
+This is distinct from the write side: `sb` / `sbn` have no `BATCH_MODE` operand, iterate the whole batch list, and write to every device whose `GetPrefabHash()` (and `GetNameHash()` for `sbn`) matches. Zero matches is a genuine silent no-op (loop body never runs, no exception). A typo'd name hash or an unplaced device therefore makes the write vanish with no diagnostic.
 
 ## Verification History
 
@@ -273,6 +334,8 @@ Note the asymmetry: batch instructions (`sb`, `sbn`, `sbs`, `lb`, `lbn`, `lbs`, 
 - 2026-04-26: Added "Existence-check opcodes for guarding ReferenceId addressing" and "Batch-op safety for missing devices" sections from `_BRDSE_Operation` / `_BRDNS_Operation` / `_BDSE_Operation` / `_BDNS_Operation` / `_SDSE_Operation` / `_SDNS_Operation` decompiles. Documents that all six existence checks route through `GetLogicableFromId` and therefore inherit the data-network membership constraint.
 - 2026-04-26: Added "`define` names work for `sd` but NOT for `brdns` / `bdns` / `bdse` / `brdse` / `sdse` / `sdns`" section. Discovered while debugging a real `brdns BasePowerTransmitter 2` failure ("incorrect variable") in a user script that used `define` to name device IDs. Root cause: `_MakeDeviceVariable` falls through to `DeviceAliasVariable`, whose `GetDevice` calls `GetAliasType` which only consults `_Aliases`, never `_Defines`. The dedicated `*d` opcodes (`ld`/`sd`/`getd`/`putd`) bypass `_MakeDeviceVariable` and use `IntValuedVariable` directly, which does consult `_Defines`, so `define` works there.
 - 2026-04-26: Added "Stack-driven iteration over a list of ReferenceIds" section from `_PUSH_Operation`, `_POP_Operation`, `_StackPointerIndex = 16`, and the `STACK_POINTER_STRING = "sp"` / `RETURN_ADDRESS_STRING = "ra"` constants plus the `_ALIAS_Operation(this, 0, "sp", "r16").Execute(0)` startup wiring. Documents the extensibility pattern (one `push $hex # name` line per ReferenceId at the top, fixed `pop`-loop below) for IC10 scripts that link N pairs of devices identically across networks.
+- 2026-05-31: Added "Batch-read empty-set return value per mode" section from a direct read of all four `Device.BatchRead` overloads. Establishes that the empty-set return is NOT uniformly 0: `Maximum` returns `double.NegativeInfinity` (no reset guard) and `Average` returns `NaN` (`0.0/0`), while only `Sum` and `Minimum` return `0`. This contradicts the blanket "Reads (`lb`, `lbn`) with no match return `0`" sentence in the older "Batch-op safety for missing devices" section (2026-04-26). Per Research/WORKFLOW.md Rule 3, changing the older verified sentence requires a fresh validator; this agent could not spawn one (running as a sub-agent with no Task tool). The new section was added as ADDITIVE content (allowed without a validator), the older sentence was annotated with a forward-pointing correction but left factually intact, and the conflict is logged in Open Questions for the fresh-validator pass. Also expanded the frontmatter `sources` to cite `Device.BatchRead` and the `_LB`/`_LBN`/`_SB`/`_SBN_Operation.Execute` dispatch confirming `lb`/`lbn` call `BatchRead` and `sb`/`sbn` write every matching device with no `BATCH_MODE` operand.
+- 2026-05-31: Fresh-validator resolution (main agent re-read all four `Device.BatchRead` overloads directly at `Assembly-CSharp.decompiled.cs` lines 349820-349960). CONFIRMED the empty-set return: `Maximum` = `double.NegativeInfinity` (the `case` `break`s with no post-loop reset), `Average` = `NaN` (`num2 /= (double)num` with `num == 0`), `Sum` = `0`, `Minimum` = `0` (explicit `if (num2 >= double.PositiveInfinity) num2 = 0.0;` reset). The older "reads with no match return `0`" sentence in "Batch-op safety for missing devices" has been rewritten to the mode-dependent statement and restamped; the conflicting Open Question is resolved and removed.
 
 ## Open Questions
 
