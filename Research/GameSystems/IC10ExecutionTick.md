@@ -12,6 +12,7 @@ sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager
 related:
   - GameSystems/AtmosphericTick.md
+  - GameSystems/IC10Stack.md
   - GameClasses/ProgrammableChip.md
 tags: [ic10, logic, power]
 ---
