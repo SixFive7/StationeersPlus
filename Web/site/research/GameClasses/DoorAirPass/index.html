@@ -1514,10 +1514,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ic10-implication" class="md-nav__link">
+  <a href="#ic10-implication-and-how-on-only-control-behaves-resolved" class="md-nav__link">
     <span class="md-ellipsis">
       
-        IC10 implication
+        IC10 implication, and how On-only control behaves (resolved)
       
     </span>
   </a>
@@ -7085,10 +7085,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ic10-implication" class="md-nav__link">
+  <a href="#ic10-implication-and-how-on-only-control-behaves-resolved" class="md-nav__link">
     <span class="md-ellipsis">
       
-        IC10 implication
+        IC10 implication, and how On-only control behaves (resolved)
       
     </span>
   </a>
@@ -7367,22 +7367,28 @@
 </span></code></pre></div>
 <p>Field constants: <code>POWERUSAGE_BASE = 100</code>, <code>POWERUSAGE_MAX = 100000</code>, <code>POWERUSAGE_RATE = 10</code>, <code>FLUCTUATES = true</code>. <code>_facingGrid</code>/<code>_rearGrid</code> are the two world grids 0.1 units in front of / behind the door, set in <code>OnRegistered</code>. So a closed, powered force field separating vacuum from 1 atm (~101 kPa delta) draws on the order of <code>100 + 101*10 ≈ 1110 W</code> plus jitter; the harder the pressure delta, the more power, capped at 100 kW.</p>
 <p>This confirms the design intent: the force field is meant to hold a pressure differential with blast doors open, at a power cost proportional to the delta. It is a real atmosphere barrier (while closed and powered), not a cosmetic effect.</p>
-<h2 id="ic10-implication">IC10 implication<a class="headerlink" href="#ic10-implication" title="Permanent link">&para;</a></h2>
+<h2 id="ic10-implication-and-how-on-only-control-behaves-resolved">IC10 implication, and how <code>On</code>-only control behaves (resolved)<a class="headerlink" href="#ic10-implication-and-how-on-only-control-behaves-resolved" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
-<p>For any door (blast or force field), the atmosphere-relevant control is <code>LogicType.Open</code> (drives <code>IsOpen</code>). <code>LogicType.On</code>/<code>Power</code> is the power switch. A controller that means "open the airlock" must write <code>Open</code>, and one that means "raise the force field to seal" must ensure the leaf is closed (<code>Open 0</code>) and the door powered, not merely toggle <code>On</code>. Confirm the specific <code>On</code>-vs-<code>Open</code> coupling of the force field mod before relying on <code>On</code> to gate atmosphere.</p>
+<p>For any door (blast or force field), the atmosphere-relevant control is <code>LogicType.Open</code> (drives <code>IsOpen</code>). <code>LogicType.On</code>/<code>Power</code> is the power switch.</p>
+<p>Resolved from a full read of <code>ForceFieldDoorMod.decompiled.cs</code>: <code>ForceFieldDoor.OnInteractableUpdated</code> calls <code>PoweredChanged()</code> after the base <code>Door</code> handler, and <code>PoweredChanged</code> does <code>_open = IsOpen</code> (the <code>if (!Powered) _open = true;</code> first line is immediately overwritten and is dead). So ANY interaction, including an <code>On</code>/OnOff logic write, re-syncs <code>_open</code> to the current <code>IsOpen</code>. Consequences:</p>
+<ul>
+<li><strong>If the leaf is CLOSED (<code>IsOpen == false</code>) and stays closed</strong>, <code>_open</code> is false after the next interaction and <code>CanAirPass</code> reduces to <code>!Powered</code>. In that state <code>On</code> alone DOES gate atmosphere: <code>On 1</code> (powered) seals the field, <code>On 0</code> (unpowered) drops it. A controller that drives the field purely with <code>On</code> therefore works, provided the leaf is never opened.</li>
+<li><strong>Why <code>On</code>-only control is fragile:</strong> (1) <code>_open</code> initializes to <code>true</code> (field down / air passes) until the first <code>OnInteractableUpdated</code>, so there is a placement/power-up window where the field does not seal regardless of power. (2) If anything ever sets <code>IsOpen == true</code> (a player opening the leaf, or an <code>Open 1</code> write), <code>_open</code> becomes true and <code>CanAirPass</code> returns true regardless of power; <code>On 1</code> can no longer re-seal it, and a controller with no <code>Open 0</code> write cannot recover. Robust approach: write <code>Open 0</code> explicitly at setup, and/or drive the field with <code>Open</code> rather than <code>On</code>.</li>
+<li>The unpowered case is carried by the <code>!Powered</code> term in <code>CanAirPass</code> directly, so the dead <code>if (!Powered) _open = true;</code> line in <code>PoweredChanged</code> does not matter: losing power makes <code>CanAirPass</code> return true (field drops) whether or not <code>_open</code> was refreshed.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- append-only -->
 
 <ul>
 <li>2026-05-31: Page created while adversarially reviewing an IC10 airlock+forcefield script that drives the force field door with <code>LogicType.On</code>. Read <code>Structure.CanAirPass</code>/<code>NeverAirPass</code>, <code>Door.CanAirPass</code>/<code>IsOpen</code>, and the <code>LogicType.Open</code> vs <code>LogicType.Power</code> comparison path from Assembly-CSharp v0.2.6228.27061. Read <code>ForceFieldDoorMod.ForceFieldDoor</code> (CanAirPass / OnAtmosphericTick / PoweredChanged / OnRegistered) from the third-party mod decompile at .work/decomp/0.2.6228.27061/ForceFieldDoorMod.decompiled.cs. Additive page; no prior Door/Airlock page existed, nothing contradicted.</li>
+<li>2026-05-31: Resolved both Open Questions after a full read of <code>ForceFieldDoorMod.decompiled.cs</code>. <code>OnInteractableUpdated</code> overrides to call base <code>Door.OnInteractableUpdated</code> then <code>PoweredChanged()</code>, and <code>PoweredChanged</code> sets <code>_open = IsOpen</code> unconditionally (the <code>if (!Powered) _open = true;</code> first line is dead). So an <code>On</code>/OnOff logic write re-syncs <code>_open</code> to <code>IsOpen</code>: with the leaf closed (<code>IsOpen == false</code>), <code>CanAirPass</code> reduces to <code>!Powered</code>, so <code>On</code> alone gates atmosphere (works, but fragile: <code>_open</code> defaults <code>true</code> until the first interaction, and an opened leaf cannot be re-sealed with <code>On</code> alone). The <code>!Powered</code> term in <code>CanAirPass</code> independently carries the unpowered case. Updated "IC10 implication" section accordingly; no contradiction of prior content (the page previously flagged these as untraced).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
 <ul>
-<li>How <code>ForceFieldDoor</code> couples <code>OnOff</code> (<code>LogicType.On</code>) to <code>IsOpen</code>/<code>_open</code>. <code>PoweredChanged</code> reads <code>IsOpen</code> into <code>_open</code>, and <code>Powered</code> is one of the two <code>CanAirPass</code> conditions, but whether writing <code>On 0</code>/<code>On 1</code> over logic reliably produces "field down / field up" (vs only changing the power flag while the leaf state and <code>_open</code> lag) was not traced through the mod's <code>OnOff</code> setter and animator wiring. A controller relying on <code>On</code> to gate atmosphere should be validated in-game.</li>
-<li>The <code>PoweredChanged</code> body reassigns <code>_open = IsOpen</code> unconditionally after the <code>if (!Powered) _open = true;</code> line, making the power branch dead in that method. Whether <code>_open</code> is also forced true elsewhere when power is lost (so <code>CanAirPass</code>'s <code>!Powered</code> term is what actually carries the unpowered case) was not traced.</li>
+<li>None. Both prior questions (the <code>On</code>-vs-<code>Open</code>/<code>IsOpen</code> coupling, and whether the <code>!Powered</code> term carries the unpowered case given the dead <code>if (!Powered) _open = true;</code> line) were resolved 2026-05-31 by a full read of <code>ForceFieldDoorMod.decompiled.cs</code>; see the "IC10 implication, and how <code>On</code>-only control behaves" section.</li>
 </ul>
 
 
