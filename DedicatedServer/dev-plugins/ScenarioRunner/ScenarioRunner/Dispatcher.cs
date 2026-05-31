@@ -109,6 +109,14 @@ namespace ScenarioRunner
                     Scenario_PowerPrefabDump();
                     return;
 
+                case "merge-long-variant-num4":
+                    Scenario_MergeLongVariantNum4();
+                    return;
+
+                case "clamp-merge-quantity":
+                    Scenario_ClampMergeQuantity();
+                    return;
+
                 case "pgp-transformer-conservation":
                     Scenario_PgpTransformerConservation();
                     return;
@@ -381,6 +389,266 @@ namespace ScenarioRunner
             {
                 return "unknown";
             }
+        }
+
+        // ---- General scenario: merge-long-variant-num4 ----
+        //
+        // Reproduces, on the LIVE binary, the negative merge-cost delta (num4) that
+        // MultiMergeConstructor.Construct computes when a merge resolves onto an existing
+        // LONG (StraightAsymmetric) variant. The game does:
+        //   index = first Constructables entry whose GetConnectionType() == existing piece's type
+        //   num2  = first Constructables entry whose GetConnectionType() == merged type
+        //   num4  = Constructables[num2].BuildStates[0].Tool.EntryQuantity
+        //         - Constructables[index].BuildStates[0].Tool.EntryQuantity   (consumed from the kit stack)
+        // Merging a single straight onto an existing long straight gives a collinear merged
+        // type of Straight (num2 = the 1-cell base, cost 1) and an existing type of
+        // StraightAsymmetric (index = the first long variant, cost 3) -> num4 = -2.
+        //
+        // This scenario does NOT spawn or merge: the sim-tick pump runs on a UniTask worker
+        // where structure spawning / Unity APIs are unsafe. It reproduces the exact resolution
+        // and arithmetic over the live kit prefabs using the game's OWN GetConnectionType() and
+        // EntryQuantity, so it confirms on the running binary:
+        //   - vanilla: long-variant kits carry StraightAsymmetric entries -> num4 = -2.
+        //   - NetworkPuristPlus active: those entries are stripped at prefab-load -> no
+        //     StraightAsymmetric entry -> the merge-onto-long precondition is unreachable.
+        // It also logs each kit's runtime base connType (settles "is the base Straight or the
+        // C# default Exhaustive at runtime") and whether StackedGeneCollections is null. On this
+        // build the OnUseItem RemoveRange that throws is gated by StackedGeneCollections != null
+        // (plant-only), so a null list means the negative num4 silently duplicates here rather
+        // than throwing -- the symptom is version-dependent, the negative is not.
+        //
+        // Threading: all reads are managed-state only (Prefab.AllPrefabs iteration, reflected
+        // GetConnectionType()/EntryQuantity/field reads). No Unity API calls -> worker-safe.
+
+        private static bool _mlvFired;
+
+        private static void Scenario_MergeLongVariantNum4()
+        {
+            if (_mlvFired) return;
+            _mlvFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] MLV START merge-long-variant-num4");
+
+                // Direct prefab probe: read the RUNTIME connType + EntryQuantity for known base/long
+                // pairs straight from Prefab.AllPrefabs. Robust regardless of kit/NPP state -- NPP strips
+                // the long variants from kit Constructables and hides them from Stationpedia, but does NOT
+                // delete the prefabs, so these reads return ground truth even with NPP active. num4 for a
+                // merge of a single base onto this long = EQ(base, the collinear Straight result) - EQ(long).
+                string[][] fams = new[]
+                {
+                    new[] { "StructurePipeStraight", "StructurePipeStraight3", "StructurePipeStraight5", "StructurePipeStraight10" },
+                    new[] { "StructureChuteStraight", "StructureChuteStraight3", "StructureChuteStraight5", "StructureChuteStraight10" },
+                    new[] { "StructureCableSuperHeavyStraight", "StructureCableSuperHeavyStraight3", "StructureCableSuperHeavyStraight5", "StructureCableSuperHeavyStraight10" },
+                };
+                foreach (var fam in fams)
+                {
+                    var bp = Prefab.Find(fam[0]) as Structure;
+                    if (bp == null) { _log?.LogInfo($"[ScenarioRunner] MLV DIRECT base {fam[0]} NOT FOUND"); continue; }
+                    int eqB = MlvEntryQty(bp);
+                    _log?.LogInfo($"[ScenarioRunner] MLV DIRECT base {bp.PrefabName} connType={MlvConnType(bp)} EQ={eqB} mergeCapable={MlvIsGridMergeable(bp)}");
+                    for (int j = 1; j < fam.Length; j++)
+                    {
+                        var lp = Prefab.Find(fam[j]) as Structure;
+                        if (lp == null) { _log?.LogInfo($"[ScenarioRunner] MLV DIRECT long {fam[j]} NOT FOUND"); continue; }
+                        int eqL = MlvEntryQty(lp);
+                        _log?.LogInfo($"[ScenarioRunner] MLV DIRECT long {lp.PrefabName} connType={MlvConnType(lp)} EQ={eqL} => num4(merge base onto this long) = EQ(base {eqB}) - EQ(long {eqL}) = {eqB - eqL} [{((eqB - eqL) < 0 ? "NEGATIVE" : "ok")}]");
+                    }
+                }
+
+                // Targeted full dump of ItemKitPipe entries (the actual resolution inputs the merge uses).
+                var pipeKit = Prefab.Find("ItemKitPipe") as MultiConstructor;
+                if (pipeKit != null && pipeKit.Constructables != null)
+                {
+                    _log?.LogInfo($"[ScenarioRunner] MLV KITDUMP ItemKitPipe cons={pipeKit.Constructables.Count} (NPP strips the StraightAsymmetric entries; their presence here means NPP did NOT run):");
+                    for (int i = 0; i < pipeKit.Constructables.Count; i++)
+                    {
+                        var e = pipeKit.Constructables[i];
+                        if (e == null) { _log?.LogInfo($"[ScenarioRunner] MLV KITDUMP   [{i}] <null>"); continue; }
+                        _log?.LogInfo($"[ScenarioRunner] MLV KITDUMP   [{i}] {e.PrefabName} connType={MlvConnType(e)} EQ={MlvEntryQty(e)}");
+                    }
+                }
+
+                int kitsWithLong = 0, mergeCapableWithLong = 0, negKits = 0;
+
+                foreach (var prefab in Prefab.AllPrefabs)
+                {
+                    if (prefab == null) continue;
+                    if (!(prefab is MultiConstructor kit)) continue;
+                    var cons = kit.Constructables;
+                    if (cons == null || cons.Count == 0) continue;
+
+                    int idxFirstStraight = -1, idxFirstAsym = -1, asymCount = 0;
+                    for (int i = 0; i < cons.Count; i++)
+                    {
+                        if (cons[i] == null) continue;
+                        var ct = MlvConnType(cons[i]);
+                        if (ct == "Straight" && idxFirstStraight < 0) idxFirstStraight = i;
+                        if (ct == "StraightAsymmetric") { asymCount++; if (idxFirstAsym < 0) idxFirstAsym = i; }
+                    }
+
+                    if (asymCount == 0) continue; // only the long-variant kits matter here
+                    kitsWithLong++;
+
+                    var baseS = cons[0];
+                    int eqBase = MlvEntryQty(baseS);
+                    int eqStraight = idxFirstStraight >= 0 ? MlvEntryQty(cons[idxFirstStraight]) : eqBase;
+                    int eqAsym = MlvEntryQty(cons[idxFirstAsym]);
+                    bool mergeCapable = MlvIsGridMergeable(baseS);
+                    bool sgcNull = MlvStackedGeneCollectionsNull(kit);
+
+                    if (!mergeCapable)
+                    {
+                        _log?.LogInfo(
+                            $"[ScenarioRunner] MLV kit={kit.PrefabName} cons={cons.Count} asymEntries={asymCount} " +
+                            $"base[0]={baseS.PrefabName}/connType={MlvConnType(baseS)}/EQ{eqBase} mergeCapable=FALSE " +
+                            "(base not IGridMergeable; e.g. Chute) -> long variants placed as-is, merge branch never reached, no num4 path.");
+                        continue;
+                    }
+
+                    mergeCapableWithLong++;
+                    // existing piece = long (StraightAsymmetric) -> index = idxFirstAsym (cost eqAsym).
+                    // collinear merge result = Straight -> num2 = idxFirstStraight (1-cell base, cost eqStraight).
+                    int num4 = eqStraight - eqAsym;
+                    if (num4 < 0) negKits++;
+
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] MLV kit={kit.PrefabName} cons={cons.Count} mergeCapable=TRUE asymEntries={asymCount} " +
+                        $"base[0]={baseS.PrefabName}/connType={MlvConnType(baseS)}/EQ{eqBase} " +
+                        $"firstStraight=idx{idxFirstStraight}/EQ{eqStraight} " +
+                        $"firstStraightAsym=idx{idxFirstAsym}/{cons[idxFirstAsym].PrefabName}/EQ{eqAsym} " +
+                        $"=> MERGE-ONTO-LONG num4 = EQ(result Straight {eqStraight}) - EQ(existing StraightAsym {eqAsym}) = {num4} " +
+                        $"[{(num4 < 0 ? "NEGATIVE" : "non-negative")}] | StackedGeneCollectionsNull={sgcNull} " +
+                        $"[{(sgcNull ? "this build: neg num4 SKIPS RemoveRange (StackedGeneCollections-gated) -> silent Quantity++ duplication" : "this build: neg num4 reaches RemoveRange -> ArgumentOutOfRangeException")}]");
+                }
+
+                _log?.LogInfo($"[ScenarioRunner] MLV END kitsWithLongVariants={kitsWithLong} mergeCapableWithLong={mergeCapableWithLong} kitsWithNegativeNum4={negKits}");
+                if (kitsWithLong == 0)
+                    _log?.LogInfo("[ScenarioRunner] MLV RESULT: no kit has any StraightAsymmetric (long) entry -> the merge-onto-long precondition is UNREACHABLE across every kit. Consistent with NetworkPuristPlus having stripped them (PROTECTIVE), or a build with no long variants.");
+                else if (negKits > 0)
+                    _log?.LogInfo($"[ScenarioRunner] MLV RESULT: {negKits} merge-capable kit(s) compute a NEGATIVE num4 when a merge resolves onto their long variant -- the crash arithmetic, CONFIRMED on the live binary. In vanilla the cursor's CanReplace/_IsCollision gate blocks this merge; ZoopMod's UsePrimaryComplete bypasses that gate, so the negative reaches Stackable.OnUseItem.");
+                else
+                    _log?.LogInfo("[ScenarioRunner] MLV RESULT: long variants present but no negative num4 computed (unexpected -- check costs/types above).");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] MLV threw: {e}");
+            }
+        }
+
+        private static string MlvConnType(object s)
+        {
+            try
+            {
+                var m = s.GetType().GetMethod("GetConnectionType",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                    null, System.Type.EmptyTypes, null);
+                if (m != null) { var v = m.Invoke(s, null); return v?.ToString() ?? "null"; }
+                var f = s.GetType().GetField("ConnectionType",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var fv = f?.GetValue(s);
+                return fv?.ToString() ?? "n/a";
+            }
+            catch { return "err"; }
+        }
+
+        private static int MlvEntryQty(object structure)
+        {
+            try
+            {
+                object bsObj = structure.GetType().GetProperty("BuildStates")?.GetValue(structure)
+                    ?? structure.GetType().GetField("BuildStates")?.GetValue(structure);
+                var list = bsObj as System.Collections.IList;
+                if (list == null || list.Count == 0) return -999;
+                var bs0 = list[0];
+                if (bs0 == null) return -999;
+                var toolObj = bs0.GetType().GetField("Tool")?.GetValue(bs0)
+                    ?? bs0.GetType().GetProperty("Tool")?.GetValue(bs0);
+                if (toolObj == null) return -998;
+                var eqObj = toolObj.GetType().GetField("EntryQuantity")?.GetValue(toolObj)
+                    ?? toolObj.GetType().GetProperty("EntryQuantity")?.GetValue(toolObj);
+                return eqObj is int i ? i : -997;
+            }
+            catch { return -996; }
+        }
+
+        private static bool MlvIsGridMergeable(object o)
+        {
+            if (o == null) return false;
+            foreach (var i in o.GetType().GetInterfaces())
+                if (i.Name == "IGridMergeable") return true;
+            return false;
+        }
+
+        private static bool MlvStackedGeneCollectionsNull(object kit)
+        {
+            try
+            {
+                var f = kit.GetType().GetField("StackedGeneCollections",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (f == null) return true; // field absent -> treat as null
+                return f.GetValue(kit) == null;
+            }
+            catch { return true; }
+        }
+
+        // ---- General scenario: clamp-merge-quantity ----
+        //
+        // Verifies the Network Purist Plus crash guard (ClampNegativeMergeQuantityPatch). It does NOT drive
+        // a real merge (the sim-tick pump is a worker thread; constructing spawns Unity objects and is
+        // unsafe there). It confirms, on the live binary:
+        //   1. A stock ItemKitPipe's StackedGeneCollections is non-null at runtime (Unity serializes the
+        //      public List<T> field as an empty list, not null), so a negative merge quantity WOULD reach
+        //      Stackable.OnUseItem's RemoveRange and throw on this build -- i.e. the guard is needed.
+        //   2. The clamp prefix (ClampNegativeMergeQuantityPatch) is registered on the 7-arg
+        //      MultiConstructor.Construct, alongside the existing cable-roll prefix
+        //      (RewriteCableRollOnMultiConstruct) -- both coexist on the same method.
+        // The end-to-end "zoop over a long with the guard active -> no crash" is a client playtest; this
+        // covers everything checkable headless. Managed reflection only; worker-safe.
+
+        private static bool _clampFired;
+
+        private static void Scenario_ClampMergeQuantity()
+        {
+            if (_clampFired) return;
+            _clampFired = true;
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] CLAMP START clamp-merge-quantity");
+
+                var pipeKit = Prefab.Find("ItemKitPipe") as MultiConstructor;
+                if (pipeKit == null) { _log?.LogError("[ScenarioRunner] CLAMP ItemKitPipe not found"); return; }
+
+                bool sgcNull = MlvStackedGeneCollectionsNull(pipeKit);
+                _log?.LogInfo($"[ScenarioRunner] CLAMP ItemKitPipe StackedGeneCollectionsNull={sgcNull} " +
+                    $"({(sgcNull ? "negative quantity would SKIP RemoveRange (silent dupe)" : "non-null empty list -> negative quantity reaches RemoveRange and THROWS on this build; the guard is needed")})");
+
+                var construct7 = typeof(MultiConstructor).GetMethod("Construct",
+                    new[] { typeof(Assets.Scripts.GridSystem.Grid3), typeof(Quaternion), typeof(int), typeof(Item), typeof(bool), typeof(ulong), typeof(int) });
+                if (construct7 == null) { _log?.LogError("[ScenarioRunner] CLAMP 7-arg MultiConstructor.Construct not found"); return; }
+
+                var info = HarmonyLib.Harmony.GetPatchInfo(construct7);
+                int prefixCount = 0;
+                bool clampPresent = false, cableRollPresent = false;
+                if (info != null && info.Prefixes != null)
+                {
+                    foreach (var p in info.Prefixes)
+                    {
+                        prefixCount++;
+                        string dt = (p.PatchMethod != null && p.PatchMethod.DeclaringType != null) ? p.PatchMethod.DeclaringType.Name : "?";
+                        _log?.LogInfo($"[ScenarioRunner] CLAMP prefix on Construct(7-arg): {dt}.{p.PatchMethod?.Name} owner={p.owner}");
+                        if (dt == "ClampNegativeMergeQuantityPatch") clampPresent = true;
+                        if (dt == "RewriteCableRollOnMultiConstruct") cableRollPresent = true;
+                    }
+                }
+                _log?.LogInfo($"[ScenarioRunner] CLAMP prefixes={prefixCount} clampRegistered={clampPresent} cableRollCoexists={cableRollPresent}");
+
+                bool pass = clampPresent && !sgcNull;
+                _log?.LogInfo($"[ScenarioRunner] CLAMP END verdict={(pass ? "PASS" : "CHECK")} " +
+                    $"(clampRegistered={clampPresent} expect true; cableRollCoexists={cableRollPresent} expect true; sgcNull={sgcNull} expect false)");
+            }
+            catch (Exception e) { _log?.LogError($"[ScenarioRunner] CLAMP threw: {e}"); }
         }
 
         // ---- Reflection helpers for mod-specific scenarios ----
