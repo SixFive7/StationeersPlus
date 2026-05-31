@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>KeypadMod Fix</Name>
+  <ModID>net.keypadmodfix</ModID>
+  <Author>SixFive7</Author>
+  <Version>1.0.0</Version>
+  <Description>[h1]KeypadMod Fix[/h1]
+
+A temporary compatibility patch that restores WIKUS's KeypadMod to working order on the current build of Stationeers.
+
+Full multiplayer compatibility. Safe to add or remove at any time; it only patches KeypadMod while KeypadMod is installed, and does nothing on its own.
+
+[b]This is an add-on for [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3478434324]KeypadMod[/url] by WIKUS. You need KeypadMod installed as well. This patch does not replace it.[/b]
+
+[h2]What it fixes[/h2]
+
+A Stationeers update changed a method in the game's bundled UniTask library, which broke KeypadMod (built against an older version). This patch corrects the two resulting problems at runtime, without modifying KeypadMod itself:
+
+[list]
+[*][b]Keypad crash on keypress[/b]: pressing any number button threw a MissingMethodException (UniTask.Delay) and the keypad stopped responding. The keypress pulse works again.
+[*][b]Screen input on multiplayer and dedicated servers[/b]: typing a value into the keypad screen as a multiplayer client did nothing (the field kept showing the old value). Values now apply correctly. Single-player was never affected.
+[/list]
+
+[h2]Temporary by design[/h2]
+
+This patch exists only until WIKUS updates KeypadMod at the source. Once an updated KeypadMod ships, remove this mod; it will no longer be needed. It does not clone, replace, or redistribute KeypadMod, it only applies runtime fixes on top of the installed copy, and quietly does nothing if KeypadMod is absent.
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3478434324]KeypadMod[/url] by WIKUS
+[/list]
+
+[b]All players[/b] on a server must have the same mods installed. [b]Dedicated servers[/b] need BepInEx, StationeersLaunchPad, KeypadMod, and KeypadMod Fix installed server-side. Both fixes matter there: the crash runs on the server, and the screen-input fix is the one dedicated-server players were missing.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url] with "KeypadMod Fix" in the title. Steam comment notifications are unreliable, so GitHub is the dependable way to be heard. Bugs in KeypadMod's own features belong on the KeypadMod page, not here.
+
+[h2]Credits[/h2]
+[list]
+[*][b]WIKUS[/b]: author of [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3478434324]KeypadMod[/url], the mod this patch supports. All credit for the keypad itself goes to WIKUS.
+[/list]
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/KeypadModFix]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v1.0.0: Initial release
+- FIX: KeypadMod no longer throws a MissingMethodException (UniTask.Delay) when a number button is pressed; the keypress pulse works again on the current game build.
+- FIX: Entering a value on the keypad screen now applies on multiplayer clients and dedicated servers (it previously kept showing the old value); single-player was already working.
+- Patches the installed KeypadMod by WIKUS at runtime; does not modify or redistribute it, and does nothing if KeypadMod is not installed.
+- REQUIRES: BepInEx, StationeersLaunchPad, and KeypadMod by WIKUS. All players on a server need the same setup.
+  </ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>KeypadMod Fix</color></size>
+<line-height=40%>A temporary compatibility patch that restores WIKUS's KeypadMod to working order on the current build of Stationeers.
+Add-on for KeypadMod by WIKUS. You need KeypadMod installed too; this does nothing on its own.
+<b>Fixes:</b>
+- Keypad no longer crashes (MissingMethodException) when you press a number button.
+- Screen input now applies on multiplayer clients and dedicated servers (single-player was already fine).
+<b>Temporary:</b> remove this once WIKUS updates KeypadMod. It does not clone or replace KeypadMod, only patches the installed copy.
+<b>Requires:</b> BepInEx + StationeersLaunchPad + KeypadMod. All players and dedicated servers need the same setup.
+</line-height>
+]]></InGameDescription>
+</ModMetadata>
