@@ -14,10 +14,14 @@ namespace PowerTransmitterPlus
     //   source_draw   = delivered
     //
     // New model (this mod):
-    //   delivered_max = 5000  (uncapped by distance)
+    //   delivered_max = Max Transfer Capacity config  (0 = unlimited; default unlimited)
     //   source_draw   = delivered * (1 + k * distance_m / 1000)
     //
-    // Where k is the configurable per-km overhead factor.
+    // Where k is the configurable per-km overhead factor and the delivery cap is
+    // a separate server-authoritative setting (MaxCapacityConfigSync). The vanilla
+    // PowerTransmitter.MaxPowerTransmission constant (5000) is no longer used as the
+    // delivery ceiling; it survives only as the beam visualizer's full-brightness
+    // reference in ReceivePower (4) below, so removing the cap does not dim beams.
     //
     // Implementation hinges on PowerTransmitter._powerProvided, the private
     // float "debt accumulator" between the wireless-output tick and the
@@ -84,7 +88,14 @@ namespace PowerTransmitterPlus
                 __result = 0f;
                 return false;
             }
-            __result = Mathf.Min(PowerTransmitter.MaxPowerTransmission, __instance.InputNetwork.PotentialLoad);
+            // Delivery cap. 0 = unlimited (default): deliver whatever the input
+            // network can supply, no artificial ceiling. A positive value clamps
+            // delivered watts to the configured cap. We intentionally do NOT use
+            // PowerTransmitter.MaxPowerTransmission here any more; it stays the beam
+            // visualizer's full-brightness reference in ReceivePower (4).
+            var cap = MaxCapacityConfigSync.GetEffectiveMaxCapacity();
+            var available = __instance.InputNetwork.PotentialLoad;
+            __result = cap > 0f ? Mathf.Min(cap, available) : available;
             return false;
         }
     }

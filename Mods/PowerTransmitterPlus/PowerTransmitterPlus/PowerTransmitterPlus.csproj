@@ -85,6 +85,8 @@
     <Compile Include="LogicTypeRegistry.cs" />
     <Compile Include="DistanceConfigMessage.cs" />
     <Compile Include="DistanceConfigSync.cs" />
+    <Compile Include="MaxCapacityConfigMessage.cs" />
+    <Compile Include="MaxCapacityConfigSync.cs" />
     <Compile Include="Ic10ConstantsPatcher.cs" />
     <Compile Include="LogicableInitializePatch.cs" />
     <Compile Include="EnumNamePatches.cs" />

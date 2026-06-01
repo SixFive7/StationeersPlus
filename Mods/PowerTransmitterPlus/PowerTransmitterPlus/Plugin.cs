@@ -46,6 +46,13 @@ namespace PowerTransmitterPlus
         // four Harmony patches that implement it. Server-authoritative.
         internal static ConfigEntry<float> DistanceCostFactor;
 
+        // Max transfer capacity: per-transmitter delivery cap in watts. 0 = unlimited
+        // (default); a positive value clamps delivered watts. Enforced server-side in
+        // DistanceCostPatches (GetGeneratedPower) and synced to clients via
+        // MaxCapacityConfigSync for planned client-side beam visuals. The vanilla game
+        // limit is 5000 W. Server-authoritative.
+        internal static ConfigEntry<float> MaxTransferCapacity;
+
         // Master toggle for the auto-aim feature. Captured into AutoAimPatched at
         // boot; that bool is what every gated surface reads. Changing the config
         // value mid-process does not flip the patched state (Harmony Prepare and
@@ -127,6 +134,13 @@ namespace PowerTransmitterPlus
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
+            MaxTransferCapacity = Config.Bind(
+                "Server - Capacity", "Max Transfer Capacity (W)", 0f,
+                new ConfigDescription(
+                    "(Server-authoritative) Maximum watts a single transmitter can deliver to its receiver. 0 = unlimited (default). The vanilla game limit is 5000 W. Raising or removing the cap lets one dish carry more power instead of building several side by side; actual throughput is still bound by your cables and the source network. ONLY THE HOST'S VALUE AFFECTS GAMEPLAY in multiplayer; it is broadcast to all clients on connect and on every change.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
             EnableAutoAim = Config.Bind(
                 "Server - Features", "Enable Auto-Aim", true,
                 new ConfigDescription(
@@ -159,6 +173,7 @@ namespace PowerTransmitterPlus
 
             MainThreadDispatcher.Init();
             DistanceConfigSync.HookHostBroadcast();
+            MaxCapacityConfigSync.HookHostBroadcast();
             BeamVisualConfigSync.HookHostBroadcast();
 
             Prefab.OnPrefabsLoaded += OnAllModsLoaded;
@@ -172,6 +187,7 @@ namespace PowerTransmitterPlus
             {
                 MOD.Networking.Required = true;
                 MOD.Networking.RegisterMessage<DistanceConfigMessage>();
+                MOD.Networking.RegisterMessage<MaxCapacityConfigMessage>();
                 MOD.Networking.RegisterMessage<BeamVisualConfigMessage>();
 
                 // Reject joins where the client's and host's boot-time AutoAim
@@ -260,12 +276,13 @@ namespace PowerTransmitterPlus
         // IJoinSuffixSerializer: writes (and reads) two payloads as part of the
         // world-snapshot transmission to a joining client:
         //   1. Per-dish auto-aim cache (since v1.6.1).
-        //   2. Seven host-authoritative config values (since v1.7.0): Cost Factor
-        //      (k), Beam Width, Beam Color, Emission Intensity, Stripe Wavelength,
-        //      Scroll Speed, Trough Brightness. Earlier versions tried to push
-        //      these via a NetworkManager.PlayerConnected rebroadcast which fired
-        //      before the joiner entered NetworkBase.Clients; the rebroadcast was
-        //      removed in v1.7.0.
+        //   2. Eight host-authoritative config values: Cost Factor (k), Beam Width,
+        //      Beam Color, Emission Intensity, Stripe Wavelength, Scroll Speed,
+        //      Trough Brightness (all since v1.7.0), and Max Transfer Capacity
+        //      (appended last). Earlier versions tried to push these
+        //      via a NetworkManager.PlayerConnected rebroadcast which fired before
+        //      the joiner entered NetworkBase.Clients; the rebroadcast was removed
+        //      in v1.7.0.
         //
         // Runs on the server inside NetworkServer.PackageJoinData (LaunchPadBooster-injected
         // into the join writer per Research/Protocols/PlayerConnectedThingFindTiming.md);
@@ -294,8 +311,10 @@ namespace PowerTransmitterPlus
             }
 
             // 2. Host config snapshot. Same defaults as DistanceConfigSync /
-            // BeamVisualConfigSync use as their fallbacks so the wire format
-            // stays predictable when the BepInEx config has not been bound yet.
+            // MaxCapacityConfigSync / BeamVisualConfigSync use as their fallbacks
+            // so the wire format stays predictable when the BepInEx config has not
+            // been bound yet. Max Transfer Capacity is appended last (see the
+            // method doc above); the read order in DeserializeJoinSuffix must match.
             writer.WriteSingle(DistanceCostFactor?.Value ?? 5f);
             writer.WriteSingle(BeamWidth?.Value ?? 0.1f);
             writer.WriteString(BeamColorHex?.Value ?? "000DFF");
@@ -303,6 +322,7 @@ namespace PowerTransmitterPlus
             writer.WriteSingle(StripeWavelength?.Value ?? 2f);
             writer.WriteSingle(ScrollSpeed?.Value ?? 25f);
             writer.WriteSingle(StripeTroughBrightness?.Value ?? 0.5f);
+            writer.WriteSingle(MaxTransferCapacity?.Value ?? 0f);
         }
 
         public void DeserializeJoinSuffix(RocketBinaryReader reader)
@@ -335,7 +355,9 @@ namespace PowerTransmitterPlus
             var stripeWavelength = reader.ReadSingle();
             var scrollSpeed = reader.ReadSingle();
             var stripeTroughBrightness = reader.ReadSingle();
+            var maxCapacity = reader.ReadSingle();
             DistanceConfigSync.OnHostConfigReceived(k);
+            MaxCapacityConfigSync.OnHostConfigReceived(maxCapacity);
             BeamVisualConfigSync.OnHostConfigReceived(new BeamVisualConfigMessage
             {
                 BeamWidth = beamWidth,

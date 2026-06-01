@@ -27,22 +27,22 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 [*]1 km: 6.0
 [*]5 km: 26.0
 [/list]
+By default there is no per-transmitter throughput cap, so one dish carries as much power as its cables and source allow. An optional [b]Max Transfer Capacity[/b] setting (default unlimited; see Settings) re-imposes a per-transmitter watt limit. The vanilla game limit was 5000 W per dish.
 
-[h3]Logic Readouts[/h3]
-Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+[h3]Logic Types[/h3]
+Six logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10. Five are read-only readouts; the sixth, MicrowaveAutoAimTarget, is writable:
 [list]
 [*][b]MicrowaveSourceDraw[/b]: watts pulled from the source cable network
 [*][b]MicrowaveDestinationDraw[/b]: watts delivered to the receiver's cable network
 [*][b]MicrowaveTransmissionLoss[/b]: source minus destination (watts lost to distance)
 [*][b]MicrowaveEfficiency[/b]: delivered / source as a 0..1 ratio
 [*][b]MicrowaveLinkedPartner[/b]: ReferenceId of the linked partner dish (0 when unlinked)
+[*][b]MicrowaveAutoAimTarget[/b]: (writable) write a target's ReferenceId to aim the dish, 0 to disable
 [/list]
 The power readouts return 0 when the link is down, the device is off, or no power is flowing. MicrowaveLinkedPartner returns 0 only when unlinked, regardless of power state.
 
 [h3]Auto-Aim[/h3]
-A writable logic type [b]MicrowaveAutoAimTarget[/b] on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. Cached targets persist across save/load and multiplayer join.
-
-Two dishes auto-aimed at each other converge on a shared geometric fixed point regardless of mount orientation or distance. The post-load pass also re-solves cached pairs every save load and clears entries whose target has been deconstructed.
+[b]MicrowaveAutoAimTarget[/b] is writable on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. Cached targets persist across save/load and multiplayer join.
 
 The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
 
@@ -55,35 +55,40 @@ The host can revert to vanilla floor-only placement via the [b]Allow Non-Floor P
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. Enable Auto-Aim and Allow Non-Floor Placement are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the nine entries under five headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual, distance-cost, and capacity settings broadcast live to all connected clients on connect and on every change. Enable Auto-Aim and Allow Non-Floor Placement are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the ten entries under six headers:
 
 [b]Server - Features[/b]:
 [list]
-[*][b]Enable Auto-Aim[/b] (default true): Master toggle for MicrowaveAutoAimTarget. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected
+[*][b]Enable Auto-Aim[/b] (default true): Master toggle for MicrowaveAutoAimTarget. Restart-gated; mismatched joins rejected
 [/list]
 
 [b]Server - Placement[/b]:
 [list]
-[*][b]Allow Non-Floor Placement[/b] (default true): Build transmitter and receiver dishes on walls and ceilings as well as floors. Off restores vanilla floor-only. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected
+[*][b]Allow Non-Floor Placement[/b] (default true): Build dishes on walls and ceilings too. Restart-gated; mismatched joins rejected
+[/list]
+
+[b]Server - Capacity[/b]:
+[list]
+[*][b]Max Transfer Capacity (W)[/b] (default 0 = unlimited): Caps watts a transmitter delivers; 0 = unlimited. Vanilla was 5000 W
 [/list]
 
 [b]Server - Distance[/b]:
 [list]
-[*][b]Cost Factor (k)[/b] (default 5.0): Per-kilometer overhead on transmitter source draw. k = 0 disables the overhead entirely; k = 10 doubles it compared to the default
+[*][b]Cost Factor (k)[/b] (default 5.0): Per-km source-draw overhead. k = 0 disables it; k = 10 doubles the default
 [/list]
 
 [b]Server - Pulse[/b]:
 [list]
-[*][b]Stripe Wavelength[/b] (default 2.0): Distance in world meters between one pulse and the next
-[*][b]Scroll Speed[/b] (default 25.0): Pulse scroll speed in world meters per second at full power (5 kW delivered). Scales with sqrt(intensity) so low loads still move visibly
+[*][b]Stripe Wavelength[/b] (default 2.0): World meters between pulses
+[*][b]Scroll Speed[/b] (default 25.0): Pulse speed at full power (5 kW); scales with sqrt(load)
 [*][b]Trough Brightness[/b] (default 0.5): Beam brightness between pulses, 0..1
 [/list]
 
 [b]Server - Visual[/b]:
 [list]
-[*][b]Beam Color[/b] (default 000DFF): Hex RGB color. 000DFF is the vanilla cyan-blue
-[*][b]Beam Width[/b] (default 0.1): Thickness of the beam in world meters
-[*][b]Emission Intensity[/b] (default 10.0): HDR brightness multiplier on the beam color
+[*][b]Beam Color[/b] (default 000DFF): Hex RGB; 000DFF is vanilla cyan-blue
+[*][b]Beam Width[/b] (default 0.1): Beam thickness in world meters
+[*][b]Emission Intensity[/b] (default 10.0): HDR brightness multiplier
 [/list]
 
 [h2]Compatibility[/h2]
@@ -132,7 +137,8 @@ Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Features:</b>
 - Visible laser beam between linked transmitter and receiver dishes
 - Scrolling energy pulses, speed scales with power throughput
-- Replaces vanilla distance derate with a source-draw overhead (1 + k * distance_km watts drawn per watt delivered). Default k = 5. No more 500m hard cap.
+- Replaces vanilla distance derate with a source-draw overhead. Default k = 5. No 500m hard cap.
+- Optional Max Transfer Capacity (W); 0 = unlimited (default), removes the vanilla 5 kW per-dish cap
 - Five read-only logic readouts (tablet + IC10): MicrowaveSourceDraw, MicrowaveDestinationDraw, MicrowaveTransmissionLoss, MicrowaveEfficiency, MicrowaveLinkedPartner
 - Writable MicrowaveAutoAimTarget: write a Thing's ReferenceId to auto-aim the dish; write 0 to disable. Host can disable the feature entirely via Enable Auto-Aim; join handshake rejects mismatched clients
 - Wall and ceiling placement for transmitter and receiver dishes. Host can revert to vanilla floor-only via Allow Non-Floor Placement; join handshake rejects mismatched clients

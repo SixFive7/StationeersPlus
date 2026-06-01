@@ -34,25 +34,25 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 
 You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
 
-### Logic Readouts
-Five read-only logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10:
+### Max Transfer Capacity
+By default a single transmitter has no throughput limit beyond what its cables and source network can supply, so one dish can carry as much power as you feed it instead of building several side by side. The host can set an optional `Max Transfer Capacity (W)` to clamp delivered power per transmitter; 0 (the default) means unlimited. The vanilla game limit was 5000 W per dish.
 
-| Name | Units |
-|---|---|
-| `MicrowaveSourceDraw` | watts pulled from the source cable network |
-| `MicrowaveDestinationDraw` | watts delivered to the receiver's cable network |
-| `MicrowaveTransmissionLoss` | source minus destination (watts lost to distance) |
-| `MicrowaveEfficiency` | delivered / source as a 0..1 ratio |
-| `MicrowaveLinkedPartner` | ReferenceId of the linked partner dish (0 when unlinked) |
+### Logic Types
+Six logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10. Five are read-only readouts; the sixth, `MicrowaveAutoAimTarget`, is writable (see Auto-Aim below):
+
+| Name | Access | Meaning |
+|---|---|---|
+| `MicrowaveSourceDraw` | Read | watts pulled from the source cable network |
+| `MicrowaveDestinationDraw` | Read | watts delivered to the receiver's cable network |
+| `MicrowaveTransmissionLoss` | Read | source minus destination (watts lost to distance) |
+| `MicrowaveEfficiency` | Read | delivered / source as a 0..1 ratio |
+| `MicrowaveLinkedPartner` | Read | ReferenceId of the linked partner dish (0 when unlinked) |
+| `MicrowaveAutoAimTarget` | Read-Write | write a target's ReferenceId to aim the dish, 0 to disable; read returns the current target id |
 
 The power readouts return 0 when the link is down, the device is off, or no power is flowing. `MicrowaveLinkedPartner` returns 0 only when unlinked, regardless of power state. On a transmitter it returns the linked receiver's ReferenceId; on a receiver it returns the linked transmitter's ReferenceId.
 
 ### Auto-Aim
-A fifth logic type, `MicrowaveAutoAimTarget`, is **writable** on both transmitter and receiver. Write a Thing's `ReferenceId` and the dish slews to point at it via the built-in servo; the base game's line-of-sight link raycast decides when the actual pairing forms, so obstacles in the path still take priority like in vanilla.
-
-| Name | Behavior |
-|---|---|
-| `MicrowaveAutoAimTarget` | Write: target's ReferenceId (0 disables). Read: current target id |
+`MicrowaveAutoAimTarget` is **writable** on both transmitter and receiver. Write a Thing's `ReferenceId` and the dish slews to point at it via the built-in servo; the base game's line-of-sight link raycast decides when the actual pairing forms, so obstacles in the path still take priority like in vanilla.
 
 Auto-aim is per-dish and one-sided: setting the target on a transmitter does not touch its receiver, and vice versa. Manually adjusting `Horizontal` or `Vertical` (player, tablet, or IC10 `s d0 Horizontal ...`) cancels auto-aim. Writing 0 disables without moving the dish. Writing an unresolved id is a no-op. Cached targets persist across save/load and multiplayer join, so `MicrowaveAutoAimTarget` reads stay consistent across sessions.
 
@@ -108,7 +108,7 @@ The host can revert to vanilla floor-only placement via the `Allow Non-Floor Pla
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual and distance-cost settings broadcast live to all connected clients on connect and on every change. `Enable Auto-Aim` and `Allow Non-Floor Placement` are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the nine entries under five headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual, distance-cost, and capacity settings broadcast live to all connected clients on connect and on every change. `Enable Auto-Aim` and `Allow Non-Floor Placement` are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the ten entries under six headers:
 
 **Server - Features**:
 
@@ -121,6 +121,12 @@ All settings are server-authoritative: the host's values control gameplay and vi
 | Setting | Default | Description |
 |---|---|---|
 | Allow Non-Floor Placement | true | When on, transmitter and receiver dishes can be built on walls and ceilings as well as floors. When off, vanilla floor-only placement is preserved. Requires a full game restart to take effect. Client and host values must match; mismatched joins are rejected |
+
+**Server - Capacity**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Max Transfer Capacity (W) | 0 (unlimited) | Maximum watts a single transmitter can deliver to its receiver. 0 = unlimited (default); a positive value caps delivered watts. The vanilla game limit is 5000 W. Lets one dish carry more power instead of building several side by side; actual throughput is still bound by cables and the source network |
 
 **Server - Distance**:
 
