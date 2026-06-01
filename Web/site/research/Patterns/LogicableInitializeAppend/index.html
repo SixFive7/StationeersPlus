@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/LogicableInitializeAppend/">
       
       
-        <link rel="prev" href="../InventoryAutoEquip/">
+        <link rel="prev" href="../LogicTypeRegistration/">
       
       
         <link rel="next" href="../MainThreadDispatcher/">
@@ -4492,6 +4492,8 @@
       
         
       
+        
+      
     
     
     
@@ -5110,6 +5112,34 @@
     
   
     Inventory Auto-Equip APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../LogicTypeRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType Registration
   
 
     
@@ -7205,7 +7235,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-06-01.
         </p>
       
       
@@ -7221,8 +7251,10 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
+            
+              <li><code>./LogicTypeRegistration.md</code></li>
             
               <li><code>../GameSystems/LogicType.md</code></li>
             
@@ -7280,14 +7312,15 @@
 <li>The redirect index (<code>LogicTypeNamesRedirects</code> or equivalent binary-search lookup).</li>
 </ol>
 <p>Appending to the value and name arrays is straightforward; the redirect index must preserve sort order for binary search to return correct results.</p>
-<p>Full mechanism for introducing a new <code>LogicType</code> value into the game (including the three cross-class registries beyond Logicable) is on <code>../GameSystems/LogicType.md</code>. This page is narrower; it documents the specific <code>Logicable.Initialize</code>-extension step that the LogicType page cross-references.</p>
+<p>Full mechanism for introducing a new <code>LogicType</code> value into the game (including the four cross-class extension sites beyond Logicable plus the three name-lookup fallback patches) is on <a href="../LogicTypeRegistration/">./LogicTypeRegistration.md</a>. This page is narrower; it documents the specific <code>Logicable.Initialize</code>-extension step that the LogicTypeRegistration recipe cross-references as site 1.</p>
 <h3 id="why-the-pattern-is-lifted-from-stationeers-logic-extended">Why the pattern is lifted from Stationeers Logic Extended<a class="headerlink" href="#why-the-pattern-is-lifted-from-stationeers-logic-extended" title="Permanent link">&para;</a></h3>
 <p>Stationeers Logic Extended has no public extensibility API. Every mod that adds custom LogicTypes reinvents this extension mechanism. The F0304 comment explicitly cites that origin; see <code>./BestEffortIntegration.md</code> for the generalized "optional-dependency integration" pattern.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; single source (F0304).</li>
+<li>2026-06-01: retargeted the "full mechanism" cross-reference from <code>../GameSystems/LogicType.md</code> to the new <a href="../LogicTypeRegistration/">./LogicTypeRegistration.md</a> page, where the full five-site extension recipe now lives. Added LogicTypeRegistration to <code>related</code>. No factual content changed.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
@@ -7330,7 +7363,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../InventoryAutoEquip/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Inventory Auto-Equip APIs">
+          <a href="../LogicTypeRegistration/" class="md-footer__link md-footer__link--prev" aria-label="Previous: LogicType Registration">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -7340,7 +7373,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Inventory Auto-Equip APIs
+                LogicType Registration
               </div>
             </div>
           </a>

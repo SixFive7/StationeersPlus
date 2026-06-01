@@ -3640,17 +3640,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#four-separate-logictype-registries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Four separate LogicType registries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#logictype-enum-value-inventory-f0040" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3697,45 +3686,6 @@
       
     </span>
   </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#three-logictype-arrays-extension-mechanism" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Three LogicType arrays extension mechanism
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Three LogicType arrays extension mechanism">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#logicableinitializepatch-three-extension-points-comment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LogicableInitializePatch three-extension-points comment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#enumnamepatches-class-header" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        EnumNamePatches class header
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -4683,6 +4633,8 @@
       
         
       
+        
+      
     
     
     
@@ -5301,6 +5253,34 @@
     
   
     Inventory Auto-Equip APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/LogicTypeRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicType Registration
   
 
     
@@ -7138,17 +7118,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#four-separate-logictype-registries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Four separate LogicType registries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#logictype-enum-value-inventory-f0040" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7195,45 +7164,6 @@
       
     </span>
   </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#three-logictype-arrays-extension-mechanism" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Three LogicType arrays extension mechanism
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Three LogicType arrays extension mechanism">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#logicableinitializepatch-three-extension-points-comment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LogicableInitializePatch three-extension-points comment
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#enumnamepatches-class-header" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        EnumNamePatches class header
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -7371,13 +7301,13 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-27.
+           on 2026-06-01.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (11)</summary>
+          <summary><strong>Sources</strong> (9)</summary>
           <ul>
             
               <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:664-670</code></li>
@@ -7394,10 +7324,6 @@
             
               <li><code>Plans/StationpediaPlus/PLAN.md:3483-3506</code></li>
             
-              <li><code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs:55-71</code></li>
-            
-              <li><code>Mods/PowerTransmitterPlus/PowerTransmitterPlus/EnumNamePatches.cs:9-16</code></li>
-            
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.EnumCollection`2'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.EnumCollections'}</code></li>
@@ -7407,10 +7333,14 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (5)</summary>
+          <summary><strong>Related pages</strong> (7)</summary>
           <ul>
             
+              <li><code>../Patterns/LogicTypeRegistration.md</code></li>
+            
               <li><code>./IC10SyntaxHighlighting.md</code></li>
+            
+              <li><code>./ScreenDropdownBase.md</code></li>
             
               <li><code>./StationpediaPageRendering.md</code></li>
             
@@ -7456,17 +7386,8 @@
 
 
 <h1 id="logictype">LogicType<a class="headerlink" href="#logictype" title="Permanent link">&para;</a></h1>
-<p><code>LogicType</code> is a <code>ushort</code> enum with 350 vanilla values (0-349) that names every logic readable and writable in the game. Extending it at runtime requires writing into four independent registries, all snapshotted from <code>Enum.GetValues(typeof(LogicType))</code> at class load. Missing any registry produces silent breakage in at least one UI surface (tablet, ConfigCartridge, motherboard dropdown, or in-game screen syntax highlighting).</p>
-<h2 id="four-separate-logictype-registries">Four separate LogicType registries<a class="headerlink" href="#four-separate-logictype-registries" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>The game stores LogicType names/values in four independent locations, each populated from <code>Enum.GetValues</code>/<code>GetNames</code> at class load. All four must be extended for full coverage:</p>
-<ol>
-<li><code>Logicable.LogicTypes</code> / <code>LogicTypeNames</code>: drives <code>NextLogicType</code> cycling in the tablet.</li>
-<li><code>EnumCollections.LogicTypes</code>: drives <code>ConfigCartridge</code> (tablet cartridge UI).</li>
-<li><code>ScreenDropdownBase.LogicTypes</code> / <code>LogicTypeNames</code>: drives motherboard condition/action dropdown menus.</li>
-<li><code>ProgrammableChip.InternalEnums</code> entries <code>ScriptEnum&lt;LogicType&gt;</code> and <code>BasicEnum&lt;LogicType&gt;</code>: drive <strong>syntax highlighting</strong> on all in-game screens (computers, laptops, wall-mounted screens). If not extended, custom LogicType names receive no <code>&lt;color&gt;</code> tag and inherit the screen's default red text color, appearing "invalid" even though they compile and execute correctly. See <code>./IC10SyntaxHighlighting.md</code>.</li>
-</ol>
+<p><code>LogicType</code> is a <code>ushort</code> enum with 350 vanilla values (0-349) that names every logic readable and writable in the game. This page is the enum-value reference: vanilla values, the gas-ratio member catalogue, and the public surface of <code>EnumCollection&lt;TEnum, TInt&gt;</code> (the generic wrapper that backs <code>EnumCollections.LogicTypes</code> and its siblings).</p>
+<p>For the runtime registration mechanism (how a mod adds custom values: the five reflection-extension sites, the three name-lookup fallback patches, the module split, and the ScreenDropdownBase Awake-survival behavior), see <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>. For the canonical SixFive7 value-assignment catalogue and known third-party reservations to avoid, see <a href="../../Patterns/Logic/README.md"><code>Patterns/Logic/README.md</code></a> at the repo root. For the "who registers what" survey of Workshop mods, see <a href="../../Patterns/ModLogicTypeRegistration/">../Patterns/ModLogicTypeRegistration.md</a>.</p>
 <h2 id="logictype-enum-value-inventory-f0040">LogicType enum value inventory (F0040)<a class="headerlink" href="#logictype-enum-value-inventory-f0040" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -7482,11 +7403,7 @@
 - <code>PowerPotential</code> → <code>base.PotentialLoad</code>
 - <code>PowerActual</code> → <code>base.CurrentLoad</code> = <code>OutputNetwork.CurrentLoad</code> ← <strong>delivered watts</strong>
 - <code>PositionX/Y/Z</code> → <code>RayTransform.position</code></p>
-<p>The game keeps <strong>three separate arrays of logic types</strong>:
-1. <code>Logicable.LogicTypes</code> / <code>LogicTypeNames</code>: used by <code>Logicable.NextLogicType</code> cycling.
-2. <code>Assets.Scripts.EnumCollections.LogicTypes</code>: the <code>EnumCollection&lt;LogicType, ushort&gt;</code> consumed by <code>ConfigCartridge</code> (configuration tablet cartridge).
-3. <code>Assets.Scripts.UI.Motherboard.ScreenDropdownBase.LogicTypes</code> / <code>LogicTypeNames</code>: IC housing on-screen dropdowns.</p>
-<p>All three are populated from <code>Enum.GetValues(typeof(LogicType))</code> at class load. Extending only <code>Logicable</code>'s pair is not enough: the configuration tablet is driven by <code>EnumCollections.LogicTypes</code>. <code>ScreenDropdownBase</code> drives the motherboard condition/action dropdown UI. This mod extends all three.</p>
+<p>The game stores LogicType identity and metadata across five independent collections that a mod must extend to make a custom value visible end-to-end (<code>Logicable.LogicTypes</code> for <code>NextLogicType</code> cycling, <code>EnumCollections.LogicTypes</code> for the ConfigCartridge UI, <code>ScreenDropdownBase.LogicTypes</code> for motherboard dropdowns, <code>ProgrammableChip.AllConstants</code> for the IC10 compiler, and <code>ProgrammableChip.InternalEnums</code> for screen syntax highlighting). The full extension mechanism, the module split that fires each site at the right time, and the three name-lookup fallback patches live on <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>.</p>
 <p><code>EnumCollection&lt;T1, T2&gt;</code> lives in <code>Assets.Scripts</code>, NOT <code>Assets.Scripts.Util</code>. <code>ProgrammableChip</code> lives in <code>Assets.Scripts.Objects.Electrical</code>, NOT <code>Motherboards</code>; <code>ProgrammableChip.Constant</code> is a nested <code>public readonly struct</code>.</p>
 <p>The MIPS compiler resolves name tokens against <code>ProgrammableChip.AllConstants</code> directly: verified in-game for both <code>l r0 d0 MicrowaveSourceDraw</code> and <code>lbn ... MicrowaveSourceDraw 0</code>. The <code>Hash</code> field on <code>Constant</code> is for the <code>#hash</code> MIPS directive, not pure name lookups.</p>
 <h2 id="atmospheric-gas-ratio-logictype-members">Atmospheric gas-ratio LogicType members<a class="headerlink" href="#atmospheric-gas-ratio-logictype-members" title="Permanent link">&para;</a></h2>
@@ -7732,134 +7649,40 @@
 </table>
 <p>This is the full set of IC10-readable gases that contribute to <code>Atmosphere.CombustionEnergy</code> accumulation.</p>
 <h2 id="reserved-bands">Reserved bands<a class="headerlink" href="#reserved-bands" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
-<p><code>LogicType</code> values are <code>ushort</code>; any 0-65535 value is legal at runtime once injected into <code>EnumCollections.LogicTypes</code>. Reserved bands:</p>
-<table>
-<thead>
-<tr>
-<th>Band</th>
-<th>Owner</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>0-349</td>
-<td>Vanilla game</td>
-<td>Compiled-in <code>LogicType</code> enum members</td>
-</tr>
-<tr>
-<td>1000-1830</td>
-<td>Stationeers Logic Extended (ThunderDuck)</td>
-<td>Reserved by Stationeers Logic Extended; avoid</td>
-</tr>
-<tr>
-<td>6571-6599</td>
-<td><strong>PowerTransmitterPlus</strong></td>
-<td>PowerTransmitterPlus reserved band</td>
-</tr>
-</tbody>
-</table>
-<p>Future SixFive7 mods adding LogicTypes should reserve their own bands clear of vanilla, Stationeers Logic Extended, and PowerTransmitterPlus.</p>
-<h2 id="three-logictype-arrays-extension-mechanism">Three LogicType arrays extension mechanism<a class="headerlink" href="#three-logictype-arrays-extension-mechanism" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>Stationeers stores LogicType lists in three separate places: <code>Logicable.LogicTypes</code>/<code>LogicTypeNames</code> (NextLogicType cycling, tablet display), <code>EnumCollections.LogicTypes</code> (ConfigCartridge tablet UI), <code>ScreenDropdownBase.LogicTypes</code> (IC housing on-screen dropdowns). All extended by <code>LogicableInitializePatch</code> postfix, including Values/ValuesAsInts/Names/PaddedNames/<code>&lt;Length&gt;k__BackingField</code>. <code>LogicTypeNamesRedirects</code> is a binary-search index rebuilt by the same patch (best-effort). Must also patch <code>Enum.GetName</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName</code>/<code>GetNameFromValue</code> postfixes via <code>EnumNamePatches</code>.</p>
-<table>
-<thead>
-<tr>
-<th>Array</th>
-<th>Used by</th>
-<th>PowerTransmitterPlus extension mechanism</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Logicable.LogicTypes</code> / <code>Logicable.LogicTypeNames</code></td>
-<td><code>NextLogicType</code> cycling, tablet display</td>
-<td><code>LogicableInitializePatch</code> postfix</td>
-</tr>
-<tr>
-<td><code>Assets.Scripts.EnumCollections.LogicTypes</code></td>
-<td><code>ConfigCartridge</code> (configuration tablet UI)</td>
-<td>Same patch; extends Values, ValuesAsInts, Names, PaddedNames, <code>&lt;Length&gt;k__BackingField</code></td>
-</tr>
-<tr>
-<td><code>Assets.Scripts.UI.Motherboard.ScreenDropdownBase.LogicTypes</code></td>
-<td>IC housing on-screen dropdowns</td>
-<td>Same patch (best-effort)</td>
-</tr>
-</tbody>
-</table>
-<p><code>LogicTypeNamesRedirects</code> is a binary-search index rebuilt by the same patch (best-effort; tolerates absence).</p>
-<p>Additionally the mod must patch <code>Enum.GetName(Type, object)</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName</code> / <code>GetNameFromValue</code> postfixes so reflection-based name lookups find our custom values, done by <code>EnumNamePatches</code>.</p>
-<h3 id="logicableinitializepatch-three-extension-points-comment">LogicableInitializePatch three-extension-points comment<a class="headerlink" href="#logicableinitializepatch-three-extension-points-comment" title="Permanent link">&para;</a></h3>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>From <code>LogicableInitializePatch.cs</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>// Some game versions maintain a binary-search redirect array
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>// (LogicTypeNamesRedirects). Best-effort rebuild if present;
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>// otherwise the tablet will fall back to linear scans.
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>TryRebuildRedirects(newNames);
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>// ConfigCartridge (and other tablet UI paths) iterate
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>// EnumCollections.LogicTypes instead of Logicable.LogicTypes.
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>// That collection wraps Enum.GetValues, so our custom values
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>// are invisible to the tablet dropdown unless we also extend
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>// its Values / ValuesAsInts / Names / PaddedNames / Length.
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>ExtendEnumCollection(additions);
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>// The in-game screen preview (code rendered on the
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>// computer/laptop when NOT in the editor) validates tokens
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>// against ScreenDropdownBase.LogicTypes / LogicTypeNames.
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>// Without this, custom names draw red as &quot;invalid&quot;.
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>ExtendScreenDropdownBase(additions);
-</span></code></pre></div>
-<h3 id="enumnamepatches-class-header">EnumNamePatches class header<a class="headerlink" href="#enumnamepatches-class-header" title="Permanent link">&para;</a></h3>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>From <code>EnumNamePatches.cs</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>// The configuration tablet and various UI paths look up the display name
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>// for a given LogicType value via Enum.GetName(...) and the game&#39;s own
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>// EnumCollection&lt;LogicType, ushort&gt;. Both return null for our 6571+ values
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>// because the underlying enum has no metadata for them. These postfixes
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>// substitute our names from the registry when the lookup would otherwise
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>// come up empty.
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>//
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>// Pattern lifted from Stationeers Logic Extended (ThunderDuck).
-</span></code></pre></div>
+<p><code>LogicType</code> values are <code>ushort</code>; any 0-65535 value is legal at runtime once injected into <code>EnumCollections.LogicTypes</code>. The full assignment catalogue (SixFive7 mods plus known third-party reservations from a 124-mod Workshop scan: vanilla 0-349, Stationeers Logic Extended 1000-1830, IC10 Inspector/Debugger 500-502 soft, the SixFive7 6571+ allocations) lives in <a href="../../Patterns/Logic/README.md"><code>Patterns/Logic/README.md</code></a>. Cross-check that file before reserving a new band; do not duplicate the table here.</p>
 <h2 id="enumcollection-public-api">EnumCollection<TEnum, TInt> public API<a class="headerlink" href="#enumcollection-public-api" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-27 -->
 
 <p><code>Assets.Scripts.EnumCollection&lt;T1, T2&gt;</code> is the generic wrapper that backs every entry in the static <code>Assets.Scripts.EnumCollections</code> class (<code>LogicTypes</code>, <code>LogicSlotTypes</code>, <code>DeviceModes</code>, etc.). Verbatim public surface from the decompile of <code>Assets.Scripts.EnumCollection</code>2`:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IEnumCollection</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Enum</span><span class="p">,</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">()</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T2</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="n">IEquatable</span><span class="o">&lt;</span><span class="n">T2</span><span class="o">&gt;</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">{</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">  </span><span class="n">Values</span><span class="p">;</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">  </span><span class="n">ValuesAsInts</span><span class="p">;</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Names</span><span class="p">;</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">PaddedNames</span><span class="p">;</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="w">   </span><span class="n">LongestName</span><span class="p">;</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="k">this</span><span class="p">[</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">]</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">index</span><span class="p">];</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Length</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="kt">string</span><span class="p">[](</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">   </span><span class="p">(</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">EnumCollection</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">toProper</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">   </span><span class="nf">GetValues</span><span class="p">();</span>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetName</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetEnumTypeName</span><span class="p">();</span>
-</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromValue</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIndexFromValue</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">);</span><span class="w">     </span><span class="c1">// throws IndexOutOfRangeException on miss</span>
-</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIntFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
-</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">PrintAll</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">);</span>
-</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w">     </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">);</span><span class="w">                 </span><span class="c1">// case-insensitive name -&gt; value lookup</span>
-</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IEnumCollection</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Enum</span><span class="p">,</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">()</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T2</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="n">IEquatable</span><span class="o">&lt;</span><span class="n">T2</span><span class="o">&gt;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">  </span><span class="n">Values</span><span class="p">;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">  </span><span class="n">ValuesAsInts</span><span class="p">;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Names</span><span class="p">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">PaddedNames</span><span class="p">;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="w">   </span><span class="n">LongestName</span><span class="p">;</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="k">this</span><span class="p">[</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">]</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">index</span><span class="p">];</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Length</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="kt">string</span><span class="p">[](</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">   </span><span class="p">(</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">EnumCollection</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">toProper</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">   </span><span class="nf">GetValues</span><span class="p">();</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetName</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetEnumTypeName</span><span class="p">();</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromValue</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIndexFromValue</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">);</span><span class="w">     </span><span class="c1">// throws IndexOutOfRangeException on miss</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIntFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">PrintAll</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">);</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w">     </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">);</span><span class="w">                 </span><span class="c1">// case-insensitive name -&gt; value lookup</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Lookup directions and miss behavior:</p>
 <table>
@@ -7909,33 +7732,33 @@
 </tbody>
 </table>
 <p><code>Get(string)</code> body, verbatim:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Names</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Equals</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">StringComparison</span><span class="p">.</span><span class="n">InvariantCultureIgnoreCase</span><span class="p">))</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="n">T1</span><span class="p">);</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Names</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Equals</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">StringComparison</span><span class="p">.</span><span class="n">InvariantCultureIgnoreCase</span><span class="p">))</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="n">T1</span><span class="p">);</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Caller pitfall: <code>Get</code> returning <code>default(T1)</code> is indistinguishable from a real hit on whichever enum member maps to the zero value. For unambiguous not-found detection, scan <code>Names</code> directly with <code>Array.FindIndex(coll.Names, n =&gt; string.Equals(n, name, StringComparison.InvariantCultureIgnoreCase))</code> and check for <code>-1</code>, then index <code>coll.Values[i]</code>.</p>
 <p>The constructor populates <code>Values</code>, <code>ValuesAsInts</code>, <code>Names</code>, and <code>PaddedNames</code> from <code>Enum.GetValues(typeof(T1))</code> / <code>Enum.GetNames(typeof(T1))</code> exactly once at static class load, so custom enum values added later by <code>(T1)cast</code> are invisible to <code>Get</code> / <code>GetName</code> / <code>GetNameFromValue</code> until those arrays are resized via reflection. <code>Values</code> and <code>ValuesAsInts</code> are not <code>readonly</code>; <code>Names</code> and <code>PaddedNames</code> are <code>readonly</code> references whose array contents must be replaced via reflection (the <code>valuesField.SetValue(collection, newValues)</code> pattern in <a href="../../Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs"><code>LogicableInitializePatch.ExtendEnumCollection</code></a>).</p>
 <h2 id="why-custom-logictypes-dont-appear-without-patches">Why custom LogicTypes don't appear without patches<a class="headerlink" href="#why-custom-logictypes-dont-appear-without-patches" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
-<p>Early investigation established that vanilla Stationpedia pages for stock devices (like the Microwave Power Transmitter) have a frozen <code>LogicInsert</code> list built once at game startup. Even though <code>Logicable.LogicTypes</code> can be extended at runtime, the page's <code>LogicInsert</code> is populated inside <code>AddLogicTypeInfo</code> which iterates <code>EnumCollections.LogicTypes.Values</code>, a collection constructed from <code>Enum.GetValues(typeof(LogicType))</code> at <code>EnumCollection&lt;LogicType,ushort&gt;</code> construction time. Our runtime-cast <code>ushort → LogicType</code> values are NOT in the compiled enum, so <code>Enum.GetValues</code> doesn't return them.</p>
-<p>This is why we (1) extend <code>EnumCollections.LogicTypes</code> via <code>LogicableInitializePatch</code>, (2) patch <code>Enum.GetName</code> and <code>EnumCollection&lt;LogicType, ushort&gt;.GetName</code> / <code>GetNameFromValue</code> so reflection-based name lookups find our values, (3) postfix <code>CanLogicRead</code>/<code>CanLogicWrite</code> on <code>PowerTransmitter</code>/<code>PowerReceiver</code> to return true for our types, and (4) inject into <code>ProgrammableChip.AllConstants</code> for IC10 name resolution.</p>
-<p>Given all four of those, <code>AddLogicTypeInfo</code> naturally discovers and emits native rows for our custom LogicTypes. This is why the LogicInsert fallback (Decision 11) is NOT needed under normal operation.</p>
+<p>Early investigation established that vanilla Stationpedia pages for stock devices (like the Microwave Power Transmitter) have a frozen <code>LogicInsert</code> list built once at game startup. Even though <code>Logicable.LogicTypes</code> can be extended at runtime, the page's <code>LogicInsert</code> is populated inside <code>AddLogicTypeInfo</code> which iterates <code>EnumCollections.LogicTypes.Values</code>, a collection constructed from <code>Enum.GetValues(typeof(LogicType))</code> at <code>EnumCollection&lt;LogicType,ushort&gt;</code> construction time. Our runtime-cast <code>ushort -&gt; LogicType</code> values are NOT in the compiled enum, so <code>Enum.GetValues</code> does not return them. The same construction-time snapshot underlies the other four extension sites; the registration recipe extends all five to make <code>AddLogicTypeInfo</code> naturally discover and emit native rows for custom LogicTypes (this is why the LogicInsert fallback once labelled "Decision 11" is NOT needed under normal operation).</p>
+<p>The full enumeration of the five extension sites, the three name-lookup fallback patches, and the module split that ties them together is on <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>. Per-device <code>CanLogicRead</code> / <code>CanLogicWrite</code> / <code>GetLogicValue</code> / <code>SetLogicValue</code> overrides (which decide whether a particular device responds to the registered LogicType) are an orthogonal concern; see <a href="../../Patterns/CustomLogicValueInjection/">../Patterns/CustomLogicValueInjection.md</a>.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; F0054 is the primary source per MigrationMap §5.1. Additional sources: F0040, F0219a, F0219b, F0244, F0245, F0247 (primary for "why custom LogicTypes don't appear without patches"; F0219v is a duplicate extraction that merges here), F0305, F0316.</li>
-<li>2026-04-25: added "Atmospheric gas-ratio LogicType members" section. Verbatim list of all 130+ <code>Ratio*</code> enum members (chamber + per-network variants) decompiled from <code>Assets/Scripts/Objects/Motherboards/LogicType.cs</code> at v0.2.6228.27061. Cross-references combustion-relevant gases against <code>Mole.Enthalpy</code> and <code>EnthalpyMultiplier</code> from <code>../GameClasses/CombustionDeepMiner.md</code>. Verified via <code>ilspycmd</code> against <code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll</code>. Confirms <code>RatioMethane</code>, <code>RatioHydrazine</code>, <code>RatioLiquidAlcohol</code>, <code>RatioOzone</code>, <code>RatioLiquidOzone</code>, <code>RatioLiquidHydrazine</code> all exist and are IC10-readable; no <code>RatioVolatiles</code> member in the current enum (Hydrogen exposed as <code>RatioHydrogen = 252</code>).</li>
-<li>2026-04-27: added "EnumCollection<TEnum, TInt> public API" section. Verbatim public surface (fields, indexer, constructor, all methods) of <code>Assets.Scripts.EnumCollection</code>2<code>decompiled at v0.2.6228.27061 via</code>ilspycmd<code>against</code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll<code>. Documents the</code>Get(string name)<code>case-insensitive name-to-value lookup (returns</code>default(T1)<code>on miss, NOT exception), the value-to-name</code>GetName<code>/</code>GetNameFromValue<code>(return</code>string.Empty<code>on miss), the indexer /</code>GetIndexFromValue<code>/</code>GetIntFromIndex<code>(throw on miss), the implicit operators to</code>string[]<code>and</code>T2[]<code>, and the constructor's one-shot</code>Enum.GetValues<code>/</code>Enum.GetNames<code>snapshot that explains why custom enum values added via</code>(T1)cast` are invisible until the arrays are resized via reflection. No conflicts with prior page content; section is purely additive.</li>
+<li>2026-04-25: added "Atmospheric gas-ratio LogicType members" section. Verbatim list of all 130+ <code>Ratio*</code> enum members (chamber + per-network variants) decompiled from <code>Assets/Scripts/Objects/Motherboards/LogicType.cs</code> at v0.2.6228.27061. Cross-references combustion-relevant gases against <code>Mole.Enthalpy</code> and <code>EnthalpyMultiplier</code> from <code>../GameClasses/CombustionDeepMiner.md</code>. Verified via <code>ilspycmd</code> against the local Stationeers install. Confirms <code>RatioMethane</code>, <code>RatioHydrazine</code>, <code>RatioLiquidAlcohol</code>, <code>RatioOzone</code>, <code>RatioLiquidOzone</code>, <code>RatioLiquidHydrazine</code> all exist and are IC10-readable; no <code>RatioVolatiles</code> member in the current enum (Hydrogen exposed as <code>RatioHydrogen = 252</code>).</li>
+<li>2026-04-27: added "EnumCollection<TEnum, TInt> public API" section. Verbatim public surface (fields, indexer, constructor, all methods) of <code>Assets.Scripts.EnumCollection</code>2<code>decompiled at v0.2.6228.27061 via</code>ilspycmd<code>against the local Stationeers install. Documents the</code>Get(string name)<code>case-insensitive name-to-value lookup (returns</code>default(T1)<code>on miss, NOT exception), the value-to-name</code>GetName<code>/</code>GetNameFromValue<code>(return</code>string.Empty<code>on miss), the indexer /</code>GetIndexFromValue<code>/</code>GetIntFromIndex<code>(throw on miss), the implicit operators to</code>string[]<code>and</code>T2[]<code>, and the constructor's one-shot</code>Enum.GetValues<code>/</code>Enum.GetNames<code>snapshot that explains why custom enum values added via</code>(T1)cast` are invisible until the arrays are resized via reflection. No conflicts with prior page content; section is purely additive.</li>
+<li>2026-06-01: split the registration mechanism out of this page into a dedicated <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>. Removed sections "Four separate LogicType registries", "Three LogicType arrays extension mechanism", "LogicableInitializePatch three-extension-points comment", and "EnumNamePatches class header" (verbatim content preserved on the new page, lossless). Replaced the "Reserved bands" table with a one-line pointer to <a href="../../Patterns/Logic/README.md"><code>Patterns/Logic/README.md</code></a> (the canonical assignment catalogue; the table on this page was stale: it showed <code>6571-6599 PowerTransmitterPlus</code> instead of the actual 6571-6576 usage and did not list PowerGridPlus's 6577 reservation). Trimmed the in-section "three separate arrays" listing in "LogicType enum value inventory" to a one-paragraph pointer at the new mechanism page. Corrected drift relative to the 2026-05-28 fresh-validator resolution on <a href="../ScreenDropdownBase/">./ScreenDropdownBase.md</a> by removing the prior page's references to ScreenDropdownBase as "IC housing on-screen dropdowns" (it actually backs <code>LogicMotherboard</code> condition / action dropdowns on Big Screens, Wall Screens, and Consoles) and the implicit claim that reflection-extension of <code>ScreenDropdownBase.LogicTypes</code> is fragile against <code>Awake</code> (the appended tail survives every Awake). Page now serves only as the enum-value reference. The "five extension sites" framing on the new page consolidates the prior "four registries" vs "three arrays" inconsistency on this page; site 4 (<code>ProgrammableChip.AllConstants</code>) was previously mentioned only in "Why custom LogicTypes don't appear without patches" and not counted in either registry tally. Implementation verified by direct reads of both in-repo registrar mods (<code>Mods/PowerTransmitterPlus/</code>, <code>Mods/PowerGridPlus/</code>).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
