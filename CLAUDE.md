@@ -6,7 +6,7 @@ Shared conventions for all Stationeers mods under this monorepo. `Mods/<ModName>
 
 - `Mods/` contains released mods. Each subdirectory is a self-contained mod (own README, RESEARCH, source project, and `About/`).
 - `Plans/` contains mods that are in progress and prototypes not yet released. They follow the same shape as released mods but are not tagged or published. Plans/ mods may carry design documents (`PLAN.md`, `plan.md`, `NOTES.md`) that are not permitted in released mods; these documents consolidate into `RESEARCH.md` or are deleted when the mod graduates to `Mods/`.
-- `Patterns/` contains shared conventions, documentation, and code that more than one mod needs to agree on. Currently holds `Patterns/Logic/` (centralised `LogicType` numbering catalogue + a shared `LogicTypeNumbers.cs` linked into every mod that registers a custom `LogicType`). See "Workflow: shared patterns under `Patterns/`" below for the rule on touching anything here.
+- `Patterns/` contains shared conventions, documentation, and code that more than one mod needs to agree on. Holds `Patterns/Logic/` (centralised `LogicType` numbering catalogue + a shared `LogicTypeNumbers.cs` linked into every mod that registers a custom `LogicType`) and `Patterns/Colors/` (the 12 vanilla `ColorSwatch` index values as a shared `ColorSwatchIndex.cs`). See "Workflow: shared patterns under `Patterns/`" below for the rule on touching anything here.
 - `tools/` contains repository-wide utility scripts.
 - `Mods/Template/` is the seed scaffold for creating new mods.
 - `.work/` at the monorepo root is the gitignored scratch directory. All temp, prototype, and throwaway files written during a work session live here. See "Workflow: scratch and working files in .work/" below.
@@ -202,7 +202,7 @@ Each `PLAYTEST.md` restates this function and these rules at the top, so the fil
 
 ## Workflow: shared patterns under `Patterns/`
 
-`Patterns/` at the repo root holds conventions, documentation, and code that more than one mod needs to agree on. Each subfolder is a single topic (`Patterns/Logic/` today; more land here as needed). Treat it the same way as `Research/` for "look here first" purposes: do not invent a parallel convention in a mod when a `Patterns/<topic>/` page already covers it.
+`Patterns/` at the repo root holds conventions, documentation, and code that more than one mod needs to agree on. Each subfolder is a single topic (`Patterns/Logic/` and `Patterns/Colors/` today; more land here as needed). Treat it the same way as `Research/` for "look here first" purposes: do not invent a parallel convention in a mod when a `Patterns/<topic>/` page already covers it.
 
 The first subfolder, `Patterns/Logic/`, is the centralised catalogue for every custom `LogicType` ushort value any mod in this monorepo registers at runtime. Any agent adding a new `LogicType` to any mod (`LogicTypeRegistry.cs`, `Ic10ConstantsPatcher.cs`, or anything that extends `Logicable.LogicTypes` / `EnumCollections.LogicTypes` / `ScreenDropdownBase.LogicTypes` / `ProgrammableChip.AllConstants`) MUST read `Patterns/Logic/README.md` before assigning a number. That file holds the assignment table, the reservation rules, the known third-party bands to avoid, and the workflow for adding a new entry.
 
@@ -213,6 +213,8 @@ The shared C# constants live in `Patterns/Logic/LogicTypeNumbers.cs`, in the `St
 ```
 
 and its per-mod `LogicTypeRegistry.cs` references `StationeersPlus.Shared.LogicTypeNumbers.<Name>` rather than redeclaring a literal. Adding a new entry is a two-step change: append the constant to `LogicTypeNumbers.cs` and update the assignment table in `Patterns/Logic/README.md` in the same commit.
+
+`Patterns/Colors/` is the parallel catalogue for the 12 vanilla `ColorSwatch` index values (`ColorBlue` = 0 through `ColorPurple` = 11). The shared constants live in `Patterns/Colors/ColorSwatchIndex.cs`, also in the `StationeersPlus.Shared` namespace. A mod that refers to a vanilla color by index links it the same way (`<Compile Include="..\..\..\Patterns\Colors\ColorSwatchIndex.cs" Link="Patterns\ColorSwatchIndex.cs" />`) and reads `ColorSwatchIndex.<Name>` instead of a literal. The values are owned by the game and verified in `Research/GameClasses/ColorSwatch.md`; mod-registered swatches occupy indices at and above 12 and are not listed in the shared file. See `Patterns/Colors/README.md`.
 
 ## Workflow: Research protocols
 
