@@ -4648,6 +4648,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#first-publish-writes-the-assigned-id-back-into-the-deployed-aboutxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First publish writes the assigned id back into the deployed About.xml
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#relation-to-repo-claudemd" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7156,6 +7167,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#first-publish-writes-the-assigned-id-back-into-the-deployed-aboutxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First publish writes the assigned id back into the deployed About.xml
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#relation-to-repo-claudemd" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7289,13 +7311,13 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-21.
+           on 2026-06-01.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>$(StationeersPath)/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: StationeersLaunchPad.Sources.ListMods (Sources/Local.cs line 34)</code></li>
@@ -7304,17 +7326,21 @@
             
               <li><code>Player.log exception capture 2026-04-21 (InspectorPlus 0.1.0 load)</code></li>
             
+              <li><code>Observed first-publish write-back of net.keypadmodfix (item 3737027789), 2026-06-01: deployed About.xml changed 0 -> 3737027789 after in-game publish; git source copy unchanged; downloaded item content at steamapps/workshop/content/544550/3737027789/About/About.xml still 0</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
               <li><code>../../CLAUDE.md</code></li>
             
               <li><code>../GameSystems/ModLoadSequence.md</code></li>
+            
+              <li><code>../GameSystems/ModMetadataLimits.md</code></li>
             
           </ul>
         </details>
@@ -7426,10 +7452,18 @@
 
 <p>For an unpublished mod (no Workshop ID yet), the two verified-safe options are:</p>
 <ul>
-<li>Put a literal <code>0</code>: <code>&lt;WorkshopHandle&gt;0&lt;/WorkshopHandle&gt;</code>. Parses. Semantics unverified (whether LaunchPad treats <code>0</code> as "no handle" vs "handle zero"; at a minimum the parse succeeds and the mod loads under its correct name).</li>
+<li>Put a literal <code>0</code>: <code>&lt;WorkshopHandle&gt;0&lt;/WorkshopHandle&gt;</code>. Parses, and <code>0</code> is the correct "no handle yet" sentinel: the publish flow treats <code>PublishedFileId == 0</code> as "create a new Workshop item" (see <a href="../../GameSystems/ModMetadataLimits/">ModMetadataLimits</a>, the <code>Editor.NewCommunityFile</code> branch). At first publish the assigned id is written back into the DEPLOYED copy's <code>&lt;WorkshopHandle&gt;</code> (see "First publish writes the assigned id back into the deployed About.xml" below).</li>
 <li>Put a placeholder numeric ID that the mod will never publish against, then swap in the real ID at first Workshop upload.</li>
 </ul>
 <p>For a published mod, always carry the real Workshop numeric ID.</p>
+<h2 id="first-publish-writes-the-assigned-id-back-into-the-deployed-aboutxml">First publish writes the assigned id back into the deployed About.xml<a class="headerlink" href="#first-publish-writes-the-assigned-id-back-into-the-deployed-aboutxml" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+
+<p>When a mod is published to the Steam Workshop for the FIRST time via the in-game StationeersLaunchPad publisher, the numeric published-file id Steam assigns to the newly created item is written back into the <code>&lt;WorkshopHandle&gt;</code> element of the About.xml inside the DEPLOYED mod folder that was published (the upload-source folder under <code>...\My Games\Stationeers\mods\&lt;ModName&gt;\About\About.xml</code>).</p>
+<p>VERIFIED (directly observed, n=1, first-publish case only): the mod <code>net.keypadmodfix</code> (KeypadMod Fix) was deployed to the local mods folder with <code>&lt;WorkshopHandle&gt;0&lt;/WorkshopHandle&gt;</code> (built from a git source that carried <code>0</code>). It was published once through the in-game publisher; Steam created a new item with id <code>3737027789</code>. Immediately after the publish, the deployed copy's About.xml read <code>&lt;WorkshopHandle&gt;3737027789&lt;/WorkshopHandle&gt;</code>, while the separate git SOURCE copy still held <code>0</code>. The only actor that touched the deployed file between deploy and that change was the publish flow.</p>
+<p>INFERRED (only plausible actor, not separately proven by reading the writer): the StationeersLaunchPad publish flow performed the write, as opposed to the base game or the Steam client. Not confirmed against the decompiled writer.</p>
+<p>Consequence: only the DEPLOYED copy is updated. A separate source-of-truth copy (for example the mod's git source About.xml) is NOT touched by the publish and must be synced manually afterward, otherwise the next build redeploys with the stale <code>0</code> and the local deploy diverges from the source.</p>
+<p>Note on the downloaded published item: the content Steam stores for the item (downloaded copy at <code>steamapps\workshop\content\544550\3737027789\About\About.xml</code>) still reads <code>&lt;WorkshopHandle&gt;0&lt;/WorkshopHandle&gt;</code>, because Steam snapshots the upload-source folder before the write-back lands. The downloaded item therefore does NOT show the assigned id; the write-back is observable only in the local deploy folder.</p>
 <h2 id="relation-to-repo-claudemd">Relation to repo CLAUDE.md<a class="headerlink" href="#relation-to-repo-claudemd" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
@@ -7443,11 +7477,14 @@
 <ul>
 <li>2026-04-21: page created. Source: InspectorPlus failed-load diagnosis. Evidence: Player.log exception capture plus cross-reference of working vs failing <code>About.xml</code> content in this repo.</li>
 <li>2026-04-21: "Relation to repo CLAUDE.md" section updated after CLAUDE.md was corrected to recommend <code>&lt;WorkshopHandle&gt;0&lt;/WorkshopHandle&gt;</code>. Template and InspectorPlus <code>About.xml</code> files were updated in the same pass.</li>
+<li>2026-06-01: Added "First publish writes the assigned id back into the deployed About.xml" and resolved part of the <code>0</code>-semantics open question. Pure addition; no prior verified claim contradicted, so no fresh-validator pass was needed (the page previously said only that <code>0</code> parses, with semantics explicitly unverified). Evidence: first-publish of <code>net.keypadmodfix</code> (item <code>3737027789</code>) on 2026-06-01, deployed About.xml observed changing <code>0</code> -&gt; <code>3737027789</code> while the git source copy stayed <code>0</code>. Noted that the downloaded published item content still reads <code>0</code> (Steam snapshots the source before the write-back), so the corroborating download does not show the assigned id.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Whether fully omitting the <code>&lt;WorkshopHandle&gt;</code> element (no tag at all) also throws, or whether the XmlSerializer's generated reader treats the field as optional and leaves it default when the element is absent. Not verified this pass.</li>
-<li>Whether <code>0</code> as a handle has any downstream semantic effect inside LaunchPad beyond "parses successfully." Not verified.</li>
+<li>Which actor performs the first-publish write-back into the deployed About.xml. Observed that it happens; INFERRED to be the StationeersLaunchPad publish flow (only actor that touched the file), but not confirmed by reading the decompiled writer.</li>
+<li>Whether the write-back also fires on UPDATE publishes (<code>PublishedFileId</code> already non-zero), and whether it writes at all when the deployed handle already matches the assigned id. Only the first-publish, <code>0</code> -&gt; id case was observed. Not tested.</li>
+<li>Whether <code>0</code> as a handle has any downstream semantic effect inside LaunchPad beyond "parses successfully" and "selects the create-new-item publish branch." The publish-branch effect is now known (see ModMetadataLimits); any other in-LaunchPad effect of <code>0</code> is still unverified.</li>
 </ul>
 
 
