@@ -69,6 +69,15 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-31 | 6 | 71 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-06-01 | 6 | 112 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 
+## KeypadMod Fix
+
+- Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3737027789
+- Published: 2026-06-01
+
+| Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
+|---|---|---|---|---|---|---|---|
+| 2026-06-01 | 2 | 3 | 0 | 0 | 0 | insufficient ratings | 1.0.0 (Workshop updated 2026-06-01) |
+
 ## Not yet published
 
 These live under `Mods/` or `Plans/` but are not on the Steam Workshop yet. Promote each to its own section above when it goes live.
