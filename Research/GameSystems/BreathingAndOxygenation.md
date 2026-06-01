@@ -13,6 +13,7 @@ related:
   - ../GameClasses/Entity.md
   - ../GameClasses/Human.md
   - ../GameClasses/Atmosphere.md
+  - ../GameClasses/Sleeper.md
 tags: [entity, damage]
 ---
 
@@ -33,6 +34,44 @@ Thresholds (from Entity class at line 283419-283421):
 A player is in the "Warning" state if `OxygenQuality < 1.0` and "Critical" if `OxygenQuality < 0.75`. When oxygenation reaches 0, the player takes both Oxygen damage and Stun damage per tick (line 321993-321994).
 
 Note: `OxygenQuality` is normalized to 0-1 range (or higher) per breath; `Oxygenation` is the accumulated vital stat.
+
+## Which atmosphere is breathed (source)
+
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+
+Before any of the math below, note what `BreathingAtmosphere` actually points at, because it is not always the room.
+
+`Human.BreathingAtmosphere` (line 340241):
+
+```csharp
+public override Atmosphere BreathingAtmosphere
+{
+    get
+    {
+        if (!HasInternals || !InternalsOn)
+        {
+            return base.BreathingAtmosphere;
+        }
+        return HelmetSlot.Occupant.InternalAtmosphere;
+    }
+    ...
+}
+```
+
+- Sealed suit with internals on: the human breathes the helmet's internal atmosphere (the suit's filtered O2 supply).
+- Otherwise: `base.BreathingAtmosphere`, which resolves through `Entity.BreathingAtmosphere` (line 283661) to `base.WorldAtmosphere`.
+
+`WorldAtmosphere` is not necessarily the room. `Thing.SetWorldAtmosphere()` (line 281183) rebinds it when the thing is in a slot:
+
+```csharp
+if (parentSlot.UseInternalAtmosphere)
+{
+    WorldAtmosphere = parentSlot.Parent.InternalAtmosphere;   // breathe the container's internal atmosphere
+    return;
+}
+```
+
+So a human standing in a room breathes the room's grid atmosphere, but a human in a `UseInternalAtmosphere` slot (a Sleeper or CryoTube bed slot) breathes that device's piped internal atmosphere instead. See [../GameClasses/Sleeper.md](../GameClasses/Sleeper.md). This is why a sleeper occupant's health depends on the gas piped into the sleeper, not the surrounding room.
 
 ## How a breath works: intake, O2 quality, and oxygenation gain
 
@@ -150,7 +189,8 @@ public virtual float AtmosphericEfficiency =>
 Examples:
 - At 0 kPa O2: Efficiency = 0 (cannot breathe).
 - At 16 kPa O2 (minimum): Efficiency = 1.0 (100% efficiency, a full breath).
-- At 32 kPa O2 (Earth normal): Efficiency = 2.0, clamped to 1.5.
+- At 24 kPa O2 (1.5x minimum): Efficiency = 1.5 (saturation; no gain above this).
+- At 32 kPa O2: Efficiency = 2.0 raw, clamped to 1.5. (Earth sea-level O2 partial pressure is ~21 kPa, already past the point of diminishing return.)
 - At 8 kPa O2 (half minimum): Efficiency = 0.5 (50% efficiency, half a breath).
 
 **Critical takeaway:** A human cannot breathe at all if O2 partial pressure is below 16 kPa. Between 16-24 kPa, efficiency ramps up linearly. Above 24 kPa (1.5x minimum), the lungs cannot extract more oxygen (clamped).
@@ -303,6 +343,38 @@ DamageState.Damage(ChangeDamageType.Increment, stunDamage * num, DamageUpdateTyp
 
 Like CO2, N2O in the lungs does not appear in the breathing efficiency or mole-extraction formulas. Only the stun damage mechanic is affected.
 
+## Lung damage from temperature and near-vacuum
+
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+
+Source: Lungs.OnLifeTick() at lines 330083-330148, and TemperatureMin/TemperatureMax at lines 330059-330061.
+
+Human lungs damage themselves directly from the temperature and pressure of the breathed (internal) atmosphere, independent of the suit's thermal system. The human lung band:
+
+```csharp
+protected virtual TemperatureKelvin TemperatureMin => Chemistry.Temperature.ZeroDegrees - new TemperatureKelvin(10.0);  // 263.15 K = -10 C
+protected virtual TemperatureKelvin TemperatureMax => Chemistry.Temperature.ZeroDegrees + new TemperatureKelvin(50.0);  // 323.15 K = +50 C
+```
+
+(`LungsZrilian` overrides this to -20 C / +80 C, lines 330161-330163.)
+
+In `OnLifeTick`, when the lung internal atmosphere has usable pressure (`PressureGassesAndLiquids > Chemistry.ResetThreshold`):
+
+- Below `TemperatureMin` (-10 C): Burn damage `min(3 * (1 - Temp/TemperatureMin), b)` per tick (lines 330113-330119).
+- Above `TemperatureMax` (+50 C): Burn damage `min(3 * clamp01((Temp - TemperatureMax)/200), b)` per tick (lines 330120-330126).
+
+Both branches `return` early, so temperature damage pre-empts the per-tick passive healing of oxygen/burn/brute damage that otherwise runs at the end of the tick.
+
+Near-vacuum: when lung pressure is at or below `Chemistry.ResetThreshold` (effectively no gas to breathe), the `else` branch (lines 330143-330148) applies combined Brute and Burn damage:
+
+```csharp
+float num5 = Mathf.Min(0.4f, b);
+DamageState.Damage(ChangeDamageType.Increment, num5 * 0.6f, DamageUpdateType.Brute);
+DamageState.Damage(ChangeDamageType.Increment, num5 * 0.4f, DamageUpdateType.Burn);
+```
+
+So the comfortable breathed-atmosphere temperature band for a human is -10 C to +50 C; outside it the lungs take burn damage even if O2 and pressure are otherwise fine. This is the same band the Sleeper enforces in its `IsUnsafeAtmosphere` check (see [../GameClasses/Sleeper.md](../GameClasses/Sleeper.md)).
+
 ## Initialization: starting oxygenation
 
 <!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
@@ -334,6 +406,7 @@ To keep a human healthy:
 <!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
 - 2026-06-01: page created from scratch, verified against decompiled Assembly-CSharp.dll in game version 0.2.6228.27061. All formulas, constants, and mechanical interactions extracted from lines 284513-284527 (Entity base breathing), 342197-342219 (Human TakeBreath), 330151-330157 (Lungs.TakeBreath), 330083-330149 (Lungs.OnLifeTick), 330067 (AtmosphericEfficiency), 283598-283607 (Entity.BreathingEfficiency), 321990 (oxygenation decay), 342231-342245 (N2O damage), 283415-283421 (vital thresholds), 418990 (MinimumOxygenPartialPressure = 16 kPa), 339919-339921 (SafeN2OPartialPressureHuman = 5 kPa), 283449-283451 (ToxicPartialPressure thresholds).
+- 2026-06-01: added "Which atmosphere is breathed (source)" (Human.BreathingAtmosphere 340241-340262, Entity.BreathingAtmosphere 283661, Thing.SetWorldAtmosphere 281183-281202) and "Lung damage from temperature and near-vacuum" (Lungs.TemperatureMin/Max 330059-330063, OnLifeTick branches 330113-330148) sections; corrected the O2 efficiency example (Earth sea-level O2 is ~21 kPa, not 32 kPa "normal"). Added cross-link to GameClasses/Sleeper.md.
 
 ## Open questions
 
