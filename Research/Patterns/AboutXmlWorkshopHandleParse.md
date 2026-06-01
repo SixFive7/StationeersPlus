@@ -3,14 +3,16 @@ title: AboutXmlWorkshopHandleParse
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-21
+verified_at: 2026-06-01
 sources:
   - "$(StationeersPath)/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: StationeersLaunchPad.Sources.ListMods (Sources/Local.cs line 34)"
   - "$(StationeersPath)/rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Serialization.XmlSerialization.Deserialize<T>(path, root)"
   - "Player.log exception capture 2026-04-21 (InspectorPlus 0.1.0 load)"
+  - "Observed first-publish write-back of net.keypadmodfix (item 3737027789), 2026-06-01: deployed About.xml changed 0 -> 3737027789 after in-game publish; git source copy unchanged; downloaded item content at steamapps/workshop/content/544550/3737027789/About/About.xml still 0"
 related:
   - ../../CLAUDE.md
   - ../GameSystems/ModLoadSequence.md
+  - ../GameSystems/ModMetadataLimits.md
 tags: [launchpad, dead-end]
 ---
 
@@ -82,10 +84,23 @@ Any numeric value parses; the element content must be present and numeric. Wheth
 
 For an unpublished mod (no Workshop ID yet), the two verified-safe options are:
 
-- Put a literal `0`: `<WorkshopHandle>0</WorkshopHandle>`. Parses. Semantics unverified (whether LaunchPad treats `0` as "no handle" vs "handle zero"; at a minimum the parse succeeds and the mod loads under its correct name).
+- Put a literal `0`: `<WorkshopHandle>0</WorkshopHandle>`. Parses, and `0` is the correct "no handle yet" sentinel: the publish flow treats `PublishedFileId == 0` as "create a new Workshop item" (see [ModMetadataLimits](../GameSystems/ModMetadataLimits.md), the `Editor.NewCommunityFile` branch). At first publish the assigned id is written back into the DEPLOYED copy's `<WorkshopHandle>` (see "First publish writes the assigned id back into the deployed About.xml" below).
 - Put a placeholder numeric ID that the mod will never publish against, then swap in the real ID at first Workshop upload.
 
 For a published mod, always carry the real Workshop numeric ID.
+
+## First publish writes the assigned id back into the deployed About.xml
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+
+When a mod is published to the Steam Workshop for the FIRST time via the in-game StationeersLaunchPad publisher, the numeric published-file id Steam assigns to the newly created item is written back into the `<WorkshopHandle>` element of the About.xml inside the DEPLOYED mod folder that was published (the upload-source folder under `...\My Games\Stationeers\mods\<ModName>\About\About.xml`).
+
+VERIFIED (directly observed, n=1, first-publish case only): the mod `net.keypadmodfix` (KeypadMod Fix) was deployed to the local mods folder with `<WorkshopHandle>0</WorkshopHandle>` (built from a git source that carried `0`). It was published once through the in-game publisher; Steam created a new item with id `3737027789`. Immediately after the publish, the deployed copy's About.xml read `<WorkshopHandle>3737027789</WorkshopHandle>`, while the separate git SOURCE copy still held `0`. The only actor that touched the deployed file between deploy and that change was the publish flow.
+
+INFERRED (only plausible actor, not separately proven by reading the writer): the StationeersLaunchPad publish flow performed the write, as opposed to the base game or the Steam client. Not confirmed against the decompiled writer.
+
+Consequence: only the DEPLOYED copy is updated. A separate source-of-truth copy (for example the mod's git source About.xml) is NOT touched by the publish and must be synced manually afterward, otherwise the next build redeploys with the stale `0` and the local deploy diverges from the source.
+
+Note on the downloaded published item: the content Steam stores for the item (downloaded copy at `steamapps\workshop\content\544550\3737027789\About\About.xml`) still reads `<WorkshopHandle>0</WorkshopHandle>`, because Steam snapshots the upload-source folder before the write-back lands. The downloaded item therefore does NOT show the assigned id; the write-back is observable only in the local deploy folder.
 
 ## Relation to repo CLAUDE.md
 
@@ -105,8 +120,11 @@ This is a diagnostic tell: if a plugin logs fine to `LogOutput.log` but its name
 
 - 2026-04-21: page created. Source: InspectorPlus failed-load diagnosis. Evidence: Player.log exception capture plus cross-reference of working vs failing `About.xml` content in this repo.
 - 2026-04-21: "Relation to repo CLAUDE.md" section updated after CLAUDE.md was corrected to recommend `<WorkshopHandle>0</WorkshopHandle>`. Template and InspectorPlus `About.xml` files were updated in the same pass.
+- 2026-06-01: Added "First publish writes the assigned id back into the deployed About.xml" and resolved part of the `0`-semantics open question. Pure addition; no prior verified claim contradicted, so no fresh-validator pass was needed (the page previously said only that `0` parses, with semantics explicitly unverified). Evidence: first-publish of `net.keypadmodfix` (item `3737027789`) on 2026-06-01, deployed About.xml observed changing `0` -> `3737027789` while the git source copy stayed `0`. Noted that the downloaded published item content still reads `0` (Steam snapshots the source before the write-back), so the corroborating download does not show the assigned id.
 
 ## Open questions
 
 - Whether fully omitting the `<WorkshopHandle>` element (no tag at all) also throws, or whether the XmlSerializer's generated reader treats the field as optional and leaves it default when the element is absent. Not verified this pass.
-- Whether `0` as a handle has any downstream semantic effect inside LaunchPad beyond "parses successfully." Not verified.
+- Which actor performs the first-publish write-back into the deployed About.xml. Observed that it happens; INFERRED to be the StationeersLaunchPad publish flow (only actor that touched the file), but not confirmed by reading the decompiled writer.
+- Whether the write-back also fires on UPDATE publishes (`PublishedFileId` already non-zero), and whether it writes at all when the deployed handle already matches the assigned id. Only the first-publish, `0` -> id case was observed. Not tested.
+- Whether `0` as a handle has any downstream semantic effect inside LaunchPad beyond "parses successfully" and "selects the create-new-item publish branch." The publish-branch effect is now known (see ModMetadataLimits); any other in-LaunchPad effect of `0` is still unverified.

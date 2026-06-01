@@ -3,7 +3,7 @@ title: Mod Metadata Limits
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-21
+verified_at: 2026-06-01
 sources:
   - rocketstation_Data/Managed/StationeersLaunchPad.dll :: Steam.ValidateForWorkshop(ModInfo) (lines 5794-5829)
   - rocketstation_Data/Managed/StationeersLaunchPad.dll :: Steam.MOD_THUMBNAIL_SIZE_LIMIT const (line 5763)
@@ -36,7 +36,7 @@ Size and format limits that apply to a mod About.xml. Headline result: the size 
 | `<ModID>` | none on the element | none | `ValidateForWorkshop` does not check it. `Steam.ToDirName` truncates a *derived* directory name at 64 chars (lines 13020-13028), not the element value | none on the element |
 | `<Author>` | none found | none | No cap in validator or parser | none |
 | `<Version>` | none found | none | No cap in validator or parser | none |
-| `<WorkshopHandle>` | must parse as a numeric ulong | XML parse constraint | `XmlConvert.ToUInt64` in the generated reader; empty or non-numeric renames the mod `[Invalid About.xml] <ModID>` at load. See [AboutXmlWorkshopHandleParse](../Patterns/AboutXmlWorkshopHandleParse.md) | Mod loads under broken label |
+| `<WorkshopHandle>` | must parse as a numeric ulong | XML parse constraint | `XmlConvert.ToUInt64` in the generated reader; empty or non-numeric renames the mod `[Invalid About.xml] <ModID>` at load. `0` is the unpublished sentinel; first publish writes the assigned id back into the DEPLOYED About.xml (see "First publish writes the assigned id back" below). See [AboutXmlWorkshopHandleParse](../Patterns/AboutXmlWorkshopHandleParse.md) | Mod loads under broken label |
 | `<Tags>` | none enforced by the game | none | `ValidateForWorkshop` does not check tag count or length; tags flow to Steam via `Editor.WithTag` | none game-side |
 
 `ValidateForWorkshop` only validates `Local`-source mods (`mod.Source != ModSourceType.Local` returns `(true, string.Empty)` immediately at line 5796); Workshop and Repo copies are not re-validated. The four size caps match Steam's documented Workshop maxima (title ~128, description 8000, change note 8000: the standard `k_cchPublishedDocument*` constants), so the validator pre-empts a Steam-side rejection author-side. Those Steam constant values are external Steamworks SDK knowledge, not present in the decompile.
@@ -179,6 +179,23 @@ PublishResult result = await seed.SubmitAsync(new WorkshopProgress(isDeleting: f
 
 The 8000 figure matches the documented Steamworks change-note maximum (`k_cchPublishedDocumentChangeDescriptionMax = 8000`; the description maximum `k_cchPublishedDocumentDescriptionMax` is also 8000). Because each publish submits a fresh change note and Steam keeps the per-update history on the Workshop Change Notes tab, a mod only needs the current version's notes in `<ChangeLog>`; the full history belongs in the per-mod `CHANGELOG.md` (see `Mods/Template/LAYOUT.md`).
 
+## First publish writes the assigned id back into the deployed About.xml
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+
+The seed builder above branches on `detail.PublishedFileId`: `Editor.NewCommunityFile` when it is `0` (create a brand-new Workshop item), `new Editor(detail.PublishedFileId)` otherwise (update the existing item). So `<WorkshopHandle>0</WorkshopHandle>` is the correct "no item yet" sentinel for an unpublished mod, and the first publish goes through the create-new branch.
+
+After a successful FIRST publish, the numeric published-file id Steam assigns to the new item is written back into the `<WorkshopHandle>` element of the About.xml inside the DEPLOYED mod folder that was published (the upload-source folder under `...\My Games\Stationeers\mods\<ModName>\About\About.xml`).
+
+VERIFIED (directly observed, n=1, first-publish case only): the mod `net.keypadmodfix` (KeypadMod Fix) was deployed with `<WorkshopHandle>0</WorkshopHandle>`. A single in-game publish created Workshop item `3737027789`; immediately afterward the deployed copy's About.xml read `<WorkshopHandle>3737027789</WorkshopHandle>`, while the separate git SOURCE copy still held `0`. The only actor that touched the deployed file between deploy and the change was the publish flow.
+
+INFERRED (not separately proven by reading the writer): the StationeersLaunchPad publish flow performed the write, rather than the base game or the Steam client. The decompiled writer was not located in this pass, so the exact method is unconfirmed.
+
+Consequence for this repo's workflow: only the DEPLOYED copy gets the id. The git source About.xml is NOT updated by the publish and must be synced by hand afterward, or the next build redeploys with the stale `0`. See [AboutXmlWorkshopHandleParse](../Patterns/AboutXmlWorkshopHandleParse.md).
+
+Note on the downloaded published item: Steam stores the item content it snapshotted from the upload-source folder, which is captured before the write-back lands. The downloaded copy of the published item (`steamapps\workshop\content\544550\3737027789\About\About.xml`) therefore still reads `<WorkshopHandle>0</WorkshopHandle>`, not the assigned id. The write-back is observable only in the local deploy folder, not in the Steam-hosted item content.
+
+Not tested: the update-an-existing-item case (`PublishedFileId` already non-zero), and whether the write fires when the deployed handle already matches the assigned id.
+
 ## Past Steam Workshop change notes are immutable
 <!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
 
@@ -188,7 +205,9 @@ Once an update is submitted, its change note is a permanent entry on the Worksho
 
 - 2026-05-21: Page created. Decompiled StationeersLaunchPad.dll and Assembly-CSharp.dll (v0.2.6228.27061) to trace the 8000-character ChangeLog cap. Confirmed the limit is a StationeersLaunchPad publish-validation check (rejection, not truncation), that the base-game `ModAbout` class carries no ChangeLog field, and that `<ChangeLog>` is routed to the Steam change note via the `Workshop_PublishItemAsync` Harmony prefix and the Facepunch.Steamworks `.WithChangeLog(...)` builder call.
 - 2026-05-21: Corrected and expanded. The validation method is `Steam.ValidateForWorkshop(ModInfo)` at line 5794, NOT `PublishItemValidator` as the page originally stated (a grep for "PublishItemValidator" returns zero hits in StationeersLaunchPad.dll; the original name was an unverified paraphrase from the page's first draft). Read the method body and its caller (lines 3712-3720) directly: a failed validation shows an `AlertPanel` error and disables the publish button, confirming over-limit content blocks the upload. Expanded the page from ChangeLog/Description to a full table of all nine About.xml elements: Name 128 / Description 8000 / ChangeLog 8000 / thumb.png 1 MB are the only hard caps; InGameDescription is a UI overflow (~1450, no code check, parsed via `ModAboutEx.InGameDescriptionCData`); WorkshopHandle must be a numeric ulong; ModID/Author/Version/Tags have no validator cap (`ToDirName` truncates a derived directory name at 64 chars, not the ModID element). Added the immutability of past Steam change notes (web-sourced, not decompile).
+- 2026-06-01: Added "First publish writes the assigned id back into the deployed About.xml". Pure addition; the page previously said nothing about whether `<WorkshopHandle>` is updated after a publish, so no prior verified claim was contradicted and no fresh-validator pass was needed. VERIFIED by direct observation (n=1, first-publish only): `net.keypadmodfix` deployed with `0`, published once, Steam assigned item `3737027789`, and the deployed About.xml then read `3737027789` while the git source copy stayed `0`. INFERRED, not proven by reading the writer: the StationeersLaunchPad publish flow performed the write. Recorded that the downloaded published item content still reads `0` (Steam snapshots the upload source before the write-back), and that the update-existing-item case is untested. Updated the `<WorkshopHandle>` table-row note accordingly.
 
 ## Open questions
 
-None.
+- Which actor performs the first-publish write-back into the deployed About.xml, and via which method. Observed to happen; INFERRED to be the StationeersLaunchPad publish flow but not confirmed against the decompiled writer.
+- Whether the write-back also fires on an UPDATE publish (`PublishedFileId` already non-zero), and whether it writes when the deployed handle already equals the assigned id. Only the first-publish `0` -> id case was observed.
