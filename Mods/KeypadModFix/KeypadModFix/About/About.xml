@@ -55,7 +55,7 @@ v1.0.0: Initial release
 - Patches the installed KeypadMod by WIKUS at runtime; does not modify or redistribute it, and does nothing if KeypadMod is not installed.
 - REQUIRES: BepInEx, StationeersLaunchPad, and KeypadMod by WIKUS. All players on a server need the same setup.
   </ChangeLog>
-  <WorkshopHandle>0</WorkshopHandle>
+  <WorkshopHandle>3737027789</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>
