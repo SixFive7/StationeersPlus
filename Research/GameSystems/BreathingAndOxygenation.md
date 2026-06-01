@@ -3,7 +3,7 @@ title: Breathing and Oxygenation
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-01
+verified_at: 2026-06-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Entities.Entity
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Entities.Human
@@ -23,17 +23,15 @@ The breathing system governs how humans extract oxygen from breathed atmosphere 
 
 ## Oxygenation range and vital signs
 
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
 
-`Oxygenation` is a float stat tracking oxygen availability. Range is 0 to 100 (or higher).
+`Oxygenation` is the human's oxygen reserve. Its setter clamps it to 0 to 0.024 (Entity.Oxygenation property, lines 283795-283805): `_oxygenation = Mathf.Clamp(value, 0f, 0.024f);`. So 0.024 is full, NOT 2.4% of a 0-100 scale. A freshly spawned or respawned human is set to 0.024, i.e. full (lines 342069, 342192); the `Oxygenation = 100f` assignment for artificial entities (line 284532) is just clamped down to the 0.024 max. The separate `public float Oxygenation` at line 283132 is a field on the `EntitySaveData` save struct, not this live stat.
 
-Thresholds (from Entity class at line 283419-283421):
-- `WarningOxygen = 1f` (1.0 out of 100, displayed as 1%)
-- `CriticalOxygen = 0.75f` (0.75 out of 100, displayed as 0.75%)
+`WarningOxygen = 1f` and `CriticalOxygen = 0.75f` (Entity, lines 283419-283421) are thresholds on `OxygenQuality` (the 0 to 1.5 per-breath quality), NOT on `Oxygenation`. A human is in the "Warning" state when `OxygenQuality < 1.0` and "Critical" when `OxygenQuality < 0.75` (lines 341154, 341711, 236127, 236145). These live on a different scale from the `Oxygenation` reserve; do not compare them.
 
-A player is in the "Warning" state if `OxygenQuality < 1.0` and "Critical" if `OxygenQuality < 0.75`. When oxygenation reaches 0, the player takes both Oxygen damage and Stun damage per tick (line 321993-321994).
+When the `Oxygenation` reserve reaches 0, the human takes both Oxygen damage and Stun damage per tick (lines 321991-321995). Because the reserve is small (max 0.024) and decays ~0.001584 per life tick, it empties from full in roughly 15 unbreathed life ticks; a single adequate breath refills a large fraction of it (see gain below), so a human breathing enough O2 stays pegged at the 0.024 max and never reaches the damage threshold.
 
-Note: `OxygenQuality` is normalized to 0-1 range (or higher) per breath; `Oxygenation` is the accumulated vital stat.
+Note: `OxygenQuality` is the 0-to-1.5 quality of the most recent breath; `Oxygenation` is the small accumulated reserve clamped to 0.024.
 
 ## Which atmosphere is breathed (source)
 
@@ -229,7 +227,7 @@ Therefore:
 
 ## Oxygenation decay between breaths
 
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
 
 Source: Line 321990 (brain organ on-life-tick handler).
 
@@ -243,9 +241,7 @@ ParentHuman.Oxygenation -= 0.0015840002f * ((IsOnline || flag2 || flag) ? 1f : (
 - Online (player connected or in party): `0.001584` per tick.
 - Offline (body simulated without player): `0.001584 * OfflineMetabolism`. Default `OfflineMetabolism = 0.1f`, so offline decay is `0.0001584` per tick.
 
-With 60 ticks per second, online decay is ~0.095 oxygenation per second, or ~5.7 per minute.
-
-With a full breath yielding ~0.0024 oxygenation at default difficulty, a player must take ~7.5 breaths per second to stay even. At realistic breathing rates (12-20 breaths per minute), oxygenation will decay significantly unless the player is in high-O2 atmosphere.
+The reserve is capped at 0.024 (see "Oxygenation range and vital signs"), so this decay empties a full reserve in about 15 unbreathed life ticks online, or roughly 10x slower offline (default `OfflineMetabolism = 0.1`). Each adequate breath adds a comparable or larger amount (see gain above) and is clamped back to 0.024, so a human in breathable air sits pegged at the maximum and never approaches the 0 damage threshold. This is why suffocation in vacuum is fast but a piped sleeper occupant stays full indefinitely.
 
 ## Carbon dioxide and toxic-gas effects
 
@@ -377,7 +373,7 @@ So the comfortable breathed-atmosphere temperature band for a human is -10 C to 
 
 ## Initialization: starting oxygenation
 
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
 
 Source: Lines 342069, 342192.
 
@@ -387,7 +383,7 @@ When a human is created or respawned:
 base.Oxygenation = 0.024f;
 `
 
-A new player starts at 0.024 oxygenation, near the critical threshold of 0.75.
+0.024 is the clamped maximum of the `Oxygenation` reserve (Entity.Oxygenation setter, line 283803), so a new human spawns with a full reserve. It is not "near critical": the 0.75 value is a `CriticalOxygen` threshold on `OxygenQuality`, a different 0 to 1.5 scale.
 
 ## Summary: maintaining healthy oxygenation
 
@@ -407,6 +403,7 @@ To keep a human healthy:
 
 - 2026-06-01: page created from scratch, verified against decompiled Assembly-CSharp.dll in game version 0.2.6228.27061. All formulas, constants, and mechanical interactions extracted from lines 284513-284527 (Entity base breathing), 342197-342219 (Human TakeBreath), 330151-330157 (Lungs.TakeBreath), 330083-330149 (Lungs.OnLifeTick), 330067 (AtmosphericEfficiency), 283598-283607 (Entity.BreathingEfficiency), 321990 (oxygenation decay), 342231-342245 (N2O damage), 283415-283421 (vital thresholds), 418990 (MinimumOxygenPartialPressure = 16 kPa), 339919-339921 (SafeN2OPartialPressureHuman = 5 kPa), 283449-283451 (ToxicPartialPressure thresholds).
 - 2026-06-01: added "Which atmosphere is breathed (source)" (Human.BreathingAtmosphere 340241-340262, Entity.BreathingAtmosphere 283661, Thing.SetWorldAtmosphere 281183-281202) and "Lung damage from temperature and near-vacuum" (Lungs.TemperatureMin/Max 330059-330063, OnLifeTick branches 330113-330148) sections; corrected the O2 efficiency example (Earth sea-level O2 is ~21 kPa, not 32 kPa "normal"). Added cross-link to GameClasses/Sleeper.md.
+- 2026-06-02: conflict resolution. The original "Oxygenation range and vital signs", decay, and initialization sections (created 2026-06-01) described `Oxygenation` as a 0-100 stat with the spawn value 0.024 "near critical"; that came from an indirect sub-agent reading. Direct reads show the live `Entity.Oxygenation` setter clamps to [0, 0.024] (line 283803), 0.024 is full (spawn value 342069/342192), and `WarningOxygen`/`CriticalOxygen` are `OxygenQuality` thresholds, not `Oxygenation` thresholds. A fresh validator independently confirmed the clamp range, `OxygenationRatio = Oxygenation/100f` (283823), and that the oxygen-damage branch (321991) never fires while breathing adequate O2. Corrected the three sections and restamped them to 0.2.6228.27061 @ 2026-06-02. The sleeper info-panel display bug that stems from this scale is documented in [../GameClasses/Sleeper.md](../GameClasses/Sleeper.md).
 
 ## Open questions
 

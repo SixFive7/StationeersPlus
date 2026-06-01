@@ -180,11 +180,43 @@ Hard requirements that must all hold in the piped (internal) atmosphere:
 
 Robust optimum: standard breathable station air, about 100-101 kPa total, roughly 21 kPa O2 partial pressure with the balance nitrogen, at 20-24 C, free of pollutants. Nitrogen is inert filler that contributes pressure without aiding breathing, but the pressure and temperature must sit inside the bands above. A minimal pure-O2 fill of about 50 kPa at 20-24 C also works (it clears both the 30 kPa device floor and the 16 kPa O2 floor with margin); keep it replenished because the occupant slowly consumes O2 and exhales CO2 into the closed internal volume.
 
+## Info panel display bug: the Oxygenation line
+
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+The Sleeper info panel "Occupant" block prints Hydration, Nutrition, and Oxygenation via `OccupantAtmospherics.AddOccupantString` (lines 401205-401223). The Oxygenation line is doubly bugged:
+
+```csharp
+int num = Mathf.RoundToInt(entity.HydrationRatio * 100f);
+StringManager.AddKeyValueLine(sb, GameStrings.Hydration, num.ToStringPrefix("%", GetStateColor(num)), indent);
+int num2 = Mathf.RoundToInt(entity.NutritionRatio * 100f);
+StringManager.AddKeyValueLine(sb, GameStrings.Nutrition, num2.ToStringPrefix("%", GetStateColor(num2)), indent);
+int num3 = Mathf.RoundToInt(entity.OxygenationRatio * 100f);
+StringManager.AddKeyValueLine(sb, GameStrings.Oxygenation, num2.ToStringPrefix("%", GetStateColor(num3)), indent);
+```
+
+1. Wrong number. The Oxygenation line (line 401216) displays `num2`, the Nutrition value, not `num3`, the Oxygenation value. A copy-paste slip. The visible symptom is that the panel's Oxygenation percent always equals its Nutrition percent.
+2. Always red. `num3 = RoundToInt(entity.OxygenationRatio * 100f)`, and `OxygenationRatio => Oxygenation / 100f` (line 283823) where the live `Oxygenation` reserve is clamped to a maximum of 0.024 (Entity.Oxygenation setter, line 283803). At full health `num3 = RoundToInt(0.024) = 0`, which `GetStateColor` maps to red. So the line is red whenever the occupant is alive, regardless of actual oxygen state.
+
+`GetStateColor` bands (lines 401228-401242):
+
+```csharp
+private string GetStateColor(float percent)
+{
+    if (percent >= 50f) { if (percent >= 75f) return "green"; return "yellow"; }
+    if (percent >= 25f) return "orange";
+    return "red";
+}
+```
+
+Reading the panel: ignore the Oxygenation line's number and color. To judge whether the occupant is actually oxygenating, read the Occupant Atmosphere block instead (O2 partial pressure should be at least 16 kPa). A powered sleeper fed pure O2 at 100 kPa keeps the occupant's oxygen reserve pegged at its 0.024 maximum and triggers no oxygen damage (the `Oxygenation <= 0` damage branch at line 321991 never fires), even though the panel paints "Oxygenation" red. See the corrected scale in [../GameSystems/BreathingAndOxygenation.md](../GameSystems/BreathingAndOxygenation.md).
+
 ## Verification history
 
 <!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
 - 2026-06-01: page created from decompiled Assembly-CSharp.dll, game version 0.2.6228.27061. Source lines: Sleeper class 399619-399713 (InitInternalAtmosphere 800 L at 399681, IsOperable 399641, IsSuspendingLife 399670, AssessError/OutputNetwork 399699-399713), OccupantAtmospherics 399413-399618 (limits 399447-399449, IsUnsafeAtmosphere 399457-399478, tooltip "Occupant Atmosphere" 399496-399497, error strings 399503-399537, OnServerTick mode mapping 399592-399601), SpawnPointAtmospherics 401082-401423 (InitInternalAtmosphere 10 L at 401100, stun constants 401086-401088, OnAtmosphericTick mix/stun/heater 401381-401423, _maxHeatKelvin 24 C at 401094), Thing.SetWorldAtmosphere 281183-281202, Human.BreathingAtmosphere 340241-340262. Corrects an earlier sub-agent claim that a sleeper occupant breathes the room: the bed slot is a `UseInternalAtmosphere` slot, so the occupant breathes the device internal (piped) atmosphere.
+- 2026-06-02: added "Info panel display bug: the Oxygenation line" documenting the `AddOccupantString` bug (line 401216 prints `num2`/Nutrition instead of `num3`/Oxygenation; the color from `GetStateColor(num3)` is always red because `OxygenationRatio` collapses the 0.024-max reserve to 0). Verified directly and via a fresh validator against decompiled Assembly-CSharp.dll. Cross-references the corrected Oxygenation scale in GameSystems/BreathingAndOxygenation.md.
 
 ## Open questions
 
