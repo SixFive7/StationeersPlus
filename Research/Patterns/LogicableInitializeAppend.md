@@ -3,10 +3,11 @@ title: Extending Logicable's initialized LogicType arrays
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-06-01
 sources:
   - Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs:11-16 (F0304)
 related:
+  - ./LogicTypeRegistration.md
   - ../GameSystems/LogicType.md
   - ./BestEffortIntegration.md
 tags: [logic, harmony]
@@ -43,16 +44,17 @@ Postfix `Logicable.Initialize` (or the specific device initialize), and use refl
 
 Appending to the value and name arrays is straightforward; the redirect index must preserve sort order for binary search to return correct results.
 
-Full mechanism for introducing a new `LogicType` value into the game (including the three cross-class registries beyond Logicable) is on `../GameSystems/LogicType.md`. This page is narrower; it documents the specific `Logicable.Initialize`-extension step that the LogicType page cross-references.
+Full mechanism for introducing a new `LogicType` value into the game (including the four cross-class extension sites beyond Logicable plus the three name-lookup fallback patches) is on [./LogicTypeRegistration.md](./LogicTypeRegistration.md). This page is narrower; it documents the specific `Logicable.Initialize`-extension step that the LogicTypeRegistration recipe cross-references as site 1.
 
 ### Why the pattern is lifted from Stationeers Logic Extended
 
 Stationeers Logic Extended has no public extensibility API. Every mod that adds custom LogicTypes reinvents this extension mechanism. The F0304 comment explicitly cites that origin; see `./BestEffortIntegration.md` for the generalized "optional-dependency integration" pattern.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
 - 2026-04-20: page created from the Research migration; single source (F0304).
+- 2026-06-01: retargeted the "full mechanism" cross-reference from `../GameSystems/LogicType.md` to the new [./LogicTypeRegistration.md](./LogicTypeRegistration.md) page, where the full five-site extension recipe now lives. Added LogicTypeRegistration to `related`. No factual content changed.
 
 ## Open questions
 
