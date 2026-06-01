@@ -2658,6 +2658,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#info-panel-display-bug-the-oxygenation-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Info panel display bug: the Oxygenation line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7238,6 +7249,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#info-panel-display-bug-the-oxygenation-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Info panel display bug: the Oxygenation line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7533,11 +7555,36 @@
 <li>Methane + Pollutant partial pressure below 0.5 kPa (warning) / 1.0 kPa (lung toxic damage). NitrousOxide below 5 kPa (stun damage).</li>
 </ul>
 <p>Robust optimum: standard breathable station air, about 100-101 kPa total, roughly 21 kPa O2 partial pressure with the balance nitrogen, at 20-24 C, free of pollutants. Nitrogen is inert filler that contributes pressure without aiding breathing, but the pressure and temperature must sit inside the bands above. A minimal pure-O2 fill of about 50 kPa at 20-24 C also works (it clears both the 30 kPa device floor and the 16 kPa O2 floor with margin); keep it replenished because the occupant slowly consumes O2 and exhales CO2 into the closed internal volume.</p>
+<h2 id="info-panel-display-bug-the-oxygenation-line">Info panel display bug: the Oxygenation line<a class="headerlink" href="#info-panel-display-bug-the-oxygenation-line" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+<p>The Sleeper info panel "Occupant" block prints Hydration, Nutrition, and Oxygenation via <code>OccupantAtmospherics.AddOccupantString</code> (lines 401205-401223). The Oxygenation line is doubly bugged:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kt">int</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">RoundToInt</span><span class="p">(</span><span class="n">entity</span><span class="p">.</span><span class="n">HydrationRatio</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100f</span><span class="p">);</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">StringManager</span><span class="p">.</span><span class="n">AddKeyValueLine</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">Hydration</span><span class="p">,</span><span class="w"> </span><span class="n">num</span><span class="p">.</span><span class="n">ToStringPrefix</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GetStateColor</span><span class="p">(</span><span class="n">num</span><span class="p">)),</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kt">int</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">RoundToInt</span><span class="p">(</span><span class="n">entity</span><span class="p">.</span><span class="n">NutritionRatio</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100f</span><span class="p">);</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">StringManager</span><span class="p">.</span><span class="n">AddKeyValueLine</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">Nutrition</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">.</span><span class="n">ToStringPrefix</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GetStateColor</span><span class="p">(</span><span class="n">num2</span><span class="p">)),</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="kt">int</span><span class="w"> </span><span class="n">num3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">RoundToInt</span><span class="p">(</span><span class="n">entity</span><span class="p">.</span><span class="n">OxygenationRatio</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100f</span><span class="p">);</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">StringManager</span><span class="p">.</span><span class="n">AddKeyValueLine</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">Oxygenation</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">.</span><span class="n">ToStringPrefix</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GetStateColor</span><span class="p">(</span><span class="n">num3</span><span class="p">)),</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
+</span></code></pre></div>
+<ol>
+<li>Wrong number. The Oxygenation line (line 401216) displays <code>num2</code>, the Nutrition value, not <code>num3</code>, the Oxygenation value. A copy-paste slip. The visible symptom is that the panel's Oxygenation percent always equals its Nutrition percent.</li>
+<li>Always red. <code>num3 = RoundToInt(entity.OxygenationRatio * 100f)</code>, and <code>OxygenationRatio =&gt; Oxygenation / 100f</code> (line 283823) where the live <code>Oxygenation</code> reserve is clamped to a maximum of 0.024 (Entity.Oxygenation setter, line 283803). At full health <code>num3 = RoundToInt(0.024) = 0</code>, which <code>GetStateColor</code> maps to red. So the line is red whenever the occupant is alive, regardless of actual oxygen state.</li>
+</ol>
+<p><code>GetStateColor</code> bands (lines 401228-401242):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">private</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetStateColor</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">percent</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">percent</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">50f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">percent</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">75f</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;green&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;yellow&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">percent</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">25f</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;orange&quot;</span><span class="p">;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;red&quot;</span><span class="p">;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Reading the panel: ignore the Oxygenation line's number and color. To judge whether the occupant is actually oxygenating, read the Occupant Atmosphere block instead (O2 partial pressure should be at least 16 kPa). A powered sleeper fed pure O2 at 100 kPa keeps the occupant's oxygen reserve pegged at its 0.024 maximum and triggers no oxygen damage (the <code>Oxygenation &lt;= 0</code> damage branch at line 321991 never fires), even though the panel paints "Oxygenation" red. See the corrected scale in <a href="../../GameSystems/BreathingAndOxygenation/">../GameSystems/BreathingAndOxygenation.md</a>.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
 
 <ul>
 <li>2026-06-01: page created from decompiled Assembly-CSharp.dll, game version 0.2.6228.27061. Source lines: Sleeper class 399619-399713 (InitInternalAtmosphere 800 L at 399681, IsOperable 399641, IsSuspendingLife 399670, AssessError/OutputNetwork 399699-399713), OccupantAtmospherics 399413-399618 (limits 399447-399449, IsUnsafeAtmosphere 399457-399478, tooltip "Occupant Atmosphere" 399496-399497, error strings 399503-399537, OnServerTick mode mapping 399592-399601), SpawnPointAtmospherics 401082-401423 (InitInternalAtmosphere 10 L at 401100, stun constants 401086-401088, OnAtmosphericTick mix/stun/heater 401381-401423, _maxHeatKelvin 24 C at 401094), Thing.SetWorldAtmosphere 281183-281202, Human.BreathingAtmosphere 340241-340262. Corrects an earlier sub-agent claim that a sleeper occupant breathes the room: the bed slot is a <code>UseInternalAtmosphere</code> slot, so the occupant breathes the device internal (piped) atmosphere.</li>
+<li>2026-06-02: added "Info panel display bug: the Oxygenation line" documenting the <code>AddOccupantString</code> bug (line 401216 prints <code>num2</code>/Nutrition instead of <code>num3</code>/Oxygenation; the color from <code>GetStateColor(num3)</code> is always red because <code>OxygenationRatio</code> collapses the 0.024-max reserve to 0). Verified directly and via a fresh validator against decompiled Assembly-CSharp.dll. Cross-references the corrected Oxygenation scale in GameSystems/BreathingAndOxygenation.md.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
