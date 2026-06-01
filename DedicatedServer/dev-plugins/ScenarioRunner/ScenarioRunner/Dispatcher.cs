@@ -141,6 +141,10 @@ namespace ScenarioRunner
                     Scenario_PgpRateCapProbe();
                     return;
 
+                case "pgp-stationpedia-page-probe":
+                    Scenario_PgpStationpediaPageProbe();
+                    return;
+
                 case "ptp-autoaim-cache-probe":
                     Scenario_PtpAutoAimCacheProbe();
                     return;
@@ -1255,6 +1259,78 @@ namespace ScenarioRunner
             catch (Exception e)
             {
                 _log?.LogError($"[ScenarioRunner] CBP reflection probe threw: {e.Message}");
+            }
+        }
+
+        // PGP scenario: stationpedia-page-probe.
+        // One-shot. Verifies the LogicType wiki-page registration done by PGP's
+        // StationpediaPopulateLogicVariablesPatch postfix (which calls Stationpedia.Register
+        // for each entry in LogicTypeRegistry.All on every Stationpedia.PopulateLogicVariables).
+        // Reads Stationpedia._linkIdLookup at scenario tick time, asserts the entry for
+        // 'LogicTypeLogicPassthroughMode' is present, and logs its Key / Title / Text head.
+        // The Localization.GetThingDescription footer half of PGP's Stationpedia work is covered
+        // separately by pgp-rate-cap-probe (ProbePgpRateCap_Stationpedia), not duplicated here.
+        //
+        // Threading: a private static IDictionary read via reflection plus a couple of field
+        // reads. No Unity APIs -> safe from the UniTask worker.
+
+        private static bool _spppFired;
+
+        private static void Scenario_PgpStationpediaPageProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-stationpedia-page-probe")) return;
+            if (_spppFired) return;
+            _spppFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] SPPP START pgp-stationpedia-page-probe");
+
+                var pediaType = AccessUtil_TypeByName("Assets.Scripts.UI.Stationpedia")
+                    ?? AccessUtil_TypeByName("Stationpedia");
+                if (pediaType == null)
+                {
+                    _log?.LogError("[ScenarioRunner] SPPP FAIL: Stationpedia type not found");
+                    return;
+                }
+
+                var lookupField = pediaType.GetField("_linkIdLookup",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                if (lookupField == null)
+                {
+                    _log?.LogError("[ScenarioRunner] SPPP FAIL: Stationpedia._linkIdLookup static field not found");
+                    return;
+                }
+
+                var lookup = lookupField.GetValue(null) as System.Collections.IDictionary;
+                if (lookup == null)
+                {
+                    _log?.LogError("[ScenarioRunner] SPPP FAIL: _linkIdLookup is null or not an IDictionary");
+                    return;
+                }
+                _log?.LogInfo($"[ScenarioRunner] SPPP _linkIdLookup pages={lookup.Count}");
+
+                const string key = "LogicTypeLogicPassthroughMode";
+                if (!lookup.Contains(key))
+                {
+                    _log?.LogError($"[ScenarioRunner] SPPP FAIL: '{key}' NOT registered in _linkIdLookup ({lookup.Count} pages total)");
+                    return;
+                }
+
+                var page = lookup[key];
+                var pageType = page.GetType();
+                string pageKey = pageType.GetField("Key")?.GetValue(page) as string;
+                string title = pageType.GetField("Title")?.GetValue(page) as string;
+                string text = pageType.GetField("Text")?.GetValue(page) as string;
+                string head = string.IsNullOrEmpty(text)
+                    ? "<empty>"
+                    : (text.Length > 200 ? text.Substring(0, 200) + "..." : text);
+                head = head.Replace("\r", "\\r").Replace("\n", "\\n");
+                _log?.LogInfo($"[ScenarioRunner] SPPP PASS: '{key}' registered. Key='{pageKey}' Title='{title}' TextLen={(text?.Length ?? -1)} Head='{head}'");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] SPPP threw: {e}");
             }
         }
 
