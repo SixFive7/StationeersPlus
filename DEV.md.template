@@ -136,6 +136,8 @@ Wire the location into the environment so the launcher and ad-hoc scripts find i
 
 ## Build toolchain
 
+**Unity / mono runtime:** Stationeers runs on Unity **2022.3.62f3**. Pin this exact build: any source-level debugging runtime (a patched mono dropped into `EmbeddedRuntime`) must match it, and it is the reference for sourcing the right binaries. The build itself only needs the game assemblies under `$(StationeersPath)`, not the Unity editor. (Game version 0.2.6228.27061 at time of writing; the Unity build changes far less often than the game version.)
+
 **MSBuild (Visual Studio)**:
 
 ```
@@ -192,6 +194,25 @@ StationeersLaunchPad auto-detects changed mod folders; the game must be restarte
 - **UnityPy** (Python package). Used for prefab extraction, transform tree inspection, MonoBehaviour-backed SerializeField values. Example: read `resources.assets`, walk the hierarchy under a GameObject, dump `m_LocalPosition` / `m_LocalRotation` per transform.
 
 - **`gh` CLI** on PATH, authenticated against your GitHub account. Used for `gh repo create`, `gh pr create`, etc.
+
+Unity-editor mod toolchains (StationeersModdingTools, StationeersUnityModdingTemplate, and similar asset/prefab authoring pipelines) are intentionally unused. Every mod here is a C# Harmony patch with no Unity-editor assets; new prefabs are cloned at runtime via the game API (see `Research/Patterns/PrefabCloning.md`). If you came looking for the Unity editor workflow, you do not need it for this repo.
+
+---
+
+## External references
+
+Authoritative documentation for the libraries and tools these mods build on. These cover the dependencies, not the game itself. For game internals the source of truth is the central `Research/` knowledge base, backed by decompiling `Assembly-CSharp.dll`.
+
+- Harmony (patching library): https://harmony.pardeike.net/articles/intro.html
+- BepInEx (mod loader): https://docs.bepinex.dev/
+- StationeersLaunchPad (mod framework: load order, About.xml schema, settings panel): https://stationeerslaunchpad.github.io/docs/ ; About.xml structure page: https://stationeerslaunchpad.github.io/docs/structure/
+- Steam Workshop BBCode tags (for `About.xml` `<Description>`): https://steamcommunity.com/comment/Guide/formattinghelp
+- Harmony community Discord (for exotic patching questions): https://discord.gg/jaG9GHvQTF
+
+Game-internals reference, use with care:
+
+- Stationeers API docs (RedstoneWizard08): https://redstonewizard08.github.io/DocumentationWarning/docs/Stationeers
+  Generated docs that have gone stale before. Use them only as a hint to find the right class or method quickly. Always verify against our own `Research/` pages before relying on anything they say. If `Research/` does not cover it or is incomplete, decompile `Assembly-CSharp.dll` and enhance `Research/` per `Research/WORKFLOW.md` and `Research/CLAUDE.md` rather than trusting the generated doc. Never treat this site as a source of record.
 
 ---
 

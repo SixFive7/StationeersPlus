@@ -35,6 +35,8 @@ User-facing content lives in three mirrored places, each with its own markup. Wh
 - `About.xml` `<Description>` is the Steam Workshop mirror. BBCode (`[h1]`, `[b]`, `[list][*]`, `[url=...]`). Compressed from the README, not a literal translation, but the same sections and wording where they fit.
 - `About.xml` `<InGameDescription>` is the in-game mod-settings panel. Unity rich text (`<b>`, `<size>`, `<color>`). Tighter still, feature-list style.
 
+The `<Description>` uses Steam's own BBCode dialect, which is not standard BBCode. Use only the tags documented in the official reference: https://steamcommunity.com/comment/Guide/formattinghelp. A tag that is not on that list renders as literal text on the live Workshop page, which the post-release Playwright check in `RELEASE.md` would catch only after publishing.
+
 ## Taglines in sync across three surfaces
 
 Every mod has one canonical tagline: a single sentence describing the mod in its current feature-complete state. The same sentence appears verbatim, adjusted only for the surface's markup, in three places:
