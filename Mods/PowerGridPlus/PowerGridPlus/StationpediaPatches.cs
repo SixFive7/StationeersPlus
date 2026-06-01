@@ -88,9 +88,27 @@ namespace PowerGridPlus
                         Settings.NuclearBatteryDischargeRate.Value,
                         chargeConfigName: "Nuclear Battery Charge Rate",
                         dischargeConfigName: "Nuclear Battery Discharge Rate");
+                case "ItemCableCoilSuperHeavy":
+                    return BuildSuperHeavyCableFooter();
                 default:
                     return null;
             }
+        }
+
+        private static string BuildSuperHeavyCableFooter()
+        {
+            if (Settings.EnableUnlimitedSuperHeavyCables.Value)
+            {
+                return
+                    "\n\n{HEADER:POWER GRID PLUS}\n" +
+                    "Burn-immune: this cable does not burn out, regardless of throughput. It is the long-haul " +
+                    "backbone of the grid. (Server config \"Enable Unlimited Super-Heavy Cables\" is on.)";
+            }
+
+            return
+                "\n\n{HEADER:POWER GRID PLUS}\n" +
+                "Burn behaviour: vanilla. This cable can still burn out under sustained overload. " +
+                "(Server config \"Enable Unlimited Super-Heavy Cables\" is off.)";
         }
 
         private static string BuildApcFooter()

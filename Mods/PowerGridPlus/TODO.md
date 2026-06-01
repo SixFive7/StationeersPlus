@@ -115,8 +115,6 @@ These would all sit on top of the v1 design. None needs a new prefab, so they st
 
 ## Open decisions and housekeeping
 
-- **Patch the Stationpedia to reflect unlimited super-heavy cable.** NEW-1 makes super-heavy cable burn-immune at runtime when `EnableUnlimitedSuperHeavyCables` is on (`PowerGridTick.TestBurnCable` returns null for all-super-heavy networks), but the in-game Stationpedia entry for super-heavy cable still shows the vanilla rated power. Patch the Stationpedia so a player reading the entry sees the unlimited rating (and, when the config is off, the vanilla value) -- otherwise the in-game documentation contradicts the mod's runtime behaviour. Check `Research/GameSystems/` for the Stationpedia content-patching pattern; if none is curated yet, decompile-trace `StationpediaPage` / the page-loader and add the page to `Research/` as part of this work.
-
 - **Considered features -- decide whether to scope Absorb Omni Transmitter Settings.** Only one item remains under "Considered features" below; pick it up or drop it.
 - **`Settings.cs` Heavy-Cable Device List: drop or extend after the draw sweep.** The hardcoded high-draw machine whitelist (`CarbonSequester`, `FurnaceBase`, `ArcFurnace`, `Centrifuge`, `Recycler`, `IceCrusher`, `HydraulicPipeBender`, `DeepMiner`) was assembled from community consensus; only the first three are verified-by-decompile to draw >5 kW. The InspectorPlus draw sweep that measures which of the rest actually exceed 5 kW is in `PLAYTEST.md`; once it reports, drop or extend the whitelist in `VoltageTier.IsHighDrawMachine` accordingly.
 
