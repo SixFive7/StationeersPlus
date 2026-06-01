@@ -2,6 +2,12 @@
 
 Full version history for Power Transmitter Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.8.0: Optional per-transmitter Max Transfer Capacity, plus multiplayer auto-aim and beam fixes
+- Added an optional `Max Transfer Capacity (W)` server setting (under `Server - Capacity`) that clamps the watts a single transmitter delivers. Default 0 = unlimited, so the vanilla 5 kW per-dish limit stays removed and one dish can carry as much power as its cables and source allow. Server-authoritative, synced to clients on connect and on change.
+- Fixed a multiplayer auto-aim desync: a client's `MicrowaveAutoAimTarget` no longer flickers to 0 while the host slews the dish, and a manual Horizontal or Vertical write now clears the cached target on both host and client.
+- Beam show and hide is now event-driven: the beam hides and re-shows on clients within a frame when a dish toggles on or off or slews past the aim tolerance.
+- All players on a server must be on v1.8.0 or newer; the LaunchPad version handshake rejects mixed installs.
+
 ## v1.7.2: Beam pulse position no longer jumps when power flow rate updates
 - Pulse stripes now integrate position incrementally each frame instead of multiplying total elapsed time by the current speed, so a speed change only affects future motion. Previously every speed change retroactively rescaled the stripes' world position, producing visible position jumps. Most noticeable with mods that update source-draw rates frequently, such as Re-Volt's proportional power sharing.
 - No multiplayer protocol change; v1.7.1 and v1.7.2 clients are wire-compatible.
