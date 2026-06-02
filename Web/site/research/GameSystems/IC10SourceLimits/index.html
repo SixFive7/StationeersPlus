@@ -718,6 +718,8 @@
       
         
       
+        
+      
     
     
     
@@ -2092,6 +2094,34 @@
     
   
     NetworkChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/NetworkManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkManager
   
 
     
@@ -3628,6 +3658,39 @@
     <span class="md-ellipsis">
       
         Line numbering counts comment/blank lines (runtime)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-label-records-its-own-physical-line-and-that-line-stays-addressable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A label records its OWN physical line, and that line stays addressable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nextaddr-and-jumptags-persist-verbatim-across-saveload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NextAddr and JumpTags persist verbatim across save/load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-in-game-error-line-display-is-0-indexed-and-shows-nextaddr-verbatim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The in-game error-line display is 0-indexed and shows NextAddr verbatim
       
     </span>
   </a>
@@ -7308,6 +7371,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#a-label-records-its-own-physical-line-and-that-line-stays-addressable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A label records its OWN physical line, and that line stays addressable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nextaddr-and-jumptags-persist-verbatim-across-saveload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NextAddr and JumpTags persist verbatim across save/load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-in-game-error-line-display-is-0-indexed-and-shows-nextaddr-verbatim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The in-game error-line display is 0-indexed and shows NextAddr verbatim
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -7447,22 +7543,24 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-31.
+           on 2026-06-03.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (5)</summary>
           <ul>
             
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'InputSourceCode (MAX_LINES, MAX_FILE_SIZE, LINE_LENGTH_LIMIT, Paste, Copy, UpdateFileSize, HandleInput, Initialize)'}</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'InputSourceCode (MAX_LINES, MAX_FILE_SIZE, LINE_LENGTH_LIMIT, Paste, Copy, UpdateFileSize, HandleInput, Initialize, gutter label $"{i}.")'}</code></li>
             
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'ProgrammableChip.SetSourceCode / ProgrammableChip._LineOfCode / _DEFINE_Operation / DoubleValueVariable'}</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'ProgrammableChip.SetSourceCode / ProgrammableChip._LineOfCode (label-detect _JumpTags.Add(key, lineNumber)) / _DEFINE_Operation / DoubleValueVariable'}</code></li>
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'AsciiString (ctor, ParseLine)'}</code></li>
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Regexes (PreprocessHashes, PreprocessStrings, PreprocessBinary, PreprocessHex)'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'ProgrammableChipSaveData (NextAddr, JumpTagsKeys/Values) ; ProgrammableChip save/load (Serialize/Deserialize _NextAddr and _JumpTags) ; AppendErrorsToActionInstance / ErrorLineNumberString / GameStrings.ProgrammableChipErrorCode'}</code></li>
             
           </ul>
         </details>
@@ -7650,33 +7748,64 @@
 <p>In <code>SetSourceCode</code>, every physical line (split on <code>\n</code>) becomes one <code>_LineOfCode</code> at index <code>i</code>, INCLUDING comment-only and blank lines. A line whose first char is <code>#</code> is added as <code>_LineOfCode(this, string.Empty, i)</code> (an empty line that compiles to NOOP) but it still occupies index <code>i</code>. Inside <code>_LineOfCode</code>, a blank/comment-stripped line with zero tokens becomes a <code>_NOOP_Operation</code>. Therefore runtime jump addresses are 0-based physical line indices and DO count comment and blank lines.</p>
 <p>Label resolution does not depend on counting only executable lines: a label <code>foo:</code> records <code>chip._JumpTags[foo] = lineNumber</code> where <code>lineNumber</code> is the physical index, and <code>j foo</code> jumps to that index. Because both the label definition and every other line keep their physical index, jumps land correctly as long as the whole physical file is present and in order.</p>
 <p>Caveat: this physical-index numbering is the RUNTIME chip's. The editor (<code>SortLines</code>, <code>Paste</code>) renumbers its own display slots <code>0..127</code> and is the path that drops lines 129+; a script that survives the editor has at most 128 lines and the editor's saved text is what the chip then parses.</p>
+<h3 id="a-label-records-its-own-physical-line-and-that-line-stays-addressable">A label records its OWN physical line, and that line stays addressable<a class="headerlink" href="#a-label-records-its-own-physical-line-and-that-line-stays-addressable" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+<p>In <code>_LineOfCode</code>, a line consisting of a single token ending in <code>:</code> is detected and the label is stored at the label line's own physical index. From the <code>_LineOfCode</code> constructor (Assembly-CSharp.decompiled.cs:387927-387936):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">array</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">Length</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">Length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;:&#39;</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">Operation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">_NOOP_Operation</span><span class="p">(</span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span><span class="w">   </span><span class="c1">// label line itself = NOOP</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">Length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">chip</span><span class="p">.</span><span class="n">_JumpTags</span><span class="p">.</span><span class="n">ContainsKey</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">ProgrammableChipException</span><span class="p">(</span><span class="n">ProgrammableChipException</span><span class="p">.</span><span class="n">ICExceptionType</span><span class="p">.</span><span class="n">JumpTagDuplicate</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="n">chip</span><span class="p">.</span><span class="n">_JumpTags</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span><span class="w">   </span><span class="c1">// value == the label&#39;s OWN physical line index</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>loop:</code> sitting on physical line 29 records <code>_JumpTags["loop"] = 29</code>, NOT 30. The label line is not skipped or folded into the next instruction: it compiles to its own <code>_NOOP_Operation</code> occupying index 29, and <code>j loop</code> returns 29. Execution lands on the NOOP at 29 and falls through to 30 on the next loop iteration (<code>_NOOP_Operation.Execute</code> returns <code>index + 1</code>). A duplicate label name throws <code>JumpTagDuplicate</code> at compile time. This is the calibration anchor for reading a save: if a chip's saved <code>JumpTagsValues</code> entry for <code>loop</code> is 29, then physical line 29 of the source IS the <code>loop:</code> line, and address N maps to the (N+1)-th physical line counting all blank and comment lines from line 0.</p>
+<h3 id="nextaddr-and-jumptags-persist-verbatim-across-saveload">NextAddr and JumpTags persist verbatim across save/load<a class="headerlink" href="#nextaddr-and-jumptags-persist-verbatim-across-saveload" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+<p><code>ProgrammableChipSaveData.NextAddr</code> is <code>public int NextAddr</code> (Assembly-CSharp.decompiled.cs:387509). On SAVE, the chip writes its live program counter straight out (<code>programmableChipSaveData.NextAddr = _NextAddr;</code>, line 393908). On LOAD, it reads it straight back (<code>_NextAddr = programmableChipSaveData.NextAddr;</code>, line 393840). No remap, no recompile-time adjustment: the saved <code>NextAddr</code> is exactly the address the chip will execute next when the world resumes.</p>
+<p>Combined with the runtime-error catch block (see <code>./IC10ExecutionTick.md</code> and <code>./IC10Stack.md</code>: <code>catch (ProgrammableChipException ex) { CircuitHousing?.RaiseError(1); _ErrorLineNumber = ex.LineNumber; _NextAddr = nextAddr; }</code>), a chip that halted on a RUNTIME error has <code>_NextAddr</code> REWOUND to the faulting instruction's address before the save is written. Therefore, in a <code>world.xml</code>, a <code>ProgrammableChipSaveData</code> whose housing <code>Error == 1</code> has <code>NextAddr</code> pointing AT the faulting instruction (the one that threw), not the instruction after it and not a post-yield resume point. <code>_ErrorLineNumber</code> (the synced <code>_ErrorLineNumberSynced</code> ushort) holds the same physical line index, sourced from <code>ex.LineNumber</code>, which every operation sets to its own <code>_LineNumber</code> (its physical line index). For a clean (non-error) halt the chip parks at the post-<code>yield</code> address instead: <code>yield</code> returns <code>-index - 1</code>, the run loop negates it back to <code>index</code>, so <code>_NextAddr</code> is the yield line's own address and the chip re-runs the line after <code>yield</code> next tick. (<code>SetSourceCode</code> resets <code>_NextAddr = 0</code> on any fresh source load, so a re-flash clears a stale error address.)</p>
+<p>The same save record round-trips the jump table verbatim: <code>JumpTagsKeys[m]</code> / <code>JumpTagsValues[m]</code> are loaded into <code>_JumpTags</code> (line 393869) and written from it on save. The saved <code>JumpTagsValues</code> therefore equal the physical line indices computed at the last <code>SetSourceCode</code>, which is why they are a reliable address calibration anchor for the saved <code>SourceCode</code> string.</p>
+<h3 id="the-in-game-error-line-display-is-0-indexed-and-shows-nextaddr-verbatim">The in-game error-line display is 0-indexed and shows NextAddr verbatim<a class="headerlink" href="#the-in-game-error-line-display-is-0-indexed-and-shows-nextaddr-verbatim" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+<p>When a chip is in a runtime-error state, the housing's interaction tooltip surfaces the error via <code>ProgrammableChip.AppendErrorsToActionInstance</code> (Assembly-CSharp.decompiled.cs:394246-394256):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">_ErrorType</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">ProgrammableChipException</span><span class="p">.</span><span class="n">ICExceptionType</span><span class="p">.</span><span class="n">None</span><span class="p">)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">actionInstance</span><span class="p">.</span><span class="n">AppendStateMessage</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">ProgrammableChipErrorCode</span><span class="p">,</span><span class="w"> </span><span class="n">ErrorTypeString</span><span class="p">,</span><span class="w"> </span><span class="n">ErrorLineNumberString</span><span class="p">);</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The format string is <code>"Error &lt;color=red&gt;{ErrorType}&lt;/color&gt; at line {LineNumber}"</code> (<code>GameStrings.ProgrammableChipErrorCode</code>, line 265385), and the line value is <code>ErrorLineNumberString =&gt; StringManager.Get(_ErrorLineNumberSynced)</code> (line 393380), the raw <code>_ErrorLineNumber</code> with NO <code>+1</code> applied. The in-game code editor (<code>InputSourceCode</code>) labels its gutter slots <code>$"{i}."</code> starting at <code>i == 0</code> (lines 223814 and 223829), so the editor display is 0-indexed too.</p>
+<p>Consequence for interpreting a user report: "error at line 34" is the 0-based physical line index and equals the faulted <code>NextAddr</code> value directly (no conversion). With the loop=29 calibration above, "line 34" is the 35<sup>th</sup> physical line counting from line 0, which in the solar-tower program is <code>sb SolarPanelHeavy Horizontal r0</code>. There is no off-by-one between the displayed error line, <code>_ErrorLineNumber</code>, <code>NextAddr</code> on a runtime fault, and the 0-based physical line index: all four are the same number.</p>
 <h2 id="preprocessing-hash-str-binary-hex-evaluated-at-import">Preprocessing: HASH / STR / binary / hex evaluated at import<a class="headerlink" href="#preprocessing-hash-str-binary-hex-evaluated-at-import" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
 <p><code>HASH("...")</code>, <code>STR("...")</code>, binary <code>%...</code>, and hex <code>$...</code> are all expanded to integer literals at import time, in the runtime <code>_LineOfCode</code> constructor (not just in the editor highlighter). Order: inline comment stripped first, then STR, then HASH, then binary, then hex:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="nf">_LineOfCode</span><span class="p">(</span><span class="n">ProgrammableChip</span><span class="w"> </span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">lineOfCode</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">lineOfCode</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="sc">&#39;#&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">lineOfCode</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">lineOfCode</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">lineOfCode</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="sc">&#39;#&#39;</span><span class="p">)));</span><span class="w">   </span><span class="c1">// strip inline comment</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="c1">// STR(&quot;...&quot;) -&gt; PackAscii6(name).ToString()</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="n">Localization</span><span class="p">.</span><span class="n">RegexResult</span><span class="w"> </span><span class="n">matchesForStringPreprocessing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">GetMatchesForStringPreprocessing</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">masterString</span><span class="p">);</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(...)</span><span class="w"> </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Replace</span><span class="p">(</span><span class="n">full</span><span class="p">,</span><span class="w"> </span><span class="n">PackAscii6</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">).</span><span class="n">ToString</span><span class="p">(</span><span class="n">InvariantCulture</span><span class="p">));</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="c1">// HASH(&quot;...&quot;) -&gt; Animator.StringToHash(name).ToString()</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">        </span><span class="n">Localization</span><span class="p">.</span><span class="n">RegexResult</span><span class="w"> </span><span class="n">matchesForHashPreprocessing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">GetMatchesForHashPreprocessing</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">masterString</span><span class="p">);</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(...)</span><span class="w"> </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Replace</span><span class="p">(</span><span class="n">full</span><span class="p">,</span><span class="w"> </span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">name</span><span class="p">).</span><span class="n">ToString</span><span class="p">());</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ProgrammableChipException</span><span class="p">(...</span><span class="n">InvalidPreprocessHash</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="c1">// binary %01_01 -&gt; Convert.ToInt64(name.Replace(&quot;_&quot;,&quot;&quot;), 2)   ; throws InvalidProcessBinary on failure</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="c1">// hex $1A_FF -&gt; Convert.ToInt64(name.Replace(&quot;_&quot;,&quot;&quot;), 16)      ; throws InvalidPreprocessHex on failure</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Split</span><span class="p">();</span><span class="w">   </span><span class="c1">// tokenize after macro expansion</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">public</span><span class="w"> </span><span class="nf">_LineOfCode</span><span class="p">(</span><span class="n">ProgrammableChip</span><span class="w"> </span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">lineOfCode</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">lineOfCode</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="sc">&#39;#&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">lineOfCode</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">lineOfCode</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">lineOfCode</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="sc">&#39;#&#39;</span><span class="p">)));</span><span class="w">   </span><span class="c1">// strip inline comment</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="c1">// STR(&quot;...&quot;) -&gt; PackAscii6(name).ToString()</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="n">Localization</span><span class="p">.</span><span class="n">RegexResult</span><span class="w"> </span><span class="n">matchesForStringPreprocessing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">GetMatchesForStringPreprocessing</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">masterString</span><span class="p">);</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(...)</span><span class="w"> </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Replace</span><span class="p">(</span><span class="n">full</span><span class="p">,</span><span class="w"> </span><span class="n">PackAscii6</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">).</span><span class="n">ToString</span><span class="p">(</span><span class="n">InvariantCulture</span><span class="p">));</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">        </span><span class="c1">// HASH(&quot;...&quot;) -&gt; Animator.StringToHash(name).ToString()</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="n">Localization</span><span class="p">.</span><span class="n">RegexResult</span><span class="w"> </span><span class="n">matchesForHashPreprocessing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">GetMatchesForHashPreprocessing</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">masterString</span><span class="p">);</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(...)</span><span class="w"> </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Replace</span><span class="p">(</span><span class="n">full</span><span class="p">,</span><span class="w"> </span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">name</span><span class="p">).</span><span class="n">ToString</span><span class="p">());</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ProgrammableChipException</span><span class="p">(...</span><span class="n">InvalidPreprocessHash</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="c1">// binary %01_01 -&gt; Convert.ToInt64(name.Replace(&quot;_&quot;,&quot;&quot;), 2)   ; throws InvalidProcessBinary on failure</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="c1">// hex $1A_FF -&gt; Convert.ToInt64(name.Replace(&quot;_&quot;,&quot;&quot;), 16)      ; throws InvalidPreprocessHex on failure</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">    </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Split</span><span class="p">();</span><span class="w">   </span><span class="c1">// tokenize after macro expansion</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>The macros are matched by these regexes (<code>Regexes</code> static ctor):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">PreprocessStrings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;STR\\(\&quot;([^\&quot;]+)\&quot;\\)&quot;</span><span class="p">);</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">PreprocessHashes</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;HASH\\(\&quot;([^\&quot;]+)\&quot;\\)&quot;</span><span class="p">);</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">PreprocessBinary</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;\\%([01_]+)&quot;</span><span class="p">);</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">PreprocessHex</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;\\$([0-9A-Fa-f_]+)+&quot;</span><span class="p">);</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">PreprocessStrings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;STR\\(\&quot;([^\&quot;]+)\&quot;\\)&quot;</span><span class="p">);</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">PreprocessHashes</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;HASH\\(\&quot;([^\&quot;]+)\&quot;\\)&quot;</span><span class="p">);</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">PreprocessBinary</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;\\%([01_]+)&quot;</span><span class="p">);</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">PreprocessHex</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Regex</span><span class="p">(</span><span class="s">&quot;\\$([0-9A-Fa-f_]+)+&quot;</span><span class="p">);</span>
 </span></code></pre></div>
 <p><code>GetMatchesForHashPreprocessing</code> first strips comments (<code>Regexes.CommentLite.Replace(masterString, "")</code>) then matches <code>HASH\("([^"]+)"\)</code>. The capture group <code>[^"]+</code> is "one or more non-double-quote characters", so an apostrophe inside the quotes is captured normally: <code>HASH("A'")</code> captures <code>A'</code> and resolves to <code>Animator.StringToHash("A'")</code>, a valid int. There is no special quote/apostrophe handling that breaks it. (<code>Animator.StringToHash</code> is Unity's built-in 32-bit string hash; in Stationeers it is what IC10 <code>HASH("...")</code> evaluates to, and what a device's <code>CustomName</code> is hashed with for <code>lbn</code>/<code>sbn</code> name-hash matching.)</p>
 <p>A <code>define NAME HASH("...")</code> line therefore works because HASH is replaced by its integer string BEFORE the value is parsed; the define's value parser (below) never sees the literal <code>HASH(...)</code>.</p>
@@ -7684,22 +7813,22 @@
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
 <p><code>define NAME VALUE</code> builds a <code>_DEFINE_Operation</code>, which parses VALUE via <code>DoubleValueVariable</code> and stores a <code>double</code>. A duplicate define name throws <code>ExtraDefine</code>:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">private</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">_DEFINE_Operation</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">_Operation</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">_DEFINE_Operation</span><span class="p">(</span><span class="n">ProgrammableChip</span><span class="w"> </span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">defineCode</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">floatCode</span><span class="p">)</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">        </span><span class="p">:</span><span class="w"> </span><span class="k">base</span><span class="p">(</span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">)</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="n">DoubleValueVariable</span><span class="w"> </span><span class="n">doubleValueVariable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">DoubleValueVariable</span><span class="p">(</span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">,</span><span class="w"> </span><span class="n">floatCode</span><span class="p">,</span><span class="w"> </span><span class="n">InstructionInclude</span><span class="p">.</span><span class="n">MaskDefineValue</span><span class="p">);</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">chip</span><span class="p">.</span><span class="n">_Defines</span><span class="p">.</span><span class="n">ContainsKey</span><span class="p">(</span><span class="n">defineCode</span><span class="p">))</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">            </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">ProgrammableChipException</span><span class="p">(</span><span class="n">ProgrammableChipException</span><span class="p">.</span><span class="n">ICExceptionType</span><span class="p">.</span><span class="n">ExtraDefine</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="n">chip</span><span class="p">.</span><span class="n">_Defines</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">defineCode</span><span class="p">,</span><span class="w"> </span><span class="n">doubleValueVariable</span><span class="p">.</span><span class="n">Get</span><span class="p">());</span>
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">private</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">_DEFINE_Operation</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">_Operation</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="p">{</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">_DEFINE_Operation</span><span class="p">(</span><span class="n">ProgrammableChip</span><span class="w"> </span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">defineCode</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">floatCode</span><span class="p">)</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">        </span><span class="p">:</span><span class="w"> </span><span class="k">base</span><span class="p">(</span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">)</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="n">DoubleValueVariable</span><span class="w"> </span><span class="n">doubleValueVariable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">DoubleValueVariable</span><span class="p">(</span><span class="n">chip</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">,</span><span class="w"> </span><span class="n">floatCode</span><span class="p">,</span><span class="w"> </span><span class="n">InstructionInclude</span><span class="p">.</span><span class="n">MaskDefineValue</span><span class="p">);</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">chip</span><span class="p">.</span><span class="n">_Defines</span><span class="p">.</span><span class="n">ContainsKey</span><span class="p">(</span><span class="n">defineCode</span><span class="p">))</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">            </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">ProgrammableChipException</span><span class="p">(</span><span class="n">ProgrammableChipException</span><span class="p">.</span><span class="n">ICExceptionType</span><span class="p">.</span><span class="n">ExtraDefine</span><span class="p">,</span><span class="w"> </span><span class="n">lineNumber</span><span class="p">);</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="n">chip</span><span class="p">.</span><span class="n">_Defines</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">defineCode</span><span class="p">,</span><span class="w"> </span><span class="n">doubleValueVariable</span><span class="p">.</span><span class="n">Get</span><span class="p">());</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><code>DoubleValueVariable</code> tries <code>InternalEnums</code>, then <code>AllConstants</code>, then falls back to a culture-invariant numeric parse:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">NumberStyles</span><span class="p">.</span><span class="n">Number</span><span class="p">,</span><span class="w"> </span><span class="n">NumberFormatInfo</span><span class="p">.</span><span class="n">InvariantInfo</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="p">))</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="n">_Value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">NumberStyles</span><span class="p">.</span><span class="n">Number</span><span class="p">,</span><span class="w"> </span><span class="n">NumberFormatInfo</span><span class="p">.</span><span class="n">InvariantInfo</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="p">))</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="n">_Value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
 </span></code></pre></div>
 <p><code>NumberStyles.Number</code> permits a leading sign and a decimal point, so:</p>
 <ul>
@@ -7709,9 +7838,10 @@
 </ul>
 <p>All three forms are accepted. (Note <code>NumberFormatInfo.InvariantInfo</code> means the decimal separator is always <code>.</code>, never <code>,</code>, regardless of OS locale.)</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
 
 <ul>
+<li>2026-06-03: Added three additive subsections under "Line numbering" while interpreting a saved <code>ProgrammableChipSaveData</code> (housing <code>Error == 1</code>, <code>NextAddr == 34</code>, <code>JumpTagsValues</code> for <code>loop</code> == 29) from a v0.2.6228.27061 world.xml. (1) "A label records its OWN physical line": confirmed <code>_LineOfCode</code> ctor stores <code>chip._JumpTags.Add(key, lineNumber)</code> at the label line's own physical index (decompile line 387935) and compiles the label line to a <code>_NOOP_Operation</code>, so <code>loop:</code> on physical line 29 yields <code>_JumpTags["loop"] == 29</code>, not 30. (2) "NextAddr and JumpTags persist verbatim": confirmed <code>ProgrammableChipSaveData.NextAddr</code> is <code>public int NextAddr</code> (387509), saved from <code>_NextAddr</code> (393908) and loaded back into <code>_NextAddr</code> (393840) with no remap, and that JumpTags round-trip via lines 393869; combined with the runtime-error rewind (<code>_NextAddr = nextAddr</code> in the catch), a chip whose housing <code>Error == 1</code> has <code>NextAddr</code> pointing AT the faulting instruction, while a clean <code>yield</code> halt parks at the yield line's own address. (3) "Error-line display is 0-indexed": confirmed <code>AppendErrorsToActionInstance</code> (394246) feeds <code>ErrorLineNumberString</code> (393380, raw <code>_ErrorLineNumberSynced</code>, no <code>+1</code>) into <code>GameStrings.ProgrammableChipErrorCode</code> <code>"... at line {LineNumber}"</code> (265385), and the editor gutter labels are <code>$"{i}."</code> from <code>i == 0</code> (223814/223829), so the displayed error line equals <code>NextAddr</code> on a runtime fault with no conversion. All three are additive (no prior verified content contradicted); no fresh validator required.</li>
 <li>2026-05-31: page created from a decompile review of v0.2.6228.27061. Confirmed editor caps (MAX_LINES=128, MAX_FILE_SIZE=4096, LINE_LENGTH_LIMIT=90) in <code>InputSourceCode</code>; confirmed the runtime <code>ProgrammableChip.SetSourceCode</code> path has no line/size/length cap (dictionaries + unbounded loop); confirmed <code>Paste</code> drops lines beyond slot 127; confirmed Submit gates on <code>_fileSize &lt;= 4096</code>; confirmed HASH/STR/binary/hex expansion happens in the runtime <code>_LineOfCode</code> ctor with HASH = <code>Animator.StringToHash</code>; confirmed <code>HASH("A'")</code> (apostrophe) is captured by the <code>[^"]+</code> group; confirmed negative-int and float define values parse via <code>double.TryParse(NumberStyles.Number, InvariantInfo)</code>.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
