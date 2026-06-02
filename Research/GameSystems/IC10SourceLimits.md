@@ -3,12 +3,13 @@ title: IC10SourceLimits
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-31
+verified_at: 2026-06-03
 sources:
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: InputSourceCode (MAX_LINES, MAX_FILE_SIZE, LINE_LENGTH_LIMIT, Paste, Copy, UpdateFileSize, HandleInput, Initialize)
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: ProgrammableChip.SetSourceCode / ProgrammableChip._LineOfCode / _DEFINE_Operation / DoubleValueVariable
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: InputSourceCode (MAX_LINES, MAX_FILE_SIZE, LINE_LENGTH_LIMIT, Paste, Copy, UpdateFileSize, HandleInput, Initialize, gutter label $"{i}.")
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: ProgrammableChip.SetSourceCode / ProgrammableChip._LineOfCode (label-detect _JumpTags.Add(key, lineNumber)) / _DEFINE_Operation / DoubleValueVariable
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: AsciiString (ctor, ParseLine)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Regexes (PreprocessHashes, PreprocessStrings, PreprocessBinary, PreprocessHex)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: ProgrammableChipSaveData (NextAddr, JumpTagsKeys/Values) ; ProgrammableChip save/load (Serialize/Deserialize _NextAddr and _JumpTags) ; AppendErrorsToActionInstance / ErrorLineNumberString / GameStrings.ProgrammableChipErrorCode
 related:
   - ./IC10SyntaxHighlighting.md
   - ./IC10DeviceAddressing.md
@@ -184,6 +185,49 @@ Label resolution does not depend on counting only executable lines: a label `foo
 
 Caveat: this physical-index numbering is the RUNTIME chip's. The editor (`SortLines`, `Paste`) renumbers its own display slots `0..127` and is the path that drops lines 129+; a script that survives the editor has at most 128 lines and the editor's saved text is what the chip then parses.
 
+### A label records its OWN physical line, and that line stays addressable
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+In `_LineOfCode`, a line consisting of a single token ending in `:` is detected and the label is stored at the label line's own physical index. From the `_LineOfCode` constructor (Assembly-CSharp.decompiled.cs:387927-387936):
+
+```csharp
+else if (array.Length == 1 && array[0].Length >= 2 && array[0][array[0].Length - 1] == ':')
+{
+    Operation = new _NOOP_Operation(chip, lineNumber);   // label line itself = NOOP
+    string key = array[0].Substring(0, array[0].Length - 1);
+    if (chip._JumpTags.ContainsKey(key))
+        throw new ProgrammableChipException(ProgrammableChipException.ICExceptionType.JumpTagDuplicate, lineNumber);
+    chip._JumpTags.Add(key, lineNumber);   // value == the label's OWN physical line index
+}
+```
+
+So `loop:` sitting on physical line 29 records `_JumpTags["loop"] = 29`, NOT 30. The label line is not skipped or folded into the next instruction: it compiles to its own `_NOOP_Operation` occupying index 29, and `j loop` returns 29. Execution lands on the NOOP at 29 and falls through to 30 on the next loop iteration (`_NOOP_Operation.Execute` returns `index + 1`). A duplicate label name throws `JumpTagDuplicate` at compile time. This is the calibration anchor for reading a save: if a chip's saved `JumpTagsValues` entry for `loop` is 29, then physical line 29 of the source IS the `loop:` line, and address N maps to the (N+1)-th physical line counting all blank and comment lines from line 0.
+
+### NextAddr and JumpTags persist verbatim across save/load
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+`ProgrammableChipSaveData.NextAddr` is `public int NextAddr` (Assembly-CSharp.decompiled.cs:387509). On SAVE, the chip writes its live program counter straight out (`programmableChipSaveData.NextAddr = _NextAddr;`, line 393908). On LOAD, it reads it straight back (`_NextAddr = programmableChipSaveData.NextAddr;`, line 393840). No remap, no recompile-time adjustment: the saved `NextAddr` is exactly the address the chip will execute next when the world resumes.
+
+Combined with the runtime-error catch block (see `./IC10ExecutionTick.md` and `./IC10Stack.md`: `catch (ProgrammableChipException ex) { CircuitHousing?.RaiseError(1); _ErrorLineNumber = ex.LineNumber; _NextAddr = nextAddr; }`), a chip that halted on a RUNTIME error has `_NextAddr` REWOUND to the faulting instruction's address before the save is written. Therefore, in a `world.xml`, a `ProgrammableChipSaveData` whose housing `Error == 1` has `NextAddr` pointing AT the faulting instruction (the one that threw), not the instruction after it and not a post-yield resume point. `_ErrorLineNumber` (the synced `_ErrorLineNumberSynced` ushort) holds the same physical line index, sourced from `ex.LineNumber`, which every operation sets to its own `_LineNumber` (its physical line index). For a clean (non-error) halt the chip parks at the post-`yield` address instead: `yield` returns `-index - 1`, the run loop negates it back to `index`, so `_NextAddr` is the yield line's own address and the chip re-runs the line after `yield` next tick. (`SetSourceCode` resets `_NextAddr = 0` on any fresh source load, so a re-flash clears a stale error address.)
+
+The same save record round-trips the jump table verbatim: `JumpTagsKeys[m]` / `JumpTagsValues[m]` are loaded into `_JumpTags` (line 393869) and written from it on save. The saved `JumpTagsValues` therefore equal the physical line indices computed at the last `SetSourceCode`, which is why they are a reliable address calibration anchor for the saved `SourceCode` string.
+
+### The in-game error-line display is 0-indexed and shows NextAddr verbatim
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+When a chip is in a runtime-error state, the housing's interaction tooltip surfaces the error via `ProgrammableChip.AppendErrorsToActionInstance` (Assembly-CSharp.decompiled.cs:394246-394256):
+
+```csharp
+else if (_ErrorType != ProgrammableChipException.ICExceptionType.None)
+{
+    actionInstance.AppendStateMessage(GameStrings.ProgrammableChipErrorCode, ErrorTypeString, ErrorLineNumberString);
+}
+```
+
+The format string is `"Error <color=red>{ErrorType}</color> at line {LineNumber}"` (`GameStrings.ProgrammableChipErrorCode`, line 265385), and the line value is `ErrorLineNumberString => StringManager.Get(_ErrorLineNumberSynced)` (line 393380), the raw `_ErrorLineNumber` with NO `+1` applied. The in-game code editor (`InputSourceCode`) labels its gutter slots `$"{i}."` starting at `i == 0` (lines 223814 and 223829), so the editor display is 0-indexed too.
+
+Consequence for interpreting a user report: "error at line 34" is the 0-based physical line index and equals the faulted `NextAddr` value directly (no conversion). With the loop=29 calibration above, "line 34" is the 35th physical line counting from line 0, which in the solar-tower program is `sb SolarPanelHeavy Horizontal r0`. There is no off-by-one between the displayed error line, `_ErrorLineNumber`, `NextAddr` on a runtime fault, and the 0-based physical line index: all four are the same number.
+
 ## Preprocessing: HASH / STR / binary / hex evaluated at import
 <!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
 
@@ -258,8 +302,9 @@ if (double.TryParse(code, NumberStyles.Number, NumberFormatInfo.InvariantInfo, o
 All three forms are accepted. (Note `NumberFormatInfo.InvariantInfo` means the decimal separator is always `.`, never `,`, regardless of OS locale.)
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-31 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
 
+- 2026-06-03: Added three additive subsections under "Line numbering" while interpreting a saved `ProgrammableChipSaveData` (housing `Error == 1`, `NextAddr == 34`, `JumpTagsValues` for `loop` == 29) from a v0.2.6228.27061 world.xml. (1) "A label records its OWN physical line": confirmed `_LineOfCode` ctor stores `chip._JumpTags.Add(key, lineNumber)` at the label line's own physical index (decompile line 387935) and compiles the label line to a `_NOOP_Operation`, so `loop:` on physical line 29 yields `_JumpTags["loop"] == 29`, not 30. (2) "NextAddr and JumpTags persist verbatim": confirmed `ProgrammableChipSaveData.NextAddr` is `public int NextAddr` (387509), saved from `_NextAddr` (393908) and loaded back into `_NextAddr` (393840) with no remap, and that JumpTags round-trip via lines 393869; combined with the runtime-error rewind (`_NextAddr = nextAddr` in the catch), a chip whose housing `Error == 1` has `NextAddr` pointing AT the faulting instruction, while a clean `yield` halt parks at the yield line's own address. (3) "Error-line display is 0-indexed": confirmed `AppendErrorsToActionInstance` (394246) feeds `ErrorLineNumberString` (393380, raw `_ErrorLineNumberSynced`, no `+1`) into `GameStrings.ProgrammableChipErrorCode` `"... at line {LineNumber}"` (265385), and the editor gutter labels are `$"{i}."` from `i == 0` (223814/223829), so the displayed error line equals `NextAddr` on a runtime fault with no conversion. All three are additive (no prior verified content contradicted); no fresh validator required.
 - 2026-05-31: page created from a decompile review of v0.2.6228.27061. Confirmed editor caps (MAX_LINES=128, MAX_FILE_SIZE=4096, LINE_LENGTH_LIMIT=90) in `InputSourceCode`; confirmed the runtime `ProgrammableChip.SetSourceCode` path has no line/size/length cap (dictionaries + unbounded loop); confirmed `Paste` drops lines beyond slot 127; confirmed Submit gates on `_fileSize <= 4096`; confirmed HASH/STR/binary/hex expansion happens in the runtime `_LineOfCode` ctor with HASH = `Animator.StringToHash`; confirmed `HASH("A'")` (apostrophe) is captured by the `[^"]+` group; confirmed negative-int and float define values parse via `double.TryParse(NumberStyles.Number, InvariantInfo)`.
 
 ## Open questions
