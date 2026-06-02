@@ -718,6 +718,8 @@
       
         
       
+        
+      
     
     
     
@@ -1888,6 +1890,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../LogicOnOffButton/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicOnOffButton
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../LogicTransmitter/" class="md-nav__link">
         
   
@@ -2898,6 +2928,50 @@
     <span class="md-ellipsis">
       
         Relevance to a "voltage tier" mod
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-setter-sync-flag-save-round-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting setter, sync flag, save round-trip
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interactwith-button-model-and-delayedactioninstance-state-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InteractWith button model and DelayedActionInstance state messages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setknob-needle-math" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SetKnob needle math
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkerror-and-error-write-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CheckError and Error write path
       
     </span>
   </a>
@@ -7172,6 +7246,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#setting-setter-sync-flag-save-round-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting setter, sync flag, save round-trip
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interactwith-button-model-and-delayedactioninstance-state-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InteractWith button model and DelayedActionInstance state messages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setknob-needle-math" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SetKnob needle math
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkerror-and-error-write-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CheckError and Error write path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7283,7 +7401,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-12.
+           on 2026-06-02.
         </p>
       
       
@@ -7294,7 +7412,7 @@
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput'}</code></li>
             
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer)'}</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)'}</code></li>
             
               <li><code>Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)</code></li>
             
@@ -7303,7 +7421,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (3)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
               <li><code>./Cable.md</code></li>
@@ -7311,6 +7429,8 @@
               <li><code>./PowerTransmitter.md</code></li>
             
               <li><code>./PowerTick.md</code></li>
+            
+              <li><code>./LogicOnOffButton.md</code></li>
             
           </ul>
         </details>
@@ -7392,9 +7512,86 @@
 <!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
 
 <p>A transformer is already the only clean "bridge" between two cable networks (it forces <code>InputNetwork != OutputNetwork</code> via <code>IsOperable</code>). For a voltage-tier scheme where heavy cables are a separate tier reachable only through transformers, the design choices are: (1) gate which cable tier the transformer's <code>InputConnection</code> / <code>OutputConnection</code> may face (via a <code>CanConstruct</code> postfix, see <a href="../../GameSystems/StructurePlacementValidation/">StructurePlacementValidation</a>); (2) add one new "heavy transformer" prefab of this class with a "heavy" input side and a "normal" output side; (3) treat the existing transformer prefab(s) as the step-down device. None of this requires a new class.</p>
+<h2 id="setting-setter-sync-flag-save-round-trip">Setting setter, sync flag, save round-trip<a class="headerlink" href="#setting-setter-sync-flag-save-round-trip" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+<p>The <code>Setting</code> property is <code>[ByteArraySync]</code>-tagged (decompile L403333). On every server-side write, the setter dirties the <code>256</code> flag in <code>NetworkUpdateFlags</code> and calls <code>SetKnob()</code> (L403340-403348). The <code>BuildUpdate</code> path (L403373-403380) writes <code>Setting</code> as a <code>WriteDouble</code> when bit 256 is set; <code>ProcessUpdate</code> (L403382-403389) reads it back with <code>ReadDouble</code>. On client join, the same value rides <code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code> (L403391-403401) as a <code>double</code>.</p>
+<p>Save round-trip uses the lightweight per-class save-data record:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">TransformerSaveData</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">StructureSaveData</span><span class="w">      </span><span class="c1">// L403295</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">OutputSetting</span><span class="p">;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>SerializeSave()</code> (L403547-403552) creates a <code>TransformerSaveData</code>, calls <code>InitialiseSaveData(ref savedData)</code>; the override at L403554-403561 calls <code>base.InitialiseSaveData</code>, then assigns <code>transformerSaveData.OutputSetting = (float)Setting</code>. <code>DeserializeSave</code> (L403563-403571) calls <code>base.DeserializeSave</code>, then <code>Setting = transformerSaveData.OutputSetting; SetKnob();</code>. Only <code>Setting</code> is persisted at the Transformer level. <code>OutputMaximum</code> comes from the prefab on load, not the save; <code>Error</code>, <code>OnOff</code>, <code>Powered</code> ride the inherited <code>Thing</code> / <code>Device</code> animator-state save path.</p>
+<p>Implication for a "rewire <code>Setting</code> to be a different field" mod: even if read returns something else and writes redirect elsewhere, the underlying <code>_outputSetting</code> field still ticks the 256 sync flag on every write. Either leave <code>_outputSetting</code> at its default (0) so the sync is harmless, or rewire the field too; both are valid. The save schema is one float; touching the schema would require a corresponding override and a side-car (see PowerGridPlus's <code>PrioritySideCar.cs</code> for the parallel pattern).</p>
+<h2 id="interactwith-button-model-and-delayedactioninstance-state-messages">InteractWith button model and DelayedActionInstance state messages<a class="headerlink" href="#interactwith-button-model-and-delayedactioninstance-state-messages" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+<p>The in-world dial is two discrete <code>Interactable</code> widgets (<code>Button1</code> for decrement, <code>Button2</code> for increment), NOT a continuous slider. There is no <code>SettingWheel</code> / <code>InteractableSlider</code> widget on Transformer. <code>InteractWith</code> (decompile L403593-403644) handles the labeller / multi-tool path first via <code>HandleButtonSetting</code>; if that returns non-null the labeller handled it, otherwise:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">DelayedActionInstance</span><span class="w"> </span><span class="n">delayedActionInstance2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">DelayedActionInstance</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">Duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">ActionMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interactable</span><span class="p">.</span><span class="n">ContextualName</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">};</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">delayedActionInstance2</span><span class="p">.</span><span class="n">AppendStateMessage</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">OutputWatts</span><span class="p">,</span><span class="w"> </span><span class="n">StringManager</span><span class="p">.</span><span class="n">Get</span><span class="p">((</span><span class="kt">int</span><span class="p">)</span><span class="n">Setting</span><span class="p">));</span><span class="w">   </span><span class="c1">// &quot;Output 1000 W&quot;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">delayedActionInstance2</span><span class="p">.</span><span class="n">AppendStateMessage</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">HoldForSmallIncrements</span><span class="p">,</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">QuantityModifierKey</span><span class="p">);</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">delayedActionInstance2</span><span class="p">.</span><span class="n">AppendStateMessage</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">UseLabelerToSet</span><span class="p">);</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="kt">double</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Setting</span><span class="p">;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">interactable</span><span class="p">.</span><span class="n">Action</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">{</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="k">case</span><span class="w"> </span><span class="n">InteractableType</span><span class="p">.</span><span class="n">Button2</span><span class="p">:</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="n">delayedActionInstance2</span><span class="p">.</span><span class="n">ActionMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">GlobalIncrease</span><span class="p">.</span><span class="n">AsString</span><span class="p">();</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">doAction</span><span class="p">)</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">OutputMaximum</span><span class="p">)</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">            </span><span class="n">num</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">)(</span><span class="n">interaction</span><span class="p">.</span><span class="n">AltKey</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">StepSmall</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">StepNormal</span><span class="p">);</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">        </span><span class="n">Setting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Min</span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">num</span><span class="p">,</span><span class="w"> </span><span class="n">OutputMaximum</span><span class="p">);</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">delayedActionInstance2</span><span class="p">.</span><span class="n">Succeed</span><span class="p">();</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="k">case</span><span class="w"> </span><span class="n">InteractableType</span><span class="p">.</span><span class="n">Button1</span><span class="p">:</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="p">...</span><span class="w"> </span><span class="c1">// mirror with StepSmall / StepNormal subtracted, clamped to &gt;= 0</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Step constants on Transformer: <code>StepNormal = 1000f</code>, <code>StepSmall = 100f</code> (decompile L403313-403315). Default click = <code>StepNormal</code>; Alt-modifier (<code>interaction.AltKey</code>, sourced from <code>KeyManager.GetButton(KeyMap.QuantityModifier)</code>) = <code>StepSmall</code>. The 10x ratio is consistent across vanilla "button-driven" interactables.</p>
+<p>The hover text reads <code>"Output 1000 W"</code>, NOT <code>"Setting: X kW"</code>. The label is from <code>GameStrings.OutputWatts</code> ("Output <code>&lt;color=green&gt;{0} W&lt;/color&gt;</code>", decompile L265397) and the value is <code>StringManager.Get((int)Setting)</code>. There is no per-<code>LogicType</code> label table; the word "Output" originates from this hand-written <code>GameString</code>. The unit is <code>W</code>, not <code>kW</code>.</p>
+<p>The hover panel itself is composed inside <code>Thing.DelayedActionInstance</code> (a nested class at decompile L297646; full type name <code>Assets.Scripts.Objects.Thing.DelayedActionInstance</code>). The state-message API has both <code>AppendStateMessage(GameString)</code> and <code>AppendStateMessage(GameString, string arg0)</code> overloads; a raw <code>string</code> is accepted through <code>GameString.AsString(...)</code> returning a string that the caller hands in directly (decompile L139653 <code>result.AppendStateMessage(GameStrings.DeviceOffOrUnpowered.AsString(DisplayName));</code>). Internally the body uses <code>_stateMessageBuilder.AppendLine(...)</code>.</p>
+<p><code>GameStrings.GlobalIncrease.AsString()</code> and <code>GlobalDecrease.AsString()</code> produce the top-line action header; the per-step audio plays via <code>PlayPooledAudioSound(Defines.Sounds.DialTurn, _needleTransform.localPosition)</code> on every successful click. <code>Setting</code> writes are gated on <code>GameManager.RunSimulation</code> (host-only).</p>
+<h2 id="setknob-needle-math">SetKnob needle math<a class="headerlink" href="#setknob-needle-math" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+<p><code>SetKnob()</code> (decompile L403579-403591) drives the visible needle GameObject's local rotation:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">_needleRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Lerp</span><span class="p">(</span><span class="n">NeedleMinimum</span><span class="p">,</span><span class="w"> </span><span class="n">NeedleMaximum</span><span class="p">,</span><span class="w"> </span><span class="n">Setting</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">OutputMaximum</span><span class="p">);</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">Needle</span><span class="p">.</span><span class="n">transform</span><span class="p">.</span><span class="n">localRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Quaternion</span><span class="p">.</span><span class="n">Euler</span><span class="p">(</span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">_needleRotation</span><span class="p">);</span>
+</span></code></pre></div>
+<p>Defaults: <code>NeedleMinimum = -160f</code>, <code>NeedleMaximum = 160f</code> (L403307-403309). The lerp domain is <code>Setting / OutputMaximum</code>, NOT <code>_outputSetting / OutputMaximum</code>; since the <code>Setting</code> getter returns <code>_outputSetting</code>, it amounts to the same thing.</p>
+<p>Called from: <code>Setting</code> setter (L403348), <code>DeserializeSave</code> (L403570), and any modder-side write through reflection. A mod that hardcodes <code>Setting</code> to a different domain (e.g. <code>_outputSetting</code> is now "priority", and <code>OutputMaximum</code> is now the literal throughput) gets a needle pinned to <code>OutputMaximum</code>'s 1 / OutputMaximum fraction unless <code>SetKnob</code> is also patched to lerp against the new domain (e.g. <code>priority / NeedleFullScale</code>).</p>
+<h2 id="checkerror-and-error-write-path">CheckError and Error write path<a class="headerlink" href="#checkerror-and-error-write-path" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+<p><code>Transformer.Error</code> is the inherited <code>Thing.Error</code> (<code>int</code>, 0 / 1; backed by the animator integer <code>Interactable.ErrorState</code> plus a cached <code>_error</code> field). On Transformer it is written exclusively by <code>CheckError()</code> (decompile L403646-403659):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">CheckError</span><span class="p">()</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">IsOperable</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">            </span><span class="n">OnServer</span><span class="p">.</span><span class="n">Interact</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InteractError</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">skipAnimation</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">IsOperable</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">            </span><span class="n">OnServer</span><span class="p">.</span><span class="n">Interact</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InteractError</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">skipAnimation</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>CheckError</code> is invoked from three places:</p>
+<ul>
+<li><code>OnAddCableNetwork</code> (L403661): when a cable network attaches.</li>
+<li><code>OnRemoveCableNetwork</code> (L403667): when a cable network detaches.</li>
+<li><code>CheckStateNextFrame()</code> (L403673), itself scheduled from <code>OnInteractableUpdated</code> (L403679-403686) when the on / off <code>Interactable</code> fires <code>State == 1</code> for <code>InteractableType.OnOff</code>.</li>
+</ul>
+<p><code>!IsOperable</code> (the trigger for <code>Error = 1</code>) means: <code>InputNetwork == OutputNetwork</code> (self-shorted; the <code>ElectricalInputOutput.IsOperable</code> rule at L373803-373813) OR <code>base.IsOperable</code> is false (Device-level: <code>!IsStructureCompleted</code> or <code>IsBroken</code>). There is no per-tick <code>CheckError</code> call: a transient overload during steady-state operation is NOT mapped to <code>Error</code> by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on <code>CheckError</code> to fire.</p>
+<p>Vanilla never writes <code>Error</code> to values other than 0 or 1. The field is <code>int</code> so higher codes survive the round-trip, but vanilla animator states for <code>Interactable.ErrorState</code> are only bound for 0 / 1; unmapped integer values silently produce no animation transition.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines 373755-373766 and 403300-403545; verbatim excerpts of the <code>ElectricalInputOutput</code> <code>InputNetwork</code>/<code>OutputNetwork</code> fields, the <code>Transformer</code> class header + <code>Setting</code> clamp + logic getters + <code>GetGeneratedPower</code> head. Confirmed no <code>TransformerLarge</code>/<code>TransformerSmall</code> class exists. Re-Volt mod source (<code>TransformerExploitPatch</code> / <code>TransformerLogicPatch</code> targeting <code>Transformer</code>) corroborates the class name and the patch surface.</li>
+<li>2026-06-02: added "Setting setter, sync flag, save round-trip", "InteractWith button model and DelayedActionInstance state messages", "SetKnob needle math", and "CheckError and Error write path" sections. Sourced from Agent 1 + Agent 2's PowerGridPlus Transformer Priority + Shedding research turn; decompile lines re-read directly. No conflict with existing verified content; additive only.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
