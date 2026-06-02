@@ -3,15 +3,16 @@ title: Transformer
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-12
+verified_at: 2026-06-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)
   - Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)
 related:
   - ./Cable.md
   - ./PowerTransmitter.md
   - ./PowerTick.md
+  - ./LogicOnOffButton.md
 tags: [power, logic]
 ---
 
@@ -80,9 +81,109 @@ public class Transformer : ElectricalInputOutput, ISetable, ILogicable, IReferen
 
 A transformer is already the only clean "bridge" between two cable networks (it forces `InputNetwork != OutputNetwork` via `IsOperable`). For a voltage-tier scheme where heavy cables are a separate tier reachable only through transformers, the design choices are: (1) gate which cable tier the transformer's `InputConnection` / `OutputConnection` may face (via a `CanConstruct` postfix, see [StructurePlacementValidation](../GameSystems/StructurePlacementValidation.md)); (2) add one new "heavy transformer" prefab of this class with a "heavy" input side and a "normal" output side; (3) treat the existing transformer prefab(s) as the step-down device. None of this requires a new class.
 
+## Setting setter, sync flag, save round-trip
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+The `Setting` property is `[ByteArraySync]`-tagged (decompile L403333). On every server-side write, the setter dirties the `256` flag in `NetworkUpdateFlags` and calls `SetKnob()` (L403340-403348). The `BuildUpdate` path (L403373-403380) writes `Setting` as a `WriteDouble` when bit 256 is set; `ProcessUpdate` (L403382-403389) reads it back with `ReadDouble`. On client join, the same value rides `SerializeOnJoin` / `DeserializeOnJoin` (L403391-403401) as a `double`.
+
+Save round-trip uses the lightweight per-class save-data record:
+
+```csharp
+public class TransformerSaveData : StructureSaveData      // L403295
+{
+    [XmlElement] public float OutputSetting;
+}
+```
+
+`SerializeSave()` (L403547-403552) creates a `TransformerSaveData`, calls `InitialiseSaveData(ref savedData)`; the override at L403554-403561 calls `base.InitialiseSaveData`, then assigns `transformerSaveData.OutputSetting = (float)Setting`. `DeserializeSave` (L403563-403571) calls `base.DeserializeSave`, then `Setting = transformerSaveData.OutputSetting; SetKnob();`. Only `Setting` is persisted at the Transformer level. `OutputMaximum` comes from the prefab on load, not the save; `Error`, `OnOff`, `Powered` ride the inherited `Thing` / `Device` animator-state save path.
+
+Implication for a "rewire `Setting` to be a different field" mod: even if read returns something else and writes redirect elsewhere, the underlying `_outputSetting` field still ticks the 256 sync flag on every write. Either leave `_outputSetting` at its default (0) so the sync is harmless, or rewire the field too; both are valid. The save schema is one float; touching the schema would require a corresponding override and a side-car (see PowerGridPlus's `PrioritySideCar.cs` for the parallel pattern).
+
+## InteractWith button model and DelayedActionInstance state messages
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+The in-world dial is two discrete `Interactable` widgets (`Button1` for decrement, `Button2` for increment), NOT a continuous slider. There is no `SettingWheel` / `InteractableSlider` widget on Transformer. `InteractWith` (decompile L403593-403644) handles the labeller / multi-tool path first via `HandleButtonSetting`; if that returns non-null the labeller handled it, otherwise:
+
+```csharp
+DelayedActionInstance delayedActionInstance2 = new DelayedActionInstance
+{
+    Duration = 0f,
+    ActionMessage = interactable.ContextualName
+};
+delayedActionInstance2.AppendStateMessage(GameStrings.OutputWatts, StringManager.Get((int)Setting));   // "Output 1000 W"
+delayedActionInstance2.AppendStateMessage(GameStrings.HoldForSmallIncrements, Localization.QuantityModifierKey);
+delayedActionInstance2.AppendStateMessage(GameStrings.UseLabelerToSet);
+double num = Setting;
+switch (interactable.Action)
+{
+case InteractableType.Button2:
+    delayedActionInstance2.ActionMessage = GameStrings.GlobalIncrease.AsString();
+    if (GameManager.RunSimulation && doAction)
+    {
+        if (num < (double)OutputMaximum)
+            num += (double)(interaction.AltKey ? StepSmall : StepNormal);
+        Setting = Mathf.Min((float)num, OutputMaximum);
+    }
+    return delayedActionInstance2.Succeed();
+case InteractableType.Button1:
+    ... // mirror with StepSmall / StepNormal subtracted, clamped to >= 0
+}
+```
+
+Step constants on Transformer: `StepNormal = 1000f`, `StepSmall = 100f` (decompile L403313-403315). Default click = `StepNormal`; Alt-modifier (`interaction.AltKey`, sourced from `KeyManager.GetButton(KeyMap.QuantityModifier)`) = `StepSmall`. The 10x ratio is consistent across vanilla "button-driven" interactables.
+
+The hover text reads `"Output 1000 W"`, NOT `"Setting: X kW"`. The label is from `GameStrings.OutputWatts` ("Output `<color=green>{0} W</color>`", decompile L265397) and the value is `StringManager.Get((int)Setting)`. There is no per-`LogicType` label table; the word "Output" originates from this hand-written `GameString`. The unit is `W`, not `kW`.
+
+The hover panel itself is composed inside `Thing.DelayedActionInstance` (a nested class at decompile L297646; full type name `Assets.Scripts.Objects.Thing.DelayedActionInstance`). The state-message API has both `AppendStateMessage(GameString)` and `AppendStateMessage(GameString, string arg0)` overloads; a raw `string` is accepted through `GameString.AsString(...)` returning a string that the caller hands in directly (decompile L139653 `result.AppendStateMessage(GameStrings.DeviceOffOrUnpowered.AsString(DisplayName));`). Internally the body uses `_stateMessageBuilder.AppendLine(...)`.
+
+`GameStrings.GlobalIncrease.AsString()` and `GlobalDecrease.AsString()` produce the top-line action header; the per-step audio plays via `PlayPooledAudioSound(Defines.Sounds.DialTurn, _needleTransform.localPosition)` on every successful click. `Setting` writes are gated on `GameManager.RunSimulation` (host-only).
+
+## SetKnob needle math
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+`SetKnob()` (decompile L403579-403591) drives the visible needle GameObject's local rotation:
+
+```csharp
+_needleRotation = Mathf.Lerp(NeedleMinimum, NeedleMaximum, Setting / OutputMaximum);
+Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation);
+```
+
+Defaults: `NeedleMinimum = -160f`, `NeedleMaximum = 160f` (L403307-403309). The lerp domain is `Setting / OutputMaximum`, NOT `_outputSetting / OutputMaximum`; since the `Setting` getter returns `_outputSetting`, it amounts to the same thing.
+
+Called from: `Setting` setter (L403348), `DeserializeSave` (L403570), and any modder-side write through reflection. A mod that hardcodes `Setting` to a different domain (e.g. `_outputSetting` is now "priority", and `OutputMaximum` is now the literal throughput) gets a needle pinned to `OutputMaximum`'s 1 / OutputMaximum fraction unless `SetKnob` is also patched to lerp against the new domain (e.g. `priority / NeedleFullScale`).
+
+## CheckError and Error write path
+<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+
+`Transformer.Error` is the inherited `Thing.Error` (`int`, 0 / 1; backed by the animator integer `Interactable.ErrorState` plus a cached `_error` field). On Transformer it is written exclusively by `CheckError()` (decompile L403646-403659):
+
+```csharp
+private void CheckError()
+{
+    if (GameManager.RunSimulation)
+    {
+        if (!IsOperable && Error == 0)
+            OnServer.Interact(base.InteractError, 1, skipAnimation: true);
+        else if (IsOperable && Error == 1)
+            OnServer.Interact(base.InteractError, 0, skipAnimation: true);
+    }
+}
+```
+
+`CheckError` is invoked from three places:
+
+- `OnAddCableNetwork` (L403661): when a cable network attaches.
+- `OnRemoveCableNetwork` (L403667): when a cable network detaches.
+- `CheckStateNextFrame()` (L403673), itself scheduled from `OnInteractableUpdated` (L403679-403686) when the on / off `Interactable` fires `State == 1` for `InteractableType.OnOff`.
+
+`!IsOperable` (the trigger for `Error = 1`) means: `InputNetwork == OutputNetwork` (self-shorted; the `ElectricalInputOutput.IsOperable` rule at L373803-373813) OR `base.IsOperable` is false (Device-level: `!IsStructureCompleted` or `IsBroken`). There is no per-tick `CheckError` call: a transient overload during steady-state operation is NOT mapped to `Error` by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on `CheckError` to fire.
+
+Vanilla never writes `Error` to values other than 0 or 1. The field is `int` so higher codes survive the round-trip, but vanilla animator states for `Interactable.ErrorState` are only bound for 0 / 1; unmapped integer values silently produce no animation transition.
+
 ## Verification history
 
 - 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373766 and 403300-403545; verbatim excerpts of the `ElectricalInputOutput` `InputNetwork`/`OutputNetwork` fields, the `Transformer` class header + `Setting` clamp + logic getters + `GetGeneratedPower` head. Confirmed no `TransformerLarge`/`TransformerSmall` class exists. Re-Volt mod source (`TransformerExploitPatch` / `TransformerLogicPatch` targeting `Transformer`) corroborates the class name and the patch surface.
+- 2026-06-02: added "Setting setter, sync flag, save round-trip", "InteractWith button model and DelayedActionInstance state messages", "SetKnob needle math", and "CheckError and Error write path" sections. Sourced from Agent 1 + Agent 2's PowerGridPlus Transformer Priority + Shedding research turn; decompile lines re-read directly. No conflict with existing verified content; additive only.
 
 ## Open questions
 
