@@ -68,6 +68,7 @@
   <ItemGroup>
     <Compile Include="Plugin.cs" />
     <Compile Include="Dispatcher.cs" />
+    <Compile Include="Dispatcher.Shedding.cs" />
     <Compile Include="SimTickPump.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

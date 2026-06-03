@@ -35,7 +35,7 @@ namespace ScenarioRunner
     ///     internals; <see cref="GetModType"/> / <see cref="GetModInstanceField"/> are
     ///     starting points.
     /// </summary>
-    internal static class Dispatcher
+    internal static partial class Dispatcher
     {
         private static ManualLogSource _log;
         private static string _scenario = "";
@@ -155,6 +155,38 @@ namespace ScenarioRunner
 
                 case "pgp-priority-shedding-network-breakdown":
                     Scenario_PgpPriorityShedingNetworkBreakdown();
+                    return;
+
+                case "pgp-priority-shedding-knob-probe":
+                    Scenario_PgpPriorityShedingKnobProbe();
+                    return;
+
+                case "pgp-priority-shedding-flash-probe":
+                    Scenario_PgpPriorityShedingFlashProbe();
+                    return;
+
+                case "pgp-priority-shedding-hover-probe":
+                    Scenario_PgpPriorityShedingHoverProbe();
+                    return;
+
+                case "pgp-priority-shedding-labeller-probe":
+                    Scenario_PgpPriorityShedingLabellerProbe();
+                    return;
+
+                case "pgp-priority-shedding-mp-probe":
+                    Scenario_PgpPriorityShedingMpProbe();
+                    return;
+
+                case "pgp-priority-shedding-saveload-probe":
+                    Scenario_PgpPriorityShedingSaveLoadProbe();
+                    return;
+
+                case "pgp-priority-shedding-topology-probe":
+                    Scenario_PgpPriorityShedingTopologyProbe();
+                    return;
+
+                case "pgp-priority-shedding-all":
+                    Scenario_PgpPriorityShedingAll();
                     return;
 
                 case "ptp-autoaim-cache-probe":
