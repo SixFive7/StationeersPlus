@@ -124,6 +124,7 @@
     <Compile Include="Patches\TransformerInteractWithPatches.cs" />
     <Compile Include="Patches\TransformerHoverErrorPatches.cs" />
     <Compile Include="Patches\TransformerFlashAttachPatches.cs" />
+    <Compile Include="Patches\SwitchOnOffShedPatches.cs" />
     <Compile Include="Patches\TransformerLabellerPatches.cs" />
     <Compile Include="ShedStateMessage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

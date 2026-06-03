@@ -54,6 +54,15 @@ namespace PowerGridPlus.Patches
             AccessTools.Field(typeof(Transformer), "NeedleMinimum");
         private static readonly FieldInfo NeedleMaximumField =
             AccessTools.Field(typeof(Transformer), "NeedleMaximum");
+        // Vanilla SetKnob resets _needleTransform to _needleBaseRotation before
+        // applying the rotation, so the prefab's mounted orientation isn't lost.
+        // Without this reset our localRotation write wipes the base rotation and
+        // the knob ends up tilted in the wrong plane (user-observed 90 deg
+        // sideways). Both fields are private; resolve via AccessTools.
+        private static readonly FieldInfo NeedleTransformField =
+            AccessTools.Field(typeof(Transformer), "_needleTransform");
+        private static readonly FieldInfo NeedleBaseRotationField =
+            AccessTools.Field(typeof(Transformer), "_needleBaseRotation");
         private static readonly MethodInfo HandleButtonSettingMethod =
             AccessTools.Method(typeof(Transformer), "HandleButtonSetting");
         private static readonly MethodInfo SetKnobMethod =
@@ -157,6 +166,20 @@ namespace PowerGridPlus.Patches
             return false;
         }
 
+        // Drive SetKnob during world load so the visual knob orientation
+        // matches the saved Priority immediately. Vanilla Transformer's
+        // OnFinishedLoad does not call SetKnob, so without this postfix the
+        // knob stays at the prefab's default (0,0,0) rotation until the
+        // player clicks the screwdriver buttons.
+        [HarmonyPostfix, HarmonyPatch(typeof(Assets.Scripts.Objects.Thing), nameof(Assets.Scripts.Objects.Thing.OnFinishedLoad))]
+        public static void OnFinishedLoadPostfix(Assets.Scripts.Objects.Thing __instance)
+        {
+            if (!ShedSettingsSync.Effective) return;
+            if (!(__instance is Transformer t)) return;
+            try { SetKnobMethod?.Invoke(t, null); }
+            catch (System.Exception e) { Plugin.Log?.LogWarning($"SetKnob on load failed for ref={t.ReferenceId}: {e.Message}"); }
+        }
+
         // Needle visual: lerp Priority -> [NeedleMinimum, NeedleMaximum] instead of
         // Setting -> [NeedleMinimum, NeedleMaximum] (see Research/GameClasses/Transformer.md
         // "SetKnob needle math"). Replaces vanilla SetKnob entirely.
@@ -166,8 +189,22 @@ namespace PowerGridPlus.Patches
             if (!ShedSettingsSync.Effective) return true;
             if (__instance == null) return true;
 
-            var needleGo = NeedleField?.GetValue(__instance) as GameObject;
-            if (needleGo == null) return false;
+            // Mirror vanilla SetKnob (decompile L403579-403597) exactly:
+            //   _needleTransform.localRotation = _needleBaseRotation;
+            //   _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self);
+            // Reset to the prefab's mounted orientation first, then Rotate around
+            // local Y. Doing `localRotation = Quaternion.Euler(0, angle, 0)` directly
+            // wipes the base orientation and leaves the knob 90 degrees sideways.
+            var needleTransform = NeedleTransformField?.GetValue(__instance) as Transform;
+            if (needleTransform == null)
+            {
+                // Fallback to the public Needle GameObject's transform when the
+                // private _needleTransform field isn't initialized yet (e.g. in
+                // OnFinishedLoad before the prefab's Awake has assigned it).
+                var needleGo = NeedleField?.GetValue(__instance) as GameObject;
+                if (needleGo == null) return false;
+                needleTransform = needleGo.transform;
+            }
 
             float minDeg = NeedleMinimumField != null ? (float)NeedleMinimumField.GetValue(__instance) : -160f;
             float maxDeg = NeedleMaximumField != null ? (float)NeedleMaximumField.GetValue(__instance) : 160f;
@@ -175,7 +212,12 @@ namespace PowerGridPlus.Patches
             int priority = PriorityStore.GetPriority(__instance.ReferenceId);
             float t = Mathf.Clamp01(priority / NeedleFullScale);
             float angle = Mathf.Lerp(minDeg, maxDeg, t);
-            needleGo.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+
+            if (NeedleBaseRotationField?.GetValue(__instance) is Quaternion baseRot)
+            {
+                needleTransform.localRotation = baseRot;
+            }
+            needleTransform.Rotate(0f, angle, 0f, Space.Self);
             return false;
         }
     }
