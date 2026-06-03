@@ -3,7 +3,7 @@ title: StationeersLaunchPadSettingsGrouping
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-21
+verified_at: 2026-06-03
 sources:
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: SortedConfigFile
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: SortedConfigCategory
@@ -11,6 +11,8 @@ sources:
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigPanel.DrawConfigEntry
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigPanel.DrawConfigEditor
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: ConfigEntryWrapper
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: EssentialPatches.DrawInGameWindows, ConfigPanel.DrawSettingsWindow, ManualLoadWindow.DrawModConfigTab, LaunchPadPlugin.Run/StartGame Stage transitions, ConfigPanel.DrawBoolEntry / DrawConfigEntry<T>
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.UI.MainMenu.Awake/Start, InventoryManager.ButtonSettings, WorkshopMenu
 related:
   - ../Patterns/ConflictDetection.md
 tags: [launchpad, ui]
@@ -233,10 +235,150 @@ Implications:
 - "Original" means "value when the player first changed it in this process session," not "value at plugin boot." The two coincide only if nobody has touched the entry in the panel since process start.
 - Mods that want runtime enforcement (reject joins, refuse save load, etc.) must implement their own mechanism; `RequireRestart` is advisory only.
 
+## Mid-session mutability
+
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+**Verdict.** StationeersLaunchPad's in-game pause-menu "Settings" button DOES open an ImGui configuration overlay mid-session, but the overlay only renders LaunchPad's own `Configs.Sorted` entries. **Per-mod `ConfigEntry` values bound by third-party mods are unreachable from any UI surface while a save is loaded.** Mod authors who wire `ConfigEntry.SettingChanged` handlers expecting the host to flip a toggle mid-session are wiring dead code; that event never fires from a UI source for per-mod entries during in-world play.
+
+### The in-game settings overlay
+
+`EssentialPatches` Harmony-prefixes `OrbitalSimulation.Draw` to overlay every ImGui window each render frame (`StationeersLaunchPad.dll` L3768-3797):
+
+```csharp
+[HarmonyPatch(typeof(OrbitalSimulation), "Draw")]
+[HarmonyPrefix]
+private static void DrawInGameWindows()
+{
+    DrawWorkshopMenuConfig();
+    DrawSettingsMenuConfig();
+    LogPanel.DrawStandaloneLogs();
+}
+
+private static void DrawWorkshopMenuConfig()
+{
+    if (((Behaviour)WorkshopMenu.Instance).isActiveAndEnabled)
+    {
+        ...
+        ConfigPanel.DrawWorkshopConfig(LaunchPadConfig.MatchMod(...));
+    }
+}
+
+private static void DrawSettingsMenuConfig()
+{
+    if (((Behaviour)Settings.Instance).isActiveAndEnabled)
+    {
+        ConfigPanel.DrawSettingsWindow();
+    }
+}
+```
+
+`DrawSettingsWindow` only ever renders LaunchPad's `Configs.Sorted` -- the LaunchPad-internal entries, never any mod's (`StationeersLaunchPad.dll` L7869-7888):
+
+```csharp
+public static void DrawSettingsWindow()
+{
+    ...
+    ImGui.Begin("LaunchPad Configuration##menulpconfig", ...);
+    DrawConfigFile(Configs.Sorted, (string category) => category != "Internal");
+    ImGui.End();
+}
+```
+
+`Settings.Instance` is the shared Unity panel used by both the main menu and the in-game pause menu. `Assets.Scripts.UI.MainMenu.Awake` fetches it from `AlertCanvas` (`Assembly-CSharp.dll` L226137) and `InventoryManager.ButtonSettings` activates the same GameObject from the pause menu (`Assembly-CSharp.dll` L268906-268910):
+
+```csharp
+public void ButtonSettings()
+{
+    SettingsPanel.SetActive(value: true);
+    Settings.Instance.InitCurrentPage();
+}
+```
+
+So `Settings.Instance.isActiveAndEnabled` flips true on a pause-menu Settings click, the ImGui overlay appears, and the host can freely toggle every LaunchPad-owned entry. None of these entries belong to third-party mods.
+
+### Why per-mod entries are unreachable mid-session
+
+Mod-bound `ConfigEntry`s are rendered by `ConfigPanel.DrawConfigEditor`, which is called from exactly two places, both startup-only:
+
+1. **`ManualLoadWindow.DrawModConfigTab`** -- the pre-load wizard (`StationeersLaunchPad.dll` L9717-9729):
+
+   ```csharp
+   private static void DrawModConfigTab(LoadStage stage)
+   {
+       bool flag = stage <= LoadStage.Loading;
+       ImGui.BeginDisabled(flag);
+       bool flag2 = ImGui.BeginTabItem("Mod Configuration");
+       ...
+       if (flag2)
+       {
+           ConfigPanel.DrawConfigEditor(selectedMod, selectedInfo);
+           ...
+       }
+   }
+   ```
+
+   `ManualLoadWindow.Draw` only runs while `AutoLoad` is off and `Stage` is in `Configuring..LoadedEntryPoints` (L3173-3188). Once `LaunchPadPlugin.StartGame` (L3342) sets `Stage = LoadStage.Running`, the wizard's render loop terminates and the window is never drawn again.
+
+2. **`DrawWorkshopMenuConfig`** -- the main-menu Workshop sidebar:
+
+   ```csharp
+   if (((Behaviour)WorkshopMenu.Instance).isActiveAndEnabled) { ... }
+   ```
+
+   `WorkshopMenu` is a `MainMenuPage` registered to the main-menu `_pageManager`. The only `_workshopButton.onClick` listener calls `_pageManager.EnableMainMenuPage("WorkshopMods")` (`Assembly-CSharp.dll` L226162-226165), bound exclusively to the main-menu button. There is no in-game pause-menu wiring; the single mid-session reference (`CancelKeyActions`, L268995) is a defensive Escape-key handler in case the GameObject is somehow active. `WorkshopMenu.gameObject` lives under the main-menu canvas hierarchy, not on the in-game `GameMenuPanel`.
+
+No `GameManager.GameState`, `World.Loaded`, or simulation-running check guards `DrawInGameWindows` -- the gating is purely on which Unity host panel (`Settings.Instance` vs `WorkshopMenu.Instance`) is currently active. The in-game pause-menu Settings click only activates `Settings.Instance`, which only renders `Configs.Sorted` (LaunchPad-only).
+
+### Call chain on a value change (startup path)
+
+For LaunchPad's own entries mid-session AND any per-mod entry edited at startup, the chain is identical:
+
+1. ImGui widget detects user interaction. Example for `bool` (`StationeersLaunchPad.dll` L8178-8194):
+
+   ```csharp
+   public static bool DrawBoolEntry(ConfigEntry<bool> entry, ConfigEntryWrapper wrapper, bool fill)
+   {
+       bool value = entry.Value;
+       ...
+       if (ImGui.Checkbox(..., ref value))
+       {
+           entry.Value = value;
+           return true;
+       }
+       return false;
+   }
+   ```
+
+2. `ConfigEntry<T>.Value` setter (BepInEx core) calls `SetSerializedValue` then `OwnerMetadata.ConfigFile.OnSettingChanged(this)`, which (a) fires both `ConfigFile.SettingChanged` and `ConfigEntryBase.SettingChanged` events, and (b) writes the whole `ConfigFile` to disk synchronously when `ConfigFile.SaveOnConfigSet` is true (the BepInEx default).
+
+3. `DrawConfigEntry<T>` (L7963-8030) only post-processes the `RequireRestart` cosmetic banner. It does not gate, defer, or suppress the write. Every keystroke through a LaunchPad-drawn widget therefore writes to .cfg AND fires `SettingChanged` synchronously.
+
+LaunchPad itself subscribes once for its own bookkeeping (L14704):
+
+```csharp
+configFile.SettingChanged += delegate { ... };
+```
+
+so mod-bound entries DO emit `SettingChanged` when edited through LaunchPad's UI -- but only when LaunchPad actually draws the widget, which is only at startup for per-mod entries.
+
+### Implications for mod design
+
+**Do not** wire `ConfigEntry.SettingChanged` handlers expecting "the host flipped this toggle mid-session through LaunchPad." That event cannot fire from a UI source mid-session for any per-mod entry. The PowerGridPlus `PassthroughSettingsSync.HookHostBroadcast` pattern (subscribing to multiple `Settings.Enable*.SettingChanged` events to broadcast a sync message) is mostly dead code in practice -- the only thing that would trigger those handlers mid-session is another mod programmatically assigning to the entry, an IPC handler, a custom in-world UI, or `ConfigFile.Reload()`.
+
+Correct patterns for host-authoritative settings:
+
+- **Join-suffix snapshot** (already used by PassthroughSettingsSync via `Plugin.SerializeJoinSuffix`). Ship the current value to a joining client; this is the only moment values are guaranteed to be both stable and observed by the peer.
+- **`RequireRestart = true` tag** on the `ConfigDescription`. Renders the crimson "Changes require a restart to apply" banner in the LaunchPad UI when the value changes. Does NOT gate writes -- purely advisory to the human.
+- **Custom in-world UI**, if live tuning is genuinely required. The mod must build its own pause-menu or kit panel and update both `ConfigEntry<T>.Value` and broadcast itself.
+
+`SettingChanged` can still legitimately fire mid-session from non-UI sources: another mod calling `Config.Bind(...).Value = x` programmatically, IPC, a network packet handler, or BepInEx's `ConfigFile.Reload()`. Subscribers should be defensive about those code paths -- but should not assume a host UI toggle is part of the design space.
+
 ## Verification history
 
 - 2026-04-21: page created. Verified against `StationeersLaunchPad.dll` in game version 0.2.6228.27061 by decompilation of `SortedConfigFile`, `SortedConfigCategory`, and `ConfigPanel.DrawConfigFile`.
 - 2026-04-23: added "RequireRestart rendering behavior" section. Verified against `StationeersLaunchPad.dll` in game version 0.2.6228.27061 by decompilation of `ConfigEntryWrapper`, `ConfigPanel.DrawConfigEntry`, and `ConfigPanel.DrawConfigEditor`. `sources:` frontmatter extended with the three new decompile targets.
+- 2026-06-03: added "Mid-session mutability" section after spawning a fresh-validator sub-agent to verify whether StationeersLaunchPad exposes per-mod ConfigEntry values to the host while a save is loaded. Verdict: the in-game pause-menu Settings overlay only renders LaunchPad's own `Configs.Sorted` entries; per-mod entries are only reachable from the main-menu `WorkshopMenu` and the pre-load `ManualLoadWindow`. The PowerGridPlus `PassthroughSettingsSync.HookHostBroadcast` pattern (subscribing to per-mod `SettingChanged` for live host broadcast) was the trigger for this verification -- it cannot fire from a UI source in practice. Frontmatter `sources:` extended with `EssentialPatches`, `ConfigPanel.DrawSettingsWindow`, `ManualLoadWindow.DrawModConfigTab`, `LaunchPadPlugin.Run/StartGame`, `ConfigPanel.DrawBoolEntry`, plus `MainMenu`, `InventoryManager.ButtonSettings`, and `WorkshopMenu` from Assembly-CSharp.
 
 ## Open questions
 
