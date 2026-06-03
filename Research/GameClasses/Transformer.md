@@ -139,18 +139,32 @@ The hover panel itself is composed inside `Thing.DelayedActionInstance` (a neste
 `GameStrings.GlobalIncrease.AsString()` and `GlobalDecrease.AsString()` produce the top-line action header; the per-step audio plays via `PlayPooledAudioSound(Defines.Sounds.DialTurn, _needleTransform.localPosition)` on every successful click. `Setting` writes are gated on `GameManager.RunSimulation` (host-only).
 
 ## SetKnob needle math
-<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
 
-`SetKnob()` (decompile L403579-403591) drives the visible needle GameObject's local rotation:
+`SetKnob()` (decompile L403587-403597) drives the visible needle GameObject's local rotation. Verbatim:
 
 ```csharp
-_needleRotation = Mathf.Lerp(NeedleMinimum, NeedleMaximum, Setting / OutputMaximum);
-Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation);
+public void SetKnob()
+{
+    if (ThreadedManager.IsThread) { SetKnobFromThread().Forget(); }
+    else if (!(_needleTransform == null))
+    {
+        _needleRotation = Mathf.Lerp(NeedleMinimum, NeedleMaximum, (float)Setting / OutputMaximum);
+        _needleTransform.localRotation = _needleBaseRotation;
+        _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self);
+    }
+}
 ```
 
-Defaults: `NeedleMinimum = -160f`, `NeedleMaximum = 160f` (L403307-403309). The lerp domain is `Setting / OutputMaximum`, NOT `_outputSetting / OutputMaximum`; since the `Setting` getter returns `_outputSetting`, it amounts to the same thing.
+Defaults: `NeedleMinimum = -160f`, `NeedleMaximum = 160f` (L403307-403309) with `[Tooltip("Minimum/Maximum degrees rotation on local Y")]` on the field declarations. The lerp domain is `Setting / OutputMaximum`, NOT `_outputSetting / OutputMaximum`; since the `Setting` getter returns `_outputSetting`, it amounts to the same thing.
 
-Called from: `Setting` setter (L403348), `DeserializeSave` (L403570), and any modder-side write through reflection. A mod that hardcodes `Setting` to a different domain (e.g. `_outputSetting` is now "priority", and `OutputMaximum` is now the literal throughput) gets a needle pinned to `OutputMaximum`'s 1 / OutputMaximum fraction unless `SetKnob` is also patched to lerp against the new domain (e.g. `priority / NeedleFullScale`).
+**Axis is local Y, not Z, and the base rotation MUST be reset first.** The vanilla body does TWO operations: (1) reset `_needleTransform.localRotation` to the cached `_needleBaseRotation` (the prefab's mounted orientation, captured during Awake), then (2) `Rotate(0f, _needleRotation, 0f, Space.Self)` to apply the lerp result around local Y. A mod that does `localRotation = Quaternion.Euler(0f, angle, 0f)` directly wipes the prefab base rotation and leaves the knob 90 degrees off the mounted plane; doing `Quaternion.Euler(0f, 0f, angle)` is wrong on both counts (Z axis AND missing base reset).
+
+Threading: `SetKnob` is safe to call from a non-main thread; it self-marshals via `SetKnobFromThread` -> `UniTask.SwitchToMainThread()`.
+
+Called from: `Setting` setter (L403348), `DeserializeSave` (L403570), and any modder-side write through reflection. A mod that hardcodes `Setting` to a different domain (e.g. `_outputSetting` is now "priority", and `OutputMaximum` is now the literal throughput) gets a needle pinned to `OutputMaximum`'s 1 / OutputMaximum fraction unless `SetKnob` is also patched to lerp against the new domain (e.g. `priority / NeedleFullScale`). The mod patch MUST mirror BOTH the base-rotation reset AND the Y axis, or follow vanilla's `Rotate(0, x, 0, Space.Self)` pattern -- the prior version of this page incorrectly showed the rotation as Z and skipped the base-reset, which led to a 90-degree-sideways knob bug in PowerGridPlus's first attempt at this patch.
+
+Loading: `Thing.OnFinishedLoad` does NOT call `SetKnob` for Transformers, so the visual knob is stuck at the prefab default until the player interacts. A mod that overrides the rotation domain (e.g. PowerGridPlus's Priority) needs to explicitly call `SetKnob` from a `Thing.OnFinishedLoad` postfix to land the right rotation immediately on save load.
 
 ## CheckError and Error write path
 <!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
@@ -181,6 +195,8 @@ private void CheckError()
 Vanilla never writes `Error` to values other than 0 or 1. The field is `int` so higher codes survive the round-trip, but vanilla animator states for `Interactable.ErrorState` are only bound for 0 / 1; unmapped integer values silently produce no animation transition.
 
 ## Verification history
+
+- 2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed `Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)` (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does `_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)` -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that `Thing.OnFinishedLoad` doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.
 
 - 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373766 and 403300-403545; verbatim excerpts of the `ElectricalInputOutput` `InputNetwork`/`OutputNetwork` fields, the `Transformer` class header + `Setting` clamp + logic getters + `GetGeneratedPower` head. Confirmed no `TransformerLarge`/`TransformerSmall` class exists. Re-Volt mod source (`TransformerExploitPatch` / `TransformerLogicPatch` targeting `Transformer`) corroborates the class name and the patch surface.
 - 2026-06-02: added "Setting setter, sync flag, save round-trip", "InteractWith button model and DelayedActionInstance state messages", "SetKnob needle math", and "CheckError and Error write path" sections. Sourced from Agent 1 + Agent 2's PowerGridPlus Transformer Priority + Shedding research turn; decompile lines re-read directly. No conflict with existing verified content; additive only.
