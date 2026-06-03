@@ -5820,6 +5820,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mid-session-mutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mid-session mutability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mid-session mutability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-in-game-settings-overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The in-game settings overlay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-per-mod-entries-are-unreachable-mid-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why per-mod entries are unreachable mid-session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call-chain-on-a-value-change-startup-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call chain on a value change (startup path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implications-for-mod-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications for mod design
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7342,6 +7403,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mid-session-mutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mid-session mutability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mid-session mutability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-in-game-settings-overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The in-game settings overlay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-per-mod-entries-are-unreachable-mid-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why per-mod entries are unreachable mid-session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call-chain-on-a-value-change-startup-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call chain on a value change (startup path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implications-for-mod-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications for mod design
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7453,13 +7575,13 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-21.
+           on 2026-06-03.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (6)</summary>
+          <summary><strong>Sources</strong> (8)</summary>
           <ul>
             
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'SortedConfigFile'}</code></li>
@@ -7473,6 +7595,10 @@
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'ConfigPanel.DrawConfigEditor'}</code></li>
             
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'ConfigEntryWrapper'}</code></li>
+            
+              <li><code>{'BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'EssentialPatches.DrawInGameWindows, ConfigPanel.DrawSettingsWindow, ManualLoadWindow.DrawModConfigTab, LaunchPadPlugin.Run/StartGame Stage transitions, ConfigPanel.DrawBoolEntry / DrawConfigEntry<T>'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.UI.MainMenu.Awake/Start, InventoryManager.ButtonSettings, WorkshopMenu'}</code></li>
             
           </ul>
         </details>
@@ -7726,10 +7852,124 @@
 <li>"Original" means "value when the player first changed it in this process session," not "value at plugin boot." The two coincide only if nobody has touched the entry in the panel since process start.</li>
 <li>Mods that want runtime enforcement (reject joins, refuse save load, etc.) must implement their own mechanism; <code>RequireRestart</code> is advisory only.</li>
 </ul>
+<h2 id="mid-session-mutability">Mid-session mutability<a class="headerlink" href="#mid-session-mutability" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+<p><strong>Verdict.</strong> StationeersLaunchPad's in-game pause-menu "Settings" button DOES open an ImGui configuration overlay mid-session, but the overlay only renders LaunchPad's own <code>Configs.Sorted</code> entries. <strong>Per-mod <code>ConfigEntry</code> values bound by third-party mods are unreachable from any UI surface while a save is loaded.</strong> Mod authors who wire <code>ConfigEntry.SettingChanged</code> handlers expecting the host to flip a toggle mid-session are wiring dead code; that event never fires from a UI source for per-mod entries during in-world play.</p>
+<h3 id="the-in-game-settings-overlay">The in-game settings overlay<a class="headerlink" href="#the-in-game-settings-overlay" title="Permanent link">&para;</a></h3>
+<p><code>EssentialPatches</code> Harmony-prefixes <code>OrbitalSimulation.Draw</code> to overlay every ImGui window each render frame (<code>StationeersLaunchPad.dll</code> L3768-3797):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="na">[HarmonyPatch(typeof(OrbitalSimulation), &quot;Draw&quot;)]</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="na">[HarmonyPrefix]</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawInGameWindows</span><span class="p">()</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="n">DrawWorkshopMenuConfig</span><span class="p">();</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="n">DrawSettingsMenuConfig</span><span class="p">();</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="n">LogPanel</span><span class="p">.</span><span class="n">DrawStandaloneLogs</span><span class="p">();</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="p">}</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawWorkshopMenuConfig</span><span class="p">()</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">{</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">Behaviour</span><span class="p">)</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">).</span><span class="n">isActiveAndEnabled</span><span class="p">)</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">        </span><span class="n">ConfigPanel</span><span class="p">.</span><span class="n">DrawWorkshopConfig</span><span class="p">(</span><span class="n">LaunchPadConfig</span><span class="p">.</span><span class="n">MatchMod</span><span class="p">(...));</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="p">}</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawSettingsMenuConfig</span><span class="p">()</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="p">{</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">Behaviour</span><span class="p">)</span><span class="n">Settings</span><span class="p">.</span><span class="n">Instance</span><span class="p">).</span><span class="n">isActiveAndEnabled</span><span class="p">)</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="w">        </span><span class="n">ConfigPanel</span><span class="p">.</span><span class="n">DrawSettingsWindow</span><span class="p">();</span>
+</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-25"><a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>DrawSettingsWindow</code> only ever renders LaunchPad's <code>Configs.Sorted</code> -- the LaunchPad-internal entries, never any mod's (<code>StationeersLaunchPad.dll</code> L7869-7888):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawSettingsWindow</span><span class="p">()</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="n">ImGui</span><span class="p">.</span><span class="n">Begin</span><span class="p">(</span><span class="s">&quot;LaunchPad Configuration##menulpconfig&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="n">DrawConfigFile</span><span class="p">(</span><span class="n">Configs</span><span class="p">.</span><span class="n">Sorted</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">category</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">category</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&quot;Internal&quot;</span><span class="p">);</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="n">ImGui</span><span class="p">.</span><span class="n">End</span><span class="p">();</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Settings.Instance</code> is the shared Unity panel used by both the main menu and the in-game pause menu. <code>Assets.Scripts.UI.MainMenu.Awake</code> fetches it from <code>AlertCanvas</code> (<code>Assembly-CSharp.dll</code> L226137) and <code>InventoryManager.ButtonSettings</code> activates the same GameObject from the pause menu (<code>Assembly-CSharp.dll</code> L268906-268910):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ButtonSettings</span><span class="p">()</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">SettingsPanel</span><span class="p">.</span><span class="n">SetActive</span><span class="p">(</span><span class="k">value</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">Settings</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">InitCurrentPage</span><span class="p">();</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>Settings.Instance.isActiveAndEnabled</code> flips true on a pause-menu Settings click, the ImGui overlay appears, and the host can freely toggle every LaunchPad-owned entry. None of these entries belong to third-party mods.</p>
+<h3 id="why-per-mod-entries-are-unreachable-mid-session">Why per-mod entries are unreachable mid-session<a class="headerlink" href="#why-per-mod-entries-are-unreachable-mid-session" title="Permanent link">&para;</a></h3>
+<p>Mod-bound <code>ConfigEntry</code>s are rendered by <code>ConfigPanel.DrawConfigEditor</code>, which is called from exactly two places, both startup-only:</p>
+<ol>
+<li><strong><code>ManualLoadWindow.DrawModConfigTab</code></strong> -- the pre-load wizard (<code>StationeersLaunchPad.dll</code> L9717-9729):</li>
+</ol>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DrawModConfigTab</span><span class="p">(</span><span class="n">LoadStage</span><span class="w"> </span><span class="n">stage</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stage</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">LoadStage</span><span class="p">.</span><span class="n">Loading</span><span class="p">;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="n">ImGui</span><span class="p">.</span><span class="n">BeginDisabled</span><span class="p">(</span><span class="n">flag</span><span class="p">);</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ImGui</span><span class="p">.</span><span class="n">BeginTabItem</span><span class="p">(</span><span class="s">&quot;Mod Configuration&quot;</span><span class="p">);</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag2</span><span class="p">)</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">        </span><span class="n">ConfigPanel</span><span class="p">.</span><span class="n">DrawConfigEditor</span><span class="p">(</span><span class="n">selectedMod</span><span class="p">,</span><span class="w"> </span><span class="n">selectedInfo</span><span class="p">);</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ManualLoadWindow.Draw</code> only runs while <code>AutoLoad</code> is off and <code>Stage</code> is in <code>Configuring..LoadedEntryPoints</code> (L3173-3188). Once <code>LaunchPadPlugin.StartGame</code> (L3342) sets <code>Stage = LoadStage.Running</code>, the wizard's render loop terminates and the window is never drawn again.</p>
+<ol>
+<li><strong><code>DrawWorkshopMenuConfig</code></strong> -- the main-menu Workshop sidebar:</li>
+</ol>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">Behaviour</span><span class="p">)</span><span class="n">WorkshopMenu</span><span class="p">.</span><span class="n">Instance</span><span class="p">).</span><span class="n">isActiveAndEnabled</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
+</span></code></pre></div>
+<p><code>WorkshopMenu</code> is a <code>MainMenuPage</code> registered to the main-menu <code>_pageManager</code>. The only <code>_workshopButton.onClick</code> listener calls <code>_pageManager.EnableMainMenuPage("WorkshopMods")</code> (<code>Assembly-CSharp.dll</code> L226162-226165), bound exclusively to the main-menu button. There is no in-game pause-menu wiring; the single mid-session reference (<code>CancelKeyActions</code>, L268995) is a defensive Escape-key handler in case the GameObject is somehow active. <code>WorkshopMenu.gameObject</code> lives under the main-menu canvas hierarchy, not on the in-game <code>GameMenuPanel</code>.</p>
+<p>No <code>GameManager.GameState</code>, <code>World.Loaded</code>, or simulation-running check guards <code>DrawInGameWindows</code> -- the gating is purely on which Unity host panel (<code>Settings.Instance</code> vs <code>WorkshopMenu.Instance</code>) is currently active. The in-game pause-menu Settings click only activates <code>Settings.Instance</code>, which only renders <code>Configs.Sorted</code> (LaunchPad-only).</p>
+<h3 id="call-chain-on-a-value-change-startup-path">Call chain on a value change (startup path)<a class="headerlink" href="#call-chain-on-a-value-change-startup-path" title="Permanent link">&para;</a></h3>
+<p>For LaunchPad's own entries mid-session AND any per-mod entry edited at startup, the chain is identical:</p>
+<ol>
+<li>ImGui widget detects user interaction. Example for <code>bool</code> (<code>StationeersLaunchPad.dll</code> L8178-8194):</li>
+</ol>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">DrawBoolEntry</span><span class="p">(</span><span class="n">ConfigEntry</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="n">ConfigEntryWrapper</span><span class="w"> </span><span class="n">wrapper</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">fill</span><span class="p">)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">entry</span><span class="p">.</span><span class="n">Value</span><span class="p">;</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ImGui</span><span class="p">.</span><span class="n">Checkbox</span><span class="p">(...,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="k">value</span><span class="p">))</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">        </span><span class="n">entry</span><span class="p">.</span><span class="n">Value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<ol>
+<li>
+<p><code>ConfigEntry&lt;T&gt;.Value</code> setter (BepInEx core) calls <code>SetSerializedValue</code> then <code>OwnerMetadata.ConfigFile.OnSettingChanged(this)</code>, which (a) fires both <code>ConfigFile.SettingChanged</code> and <code>ConfigEntryBase.SettingChanged</code> events, and (b) writes the whole <code>ConfigFile</code> to disk synchronously when <code>ConfigFile.SaveOnConfigSet</code> is true (the BepInEx default).</p>
+</li>
+<li>
+<p><code>DrawConfigEntry&lt;T&gt;</code> (L7963-8030) only post-processes the <code>RequireRestart</code> cosmetic banner. It does not gate, defer, or suppress the write. Every keystroke through a LaunchPad-drawn widget therefore writes to .cfg AND fires <code>SettingChanged</code> synchronously.</p>
+</li>
+</ol>
+<p>LaunchPad itself subscribes once for its own bookkeeping (L14704):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">configFile</span><span class="p">.</span><span class="n">SettingChanged</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">delegate</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">};</span>
+</span></code></pre></div>
+<p>so mod-bound entries DO emit <code>SettingChanged</code> when edited through LaunchPad's UI -- but only when LaunchPad actually draws the widget, which is only at startup for per-mod entries.</p>
+<h3 id="implications-for-mod-design">Implications for mod design<a class="headerlink" href="#implications-for-mod-design" title="Permanent link">&para;</a></h3>
+<p><strong>Do not</strong> wire <code>ConfigEntry.SettingChanged</code> handlers expecting "the host flipped this toggle mid-session through LaunchPad." That event cannot fire from a UI source mid-session for any per-mod entry. The PowerGridPlus <code>PassthroughSettingsSync.HookHostBroadcast</code> pattern (subscribing to multiple <code>Settings.Enable*.SettingChanged</code> events to broadcast a sync message) is mostly dead code in practice -- the only thing that would trigger those handlers mid-session is another mod programmatically assigning to the entry, an IPC handler, a custom in-world UI, or <code>ConfigFile.Reload()</code>.</p>
+<p>Correct patterns for host-authoritative settings:</p>
+<ul>
+<li><strong>Join-suffix snapshot</strong> (already used by PassthroughSettingsSync via <code>Plugin.SerializeJoinSuffix</code>). Ship the current value to a joining client; this is the only moment values are guaranteed to be both stable and observed by the peer.</li>
+<li><strong><code>RequireRestart = true</code> tag</strong> on the <code>ConfigDescription</code>. Renders the crimson "Changes require a restart to apply" banner in the LaunchPad UI when the value changes. Does NOT gate writes -- purely advisory to the human.</li>
+<li><strong>Custom in-world UI</strong>, if live tuning is genuinely required. The mod must build its own pause-menu or kit panel and update both <code>ConfigEntry&lt;T&gt;.Value</code> and broadcast itself.</li>
+</ul>
+<p><code>SettingChanged</code> can still legitimately fire mid-session from non-UI sources: another mod calling <code>Config.Bind(...).Value = x</code> programmatically, IPC, a network packet handler, or BepInEx's <code>ConfigFile.Reload()</code>. Subscribers should be defensive about those code paths -- but should not assume a host UI toggle is part of the design space.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-04-21: page created. Verified against <code>StationeersLaunchPad.dll</code> in game version 0.2.6228.27061 by decompilation of <code>SortedConfigFile</code>, <code>SortedConfigCategory</code>, and <code>ConfigPanel.DrawConfigFile</code>.</li>
 <li>2026-04-23: added "RequireRestart rendering behavior" section. Verified against <code>StationeersLaunchPad.dll</code> in game version 0.2.6228.27061 by decompilation of <code>ConfigEntryWrapper</code>, <code>ConfigPanel.DrawConfigEntry</code>, and <code>ConfigPanel.DrawConfigEditor</code>. <code>sources:</code> frontmatter extended with the three new decompile targets.</li>
+<li>2026-06-03: added "Mid-session mutability" section after spawning a fresh-validator sub-agent to verify whether StationeersLaunchPad exposes per-mod ConfigEntry values to the host while a save is loaded. Verdict: the in-game pause-menu Settings overlay only renders LaunchPad's own <code>Configs.Sorted</code> entries; per-mod entries are only reachable from the main-menu <code>WorkshopMenu</code> and the pre-load <code>ManualLoadWindow</code>. The PowerGridPlus <code>PassthroughSettingsSync.HookHostBroadcast</code> pattern (subscribing to per-mod <code>SettingChanged</code> for live host broadcast) was the trigger for this verification -- it cannot fire from a UI source in practice. Frontmatter <code>sources:</code> extended with <code>EssentialPatches</code>, <code>ConfigPanel.DrawSettingsWindow</code>, <code>ManualLoadWindow.DrawModConfigTab</code>, <code>LaunchPadPlugin.Run/StartGame</code>, <code>ConfigPanel.DrawBoolEntry</code>, plus <code>MainMenu</code>, <code>InventoryManager.ButtonSettings</code>, and <code>WorkshopMenu</code> from Assembly-CSharp.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
