@@ -100,7 +100,6 @@
     <Compile Include="LogicTypeRegistry.cs" />
     <Compile Include="PassthroughModeStore.cs" />
     <Compile Include="PassthroughModeMessage.cs" />
-    <Compile Include="PassthroughSettingsMessage.cs" />
     <Compile Include="PassthroughSettingsSync.cs" />
     <Compile Include="PassthroughSideCar.cs" />
     <Compile Include="Ic10ConstantsPatcher.cs" />

@@ -35,9 +35,11 @@ namespace PowerGridPlus
             StationeersPlus.Shared.MainThreadDispatcher.Init(
                 "PowerGridPlus_MainThreadDispatcher", msg => Log?.LogError(msg));
             Settings.Bind(Config);
-            // Wire the host-side broadcast of the (server-authoritative) passthrough toggles now that the
-            // ConfigEntries exist; a live toggle then refreshes locally and replicates to clients.
-            PassthroughSettingsSync.HookHostBroadcast();
+            // Server-authoritative ConfigEntry values are replicated to clients via the
+            // join-suffix snapshot only (see PassthroughSettingsSync.cs). StationeersLaunchPad
+            // exposes no per-mod ConfigEntry UI surface mid-session, so a host-side
+            // SettingChanged subscription would never fire from a UI toggle. The host's
+            // current value rides Plugin.SerializeJoinSuffix when a client joins.
             Prefab.OnPrefabsLoaded += OnPrefabsLoaded;
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded; patches deferred to prefab load");
         }
@@ -62,7 +64,6 @@ namespace PowerGridPlus
                 // IJoinSuffixSerializer below. Without this a client computes the data-device-list merge
                 // with default modes and its motherboard dropdowns diverge from the host.
                 MOD.Networking.RegisterMessage<PassthroughModeMessage>();
-                MOD.Networking.RegisterMessage<PassthroughSettingsMessage>();
                 MOD.Networking.RegisterMessage<PriorityMessage>();
                 MOD.Networking.RegisterMessage<ShedStateMessage>();
                 MOD.Networking.JoinSuffixSerializer = this;

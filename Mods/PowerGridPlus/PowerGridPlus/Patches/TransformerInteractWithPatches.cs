@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using Assets.Scripts;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -58,6 +59,46 @@ namespace PowerGridPlus.Patches
         private static readonly MethodInfo SetKnobMethod =
             AccessTools.Method(typeof(Transformer), "SetKnob");
 
+        // Thing.DelayedActionInstance is a nested class with a private
+        // StringBuilder backing the state-message body. Reflecting on this
+        // backing field is the only way to inject raw string lines into the
+        // hover side-pop because vanilla AppendStateMessage only accepts a
+        // GameString (Assets.Scripts.Localization2.GameString), and registering
+        // new GameStrings at runtime is not supported. The reflected handle is
+        // resolved once on type-load; if the game refactors the nested type
+        // (rename or visibility change) the appends silently no-op rather than
+        // crashing.
+        private static readonly FieldInfo StateMessageBuilderField = ResolveStateMessageBuilderField();
+
+        private static FieldInfo ResolveStateMessageBuilderField()
+        {
+            var daiType = AccessTools.TypeByName("Assets.Scripts.Objects.Thing+DelayedActionInstance")
+                          ?? typeof(Thing.DelayedActionInstance);
+            return AccessTools.Field(daiType, "_stateMessageBuilder");
+        }
+
+        private static void AppendRawStateMessage(Thing.DelayedActionInstance dai, string text)
+        {
+            if (dai == null || string.IsNullOrEmpty(text) || StateMessageBuilderField == null) return;
+            if (StateMessageBuilderField.GetValue(dai) is StringBuilder sb)
+            {
+                sb.AppendLine(text);
+            }
+        }
+
+        private static void AppendPriorityStateLines(Thing.DelayedActionInstance dai, Transformer transformer)
+        {
+            if (dai == null || transformer == null) return;
+            int p = PriorityStore.GetPriority(transformer.ReferenceId);
+            AppendRawStateMessage(dai, $"Priority <color=green>{p}</color>");
+            AppendRawStateMessage(dai, $"Throughput <color=green>{transformer.OutputMaximum:0} W</color> (max, fixed)");
+            if (BrownoutRegistry.IsShedding(transformer.ReferenceId, ElectricityTickCounter.CurrentTick))
+            {
+                AppendRawStateMessage(dai, "<color=#ffa500>Shedding: insufficient upstream supply this tick</color>");
+            }
+            AppendRawStateMessage(dai, "Hold <color=yellow>Alt</color> for fine adjustment");
+        }
+
         [HarmonyPrefix, HarmonyPatch(nameof(Transformer.InteractWith))]
         public static bool InteractWithPatch(
             Transformer __instance,
@@ -89,13 +130,8 @@ namespace PowerGridPlus.Patches
             bool isButton1 = interactable.Action == InteractableType.Button1;
             if (!isButton1 && !isButton2) return true;
 
-            var dai = new Thing.DelayedActionInstance
-            {
-                Duration = 0f,
-                ActionMessage = interactable.ContextualName,
-            };
-
-            // Host-side state change only.
+            // Host-side state change first so the post-write state-message lines
+            // reflect the new priority.
             if (GameManager.RunSimulation && doAction)
             {
                 int step = interaction.AltKey ? PriorityStepSmall : PriorityStepNormal;
@@ -109,6 +145,13 @@ namespace PowerGridPlus.Patches
                     SetKnobMethod?.Invoke(__instance, null);
                 }
             }
+
+            var dai = new Thing.DelayedActionInstance
+            {
+                Duration = 0f,
+                ActionMessage = isButton2 ? "Increase Priority" : "Decrease Priority",
+            };
+            AppendPriorityStateLines(dai, __instance);
 
             __result = dai.Succeed();
             return false;
