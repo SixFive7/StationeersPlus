@@ -528,8 +528,42 @@ When `HasBaseAnimator` is true it calls `SetIntegerSafe` on the animator and nev
 
 - **`OnServer.Interact` filtered to `InteractableType.OnOff`**: this fires only where `GameManager.RunSimulation` is true, i.e. on the host / single-player. It never runs on a remote client (the client only sends a request; the server applies it). A mod that needs the visual or gameplay reaction on remote clients (e.g. a beam visualizer) would miss them entirely. Use this only for server-authoritative gameplay writes, not for client-visible reactions.
 
+## Interaction readonly struct (the value passed into InteractWith)
+<!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
+
+Distinct from `Interactable` itself: `Interaction` is a primary-constructed `readonly struct` (line 286395 in `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`) that carries the per-click context into every `Thing.InteractWith(Interactable, Interaction, bool doAction)` call. Verbatim shape:
+
+```csharp
+public readonly struct Interaction(Thing sourceThing, Slot sourceSlot, Thing destinationThing, bool altKey)
+{
+    public Thing SourceThing { get; } = sourceThing;
+    public Slot SourceSlot { get; } = sourceSlot;
+    public Thing DestinationThing { get; } = destinationThing;
+    public bool AltKey { get; } = altKey;
+}
+```
+
+`AltKey` is the modifier toggle a click captured from input (e.g. holding Alt during a screwdriver button click), and is the only field most patched `InteractWith` overrides read. `Transformer.InteractWith` does `interaction.AltKey ? 1 : 10` for the priority step in PowerGridPlus's reskin.
+
+Adjacent in the same lines (286385-286394) is the unrelated `InteractionInstance` struct, the `Queue<InteractionInstance>` payload type used by `Interactable.QueuedInteractions` (line 285960):
+
+```csharp
+public readonly struct InteractionInstance(Thing thing, InteractableType action, int state, bool skipAnimation)
+{
+    public readonly InteractableType Action = action;
+    public readonly int State = state;
+    public readonly bool SkipAnimation = skipAnimation;
+    public readonly Thing Thing = thing;
+}
+```
+
+Same file, similar name, different role: `Interaction` is a per-click value, `InteractionInstance` is an enqueued state-write request. Do not confuse them in a Harmony patch signature.
+
+Practical use: to drive `Transformer.InteractWith` headlessly from a probe (e.g. ScenarioRunner verifying knob increment behaviour without a connected player), pass `new Interaction(null, null, transformer, altKey)` plus a real `Interactable` lifted from `transformer.Interactables` matching the desired `Action` (Button1 / Button2). All four `Interaction` fields are nullable references except `AltKey`; passing nulls for `SourceThing` / `SourceSlot` / `DestinationThing` is safe because `Transformer.InteractWith` only reads `AltKey`.
+
 ## Verification history
 
+- 2026-06-03: added `Interaction` readonly struct documentation (line 286395), distinguishing it from `InteractableType` enum (the discriminator), `Interactable` class (the per-Thing state slot), and `InteractionInstance` struct (the queued state-write request, line 286385). Finding produced while building ScenarioRunner headless probes for PowerGridPlus knob behaviour; needed the exact constructor signature to synthesize an `Interaction` for `Transformer.InteractWith`.
 - 2026-05-22: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. Driving question: how does a state change (specifically a dish on/off switch) propagate and fire `Thing.OnInteractableUpdated` on every peer, so a PowerTransmitterPlus beam fix can hook it once per change and never per tick. Verbatim extracts: `InteractableType` enum (lines 285691-285832), `Interactable` fields `Action` (285902) and `OnOffState` hash (285866), the `State` getter/setter (286009-286051, setter body 286027-286050, server flag block 286045-286049, no `new != old` guard confirmed), `Interact` (286328-286336) / `InteractWhenReady` (286358-286361), `OnServer.Interact` (39327-39360, `RunSimulation` gate at 39329, `skipAnimation && State != state` short-circuit at 39345), `NetworkClient.Interact` (198342-198353, request-only), the battery (277770-277782) and combustion (279289-279307) caller-side power-tick gates, base `Thing.OnInteractableUpdated` (300444-300449) and `OnInteractableStateChanged` (300436-300442), the override chain `Device.OnInteractableUpdated` (350870-350881) / `PowerReceiver` (386946-386964) / `PowerTransmitter` (387163-387181) with `WirelessPower` and `ElectricalInputOutput` confirmed not overriding, hierarchy headers (`PowerReceiver` 386861, `PowerTransmitter` 387065, `WirelessPower` 405441, `ElectricalInputOutput` 373755), the client apply path `BuildInteractableUpdate` (303291-303314, clears `IsDirty` at 303305) / `ProcessUpdate` (303329-303364) / `ProcessInteractableUpdate` (303366-303379, `Interact(state, skipAnimation: false)` at 303376), the join paths `DeserializeSave` loop (302253-302261) and `DeserializeInteractableOnJoin` (303118-303129) / `SetInteractableStateOnJoin` (303112-303116), and `Thing.set_OnOff` (299176-299190) for the rejected-alternative note. Cross-checked the hierarchy and override claims against the existing `Device.md` and `WirelessPower.md` pages; consistent (both already note `OnServer.Interact(base.InteractPowered, ...)` as the power-state write pattern).
 
 ## Open questions
