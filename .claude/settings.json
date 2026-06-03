@@ -32,12 +32,27 @@
           },
           {
             "type": "command",
-            "if": "Read(*\\playwright\\config.json)",
+            "if": "Read(*\\playwright\\README.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Read(*\\playwright\\README.md)",
+            "if": "Read(*\\playwright\\LAUNCHER.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\playwright\\launch.ps1)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\playwright\\*\\config.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Read(*\\playwright\\*\\README.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
           },
           {
@@ -47,12 +62,27 @@
           },
           {
             "type": "command",
-            "if": "Edit(*\\playwright\\config.json)",
+            "if": "Edit(*\\playwright\\README.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Edit(*\\playwright\\README.md)",
+            "if": "Edit(*\\playwright\\LAUNCHER.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\playwright\\launch.ps1)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\playwright\\*\\config.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Edit(*\\playwright\\*\\README.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
           },
           {
@@ -62,13 +92,37 @@
           },
           {
             "type": "command",
-            "if": "Write(*\\playwright\\config.json)",
+            "if": "Write(*\\playwright\\README.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
           },
           {
             "type": "command",
-            "if": "Write(*\\playwright\\README.md)",
+            "if": "Write(*\\playwright\\LAUNCHER.md)",
             "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\playwright\\launch.ps1)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\playwright\\*\\config.json)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          },
+          {
+            "type": "command",
+            "if": "Write(*\\playwright\\*\\README.md)",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-config-hook.ps1"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright-.+__browser_take_screenshot",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/playwright-screenshot-hook.ps1"
           }
         ]
       },

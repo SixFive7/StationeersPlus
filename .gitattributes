@@ -18,3 +18,18 @@
 *.exe binary
 *.zip binary
 *.gguf binary
+
+# Pin LF for the shared Playwright setup so these files stay byte-identical across repos,
+# independent of each repo's core.autocrlf setting.
+#
+# Wholly-Playwright files (owned entirely by the setup):
+playwright/**                   text eol=lf
+.claude/hooks/playwright-*.ps1  text eol=lf
+.mcp.json                       text eol=lf
+.claude/settings.json           text eol=lf
+#
+# Partially-shared files (contain a Playwright section/block plus repo-specific content).
+# Pinned LF so the shared block stays byte-identical; this normalizes the whole file's EOL.
+CLAUDE.md                       text eol=lf
+.gitignore                      text eol=lf
+.gitattributes                  text eol=lf

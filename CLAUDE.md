@@ -400,19 +400,17 @@ Default posture for any change that affects runtime behavior:
 
 The target: the developer loads a save, performs whatever minimum in-game actions the test requires, and reports "done." Everything else, observing state, diffing before/after, confirming the hypothesis, is off the snapshot files. Treat any test plan that puts the developer in charge of reading values or describing behavior as a failure of planning and rewrite it.
 
-## Tool: Playwright MCP for web browsing
+## Playwright usage policy
 
-A project-scoped Playwright MCP server is configured in `.mcp.json`. It launches a persistent headless Chrome and exposes the standard `browser_*` tools so the agent can navigate, read rendered pages, screenshot, and download files directly. Runtime state lives under `playwright/` (`profile/` for the Chrome profile, `output/` for downloads, screenshots, session traces, and HAR captures); both subdirectories are gitignored.
+Four Playwright MCP servers are configured: `playwright-headless`, `playwright-interactive`, `playwright-tracing`, `playwright-persistent`. Apply this policy when choosing one:
 
-Configuration is split across three files with a strict separation of concerns:
+1. **Default to `playwright-headless`** — parallel-safe, ephemeral, no state. Use it for almost everything that needs browser automation.
+2. **Use Playwright as little as possible.** After one research round on a new site, evaluate whether the task can be done by calling the underlying API directly (with credentials you already have). Prefer direct HTTP over browser automation — it is faster, more reliable, and easier to debug.
+3. **Use `playwright-tracing`** to reverse-engineer a site's API shapes (request/response, auth flow, WebSocket frames). The goal is usually to *stop* using Playwright on that site — capture enough trace to make direct calls work, then switch.
+4. **Use `playwright-interactive` only** when a credentialed login is required and the credentials are not already on hand. Tell the user what you are about to do. Do not see, ask for, or attempt to capture credentials — the user types them directly in the visible window.
+5. **Use `playwright-persistent` only** when the user explicitly instructs you to AND has validated the request. Saved logins in `playwright/persistent/profile/` are accessible to any agent that touches that server — treat as a security risk, never default to it.
 
-- `.mcp.json` bootstraps the server (only `--config` plus the CLI-only flag `--output-mode file`). Keep it minimal.
-- `playwright/config.json` holds every config-schema setting we deviate from upstream defaults on. Canonical source for Playwright-level configuration.
-- `playwright/README.md` is the single source of truth for the rules (HAR archive convention, screenshot filename discipline, single-instance-per-repo, profile reset, debugging pointers, upgrade procedure) and the full per-setting reference table, including settings left at default and the reasoning for leaving them there.
-
-Read `playwright/README.md` before changing any of those three files or before relying on the browser for anything non-trivial. A `PreToolUse` hook (`.claude/hooks/playwright-config-hook.ps1`, wired in `.claude/settings.json`) fires on Read/Edit/Write of the config trio and injects the same pointer. When you change a value in `config.json` or `.mcp.json`, update the matching row in `playwright/README.md` in the same commit; motivation lives only in the markdown.
-
-Downloads land in `playwright/output/` (gitignored). If a downloaded file needs to be reviewed or kept, move it into `.work/` per the scratch-files rule above.
+The rules above are sufficient for using the servers. Only read [playwright/README.md](playwright/README.md) if you need the architecture rationale, the per-mode settings table, or are about to *change* the Playwright configuration.
 
 ### steamcommunity.com lookups must go through Playwright
 

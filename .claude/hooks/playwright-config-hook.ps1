@@ -1,9 +1,9 @@
-﻿# playwright-config-hook.ps1
-# Fires BEFORE Read / Edit / Write on the Playwright MCP configuration trio
-# (matched via the `if` field in .claude/settings.json). Injects the full
-# architectural context and rules so the agent has them before interacting
-# with the file, so edits are informed, not retroactively corrected, and
-# readers know the file is part of a trio before consuming just one piece.
+# playwright-config-hook.ps1
+# Fires BEFORE Read / Edit / Write on any file that is part of the four-server
+# Playwright MCP setup (matched via the `if` field in .claude/settings.json).
+# Injects the architectural context so the agent has it before interacting
+# with the file - edits are informed, not retroactively corrected, and
+# readers know which file they are touching is part of a larger system.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -13,29 +13,55 @@ $ErrorActionPreference = 'Stop'
 $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Single-quoted here-string: no escape processing, so backticks in the body
-# (e.g. `npx`, `pdf`) render literally instead of being interpreted as
-# PowerShell escape sequences.
+# Single-quoted here-string: no escape processing. Backticks render literally.
 $message = @'
-[Playwright MCP config reminder] You are about to touch one of the three files that make up the Playwright MCP configuration.
+[Playwright MCP config reminder] You are about to touch one of the files that defines the four-server Playwright MCP setup.
 
-Architecture: three files, clear separation of concerns:
-  1. .mcp.json                     Bootstraps the MCP server for Claude Code. Contains only `--config` pointing to #2 plus the single CLI-only flag `--output-mode` (which is not in the config schema). Keep this file minimal.
-  2. playwright/config.json        Every config-schema setting we deviate from upstream defaults on. Canonical source of Playwright-level configuration. Absent keys = upstream defaults.
-  3. playwright/README.md          SINGLE SOURCE OF TRUTH for rules, conventions, and the full reference table (every setting with its location, function, value, and motivation, including settings we left at default, which are documented so that future changes know the intentional reasoning).
+Architecture - four MCP servers, four subfolders, one parametric launcher:
 
-Rules live exclusively in playwright/README.md under the "Rules" section at the top. Read it before editing if you have not already this conversation. It covers:
-  - HAR archive rename convention (recordHar.path is static; rename playwright/output/network.har to playwright/output/har/network-{timestamp}-{task}.har if the trace is worth keeping).
-  - Screenshot filename discipline: explicit `filename` on `browser_take_screenshot` resolves against CWD (repo root), NOT outputDir. Prepend `playwright/output/` (e.g. `playwright/output/foo.png`) to land artifacts in the output dir. Auto-naming (omitting `filename`) does honour outputDir.
-  - Single-Playwright-instance-per-repo rule (Chrome SingletonLock enforces this structurally).
-  - Profile reset procedure (delete playwright/profile/ to force fresh logins).
-  - Debugging pointers (playwright/output/session-{timestamp}/session.md + playwright/output/network.har; Markdown trace, not JSONL despite older notes).
-  - Upgrade procedure (diff `npx @playwright/mcp@latest --help` against the table; new flags get new rows).
-  - Design rationale for capability gating: e.g. browser_pdf_save is not exposed because its HTML-to-PDF render is a screenshot, not a server-served file. If you feel the urge to enable `pdf`, read row #56 first.
+  1. .mcp.json
+       Bootstraps four MCP server entries (playwright-headless, playwright-interactive, playwright-tracing, playwright-persistent).
+       Each entry invokes launch.ps1 with a different -Mode argument.
 
-Drift rule: when you change a VALUE in playwright/config.json or .mcp.json, update the matching row in playwright/README.md (Value column, and Motivation if the reasoning shifts) in the SAME commit. Motivation only lives in the markdown; it cannot recover itself.
+  2. playwright/{mode}/config.json
+       Per-mode Playwright configuration. Each mode (headless, interactive, tracing, persistent) has its own config.json.
+       Canonical source of Playwright-level settings for that mode. Absent keys = upstream defaults.
 
-This hook is defined in .claude/settings.json and runs .claude/hooks/playwright-config-hook.ps1. To change the hook behaviour or matcher, edit those files.
+  3. playwright/{mode}/README.md
+       Per-mode docs explaining the mode's purpose, when to use it, mode-specific behaviour.
+
+  4. playwright/launch.ps1
+       Parametric PowerShell launcher. Handles per-session timestamped outputDir (headless),
+       Windows named-mutex exclusivity (interactive, tracing), and direct passthrough (persistent).
+
+  5. playwright/LAUNCHER.md
+       Launcher reference: parameters, mode behaviour matrix, mutex semantics, debugging.
+
+  6. playwright/README.md
+       SINGLE SOURCE OF TRUTH - the canonical architecture overview, "when to use which server" decision rules,
+       full settings table covering all four modes (with value columns per mode), Rules section (drift, HAR convention,
+       screenshot discipline, profile reset, debugging pointers, upgrade procedure).
+
+Modes summary:
+  - headless    : ephemeral (browser.isolated=true), HEADLESS, parallel-safe, no HAR.
+                  Launcher overrides outputDir per session: playwright/headless/output/{yyyy-MM-dd-HH-mm-ss}-{4chr}/
+                  No mutex - many parallel Claude Code sessions OK.
+  - interactive : ephemeral, HEADED, single-instance via mutex Global\<RepoName>-PlaywrightInteractive. No HAR.
+  - tracing     : ephemeral, HEADED, single-instance via separate mutex Global\<RepoName>-PlaywrightTracing.
+                  Full recordHar + saveSession + verbose console.
+  - persistent  : PERSISTENT userDataDir at playwright/persistent/profile/, HEADED.
+                  Exclusivity via Chrome SingletonLock (automatic). No HAR.
+
+Drift rule: when you change a VALUE in any <mode>/config.json or in .mcp.json, update the matching row
+in playwright/README.md (Value column; Motivation column if the reasoning shifts) in the SAME commit.
+Motivation only lives in the markdown - it cannot recover itself.
+
+Rules and reference data live exclusively in playwright/README.md. Read it before making config changes
+if you have not yet this conversation. Per-mode specifics live in playwright/{mode}/README.md.
+Launcher specifics live in playwright/LAUNCHER.md.
+
+This hook is defined in .claude/settings.json and runs .claude/hooks/playwright-config-hook.ps1.
+To change the hook behaviour or matcher list, edit those files.
 '@
 
 $payload = @{
