@@ -189,6 +189,10 @@ namespace ScenarioRunner
                     Scenario_PgpPriorityShedingAll();
                     return;
 
+                case "pgp-r1-prepare":
+                    Scenario_PgpR1Prepare();
+                    return;
+
                 case "ptp-autoaim-cache-probe":
                     Scenario_PtpAutoAimCacheProbe();
                     return;

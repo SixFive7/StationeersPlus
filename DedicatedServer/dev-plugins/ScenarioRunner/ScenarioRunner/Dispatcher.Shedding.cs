@@ -1399,6 +1399,127 @@ namespace ScenarioRunner
         }
 
         // ============================================================
+        // Scenario: pgp-r1-prepare (R-1 visual-check setup)
+        // ------------------------------------------------------------
+        // Selects one transformer with positive downstream demand and
+        // pins it to a perpetual shed state: Priority=0 + per-tick
+        // _lockoutUntilTick refresh so the orange flash + hover error
+        // persist indefinitely. The developer connects to the dedi,
+        // walks to the logged world position, and confirms the visual
+        // behaviour without having to manually trigger the shed loop.
+        // ============================================================
+        private static long _r1TargetRef = 0;
+        private static Vector3 _r1TargetPos = default;
+        private static string _r1TargetPrefab = "";
+        private static int _r1LastStateLogTick = int.MinValue;
+
+        private static void Scenario_PgpR1Prepare()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-r1-prepare")) return;
+            var asm = GetModAssembly(PGP_ASSEMBLY);
+            if (asm == null) return;
+
+            var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
+            var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+            var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
+            var flashType = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
+            var hoverPatchType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
+            var setPriorityMethod = priorityStoreType?.GetMethod("SetPriority",
+                BindingFlags.NonPublic | BindingFlags.Static, null,
+                new[] { typeof(Thing), typeof(int) }, null);
+            var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            var lockoutDictField = brownoutType?.GetField("_lockoutUntilTick",
+                BindingFlags.NonPublic | BindingFlags.Static);
+
+            int tickNow = (int)(currentTickProp?.GetValue(null) ?? 0);
+
+            if (_r1TargetRef == 0)
+            {
+                // Activate the diagnostic flags on first tick so BrownoutFlashBehaviour
+                // and TransformerHoverErrorPatches dump renderer + material + tooltip
+                // state into the BepInEx log for this session.
+                var bfbDiagField = flashType?.GetField("DiagnosticEnabled",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                bfbDiagField?.SetValue(null, true);
+                var hoverDiagField = hoverPatchType?.GetField("DiagnosticEnabled",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                hoverDiagField?.SetValue(null, true);
+                _log?.LogInfo($"[ScenarioRunner] R1 DIAG flags set: BFB={bfbDiagField != null} Hover={hoverDiagField != null}");
+
+                if (_transformers.Count == 0) RebuildCaches();
+                Transformer chosen = null;
+                foreach (var t in _transformers)
+                {
+                    if (t == null || !t.OnOff || t.OutputNetwork == null) continue;
+                    if (t.OutputNetwork.RequiredLoad < 10f) continue;
+                    chosen = t;
+                    break;
+                }
+                if (chosen == null)
+                {
+                    _log?.LogWarning("[ScenarioRunner] R1 SKIP: no transformer with OutputNetwork.RequiredLoad >= 10 W found.");
+                    return;
+                }
+                _r1TargetRef = chosen.ReferenceId;
+                _r1TargetPrefab = chosen.PrefabName ?? "";
+                _r1TargetPos = chosen.transform != null ? chosen.transform.position : default;
+                setPriorityMethod?.Invoke(null, new object[] { chosen, 0 });
+
+                // Log the Needle field's GameObject info -- diagnose the
+                // knob-on-load orientation issue.
+                try
+                {
+                    var needleField = typeof(Transformer).GetField("Needle");
+                    var needleGo = needleField?.GetValue(chosen) as GameObject;
+                    string needlePath = needleGo?.transform != null ? BuildHierarchyPath(needleGo.transform) : "<null>";
+                    Vector3 nlRot = needleGo?.transform != null ? needleGo.transform.localEulerAngles : default;
+                    _log?.LogInfo($"[ScenarioRunner] R1 NEEDLE diag: Needle field -> GameObject name='{needleGo?.name}' path='{needlePath}' localEuler=({nlRot.x:F1},{nlRot.y:F1},{nlRot.z:F1})");
+                }
+                catch (Exception e)
+                {
+                    _log?.LogWarning($"[ScenarioRunner] R1 NEEDLE diag threw: {e.Message}");
+                }
+
+                _log?.LogInfo($"[ScenarioRunner] R1 PREPARED: ref={_r1TargetRef} prefab={_r1TargetPrefab} pos=({_r1TargetPos.x:F1},{_r1TargetPos.y:F1},{_r1TargetPos.z:F1}) OutputNetwork.RequiredLoad={chosen.OutputNetwork.RequiredLoad:F0} W. Priority pinned to 0; lockout perpetually refreshed.");
+            }
+
+            // Per-tick lockout refresh: keep the shed state alive indefinitely
+            // by writing _lockoutUntilTick = currentTick + 100 every tick.
+            var lockoutDict = lockoutDictField?.GetValue(null) as System.Collections.IDictionary;
+            if (lockoutDict != null)
+            {
+                lockoutDict[_r1TargetRef] = tickNow + 100;
+            }
+
+            // Log target state every 10 ticks so we can see OnOff/Error evolution.
+            if (tickNow - _r1LastStateLogTick >= 10)
+            {
+                _r1LastStateLogTick = tickNow;
+                var target = _transformers.FirstOrDefault(x => x != null && x.ReferenceId == _r1TargetRef);
+                if (target != null)
+                {
+                    _log?.LogInfo($"[ScenarioRunner] R1 STATE tick={tickNow} ref={_r1TargetRef} OnOff={target.OnOff} Error={target.Error} Setting={target.Setting:F0}");
+                }
+            }
+        }
+
+        private static string BuildHierarchyPath(Transform t)
+        {
+            if (t == null) return "<null>";
+            var sb = new System.Text.StringBuilder(t.name);
+            var cur = t.parent;
+            int hops = 0;
+            while (cur != null && hops < 6)
+            {
+                sb.Insert(0, cur.name + "/");
+                cur = cur.parent;
+                hops++;
+            }
+            return sb.ToString();
+        }
+
+        // ============================================================
         // Scenario: pgp-priority-shedding-all (aggregator)
         // ------------------------------------------------------------
         // Runs every probe above in sequence on the first scenario tick.
