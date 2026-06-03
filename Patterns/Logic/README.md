@@ -29,8 +29,10 @@ Append at the next free slot. Increments of 1. Compact packing - a mod may have 
 | 6575 | PowerTransmitterPlus | MicrowaveAutoAimTarget | R / W | Target Thing.ReferenceId. Set 0 to disable. |
 | 6576 | PowerTransmitterPlus | MicrowaveLinkedPartner | R | Linked partner's ReferenceId, or 0 when unlinked. |
 | 6577 | PowerGridPlus | LogicPassthroughMode | R / W | 0 = vanilla logic-opaque transformer, 1 = logic-transparent. |
+| 6578 | PowerGridPlus | Priority | R / W | Per-transformer dispatch priority (int >= 0, default 100). Strict-priority allocation: highest priority gets first dibs on input-network supply; lower-priority transformers get the leftover. A transformer that cannot get its full OutputMaximum from the input network sheds for 10 seconds. |
+| 6579 | PowerGridPlus | Shedding | R | Returns 1 when the transformer is currently shed (browned out) by the strict-priority allocation, 0 otherwise. Read-only. Server-derived; replicated to clients. |
 
-**Next free slot: 6578.**
+**Next free slot: 6580.**
 
 ## Rules for adding a new entry
 

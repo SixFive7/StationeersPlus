@@ -31,7 +31,9 @@ namespace StationeersPlus.Shared
 
         // ---------------- PowerGridPlus (6577- ) --------------------------
         public const ushort LogicPassthroughMode      = 6577;
+        public const ushort Priority                  = 6578;
+        public const ushort Shedding                  = 6579;
 
-        // Next free slot: 6578.
+        // Next free slot: 6580.
     }
 }

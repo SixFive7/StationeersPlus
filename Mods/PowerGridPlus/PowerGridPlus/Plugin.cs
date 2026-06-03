@@ -63,6 +63,8 @@ namespace PowerGridPlus
                 // with default modes and its motherboard dropdowns diverge from the host.
                 MOD.Networking.RegisterMessage<PassthroughModeMessage>();
                 MOD.Networking.RegisterMessage<PassthroughSettingsMessage>();
+                MOD.Networking.RegisterMessage<PriorityMessage>();
+                MOD.Networking.RegisterMessage<ShedStateMessage>();
                 MOD.Networking.JoinSuffixSerializer = this;
 
                 var harmony = new Harmony(PluginGuid);
@@ -106,6 +108,28 @@ namespace PowerGridPlus
             writer.WriteBoolean(Settings.EnableBatteryLogicPassthrough.Value);
             writer.WriteBoolean(Settings.EnableAreaPowerControlLogicPassthrough.Value);
             writer.WriteBoolean(Settings.EnablePowerTransmitterLogicPassthrough.Value);
+
+            // Then the per-Transformer Priority overrides + the EnableTransformerShedding toggle. The
+            // priority defaults to PriorityStore.DefaultPriority for any transformer without an entry;
+            // overrides are server-authoritative and persist via PrioritySideCar. Order must match
+            // DeserializeJoinSuffix.
+            var priorityEntries = new List<KeyValuePair<long, int>>(PriorityStore.SnapshotEntries());
+            writer.WriteInt32(priorityEntries.Count);
+            foreach (var entry in priorityEntries)
+            {
+                writer.WriteInt64(entry.Key);
+                writer.WriteInt32(entry.Value);
+            }
+            writer.WriteBoolean(Settings.EnableTransformerShedding.Value);
+
+            // Currently-shedding transformer IDs (transient host-only state). The client uses these
+            // to populate its BrownoutRegistry.ClientShedding mirror so a freshly-joined player sees
+            // existing sheds immediately rather than waiting for the next transition.
+            var shedIds = new List<long>();
+            foreach (var id in BrownoutRegistry.CurrentlyLockedOut(ElectricityTickCounter.CurrentTick))
+                shedIds.Add(id);
+            writer.WriteInt32(shedIds.Count);
+            foreach (var id in shedIds) writer.WriteInt64(id);
         }
 
         public void DeserializeJoinSuffix(RocketBinaryReader reader)
@@ -125,6 +149,25 @@ namespace PowerGridPlus
             bool apc = reader.ReadBoolean();
             bool powerTransmitter = reader.ReadBoolean();
             PassthroughSettingsSync.SetSyncedValues(transformer, battery, apc, powerTransmitter);
+
+            // Per-Transformer priority + EnableTransformerShedding master toggle.
+            int priorityCount = reader.ReadInt32();
+            for (int i = 0; i < priorityCount; i++)
+            {
+                long referenceId = reader.ReadInt64();
+                int priority = reader.ReadInt32();
+                PriorityStore.SetPriorityByReference(referenceId, priority);
+            }
+            bool sheddingEnabled = reader.ReadBoolean();
+            ShedSettingsSync.SetSyncedValue(sheddingEnabled);
+
+            // Currently-shedding transformer IDs at join time.
+            int shedCount = reader.ReadInt32();
+            for (int i = 0; i < shedCount; i++)
+            {
+                long shedId = reader.ReadInt64();
+                BrownoutRegistry.SetClientShedding(shedId, true);
+            }
         }
 
         /// <summary>

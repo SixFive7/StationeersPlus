@@ -55,6 +55,10 @@
       <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UniTask">
       <HintPath>$(StationeersPath)\rocketstation_Data\Managed\UniTask.dll</HintPath>
       <Private>False</Private>
@@ -107,6 +111,22 @@
     <Compile Include="Patches\LogicableInitializePatch.cs" />
     <Compile Include="Patches\EnumNamePatches.cs" />
     <Compile Include="Patches\EmergencyLightPatches.cs" />
+    <Compile Include="PriorityStore.cs" />
+    <Compile Include="PrioritySideCar.cs" />
+    <Compile Include="PriorityMessage.cs" />
+    <Compile Include="BrownoutRegistry.cs" />
+    <Compile Include="BrownoutFlashBehaviour.cs" />
+    <Compile Include="ElectricityTickCounter.cs" />
+    <Compile Include="ShedSettingsSync.cs" />
+    <Compile Include="TransformerAllocator.cs" />
+    <Compile Include="Patches\ElectricityTickPatches.cs" />
+    <Compile Include="Patches\PrioritySaveLoadPatches.cs" />
+    <Compile Include="Patches\TransformerPriorityLogicPatches.cs" />
+    <Compile Include="Patches\TransformerInteractWithPatches.cs" />
+    <Compile Include="Patches\TransformerHoverErrorPatches.cs" />
+    <Compile Include="Patches\TransformerFlashAttachPatches.cs" />
+    <Compile Include="Patches\TransformerLabellerPatches.cs" />
+    <Compile Include="ShedStateMessage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

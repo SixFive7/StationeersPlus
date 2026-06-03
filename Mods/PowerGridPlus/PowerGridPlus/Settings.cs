@@ -37,6 +37,7 @@ namespace PowerGridPlus
         internal static ConfigEntry<bool> EnableTransformerExploitMitigation;
         internal static ConfigEntry<bool> EnableTransformerLogicAdditions;
         internal static ConfigEntry<bool> EnableTransformerLogicPassthrough;
+        internal static ConfigEntry<bool> EnableTransformerShedding;
 
         // --- Server - Area Power Control ---
         internal static ConfigEntry<bool> EnableAreaPowerControlFix;
@@ -167,6 +168,20 @@ namespace PowerGridPlus
                      "logic-opaque behaviour. The small transformer and its reversed variant default to mode 1; every other " +
                      "transformer defaults to mode 0. Per-device mode is persisted across save / load. When this master is " +
                      "false, every transformer behaves vanilla-opaque regardless of its per-device mode.", 30));
+
+            EnableTransformerShedding = config.Bind("Server - Transformers", "Enable Transformer Shedding", true,
+                Desc("(Server-authoritative) Master toggle for the transformer Priority + Shedding feature. When true, every " +
+                     "transformer's throughput is hardcoded at its OutputMaximum rating, the in-world dial controls a new " +
+                     "Priority value instead (non-negative int, default 100, step 1 per click or 10 with Alt), and the input " +
+                     "cable network's supply is allocated strictly by Priority: the highest-priority transformer gets first " +
+                     "dibs up to its OutputMaximum; the leftover goes to the next priority. A transformer that cannot get its " +
+                     "full OutputMaximum from the input sheds for 10 seconds (flashes its on / off button orange, surfaces a " +
+                     "hover error, contributes 0 to the output network), then re-engages automatically. Shortfall tolerance: " +
+                     "the shed only fires after 2 consecutive ticks of insufficient supply, so a single-tick demand spike does " +
+                     "not trip a 10-second lockout. The IC10 LogicType.Setting read returns OutputMaximum (hardcoded); writes " +
+                     "to Setting redirect to Priority for backward compatibility with existing scripts. A new read-only " +
+                     "LogicType.Shedding returns 1 while a transformer is in lockout, 0 otherwise. When this master is false, " +
+                     "transformers behave vanilla (Setting is a writable throughput cap, no shedding, no flashing).", 40));
 
             // --- Server - Area Power Control ---
             EnableAreaPowerControlFix = config.Bind("Server - Area Power Control", "Enable APC Power Fix", true,

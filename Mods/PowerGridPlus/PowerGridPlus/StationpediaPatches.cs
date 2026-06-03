@@ -57,6 +57,11 @@ namespace PowerGridPlus
 
             switch (prefabName)
             {
+                case "StructureTransformer":
+                case "StructureTransformerSmall":
+                case "StructureTransformerSmallReversed":
+                case "StructureTransformerLarge":
+                    return BuildTransformerFooter();
                 case "StructureAreaPowerControl":
                 case "StructureAreaPowerControlReversed":
                     return BuildApcFooter();
@@ -109,6 +114,33 @@ namespace PowerGridPlus
                 "\n\n{HEADER:POWER GRID PLUS}\n" +
                 "Burn behaviour: vanilla. This cable can still burn out under sustained overload. " +
                 "(Server config \"Enable Unlimited Super-Heavy Cables\" is off.)";
+        }
+
+        private static string BuildTransformerFooter()
+        {
+            if (!Settings.EnableTransformerShedding.Value)
+            {
+                return
+                    "\n\n{HEADER:POWER GRID PLUS}\n" +
+                    "Behaviour: vanilla. The knob controls throughput; Setting / Maximum / Ratio logic " +
+                    "values behave as in the base game. (Server config \"Enable Transformer Shedding\" is off.)";
+            }
+
+            return
+                "\n\n{HEADER:POWER GRID PLUS}\n" +
+                "Throughput: hardcoded at the transformer's OutputMaximum rating. The in-world knob no longer " +
+                "controls throughput; it sets a new Priority value (non-negative integer, default 100, step 10 per " +
+                "click or 1 with Alt).\n" +
+                "Allocation: when multiple transformers pull from the same input cable network, supply is allocated " +
+                "strictly by Priority. The highest-priority transformer gets first dibs up to its OutputMaximum; " +
+                "the leftover goes to the next priority, and so on.\n" +
+                "Shedding: a transformer that cannot get its full OutputMaximum from the input network sheds for 10 " +
+                "seconds (contributes 0 to the output network, flashes its on / off button orange, surfaces a hover " +
+                "error), then re-engages automatically. A 2-tick shortfall tolerance prevents single-tick demand " +
+                "spikes from tripping a 10-second lockout.\n" +
+                "IC10: LogicType.Setting reads return OutputMaximum (the fixed throughput); writes to Setting redirect " +
+                "to Priority so legacy scripts that wrote to Setting now write to Priority transparently. A new " +
+                "read-only LogicType.Shedding returns 1 while the transformer is in its lockout window, 0 otherwise.";
         }
 
         private static string BuildApcFooter()
