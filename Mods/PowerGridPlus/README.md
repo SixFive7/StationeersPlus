@@ -1,6 +1,6 @@
 # Power Grid Plus
 
-Reworks Stationeers wired power: proportional load sharing, three cable tiers as separate transmission voltages, logic-transparent transformer / battery / dish bridges, and deterministic multiplayer cable-network ids.
+Reworks Stationeers wired power: priority-based transformer dispatch with automatic shedding, proportional load sharing, three cable tiers as separate transmission voltages, logic-transparent transformer / battery / dish bridges, and deterministic multiplayer cable-network ids.
 
 Work in progress. Not on the Workshop yet. A pure-patch mod: no new craftable devices, no asset bundle. The simulation half is derived from Sukasa's [Re-Volt](https://github.com/sukasa/revolt) (MIT); the three-tier voltage backbone is new. Design notes and the decision log live in `RESEARCH.md`; pending work lives in `TODO.md`.
 
@@ -25,6 +25,17 @@ Added by this mod (the three-tier voltage backbone):
 - **Devices belong on the right tier.** Generators and stationary batteries on heavy cable. High-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner -- and any extra ones you list in the config) on heavy or normal. Super-heavy is the long-haul backbone: only cables and transformers. Everything else on normal cable. Transformers, Area Power Controllers and wireless power devices are exempt.
 - **Placement UX:** placing a device on the wrong cable tier is allowed -- when power flows, the *cable* burns and the device becomes orphaned (never the device itself). But placing the wrong-tier *cable* next to an existing device shows a red ghost with a "Wrong voltage" tooltip; same for placing a wrong-tier cable next to an existing cable network of another tier. So: you can't make a tier mistake at the cable-coil cursor, but you can make one at the device cursor -- and the resulting cable burn tells you exactly what went wrong.
 - **Burned-cable tooltips tell you why.** Hover over a ruptured cable and the tooltip says "Burned: overloaded" / "Burned: wrong voltage -- adjacent <device>" / "Burned: wrong voltage -- bridging different tiers", so you can tell a sustained-overload burn from a tier mismatch at a glance.
+
+Transformer priority and load shedding (also new):
+
+- **Transformer throughput is hardcoded at the per-prefab `OutputMaximum` rating.** The in-world knob no longer controls throughput; it now sets a writable `Priority` value instead (non-negative integer, default 100, step 10 per screwdriver click or 1 with Alt held).
+- **When transformers compete for limited supply on the same input cable network, allocation is strictly by Priority.** The highest-priority transformer gets first dibs up to its OutputMaximum; the leftover supply goes to the next priority, and so on. Demand-driven: a transformer never claims more than its output network actually needs.
+- **A transformer that can't get its full share from the input network sheds for 10 seconds.** While shed it contributes 0 to its output network, its on/off button pulses orange at 2 Hz, and the button hover shows `(Shedding: insufficient upstream supply)`. After the 10-second hold it auto-re-engages on the next allocation pass.
+- **Two-tick tolerance** prevents single-tick demand spikes (a centrifuge spinning up, etc.) from tripping a 10-second lockout. A shortfall has to last 2 consecutive ticks (~1 s) before shed actually fires.
+- **New writable `Priority` logic value** (writable from IC10 or a Logic Writer). Legacy IC10 scripts that wrote to `Setting` still work: `Setting` writes are transparently redirected to `Priority`.
+- **New read-only `Shedding` logic value** returns 1 while a transformer is in the lockout window, 0 otherwise. Drive a siren, an alert light, or an IC10 routing script off it.
+- **Per-transformer Priority is saved with the world** (side-car XML inside the save ZIP) and synced across multiplayer in the join handshake. The shed state itself is transient: a brownout in progress at save time clears on load and recomputes on the first tick.
+- **Server master toggle.** When `Enable Transformer Shedding` is off, transformer behaviour falls back to vanilla (knob controls throughput, Setting / Maximum / Ratio behave as in the base game, no shedding, no flashing).
 
 Logic passthrough (also new):
 
@@ -55,6 +66,7 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Transformers | Enable Transformer Exploit Mitigation | true | Close the transformer free-power exploit. |
 | Transformers | Enable Transformer Logic Additions | true | Expose transformer throughput as Power Actual. |
 | Transformers | Enable Transformer Logic Passthrough | true | Master toggle for transformer logic passthrough. |
+| Transformers | Enable Transformer Shedding | true | Priority-based dispatch and load shedding: throughput hardcoded at OutputMaximum, knob controls a Priority value, transformer sheds for 10 s when it cannot get its share from the input network. Off restores vanilla transformer behaviour. |
 | Area Power Control | Enable APC Power Fix | true | Stop the APC power leak and idle battery drain. |
 | Area Power Control | Enable APC Logic Passthrough | true | APCs are logic-transparent (logic readers on either side see the other side's devices). |
 | Power Transmitters | Enable Power Transmitter Logic Passthrough | true | Master toggle for transmitter / receiver logic passthrough across a wireless link. |
