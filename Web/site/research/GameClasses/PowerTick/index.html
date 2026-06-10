@@ -7403,7 +7403,7 @@
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-12
+verified_at: 2026-06-10
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState)
@@ -7555,6 +7555,7 @@ tags: [power, threading]</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-12: page created. Sourced from a voltage-tier research dive (planned mod "Power Grid Plus") into <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines 254512-254760 and 253668-253681; verbatim excerpts of the <code>PowerTick</code> field block, <code>CableNetwork.OnPowerTick</code>, <code>CacheState</code>, <code>GetBreakableFuses</code>, <code>GetBreakableCables</code>, <code>BreakSingleFuse</code>, <code>BreakSingleCable</code>, <code>ApplyState</code>. Reconciles the class-attribution imprecision on <a href="../CableNetwork/">CableNetwork</a> (those <code>ConsumePower</code>/<code>CalculateState</code> bodies are <code>PowerTick</code> members). Re-Volt mod source (<code>RevoltTick : PowerTick</code>, reverse-patches <code>PowerTick.Initialise</code>/<code>CalculateState</code>/<code>ApplyState</code>) independently corroborates ownership.</li>
+<li>2026-06-10: re-read lines 254512-254761 in full against the same 0.2.6228.27061 decompile during the PowerGridPlus single-architecture rework (the mod now runs this vanilla class unmodified in its atomic Phases 1 and 3). All sections still match verbatim; no content change.</li>
 <li>2026-05-12: while building Power Grid Plus, confirmed <code>PowerTick.CheckForRecursiveProviders()</code> is a private instance method (decompile line 254613, called from <code>CalculateState</code> at 254610) and <code>CacheState()</code> is private at line 254656; added a note that both are reachable via Harmony reverse patches (Power Grid Plus, like Re-Volt, reverse-patches <code>CacheState</code> unconditionally and <code>CheckForRecursiveProviders</code> when its recursive-network-limits option is on). Also: <code>PowerTick</code> and <code>PowerProvider</code> are in namespace <code>Assets.Scripts.Networks</code>; the <code>Pick&lt;T&gt;(this List&lt;T&gt;)</code> / <code>Pick&lt;T&gt;(this List&lt;T&gt;, System.Random)</code> extension used by <code>BreakSingleCable</code>/<code>BreakSingleFuse</code> lives in <code>Assets.Scripts.Util</code> (decompile ~line 214049).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>

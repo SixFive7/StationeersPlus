@@ -4099,6 +4099,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#getgeneratedpower-override-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GetGeneratedPower override map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7336,6 +7347,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#getgeneratedpower-override-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GetGeneratedPower override map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7447,7 +7469,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-06-09.
+           on 2026-06-10.
         </p>
       
       
@@ -7519,7 +7541,7 @@
 </tr>
 <tr>
 <td>Battery</td>
-<td><code>Assets.Scripts.Objects.Pipes</code></td>
+<td><code>Assets.Scripts.Objects.Electrical</code></td>
 <td>ElectricalInputOutput : Device</td>
 <td>370616</td>
 </tr>
@@ -7602,7 +7624,7 @@
 <ul>
 <li><code>Battery</code> (370616): <code>public float PowerStored { get; set; }</code> (370665, clamped <code>[0, PowerMaximum]</code>), <code>public float PowerMaximum = 3600000f</code> (370629). <code>UsePower</code> / <code>ReceivePower</code> overrides at 371098 / 371106. Prefabs: small <code>StationBatterySmall</code> (PrefabName <code>StructureBattery</code>), large <code>StationBatteryLarge</code> (<code>StructureBatteryLarge</code>); the nuclear variant ships from the third-party MorePowerMod.</li>
 <li><code>AreaPowerControl</code> (369509): inserted cell via <code>public BatteryCell Battery =&gt; BatterySlot.Get&lt;BatteryCell&gt;()</code> (369548); <code>public float BatteryChargeRate = 1000f</code> (369540, per-instance serialized); <code>private float _powerProvided</code> (369546) couples per-tick charge XOR discharge. No vanilla discharge-rate field.</li>
-<li><code>RocketPowerUmbilicalMale</code> (148269) / <code>RocketPowerUmbilicalFemale</code> (147895): both <code>public float PowerMaximum = 10000f</code> and <code>public float PowerStored { get; set; }</code> (clamped). The Female has NO OnOff interactable button on the device itself (fault state must be surfaced by hover text only); the Male has the on-button affordance.</li>
+<li><code>RocketPowerUmbilicalMale</code> (148269) / <code>RocketPowerUmbilicalFemale</code> (147895): both <code>public float PowerMaximum = 10000f</code> and <code>public float PowerStored { get; set; }</code> (clamped). The Female has NO OnOff interactable button on the device itself (fault state must be surfaced by hover text only); the Male has the on-button affordance. Prefab names (verified from a live save's <code>&lt;PrefabName&gt;</code> entries): <code>StructurePowerUmbilicalMale</code> / <code>StructurePowerUmbilicalFemale</code>. Power methods are battery-shaped: <code>GetUsedPower(input)</code> returns <code>UsedPower + clamp(PowerMaximum - PowerStored, ...)</code> (the Male additionally gates on OnOff and returns just <code>UsedPower</code> when <code>Error == 1 &amp;&amp; OnOff</code>); <code>GetGeneratedPower(output)</code> returns <code>max(PowerStored, 0)</code> (Female L148182-148199, Male L148744-148772). Logic-method declarations: the Male declares <code>CanLogicRead</code> / <code>CanLogicWrite</code> / <code>SetLogicValue</code> but NOT <code>GetLogicValue</code>; the Female declares none of them (both halves reach <code>GetLogicValue</code> through the <code>Device</code> base declaration). The <code>Device</code> base also declares slot-keyed overloads of <code>CanLogicRead</code> / <code>GetLogicValue</code>, so a Harmony patch on the base MUST pass an explicit <code>typeof(LogicType)</code> argument array or it raises <code>AmbiguousMatchException</code> and takes the whole <code>PatchAll</code> down.</li>
 </ul>
 <h2 id="power-producer-classes-not-segmenters">Power producer classes (not segmenters)<a class="headerlink" href="#power-producer-classes-not-segmenters" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-09 -->
@@ -7675,10 +7697,117 @@
 </tbody>
 </table>
 <p><code>WindTurbineGenerator</code> and <code>LargeWindTurbineGenerator</code> are in the bare <code>Objects</code> namespace (like the umbilicals and <code>Objects.SwitchOnOff</code>), NOT <code>Assets.Scripts.Objects</code>. Because <code>LargeWindTurbineGenerator : WindTurbineGenerator</code>, <code>GasFuelGenerator : PowerGeneratorPipe</code>, and <code>SolidFuelGenerator : PowerGeneratorSlot</code>, a base-class <code>is</code> check covers each pair. "Has OnOff button" determines whether a producer-isolation fault can flash on the device (button-bearing producers) or must burn a cable / show hover only (SolarPanel, both wind turbines, RTG).</p>
+<p>Two additional power-generating classes that the producer table above originally omitted:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Namespace</th>
+<th>Base</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TurbineGenerator</td>
+<td><code>Assets.Scripts.Objects.Electrical</code></td>
+<td>Device, ISmartRotatable (line 403819)</td>
+<td>The small wall wind turbine. Declares its own <code>GetGeneratedPower</code> (line 403973). No OnOff button.</td>
+</tr>
+<tr>
+<td>PowerConnector</td>
+<td><code>Assets.Scripts.Objects.Electrical</code></td>
+<td>Electrical (line 386798)</td>
+<td>The dynamic-generator dock (portable generator connection point). Declares its own <code>GetGeneratedPower</code> (line 386810); supplies the network from the docked portable generator. Distinct from the vestigial <code>PowerConnection</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="getgeneratedpower-override-map">GetGeneratedPower override map<a class="headerlink" href="#getgeneratedpower-override-map" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-10 -->
+
+<p>Every class that supplies power to a cable network declares its own <code>GetGeneratedPower(CableNetwork)</code> override; none of the producer classes inherit it from an intermediate base. The complete declaration list in the 0.2.6228.27061 decompile (<code>grep "float GetGeneratedPower"</code>, 16 hits):</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Declaring class</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>350696</td>
+<td><code>Device</code> (virtual base)</td>
+</tr>
+<tr>
+<td>138898</td>
+<td><code>WindTurbineGenerator</code> (inherited by <code>LargeWindTurbineGenerator</code>)</td>
+</tr>
+<tr>
+<td>148191</td>
+<td><code>RocketPowerUmbilicalFemale</code></td>
+</tr>
+<tr>
+<td>148761</td>
+<td><code>RocketPowerUmbilicalMale</code></td>
+</tr>
+<tr>
+<td>370000</td>
+<td><code>AreaPowerControl</code></td>
+</tr>
+<tr>
+<td>371127</td>
+<td><code>Battery</code></td>
+</tr>
+<tr>
+<td>375517</td>
+<td><code>PowerGeneratorPipe</code> (inherited by <code>GasFuelGenerator</code>)</td>
+</tr>
+<tr>
+<td>386810</td>
+<td><code>PowerConnector</code></td>
+</tr>
+<tr>
+<td>387028</td>
+<td><code>PowerReceiver</code></td>
+</tr>
+<tr>
+<td>387268</td>
+<td><code>PowerTransmitter</code></td>
+</tr>
+<tr>
+<td>395580</td>
+<td><code>RadioscopicThermalGenerator</code></td>
+</tr>
+<tr>
+<td>400139</td>
+<td><code>SolarPanel</code></td>
+</tr>
+<tr>
+<td>400512</td>
+<td><code>PowerGeneratorSlot</code> (inherited by <code>SolidFuelGenerator</code>)</td>
+</tr>
+<tr>
+<td>402686</td>
+<td><code>StirlingEngine</code></td>
+</tr>
+<tr>
+<td>403496</td>
+<td><code>Transformer</code></td>
+</tr>
+<tr>
+<td>403973</td>
+<td><code>TurbineGenerator</code></td>
+</tr>
+</tbody>
+</table>
+<p>Implication for Harmony: a postfix aimed at a producer class resolves to that class's own declared method (no inherited-method trap for these), and one patch on <code>WindTurbineGenerator</code> / <code>PowerGeneratorPipe</code> / <code>PowerGeneratorSlot</code> covers the respective subclass for free. The full producer patch set is 8 declared methods: SolarPanel, WindTurbineGenerator, RadioscopicThermalGenerator, PowerGeneratorPipe, PowerGeneratorSlot, StirlingEngine, TurbineGenerator, PowerConnector.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-06-09: Page created (0.2.6228.27061). Class catalogue and members gathered during the PowerGridPlus power refactor from the 0.2.6228.27061 decompile; <code>Objects.Rockets</code> namespace for the umbilical classes confirmed directly (nearest <code>namespace</code> decl above line 148269 is <code>namespace Objects.Rockets</code> at line 139947, correcting an earlier <code>Assets.Scripts.Objects.Rockets</code> guess).</li>
 <li>2026-06-09: Added the power-producer class catalogue (namespaces, base chains, OnOff-button presence) verified from the same decompile, for the producer-isolation rule.</li>
+<li>2026-06-10: Added the <code>GetGeneratedPower</code> override map (all 16 declarations) and the two previously-omitted power-generating classes <code>TurbineGenerator</code> (small wall wind turbine, line 403819) and <code>PowerConnector</code> (dynamic-generator dock, line 386798). Both declare their own <code>GetGeneratedPower</code>; both are single-network suppliers and therefore subject to producer-isolation, neither has an OnOff button.</li>
+<li>2026-06-10 (correction): <code>Battery</code> is in <code>Assets.Scripts.Objects.Electrical</code>, NOT <code>Assets.Scripts.Objects.Pipes</code> as this page previously stated. Two independent machine witnesses: the C# compiler rejected <code>Assets.Scripts.Objects.Pipes.Battery</code> with CS0234 during the PowerGridPlus build, and the nearest <code>namespace</code> declaration above the class at decompile line 370616 reads <code>namespace Assets.Scripts.Objects.Electrical</code>. The fresh-validator sub-agent step was skipped because compiler evidence is conclusive; recorded here per the conflict-resolution rule.</li>
+<li>2026-06-10: Added the rocket umbilical prefab names (<code>StructurePowerUmbilicalMale</code> / <code>StructurePowerUmbilicalFemale</code>, read from a live save's PrefabName entries), their battery-shaped power-method bodies (Female L148182-148199, Male L148744-148772), the logic-method declaration map for both halves, and the slot-keyed-overload <code>AmbiguousMatchException</code> trap on <code>Device.CanLogicRead</code> / <code>Device.GetLogicValue</code> base patches (hit live: it silently disabled every PowerGridPlus patch until the argument-type array was added).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>

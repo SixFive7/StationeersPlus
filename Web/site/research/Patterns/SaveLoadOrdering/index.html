@@ -5685,6 +5685,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onregistered-fires-before-deserializesave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OnRegistered fires before DeserializeSave
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7292,6 +7303,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onregistered-fires-before-deserializesave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OnRegistered fires before DeserializeSave
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7403,7 +7425,7 @@
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-06-10
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
@@ -7487,11 +7509,29 @@ tags: [save-load, harmony]</p>
 <li>F0373: AdvancedTablet-specific case where <code>Mode</code> is not persisted and also depends on rebuilt dynamic slots.</li>
 <li>F0374: apply-side implementation including <code>Thing.set_Mode</code> via <code>Interactable.set_State</code> and the <code>GetCartridge()</code> refresh.</li>
 </ul>
+<h2 id="onregistered-fires-before-deserializesave">OnRegistered fires before DeserializeSave<a class="headerlink" href="#onregistered-fires-before-deserializesave" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-10 -->
+
+<p>The per-Thing load order starts earlier than the DeserializeSave/OnFinishedLoad pair above. <code>XmlSaveLoad.LoadThing</code> (decompile line 251312) is:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">Thing</span><span class="w"> </span><span class="n">thing2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">.</span><span class="n">Create</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">(</span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">worldRotation</span><span class="p">,</span><span class="w"> </span><span class="n">thingData</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">);</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">...</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">thing2</span><span class="p">.</span><span class="n">DeserializeSave</span><span class="p">(</span><span class="n">thingData</span><span class="p">);</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">thing2</span><span class="p">.</span><span class="n">ValidateOnLoad</span><span class="p">(</span><span class="n">CurrentSaveRevision</span><span class="p">);</span>
+</span></code></pre></div>
+<p><code>Thing.Create</code> registers the thing into the world synchronously; for structures the registration path is <code>GridController.AddGridStructure</code> (line 191515), whose last act is <code>structure.OnRegistered(cell)</code> (line 191563). So the complete per-Thing order on world load is:</p>
+<ol>
+<li><code>Thing.Create</code> -&gt; grid registration -&gt; <code>OnRegistered(cell)</code> (prefab-default field values).</li>
+<li><code>DeserializeSave(thingData)</code> (saved values applied).</li>
+<li>Child placement (<code>OnChildEnterInventory</code> per child).</li>
+<li><code>OnFinishedLoad</code> (everything in place).</li>
+</ol>
+<p>Implication: a Harmony postfix on <code>OnRegistered</code> that initialises a field to a non-vanilla default (e.g. PowerGridPlus initialising <code>Transformer.Setting = OutputMaximum</code>) is automatically overwritten by the saved value for loaded things, while sticking for fresh constructions (which never run DeserializeSave). This gives "default for new builds, preserve saved state" semantics with no load-vs-build discrimination logic.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; F0122 primary, three additional sources corroborating across two device classes.</li>
+<li>2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of <code>XmlSaveLoad.LoadThing</code> (line 251312) and <code>GridController.AddGridStructure</code> (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
