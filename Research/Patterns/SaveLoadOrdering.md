@@ -3,7 +3,7 @@ title: Save-load ordering: defer restore to OnFinishedLoad
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-20
+verified_at: 2026-06-10
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
@@ -95,10 +95,32 @@ static void OnFinishedLoadPostfix(Thing __instance)
 - F0373: AdvancedTablet-specific case where `Mode` is not persisted and also depends on rebuilt dynamic slots.
 - F0374: apply-side implementation including `Thing.set_Mode` via `Interactable.set_State` and the `GetCartridge()` refresh.
 
+## OnRegistered fires before DeserializeSave
+<!-- verified: 0.2.6228.27061 @ 2026-06-10 -->
+
+The per-Thing load order starts earlier than the DeserializeSave/OnFinishedLoad pair above. `XmlSaveLoad.LoadThing` (decompile line 251312) is:
+
+```csharp
+Thing thing2 = Thing.Create<Thing>(thing, worldPosition, worldRotation, thingData.ReferenceId);
+...
+thing2.DeserializeSave(thingData);
+thing2.ValidateOnLoad(CurrentSaveRevision);
+```
+
+`Thing.Create` registers the thing into the world synchronously; for structures the registration path is `GridController.AddGridStructure` (line 191515), whose last act is `structure.OnRegistered(cell)` (line 191563). So the complete per-Thing order on world load is:
+
+1. `Thing.Create` -> grid registration -> `OnRegistered(cell)` (prefab-default field values).
+2. `DeserializeSave(thingData)` (saved values applied).
+3. Child placement (`OnChildEnterInventory` per child).
+4. `OnFinishedLoad` (everything in place).
+
+Implication: a Harmony postfix on `OnRegistered` that initialises a field to a non-vanilla default (e.g. PowerGridPlus initialising `Transformer.Setting = OutputMaximum`) is automatically overwritten by the saved value for loaded things, while sticking for fresh constructions (which never run DeserializeSave). This gives "default for new builds, preserve saved state" semantics with no load-vs-build discrimination logic.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; F0122 primary, three additional sources corroborating across two device classes.
+- 2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of `XmlSaveLoad.LoadThing` (line 251312) and `GridController.AddGridStructure` (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.
 
 ## Open questions
 

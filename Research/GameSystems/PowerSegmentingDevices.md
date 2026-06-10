@@ -3,7 +3,7 @@ title: Power Segmenting Devices
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-09
+verified_at: 2026-06-10
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: 373755 (ElectricalInputOutput), 403300 (Transformer), 370616 (Battery), 369509 (AreaPowerControl), 387065 (PowerTransmitter), 386861 (PowerReceiver), 148269 (RocketPowerUmbilicalMale), 147895 (RocketPowerUmbilicalFemale), 386738 (PowerConnection), 405441 (WirelessPower), 373728 (Electrical), 139947 (namespace Objects.Rockets)
 related:
@@ -102,10 +102,44 @@ Producers are the rigid power sources on the graph (a generator produces its `Ge
 
 `WindTurbineGenerator` and `LargeWindTurbineGenerator` are in the bare `Objects` namespace (like the umbilicals and `Objects.SwitchOnOff`), NOT `Assets.Scripts.Objects`. Because `LargeWindTurbineGenerator : WindTurbineGenerator`, `GasFuelGenerator : PowerGeneratorPipe`, and `SolidFuelGenerator : PowerGeneratorSlot`, a base-class `is` check covers each pair. "Has OnOff button" determines whether a producer-isolation fault can flash on the device (button-bearing producers) or must burn a cable / show hover only (SolarPanel, both wind turbines, RTG).
 
+Two additional power-generating classes that the producer table above originally omitted:
+
+| Class | Namespace | Base | Notes |
+|---|---|---|---|
+| TurbineGenerator | `Assets.Scripts.Objects.Electrical` | Device, ISmartRotatable (line 403819) | The small wall wind turbine. Declares its own `GetGeneratedPower` (line 403973). No OnOff button. |
+| PowerConnector | `Assets.Scripts.Objects.Electrical` | Electrical (line 386798) | The dynamic-generator dock (portable generator connection point). Declares its own `GetGeneratedPower` (line 386810); supplies the network from the docked portable generator. Distinct from the vestigial `PowerConnection`. |
+
+## GetGeneratedPower override map
+<!-- verified: 0.2.6228.27061 @ 2026-06-10 -->
+
+Every class that supplies power to a cable network declares its own `GetGeneratedPower(CableNetwork)` override; none of the producer classes inherit it from an intermediate base. The complete declaration list in the 0.2.6228.27061 decompile (`grep "float GetGeneratedPower"`, 16 hits):
+
+| Line | Declaring class |
+|---|---|
+| 350696 | `Device` (virtual base) |
+| 138898 | `WindTurbineGenerator` (inherited by `LargeWindTurbineGenerator`) |
+| 148191 | `RocketPowerUmbilicalFemale` |
+| 148761 | `RocketPowerUmbilicalMale` |
+| 370000 | `AreaPowerControl` |
+| 371127 | `Battery` |
+| 375517 | `PowerGeneratorPipe` (inherited by `GasFuelGenerator`) |
+| 386810 | `PowerConnector` |
+| 387028 | `PowerReceiver` |
+| 387268 | `PowerTransmitter` |
+| 395580 | `RadioscopicThermalGenerator` |
+| 400139 | `SolarPanel` |
+| 400512 | `PowerGeneratorSlot` (inherited by `SolidFuelGenerator`) |
+| 402686 | `StirlingEngine` |
+| 403496 | `Transformer` |
+| 403973 | `TurbineGenerator` |
+
+Implication for Harmony: a postfix aimed at a producer class resolves to that class's own declared method (no inherited-method trap for these), and one patch on `WindTurbineGenerator` / `PowerGeneratorPipe` / `PowerGeneratorSlot` covers the respective subclass for free. The full producer patch set is 8 declared methods: SolarPanel, WindTurbineGenerator, RadioscopicThermalGenerator, PowerGeneratorPipe, PowerGeneratorSlot, StirlingEngine, TurbineGenerator, PowerConnector.
+
 ## Verification history
 
 - 2026-06-09: Page created (0.2.6228.27061). Class catalogue and members gathered during the PowerGridPlus power refactor from the 0.2.6228.27061 decompile; `Objects.Rockets` namespace for the umbilical classes confirmed directly (nearest `namespace` decl above line 148269 is `namespace Objects.Rockets` at line 139947, correcting an earlier `Assets.Scripts.Objects.Rockets` guess).
 - 2026-06-09: Added the power-producer class catalogue (namespaces, base chains, OnOff-button presence) verified from the same decompile, for the producer-isolation rule.
+- 2026-06-10: Added the `GetGeneratedPower` override map (all 16 declarations) and the two previously-omitted power-generating classes `TurbineGenerator` (small wall wind turbine, line 403819) and `PowerConnector` (dynamic-generator dock, line 386798). Both declare their own `GetGeneratedPower`; both are single-network suppliers and therefore subject to producer-isolation, neither has an OnOff button.
 
 ## Open questions
 
