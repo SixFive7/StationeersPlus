@@ -3,11 +3,11 @@ title: Device
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-22
+verified_at: 2026-06-14
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Pipes.Device
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct), 253820-253850 (CableNetwork.AddDevice -> ConnectedCableNetworks.Add)
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 297636-299221 (Thing.OnOff/Powered/PoweredValue/Error and backing fields), 349675 (Device.IsOperable), 373803 (ElectricalInputOutput.IsOperable), 327392 (IPowered), 386861-386894 (PowerReceiver.LinkedPowerTransmitter)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 297636-299221 (Thing.OnOff/Powered/PoweredValue/Error and backing fields), 302678-302695 (Thing.CacheStates sets every Has*State flag from the Interactables list), 349675 (Device.IsOperable), 373803 (ElectricalInputOutput.IsOperable), 327392 (IPowered), 386861-386894 (PowerReceiver.LinkedPowerTransmitter)
   - Plans/PowerGridPlus/PLAN.md, Mods/PowerGridPlus/RESEARCH.md
 related:
   - ./Cable.md
@@ -227,7 +227,7 @@ A device whose `PowerCable` is null (no adjacent power cable) silently returns `
 The "is this device switched on, and does it actually have power right now" question is answered by a set of animator-state-backed properties declared on `Thing` (the universal base), refined by `IsOperable` overrides further down the hierarchy. None of these live on `Device` itself; they are inherited.
 
 ### Thing-level state properties (declared on `Thing`, line 297636)
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
 All four are `public virtual`, backed by a Unity `Animator` integer parameter, and cached per-frame. Source `Assets/Scripts/Objects/Thing.cs`:
 
@@ -280,7 +280,21 @@ public virtual int Error                                              // line 29
 }
 ```
 
-Backing fields (also on `Thing`): `private bool _onOff;` (line 298075), `protected int _powered;` (line 298079), `private int _error;`, plus the per-frame guards `_frameOnOffUpdated` / `_framePoweredUpdated` / `_frameErrorUpdated`. The `Has*State` flags (`HasOnOffState`, `HasPowerState`, `HasErrorState`, line 298143-298154) are `[ReadOnly]` bools set at prefab-init from the animator's parameter list; a device whose prefab animator has no `Powered` parameter reports `Powered == false` always.
+Backing fields (also on `Thing`): `private bool _onOff;` (line 298075), `protected int _powered;` (line 298079), `private int _error;`, plus the per-frame guards `_frameOnOffUpdated` / `_framePoweredUpdated` / `_frameErrorUpdated`. The `Has*State` flags (`HasOnOffState`, `HasPowerState`, `HasErrorState`, declared line 298143-298154) are `[ReadOnly]` bools, but the `[ReadOnly]` attribute is only a Unity Inspector decorator and says nothing about the data source. They are assigned by `Thing.CacheStates()` (line 302678) from the **`Interactables` list**, one `Exists` test per flag against the matching `InteractableType`, NOT from the animator's parameter list:
+
+```csharp
+public void CacheStates(bool cacheInteractables = false)          // line 302678
+{
+    HasLockState  = Interactables.Exists(i => i.Action == InteractableType.Lock);
+    HasErrorState = Interactables.Exists(i => i.Action == InteractableType.Error);
+    HasPowerState = Interactables.Exists(i => i.Action == InteractableType.Powered);
+    HasOnOffState = Interactables.Exists(i => i.Action == InteractableType.OnOff);
+    // ... HasModeState / HasOpenState / HasActivateState / HasExport(2)State /
+    //     HasImport(2)State / HasButton1-3State / HasColorState / HasAccessState, all same shape ...
+}
+```
+
+This is the sole write site for each flag (exhaustive grep: one assignment each, all inside `CacheStates`; no animator-sourced setter exists anywhere in Assembly-CSharp). The animator is the DOWNSTREAM consumer, not the source: once a flag is set, the getters above read the animator only while the flag is true (e.g. `OnOff` evaluates `BaseAnimator.GetInteger(Interactable.OnOffState) == 1` gated on `HasOnOffState`, and falls through to `false` when the flag is false). Practical consequence: a device whose prefab carries no Interactable with `Action == InteractableType.OnOff` (no on/off toggle, e.g. solar panels, both wind turbines, the RTG, the bare power-connector dock) reports `OnOff == false` permanently; likewise a device with no `Powered` interactable reports `Powered == false` always. This matters for any logic that treats `OnOff == false` as "the player switched it off": for a buttonless device that is not an OFF gesture, it is the absence of an OFF concept, so such logic must additionally gate on `HasOnOffState` to tell the two apart.
 
 Caching / threading semantics that matter for a mod reader:
 
@@ -343,6 +357,7 @@ All three are public on `Thing`, so a mod reads them directly off any `Device` i
 
 ## Verification history
 
+- 2026-06-14: conflict on "what populates the `Has*State` flags (`HasOnOffState` / `HasPowerState` / `HasErrorState`)". Previous claim (added 2026-05-22): set at prefab-init "from the animator's parameter list". New finding: assigned by `Thing.CacheStates()` (line 302678) from the `Interactables` list, one `Interactables.Exists(i => i.Action == InteractableType.X)` test per flag. Fresh validator verdict: new finding correct; the `[ReadOnly]` field attribute had been misread as evidence of an animator source, but it is only a Unity Inspector decorator, and `CacheStates` is the sole write site (no animator-sourced setter exists). The animator is the downstream consumer (the getters read it gated on the flag), never the source. Result: corrected the "Thing-level state properties" subsection with the verbatim `CacheStates` excerpt and the buttonless-device consequence (`OnOff == false` permanently when no `Action == OnOff` interactable exists); restamped that subsection to 2026-06-14 and bumped top-level `verified_at`. Driving question: whether PowerGridPlus's OFF-as-reset sweep (which clears fault lockouts on any device reporting `OnOff == false`) misfires on buttonless producers.
 - 2026-05-22: added "Operational-state surface: OnOff, Powered, PoweredValue, Error, IsOperable" section. Additive; no existing content changed. Driving question: how does a mod (PowerTransmitterPlus beam fix) know a dish device is switched on and actually powered right now. Findings sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`: `Thing.OnOff` (line 299160), `Thing.Powered`/`PoweredValue` (lines 299193/299195), `Thing.Error` (line 298838), backing fields and `Has*State` flags (lines 298075-298154), `Device.IsOperable` property (line 349675), `ElectricalInputOutput.IsOperable` override (line 373803), the `OnServer.Interact(base.InteractPowered, ...)` power-tick write pattern (lines 277774-334419 passim), `IPowered` interface (line 327392, declares only `void OnPowerTick()`), and `PowerReceiver.LinkedPowerTransmitter` setter driving `Mode` (line 386885). The `IsOperable()`-method-vs-`IsOperable`-property naming collision (DraggableThing family at lines 277715/279310/289260 vs Device property) noted to prevent a future mis-patch. Cross-checked against `Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicReadoutPatches.cs:44` which already uses `!t.OnOff || t.Error == 1`.
 - 2026-05-13: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct, GetGeneratedPower/GetUsedPower/AllowSetPower) and 253820-253850 (CableNetwork.AddDevice). Cross-checked against the Power Grid Plus phase 3 research dive (Mods/PowerGridPlus/RESEARCH.md). Single-write-site finding for `PowerCable` confirmed by exhaustive grep against `set_PowerCable` and `PowerCable = ` in the decomp (only matches: lines 350786, 350790 in `FindPowerCable`).
 
