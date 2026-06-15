@@ -3,8 +3,9 @@ title: Power producer HasOnOffState and On-writeability
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-14
+verified_at: 2026-06-15
 sources:
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: PowerConnector 386798 (ConnectedDynamicGenerator public field 386803, GetGeneratedPower forward 386810-386817, OnChildEnterInventory 386819-386828); DynamicGenerator 279054 (PowerGenerated OnOff gate 279110-279120, OnAtmosphericTick !OnOff 279330); DynamicThing logic methods CanLogicWrite/SetLogicValue/CanLogicRead On => HasOnOffState 280654/280705/280734, CanTogglePower guarded InteractOnOff 280212
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Thing.CacheStates 302678-302695 (HasOnOffState @ 302683), Thing.OnOff getter/setter 299160-299191, InteractOnOff property 299331, _interactableOnOff cache 301242/302700
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Logicable.CanLogicWrite base (LogicType.On => HasOnOffState) 280696-280708 and 350314-350320; CanLogicRead On => HasOnOffState 280654-280655 and 350251-350252
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: SolarPanel 399762 (CanLogicWrite 400161-400168), WindTurbineGenerator 138706 (GetGeneratedPower 138898-138907), LargeWindTurbineGenerator 138218, TurbineGenerator 403819 (GetGeneratedPower 403973-403980), RadioscopicThermalGenerator 395566 (GetGeneratedPower 395580-395583), PowerConnector 386798, PowerGeneratorPipe 375414 (GetGeneratedPower 375517-375528, InteractOnOff calls 375659/375670), PowerGeneratorSlot 400441 (GetGeneratedPower 400512-400523), StirlingEngine 402334
@@ -182,6 +183,62 @@ The three fuel producers are not the same KIND of TRUE, and the distinction matt
 
 All three are the set the mod labels `IsFlashableProducer` (`ProducerClassifier.cs` 55-60), and the label is consistent with the code proxies: these are the producers with an `OnOff` interactable. The remaining six are the hover-only set.
 
+## The PowerConnector pass-through: the real on/off is the docked generator
+<!-- verified: 0.2.6228.27061 @ 2026-06-15 -->
+
+`PowerConnector` is a buttonless dock that never generates on its own: it forwards the power of a portable generator (`DynamicGenerator`) docked in its slot. The generator, not the connector, carries the on/off control, so for any "did the player switch this off" question about a PowerConnector, the meaningful flag is the docked generator's.
+
+`PowerConnector.GetGeneratedPower` (386810) forwards the docked generator's output:
+
+```csharp
+public override float GetGeneratedPower(CableNetwork cableNetwork)
+{
+    if ((bool)ConnectedDynamicGenerator)
+    {
+        return ConnectedDynamicGenerator.PowerGenerated;
+    }
+    return base.GetGeneratedPower(cableNetwork);
+}
+```
+
+The link is a PUBLIC field, set/cleared as the generator enters/leaves the connector's slot (`OnChildEnterInventory` 386819 / `OnChildExitInventory` 386835):
+
+```csharp
+[ReadOnly]
+[Tooltip("Currently connected Generator")]
+public DynamicGenerator ConnectedDynamicGenerator;   // line 386803
+```
+
+`DynamicGenerator : DraggableThing` (279054), NOT a `Device`, so it is NEVER a member of any `CableNetwork.PowerDeviceList`; it reaches the grid only as the connector's slot occupant. The network's producer is the `PowerConnector`, and faults (e.g. VARIABLE_VOLTAGE_FAULT) key on the connector's ReferenceId, not the generator's.
+
+The docked generator's own `OnOff` gates the forwarded power. `DynamicGenerator.PowerGenerated` (279110):
+
+```csharp
+public float PowerGenerated
+{
+    get
+    {
+        if (!OnOff || !Powered)
+        {
+            return 0f;
+        }
+        return _powerGenerated;
+    }
+}
+```
+
+So switching the portable generator OFF (`OnOff == false`) makes `PowerGenerated` zero, hence `PowerConnector.GetGeneratedPower` zero, hence the connector stops being a producer the isolation walk can fault. `DynamicGenerator` is not a `Device`, so it does NOT inherit `Device.CanLogicWrite`; it inherits `DynamicThing`'s logic methods: `CanLogicWrite(On) => HasOnOffState` (280705), `SetLogicValue(On) => OnServer.Interact(base.InteractOnOff, ...)` (280734), `CanLogicRead(On) => HasOnOffState` (280654). Its only `base.InteractOnOff` touch is guarded (`CanTogglePower` 280212, behind `if (HasOnOffState)`), so there is no unconditional deref: the generator's OnOff interactable is INFERRED (strong, its generation is dead code without it), not decompile-proven. A live `HasOnOffState` read on a placed `DynamicGenerator` confirms it.
+
+Cross-assembly access (no reflection): both hops are public, so a mod reads the real toggle as
+
+```csharp
+(device is PowerConnector pc && pc.ConnectedDynamicGenerator != null)
+    ? pc.ConnectedDynamicGenerator.OnOff      // the docked generator's switch
+    : device.OnOff
+```
+
+This is the ONLY docked-Thing pass-through producer in 0.2.6228.27061: every other forwarding producer (`PowerReceiver` 387028, `PowerTransmitter` 387268, `Transformer` 403496) forwards a `CableNetwork`'s `PotentialLoad` (network-to-network, not a contained Thing), is itself on the network, and self-gates on its own `OnOff`, so an `OnOff`-based sweep already covers those three.
+
 ## Mod classification cross-check (ProducerClassifier.cs)
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
@@ -200,5 +257,6 @@ The mod's "flashable => has OnOff" inference is therefore supported by the code 
 
 ## Verification history
 
+- 2026-06-15: added "The PowerConnector pass-through: the real on/off is the docked generator" section (additive, no prior content changed). Two independent agents established: `PowerConnector.ConnectedDynamicGenerator` is a public field (386803) set via the slot `OnChildEnterInventory` (386819); `GetGeneratedPower` forwards `ConnectedDynamicGenerator.PowerGenerated` (386810); `DynamicGenerator.PowerGenerated` is gated on `OnOff` (279110) so an off generator zeroes the connector's output; `DynamicGenerator : DraggableThing` is never a `CableNetwork` device (only the connector is on the grid), inherits `DynamicThing` logic methods (On => HasOnOffState, 280705); its OnOff interactable is INFERRED (no unconditional `base.InteractOnOff` deref, only the guarded `CanTogglePower` 280212). Confirmed `PowerConnector -> DynamicGenerator` is the only docked-Thing pass-through producer (PowerReceiver/PowerTransmitter/Transformer forward a CableNetwork PotentialLoad and self-gate on their own OnOff). Driving context: deciding how PowerGridPlus OFF-as-reset should treat a PowerConnector, given the docked portable generator carries the real on/off button.
 - 2026-06-15: adversarial re-verification. Two independent advocates were tasked with opposite theses ("producers have OnOff" vs "producers are buttonless"); both CONVERGED on the table above (the pro-OnOff advocate could only win the three fuel generators; the buttonless advocate conceded exactly those three). An independent judge then clean-room re-read the citations and confirmed the verdicts, adding the key epistemic point now reflected here: the decompile can prove an `OnOff` interactable PRESENT (a `base.InteractOnOff` deref crashes if absent) but never ABSENT, so only GasFuelGenerator is decompile-proven TRUE while SolidFuelGenerator and StirlingEngine are strong inferences. The main agent independently re-read the decisive lines (`Device.CanLogicWrite` On=>HasOnOffState 350318, `SetLogicValue` On->Interact(InteractOnOff) 350354, `_interactableOnOff = Interactables.Find(Action==OnOff)` 302700, PowerGeneratorPipe `OnServer.Interact(base.InteractOnOff,0)` 375659/375670) and tightened the "Why TRUE" section and Open questions to separate proven from inferred. Driving context: a PowerGridPlus claim had wrongly lumped the fuel generators in with the buttonless producers; this pass corrected that.
 - 2026-06-14: page created from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. Verbatim: `CacheStates` HasOnOffState (302683), `Thing.OnOff` getter (299160-299175), `Logicable.CanLogicWrite` base (280696-280708), `InteractOnOff` (299331) and `_interactableOnOff` population (302700). Verbatim per-producer `GetGeneratedPower`: RTG (395580), TurbineGenerator (403973), PowerGeneratorPipe (375517 incl. `if(!OnOff)`), PowerGeneratorSlot (400512); SolarPanel `CanLogicWrite` (400161). Confirmed PowerGeneratorPipe calls `OnServer.Interact(base.InteractOnOff, 0)` (375659/375670). Confirmed no `OnOff`/`InteractOnOff` reference in SolarPanel/Wind/LargeWind/TurbineGenerator/RTG/PowerConnector bodies. Cross-checked against `ProducerClassifier.cs` (IsFlashableProducer 55-60). Checked StreamingAssets for a per-prefab interactable export: none readable. Established while adjudicating the "do power producers have an OnOff interactable" dispute.
