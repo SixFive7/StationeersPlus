@@ -4139,6 +4139,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-powerconnector-pass-through-the-real-onoff-is-the-docked-generator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The PowerConnector pass-through: the real on/off is the docked generator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mod-classification-cross-check-producerclassifiercs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7393,6 +7404,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-powerconnector-pass-through-the-real-onoff-is-the-docked-generator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The PowerConnector pass-through: the real on/off is the docked generator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mod-classification-cross-check-producerclassifiercs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7515,14 +7537,16 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-06-14.
+           on 2026-06-15.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (5)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
+            
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'PowerConnector 386798 (ConnectedDynamicGenerator public field 386803, GetGeneratedPower forward 386810-386817, OnChildEnterInventory 386819-386828); DynamicGenerator 279054 (PowerGenerated OnOff gate 279110-279120, OnAtmosphericTick !OnOff 279330); DynamicThing logic methods CanLogicWrite/SetLogicValue/CanLogicRead On => HasOnOffState 280654/280705/280734, CanTogglePower guarded InteractOnOff 280212'}</code></li>
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Thing.CacheStates 302678-302695 (HasOnOffState @ 302683), Thing.OnOff getter/setter 299160-299191, InteractOnOff property 299331, _interactableOnOff cache 301242/302700'}</code></li>
             
@@ -7777,6 +7801,46 @@
 <li><code>PowerGeneratorSlot</code> / SolidFuelGenerator and <code>StirlingEngine</code> are <strong>strongly INFERRED, not proven</strong>. Their bodies never dereference <code>base.InteractOnOff</code> (their many <code>OnServer.Interact(...)</code> calls hit Mode / Error / Import / Powered, never OnOff), so the null-deref argument does not apply to them. Their TRUE rests on the power gate <code>if (... || !OnOff) return 0f;</code> (solid, 400518) and the <code>!OnOff</code> power-zeroing in <code>OnAtmosphericTick</code> (stirling, ~402718): a power gate on a flag that could never be true would make the device permanently dead, which contradicts both being functional fuel generators. That is a sound inference about designer intent, but it is not a decompile proof; an InspectorPlus read of <code>HasOnOffState</code> would settle them (see Open questions).</li>
 </ul>
 <p>All three are the set the mod labels <code>IsFlashableProducer</code> (<code>ProducerClassifier.cs</code> 55-60), and the label is consistent with the code proxies: these are the producers with an <code>OnOff</code> interactable. The remaining six are the hover-only set.</p>
+<h2 id="the-powerconnector-pass-through-the-real-onoff-is-the-docked-generator">The PowerConnector pass-through: the real on/off is the docked generator<a class="headerlink" href="#the-powerconnector-pass-through-the-real-onoff-is-the-docked-generator" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-15 -->
+
+<p><code>PowerConnector</code> is a buttonless dock that never generates on its own: it forwards the power of a portable generator (<code>DynamicGenerator</code>) docked in its slot. The generator, not the connector, carries the on/off control, so for any "did the player switch this off" question about a PowerConnector, the meaningful flag is the docked generator's.</p>
+<p><code>PowerConnector.GetGeneratedPower</code> (386810) forwards the docked generator's output:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGeneratedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">ConnectedDynamicGenerator</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">ConnectedDynamicGenerator</span><span class="p">.</span><span class="n">PowerGenerated</span><span class="p">;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GetGeneratedPower</span><span class="p">(</span><span class="n">cableNetwork</span><span class="p">);</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The link is a PUBLIC field, set/cleared as the generator enters/leaves the connector's slot (<code>OnChildEnterInventory</code> 386819 / <code>OnChildExitInventory</code> 386835):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="na">[ReadOnly]</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="na">[Tooltip(&quot;Currently connected Generator&quot;)]</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">public</span><span class="w"> </span><span class="n">DynamicGenerator</span><span class="w"> </span><span class="n">ConnectedDynamicGenerator</span><span class="p">;</span><span class="w">   </span><span class="c1">// line 386803</span>
+</span></code></pre></div>
+<p><code>DynamicGenerator : DraggableThing</code> (279054), NOT a <code>Device</code>, so it is NEVER a member of any <code>CableNetwork.PowerDeviceList</code>; it reaches the grid only as the connector's slot occupant. The network's producer is the <code>PowerConnector</code>, and faults (e.g. VARIABLE_VOLTAGE_FAULT) key on the connector's ReferenceId, not the generator's.</p>
+<p>The docked generator's own <code>OnOff</code> gates the forwarded power. <code>DynamicGenerator.PowerGenerated</code> (279110):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">PowerGenerated</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="p">{</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">Powered</span><span class="p">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_powerGenerated</span><span class="p">;</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So switching the portable generator OFF (<code>OnOff == false</code>) makes <code>PowerGenerated</code> zero, hence <code>PowerConnector.GetGeneratedPower</code> zero, hence the connector stops being a producer the isolation walk can fault. <code>DynamicGenerator</code> is not a <code>Device</code>, so it does NOT inherit <code>Device.CanLogicWrite</code>; it inherits <code>DynamicThing</code>'s logic methods: <code>CanLogicWrite(On) =&gt; HasOnOffState</code> (280705), <code>SetLogicValue(On) =&gt; OnServer.Interact(base.InteractOnOff, ...)</code> (280734), <code>CanLogicRead(On) =&gt; HasOnOffState</code> (280654). Its only <code>base.InteractOnOff</code> touch is guarded (<code>CanTogglePower</code> 280212, behind <code>if (HasOnOffState)</code>), so there is no unconditional deref: the generator's OnOff interactable is INFERRED (strong, its generation is dead code without it), not decompile-proven. A live <code>HasOnOffState</code> read on a placed <code>DynamicGenerator</code> confirms it.</p>
+<p>Cross-assembly access (no reflection): both hops are public, so a mod reads the real toggle as</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">(</span><span class="n">device</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">PowerConnector</span><span class="w"> </span><span class="n">pc</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">pc</span><span class="p">.</span><span class="n">ConnectedDynamicGenerator</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="o">?</span><span class="w"> </span><span class="n">pc</span><span class="p">.</span><span class="n">ConnectedDynamicGenerator</span><span class="p">.</span><span class="n">OnOff</span><span class="w">      </span><span class="c1">// the docked generator&#39;s switch</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="p">:</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">OnOff</span>
+</span></code></pre></div>
+<p>This is the ONLY docked-Thing pass-through producer in 0.2.6228.27061: every other forwarding producer (<code>PowerReceiver</code> 387028, <code>PowerTransmitter</code> 387268, <code>Transformer</code> 403496) forwards a <code>CableNetwork</code>'s <code>PotentialLoad</code> (network-to-network, not a contained Thing), is itself on the network, and self-gates on its own <code>OnOff</code>, so an <code>OnOff</code>-based sweep already covers those three.</p>
 <h2 id="mod-classification-cross-check-producerclassifiercs">Mod classification cross-check (ProducerClassifier.cs)<a class="headerlink" href="#mod-classification-cross-check-producerclassifiercs" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
@@ -7795,6 +7859,7 @@
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-06-15: added "The PowerConnector pass-through: the real on/off is the docked generator" section (additive, no prior content changed). Two independent agents established: <code>PowerConnector.ConnectedDynamicGenerator</code> is a public field (386803) set via the slot <code>OnChildEnterInventory</code> (386819); <code>GetGeneratedPower</code> forwards <code>ConnectedDynamicGenerator.PowerGenerated</code> (386810); <code>DynamicGenerator.PowerGenerated</code> is gated on <code>OnOff</code> (279110) so an off generator zeroes the connector's output; <code>DynamicGenerator : DraggableThing</code> is never a <code>CableNetwork</code> device (only the connector is on the grid), inherits <code>DynamicThing</code> logic methods (On =&gt; HasOnOffState, 280705); its OnOff interactable is INFERRED (no unconditional <code>base.InteractOnOff</code> deref, only the guarded <code>CanTogglePower</code> 280212). Confirmed <code>PowerConnector -&gt; DynamicGenerator</code> is the only docked-Thing pass-through producer (PowerReceiver/PowerTransmitter/Transformer forward a CableNetwork PotentialLoad and self-gate on their own OnOff). Driving context: deciding how PowerGridPlus OFF-as-reset should treat a PowerConnector, given the docked portable generator carries the real on/off button.</li>
 <li>2026-06-15: adversarial re-verification. Two independent advocates were tasked with opposite theses ("producers have OnOff" vs "producers are buttonless"); both CONVERGED on the table above (the pro-OnOff advocate could only win the three fuel generators; the buttonless advocate conceded exactly those three). An independent judge then clean-room re-read the citations and confirmed the verdicts, adding the key epistemic point now reflected here: the decompile can prove an <code>OnOff</code> interactable PRESENT (a <code>base.InteractOnOff</code> deref crashes if absent) but never ABSENT, so only GasFuelGenerator is decompile-proven TRUE while SolidFuelGenerator and StirlingEngine are strong inferences. The main agent independently re-read the decisive lines (<code>Device.CanLogicWrite</code> On=&gt;HasOnOffState 350318, <code>SetLogicValue</code> On-&gt;Interact(InteractOnOff) 350354, <code>_interactableOnOff = Interactables.Find(Action==OnOff)</code> 302700, PowerGeneratorPipe <code>OnServer.Interact(base.InteractOnOff,0)</code> 375659/375670) and tightened the "Why TRUE" section and Open questions to separate proven from inferred. Driving context: a PowerGridPlus claim had wrongly lumped the fuel generators in with the buttonless producers; this pass corrected that.</li>
 <li>2026-06-14: page created from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>. Verbatim: <code>CacheStates</code> HasOnOffState (302683), <code>Thing.OnOff</code> getter (299160-299175), <code>Logicable.CanLogicWrite</code> base (280696-280708), <code>InteractOnOff</code> (299331) and <code>_interactableOnOff</code> population (302700). Verbatim per-producer <code>GetGeneratedPower</code>: RTG (395580), TurbineGenerator (403973), PowerGeneratorPipe (375517 incl. <code>if(!OnOff)</code>), PowerGeneratorSlot (400512); SolarPanel <code>CanLogicWrite</code> (400161). Confirmed PowerGeneratorPipe calls <code>OnServer.Interact(base.InteractOnOff, 0)</code> (375659/375670). Confirmed no <code>OnOff</code>/<code>InteractOnOff</code> reference in SolarPanel/Wind/LargeWind/TurbineGenerator/RTG/PowerConnector bodies. Cross-checked against <code>ProducerClassifier.cs</code> (IsFlashableProducer 55-60). Checked StreamingAssets for a per-prefab interactable export: none readable. Established while adjudicating the "do power producers have an OnOff interactable" dispute.</li>
 </ul>
