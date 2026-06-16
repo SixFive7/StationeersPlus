@@ -267,6 +267,10 @@ namespace ScenarioRunner
                     Scenario_PgpPtBurnReason();
                     return;
 
+                case "pgp-pt-fixverify":
+                    Scenario_PgpPtFixVerify();
+                    return;
+
                 case "ptp-autoaim-cache-probe":
                     Scenario_PtpAutoAimCacheProbe();
                     return;

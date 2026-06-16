@@ -1103,6 +1103,161 @@ namespace ScenarioRunner
         }
 
         // ============================================================
+        // pgp-pt-fixverify  (extensive verification of the two 2026-06-16 bug fixes)
+        //   Bug 1 burn-reason: A1 all 3 BurnReasonPatches attached; A3/A4 wreckage hover renders
+        //     "Burned: <reason>" (orange) for several reason strings; A5 side-car restore on reload;
+        //     A7 a non-CableRuptured shows no Burned line.
+        //   Bug 2 flash: B1 the correct indicator renderer is discovered per class; B2 transformer
+        //     unaffected; B6 hover-only classes still have no flash component.
+        // ============================================================
+        private static bool _ptFixFired;
+
+        private static Type FindTypeFull(string fullName) => AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+            .FirstOrDefault(t => t.FullName == fullName);
+
+        private static void Scenario_PgpPtFixVerify()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-pt-fixverify")) return;
+            if (_ptFixFired) return;
+            _ptFixFired = true;
+
+            int pass = 0, fail = 0, total = 0, note = 0;
+            var asm = PgpAsm();
+            _log?.LogInfo("[ScenarioRunner] PTFIX START");
+            try
+            {
+                // ===== Bug 1: burn-reason =====
+                // A1: all three BurnReasonPatches targets carry a PGP postfix.
+                var targets = new (string typeFull, string method)[]
+                {
+                    ("Assets.Scripts.Objects.Electrical.CableRuptured", "OnRegistered"),
+                    ("Assets.Scripts.Objects.Structure", "GetPassiveTooltip"),
+                    ("Assets.Scripts.UI.Tooltip", "SetValuesForInteractable"),
+                };
+                foreach (var (tf, mn) in targets)
+                {
+                    var ty = FindTypeFull(tf);
+                    var mi = ty?.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                        .FirstOrDefault(m => m.Name == mn);
+                    bool attached = false;
+                    if (mi != null)
+                    {
+                        var info = HarmonyLib.Harmony.GetPatchInfo(mi);
+                        if (info?.Postfixes != null)
+                            foreach (var p in info.Postfixes)
+                                if ((p.owner ?? "").IndexOf("powergridplus", StringComparison.OrdinalIgnoreCase) >= 0) attached = true;
+                    }
+                    total++;
+                    if (attached) { _log?.LogInfo($"[ScenarioRunner] PTFIX A1 PASS: PGP postfix attached on {tf}.{mn}."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFIX A1 FAIL: no PGP postfix on {tf}.{mn} (resolved={mi != null})."); fail++; }
+                }
+
+                var brType = asm.GetType("PowerGridPlus.BurnReasonRegistry");
+                var attachM = brType?.GetMethod("Attach",
+                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(object), typeof(string) }, null);
+                var getAttachedM = brType?.GetMethod("GetAttached",
+                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(object) }, null);
+
+                // Find a CableRuptured that already carries a reason (live-burn on tierburn, or side-car
+                // restore on a reloaded autosave). This is the A3 + A5 signal.
+                Thing reasoned = null; string reasonedText = null;
+                OcclusionManager.AllThings.ForEach(t =>
+                {
+                    if (reasoned != null || t == null || t.GetType().Name != "CableRuptured") return;
+                    var r = getAttachedM?.Invoke(null, new object[] { t }) as string;
+                    if (!string.IsNullOrEmpty(r)) { reasoned = t; reasonedText = r; }
+                });
+                // A5: report the side-car LoadedReasons (populated only when a reload restored from the side-car).
+                var sideType = asm.GetType("PowerGridPlus.BurnReasonSideCar");
+                var loadedField = sideType?.GetField("LoadedReasons", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+                var loaded = loadedField?.GetValue(null) as System.Collections.IDictionary;
+                _log?.LogInfo($"[ScenarioRunner] PTFIX A5 side-car LoadedReasons count={(loaded?.Count ?? -1)} (>0 means a reload restored reasons from pwrgridplus-burnreason.xml)");
+
+                total++;
+                if (reasoned != null)
+                {
+                    string ext = Hover(reasoned);
+                    bool ok = !HoverThrew(ext) && ext.Contains("#ffa500") && ext.IndexOf("Burned:", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf(reasonedText, StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool fromSideCar = loaded != null && loaded.Contains(reasoned.ReferenceId);
+                    if (ok) { _log?.LogInfo($"[ScenarioRunner] PTFIX A3 PASS: live wreckage ref={reasoned.ReferenceId} hover shows orange 'Burned:' + the reason (sideCarRestored={fromSideCar})."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFIX A3 FAIL: ext={Truncate(ext, 240)}"); fail++; }
+                }
+                else { _log?.LogInfo("[ScenarioRunner] PTFIX A3 NOTE: no CableRuptured currently carries a reason (no burn this run)."); note++; total--; }
+
+                // A4: synthetic Attach of several reason variants on any wreckage -> hover renders each.
+                Thing anyWreck = reasoned;
+                if (anyWreck == null)
+                    OcclusionManager.AllThings.ForEach(t => { if (anyWreck == null && t != null && t.GetType().Name == "CableRuptured") anyWreck = t; });
+                if (anyWreck != null && attachM != null)
+                {
+                    foreach (var reason in new[]
+                    {
+                        "Overloaded -- sustained generator output exceeded the cable rating",
+                        "Wrong voltage -- the adjacent Solar Panel doesn't accept normal cable",
+                        "Wrong voltage -- normal cable was bridging into a different cable tier",
+                    })
+                    {
+                        attachM.Invoke(null, new object[] { anyWreck, reason });
+                        string ext = Hover(anyWreck);
+                        total++;
+                        if (!HoverThrew(ext) && ext.Contains("#ffa500") && ext.IndexOf("Burned:", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf(reason, StringComparison.OrdinalIgnoreCase) >= 0)
+                        { _log?.LogInfo($"[ScenarioRunner] PTFIX A4 PASS: hover renders 'Burned: {Truncate(reason, 44)}...'"); pass++; }
+                        else { _log?.LogError($"[ScenarioRunner] PTFIX A4 FAIL: reason='{Truncate(reason, 40)}' ext={Truncate(ext, 200)}"); fail++; }
+                    }
+                }
+                else { _log?.LogInfo("[ScenarioRunner] PTFIX A4 SKIP: no CableRuptured to attach to."); note++; }
+
+                // A7: a non-CableRuptured (transformer) shows no "Burned:" line (the is-CableRuptured filter holds).
+                if (_transformers.Count == 0) RebuildCaches();
+                var xf = _transformers.FirstOrDefault(t => t != null);
+                if (xf != null)
+                {
+                    string ext = Hover(xf);
+                    total++;
+                    if (HoverThrew(ext) || ext.IndexOf("Burned:", StringComparison.OrdinalIgnoreCase) < 0)
+                    { _log?.LogInfo("[ScenarioRunner] PTFIX A7 PASS: transformer hover has no 'Burned:' line (is-CableRuptured filter holds)."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFIX A7 FAIL: transformer shows Burned: {Truncate(ext, 150)}"); fail++; }
+                }
+
+                // ===== Bug 2: flash renderer correctness =====
+                var flashType = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
+                var rField = flashType?.GetField("_renderers", BindingFlags.NonPublic | BindingFlags.Instance);
+                var flashExpect = new (string cls, string expect)[]
+                {
+                    ("Transformer", null), ("Battery", null), ("AreaPowerControl", "Lever"),
+                    ("StationBatteryNuclear", "Indic"), ("PowerTransmitter", null), ("PowerReceiver", null),
+                    ("RocketPowerUmbilicalMale", null),
+                };
+                foreach (var (cls, expect) in flashExpect)
+                {
+                    var th = FirstThingAssignableTo(cls) ?? FirstThing(cls);
+                    if (th == null) { _log?.LogInfo($"[ScenarioRunner] PTFIX B1 {cls} SKIP: none in scene."); note++; continue; }
+                    object beh = null; try { beh = th.GetComponent(flashType); } catch { }
+                    total++;
+                    if (beh == null) { _log?.LogError($"[ScenarioRunner] PTFIX B1 {cls} FAIL: no flash component."); fail++; continue; }
+                    var arr = rField?.GetValue(beh) as Array;
+                    var names = new List<string>();
+                    if (arr != null) foreach (var ro in arr) { if (ro is MeshRenderer mr && mr.gameObject != null) names.Add(mr.gameObject.name); }
+                    bool ok = names.Count > 0 && (expect == null || names.Any(n => n.IndexOf(expect, StringComparison.OrdinalIgnoreCase) >= 0));
+                    if (ok) { _log?.LogInfo($"[ScenarioRunner] PTFIX B1 {cls} PASS: renderers=[{string.Join(",", names)}]{(expect != null ? $" matches '{expect}'" : "")}"); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFIX B1 {cls} FAIL: renderers=[{string.Join(",", names)}] expected substr '{expect}'."); fail++; }
+                }
+                foreach (var cls in new[] { "SolarPanel", "PowerConnector", "RocketPowerUmbilicalFemale" })
+                {
+                    var th = FirstThing(cls); if (th == null) continue;
+                    object beh = null; try { beh = th.GetComponent(flashType); } catch { }
+                    total++;
+                    if (beh == null) { _log?.LogInfo($"[ScenarioRunner] PTFIX B6 {cls} PASS: no flash component (hover-only)."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFIX B6 {cls} FAIL: unexpectedly has a flash component."); fail++; }
+                }
+
+                _log?.LogInfo($"[ScenarioRunner] PTFIX END pass={pass} fail={fail} note={note} total={total}");
+            }
+            catch (Exception e) { _log?.LogError($"[ScenarioRunner] PTFIX threw: {e}"); }
+        }
+
+        // ============================================================
         // pgp-pt-synthetic-all : run every PT synthetic probe in one cycle.
         // ============================================================
         private static void Scenario_PgpPtSyntheticAll()
