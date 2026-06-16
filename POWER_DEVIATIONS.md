@@ -499,16 +499,46 @@ VVF rework was already fully and correctly folded into the unified sync.
 
 ## Verification gaps (implemented, not yet observed)
 
-All in `Mods/PowerGridPlus/PLAYTEST.md` with concrete steps:
+### 2026-06-16 headless campaign update
 
-- Flash + hover visuals on non-transformer devices and producers (headless server has no rendering).
-- The hover countdown smoothness and locale decimal formatting.
-- Client-side mirror behaviour, join handshake mid-fault, OFF-as-reset from a client.
-- BurnReasonSideCar round-trip (burn -> save -> reload -> hover intact) and mod-removal safety.
+A headless ScenarioRunner campaign (new `pgp-pt-*` scenarios against the clean Downloads `Luna.save`;
+full log `.work/2026-06-16-pgp-playtest/results.md`) closed most of the data/logic gaps. NOW VERIFIED
+headlessly: fault hover line CONTENT + exact hex colors + precedence (P4 per-device overload clauses,
+P7 dead-input cue, P13 throttle, shed/cycle/vvf strings); P9 APC cell-only DischargeSpeed; P10 VVF
+logic exposure (solar + solid generator) and non-exposure on transformers/connector; P12 OnOff table +
+active-source gate + OFF-as-reset (driven via `OffAsResetSweep.Run` after OnOff=false); P11 isolation
+fires on 108 of 1024 solar with 916 regulated-and-not-faulted; P3 `DeviceOutputSanitizer` NaN/Inf clamp;
+P6.1 `PowerTransmitterPlusInterop.SourceDrawMultiplier` cross-mod read (m up to 2.545); flash component
+attach + color constants; the custom LogicType reads. P5/P6/P8 decision LOGIC is code-verified and the
+OUTCOME is observable (P6 routes to Brownout-vs-Overload registry; P5 stamps a shared synced expiry; P8
+`PowerActual` reflects per-transformer delivered watts), but the FIRING on built topology stays a client
+check.
+
+**Bug found, NOT a gap:** the burn-reason "Burned:" hover does not attach on a load-time tier burn
+(`pgp-pt-burnreason` reports `attachedCount=0` after a confirmed burn). The deferred end-of-frame
+wreckage spawn (P1 B+C) registers after `RegisterPending`'s cell entry is gone (world-load `ClearAll` or
+cell drift), so `_attached` is never populated. Filed in `Mods/PowerGridPlus/TODO.md`. The
+BurnReasonSideCar round-trip below cannot be confirmed until this is fixed.
+
+**Finding:** the flash component attaches to Battery and APC but `DiscoverRenderers` finds 0 renderers on
+those prefabs, so the pulse is invisible on them (hover still works). Filed in `TODO.md`.
+
+### Irreducible client residue (in `Mods/PowerGridPlus/PLAYTEST.md`, grouped to minimize reloads)
+
+- Visible flash pulse + countdown smoothness/locale (Update-driven; headless has no LateUpdate).
+- The FIRING of P5 two-battery synced recovery, P6 PT shed-vs-overload, P6.1 source-side no-dim, P8
+  proportional split, and cycle-fault on built anti-parallel transformers.
+- Client-side mirror, join handshake mid-fault, OFF-as-reset from a client, and all 2-peer sync
+  (the in-process serializer/state-machine paths are verified; only the live transport is not).
+- Live in-play wrong-tier burn + burn-reason hover (once the load-time bug is fixed) + cursor rejects.
+- BurnReasonSideCar round-trip (blocked on the burn-reason bug) and mod-removal safety.
 - Rocket umbilical rate caps + LogicTypes against a docked rocket.
 - The unknown-producer cable-burn fallback (needs an unclassified modded producer).
-- Emergency-light prefab list with a modded battery light.
-- The §5.7 generator-overflow probabilistic burn (needs a deliberately overbuilt generator bank).
+- Emergency-light behavior (uninstall the third-party Battery Backup Light mod first) + prefab list.
+- The §5.7 generator-overflow burn live sole-trigger (the 20-tick decision is verified 5/5; needs an
+  overbuilt >100 kW pure-heavy generator bank for the live integration).
+- P3 in-game console culprit naming (needs a deliberately-broken modded device).
+- Stationpedia footer render; settings-panel toggles; passthrough dropdown refresh.
 
 ## Incidents during the pass (resolved)
 
