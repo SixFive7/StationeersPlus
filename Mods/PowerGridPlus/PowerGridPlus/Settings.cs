@@ -10,15 +10,16 @@ namespace PowerGridPlus
     internal static class Settings
     {
         // --- Server - Cable Simulation ---
-        internal static ConfigEntry<float> CableBurnFactor;
-        internal static ConfigEntry<bool> EnableUnlimitedSuperHeavyCables;
-        internal static ConfigEntry<bool> EnableRecursiveNetworkLimits;
+        internal static ConfigEntry<int> CableNormalMaxWatts;
+        internal static ConfigEntry<int> CableHeavyMaxWatts;
+        internal static ConfigEntry<int> CableSuperHeavyMaxWatts;
 
         // --- Server - Cable Costs ---
         internal static ConfigEntry<float> SuperHeavyCableCostMultiplier;
 
         // --- Server - Voltage Tiers ---
-        internal static ConfigEntry<bool> EnableVoltageTiers;
+        // Voltage tiers are always on (no toggle). This list extends the built-in
+        // heavy-cable device allow-list for modded high-draw machines.
         internal static ConfigEntry<string> ExtraHeavyCableDevices;
 
         // --- Server - Batteries ---
@@ -38,17 +39,25 @@ namespace PowerGridPlus
         internal static ConfigEntry<bool> EnableTransformerLogicAdditions;
         internal static ConfigEntry<bool> EnableTransformerLogicPassthrough;
         internal static ConfigEntry<bool> EnableTransformerShedding;
+        internal static ConfigEntry<bool> EnableTransformerOverloadProtection;
 
         // --- Server - Area Power Control ---
         internal static ConfigEntry<bool> EnableAreaPowerControlFix;
         internal static ConfigEntry<float> ApcBatteryChargeRate;
+        internal static ConfigEntry<float> ApcBatteryDischargeRate;
         internal static ConfigEntry<bool> EnableAreaPowerControlLogicPassthrough;
 
         // --- Server - Power Transmitters ---
         internal static ConfigEntry<bool> EnablePowerTransmitterLogicPassthrough;
 
+        // --- Server - Rocket Umbilical ---
+        internal static ConfigEntry<bool> EnableRocketUmbilicalLimits;
+        internal static ConfigEntry<int> RocketUmbilicalChargeRate;
+        internal static ConfigEntry<int> RocketUmbilicalDischargeRate;
+
         // --- Server - Emergency Lights ---
         internal static ConfigEntry<bool> EnableEmergencyLights;
+        internal static ConfigEntry<string> EmergencyLightPrefabs;
 
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
         {
@@ -65,20 +74,25 @@ namespace PowerGridPlus
         internal static void Bind(ConfigFile config)
         {
             // --- Server - Cable Simulation ---
-            CableBurnFactor = config.Bind("Server - Cable Simulation", "Cable Burn Factor", 1.0f,
-                Desc("(Server-authoritative) Scales how likely an overloaded cable is to burn out on a given tick. " +
-                     "1.0 is the default Re-Volt-derived rate; raise it for harsher grids, lower it for forgiving ones; " +
-                     "set it to 0.0 to disable gradual cable burnout entirely (fuses still blow).", 10));
+            // Cable burnout itself is deterministic and hardcoded (no setting): a cable burns when the
+            // 20-tick running average of direct generator power on its network exceeds the weakest
+            // cable's cap (PowerTickPatches / CableBurnWindow). Only the per-tier caps are configurable.
+            CableNormalMaxWatts = config.Bind("Server - Cable Simulation", "Normal Cable Max Watts", 5000,
+                Desc("(Server-authoritative) Watts cap for normal cable. A cable carrying more than this from direct " +
+                     "generator supply burns out; overflow caused by transformers or batteries trips those devices into " +
+                     "overload instead. 0 = unlimited (never burns). Default 5000 matches vanilla. Enforced at runtime; " +
+                     "cables in the save are never modified. A mid-session change takes effect after a world reload.", 20));
 
-            EnableUnlimitedSuperHeavyCables = config.Bind("Server - Cable Simulation", "Enable Unlimited Super-Heavy Cables", true,
-                Desc("(Server-authoritative) When true, super-heavy cable never burns out regardless of load. It is the " +
-                     "long-haul backbone. Normal and heavy cable keep their ratings. Turn this off for vanilla-style " +
-                     "super-heavy cable that can still burn.", 20));
+            CableHeavyMaxWatts = config.Bind("Server - Cable Simulation", "Heavy Cable Max Watts", 100000,
+                Desc("(Server-authoritative) Watts cap for heavy cable. 0 = unlimited (never burns). Default 100000 " +
+                     "matches vanilla. Enforced at runtime; cables in the save are never modified. A mid-session change " +
+                     "takes effect after a world reload.", 30));
 
-            EnableRecursiveNetworkLimits = config.Bind("Server - Cable Simulation", "Enable Recursive Network Limits", false,
-                Desc("(Server-authoritative) When true, restores the vanilla check that force-burns cables when the power " +
-                     "grid forms a loop through multiple transformers or batteries. Off by default; recursive and looped " +
-                     "networks are allowed.", 30));
+            CableSuperHeavyMaxWatts = config.Bind("Server - Cable Simulation", "Super Heavy Cable Max Watts", 0,
+                Desc("(Server-authoritative) Watts cap for super-heavy cable. 0 = unlimited (default; the long-haul " +
+                     "backbone never burns). Set a positive value to make super-heavy cable burn above that load. " +
+                     "Enforced at runtime; cables in the save are never modified. A mid-session change takes effect " +
+                     "after a world reload.", 40));
 
             // --- Server - Cable Costs ---
             SuperHeavyCableCostMultiplier = config.Bind("Server - Cable Costs", "Super-Heavy Cable Cost Multiplier", 2.0f,
@@ -87,21 +101,15 @@ namespace PowerGridPlus
                      "coils in the world are unaffected.", 10, requireRestart: true));
 
             // --- Server - Voltage Tiers ---
-            EnableVoltageTiers = config.Bind("Server - Voltage Tiers", "Enable Voltage Tiers", true,
-                Desc("(Server-authoritative) When true, the three cable tiers (normal, heavy, super-heavy) are treated as " +
-                     "three separate transmission voltages. A cable network must be all one tier; joining two tiers burns " +
-                     "the lower-tier cable at the junction and splits the network. Generators and stationary batteries " +
-                     "belong on heavy cable, the high-draw machines may use heavy or normal, super-heavy is the long-haul " +
-                     "backbone (cables and transformers only), and everything else belongs on normal cable -- a device on " +
-                     "the wrong tier is rejected at build time and receives no power if it slips through. Transformers and " +
-                     "Area Power Controllers are exempt: they bridge whatever they are wired to.", 10));
-
+            // Voltage tiers are always enforced (no toggle). A cable network must be all one tier;
+            // joining two tiers burns the lower-tier cable at the junction and splits the network.
+            // Transformers and Area Power Controllers bridge whatever they are wired to.
             ExtraHeavyCableDevices = config.Bind("Server - Voltage Tiers", "Extra Heavy-Cable Devices", "",
                 Desc("(Server-authoritative) Comma-separated list of extra device prefab names that should be allowed on " +
                      "heavy cable, on top of the built-in high-draw machines (Carbon Sequester, Furnace, Advanced Furnace, " +
                      "Arc Furnace, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner). Use this for " +
                      "modded high-draw machines. Names are matched against the device's PrefabName. Example: " +
-                     "StructureBigMachine,StructureAnotherMachine", 20));
+                     "StructureBigMachine,StructureAnotherMachine", 10));
             ExtraHeavyCableDevices.SettingChanged += (_, __) => VoltageTier.RefreshConfig();
 
             // --- Server - Batteries ---
@@ -170,18 +178,30 @@ namespace PowerGridPlus
                      "false, every transformer behaves vanilla-opaque regardless of its per-device mode.", 30));
 
             EnableTransformerShedding = config.Bind("Server - Transformers", "Enable Transformer Shedding", true,
-                Desc("(Server-authoritative) Master toggle for the transformer Priority + Shedding feature. When true, every " +
-                     "transformer's throughput is hardcoded at its OutputMaximum rating, the in-world dial controls a new " +
-                     "Priority value instead (non-negative int, default 100, step 1 per click or 10 with Alt), and the input " +
-                     "cable network's supply is allocated strictly by Priority: the highest-priority transformer gets first " +
-                     "dibs up to its OutputMaximum; the leftover goes to the next priority. A transformer that cannot get its " +
-                     "full OutputMaximum from the input sheds for 10 seconds (flashes its on / off button orange, surfaces a " +
-                     "hover error, contributes 0 to the output network), then re-engages automatically. Shortfall tolerance: " +
-                     "the shed only fires after 2 consecutive ticks of insufficient supply, so a single-tick demand spike does " +
-                     "not trip a 10-second lockout. The IC10 LogicType.Setting read returns OutputMaximum (hardcoded); writes " +
-                     "to Setting redirect to Priority for backward compatibility with existing scripts. A new read-only " +
-                     "LogicType.Shedding returns 1 while a transformer is in lockout, 0 otherwise. When this master is false, " +
-                     "transformers behave vanilla (Setting is a writable throughput cap, no shedding, no flashing).", 40));
+                Desc("(Server-authoritative) Master toggle for the transformer Priority + Shedding feature (upstream-side " +
+                     "protection). When true, every transformer's throughput is hardcoded at its OutputMaximum rating, the " +
+                     "in-world dial controls a new Priority value instead (non-negative int, default 100, step 1 per click or " +
+                     "10 with Alt), and the input cable network's supply is allocated strictly by Priority: the highest-" +
+                     "priority transformer gets first dibs; the leftover goes to the next priority. A transformer that cannot " +
+                     "get its share of the input sheds for 60 seconds (flashes its on / off button orange, surfaces a hover " +
+                     "error, contributes 0 to the output network), then re-engages automatically. Shed fires instantly on " +
+                     "detection -- the atomic power-tick architecture decides with fresh in-tick data, so there is no need " +
+                     "for a shortfall-tolerance counter. The IC10 LogicType.Setting read returns OutputMaximum (hardcoded); " +
+                     "writes to Setting redirect to Priority for backward compatibility with existing scripts. A new read-" +
+                     "only LogicType.Shedding returns 1 while a transformer is in shed lockout, 0 otherwise. When this " +
+                     "master is false, transformers behave vanilla (Setting is a writable throughput cap, no shedding, no " +
+                     "flashing).", 40));
+
+            EnableTransformerOverloadProtection = config.Bind("Server - Transformers", "Enable Transformer Overload Protection", true,
+                Desc("(Server-authoritative) Master toggle for downstream-side overload protection. When true, a transformer " +
+                     "whose output cable network demands more than the transformer can deliver enters overload protection: " +
+                     "it contributes 0 W to the output network for 60 seconds (flashes its on / off button orange, surfaces a " +
+                     "hover error 'downstream demand exceeds this transformer's limit'), then re-engages automatically. For parallel " +
+                     "transformers on the same output network, overload fires for all of them together when combined " +
+                     "OutputMaximum cannot meet the network's RequiredLoad. Fires instantly on detection; no tolerance " +
+                     "counter. The downstream sub-network goes dark cleanly instead of vanilla's partial-power-then-Powered=" +
+                     "false random device failures. A new read-only LogicType.Overloaded returns 1 while a transformer is in " +
+                     "overload lockout, 0 otherwise. When this master is false, vanilla's partial-power behaviour returns.", 50));
 
             // --- Server - Area Power Control ---
             EnableAreaPowerControlFix = config.Bind("Server - Area Power Control", "Enable APC Power Fix", true,
@@ -197,6 +217,11 @@ namespace PowerGridPlus
                      "Per device, not per network. Capped further by the input cable's remaining headroom after the " +
                      "APC's own downstream pass-through is subtracted, so a single APC can never blow its own cable " +
                      "just by charging on top of what it is already passing through. Vanilla default is 1000.", 15));
+
+            ApcBatteryDischargeRate = config.Bind("Server - Area Power Control", "APC Battery Discharge Rate", 1000f,
+                Desc("(Server-authoritative) Maximum wattage the APC's inserted battery cell can discharge per tick to the " +
+                     "output network. Per device, not per network. Capped further by the output cable's MaxVoltage. The " +
+                     "elastic-supply allocator discharges the cell only to fill the output network's shortfall, never more.", 17));
 
             EnableAreaPowerControlLogicPassthrough = config.Bind("Server - Area Power Control", "Enable APC Logic Passthrough", true,
                 Desc("(Server-authoritative) Master kill-switch for Area Power Control logic-passthrough. When true, " +
@@ -217,6 +242,24 @@ namespace PowerGridPlus
                      "Defaults to mode 1 for every transmitter and receiver. Bridging requires the pair to be linked (auto-aim " +
                      "or manual link); an unlinked dish has nothing to bridge to. Per-device mode is persisted across save / load.", 10));
 
+            // --- Server - Rocket Umbilical ---
+            EnableRocketUmbilicalLimits = config.Bind("Server - Rocket Umbilical", "Enable Rocket Umbilical Limits", true,
+                Desc("(Server-authoritative) When true, the rocket power umbilical pair (Male / Female) is charge- and " +
+                     "discharge-rate limited like a stationary battery, participates in the shed / overload / cycle-fault " +
+                     "system as a segmenting device, and exposes the four soft-power logic values (Max/Charge/Discharge " +
+                     "Speed). When false, the umbilical reverts to vanilla behaviour (transfers up to its internal cell " +
+                     "PowerMaximum per tick) and the four logic values are not exposed.", 10));
+
+            RocketUmbilicalChargeRate = config.Bind("Server - Rocket Umbilical", "Rocket Umbilical Charge Rate", 10000,
+                Desc("(Server-authoritative) Maximum Watts the rocket umbilical pulls from upstream per tick to charge its " +
+                     "internal cell. Capped further by the input cable's MaxVoltage. Default 10000 matches the vanilla " +
+                     "umbilical cell PowerMaximum.", 20));
+
+            RocketUmbilicalDischargeRate = config.Bind("Server - Rocket Umbilical", "Rocket Umbilical Discharge Rate", 10000,
+                Desc("(Server-authoritative) Maximum Watts the rocket umbilical discharges per tick to the output network. " +
+                     "Capped further by the output cable's MaxVoltage. Default 10000 matches the vanilla umbilical cell " +
+                     "PowerMaximum.", 30));
+
             // --- Server - Emergency Lights ---
             EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,
                 Desc("(Server-authoritative) When true, Wall Light Battery devices behave as emergency backup lights: the lamp " +
@@ -227,6 +270,13 @@ namespace PowerGridPlus
                      "emergency light does not flicker on the host. If the third-party Battery Backup Light mod is also " +
                      "installed, these patches yield to it (and you keep the flicker); uninstall that mod to switch to the " +
                      "Power Grid Plus implementation.", 10));
+
+            EmergencyLightPrefabs = config.Bind("Server - Emergency Lights", "Emergency Light Prefabs", "StructureWallLightBattery",
+                Desc("(Server-authoritative) Comma-separated list of light prefab names that get the emergency-backup " +
+                     "behaviour when the master toggle above is on. Default covers the vanilla Wall Light (Battery). Add " +
+                     "modded battery-light prefab names to include them, or remove entries to restrict the set. Entries " +
+                     "must be battery-backed wall lights (the WallLightBattery device class); names are matched against " +
+                     "the device's PrefabName.", 20));
         }
     }
 }

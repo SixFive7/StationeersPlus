@@ -47,6 +47,25 @@ namespace PowerGridPlus.Patches
         internal static readonly ConcurrentDictionary<long, (bool prev, bool prev2)> ShortfallLatch =
             new ConcurrentDictionary<long, (bool, bool)>();
 
+        // Configured emergency-light prefab names (Settings.EmergencyLightPrefabs, comma-separated,
+        // default StructureWallLightBattery). Parsed once; settings are immutable mid-session.
+        private static System.Collections.Generic.HashSet<string> _prefabNames;
+
+        internal static System.Collections.Generic.HashSet<string> PrefabNames
+        {
+            get
+            {
+                if (_prefabNames == null)
+                {
+                    var raw = Settings.EmergencyLightPrefabs?.Value ?? "StructureWallLightBattery";
+                    _prefabNames = new System.Collections.Generic.HashSet<string>(
+                        raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()),
+                        StringComparer.OrdinalIgnoreCase);
+                }
+                return _prefabNames;
+            }
+        }
+
         // Fast accessor for WallLightBattery.WasPoweredByCableLastTick (private property:
         // _lastPoweredByCableOnTick >= GameManager.GameTickCount). Bound once at class load.
         internal static readonly Func<WallLightBattery, bool> WasPoweredByCableLastTick =
@@ -118,37 +137,41 @@ namespace PowerGridPlus.Patches
 
             try
             {
-                Thing prefab = null;
+                // Every configured prefab (Settings.EmergencyLightPrefabs) gets the Mode
+                // interactable. Entries must be WallLightBattery-class prefabs: the per-tick toggle
+                // below patches WallLightBattery.OnPowerTick, so a configured name whose prefab is a
+                // different class gets the Mode knob but no emergency behaviour (logged).
+                var wanted = new System.Collections.Generic.HashSet<string>(
+                    EmergencyLightSupport.PrefabNames, StringComparer.OrdinalIgnoreCase);
                 foreach (var thing in WorldManager.Instance.SourcePrefabs)
                 {
-                    if (thing != null && thing.PrefabName == "StructureWallLightBattery")
+                    if (thing == null || string.IsNullOrEmpty(thing.PrefabName)) continue;
+                    if (!wanted.Remove(thing.PrefabName)) continue;
+
+                    if (!(thing is WallLightBattery))
                     {
-                        prefab = thing;
-                        break;
+                        Plugin.Log.LogWarning($"Emergency Light Prefabs entry '{thing.PrefabName}' is not a WallLightBattery-class light; the emergency toggle will not drive it.");
+                        continue;
                     }
-                }
-                if (prefab == null)
-                {
-                    Plugin.Log.LogWarning("StructureWallLightBattery prefab not found; emergency-light Mode interactable not added.");
-                    return;
-                }
+                    if (thing.Interactables.Any(i => i != null && i.Action == InteractableType.Mode))
+                        continue;
 
-                if (prefab.Interactables.Any(i => i != null && i.Action == InteractableType.Mode))
-                    return;
-
-                var mode = new Interactable
-                {
-                    Action = InteractableType.Mode,
-                    ActionName = "Mode",
-                    JoinInProgressSync = true,
-                    Parent = prefab,
-                };
-                prefab.Interactables.Add(mode);
-                Plugin.Log.LogInfo("Added Mode interactable to StructureWallLightBattery for emergency-light behaviour.");
+                    var mode = new Interactable
+                    {
+                        Action = InteractableType.Mode,
+                        ActionName = "Mode",
+                        JoinInProgressSync = true,
+                        Parent = thing,
+                    };
+                    thing.Interactables.Add(mode);
+                    Plugin.Log.LogInfo($"Added Mode interactable to {thing.PrefabName} for emergency-light behaviour.");
+                }
+                foreach (var missing in wanted)
+                    Plugin.Log.LogWarning($"Emergency Light Prefabs entry '{missing}' not found among prefabs; skipped.");
             }
             catch (Exception e)
             {
-                Plugin.Log.LogError("Failed to add Mode interactable to StructureWallLightBattery: " + e);
+                Plugin.Log.LogError("Failed to add emergency-light Mode interactable(s): " + e);
             }
         }
     }
@@ -168,6 +191,9 @@ namespace PowerGridPlus.Patches
             if (!Settings.EnableEmergencyLights.Value) return;
             if (!EmergencyLightSupport.UpstreamMissing()) return;
             if (__instance == null || __instance.Mode != 0) return;
+            // Only prefabs on the configured list (Settings.EmergencyLightPrefabs) get the
+            // emergency behaviour; other WallLightBattery-class prefabs stay vanilla.
+            if (!EmergencyLightSupport.PrefabNames.Contains(__instance.PrefabName)) return;
             if (!__instance.BatterySlot.Contains<BatteryCell>(out _)) return;
 
             var refId = ((Thing)__instance).ReferenceId;

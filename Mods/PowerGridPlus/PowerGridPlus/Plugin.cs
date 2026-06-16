@@ -21,7 +21,7 @@ namespace PowerGridPlus
     {
         public const string PluginGuid = "net.powergridplus";
         public const string PluginName = "Power Grid Plus";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
         internal static ManualLogSource Log;
@@ -65,11 +65,23 @@ namespace PowerGridPlus
                 // with default modes and its motherboard dropdowns diverge from the host.
                 MOD.Networking.RegisterMessage<PassthroughModeMessage>();
                 MOD.Networking.RegisterMessage<PriorityMessage>();
-                MOD.Networking.RegisterMessage<ShedStateMessage>();
+                // One snapshot message covers all four fault registries (per-tick full sync,
+                // POWER.md §13); the former four per-transition messages are gone.
+                MOD.Networking.RegisterMessage<FaultRegistrySnapshotMessage>();
                 MOD.Networking.JoinSuffixSerializer = this;
 
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
+
+                // Option B (POWER.md §4.3): catch a wrong-tier junction the instant any topology
+                // mutation creates one. CableNetwork.OnNetworkChanged is a main-thread-only event fired
+                // by every membership change (placement, merge, split, load, device add), so the handler
+                // re-checks and burns synchronously before the next tick ever sees the violation. The
+                // per-tick worker sweep (VoltageTierEnforcer.Run) remains the backstop for any path this
+                // does not cover. Host-only: the handler early-outs on !RunSimulation. Subscribed once
+                // (OnPrefabsLoaded runs a single time); never unsubscribed -- the plugin lives for the
+                // process and the static event is harmless on a client (burns are RunSimulation-gated).
+                Assets.Scripts.Networks.CableNetwork.OnNetworkChanged += VoltageTierEnforcer.RequestRecheck;
 
                 // Run the runtime recipe override AFTER the game's GameData XML pipeline has processed
                 // every mod's overlays, so the configured multiplier always wins over any shipped overlay
@@ -77,6 +89,9 @@ namespace PowerGridPlus
                 // WorldManager.LoadGameDataAsync iterates mod GameData folders, so calling ApplyRecipeCost
                 // directly here lets the overlay clobber the runtime value.
                 WorldManager.OnGameDataLoaded += CableCostPatches.ApplyRecipeCost;
+                // Cable Watts caps and APC charge rate are enforced at runtime via CableMax and the
+                // AreaPowerControl patches; no prefab or instance field is rewritten (POWER.md §0.2
+                // non-mutating decision), so removing the mod reverts cables to vanilla ratings.
                 Ic10ConstantsPatcher.Apply();
 
                 Log.LogInfo($"{PluginName} patches applied");
@@ -123,14 +138,48 @@ namespace PowerGridPlus
             }
             writer.WriteBoolean(Settings.EnableTransformerShedding.Value);
 
-            // Currently-shedding transformer IDs (transient host-only state). The client uses these
-            // to populate its BrownoutRegistry.ClientShedding mirror so a freshly-joined player sees
-            // existing sheds immediately rather than waiting for the next transition.
-            var shedIds = new List<long>();
-            foreach (var id in BrownoutRegistry.CurrentlyLockedOut(ElectricityTickCounter.CurrentTick))
-                shedIds.Add(id);
-            writer.WriteInt32(shedIds.Count);
-            foreach (var id in shedIds) writer.WriteInt64(id);
+            // Fault-registry join handshake (POWER.md §13 mid-cooldown join): all four registries
+            // ship their current (ReferenceId, remainingTicks) pairs -- plus violator names for the
+            // VVF entries -- so a joining client lands mid-lockout with correct flash + countdown
+            // state before the first per-tick snapshot arrives.
+            writer.WriteBoolean(Settings.EnableTransformerOverloadProtection.Value);
+            int tick = ElectricityTickCounter.CurrentTick;
+            WriteRemaining(writer, BrownoutRegistry.SnapshotRemaining(tick));
+            WriteRemaining(writer, OverloadRegistry.SnapshotRemaining(tick));
+            WriteRemaining(writer, CycleFaultRegistry.SnapshotRemaining(tick));
+            var vvf = new List<(long refId, int remainingTicks, string violators)>(
+                VariableVoltageFaultRegistry.SnapshotRemaining(tick));
+            writer.WriteInt32(vvf.Count);
+            foreach (var entry in vvf)
+            {
+                writer.WriteInt64(entry.refId);
+                writer.WriteInt32(entry.remainingTicks);
+                writer.WriteString(entry.violators ?? string.Empty);
+            }
+        }
+
+        private static void WriteRemaining(RocketBinaryWriter writer, IEnumerable<KeyValuePair<long, int>> snapshot)
+        {
+            var entries = new List<KeyValuePair<long, int>>(snapshot);
+            writer.WriteInt32(entries.Count);
+            foreach (var entry in entries)
+            {
+                writer.WriteInt64(entry.Key);
+                writer.WriteInt32(entry.Value);
+            }
+        }
+
+        private static List<KeyValuePair<long, int>> ReadRemaining(RocketBinaryReader reader)
+        {
+            int count = reader.ReadInt32();
+            var entries = new List<KeyValuePair<long, int>>(count);
+            for (int i = 0; i < count; i++)
+            {
+                long refId = reader.ReadInt64();
+                int remaining = reader.ReadInt32();
+                entries.Add(new KeyValuePair<long, int>(refId, remaining));
+            }
+            return entries;
         }
 
         public void DeserializeJoinSuffix(RocketBinaryReader reader)
@@ -162,13 +211,22 @@ namespace PowerGridPlus
             bool sheddingEnabled = reader.ReadBoolean();
             ShedSettingsSync.SetSyncedValue(sheddingEnabled);
 
-            // Currently-shedding transformer IDs at join time.
-            int shedCount = reader.ReadInt32();
-            for (int i = 0; i < shedCount; i++)
+            // Fault-registry join handshake: remaining-ticks snapshots for all four registries.
+            bool overloadEnabled = reader.ReadBoolean();
+            OverloadSettingsSync.SetSyncedValue(overloadEnabled);
+            BrownoutRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
+            OverloadRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
+            CycleFaultRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
+            int vvfCount = reader.ReadInt32();
+            var vvf = new List<(long, int, string)>(vvfCount);
+            for (int i = 0; i < vvfCount; i++)
             {
-                long shedId = reader.ReadInt64();
-                BrownoutRegistry.SetClientShedding(shedId, true);
+                long refId = reader.ReadInt64();
+                int remaining = reader.ReadInt32();
+                string violators = reader.ReadString();
+                vvf.Add((refId, remaining, violators));
             }
+            VariableVoltageFaultRegistry.ReplaceClientSnapshot(vvf);
         }
 
         /// <summary>
