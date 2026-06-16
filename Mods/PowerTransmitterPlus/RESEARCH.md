@@ -188,6 +188,7 @@ All in `BepInEx/config/net.powertransmitterplus.cfg`.
 | Pulse | `Scroll Speed` | `25.0` | m/s at full power (5 kW delivered). Scales with `sqrt(intensity)`; draws above 5 kW (enabled by the distance-cost patches) exceed this |
 | Pulse | `Trough Brightness` | `0.5` | 0..1, beam brightness between pulses |
 | Distance | `Cost Factor (k)` | `5.0` | **Server-authoritative.** Per-km overhead on source draw |
+| Capacity | `Max Transfer Capacity (W)` | `0` | **Server-authoritative.** Max watts one transmitter delivers to its receiver; `0` = unlimited (default). Vanilla limit is 5000 W. Actual throughput is still bound by input supply and cable tiers. Broadcast to clients on connect and on change. |
 | Features | `Enable Auto-Aim` | `true` | **Server-authoritative, restart-gated.** Master toggle for MicrowaveAutoAimTarget. Captured once at boot into `PowerTransmitterPlusPlugin.AutoAimPatched`; `LogicTypeRegistry.BuildAll()` drops the entry when false, which cascades to every consumer that iterates the registry, and all four auto-aim Harmony patch classes carry `static bool Prepare() => AutoAimPatched` so they do not apply when false. `RequireRestart: true` tag surfaces the crimson "Changes in configuration require a restart to apply" banner in the main-menu settings panel on change. Multiplayer: `PowerTransmitterPlusPlugin : IJoinValidator` serializes the boot-time bool on both sides; mismatched remote joins are rejected via `LaunchPadBooster.Networking.IJoinValidator.ProcessJoinValidate` with a readable error |
 
 The beam shader is fixed to the fallback chain `Legacy Shaders/Particles/Additive` -> `Particles/Additive` -> `Sprites/Default` -> `Hidden/Internal-Colored` (see `BeamManager.SharedMaterial`). Not user-configurable: Stationeers ships a single Unity build, no alternative in that build looks meaningfully better than Additive, and a misconfigured value would either fall back silently or degrade the beam look.
@@ -342,7 +343,7 @@ Patched flow with multiplier `m = 1 + k x dist_m / 1000`:
 
 ```
 WirelessOutputNetwork tick:
-  GetGeneratedPower -> Min(5000, InputNetwork.PotentialLoad)   (patch 1: drop loss)
+  GetGeneratedPower -> MaxTransferCapacity>0 ? Min(cap, PotentialLoad) : PotentialLoad   (patch 1: drop loss + drop 5000 ceiling; cap default 0 = unlimited)
   Receiver demands D, gets D
   UsePower(WirelessOutputNetwork, D) -> _powerProvided += D
                                        (patch 2: also += D x (m-1))
@@ -360,14 +361,14 @@ Energy conservation: `_powerProvided` net-zeros each tick.
 
 | # | Patch class | Target method | Type | What |
 |---|---|---|---|---|
-| 1 | `GeneratedPowerNoDistanceDeratePatch` | `PowerTransmitter.GetGeneratedPower` | Prefix (return false) | Replicate vanilla guards. Return `Min(MaxPowerTransmission, InputNetwork.PotentialLoad)` with no loss subtraction. |
+| 1 | `GeneratedPowerNoDistanceDeratePatch` | `PowerTransmitter.GetGeneratedPower` | Prefix (return false) | Replicate vanilla guards. Return `MaxTransferCapacity > 0 ? Min(MaxTransferCapacity, InputNetwork.PotentialLoad) : InputNetwork.PotentialLoad`. The delivery cap is the `Max Transfer Capacity` setting (0 = unlimited, default); no `MaxPowerTransmission`/5000 ceiling and no loss subtraction. |
 | 2 | `UsePowerInflateDebtPatch` | `PowerTransmitter.UsePower` | Postfix | Skip if `powerUsed <= 0` / Error / !OnOff / wrong network. Compute multiplier; if > 1, add `powerUsed x (multiplier - 1)` to `_powerProvided`. |
 | 3 | `GetUsedPowerLiftCapPatch` | `PowerTransmitter.GetUsedPower` | Postfix | Skip if Error / !OnOff / no InputNetwork. Read `_powerProvided`. If `debt > __result`, set `__result = debt`. |
 | 4 | `ReceivePowerVisualizerFixPatch` | `PowerTransmitter.ReceivePower` | Postfix | Skip if multiplier <= 1. Compute `delivered = powerAdded / multiplier`, set `VisualizerIntensity = delivered / MaxPowerTransmission`. |
 
 All four patches are required as a set. Disabling any one produces observable breakage. See Pitfalls below.
 
-Source comment from `DistanceCostPatches.cs:10-35`:
+Source comment from `DistanceCostPatches.cs:10-39`:
 
 ```
 // Replaces vanilla's distance-based capacity derate on PowerTransmitter.
@@ -377,10 +378,14 @@ Source comment from `DistanceCostPatches.cs:10-35`:
 //   source_draw   = delivered
 //
 // New model (this mod):
-//   delivered_max = 5000  (uncapped by distance)
+//   delivered_max = Max Transfer Capacity config  (0 = unlimited; default unlimited)
 //   source_draw   = delivered * (1 + k * distance_m / 1000)
 //
-// Where k is the configurable per-km overhead factor.
+// Where k is the configurable per-km overhead factor and the delivery cap is
+// a separate server-authoritative setting (MaxCapacityConfigSync). The vanilla
+// PowerTransmitter.MaxPowerTransmission constant (5000) is no longer used as the
+// delivery ceiling; it survives only as the beam visualizer's full-brightness
+// reference in ReceivePower (4) below, so removing the cap does not dim beams.
 //
 // Implementation hinges on PowerTransmitter._powerProvided, the private
 // float "debt accumulator" between the wireless-output tick and the

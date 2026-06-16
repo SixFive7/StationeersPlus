@@ -37,7 +37,7 @@ namespace PowerTransmitterPlus
     // ReceivePower to reflect *delivered*, not *source_draw*, so the visualizer
     // remains a meaningful "throughput" indicator instead of saturating at
     // 1/multiplier on long beams.
-    internal static class DistanceCostShared
+    public static class DistanceCostShared
     {
         internal static readonly FieldInfo PowerProvidedField =
             AccessTools.Field(typeof(PowerTransmitter), "_powerProvided");
@@ -67,6 +67,12 @@ namespace PowerTransmitterPlus
             var m = 1f + k * distance / 1000f;
             return m < 1f ? 1f : m;
         }
+
+        // Public cross-mod accessor. PowerGridPlus reads this via reflection to model the inflated
+        // source-side draw of a transmitter pair (input_draw = delivered * factor). Returns >= 1; 1
+        // means no distance overhead (vanilla-equivalent, or k <= 0, or PowerTransmitterPlus disabled).
+        // Stable API: do not rename without updating PowerGridPlus's PowerTransmitterPlusInterop.
+        public static float SourceDrawMultiplier(PowerTransmitter t) => GetMultiplier(t);
     }
 
     // (1) Drop the distance-based capacity derate. Returns the un-derated cap.
