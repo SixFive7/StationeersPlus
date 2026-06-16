@@ -193,11 +193,12 @@ namespace PowerGridPlus
         ///     signal. Idempotent: calling Break on an already-destroyed cable is a safe no-op via
         ///     Unity's "destroyed object compares equal to null" overload.
         /// </summary>
-        internal static void BurnTransformerBothCables(Transformer transformer)
+        internal static bool BurnTransformerBothCables(Transformer transformer)
         {
-            if (transformer == null || !GameManager.RunSimulation) return;
+            if (transformer == null || !GameManager.RunSimulation) return false;
             string label = string.IsNullOrEmpty(transformer.DisplayName) ? transformer.PrefabName : transformer.DisplayName;
 
+            bool burned = false;
             var inputCable = transformer.InputConnection?.GetCable();
             if (inputCable != null)
             {
@@ -206,6 +207,7 @@ namespace PowerGridPlus
                 BurnReasonRegistry.RegisterPending(inputCable,
                     $"Wrong voltage -- {label} was bridging incompatible cable tiers");
                 inputCable.Break();
+                burned = true;
             }
             var outputCable = transformer.OutputConnection?.GetCable();
             if (outputCable != null)
@@ -215,7 +217,9 @@ namespace PowerGridPlus
                 BurnReasonRegistry.RegisterPending(outputCable,
                     $"Wrong voltage -- {label} was bridging incompatible cable tiers");
                 outputCable.Break();
+                burned = true;
             }
+            return burned;
         }
 
         /// <summary>
@@ -364,10 +368,10 @@ namespace PowerGridPlus
         ///     lowest-tier cable in the network, is burned in preference (this is the cable the player just
         ///     placed -- burning it gives the clearest feedback).
         /// </summary>
-        internal static void ResolveMixedTierNetwork(CableNetwork network, Cable preferVictim = null)
+        internal static bool ResolveMixedTierNetwork(CableNetwork network, Cable preferVictim = null)
         {
             if (network == null || !GameManager.RunSimulation)
-                return;
+                return false;
 
             Cable victim = null;
             lock (network.CableList)
@@ -391,7 +395,7 @@ namespace PowerGridPlus
                 }
 
                 if (!mixed)
-                    return;
+                    return false;
 
                 if (preferVictim != null && preferVictim.CableNetwork == network && preferVictim.MaxVoltage <= lowestRating)
                 {
@@ -434,7 +438,9 @@ namespace PowerGridPlus
                 BurnReasonRegistry.RegisterPending(victim,
                     $"Wrong voltage -- {victim.CableType} cable was bridging into a different cable tier");
                 victim.Break();
+                return true;
             }
+            return false;
         }
 
         /// <summary>
@@ -444,26 +450,27 @@ namespace PowerGridPlus
         ///     <see cref="Assets.Scripts.Objects.Pipes.Connection.GetCable(bool)"/>, so the boundary is
         ///     correct by construction.
         /// </summary>
-        internal static void BurnPortMismatchCable(Cable victim, Device portOwner)
+        internal static bool BurnPortMismatchCable(Cable victim, Device portOwner)
         {
             if (victim == null || portOwner == null || !GameManager.RunSimulation)
-                return;
+                return false;
             string label = string.IsNullOrEmpty(portOwner.DisplayName) ? portOwner.PrefabName : portOwner.DisplayName;
             Plugin.Log?.LogInfo(
                 $"Voltage tiers: burning a {victim.CableType} cable adjacent to {label} (port-tier mismatch).");
             BurnReasonRegistry.RegisterPending(victim,
                 $"Wrong voltage -- the adjacent {label} doesn't accept {victim.CableType} cable on this port");
             victim.Break();
+            return true;
         }
 
         /// <summary>
         ///     A device on this network is not allowed on its tier; burn the cable that connects the device
         ///     to this specific <paramref name="network"/> so the network shrinks away from the device.
         /// </summary>
-        internal static void BurnCableForMisplacedDevice(Device device, CableNetwork network)
+        internal static bool BurnCableForMisplacedDevice(Device device, CableNetwork network)
         {
             if (device == null || network == null || !GameManager.RunSimulation)
-                return;
+                return false;
 
             Cable victim = null;
             // device.PowerCable is the primary; check it first.
@@ -482,7 +489,7 @@ namespace PowerGridPlus
             }
 
             if (victim == null)
-                return;
+                return false;
 
             string label = string.IsNullOrEmpty(device.DisplayName) ? device.PrefabName : device.DisplayName;
             Plugin.Log?.LogInfo(
@@ -490,6 +497,7 @@ namespace PowerGridPlus
             BurnReasonRegistry.RegisterPending(victim,
                 $"Wrong voltage -- the adjacent {label} doesn't accept {victim.CableType} cable");
             victim.Break();
+            return true;
         }
     }
 }

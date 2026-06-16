@@ -2,29 +2,26 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
-using PowerGridPlus.Power;
 using StationeersPlus.Shared;
 
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Swaps every <see cref="CableNetwork"/>'s <see cref="PowerTick"/> for a <see cref="PowerGridTick"/>
-    ///     at construction time, forwards device-list invalidations so the tick rebuilds its caches, and
-    ///     propagates those invalidations across a logic-passthrough component so transitive passthrough
-    ///     stays correct when a far network changes.
+    ///     Propagates device-list invalidations across a logic-passthrough component so transitive
+    ///     passthrough stays correct when a far network changes. (This file previously also injected
+    ///     the custom PowerGridTick into every CableNetwork; that subclass is deleted under the
+    ///     single-architecture decision, POWER.md §0.1, and the vanilla PowerTick now runs
+    ///     unmodified.)
     /// </summary>
     [HarmonyPatch(typeof(CableNetwork))]
     public static class CableNetworkPatches
     {
-        private static readonly FieldInfo TickField = typeof(CableNetwork).GetField(nameof(CableNetwork.PowerTick));
-
         // Re-entrancy guard for the transitive passthrough dirty-propagation below. The propagation
         // loop calls DirtyPowerAndDataDeviceLists on the other component members, which re-enters this
         // same postfix; the guard stops that from cascading into another full component walk. Thread-
@@ -35,9 +32,6 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix, HarmonyPatch(nameof(CableNetwork.DirtyPowerAndDataDeviceLists))]
         public static void DirtyPowerAndDataDeviceListsPatch(CableNetwork __instance)
         {
-            if (__instance.PowerTick is PowerGridTick tick)
-                tick.IsDirty = true;
-
             // Transitive logic passthrough invalidation. A network's merged data device list includes
             // the devices of every network in its passthrough component (see LogicPassthroughPatches).
             // The game only dirties the network that directly changed, so when this network's membership
@@ -188,15 +182,5 @@ namespace PowerGridPlus.Patches
             }
         }
 
-        [HarmonyPostfix, HarmonyPatch(MethodType.Constructor, new Type[0])]
-        public static void Constructor_None(CableNetwork __instance) => Inject(__instance);
-
-        [HarmonyPostfix, HarmonyPatch(MethodType.Constructor, new Type[] { typeof(Cable) })]
-        public static void Constructor_Cable(CableNetwork __instance) => Inject(__instance);
-
-        [HarmonyPostfix, HarmonyPatch(MethodType.Constructor, new Type[] { typeof(long) })]
-        public static void Constructor_Long(CableNetwork __instance) => Inject(__instance);
-
-        private static void Inject(CableNetwork network) => TickField.SetValue(network, new PowerGridTick());
     }
 }

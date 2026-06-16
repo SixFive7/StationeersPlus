@@ -19,8 +19,8 @@ namespace PowerGridPlus.Patches
         ///     Build-time cursor reject: if the cable being previewed would merge into a network that
         ///     already carries a different tier, OR would sit next to a device the new tier isn't valid for,
         ///     refuse the placement with a player-visible message. (Reactive burns from
-        ///     <see cref="Power.PowerGridTick"/> remain the authoritative backstop -- they fire on the next
-        ///     power tick if power is actually flowing.)
+        ///     <see cref="VoltageTierEnforcer"/> (atomic Phase 1.5a) remain the authoritative backstop --
+        ///     they fire on the next power tick if power is actually flowing.)
         ///
         ///     Note: this is intentionally cable-side only. Placing a device on a wrong-tier cable is NOT
         ///     rejected at build time; that case is handled reactively by the tick burning the cable next
@@ -29,8 +29,7 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix, HarmonyPatch(typeof(Cable), nameof(Cable.CanConstruct))]
         public static void Cable_CanConstruct_Postfix(Cable __instance, ref CanConstructInfo __result)
         {
-            if (!Settings.EnableVoltageTiers.Value)
-                return;
+            // Voltage tiers are always enforced (the EnableVoltageTiers toggle was removed).
             if (!__result.CanConstruct)
                 return;
 
@@ -170,8 +169,8 @@ namespace PowerGridPlus.Patches
             catch (Exception)
             {
                 // Preview cable not gridded yet, or an API shape differs -- leave placement allowed; the
-                // reactive burns from PowerGridTick will still resolve any mixed-tier or misplaced-device
-                // result once power flows on the resulting network.
+                // reactive burns from VoltageTierEnforcer will still resolve any mixed-tier or
+                // misplaced-device result once power flows on the resulting network.
             }
         }
 

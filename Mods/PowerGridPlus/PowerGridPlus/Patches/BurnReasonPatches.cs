@@ -22,10 +22,14 @@ namespace PowerGridPlus.Patches
                 BurnReasonRegistry.Attach(__instance, reason);
         }
 
-        // CableRuptured does not override GetPassiveTooltip; patching Thing.GetPassiveTooltip and filtering
-        // by type is the cleanest way to extend the wreckage's hover text without affecting other things.
-        [HarmonyPostfix, HarmonyPatch(typeof(Thing), nameof(Thing.GetPassiveTooltip))]
-        public static void Thing_GetPassiveTooltip_Postfix(Thing __instance, ref PassiveTooltip __result)
+        // Virtual-dispatch trap (POWERTODO 0.2): Thing.GetPassiveTooltip is virtual and Structure overrides
+        // it. CableRuptured : SmallGrid : Structure, so MouseManager.Idle's virtual call routes to
+        // Structure.GetPassiveTooltip and a postfix on Thing.GetPassiveTooltip NEVER fires. Patch the
+        // Structure override instead. The `is CableRuptured` filter still gates correctly; only the method
+        // Harmony attaches to changes. (CableRuptured does not declare its own override, and SmallGrid does
+        // not either, so Structure is the override-bearing ancestor that runs at runtime.)
+        [HarmonyPostfix, HarmonyPatch(typeof(Structure), nameof(Structure.GetPassiveTooltip))]
+        public static void Structure_GetPassiveTooltip_Postfix(Thing __instance, ref PassiveTooltip __result)
         {
             if (!(__instance is CableRuptured))
                 return;
@@ -34,6 +38,24 @@ namespace PowerGridPlus.Patches
                 return;
             var prefix = string.IsNullOrEmpty(__result.Extended) ? string.Empty : (__result.Extended + "\n");
             __result.Extended = prefix + "<color=#ffa500>Burned:</color> " + reason;
+        }
+
+        // Secondary re-apply (POWERTODO 0.2): when the cursor thing exposes ANY interactable
+        // affordance (deconstruct / wrench / pickup), MouseManager.Idle calls
+        // Tooltip.SetValuesForInteractable, which REPLACES the whole PassiveTooltip struct
+        // (decompile L237486 / L288646) and erases the Extended text injected above. This postfix
+        // re-applies the burn line after the clobber. Harmless no-op when the wreckage exposes no
+        // interactable (the method is simply not called for it).
+        [HarmonyPostfix, HarmonyPatch(typeof(Assets.Scripts.UI.Tooltip), "SetValuesForInteractable")]
+        public static void SetValuesForInteractable_Postfix(ref PassiveTooltip tooltip, Thing CursorThing)
+        {
+            if (!(CursorThing is CableRuptured))
+                return;
+            var reason = BurnReasonRegistry.GetAttached(CursorThing);
+            if (string.IsNullOrEmpty(reason))
+                return;
+            var prefix = string.IsNullOrEmpty(tooltip.Extended) ? string.Empty : (tooltip.Extended + "\n");
+            tooltip.Extended = prefix + "<color=#ffa500>Burned:</color> " + reason;
         }
     }
 }
