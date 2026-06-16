@@ -7,28 +7,23 @@ using LaunchPadBooster.Networking;
 
 namespace PowerGridPlus.Patches
 {
-    // Wires the writable LogicType.Priority slot, the read-only LogicType.Shedding
-    // slot, and rewires LogicType.Setting + LogicType.Ratio on Transformer.
+    // Wires the writable LogicType.Priority slot and the read-only fault slots
+    // (Shedding / Overloaded / CycleFault) on Transformer.
+    //
+    // LogicType.Setting and LogicType.Ratio are PURE VANILLA (POWER.md §5.3 /
+    // §17.36): IC10 reads return the live Setting; IC10 writes update Setting,
+    // clamped [0, OutputMaximum] by the vanilla property. No redirect. Only the
+    // in-world knob (TransformerInteractWithPatches) and the Labeller
+    // (TransformerLabellerPatches) write Priority instead of Setting.
     //
     // Behaviour while ShedSettingsSync.Effective is true:
     //   - CanLogicRead:   Priority, Shedding => true.
     //   - CanLogicWrite:  Priority => true. Shedding => false (read-only).
-    //   - GetLogicValue:  Setting => OutputMaximum (throughput is hardcoded at max).
-    //                     Ratio => 1.0 (the dial is no longer a fractional cap).
-    //                     Maximum => OutputMaximum (unchanged from vanilla, just
-    //                       happens to coincide with the new throughput meaning).
-    //                     Priority => PriorityStore.GetPriority(__instance).
+    //   - GetLogicValue:  Priority => PriorityStore.GetPriority(__instance).
     //                     Shedding => BrownoutRegistry.IsShedding ? 1 : 0.
-    //   - SetLogicValue:  Setting writes are server-gated; on the server, they
-    //                     redirect to Priority (legacy IC10 scripts that wrote to
-    //                     Setting now write to Priority transparently).
-    //                     Priority writes go through PriorityStore + broadcast
-    //                     PriorityMessage to clients.
+    //   - SetLogicValue:  Priority writes go through PriorityStore + broadcast
+    //                     PriorityMessage to clients (clamped >= 0, no upper cap).
     //                     Shedding writes are silently dropped (read-only slot).
-    //
-    // Behaviour while ShedSettingsSync.Effective is false: all of the above
-    // short-circuit to vanilla; the existing TransformerExploitPatches /
-    // TransformerLogicPatches paths cover the vanilla case.
     //
     // Trap avoidance (HarmonyLogicableInheritedMethodTrap): Transformer overrides
     // CanLogicRead / CanLogicWrite / GetLogicValue / SetLogicValue directly, so
@@ -39,8 +34,20 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch(nameof(Transformer.CanLogicRead))]
         public static bool CanLogicReadPatch(LogicType logicType, ref bool __result)
         {
-            if (!ShedSettingsSync.Effective) return true;
-            if (logicType == LogicTypeRegistry.Priority || logicType == LogicTypeRegistry.Shedding)
+            if (ShedSettingsSync.Effective
+                && (logicType == LogicTypeRegistry.Priority
+                    || logicType == LogicTypeRegistry.Shedding))
+            {
+                __result = true;
+                return false;
+            }
+            if (OverloadSettingsSync.Effective && logicType == LogicTypeRegistry.Overloaded)
+            {
+                __result = true;
+                return false;
+            }
+            // CycleFault is always-on (no toggle).
+            if (logicType == LogicTypeRegistry.CycleFault)
             {
                 __result = true;
                 return false;
@@ -51,13 +58,25 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch(nameof(Transformer.CanLogicWrite))]
         public static bool CanLogicWritePatch(LogicType logicType, ref bool __result)
         {
-            if (!ShedSettingsSync.Effective) return true;
-            if (logicType == LogicTypeRegistry.Priority)
+            if (ShedSettingsSync.Effective)
             {
-                __result = true;
+                if (logicType == LogicTypeRegistry.Priority)
+                {
+                    __result = true;
+                    return false;
+                }
+                if (logicType == LogicTypeRegistry.Shedding)
+                {
+                    __result = false;     // read-only
+                    return false;
+                }
+            }
+            if (OverloadSettingsSync.Effective && logicType == LogicTypeRegistry.Overloaded)
+            {
+                __result = false;     // read-only
                 return false;
             }
-            if (logicType == LogicTypeRegistry.Shedding)
+            if (logicType == LogicTypeRegistry.CycleFault)
             {
                 __result = false;     // read-only
                 return false;
@@ -68,33 +87,29 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch(nameof(Transformer.GetLogicValue))]
         public static bool GetLogicValuePatch(Transformer __instance, LogicType logicType, ref double __result)
         {
-            if (!ShedSettingsSync.Effective) return true;
-
-            if (logicType == LogicType.Setting)
+            if (ShedSettingsSync.Effective)
             {
-                // Throughput is hardcoded at OutputMaximum; surface that to IC10
-                // readers so existing scripts that read Setting expecting "the
-                // throughput cap" still get a sensible answer.
-                __result = __instance.OutputMaximum;
+                if (logicType == LogicTypeRegistry.Priority)
+                {
+                    __result = PriorityStore.GetPriority(__instance.ReferenceId);
+                    return false;
+                }
+                if (logicType == LogicTypeRegistry.Shedding)
+                {
+                    __result = BrownoutRegistry.IsShedding(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
+                        ? 1.0 : 0.0;
+                    return false;
+                }
+            }
+            if (OverloadSettingsSync.Effective && logicType == LogicTypeRegistry.Overloaded)
+            {
+                __result = OverloadRegistry.IsOverloaded(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
+                    ? 1.0 : 0.0;
                 return false;
             }
-            if (logicType == LogicType.Ratio)
+            if (logicType == LogicTypeRegistry.CycleFault)
             {
-                // Setting / OutputMaximum is meaningless when Setting is hardcoded
-                // to OutputMaximum; return 1.0 instead of 1.0 derived from the
-                // identity (saves IC10 scripts from a divide-by-zero on a freshly
-                // placed transformer with the vanilla _outputSetting = 0).
-                __result = 1.0;
-                return false;
-            }
-            if (logicType == LogicTypeRegistry.Priority)
-            {
-                __result = PriorityStore.GetPriority(__instance.ReferenceId);
-                return false;
-            }
-            if (logicType == LogicTypeRegistry.Shedding)
-            {
-                __result = BrownoutRegistry.IsShedding(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
+                __result = CycleFaultRegistry.IsCycleFaulted(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
                     ? 1.0 : 0.0;
                 return false;
             }
@@ -104,25 +119,29 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch(nameof(Transformer.SetLogicValue))]
         public static bool SetLogicValuePatch(Transformer __instance, LogicType logicType, double value)
         {
-            if (!ShedSettingsSync.Effective) return true;
-
-            // Setting writes redirect to Priority.
-            if (logicType == LogicType.Setting)
+            if (ShedSettingsSync.Effective)
             {
-                if (!NetworkManager.IsServer) return false;
-                WritePriority(__instance, value);
-                return false;
+                // LogicType.Setting writes are NOT intercepted: vanilla Transformer.SetLogicValue
+                // applies them to Setting with its own [0, OutputMaximum] clamp (POWER.md §5.3).
+
+                if (logicType == LogicTypeRegistry.Priority)
+                {
+                    if (!NetworkManager.IsServer) return false;
+                    WritePriority(__instance, value);
+                    return false;
+                }
+
+                // Shedding is read-only; silently swallow any write.
+                if (logicType == LogicTypeRegistry.Shedding)
+                    return false;
             }
 
-            if (logicType == LogicTypeRegistry.Priority)
-            {
-                if (!NetworkManager.IsServer) return false;
-                WritePriority(__instance, value);
+            // Overloaded is read-only; silently swallow any write.
+            if (OverloadSettingsSync.Effective && logicType == LogicTypeRegistry.Overloaded)
                 return false;
-            }
 
-            // Shedding is read-only; silently swallow any write.
-            if (logicType == LogicTypeRegistry.Shedding)
+            // CycleFault is read-only; silently swallow any write.
+            if (logicType == LogicTypeRegistry.CycleFault)
                 return false;
 
             return true;

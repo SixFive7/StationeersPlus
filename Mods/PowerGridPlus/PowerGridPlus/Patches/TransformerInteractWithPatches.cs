@@ -100,7 +100,7 @@ namespace PowerGridPlus.Patches
             if (dai == null || transformer == null) return;
             int p = PriorityStore.GetPriority(transformer.ReferenceId);
             AppendRawStateMessage(dai, $"Priority <color=green>{p}</color>");
-            AppendRawStateMessage(dai, $"Throughput <color=green>{transformer.OutputMaximum:0} W</color> (max, fixed)");
+            AppendRawStateMessage(dai, $"Throughput <color=green>{(float)transformer.Setting:0} W</color> of {transformer.OutputMaximum:0} W (IC10 Setting)");
             if (BrownoutRegistry.IsShedding(transformer.ReferenceId, ElectricityTickCounter.CurrentTick))
             {
                 AppendRawStateMessage(dai, "<color=#ffa500>Shedding: insufficient upstream supply this tick</color>");
@@ -178,6 +178,12 @@ namespace PowerGridPlus.Patches
             if (!(__instance is Transformer t)) return;
             try { SetKnobMethod?.Invoke(t, null); }
             catch (System.Exception e) { Plugin.Log?.LogWarning($"SetKnob on load failed for ref={t.ReferenceId}: {e.Message}"); }
+            // Operator visibility: a saved Setting of 0 means this transformer delivers nothing
+            // (Setting is the vanilla throughput cap again, POWER.md §5.3, and the in-world knob now
+            // writes Priority, so the only in-game lever for Setting is IC10). Log it so a dark
+            // subnet behind a zeroed transformer is explainable from the log.
+            if (t.Setting <= 0.0)
+                Plugin.Log?.LogInfo($"Transformer ref={t.ReferenceId} loaded with Setting = 0: it will deliver 0 W until an IC10 script raises Setting (the knob writes Priority).");
         }
 
         // Needle visual: lerp Priority -> [NeedleMinimum, NeedleMaximum] instead of
