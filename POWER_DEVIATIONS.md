@@ -514,14 +514,21 @@ OUTCOME is observable (P6 routes to Brownout-vs-Overload registry; P5 stamps a s
 `PowerActual` reflects per-transformer delivered watts), but the FIRING on built topology stays a client
 check.
 
-**Bug found, NOT a gap:** the burn-reason "Burned:" hover does not attach on a load-time tier burn
-(`pgp-pt-burnreason` reports `attachedCount=0` after a confirmed burn). The deferred end-of-frame
-wreckage spawn (P1 B+C) registers after `RegisterPending`'s cell entry is gone (world-load `ClearAll` or
-cell drift), so `_attached` is never populated. Filed in `Mods/PowerGridPlus/TODO.md`. The
-BurnReasonSideCar round-trip below cannot be confirmed until this is fixed.
+**Bug found + FIXED (2026-06-16):** the burn-reason "Burned:" hover never attached (`pgp-pt-burnreason`
+reported `attachedCount=0`). Root cause was NOT timing/cell drift as first suspected: `BurnReasonPatches`
+was missing its class-level `[HarmonyPatch]`, so `PatchAll` silently skipped all three of its patches
+(the `CableRuptured.OnRegistered` consume, the `Structure.GetPassiveTooltip` "Burned:" line, the Tooltip
+re-apply) -- the same trap that once hid `TransformerHoverErrorPatches`. Added the attribute; re-verified
+on the load-time tier burn: the wreckage registers at the burned cell, `consumeHit=True`,
+`attachedCount=1`, `GetAttached` returns "Wrong voltage...". This fixes both the live and load-time burn
+paths. The on-screen wreckage hover + the BurnReasonSideCar round-trip remain client checks but are now
+unblocked.
 
-**Finding:** the flash component attaches to Battery and APC but `DiscoverRenderers` finds 0 renderers on
-those prefabs, so the pulse is invisible on them (hover still works). Filed in `TODO.md`.
+**Finding + FIXED (2026-06-16):** the flash component attached to Battery and APC but `DiscoverRenderers`
+found 0 renderers, so the pulse was invisible on them. Extended the name-fallback to the APC `MasterLever`,
+the nuclear battery `Indic0NoShadow`, and the stationary battery body (reached only when the on/off-button
+path fails, so transformers are unaffected); `pgp-pt-flash-all` now reports renderers>0 on all three. The
+eyes-on pulse confirm remains a client check.
 
 ### Irreducible client residue (in `Mods/PowerGridPlus/PLAYTEST.md`, grouped to minimize reloads)
 
@@ -530,8 +537,8 @@ those prefabs, so the pulse is invisible on them (hover still works). Filed in `
   proportional split, and cycle-fault on built anti-parallel transformers.
 - Client-side mirror, join handshake mid-fault, OFF-as-reset from a client, and all 2-peer sync
   (the in-process serializer/state-machine paths are verified; only the live transport is not).
-- Live in-play wrong-tier burn + burn-reason hover (once the load-time bug is fixed) + cursor rejects.
-- BurnReasonSideCar round-trip (blocked on the burn-reason bug) and mod-removal safety.
+- Live in-play wrong-tier burn + burn-reason hover (attach fixed + verified headlessly) + cursor rejects.
+- BurnReasonSideCar round-trip (burn -> save -> reload -> hover intact; now unblocked) and mod-removal safety.
 - Rocket umbilical rate caps + LogicTypes against a docked rocket.
 - The unknown-producer cable-burn fallback (needs an unclassified modded producer).
 - Emergency-light behavior (uninstall the third-party Battery Backup Light mod first) + prefab list.

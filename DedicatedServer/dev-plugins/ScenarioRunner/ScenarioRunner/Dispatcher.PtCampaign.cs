@@ -1042,6 +1042,61 @@ namespace ScenarioRunner
                         }
                 }
                 else { _log?.LogInfo("[ScenarioRunner] PTBURN: SnapshotAttached method not found."); }
+
+                // --- disambiguation: is the OnRegistered postfix attached? ---
+                var crType = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+                    .FirstOrDefault(tp => tp.FullName == "Assets.Scripts.Objects.Electrical.CableRuptured");
+                var onReg = crType?.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .FirstOrDefault(m => m.Name == "OnRegistered");
+                bool postfixAttached = false;
+                if (onReg != null)
+                {
+                    var info = HarmonyLib.Harmony.GetPatchInfo(onReg);
+                    if (info?.Postfixes != null)
+                        foreach (var p in info.Postfixes)
+                            if ((p.owner ?? "").IndexOf("powergridplus", StringComparison.OrdinalIgnoreCase) >= 0) postfixAttached = true;
+                }
+                _log?.LogInfo($"[ScenarioRunner] PTBURN postfixAttached(CableRuptured.OnRegistered)={postfixAttached} onRegResolved={onReg != null} (declaringType={onReg?.DeclaringType?.Name})");
+
+                // --- dump _pendingByCell + scan CableRuptured cells ---
+                var brType2 = asm.GetType("PowerGridPlus.BurnReasonRegistry");
+                var pendField = brType2?.GetField("_pendingByCell", BindingFlags.NonPublic | BindingFlags.Static);
+                var pendEnum = pendField?.GetValue(null) as System.Collections.IEnumerable;
+                var pendCells = new List<string>();
+                if (pendEnum != null)
+                    foreach (var kv in pendEnum)
+                    {
+                        var k = kv.GetType().GetProperty("Key")?.GetValue(kv);
+                        var v = kv.GetType().GetProperty("Value")?.GetValue(kv) as string;
+                        pendCells.Add(k?.ToString() ?? "?");
+                        _log?.LogInfo($"[ScenarioRunner] PTBURN pending cell={k} reason='{v}'");
+                    }
+                int crCount = 0; var crCells = new List<string>();
+                OcclusionManager.AllThings.ForEach(t =>
+                {
+                    if (t == null || t.GetType().Name != "CableRuptured") return;
+                    crCount++;
+                    var lg = t.GetType().GetProperty("LocalGrid")?.GetValue(t);
+                    crCells.Add(lg?.ToString() ?? "?");
+                });
+                _log?.LogInfo($"[ScenarioRunner] PTBURN CableRupturedInWorld={crCount}");
+                foreach (var pc in pendCells)
+                    _log?.LogInfo($"[ScenarioRunner] PTBURN pending cell {pc} hasCableRupturedAtSameCell={crCells.Contains(pc)}");
+
+                // --- bug 2 verification: flash renderers discovered on Battery / APC / nuclear ---
+                var flashType2 = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
+                var rField = flashType2?.GetField("_renderers", BindingFlags.NonPublic | BindingFlags.Instance);
+                foreach (var cn in new[] { "Battery", "AreaPowerControl", "StationBatteryNuclear" })
+                {
+                    var th = FirstThingAssignableTo(cn) ?? FirstThing(cn);
+                    if (th == null) continue;
+                    object beh = null; try { beh = th.GetComponent(flashType2); } catch { }
+                    int rc = -1;
+                    if (beh != null) { var arr = rField?.GetValue(beh) as Array; rc = arr?.Length ?? 0; }
+                    _log?.LogInfo($"[ScenarioRunner] PTBURN flash {cn} ref={th.ReferenceId} type={th.GetType().Name} attached={beh != null} renderers={rc} (bug2: renderers>0 = fixed)");
+                }
+
                 _log?.LogInfo($"[ScenarioRunner] PTBURN END attachedCount={attachedCount} matchedCableRuptured={matchedCableRuptured} getAttachedNonEmpty={getAttachedNonEmpty} (attachedCount=0 => RegisterPending->wreckage consume failed; attached>0 but matched=0 => refId/Find mismatch)");
             }
             catch (Exception e) { _log?.LogError($"[ScenarioRunner] PTBURN threw: {e}"); }
