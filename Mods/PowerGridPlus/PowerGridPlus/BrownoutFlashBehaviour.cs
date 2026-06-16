@@ -100,18 +100,43 @@ namespace PowerGridPlus
                 }
             }
 
-            // (2) Name-substring fallback for prefab variants whose Interactable doesn't
-            // have its own renderer subtree.
+            // (2) Name-substring fallback for prefab variants whose Interactable doesn't have its own
+            // renderer subtree. Covers the switch/lever/indicator geometry the player reads as the
+            // device's state: the APC's MasterLever, the nuclear battery's Indic0NoShadow, plus the
+            // generic on/off button / LED names. This branch is reached ONLY when (1) found nothing,
+            // which excludes transformers (they resolve via the OnOff Interactable), so the green-LED
+            // cabinet wash that motivated avoiding a broad tint cannot occur here.
             var all = device.GetComponentsInChildren<MeshRenderer>();
+            string[] indicatorNames =
+            {
+                "OnOff", "Button", "Switch", "Lever", "Indic", "Led", "Light", "Lamp",
+                "Display", "Screen", "Status", "Meter", "Glow", "Emissive"
+            };
             var preferred = System.Array.FindAll(all, r =>
             {
                 var n = r != null && r.gameObject != null ? r.gameObject.name : null;
                 if (string.IsNullOrEmpty(n)) return false;
-                return n.IndexOf("OnOff", System.StringComparison.OrdinalIgnoreCase) >= 0
-                    || n.IndexOf("Button", System.StringComparison.OrdinalIgnoreCase) >= 0
-                    || n.IndexOf("Switch", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                for (int k = 0; k < indicatorNames.Length; k++)
+                    if (n.IndexOf(indicatorNames[k], System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                return false;
             });
-            return preferred;
+            if (preferred.Length > 0) return preferred;
+
+            // (3) Last resort for a device with no dedicated indicator (a stationary battery exposes
+            // only its body + broken-state meshes): flash the primary body mesh so the fault is at
+            // least visible. Prefer the active built-state body (named "BuildState..." or after the
+            // prefab); skip the BrokenState meshes (inactive on an intact device). Reached only after
+            // (1) and (2) both fail, i.e. Battery / APC-without-lever, never a transformer.
+            var body = System.Array.Find(all, r =>
+            {
+                var n = r != null && r.gameObject != null ? r.gameObject.name : null;
+                if (string.IsNullOrEmpty(n)) return false;
+                if (n.IndexOf("Broken", System.StringComparison.OrdinalIgnoreCase) >= 0) return false;
+                return n.IndexOf("BuildState", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || (device.PrefabName != null && n == device.PrefabName);
+            });
+            return body != null ? new[] { body } : new MeshRenderer[0];
         }
 
         private void CacheBaseline()

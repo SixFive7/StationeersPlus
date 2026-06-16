@@ -10,6 +10,13 @@ namespace PowerGridPlus.Patches
     ///     caller in <see cref="BurnReasonRegistry"/> just before invoking <see cref="Cable.Break"/>) gets
     ///     attached to the freshly-spawned wreckage; and patches the wreckage's hover tooltip to show it.
     /// </summary>
+    // Class-level [HarmonyPatch] is REQUIRED for PatchAll to process the per-method patches below:
+    // this class targets three different methods, so it cannot put a single target on the class; the
+    // bare marker tells PatchAll to apply each method's own [HarmonyPatch(target)]. Without it the whole
+    // class is silently skipped and none of the three postfixes attach (the same trap that hid
+    // TransformerHoverErrorPatches). Confirmed via ScenarioRunner: GetPatchInfo(CableRuptured.OnRegistered)
+    // had no PGP postfix until this attribute was added.
+    [HarmonyPatch]
     public static class BurnReasonPatches
     {
         // CableRuptured.OnRegistered runs synchronously inside Cable.Break -> Constructor.SpawnConstruct ->
