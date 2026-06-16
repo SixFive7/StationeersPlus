@@ -66,50 +66,55 @@ namespace PowerGridPlus.Patches
         }
 
         /// <summary>
-        ///     Effective per-tick charge cap = min(configured per-prefab cap, input cable MaxVoltage).
-        ///     A battery has no pass-through, so the cable spare is just MaxVoltage.
+        ///     Effective per-tick charge cap = min(configured per-prefab cap, input cable tier cap).
+        ///     A battery has no pass-through, so the cable spare is just the tier cap. Cable caps come
+        ///     from <see cref="CableMax"/> (runtime per-tier settings, NOT the serialized per-instance
+        ///     MaxVoltage field; POWER.md §0.2 non-mutating decision).
         /// </summary>
         internal static float EffectiveChargeCap(Battery battery)
         {
             float cap = GetChargeCap(battery);
             if (cap <= 0f) return 0f;
-
-            var cable = battery.InputConnection?.GetCable();
-            if (cable == null) return cap;
-            float maxVoltage = cable.MaxVoltage;
-            if (maxVoltage <= 0f) return 0f;
-
-            return Mathf.Min(cap, maxVoltage);
+            return Mathf.Min(cap, CableMax.For(battery.InputConnection?.GetCable()));
         }
 
         /// <summary>
-        ///     Effective per-tick discharge cap = min(configured per-prefab cap, output cable MaxVoltage).
+        ///     Effective per-tick discharge cap = min(configured per-prefab cap, output cable tier cap).
         /// </summary>
         internal static float EffectiveDischargeCap(Battery battery)
         {
             float cap = GetDischargeCap(battery);
             if (cap <= 0f) return 0f;
-
-            var cable = battery.OutputConnection?.GetCable();
-            if (cable == null) return cap;
-            float maxVoltage = cable.MaxVoltage;
-            if (maxVoltage <= 0f) return 0f;
-
-            return Mathf.Min(cap, maxVoltage);
+            return Mathf.Min(cap, CableMax.For(battery.OutputConnection?.GetCable()));
         }
 
         [HarmonyPostfix, HarmonyPatch(nameof(Battery.GetUsedPower))]
         public static void LimitMaxChargeRate(Battery __instance, ref float __result)
         {
-            if (!Settings.EnableBatteryLimits.Value) return;
-            __result = Mathf.Min(__result, EffectiveChargeCap(__instance));
+            // Clamp a non-finite value at the source before the Min logic (Mathf.Min(NaN, cap) would
+            // silently return the cap instead of flagging the broken device).
+            __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: false);
+            if (Settings.EnableBatteryLimits.Value)
+                __result = Mathf.Min(__result, EffectiveChargeCap(__instance));
+            // Elastic charge demand (POWER.md §7.4 / §9.5): the surplus walk allocates each battery a
+            // per-tick charge share; the reported demand caps to it so vanilla never sees soft demand
+            // beyond what the grid's surplus covers. Falls back to the rate-capped value when no fresh
+            // share exists (first ticks after load).
+            if (__result > 0f && SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var share))
+                __result = Mathf.Min(__result, share);
         }
 
         [HarmonyPostfix, HarmonyPatch(nameof(Battery.GetGeneratedPower))]
         public static void LimitMaxDischargeRate(Battery __instance, ref float __result)
         {
-            if (!Settings.EnableBatteryLimits.Value) return;
-            __result = Mathf.Min(__result, EffectiveDischargeCap(__instance));
+            __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: true);
+            if (Settings.EnableBatteryLimits.Value)
+                __result = Mathf.Min(__result, EffectiveDischargeCap(__instance));
+            // Elastic discharge (POWER.md §7.3.0.1): clamp to the allocator's per-tick share so the
+            // battery delivers only the rigid shortfall it was allocated, never raw PowerStored.
+            // GetShare returns float.MaxValue when no fresh share exists (fallback to vanilla).
+            if (__result > 0f)
+                __result = Mathf.Min(__result, SoftSupplyShareCache.GetShare(__instance.ReferenceId));
         }
 
         [HarmonyPrefix, HarmonyPatch(nameof(Battery.ReceivePower))]

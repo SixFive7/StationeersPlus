@@ -50,7 +50,9 @@ namespace PowerGridPlus.Patches
 
             var inputCable = apc.InputConnection?.GetCable();
             if (inputCable == null) return configCap;
-            float maxVoltage = inputCable.MaxVoltage;
+            // Runtime per-tier cap (CableMax), not the serialized per-instance MaxVoltage
+            // (POWER.md §0.2 non-mutating decision).
+            float maxVoltage = CableMax.For(inputCable);
             if (maxVoltage <= 0f) return 0f;
 
             // Per-APC pass-through: last tick's powerUsed routed through THIS APC. Falls back to 0
@@ -125,12 +127,53 @@ namespace PowerGridPlus.Patches
                 if ((bool)__instance.Battery && !__instance.Battery.IsCharged)
                 {
                     float chargeCap = ComputeChargeCap(__instance);
-                    usedPower += Mathf.Min(chargeCap, __instance.Battery.PowerDelta);
+                    float chargePortion = Mathf.Min(chargeCap, __instance.Battery.PowerDelta);
+                    // Elastic charge (POWER.md §7.5 / §9.5): the surplus walk allocates the APC's
+                    // internal-cell charge a per-tick share; only the CHARGE portion caps to it, the
+                    // passthrough (_powerProvided) stays rigid.
+                    if (chargePortion > 0f && SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var share))
+                        chargePortion = Mathf.Min(chargePortion, share);
+                    usedPower += chargePortion;
                 }
             }
 
             __result = usedPower;
             return false;
+        }
+
+        // ------------------------------------------------------------------
+        // Soft-power LogicTypes (POWERTODO 0.2.7.5): MaxChargeSpeed / MaxDischargeSpeed report the
+        // configured caps; ChargeSpeed / DischargeSpeed report the live allocator shares (the same
+        // cache values Phase 2 writes; not latched). APC declares its own CanLogicRead /
+        // GetLogicValue, so the patches attach per-class without the inherited-method trap.
+        // ------------------------------------------------------------------
+
+        [HarmonyPostfix, HarmonyPatch(nameof(AreaPowerControl.CanLogicRead))]
+        public static void CanLogicRead_Postfix(Assets.Scripts.Objects.Motherboards.LogicType logicType, ref bool __result)
+        {
+            if (logicType == LogicTypeRegistry.MaxChargeSpeed
+                || logicType == LogicTypeRegistry.MaxDischargeSpeed
+                || logicType == LogicTypeRegistry.ChargeSpeed
+                || logicType == LogicTypeRegistry.DischargeSpeed)
+                __result = true;
+        }
+
+        [HarmonyPostfix, HarmonyPatch(nameof(AreaPowerControl.GetLogicValue))]
+        public static void GetLogicValue_Postfix(AreaPowerControl __instance, Assets.Scripts.Objects.Motherboards.LogicType logicType, ref double __result)
+        {
+            if (logicType == LogicTypeRegistry.MaxChargeSpeed)
+                __result = ComputeChargeCap(__instance);
+            else if (logicType == LogicTypeRegistry.MaxDischargeSpeed)
+                __result = ApcDischargeRateRegistry.GetDischargeRate(__instance.ReferenceId);
+            else if (logicType == LogicTypeRegistry.ChargeSpeed)
+                __result = SoftDemandShareCache.GetActualOrZero(__instance.ReferenceId);
+            else if (logicType == LogicTypeRegistry.DischargeSpeed)
+            {
+                // CELL-ONLY discharge rate, consistent with battery / umbilical DischargeSpeed (P9). The
+                // allocator stamps the APC cell's elastic share into ApcCellDischargeCache, separate from
+                // the bundled SoftSupplyShareCache entry that feeds the GetGeneratedPower surface.
+                __result = ApcCellDischargeCache.GetActualOrZero(__instance.ReferenceId);
+            }
         }
 
         /// <summary>
@@ -141,17 +184,23 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix, HarmonyPatch(nameof(AreaPowerControl.GetGeneratedPower))]
         public static void GetGeneratedPowerPatch(CableNetwork cableNetwork, AreaPowerControl __instance, ref float __result)
         {
+            __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: true);
             if (!Settings.EnableAreaPowerControlFix.Value) return;
             if (__instance.OutputNetwork == null || cableNetwork != __instance.OutputNetwork) return;
             if (__result <= 0f) return;
 
             var outputCable = __instance.OutputConnection?.GetCable();
             if (outputCable == null) return;
-            float maxVoltage = outputCable.MaxVoltage;
+            float maxVoltage = CableMax.For(outputCable);
             if (maxVoltage <= 0f) { __result = 0f; return; }
 
             if (__result > maxVoltage)
                 __result = maxVoltage;
+
+            // Elastic supply (POWER.md §7.3.0.1): vanilla AvailablePower bundles passthrough + cell,
+            // so the allocator writes the APC's share as committed passthrough + soft grant-through +
+            // the cell's elastic discharge share. Stale share = float.MaxValue (vanilla fallback).
+            __result = Mathf.Min(__result, SoftSupplyShareCache.GetShare(__instance.ReferenceId));
         }
     }
 }

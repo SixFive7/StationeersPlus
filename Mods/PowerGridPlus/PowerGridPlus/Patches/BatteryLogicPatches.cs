@@ -1,7 +1,8 @@
 // Derived from Re-Volt by Sukasa (https://github.com/sukasa/revolt), MIT License (Copyright (c) 2025 Sukasa).
-// Power Grid Plus adjustments (2026-05-28): ExportQuantity / ImportQuantity now return the effective
-// per-prefab caps from StationaryBatteryPatches (absolute W, possibly reduced by cable MaxVoltage)
-// rather than the old fraction-of-PowerMaximum value.
+// Power Grid Plus (2026-06-09): the prior repurpose of vanilla ExportQuantity (31) / ImportQuantity (29)
+// is REMOVED (breaking change for legacy IC10 scripts that read those slots on a battery). Replaced with
+// the four dedicated PGP soft-power LogicTypes: MaxChargeSpeed / MaxDischargeSpeed (configured caps) and
+// ChargeSpeed / DischargeSpeed (actual rate this tick after elastic allocation). See POWERTODO 0.2.7.2.
 
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
@@ -10,8 +11,11 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Exposes a stationary battery's effective charge-rate limit (Import Quantity) and
-    ///     discharge-rate limit (Export Quantity) as logic values, in displayed watts.
+    ///     Exposes a stationary battery's configured charge/discharge-rate caps (MaxChargeSpeed /
+    ///     MaxDischargeSpeed) and the actual per-tick rates after elastic allocation (ChargeSpeed /
+    ///     DischargeSpeed) as read-only logic values, in watts. ChargeSpeed / DischargeSpeed read the
+    ///     soft-power caches; until the allocator's elastic pass populates them they report 0 (see
+    ///     POWER_DEVIATIONS.md).
     /// </summary>
     [HarmonyPatch(typeof(Battery))]
     public static class BatteryLogicPatches
@@ -22,7 +26,10 @@ namespace PowerGridPlus.Patches
             if (!Settings.EnableBatteryLogicAdditions.Value)
                 return true;
 
-            if (logicType == LogicType.ExportQuantity || logicType == LogicType.ImportQuantity)
+            if (logicType == LogicTypeRegistry.MaxChargeSpeed
+                || logicType == LogicTypeRegistry.MaxDischargeSpeed
+                || logicType == LogicTypeRegistry.ChargeSpeed
+                || logicType == LogicTypeRegistry.DischargeSpeed)
             {
                 __result = true;
                 return false;
@@ -37,20 +44,28 @@ namespace PowerGridPlus.Patches
             if (!Settings.EnableBatteryLogicAdditions.Value)
                 return true;
 
-            switch (logicType)
+            if (logicType == LogicTypeRegistry.MaxChargeSpeed)
             {
-                case LogicType.ExportQuantity:
-                    // Configured cap (intent), not effective (capacity). A broken cable temporarily
-                    // forces effective to 0; the IC10 reading should still reflect what the battery
-                    // is designed to do so automation doesn't see a phantom 0.
-                    __result = StationaryBatteryPatches.GetDischargeCap(__instance);
-                    return false;
-                case LogicType.ImportQuantity:
-                    __result = StationaryBatteryPatches.GetChargeCap(__instance);
-                    return false;
-                default:
-                    return true;
+                __result = StationaryBatteryPatches.GetChargeCap(__instance);
+                return false;
             }
+            if (logicType == LogicTypeRegistry.MaxDischargeSpeed)
+            {
+                __result = StationaryBatteryPatches.GetDischargeCap(__instance);
+                return false;
+            }
+            if (logicType == LogicTypeRegistry.ChargeSpeed)
+            {
+                __result = SoftDemandShareCache.GetActualOrZero(__instance.ReferenceId);
+                return false;
+            }
+            if (logicType == LogicTypeRegistry.DischargeSpeed)
+            {
+                __result = SoftSupplyShareCache.GetActualOrZero(__instance.ReferenceId);
+                return false;
+            }
+
+            return true;
         }
     }
 }
