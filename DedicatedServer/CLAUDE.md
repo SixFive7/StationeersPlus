@@ -17,11 +17,31 @@ The **client save folder** (path in `DEV.md`) remains tier-1 off-limits uncondit
 
 Restoring a save under test, end-to-end:
 
-1. Developer drops the source save tree under, for example, `C:\Users\jori\Downloads\<SaveName>\`.
-2. Agent copies that folder into `DedicatedServer/data/saves/<SaveName>/`, overwriting the existing destination if any.
+1. Developer drops the source save under, for example, `C:\Users\jori\Downloads\<Something>\`. The source is usually a single `.save` ZIP file, sometimes a folder containing that `.save` plus sibling `autosave/` / `manualsave/` / `quicksave/` directories.
+2. Agent stages it under `DedicatedServer/data/saves/<SaveName>/` in the **mandatory format below**.
 3. Agent runs `-Start -Load <SaveName> -Map <Map>`.
 
 If the developer has not placed a save anywhere and a test asks for `-Start -Load`, that command will fail. Either ask the developer to provide the save, or use `-Start -New <Map>` to start a fresh world (the dedicated server creates that file inside `data/saves/` itself).
+
+**Save layout is non-obvious. Get this wrong and the loader fails with `.save file not found at <path>`.** What goes on disk:
+
+```
+DedicatedServer/data/saves/<SaveName>/
+    <SaveName>.save           <-- the ZIP archive (the SAME ZIP the developer handed off). Filename basename MUST match the folder name.
+    autosave/                 <-- optional, ignored if absent
+        <SaveName>.save
+    manualsave/               <-- optional
+    quicksave/                <-- optional
+```
+
+- **The `.save` file IS the ZIP archive.** Do NOT extract it into `world.xml` + sidecars under the folder; the loader does not read loose XML files. (Quick sanity check: extracting the ZIP produces `world.xml`, `world_meta.xml`, `terrain.dat`, `preview.png`, plus mod sidecars like `pwrgridplus-passthrough.xml`. If THAT is what is sitting in the folder, the layout is wrong.)
+- **The filename basename must match `<SaveName>`** (the argument you pass to `-Load`). The dedi looks for `<SaveName>/<SaveName>.save`. A folder named `Luna_pgp_test/` containing `Luna.save` will not load; the file must be named `Luna_pgp_test.save`. Rename when staging.
+- **Source-shape recipes** (assume source at `$src`, destination `$dest = DedicatedServer/data/saves/<SaveName>/`):
+  - Source is `<src>\Luna.save` (single ZIP file): `mkdir $dest && cp $src $dest/<SaveName>.save`. Rename on copy.
+  - Source is `<src>\<SaveName>\` (a folder already shaped like a save tree, with `<SaveName>.save` inside): copy the folder contents directly: `mkdir $dest && cp -r $src/* $dest/`. No rename needed.
+  - Source is `<src>\<SomeOtherName>\<SomeOtherName>.save` etc.: copy in then rename `<SomeOtherName>.save` to `<SaveName>.save` inside the destination.
+
+Look at an existing dedi save folder (`Luna/`, `APC-Luna/`, etc.) as the reference: each contains a same-named `.save` ZIP plus optional autosave-family siblings, nothing else.
 
 ## Version coupling with the client
 

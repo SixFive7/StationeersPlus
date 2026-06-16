@@ -133,6 +133,10 @@ namespace ScenarioRunner
                     Scenario_PgpCableBurnProbe();
                     return;
 
+                case "pgp-cable-burn-window-probe":
+                    Scenario_PgpCableBurnWindowProbe();
+                    return;
+
                 case "pgp-tooltip-filter-probe":
                     Scenario_PgpTooltipFilterProbe();
                     return;
@@ -191,6 +195,40 @@ namespace ScenarioRunner
 
                 case "pgp-r1-prepare":
                     Scenario_PgpR1Prepare();
+                    return;
+
+                case "pgp-power-flow-diagnose":
+                    Scenario_PgpPowerFlowDiagnose();
+                    return;
+
+                case "pgp-shed-trace":
+                    Scenario_PgpShedTrace();
+                    return;
+
+                case "pgp-atomic-probe":
+                    Scenario_PgpAtomicProbe();
+                    return;
+
+                case "pgp-overload-probe":
+                    Scenario_PgpOverloadProbe();
+                    return;
+
+                case "pgp-fault-state-probe":
+                    Scenario_PgpFaultStateProbe();
+                    return;
+
+                case "pgp-shortfall-net-probe":
+                    Scenario_PgpFaultStateProbe();
+                    Scenario_PgpShortfallNetProbe();
+                    return;
+
+                case "pgp-atomic-all":
+                    // Runs the synthetic probes one-shot (internally gated)
+                    // PLUS the multi-tick live trace against Luna.save. Both
+                    // are called every tick; the synthetic block self-skips
+                    // after the first call, the trace advances per-tick.
+                    Scenario_PgpAtomicAll();
+                    Scenario_PgpShedTrace();
                     return;
 
                 case "ptp-autoaim-cache-probe":
@@ -753,6 +791,159 @@ namespace ScenarioRunner
                     $"[ScenarioRunner] TC tick={_ticksSeen} ref={t.ReferenceId} " +
                     $"prefab={t.PrefabName} OnOff={t.OnOff} Setting={t.Setting} " +
                     $"UsedPower={t.UsedPower} InCurrentLoad={inLoad} OutCurrentLoad={outLoad}");
+            }
+        }
+
+        // PGP scenario: fault-state-probe.
+        // Every 10 ticks, log the four PGP fault-registry counts (shed / overload / cycle / VVF) plus the
+        // live segmenter count and a fresh re-run of CycleGraphBuilder.FindCycleFaultedSegmenters(). On an
+        // acyclic grid (e.g. a normal Luna base) cycleDetectNow MUST be 0 -- a non-zero value would mean the
+        // directed-SCC cycle detector is producing a false positive (e.g. on parallel transformers/batteries).
+        // vvf > 0 reveals producer-isolation violations baked into the loaded base (a producer wired straight
+        // to a consumer with no transformer). All reads are managed-state only, safe on the sim-tick thread.
+
+        private static int _fsLastLogTick = int.MinValue;
+        private const int FS_LOG_EVERY_TICKS = 10;
+
+        private static void Scenario_PgpFaultStateProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-fault-state-probe")) return;
+            if (_ticksSeen - _fsLastLogTick < FS_LOG_EVERY_TICKS) return;
+            _fsLastLogTick = (int)_ticksSeen;
+
+            var asm = GetModAssembly(PGP_ASSEMBLY);
+            int shed = ReadPgpStaticIntProp(asm, "PowerGridPlus.BrownoutRegistry", "LockoutCount");
+            int over = ReadPgpStaticIntProp(asm, "PowerGridPlus.OverloadRegistry", "LockoutCount");
+            int cycle = ReadPgpStaticIntProp(asm, "PowerGridPlus.CycleFaultRegistry", "LockoutCount");
+            int vvf = ReadPgpStaticIntProp(asm, "PowerGridPlus.VariableVoltageFaultRegistry", "LockoutCount");
+            int segCount = InvokePgpStaticCollectionCount(asm, "PowerGridPlus.SegmentingDeviceRegistry", "EnumerateSorted");
+            int cycleNow = InvokePgpStaticCollectionCount(asm, "PowerGridPlus.CycleGraphBuilder", "FindCycleFaultedSegmenters");
+
+            _log?.LogInfo(
+                $"[ScenarioRunner] FAULT-STATE tick={_ticksSeen} segmenters={segCount} cycleDetectNow={cycleNow} " +
+                $"| registry: shed={shed} overload={over} cycle={cycle} vvf={vvf}");
+        }
+
+        // PGP scenario: shortfall-net-probe. One-shot (first qualifying tick after warmup): for every
+        // cable network whose fresh PowerTick state shows unmet rigid demand, log the device-type
+        // composition and every segmenting device touching the net (which side, OnOff, per-fault
+        // registry state via PGP reflection), so "why is this network dark" is answerable from the log.
+        private static bool _shortfallLogged;
+
+        private static void Scenario_PgpShortfallNetProbe()
+        {
+            if (_shortfallLogged) return;
+            if (_ticksSeen < _delayTicks + 12) return;   // let the grid settle a few ticks past warmup
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-shortfall-net-probe")) return;
+            _shortfallLogged = true;
+
+            var asm = GetModAssembly(PGP_ASSEMBLY);
+            var registries = new (string label, string type)[]
+            {
+                ("shed", "PowerGridPlus.BrownoutRegistry"),
+                ("overload", "PowerGridPlus.OverloadRegistry"),
+                ("cycle", "PowerGridPlus.CycleFaultRegistry"),
+                ("vvf", "PowerGridPlus.VariableVoltageFaultRegistry"),
+            };
+
+            int reported = 0;
+            Assets.Scripts.Networks.CableNetwork.AllCableNetworks.ForEach(net =>
+            {
+                if (net == null || reported >= 14) return;
+                var pt = net.PowerTick;
+                if (pt == null) return;
+                float required = pt.Required;
+                float potential = pt.Potential;
+                if (required <= potential + 0.5f) return;
+                reported++;
+
+                var typeTally = new System.Collections.Generic.Dictionary<string, int>();
+                var segLines = new System.Collections.Generic.List<string>();
+                lock (net.PowerDeviceList)
+                {
+                    for (int i = 0; i < net.PowerDeviceList.Count; i++)
+                    {
+                        var d = net.PowerDeviceList[i];
+                        if (d == null) continue;
+                        string tn = d.GetType().Name;
+                        typeTally.TryGetValue(tn, out var c);
+                        typeTally[tn] = c + 1;
+                        if (d is Assets.Scripts.Objects.Electrical.ElectricalInputOutput eio)
+                        {
+                            string side = eio.InputNetwork == net && eio.OutputNetwork == net ? "BOTH"
+                                : eio.InputNetwork == net ? "in" : eio.OutputNetwork == net ? "out" : "?";
+                            var faults = new System.Collections.Generic.List<string>();
+                            foreach (var (label, type) in registries)
+                            {
+                                if (PgpIsLocked(asm, type, eio.ReferenceId)) faults.Add(label);
+                            }
+                            segLines.Add($"      seg {tn} ref={eio.ReferenceId} side={side} on={eio.OnOff} " +
+                                         $"faults=[{string.Join(",", faults)}]");
+                        }
+                    }
+                }
+                var tallyText = new System.Text.StringBuilder();
+                foreach (var kv in typeTally) tallyText.Append(kv.Key).Append("x").Append(kv.Value).Append(" ");
+                _log?.LogInfo($"[ScenarioRunner] SHORTFALL net={net.ReferenceId} req={required:0} pot={potential:0} " +
+                              $"devices: {tallyText}");
+                foreach (var line in segLines) _log?.LogInfo($"[ScenarioRunner] {line}");
+            });
+            _log?.LogInfo($"[ScenarioRunner] SHORTFALL probe complete ({reported} undersupplied net(s) reported, cap 14).");
+        }
+
+        // Reflection helper: call the registry's client-aware bool reader (IsShedding / IsOverloaded /
+        // IsCycleFaulted / IsVariableVoltageFaulted or IsLockedOut(long, int)) for a refId at the
+        // current PGP tick.
+        private static bool PgpIsLocked(System.Reflection.Assembly asm, string typeName, long refId)
+        {
+            try
+            {
+                var t = asm?.GetType(typeName);
+                if (t == null) return false;
+                var tickType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
+                var tickProp = tickType?.GetProperty("CurrentTick",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                int tick = tickProp?.GetValue(null) is int i ? i : 0;
+                foreach (var name in new[] { "IsShedding", "IsOverloaded", "IsCycleFaulted", "IsVariableVoltageFaulted", "IsLockedOut" })
+                {
+                    var m = t.GetMethod(name,
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                        null, new[] { typeof(long), typeof(int) }, null);
+                    if (m == null) continue;
+                    return m.Invoke(null, new object[] { refId, tick }) is bool b && b;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static int ReadPgpStaticIntProp(System.Reflection.Assembly asm, string typeName, string propName)
+        {
+            try
+            {
+                var t = asm?.GetType(typeName);
+                var p = t?.GetProperty(propName, System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var v = p?.GetValue(null);
+                return v is int i ? i : -1;
+            }
+            catch { return -1; }
+        }
+
+        private static int InvokePgpStaticCollectionCount(System.Reflection.Assembly asm, string typeName, string methodName)
+        {
+            try
+            {
+                var t = asm?.GetType(typeName);
+                var m = t?.GetMethod(methodName, System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var result = m?.Invoke(null, null) as System.Collections.ICollection;
+                return result?.Count ?? -1;
+            }
+            catch (System.Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] FAULT-STATE invoke {methodName} threw: {e.InnerException?.Message ?? e.Message}");
+                return -1;
             }
         }
 

@@ -7,6 +7,7 @@ using System.Reflection;
 using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Networking;
+using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Motherboards;
@@ -457,15 +458,17 @@ namespace ScenarioRunner
                 else
                 { _log?.LogError($"[ScenarioRunner] HP P1 FAIL: baseline tooltip already mentions 'Shedding': {Truncate(extendedBaseline, 200)}"); failCount++; }
 
-                // ---- P2: force shed via two consecutive shortfalls ----
-                noteShortfall?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow });
-                noteShortfall?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow + 1 });
-                bool sheddingNow = (bool)(isShedding?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow + 1 }) ?? false);
+                // ---- P2: force shed via single NoteShed (instant lockout) ----
+                var noteShed = brownoutType.GetMethod("NoteShed",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                noteShed?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow });
+                bool sheddingNow = (bool)(isShedding?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow }) ?? false);
                 totalChecks++;
                 if (sheddingNow)
-                { _log?.LogInfo($"[ScenarioRunner] HP P2 PASS: BrownoutRegistry reports IsShedding=true after 2x NoteShortfall on ref={sampleT.ReferenceId}."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] HP P2 PASS: BrownoutRegistry reports IsShedding=true after 1x NoteShed on ref={sampleT.ReferenceId} (instant lockout)."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P2 FAIL: IsShedding=false after 2x NoteShortfall on ref={sampleT.ReferenceId}."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P2 FAIL: IsShedding=false after 1x NoteShed on ref={sampleT.ReferenceId}."); failCount++; }
 
                 // ---- P3: tooltip via real virtual-dispatch call (the path the game uses) ----
                 int currentTickAtCall = (int)(currentTickProp?.GetValue(null) ?? 0);
@@ -1399,6 +1402,292 @@ namespace ScenarioRunner
         }
 
         // ============================================================
+        // Scenario: pgp-power-flow-diagnose (regression triage)
+        // ------------------------------------------------------------
+        // For a specified target device reference id, walks the cable
+        // network it's on, logs the network's PotentialLoad / CurrentLoad
+        // / RequiredLoad, and recursively walks UPSTREAM through any
+        // transformer found on the network. For every transformer in the
+        // chain, logs its OnOff / Error / Priority / allocated supply /
+        // both networks' loads. Used to debug "transformer chain doesn't
+        // bootstrap" regressions in the demand-driven allocator.
+        //
+        // Target device id is hardcoded -- edit `_pfdTargetRef` and rebuild.
+        // ============================================================
+        private static bool _pfdFired;
+        private const long _pfdTargetRef = 468558L;
+        private const int _pfdMaxHops = 6;
+
+        private static void Scenario_PgpPowerFlowDiagnose()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-power-flow-diagnose")) return;
+            if (_pfdFired) return;
+            _pfdFired = true;
+
+            try
+            {
+                _log?.LogInfo($"[ScenarioRunner] PFD START target ref={_pfdTargetRef}");
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                if (asm == null) { _log?.LogError("[ScenarioRunner] PFD no PGP assembly"); return; }
+
+                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
+                var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
+                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
+                var getAlloc = allocatorType?.GetMethod("GetAllocatedSupply",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var getPrio = priorityStoreType?.GetMethod("GetPriority",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long) }, null);
+                var isShedding = brownoutType?.GetMethod("IsShedding",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                int currentTick = (int)(currentTickProp?.GetValue(null) ?? -1);
+
+                if (_transformers.Count == 0) RebuildCaches();
+
+                // Find the target device (by ref id) in OcclusionManager.AllThings.
+                Thing target = null;
+                OcclusionManager.AllThings.ForEach(t =>
+                {
+                    if (target == null && t != null && t.ReferenceId == _pfdTargetRef)
+                        target = t;
+                });
+                if (target == null)
+                {
+                    _log?.LogError($"[ScenarioRunner] PFD target ref={_pfdTargetRef} not found in scene.");
+                    return;
+                }
+                _log?.LogInfo($"[ScenarioRunner] PFD target found: ref={target.ReferenceId} type={target.GetType().FullName} prefab={target.PrefabName}");
+
+                // Walk every CableNetwork the target may sit on. PowerTransmitter has
+                // a CableNetwork via its IO; print via reflection.
+                CableNetwork startNet = ResolveCableNetwork(target);
+                if (startNet == null)
+                {
+                    _log?.LogError("[ScenarioRunner] PFD could not resolve a CableNetwork for the target.");
+                    return;
+                }
+
+                DumpNetworkAndUpstream(startNet, 0, new HashSet<long>(), currentTick,
+                    getAlloc, getPrio, isShedding);
+
+                // Also enumerate every cable network in the world and log those with
+                // PotentialLoad > 0 (= a generator on it that's actually producing).
+                _log?.LogInfo("[ScenarioRunner] PFD --- networks with PotentialLoad > 0 ---");
+                int genCount = 0;
+                CableNetwork.AllCableNetworks.ForEach(cn =>
+                {
+                    if (cn == null) return;
+                    if (cn.PotentialLoad > 0.5f)
+                    {
+                        genCount++;
+                        if (genCount <= 25)
+                            _log?.LogInfo($"[ScenarioRunner] PFD  GenNet ref={cn.ReferenceId} PotentialLoad={cn.PotentialLoad:F0} RequiredLoad={cn.RequiredLoad:F0} CurrentLoad={cn.CurrentLoad:F0} devices={cn.PowerDeviceList.Count}");
+                    }
+                });
+                _log?.LogInfo($"[ScenarioRunner] PFD total networks with PotentialLoad > 0: {genCount}");
+
+                // Check SolarPanel output directly to determine if it's night.
+                int solarTotal = 0, solarProducing = 0;
+                float solarSumGen = 0f;
+                OcclusionManager.AllThings.ForEach(t =>
+                {
+                    if (t == null) return;
+                    if (t.GetType().Name != "SolarPanel") return;
+                    solarTotal++;
+                    try
+                    {
+                        var ggpMethod = t.GetType().GetMethod("GetGeneratedPower",
+                            BindingFlags.Public | BindingFlags.Instance,
+                            null, new[] { typeof(CableNetwork) }, null);
+                        if (ggpMethod == null) return;
+                        // Use the panel's own cable network
+                        var cnProp = t.GetType().GetProperty("PowerCableNetwork");
+                        var net = cnProp?.GetValue(t) as CableNetwork;
+                        if (net == null) return;
+                        float gen = (float)ggpMethod.Invoke(t, new object[] { net });
+                        if (gen > 0.1f) solarProducing++;
+                        solarSumGen += gen;
+                    }
+                    catch { }
+                });
+                _log?.LogInfo($"[ScenarioRunner] PFD solar panels: total={solarTotal} producing(>0.1W)={solarProducing} sumGenPower={solarSumGen:F0} W");
+
+                // Check batteries with stored power that could supply networks at night.
+                int batTotal = 0, batChargedAndOn = 0;
+                float batStoredSum = 0f;
+                if (_batteries.Count == 0) RebuildCaches();
+                foreach (var b in _batteries)
+                {
+                    if (b == null) continue;
+                    batTotal++;
+                    if (b.OnOff && b.PowerStored > 1f)
+                    {
+                        batChargedAndOn++;
+                        batStoredSum += b.PowerStored;
+                    }
+                }
+                _log?.LogInfo($"[ScenarioRunner] PFD batteries: total={batTotal} chargedAndOn={batChargedAndOn} totalStored={batStoredSum:F0} J");
+
+                _log?.LogInfo("[ScenarioRunner] PFD END");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] PFD threw: {e}");
+            }
+        }
+
+        private static CableNetwork ResolveCableNetwork(Thing target)
+        {
+            // Deep search for any CableNetwork-typed member (property or field,
+            // public or non-public) on the target type hierarchy. Also enumerates
+            // CableNetwork.AllCableNetworks and returns the first one whose
+            // PowerDeviceList contains the target -- the bullet-proof fallback.
+            CableNetwork net = null;
+            var foundMembers = new List<string>();
+            try
+            {
+                for (var t = target.GetType(); t != null && t != typeof(object); t = t.BaseType)
+                {
+                    foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                    {
+                        if (p.PropertyType != typeof(CableNetwork)) continue;
+                        try
+                        {
+                            if (p.GetValue(target) is CableNetwork cn)
+                            {
+                                foundMembers.Add($"{t.Name}.{p.Name}=net{cn.ReferenceId}");
+                                if (net == null) net = cn;
+                            }
+                            else
+                            {
+                                foundMembers.Add($"{t.Name}.{p.Name}=null");
+                            }
+                        }
+                        catch { }
+                    }
+                    foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                    {
+                        if (f.FieldType != typeof(CableNetwork)) continue;
+                        try
+                        {
+                            if (f.GetValue(target) is CableNetwork cn)
+                            {
+                                foundMembers.Add($"{t.Name}.{f.Name}=net{cn.ReferenceId}");
+                                if (net == null) net = cn;
+                            }
+                            else
+                            {
+                                foundMembers.Add($"{t.Name}.{f.Name}=null");
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+            _log?.LogInfo($"[ScenarioRunner] PFD resolve members: {string.Join(", ", foundMembers)}");
+
+            if (net == null)
+            {
+                // Fallback: scan all cable networks for one whose PowerDeviceList contains target.
+                CableNetwork.AllCableNetworks.ForEach(cn =>
+                {
+                    if (net != null || cn == null) return;
+                    lock (cn.PowerDeviceList)
+                    {
+                        for (int i = 0; i < cn.PowerDeviceList.Count; i++)
+                        {
+                            if (cn.PowerDeviceList[i] != null && cn.PowerDeviceList[i].ReferenceId == target.ReferenceId)
+                            {
+                                net = cn;
+                                _log?.LogInfo($"[ScenarioRunner] PFD resolve fallback: target found in net{cn.ReferenceId}.PowerDeviceList");
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
+            return net;
+        }
+
+        private static void DumpNetworkAndUpstream(CableNetwork net, int depth, HashSet<long> visited,
+            int currentTick, MethodInfo getAlloc, MethodInfo getPrio, MethodInfo isShedding)
+        {
+            if (net == null || depth > _pfdMaxHops) return;
+            if (visited.Contains(net.ReferenceId)) return;
+            visited.Add(net.ReferenceId);
+            string indent = new string(' ', depth * 2);
+
+            // Count devices + collect transformers / generators / consumers.
+            int total = 0, transformers = 0, consumers = 0;
+            float devUsedSum = 0f;
+            var xforms = new List<Transformer>();
+            lock (net.PowerDeviceList)
+            {
+                for (int i = 0; i < net.PowerDeviceList.Count; i++)
+                {
+                    var d = net.PowerDeviceList[i];
+                    if (d == null) continue;
+                    total++;
+                    if (d is Transformer ct) { transformers++; xforms.Add(ct); }
+                    // Reflectively read UsedPower if present (Device, Battery,
+                    // Transformer, Generator all expose a public UsedPower).
+                    try
+                    {
+                        var usedProp = d.GetType().GetProperty("UsedPower",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        if (usedProp != null && usedProp.PropertyType == typeof(float))
+                        {
+                            float used = (float)usedProp.GetValue(d);
+                            if (used > 0) consumers++;
+                            devUsedSum += used;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            _log?.LogInfo($"[ScenarioRunner] PFD{indent}Net ref={net.ReferenceId} PotentialLoad={net.PotentialLoad:F0} CurrentLoad={net.CurrentLoad:F0} RequiredLoad={net.RequiredLoad:F0} devices={total} transformers={transformers} consumers={consumers} sumUsedPower={devUsedSum:F0}");
+
+            // Dump every device type on this network so we can identify what's
+            // bridging power in (wireless receiver, APC, battery, etc.).
+            var typeCounts = new Dictionary<string, int>();
+            lock (net.PowerDeviceList)
+            {
+                for (int i = 0; i < net.PowerDeviceList.Count; i++)
+                {
+                    var d = net.PowerDeviceList[i];
+                    if (d == null) continue;
+                    string tname = d.GetType().Name;
+                    if (typeCounts.ContainsKey(tname)) typeCounts[tname]++;
+                    else typeCounts[tname] = 1;
+                }
+            }
+            var typeSummary = string.Join(", ", typeCounts.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}={kv.Value}"));
+            _log?.LogInfo($"[ScenarioRunner] PFD{indent}  device-types: {typeSummary}");
+
+            // For each transformer where this net is the OUTPUT net, traverse upstream
+            // (its InputNetwork) and dump that. Also log the transformer's state.
+            foreach (var t in xforms)
+            {
+                if (t == null) continue;
+                int prio = (int)(getPrio?.Invoke(null, new object[] { t.ReferenceId }) ?? -1);
+                float alloc = (float)(getAlloc?.Invoke(null, new object[] { t }) ?? -1f);
+                bool shed = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
+                string role = (t.OutputNetwork == net) ? "OUTPUT" : (t.InputNetwork == net ? "INPUT" : "UNKNOWN");
+                _log?.LogInfo($"[ScenarioRunner] PFD{indent}  T ref={t.ReferenceId} prefab={t.PrefabName} role-on-net={role} OnOff={t.OnOff} Error={t.Error} OutMax={t.OutputMaximum:F0} Prio={prio} alloc={alloc:F0} shed={shed} InNet={t.InputNetwork?.ReferenceId ?? -1} OutNet={t.OutputNetwork?.ReferenceId ?? -1}");
+                if (t.OutputNetwork == net && t.InputNetwork != null)
+                {
+                    DumpNetworkAndUpstream(t.InputNetwork, depth + 1, visited, currentTick,
+                        getAlloc, getPrio, isShedding);
+                }
+            }
+        }
+
+        // ============================================================
         // Scenario: pgp-r1-prepare (R-1 visual-check setup)
         // ------------------------------------------------------------
         // Selects one transformer with positive downstream demand and
@@ -1544,6 +1833,699 @@ namespace ScenarioRunner
             Scenario_PgpPriorityShedingProbe();
             Scenario_PgpPriorityShedingNetworkBreakdown();
             _log?.LogInfo("[ScenarioRunner] ALL END priority-shedding-all aggregator");
+        }
+
+        // ============================================================
+        // Scenario: pgp-atomic-all (NEW aggregator)
+        // ------------------------------------------------------------
+        // Runs the lean test suite that fits the post-refactor architecture
+        // (atomic 5-phase tick, instant lockout, OverloadRegistry).
+        //
+        // Includes the still-relevant probes from the old suite:
+        //   - knob (constants, button1/button2 step compute)
+        //   - flash (BrownoutFlashBehaviour attach, color)
+        //   - hover (Thing.GetContextualName postfix, shed text)
+        //   - labeller (Set / InputSetting redirect)
+        //   - mp (BrownoutRegistry client state, message host short-circuit)
+        //   - saveload (PriorityStore + side-car round-trip)
+        //
+        // Skips the obsolete probes that depended on the removed allocator
+        // API (RunDetection, InvalidateAll, GetAllocatedSupply, TrimCache,
+        // ShortfallTolerance, NoteShortfall):
+        //   - PSP probe (12-phase end-to-end allocator test)
+        //   - topology probe (cascading allocator)
+        //   - network-breakdown probe (per-network allocation)
+        //
+        // Adds the new architecture probes:
+        //   - pgp-atomic-probe (Phase 1/2/3 wiring, shed semantics)
+        //   - pgp-overload-probe (overload registry + LogicType + hover)
+        //
+        // And ends with pgp-shed-trace which runs a 30-tick live trace
+        // against the loaded save -- proves real-world behaviour matches
+        // the synthetic probe results.
+        // ============================================================
+        private static bool _atomicAllFired;
+        private static void Scenario_PgpAtomicAll()
+        {
+            if (_atomicAllFired) return;
+            _atomicAllFired = true;
+            _log?.LogInfo("[ScenarioRunner] ATOMIC-ALL START");
+            Scenario_PgpAtomicProbe();
+            Scenario_PgpOverloadProbe();
+            Scenario_PgpPriorityShedingKnobProbe();
+            Scenario_PgpPriorityShedingFlashProbe();
+            Scenario_PgpPriorityShedingHoverProbe();
+            Scenario_PgpPriorityShedingLabellerProbe();
+            Scenario_PgpPriorityShedingMpProbe();
+            Scenario_PgpPriorityShedingSaveLoadProbe();
+            _log?.LogInfo("[ScenarioRunner] ATOMIC-ALL END synthetic probes done; pgp-shed-trace will follow on subsequent ticks");
+        }
+
+        // ============================================================
+        // Scenario: pgp-shed-trace (regression-triage diagnostic)
+        // ------------------------------------------------------------
+        // Runs every electricity tick for a window of ticks. On each
+        // tick it walks every transformer and dumps state for any
+        // transformer that is in lockout, currently shedding, or has a
+        // non-zero shortfall counter. Also dumps every transformer's
+        // input/output net loads, _powerProvided, OutputMaximum, and
+        // priority once at tick 0 and once at the end. Goal: catch the
+        // allocator entering the shed branch when it shouldn't.
+        //
+        // Output groups:
+        //   STR-INIT  one-shot baseline at first observed tick.
+        //   STR-TICK  per-tick summary line (counts).
+        //   STR-EVT   per-transformer event (entered lockout / left).
+        //   STR-END   final summary: which refs spent most time shed.
+        // ============================================================
+        private static int _stTickCount = 0;
+        private const int _stMaxTicks = 30;
+        private static int _stStartTick = -1;
+        private static readonly HashSet<long> _stCurrentlyLocked = new HashSet<long>();
+        private static readonly Dictionary<long, int> _stLockedTickCount = new Dictionary<long, int>();
+        private static readonly Dictionary<long, int> _stEnterCount = new Dictionary<long, int>();
+
+        private static void LogEnterEvents(HashSet<long> thisTickSet, string cause, int currentTick,
+            MethodInfo getPrioMethod, FieldInfo powerProvidedField)
+        {
+            foreach (var id in thisTickSet)
+            {
+                if (_stCurrentlyLocked.Contains(id)) continue;
+                if (!_stEnterCount.ContainsKey(id)) _stEnterCount[id] = 0;
+                _stEnterCount[id]++;
+                Transformer t = null;
+                foreach (var x in _transformers) { if (x != null && x.ReferenceId == id) { t = x; break; } }
+                float inPot = t?.InputNetwork?.PotentialLoad ?? -1f;
+                float inReq = t?.InputNetwork?.RequiredLoad ?? -1f;
+                float outReq = t?.OutputNetwork?.RequiredLoad ?? -1f;
+                float outMax = t?.OutputMaximum ?? -1f;
+                float pp = -1f;
+                try { if (t != null && powerProvidedField != null) pp = (float)powerProvidedField.GetValue(t); } catch { }
+                int prio = (int)(getPrioMethod?.Invoke(null, new object[] { id }) ?? -1);
+                _log?.LogInfo($"[ScenarioRunner] STR-EVT ENTER cause={cause} tick={currentTick} ref={id} prefab={t?.PrefabName ?? "?"} prio={prio} OnOff={(t?.OnOff ?? false)} Err={(t?.Error ?? -1)} OutMax={outMax:F0} InPot={inPot:F0} InReq={inReq:F0} OutReq={outReq:F0} _powerProvided={pp:F0}");
+            }
+        }
+
+        private static void Scenario_PgpShedTrace()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-shed-trace")) return;
+            if (_stTickCount >= _stMaxTicks) return;
+
+            try
+            {
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                if (asm == null) { _log?.LogError("[ScenarioRunner] STR no PGP assembly"); _stTickCount = _stMaxTicks; return; }
+
+                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
+                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
+                var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
+                var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
+                var shedSyncType = asm.GetType("PowerGridPlus.ShedSettingsSync");
+                var overloadSyncType = asm.GetType("PowerGridPlus.OverloadSettingsSync");
+                if (brownoutType == null || allocatorType == null || tickCounterType == null)
+                {
+                    _log?.LogError("[ScenarioRunner] STR FAIL: type lookup failed.");
+                    _stTickCount = _stMaxTicks; return;
+                }
+
+                var lockoutDictField = brownoutType.GetField("_lockoutUntilTick",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var overloadLockoutDictField = overloadType?.GetField("_lockoutUntilTick",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var clientShedDictField = brownoutType.GetField("_clientShedding",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var currentTickProp = tickCounterType.GetProperty("CurrentTick",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var isLockedOutMethod = brownoutType.GetMethod("IsLockedOut",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var getPrioMethod = priorityStoreType?.GetMethod("GetPriority",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long) }, null);
+                var effectiveProp = shedSyncType?.GetProperty("Effective",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var powerProvidedField = typeof(Transformer).GetField("_powerProvided",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+
+                int currentTick = (int)(currentTickProp?.GetValue(null) ?? 0);
+                bool shedEffective = (bool)(effectiveProp?.GetValue(null) ?? false);
+                var overloadEffectiveProp = overloadSyncType?.GetProperty("Effective",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                bool overloadEffective = (bool)(overloadEffectiveProp?.GetValue(null) ?? false);
+
+                if (_transformers.Count == 0) RebuildCaches();
+
+                // ---- INIT one-shot ----
+                if (_stStartTick < 0)
+                {
+                    _stStartTick = currentTick;
+                    _log?.LogInfo($"[ScenarioRunner] STR-INIT startTick={currentTick} ShedSettingsSync.Effective={shedEffective} OverloadSettingsSync.Effective={overloadEffective} transformers={_transformers.Count}");
+
+                    int linkedTx = 0, ones = 0, errored = 0;
+                    int prioSum = 0, prioMin = int.MaxValue, prioMax = int.MinValue;
+                    foreach (var t in _transformers)
+                    {
+                        if (t == null) continue;
+                        if (t.OnOff) ones++;
+                        if (t.Error == 1) errored++;
+                        int p = (int)(getPrioMethod?.Invoke(null, new object[] { t.ReferenceId }) ?? 100);
+                        prioSum += p;
+                        if (p < prioMin) prioMin = p;
+                        if (p > prioMax) prioMax = p;
+                    }
+                    _log?.LogInfo($"[ScenarioRunner] STR-INIT transformers OnOff={ones} Errored={errored} prio min={prioMin} max={prioMax} avg={(_transformers.Count > 0 ? prioSum / _transformers.Count : 0)}");
+
+                    // Dump linked PowerTransmitters + the transformer feeding each one.
+                    int txTotal = 0, txLinkedAndOn = 0;
+                    OcclusionManager.AllThings.ForEach(thing =>
+                    {
+                        if (thing == null) return;
+                        var tt = thing.GetType();
+                        if (tt.Name != "PowerTransmitter") return;
+                        txTotal++;
+                        try
+                        {
+                            var linkedProp = tt.GetProperty("Linked",
+                                BindingFlags.Public | BindingFlags.Instance);
+                            bool linked = (linkedProp?.GetValue(thing) as bool?) ?? false;
+                            var onOffProp = tt.GetProperty("OnOff", BindingFlags.Public | BindingFlags.Instance);
+                            bool on = (onOffProp?.GetValue(thing) as bool?) ?? false;
+                            if (linked && on)
+                            {
+                                txLinkedAndOn++;
+                                if (txLinkedAndOn <= 15)
+                                {
+                                    var pcn = tt.GetProperty("PowerCableNetwork")?.GetValue(thing) as CableNetwork;
+                                    _log?.LogInfo($"[ScenarioRunner] STR-INIT linked-TX ref={thing.ReferenceId} OnOff=true CableNet={pcn?.ReferenceId ?? -1} PotentialLoad={pcn?.PotentialLoad ?? -1f:F0} RequiredLoad={pcn?.RequiredLoad ?? -1f:F0}");
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                    _log?.LogInfo($"[ScenarioRunner] STR-INIT PowerTransmitters total={txTotal} linkedAndOn={txLinkedAndOn}");
+                }
+
+                // ---- Per-tick scan ----
+                var lockoutDict = lockoutDictField?.GetValue(null) as System.Collections.IDictionary;
+                var overloadLockoutDict = overloadLockoutDictField?.GetValue(null) as System.Collections.IDictionary;
+
+                int totalShedLocked = 0;
+                int totalOverloadLocked = 0;
+                int onCount = 0;
+                int erroredCount = 0;
+
+                // Build this-tick locked sets per registry, count transitions, log events.
+                var thisTickShed = new HashSet<long>();
+                var thisTickOverload = new HashSet<long>();
+                if (lockoutDict != null)
+                {
+                    foreach (System.Collections.DictionaryEntry kv in lockoutDict)
+                    {
+                        long id = (long)kv.Key;
+                        int until = (int)kv.Value;
+                        if (until > currentTick)
+                        {
+                            thisTickShed.Add(id);
+                            totalShedLocked++;
+                            if (!_stLockedTickCount.ContainsKey(id)) _stLockedTickCount[id] = 0;
+                            _stLockedTickCount[id]++;
+                        }
+                    }
+                }
+                if (overloadLockoutDict != null)
+                {
+                    foreach (System.Collections.DictionaryEntry kv in overloadLockoutDict)
+                    {
+                        long id = (long)kv.Key;
+                        int until = (int)kv.Value;
+                        if (until > currentTick)
+                        {
+                            thisTickOverload.Add(id);
+                            totalOverloadLocked++;
+                            if (!_stLockedTickCount.ContainsKey(id)) _stLockedTickCount[id] = 0;
+                            _stLockedTickCount[id]++;
+                        }
+                    }
+                }
+
+                LogEnterEvents(thisTickShed, "SHED", currentTick, getPrioMethod, powerProvidedField);
+                LogEnterEvents(thisTickOverload, "OVERLOAD", currentTick, getPrioMethod, powerProvidedField);
+
+                var combinedThisTick = new HashSet<long>();
+                foreach (var id in thisTickShed) combinedThisTick.Add(id);
+                foreach (var id in thisTickOverload) combinedThisTick.Add(id);
+
+                foreach (var id in _stCurrentlyLocked)
+                {
+                    if (!combinedThisTick.Contains(id))
+                    {
+                        _log?.LogInfo($"[ScenarioRunner] STR-EVT EXIT  tick={currentTick} ref={id}");
+                    }
+                }
+                _stCurrentlyLocked.Clear();
+                foreach (var id in combinedThisTick) _stCurrentlyLocked.Add(id);
+
+                foreach (var t in _transformers)
+                {
+                    if (t == null) continue;
+                    if (t.OnOff) onCount++;
+                    if (t.Error == 1) erroredCount++;
+                }
+
+                _log?.LogInfo($"[ScenarioRunner] STR-TICK n={_stTickCount} tick={currentTick} transformers={_transformers.Count} OnOff={onCount} Errored={erroredCount} inShed={totalShedLocked} inOverload={totalOverloadLocked}");
+
+                _stTickCount++;
+
+                // ---- END summary on final tick ----
+                if (_stTickCount >= _stMaxTicks)
+                {
+                    _log?.LogInfo($"[ScenarioRunner] STR-END windowEndTick={currentTick} totalEntriesObserved={_stEnterCount.Count}");
+                    // Top 20 most-locked-during-window.
+                    var ranked = _stLockedTickCount.OrderByDescending(kv => kv.Value).Take(20).ToList();
+                    foreach (var kv in ranked)
+                    {
+                        Transformer t = null;
+                        foreach (var x in _transformers) { if (x != null && x.ReferenceId == kv.Key) { t = x; break; } }
+                        float inPot = t?.InputNetwork?.PotentialLoad ?? -1f;
+                        float outReq = t?.OutputNetwork?.RequiredLoad ?? -1f;
+                        int enters = _stEnterCount.TryGetValue(kv.Key, out var ec) ? ec : 0;
+                        _log?.LogInfo($"[ScenarioRunner] STR-END top ref={kv.Key} prefab={t?.PrefabName ?? "?"} lockedTicks={kv.Value}/{_stMaxTicks} entries={enters} InPot={inPot:F0} OutReq={outReq:F0} OutMax={(t?.OutputMaximum ?? -1f):F0}");
+                    }
+
+                    // Also: for the linked + on power transmitters, recheck final state.
+                    OcclusionManager.AllThings.ForEach(thing =>
+                    {
+                        if (thing == null) return;
+                        var tt = thing.GetType();
+                        if (tt.Name != "PowerTransmitter") return;
+                        try
+                        {
+                            var linkedProp = tt.GetProperty("Linked",
+                                BindingFlags.Public | BindingFlags.Instance);
+                            bool linked = (linkedProp?.GetValue(thing) as bool?) ?? false;
+                            var onOffProp = tt.GetProperty("OnOff", BindingFlags.Public | BindingFlags.Instance);
+                            bool on = (onOffProp?.GetValue(thing) as bool?) ?? false;
+                            if (!linked || !on) return;
+                            var pcn = tt.GetProperty("PowerCableNetwork")?.GetValue(thing) as CableNetwork;
+                            var poweredProp = tt.GetProperty("Powered",
+                                BindingFlags.Public | BindingFlags.Instance);
+                            bool powered = (poweredProp?.GetValue(thing) as bool?) ?? false;
+                            _log?.LogInfo($"[ScenarioRunner] STR-END linked-TX ref={thing.ReferenceId} Powered={powered} CableNet={pcn?.ReferenceId ?? -1} PotentialLoad={pcn?.PotentialLoad ?? -1f:F0} CurrentLoad={pcn?.CurrentLoad ?? -1f:F0} RequiredLoad={pcn?.RequiredLoad ?? -1f:F0}");
+                        }
+                        catch { }
+                    });
+                }
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] STR threw: {e}");
+                _stTickCount = _stMaxTicks;
+            }
+        }
+
+        // ============================================================
+        // Scenario: pgp-atomic-probe
+        // ------------------------------------------------------------
+        // Architecture + shed semantics under the new 5-phase atomic flow.
+        //   P1: AtomicElectricityTickPatch attached on ElectricityTick.
+        //   P2: Old ElectricityTickPatches is GONE.
+        //   P3: BrownoutRegistry.LockoutDurationTicks = 120 (60 sec).
+        //   P4: BrownoutRegistry.ShortfallTolerance is GONE.
+        //   P5: NoteShed -> instant lockout; IsLockedOut + IsShedding true.
+        //   P6: ClearAll drops lockout.
+        //   P7: TransformerAllocator.RunAtomic exists.
+        //   P8: Old TransformerAllocator API (RunDetection, InvalidateAll,
+        //       GetAllocatedSupply, TrimCache) is GONE.
+        // ============================================================
+        private static bool _atomicFired;
+        private static void Scenario_PgpAtomicProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-atomic-probe")) return;
+            if (_atomicFired) return;
+            _atomicFired = true;
+            int pass = 0, fail = 0, total = 0;
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] AP START atomic-probe");
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
+                var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
+                var atomicPatchType = asm.GetType("PowerGridPlus.Patches.AtomicElectricityTickPatch");
+                var oldTickPatchType = asm.GetType("PowerGridPlus.Patches.ElectricityTickPatches");
+
+                // P1: AtomicElectricityTickPatch present.
+                total++;
+                if (atomicPatchType != null)
+                { _log?.LogInfo("[ScenarioRunner] AP P1 PASS: AtomicElectricityTickPatch type exists."); pass++; }
+                else
+                { _log?.LogError("[ScenarioRunner] AP P1 FAIL: AtomicElectricityTickPatch missing."); fail++; }
+
+                // P2: old ElectricityTickPatches gone.
+                total++;
+                if (oldTickPatchType == null)
+                { _log?.LogInfo("[ScenarioRunner] AP P2 PASS: legacy ElectricityTickPatches deleted."); pass++; }
+                else
+                { _log?.LogError("[ScenarioRunner] AP P2 FAIL: ElectricityTickPatches still present."); fail++; }
+
+                // P3: LockoutDurationTicks = 120.
+                var ldField = brownoutType.GetField("LockoutDurationTicks",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                int ld = ldField != null ? (int)ldField.GetValue(null) : -1;
+                total++;
+                if (ld == 120)
+                { _log?.LogInfo($"[ScenarioRunner] AP P3 PASS: BrownoutRegistry.LockoutDurationTicks={ld} (60 sec)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] AP P3 FAIL: LockoutDurationTicks={ld}, expected 120."); fail++; }
+
+                // P4: ShortfallTolerance gone.
+                var stField = brownoutType.GetField("ShortfallTolerance",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                total++;
+                if (stField == null)
+                { _log?.LogInfo("[ScenarioRunner] AP P4 PASS: ShortfallTolerance field removed."); pass++; }
+                else
+                { _log?.LogError("[ScenarioRunner] AP P4 FAIL: ShortfallTolerance still present."); fail++; }
+
+                // P5: NoteShed -> instant lockout.
+                var clearAll = brownoutType.GetMethod("ClearAll",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var noteShed = brownoutType.GetMethod("NoteShed",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var isLockedOut = brownoutType.GetMethod("IsLockedOut",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var isShedding = brownoutType.GetMethod("IsShedding",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var currentTickProp = tickCounterType.GetProperty("CurrentTick",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                int tick = (int)(currentTickProp?.GetValue(null) ?? 0);
+                long syntheticRef = 11223344L;
+                clearAll?.Invoke(null, null);
+                noteShed?.Invoke(null, new object[] { syntheticRef, tick });
+                bool locked = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
+                bool shedding = (bool)(isShedding?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
+                total++;
+                if (locked && shedding)
+                { _log?.LogInfo("[ScenarioRunner] AP P5 PASS: single NoteShed -> IsLockedOut=true & IsShedding=true (instant lockout, no tolerance counter)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] AP P5 FAIL: locked={locked} shedding={shedding}, expected both true."); fail++; }
+
+                // P6: lockout window length verification.
+                bool lockedAtBoundary = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick + 119 }) ?? false);
+                bool unlockedAfter = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick + 120 }) ?? true);
+                total++;
+                if (lockedAtBoundary && !unlockedAfter)
+                { _log?.LogInfo($"[ScenarioRunner] AP P6 PASS: lockout holds at tick+119 and releases at tick+120 (60 sec window)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] AP P6 FAIL: lockedAtBoundary={lockedAtBoundary} unlockedAfter={unlockedAfter}."); fail++; }
+                clearAll?.Invoke(null, null);
+
+                // P7: TransformerAllocator.RunAtomic present.
+                var runAtomic = allocatorType.GetMethod("RunAtomic",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                total++;
+                if (runAtomic != null)
+                { _log?.LogInfo("[ScenarioRunner] AP P7 PASS: TransformerAllocator.RunAtomic exists."); pass++; }
+                else
+                { _log?.LogError("[ScenarioRunner] AP P7 FAIL: RunAtomic missing."); fail++; }
+
+                // P8: old TransformerAllocator API gone.
+                string[] deadNames = { "RunDetection", "InvalidateAll", "GetAllocatedSupply", "TrimCache" };
+                int deadFound = 0;
+                foreach (var n in deadNames)
+                {
+                    if (allocatorType.GetMethod(n, BindingFlags.NonPublic | BindingFlags.Static) != null
+                        || allocatorType.GetMethod(n, BindingFlags.Public | BindingFlags.Static) != null)
+                        deadFound++;
+                }
+                total++;
+                if (deadFound == 0)
+                { _log?.LogInfo("[ScenarioRunner] AP P8 PASS: legacy allocator API (RunDetection/InvalidateAll/GetAllocatedSupply/TrimCache) removed."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] AP P8 FAIL: {deadFound} legacy methods still present."); fail++; }
+
+                _log?.LogInfo($"[ScenarioRunner] AP END pass={pass} fail={fail} total={total}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] AP threw: {e}");
+            }
+        }
+
+        // ============================================================
+        // Scenario: pgp-overload-probe
+        // Mirrors AP for the OverloadRegistry. Plus IC10 LogicType.Overloaded
+        // read + hover-text branch under overload.
+        // ============================================================
+        private static bool _overloadFired;
+        private static void Scenario_PgpOverloadProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-overload-probe")) return;
+            if (_overloadFired) return;
+            _overloadFired = true;
+            int pass = 0, fail = 0, total = 0;
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] OP START overload-probe");
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
+                var overloadSyncType = asm.GetType("PowerGridPlus.OverloadSettingsSync");
+                var overloadMsgType = asm.GetType("PowerGridPlus.OverloadStateMessage");
+                var logicRegType = asm.GetType("PowerGridPlus.LogicTypeRegistry");
+                var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
+                var hoverPatchType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
+
+                // P1: types present.
+                total++;
+                if (overloadType != null && overloadSyncType != null && overloadMsgType != null)
+                { _log?.LogInfo("[ScenarioRunner] OP P1 PASS: OverloadRegistry + OverloadSettingsSync + OverloadStateMessage exist."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] OP P1 FAIL: type lookup OR={overloadType != null} OS={overloadSyncType != null} OM={overloadMsgType != null}"); fail++; }
+
+                // P2: LockoutDurationTicks = 120.
+                var ldField = overloadType.GetField("LockoutDurationTicks",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                int ld = ldField != null ? (int)ldField.GetValue(null) : -1;
+                total++;
+                if (ld == 120)
+                { _log?.LogInfo($"[ScenarioRunner] OP P2 PASS: OverloadRegistry.LockoutDurationTicks={ld} (60 sec)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] OP P2 FAIL: LockoutDurationTicks={ld}, expected 120."); fail++; }
+
+                // P3: NoteOverload -> instant lockout.
+                var clearAll = overloadType.GetMethod("ClearAll",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var noteOverload = overloadType.GetMethod("NoteOverload",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var isLockedOut = overloadType.GetMethod("IsLockedOut",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var isOverloaded = overloadType.GetMethod("IsOverloaded",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var currentTickProp = tickCounterType.GetProperty("CurrentTick",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                int tick = (int)(currentTickProp?.GetValue(null) ?? 0);
+                long syntheticRef = 99887766L;
+                clearAll?.Invoke(null, null);
+                noteOverload?.Invoke(null, new object[] { syntheticRef, tick });
+                bool locked = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
+                bool overloaded = (bool)(isOverloaded?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
+                total++;
+                if (locked && overloaded)
+                { _log?.LogInfo("[ScenarioRunner] OP P3 PASS: single NoteOverload -> IsLockedOut=true & IsOverloaded=true (instant lockout)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] OP P3 FAIL: locked={locked} overloaded={overloaded}."); fail++; }
+
+                // P4: lockout window length.
+                bool lockedAtBoundary = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick + 119 }) ?? false);
+                bool unlockedAfter = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick + 120 }) ?? true);
+                total++;
+                if (lockedAtBoundary && !unlockedAfter)
+                { _log?.LogInfo("[ScenarioRunner] OP P4 PASS: overload lockout holds at tick+119 and releases at tick+120."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] OP P4 FAIL: lockedAtBoundary={lockedAtBoundary} unlockedAfter={unlockedAfter}."); fail++; }
+                clearAll?.Invoke(null, null);
+
+                // P5: LogicTypeRegistry.Overloaded present.
+                var overloadedLogicField = logicRegType.GetField("Overloaded",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                LogicType overloadedLogic = overloadedLogicField != null ? (LogicType)overloadedLogicField.GetValue(null) : default;
+                total++;
+                if ((ushort)overloadedLogic == 6580)
+                { _log?.LogInfo($"[ScenarioRunner] OP P5 PASS: LogicTypeRegistry.Overloaded = {(ushort)overloadedLogic} (matches 6580)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] OP P5 FAIL: Overloaded LogicType value = {(ushort)overloadedLogic}, expected 6580."); fail++; }
+
+                // P6: live transformer GetLogicValue for Overloaded.
+                if (_transformers.Count == 0) RebuildCaches();
+                var sampleT = _transformers.FirstOrDefault(x => x != null);
+                if (sampleT != null)
+                {
+                    noteOverload?.Invoke(null, new object[] { sampleT.ReferenceId, tick });
+                    double v = sampleT.GetLogicValue(overloadedLogic);
+                    total++;
+                    if (Math.Abs(v - 1.0) < 0.001)
+                    { _log?.LogInfo($"[ScenarioRunner] OP P6 PASS: GetLogicValue(Overloaded) returns 1.0 while in lockout."); pass++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] OP P6 FAIL: GetLogicValue(Overloaded)={v}, expected 1.0."); fail++; }
+
+                    // P7: hover text contains the overload phrase.
+                    var hoverPostfix = hoverPatchType.GetMethod("GetContextualName_Postfix",
+                        BindingFlags.Public | BindingFlags.Static);
+                    var btn = sampleT.Interactables?.FirstOrDefault(x => x?.Action == InteractableType.OnOff);
+                    if (btn != null && hoverPostfix != null)
+                    {
+                        string result = "BASE";
+                        object[] args = new object[] { sampleT, btn, result };
+                        hoverPostfix.Invoke(null, args);
+                        string after = (string)args[2];
+                        total++;
+                        bool hasOverload = after.IndexOf("Overloaded:", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool hasLimit = after.IndexOf("exceeds transformer limit", StringComparison.OrdinalIgnoreCase) >= 0;
+                        if (hasOverload && hasLimit)
+                        { _log?.LogInfo($"[ScenarioRunner] OP P7 PASS: hover text appends overload phrase. after='{after}'"); pass++; }
+                        else
+                        { _log?.LogError($"[ScenarioRunner] OP P7 FAIL: hasOverload={hasOverload} hasLimit={hasLimit} after='{after}'"); fail++; }
+                    }
+                    clearAll?.Invoke(null, null);
+
+                    // P8: GetLogicValue(Overloaded) returns 0 when not overloaded.
+                    double v0 = sampleT.GetLogicValue(overloadedLogic);
+                    total++;
+                    if (Math.Abs(v0 - 0.0) < 0.001)
+                    { _log?.LogInfo($"[ScenarioRunner] OP P8 PASS: GetLogicValue(Overloaded) returns 0.0 after ClearAll."); pass++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] OP P8 FAIL: GetLogicValue(Overloaded)={v0}, expected 0.0."); fail++; }
+
+                    // P9: CanLogicRead Overloaded -> true, CanLogicWrite -> false.
+                    bool canR = sampleT.CanLogicRead(overloadedLogic);
+                    bool canW = sampleT.CanLogicWrite(overloadedLogic);
+                    total++;
+                    if (canR && !canW)
+                    { _log?.LogInfo("[ScenarioRunner] OP P9 PASS: Overloaded is CanLogicRead=true, CanLogicWrite=false (read-only)."); pass++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] OP P9 FAIL: canR={canR} canW={canW}."); fail++; }
+                }
+
+                // P10: OverloadStateMessage host short-circuits Process.
+                long testRef = 33445566L;
+                var setClientOverloaded = overloadType.GetMethod("SetClientOverloaded",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                var clientIsOverloaded = overloadType.GetMethod("ClientIsOverloaded",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                setClientOverloaded?.Invoke(null, new object[] { testRef, false });
+                var msg = Activator.CreateInstance(overloadMsgType);
+                overloadMsgType.GetField("DeviceId")?.SetValue(msg, testRef);
+                overloadMsgType.GetField("Overloaded")?.SetValue(msg, true);
+                var process = overloadMsgType.GetMethod("Process");
+                process?.Invoke(msg, new object[] { 0L });
+                bool afterProcess = (bool)(clientIsOverloaded?.Invoke(null, new object[] { testRef }) ?? false);
+                total++;
+                if (!afterProcess && Assets.Scripts.Networking.NetworkManager.IsServer)
+                { _log?.LogInfo("[ScenarioRunner] OP P10 PASS: OverloadStateMessage.Process(0) short-circuited on host (IsServer=true)."); pass++; }
+                else
+                { _log?.LogError($"[ScenarioRunner] OP P10 FAIL: IsServer={Assets.Scripts.Networking.NetworkManager.IsServer} afterProcess={afterProcess}"); fail++; }
+                setClientOverloaded?.Invoke(null, new object[] { testRef, false });
+
+                _log?.LogInfo($"[ScenarioRunner] OP END pass={pass} fail={fail} total={total}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] OP threw: {e}");
+            }
+        }
+
+        // ============================================================
+        // Scenario: pgp-cable-burn-window-probe
+        // ------------------------------------------------------------
+        // Drives PowerGridPlus.CableBurnWindow's 20-tick sliding running
+        // average directly via reflection (the §5.7 deterministic burn
+        // logic cannot be triggered on the under-cap Luna grid, so this
+        // verifies the decision math headlessly): a full window of
+        // sustained overload arms a burn and ranks the top producer, a
+        // single spike is averaged out by dips and does NOT arm, the 10 s
+        // grace floor holds, and reset clears the window.
+        // ============================================================
+        private static bool _cbwFired;
+
+        private static void Scenario_PgpCableBurnWindowProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-cable-burn-window-probe")) return;
+            if (_cbwFired) return;
+            _cbwFired = true;
+
+            int pass = 0, fail = 0;
+            void Check(string tag, bool ok, string detail)
+            {
+                if (ok) { pass++; _log?.LogInfo($"[ScenarioRunner] CBW {tag} PASS {detail}"); }
+                else { fail++; _log?.LogError($"[ScenarioRunner] CBW {tag} FAIL {detail}"); }
+            }
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] CBW START cable-burn-window-probe");
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                if (asm == null) { _log?.LogError("[ScenarioRunner] CBW no PGP assembly"); return; }
+                var t = asm.GetType("PowerGridPlus.CableBurnWindow");
+                if (t == null) { _log?.LogError("[ScenarioRunner] CBW FAIL: CableBurnWindow type not found"); return; }
+
+                const BindingFlags BF = BindingFlags.NonPublic | BindingFlags.Static;
+                var mObserve = t.GetMethod("Observe", BF);
+                var mIsFull = t.GetMethod("IsFull", BF);
+                var mAvg = t.GetMethod("AverageFlow", BF);
+                var mTop = t.GetMethod("TopProducer", BF);
+                var mReset = t.GetMethod("Reset", BF);
+                if (mObserve == null || mIsFull == null || mAvg == null || mTop == null || mReset == null)
+                {
+                    _log?.LogError($"[ScenarioRunner] CBW FAIL: method lookup (Observe={mObserve != null} IsFull={mIsFull != null} Avg={mAvg != null} Top={mTop != null} Reset={mReset != null})");
+                    fail++;
+                    return;
+                }
+
+                const long NET = long.MaxValue - 4242;   // synthetic, unused network id
+                const long A = 911001, B = 911002;        // synthetic producer ids
+                const float CAP = 5000f;                  // pretend weakest-cable cap
+
+                void Observe(Dictionary<long, float> prod, float flow) => mObserve.Invoke(null, new object[] { NET, prod, flow });
+                bool IsFull() => (bool)mIsFull.Invoke(null, new object[] { NET });
+                float Avg() => (float)mAvg.Invoke(null, new object[] { NET });
+                long Top() => (long)mTop.Invoke(null, new object[] { NET });
+                void Reset() => mReset.Invoke(null, new object[] { NET });
+
+                // P1: a partial window does not arm a burn (10 s / 20-tick grace floor).
+                Reset();
+                for (int i = 0; i < 19; i++) Observe(new Dictionary<long, float> { { A, 8000f }, { B, 3000f } }, 11000f);
+                Check("P1", !IsFull(), $"19 ticks over cap -> IsFull={IsFull()} (expected false; needs 20)");
+
+                // P2: a full window of sustained overload arms (avg over cap) and ranks the top producer.
+                Observe(new Dictionary<long, float> { { A, 8000f }, { B, 3000f } }, 11000f);   // 20th tick
+                Check("P2-armed", IsFull() && Avg() > CAP, $"IsFull={IsFull()} avg={Avg():0} cap={CAP:0}");
+                Check("P2-top", Top() == A, $"top producer over window = {Top()} (expected {A}, the 8 kW source)");
+
+                // P3: a single huge spike is averaged out by following dips and does NOT arm.
+                Reset();
+                Observe(new Dictionary<long, float> { { A, 100000f } }, 100000f);
+                for (int i = 0; i < 19; i++) Observe(new Dictionary<long, float>(), 0f);
+                Check("P3", IsFull() && Avg() <= CAP, $"100 kW spike + 19 idle -> avg={Avg():0} (=100k/20=5000), not over {CAP:0}");
+
+                // P4: reset clears the window.
+                Reset();
+                Check("P4", !IsFull() && Avg() == 0f, $"after reset IsFull={IsFull()} avg={Avg():0}");
+
+                Reset();
+            }
+            catch (Exception e)
+            {
+                fail++;
+                _log?.LogError($"[ScenarioRunner] CBW EXCEPTION: {e}");
+            }
+            _log?.LogInfo($"[ScenarioRunner] CBW END pass={pass} fail={fail}");
         }
     }
 }
