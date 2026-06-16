@@ -3,64 +3,70 @@
   <Name>Power Grid Plus</Name>
   <ModID>net.powergridplus</ModID>
   <Author>SixFive7</Author>
-  <Version>0.1.0</Version>
+  <Version>0.2.0</Version>
   <Description>[h1]Power Grid Plus[/h1]
 
-Reworks Stationeers wired power: priority-based transformer dispatch with automatic shedding, proportional load sharing, three cable tiers as separate transmission voltages, logic-transparent transformer / battery / dish bridges, and deterministic multiplayer cable-network ids.
+Reworks Stationeers wired power: an atomic power tick with priority-based transformer dispatch, automatic shedding and overload lockouts, loop and producer-isolation faults with on-device countdowns, elastic battery allocation, three cable tiers as separate transmission voltages, logic-transparent transformer / battery / dish bridges, and deterministic multiplayer cable-network ids.
 
-A pure-patch mod: no new craftable devices, no asset bundle. The simulation half is derived from Sukasa's Re-Volt (MIT); the three-tier voltage backbone and the priority + shedding feature are new. Full multiplayer compatibility. Safe to remove from existing savegames.
+A pure-patch mod: no new craftable devices, no asset bundle. Parts of the simulation are derived from Sukasa's Re-Volt (MIT). Full multiplayer compatibility. Safe to remove from existing savegames: cable ratings are enforced at runtime and never written into the save.
 
-This is an early build, not yet play-tested. The simulation, the cable-tier rule and the device-tier rule are all in. Devices are free to place anywhere -- a misplaced device burns the cable it's hooked into on the next power tick (as long as the network has actual power flow). Placing the wrong-tier cable next to an existing device is blocked at the cursor with a "Wrong voltage" message. Burned cables show why they burned in their hover tooltip.
+This is an early build. The inner per-network simulation is the unmodified vanilla PowerTick; Power Grid Plus decides faults and allocations globally each tick and applies them the same tick, keeping vanilla partial power as the safety net for anything unclassified.
 
 [h2]Features[/h2]
 
-[h3]Reworked power simulation (from Re-Volt)[/h3]
+[h3]Faults: visible lockouts instead of silent misbehaviour[/h3]
 [list]
-[*]Electrical load is shared proportionally across every source on a network, and split proportionally across every load.
-[*]Cables burn out gradually and probabilistically when overloaded, based on a short rolling average of throughput, instead of instantly. Fuses still blow instantly and always blow before a cable does.
-[*]Recursive and looped power networks are allowed (the vanilla force-burn check is off by default; re-enable it in settings).
-[*]Stationary batteries are charge- and discharge-rate limited, with an optional charge-efficiency setting, and expose their rate limits as logic values.
-[*]Transformers no longer leak free power and charge their own quiescent draw upstream; they expose throughput as the Power Actual logic value.
-[*]Area Power Controllers no longer leak a small amount of power or slowly drain their battery when nothing downstream is drawing.
+[*][b]Shedding[/b] (orange flash): the input network cannot cover the device. Siblings compete by Priority; the lowest sheds first and its subnet goes dark cleanly for 60 seconds instead of flickering.
+[*][b]Overloaded[/b] (red flash): delivering everything Setting allows (or a battery at its full rate) while demand stays unmet. The bottleneck trips, so you know what to upgrade or split.
+[*][b]Cycle Fault[/b] (red flash): the device closes a power loop. Every loop member faults and contributes 0, dissolving the loop. No cable is burned for loops.
+[*][b]Variable Voltage Fault[/b] (red flash): a producer (solar, wind, generator, RTG) wired to consumers without a transformer stops generating. Producers may only share a network with producers and transformers.
+[*]Hover text names the cause with a live countdown. Toggling the device off clears the fault instantly; toggling back on re-evaluates.
 [/list]
-Re-Volt's circuit breakers and Load Center are not included; this is the pure-simulation subset.
+
+[h3]Elastic storage[/h3]
+[list]
+[*]Batteries, APC cells, and rocket power umbilicals charge only from surplus and discharge only to fill a shortfall, sharing proportionally among competitors. No battery ping-pong.
+[*]Per-prefab charge / discharge rate caps, each also capped by the cable tier.
+[*]Read-only MaxChargeSpeed / MaxDischargeSpeed (configured caps) and ChargeSpeed / DischargeSpeed (live allocated rates) on every storage device. The earlier Import Quantity / Export Quantity exposure on batteries is removed.
+[*]Transformers no longer leak free power; APCs no longer leak power or drain their cell while idle.
+[/list]
 
 [h3]Three-tier transmission voltages (new)[/h3]
 [list]
-[*]Super-heavy cable never burns out -- it is the long-haul backbone. Normal and heavy cable keep their ratings.
+[*]Cable Watts caps are configurable per tier (normal 5000, heavy 100000, super-heavy unlimited by default; 0 = unlimited) and enforced at runtime only -- cables in the save are never modified.
+[*]Only direct generator overflow burns cables. Transformer or battery overflow trips the upstream devices into Overloaded instead; the cable survives and the fault tells you what to fix.
 [*]Super-heavy cable costs twice as much to craft (configurable via the multiplier; 1.0 = vanilla).
-[*]The three cable tiers are three separate voltages. A cable network must be all one tier; a wrong-tier cable burns on the next power tick (only when the network actually has power flowing -- an idle off network destroys nothing). The only legal bridge between tiers is a transformer or an Area Power Controller (its input and output are separate networks).
-[*]Devices belong on the right tier: generators and stationary batteries on heavy, the high-draw machines (Carbon Sequester, the furnaces, Centrifuge, Recycler, Ice Crusher, Hydraulic Pipe Bender, Deep Miner, plus any you add in the config) on heavy or normal, super-heavy is cables-and-transformers only, and everything else on normal. A device on the wrong tier is allowed to place -- but when power flows, the cable next to it burns and the device becomes orphaned (never the device itself). Transformers, APCs and wireless power devices are exempt.
-[*]Placement UX: placing the wrong-tier cable next to an existing device shows a red ghost with a "Wrong voltage" tooltip; same for placing a wrong-tier cable next to an existing cable network of another tier. Device placement is never blocked at the cursor -- you find out by watching the cable burn.
-[*]Burned cables explain why: hover over a ruptured cable for "Burned: overloaded" / "Burned: wrong voltage -- adjacent [device]" / "Burned: wrong voltage -- bridging different tiers".
+[*]The three cable tiers are three separate voltages. A cable network must be all one tier; a wrong-tier cable burns on the next powered tick (an idle network destroys nothing). The only legal bridge between tiers is a transformer or an APC.
+[*]Devices belong on the right tier: generators and stationary batteries on heavy, high-draw machines (the furnaces, Centrifuge, Recycler, and friends, plus any you add in the config) on heavy or normal, super-heavy is cables-and-transformers only, everything else on normal. A misplaced device burns the cable next to it when power flows (never the device itself). Transformers, APCs and wireless power devices are exempt.
+[*]Placement UX: placing a wrong-tier cable next to an existing device or network shows a red ghost with a "Wrong voltage" tooltip. Device placement is never blocked at the cursor.
+[*]Burned cables explain why in their hover tooltip ("Burned: overloaded", "Burned: wrong voltage"), and the reason survives save / load.
 [/list]
 
-[h3]Transformer priority and load shedding (new)[/h3]
+[h3]Transformer priority and dispatch (new)[/h3]
 [list]
-[*]Transformer throughput is hardcoded at OutputMaximum; the knob sets a writable Priority value instead (default 100, step 10 per screwdriver click or 1 with Alt).
-[*]Competing transformers on the same input network are served strictly by Priority: highest first, leftover to the next, demand-driven.
-[*]A transformer that cannot get its full share sheds for 10 s: contributes 0, on/off button pulses orange, hover shows "(Shedding)". Two-tick tolerance prevents single-frame spikes from tripping a lockout. Auto-clears.
-[*]New writable [b]Priority[/b] + read-only [b]Shedding[/b] logic values. Legacy [b]Setting[/b] writes redirect to [b]Priority[/b].
-[*]Priority saves with the world and rides the multiplayer join handshake. Master toggle [b]Enable Transformer Shedding[/b] restores vanilla when off.
+[*]The vanilla Setting value is the throughput cap again: IC10 reads and writes it exactly as in the base game. New transformers start at full throughput; saved worlds keep their saved Settings.
+[*]The in-world knob and the Labeller set [b]Priority[/b] instead (non-negative integer, no upper cap, default 100, step 10 per click or 1 with Alt). Priority decides who sheds first; comparisons are local to each input network.
+[*]New writable [b]Priority[/b] + read-only [b]Shedding[/b] / [b]Overloaded[/b] / [b]CycleFault[/b] logic values.
+[*]Priority saves with the world and rides the multiplayer join handshake. Master toggles for shedding and overload protection restore the vanilla behaviours when off.
+[*]Power transmitter / receiver dish pairs participate in dispatch like transformers, using whichever distance-loss model is active.
 [/list]
 
 [h3]Logic passthrough (new)[/h3]
 [list]
-[*]Transformers, stationary batteries and Area Power Controllers split a power network in two; normally a logic reader on one side can't see the other side's devices. Turn on passthrough and the reader sees through the bridge, and through a whole chain of bridges, so devices several transformers away read as one logic network, with no extra data cable. Looped layouts are fine. Linked Microwave Power Transmitter and Receiver dishes bridge across their wireless link too.
-[*]A writable LogicPassthroughMode logic value (set from IC10 or a Logic Writer) controls it per device: 1 = transparent, 0 = vanilla. Defaults to transparent for batteries, dishes and the small transformer; opaque for other transformers. Saved with the world.
-[*]Each device family has a server-authoritative master toggle.
+[*]Bridging devices (transformers, batteries, APCs, linked dish pairs) can be made logic-transparent: a reader sees through the bridge, and through a whole chain of bridges, with no extra data cable. Looped layouts are fine.
+[*]A writable LogicPassthroughMode logic value controls it per device (1 = transparent, 0 = vanilla); defaults to transparent for batteries, dishes and the small transformer. Saved with the world. Per-family server master toggles.
 [/list]
 
 [h3]Settings[/h3]
 All settings are server-authoritative: in multiplayer the host's value controls gameplay for everyone. Highlights:
 [list]
-[*][b]Cable Burn Factor[/b] (default 1.0): scales the per-tick cable burn chance; 0.0 disables gradual burnout.
-[*][b]Enable Unlimited Super-Heavy Cables[/b] (default true), [b]Super-Heavy Cable Cost Multiplier[/b] (default 2.0).
-[*][b]Enable Voltage Tiers[/b] (default true), [b]Extra Heavy-Cable Devices[/b] (a comma-separated PrefabName list).
-[*][b]Enable Battery Limits[/b] / [b]Max Battery Charge Rate[/b] / [b]Max Battery Discharge Rate[/b] / [b]Battery Charge Efficiency[/b].
-[*][b]Enable Transformer Exploit Mitigation[/b], [b]Enable APC Power Fix[/b].
-[*][b]Enable Transformer / Battery / Power Transmitter Logic Passthrough[/b], [b]Enable APC Logic Passthrough[/b] (all default true).
-[*][b]Enable Transformer Shedding[/b] (default true): priority-based transformer dispatch and load shedding.
+[*][b]Normal / Heavy / Super Heavy Cable Max Watts[/b] (5000 / 100000 / 0; 0 = unlimited), [b]Super-Heavy Cable Cost Multiplier[/b] (2.0).
+[*][b]Extra Heavy-Cable Devices[/b] (a comma-separated PrefabName list for modded high-draw machines).
+[*]Per-prefab battery charge / discharge caps, [b]Battery Charge Efficiency[/b], APC and Rocket Umbilical charge / discharge rates.
+[*][b]Enable Transformer Shedding[/b] and [b]Enable Transformer Overload Protection[/b] (both default true).
+[*][b]Enable Transformer / Battery / Power Transmitter / APC Logic Passthrough[/b] (all default true).
+[*][b]Emergency Light[/b] master toggle + a configurable prefab list for battery wall lights acting as emergency backup lights.
+[*]Voltage tiers, cycle faults, and producer isolation are always on (no toggle); they are the core of the redesigned grid.
 [/list]
 
 [h2]Compatibility[/h2]
@@ -71,7 +77,7 @@ All settings are server-authoritative: in multiplayer the host's value controls 
 [*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
 [/list]
 
-[b]All players[/b] on a server must have Power Grid Plus installed. Matching mod versions are enforced during the connection handshake automatically. [b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + Power Grid Plus setup installed server-side.
+[b]All players[/b] on a server must have Power Grid Plus installed; matching versions are enforced in the connection handshake. [b]Dedicated servers[/b] need the same setup server-side.
 
 Re-Volt itself swaps the power tick the same way this mod does, so running both is not supported.
 
@@ -88,6 +94,20 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
+v0.2.0: Atomic power tick and the fault system (work in progress)
+- Atomic five-phase power tick: observe every network, decide every fault and allocation globally, then run the vanilla per-network power flow with those decisions in effect. Decisions apply in the same tick; the inner simulation is the unmodified vanilla PowerTick, and vanilla partial-power scaling stays as the safety net for unclassified devices.
+- Four 60-second fault lockouts with on-device feedback: Shedding (orange flash; input network cannot cover the device, lowest Priority sheds first), Overloaded (red; delivering at the Setting cap or full battery discharge with demand still unmet), Cycle Fault (red; the device closes a power loop, every loop member faults and the loop dissolves without burning a cable), and Variable Voltage Fault (red; a producer wired to consumers without a transformer stops generating). Hover text names the cause with a live countdown; toggling the device off clears the fault instantly.
+- Producer isolation is always on: producers (solar, wind, generators, RTG, turbine, dynamic generator dock) may only share a network with other producers and transformers. Unrecognised modded producers fall back to burning the cable next to the violating consumer.
+- Elastic storage: batteries, APC cells, and rocket power umbilicals charge only from surplus and discharge only to fill a shortfall, with proportional sharing among competitors. New read-only logic values MaxChargeSpeed, MaxDischargeSpeed, ChargeSpeed, and DischargeSpeed on all storage devices; the earlier Import Quantity / Export Quantity exposure on batteries is removed (breaking change for scripts that read them).
+- Transformer Setting is vanilla again: IC10 reads and writes the live throughput cap (the earlier redirect of Setting writes to Priority is removed); new transformers start at full throughput, saved worlds keep their saved Settings, and a Setting of 0 means deliberately off (logged at load). The knob and the Labeller set Priority (no upper cap). Dispatch is per input network by Priority.
+- Cable Watts caps are configurable per tier (normal 5000, heavy 100000 matching vanilla, super-heavy unlimited; 0 = unlimited) and enforced at runtime only; cables in the save are never modified, so removing the mod restores vanilla ratings.
+- Only direct generator overflow burns cables; transformer or battery overflow trips the upstream devices into Overloaded instead. Burned-cable reasons now survive save and load (side-car).
+- Power transmitter / receiver pairs participate in dispatch as transformer-like devices, using whichever distance-loss model is active (vanilla curve or PowerTransmitterPlus).
+- Rocket power umbilical rate caps and logic values (master toggle plus charge / discharge rate settings).
+- Multiplayer fault sync rebuilt as per-tick full snapshots with a join handshake, so clients always show the correct flash and countdown, self-healing after packet loss.
+- Emergency-light target list: the battery wall-light emergency behaviour now applies to a configurable prefab list (default StructureWallLightBattery).
+- Removed settings: Enable Voltage Tiers, Enable Recursive Network Limits, Enable Unlimited Super-Heavy Cables (voltage tiers and loop handling are always on; the super-heavy toggle became the 0 = unlimited cap). New settings: the three per-tier cable caps, APC Battery Discharge Rate, the three Rocket Umbilical entries, Enable Transformer Overload Protection, and Emergency Light Prefabs.
+
 v0.1.0: First build (work in progress)
 - Reworked cable-network power tick from Re-Volt: proportional load sharing, gradual probabilistic cable burnout on a rolling throughput average, NaN-power guard.
 - Stationary battery charge/discharge-rate limits, optional charge efficiency, and rate-limit logic values.
@@ -109,17 +129,14 @@ v0.1.0: First build (work in progress)
     <Tag>StationeersPlus</Tag>
   </Tags>
   <InGameDescription><![CDATA[<size="30"><color=#ffa500>Power Grid Plus</color></size>
-<line-height=40%>Reworks Stationeers wired power: priority-based transformer dispatch with shedding, proportional load sharing, three cable tiers as separate voltages, logic-transparent bridges, and deterministic multiplayer cable-network ids.
-A pure-patch mod (no new prefabs). Simulation half from Re-Volt (MIT). Multiplayer-compatible. Early build.
-<b>From Re-Volt:</b>
-- Proportional load sharing; gradual rolling-average cable burnout; recursive networks; battery charge/discharge limits; transformer + APC exploit fixes.
-<b>New:</b>
-- Transformer Priority + shedding: knob sets Priority; throughput hardcoded at OutputMaximum. Highest priority served first; lower ones shed (orange flash + hover) for 10 s on shortfall. Writable Priority + read-only Shedding logic values; Setting writes redirect to Priority.
-- Super-heavy cable never burns; it is the long-haul backbone.
-- Three cable tiers are separate voltages; mixing them burns the lower-tier boundary cable. Bridge tiers with a transformer or APC.
-- Devices belong on their tier; a misplaced device burns its cable next powered tick.
-- Logic passthrough: writable LogicPassthroughMode makes transformers, batteries and dishes logic-transparent.
-<b>Settings:</b> Server-authoritative; the host's values control gameplay for everyone.
+<line-height=40%>Reworks Stationeers wired power: an atomic power tick with priority-based transformer dispatch, shedding and overload lockouts, loop and producer-isolation faults with on-device countdowns, elastic battery allocation, three cable tiers as separate voltages, logic-transparent bridges, and deterministic multiplayer network ids.
+A pure-patch mod (no new prefabs). Multiplayer-compatible. Early build.
+<b>Faults:</b>
+- Shedding (orange flash), Overloaded / Cycle Fault / Variable Voltage Fault (red flash). 60 s lockouts, hover shows the cause with a live countdown, toggling off clears instantly.
+- Producers (solar, wind, generators) may only share a network with producers and transformers.
+<b>Dispatch:</b> Setting is the vanilla throughput cap; the knob and Labeller set Priority. Lowest priority sheds first per input network. Loops fault their devices instead of burning cables.
+<b>Storage:</b> batteries / APCs / umbilicals charge only from surplus, discharge only to fill shortfalls. MaxChargeSpeed / MaxDischargeSpeed / ChargeSpeed / DischargeSpeed logic values.
+<b>Tiers:</b> three cable tiers are separate voltages; configurable Watts caps, runtime-enforced (saves untouched). Only generator overflow burns cables.
 <b>Requires:</b> BepInEx + StationeersLaunchPad.
 </line-height>
 ]]></InGameDescription>

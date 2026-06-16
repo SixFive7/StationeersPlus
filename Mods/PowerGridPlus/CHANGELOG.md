@@ -2,6 +2,20 @@
 
 Full version history for Power Grid Plus. The newest entry also appears in `About.xml` `<ChangeLog>`.
 
+## v0.2.0: Atomic power tick and the fault system (work in progress)
+- Atomic five-phase power tick: observe every network, decide every fault and allocation globally, then run the vanilla per-network power flow with those decisions in effect. Decisions apply in the same tick; the inner simulation is the unmodified vanilla PowerTick, and vanilla partial-power scaling stays as the safety net for unclassified devices.
+- Four 60-second fault lockouts with on-device feedback: Shedding (orange flash; input network cannot cover the device, lowest Priority sheds first), Overloaded (red; delivering at the Setting cap or full battery discharge with demand still unmet), Cycle Fault (red; the device closes a power loop, every loop member faults and the loop dissolves without burning a cable), and Variable Voltage Fault (red; a producer wired to consumers without a transformer stops generating). Hover text names the cause with a live countdown; toggling the device off clears the fault instantly.
+- Producer isolation is always on: producers (solar, wind, generators, RTG, turbine, dynamic generator dock) may only share a network with other producers and transformers. Unrecognised modded producers fall back to burning the cable next to the violating consumer.
+- Elastic storage: batteries, APC cells, and rocket power umbilicals charge only from surplus and discharge only to fill a shortfall, with proportional sharing among competitors. New read-only logic values `MaxChargeSpeed`, `MaxDischargeSpeed`, `ChargeSpeed`, and `DischargeSpeed` on all storage devices; the earlier Import Quantity / Export Quantity exposure on batteries is removed (breaking change for scripts that read them).
+- Transformer Setting is vanilla again: IC10 reads and writes the live throughput cap (the earlier redirect of Setting writes to Priority is removed); new transformers start at full throughput, saved worlds keep their saved Settings, and a Setting of 0 means deliberately off (logged at load). The knob and the Labeller set Priority (no upper cap). Dispatch is per input network by Priority.
+- Cable Watts caps are configurable per tier (normal 5000, heavy 100000 matching vanilla, super-heavy unlimited; 0 = unlimited) and enforced at runtime only; cables in the save are never modified, so removing the mod restores vanilla ratings.
+- Only direct generator overflow burns cables; transformer or battery overflow trips the upstream devices into Overloaded instead. Burned-cable reasons now survive save and load (side-car).
+- Power transmitter / receiver pairs participate in dispatch as transformer-like devices, using whichever distance-loss model is active (vanilla curve or PowerTransmitterPlus).
+- Rocket power umbilical rate caps and logic values (master toggle plus charge / discharge rate settings).
+- Multiplayer fault sync rebuilt as per-tick full snapshots with a join handshake, so clients always show the correct flash and countdown, self-healing after packet loss.
+- Emergency-light target list: the battery wall-light emergency behaviour now applies to a configurable prefab list (default StructureWallLightBattery).
+- Removed settings: Enable Voltage Tiers, Enable Recursive Network Limits, Enable Unlimited Super-Heavy Cables (voltage tiers and loop handling are always on; the super-heavy toggle became the 0 = unlimited cap). New settings: the three per-tier cable caps, APC Battery Discharge Rate, the three Rocket Umbilical entries, Enable Transformer Overload Protection, and Emergency Light Prefabs.
+
 ## v0.1.0: First build (work in progress)
 - Reworked cable-network power tick from Re-Volt: proportional load sharing, gradual probabilistic cable burnout on a rolling throughput average, NaN-power guard.
 - Stationary battery charge/discharge-rate limits, optional charge efficiency, and rate-limit logic values.

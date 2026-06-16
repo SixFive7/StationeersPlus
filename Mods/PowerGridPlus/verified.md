@@ -111,7 +111,10 @@ station with 23 batteries, 41 transformers, 16 APCs, 121 cable networks, and
   `PowerTickPatches.CheckForRecursiveProviders` reverse-patch is not
   invoked because `EnableRecursiveNetworkLimits` defaults off.
 
-- **Cable burn at sustained > 5 kW.** ScenarioRunner's `pgp-cable-burn-probe`
+- **Cable burn at sustained > 5 kW.** (SUPERSEDED by the v0.2.0 rework: `PowerGridTick` is deleted and
+  the burn is now the deterministic 20-tick running-average rule in `PowerTickPatches` / `CableBurnWindow`,
+  with no `CableBurnFactor` setting and no probability. The historical probe below tested the old
+  Re-Volt-derived probabilistic `TestBurnCable`.) ScenarioRunner's `pgp-cable-burn-probe`
   reflect-invokes `PowerGridPlus.Power.PowerGridTick.TestBurnCable(10000,
   10000)` against every CableNetwork:
 
