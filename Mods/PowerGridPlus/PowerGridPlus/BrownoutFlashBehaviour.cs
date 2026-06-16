@@ -1,13 +1,18 @@
 using System.Linq;
+using System.Reflection;
 using Assets.Scripts;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using HarmonyLib;
 using UnityEngine;
+using VanillaSwitchOnOff = global::Objects.SwitchOnOff;
 
 namespace PowerGridPlus
 {
-    // Per-Transformer MonoBehaviour that lights up the on/off button with an
-    // orange pulse while the transformer is in the shed state. Mirrors
+    // Per-device MonoBehaviour that lights up the on/off button with a colour
+    // pulse while the device is in a fault state (POWER.md §11.4: attaches to
+    // every segmenting device with an OnOff button and to every button-bearing
+    // producer; FlashAttachPatches drives the attachment). Mirrors
     // LogicOnOffButton's flash behaviour without requiring shipped material
     // assets or prefab modification (Research/GameClasses/LogicOnOffButton.md).
     //
@@ -35,7 +40,12 @@ namespace PowerGridPlus
     public class BrownoutFlashBehaviour : MonoBehaviour
     {
         private const float FlashHz = 2f;
-        private static readonly Color FlashColor = new Color(1f, 0.55f, 0f);   // #ffa500 orange
+        // Failure-colour split (POWER.md §11): SHED flashes orange (upstream undersupply),
+        // every other fault (OVERLOAD, CYCLE_FAULT, VARIABLE_VOLTAGE_FAULT) flashes red. The
+        // highest-precedence active fault picks the colour (CYCLE > VVF > OVERLOAD > SHED), and
+        // because all non-shed faults are red the resolver only needs a red-vs-orange decision.
+        internal static readonly Color OrangeFlashColor = new Color(1f, 0.55f, 0f);   // #ffa500 shed
+        internal static readonly Color RedFlashColor = new Color(1f, 0.15f, 0.15f);   // #ff2626 overload/cycle/vvf
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_Color");
 
@@ -45,7 +55,8 @@ namespace PowerGridPlus
         // from a probe scenario when triaging a paint mismatch.
         internal static bool DiagnosticEnabled = false;
 
-        private Transformer _transformer;
+        private Thing _device;
+        private long _faultRefId;
         private MeshRenderer[] _renderers;
         private Color[] _originalEmissionColors;
         private bool[] _hadEmissionKeyword;
@@ -53,28 +64,30 @@ namespace PowerGridPlus
         private bool _diagnosticLogged;
         private bool _transitionLogged;
 
-        internal void Init(Transformer transformer)
+        internal void Init(Thing device)
         {
-            _transformer = transformer;
-            _renderers = DiscoverRenderers(transformer);
+            _device = device;
+            // PR lockouts are keyed on the linked PT (the pair anchor); everything else keys itself.
+            _faultRefId = FaultHover.ResolveFaultRefId(device);
+            _renderers = DiscoverRenderers(device);
             CacheBaseline();
             LogDiagnostic();
         }
 
-        private static MeshRenderer[] DiscoverRenderers(Transformer transformer)
+        private static MeshRenderer[] DiscoverRenderers(Thing device)
         {
-            if (transformer == null) return new MeshRenderer[0];
+            if (device == null) return new MeshRenderer[0];
 
             // (1) On/Off Interactable -> its descendant MeshRenderers. This is the precise
             // path for the on/off button geometry. Interactable is `[Serializable]` (not a
             // MonoBehaviour), but it carries an `Animator` reference plus the GameObject
             // path via `BaseRotation` / `Targets`. Walk Transformer.Interactables and try
             // to resolve a Transform via reflection over the public field set.
-            if (transformer.Interactables != null)
+            if (device.Interactables != null)
             {
-                for (int i = 0; i < transformer.Interactables.Count; i++)
+                for (int i = 0; i < device.Interactables.Count; i++)
                 {
-                    var inter = transformer.Interactables[i];
+                    var inter = device.Interactables[i];
                     if (inter == null || inter.Action != InteractableType.OnOff) continue;
                     // The Interactable's `Animator` member's gameObject is the button visual root.
                     var animField = typeof(Interactable).GetField("Animator");
@@ -89,7 +102,7 @@ namespace PowerGridPlus
 
             // (2) Name-substring fallback for prefab variants whose Interactable doesn't
             // have its own renderer subtree.
-            var all = transformer.GetComponentsInChildren<MeshRenderer>();
+            var all = device.GetComponentsInChildren<MeshRenderer>();
             var preferred = System.Array.FindAll(all, r =>
             {
                 var n = r != null && r.gameObject != null ? r.gameObject.name : null;
@@ -126,11 +139,11 @@ namespace PowerGridPlus
             _diagnosticLogged = true;
             if (_renderers == null || _renderers.Length == 0)
             {
-                Plugin.Log?.LogWarning($"BrownoutFlashBehaviour on Transformer ref={_transformer?.ReferenceId} prefab={_transformer?.PrefabName}: no MeshRenderer discovered for on/off button. Flash will not be visible. Hierarchy may need explicit InteractableType.OnOff Interactable or a renderer with Button/Switch/OnOff in its name.");
+                Plugin.Log?.LogWarning($"BrownoutFlashBehaviour on {_device?.GetType().Name} ref={_device?.ReferenceId} prefab={_device?.PrefabName}: no MeshRenderer discovered for on/off button. Flash will not be visible. Hierarchy may need explicit InteractableType.OnOff Interactable or a renderer with Button/Switch/OnOff in its name.");
                 return;
             }
             var names = string.Join(", ", _renderers.Where(r => r != null).Select(r => r.gameObject.name));
-            Plugin.Log?.LogDebug($"BrownoutFlashBehaviour on Transformer ref={_transformer?.ReferenceId} prefab={_transformer?.PrefabName}: discovered {_renderers.Length} renderer(s) -> {names}");
+            Plugin.Log?.LogDebug($"BrownoutFlashBehaviour on {_device?.GetType().Name} ref={_device?.ReferenceId} prefab={_device?.PrefabName}: discovered {_renderers.Length} renderer(s) -> {names}");
         }
 
         // LateUpdate (not Update) so the flash paint runs AFTER LogicOnOffButton's
@@ -144,26 +157,41 @@ namespace PowerGridPlus
 
         private void UpdateBody()
         {
-            if (_transformer == null || _renderers == null || _renderers.Length == 0) return;
+            if (_device == null || _renderers == null || _renderers.Length == 0) return;
 
             int tick = ElectricityTickCounter.CurrentTick;
-            bool shedding = ShedSettingsSync.Effective
-                && BrownoutRegistry.IsShedding(_transformer.ReferenceId, tick);
+            // Highest-precedence active fault picks the colour (CYCLE > VVF > OVERLOAD > SHED,
+            // POWER.md §11.5): every non-shed fault is red, shed is orange. The hover text
+            // distinguishes the precise cause for the player.
+            var fault = FaultHover.ActiveFault(_faultRefId, tick);
+            bool flashing = fault != FaultHover.Kind.None;
+            Color faultColor = fault == FaultHover.Kind.Shed ? OrangeFlashColor : RedFlashColor;
 
-            if (DiagnosticEnabled && shedding && !_transitionLogged)
+            if (DiagnosticEnabled && flashing && !_transitionLogged)
             {
                 _transitionLogged = true;
-                DumpDiagnostic("ENTER_SHED");
+                DumpDiagnostic("ENTER_FLASH");
             }
-            else if (DiagnosticEnabled && !shedding && _transitionLogged)
+            else if (DiagnosticEnabled && !flashing && _transitionLogged)
             {
                 _transitionLogged = false;
-                DumpDiagnostic("EXIT_SHED");
+                DumpDiagnostic("EXIT_FLASH");
             }
 
-            if (!shedding)
+            if (!flashing)
             {
-                if (_wasFlashing) RestoreBaseline();
+                if (_wasFlashing)
+                {
+                    RestoreBaseline();
+                    // Force vanilla SwitchOnOff.RefreshColorState so the
+                    // button's material reflects the CURRENT (OnOff, Powered,
+                    // HasPowerState, Error) tuple, not the material we cached
+                    // at Init time. Without this, a transformer that the
+                    // player turned OFF during the shed shows the cached ON-
+                    // state material after the shed clears -- visually
+                    // inconsistent with OnOff=false.
+                    ForceVanillaRefresh();
+                }
                 return;
             }
 
@@ -175,8 +203,8 @@ namespace PowerGridPlus
             // for some material configurations; pushing past 1 keeps the orange visible
             // through the gamma transform).
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.realtimeSinceStartup * FlashHz * Mathf.PI * 2f);
-            Color emission = FlashColor * (pulse * 2f);
-            Color baseTint = Color.Lerp(Color.white, FlashColor, 0.4f * pulse);
+            Color emission = faultColor * (pulse * 2f);
+            Color baseTint = Color.Lerp(Color.white, faultColor, 0.4f * pulse);
 
             // Material-swap approach: writing per-property values to the vanilla
             // SwitchOnOff materials does not work because the `on` / `onPowered`
@@ -245,6 +273,26 @@ namespace PowerGridPlus
             _wasFlashing = false;
         }
 
+        // Cached reflection handle for vanilla SwitchOnOff.RefreshColorState
+        // (private instance method, no parameters). Resolved once at type
+        // load via AccessTools so a null lookup degrades silently.
+        private static readonly MethodInfo RefreshColorStateMethod =
+            AccessTools.Method(typeof(VanillaSwitchOnOff), "RefreshColorState");
+
+        private void ForceVanillaRefresh()
+        {
+            if (_device == null || RefreshColorStateMethod == null) return;
+            var switches = _device.GetComponentsInChildren<VanillaSwitchOnOff>();
+            if (switches == null) return;
+            for (int i = 0; i < switches.Length; i++)
+            {
+                var s = switches[i];
+                if (s == null) continue;
+                try { RefreshColorStateMethod.Invoke(s, null); }
+                catch (System.Exception e) { Plugin.Log?.LogWarning($"[BFB] RefreshColorState invoke failed for ref={_device.ReferenceId}: {e.Message}"); }
+            }
+        }
+
         private void OnDestroy()
         {
             if (_wasFlashing) RestoreBaseline();
@@ -254,9 +302,10 @@ namespace PowerGridPlus
         {
             try
             {
-                int refId = _transformer != null ? (int)_transformer.ReferenceId : -1;
-                bool onOff = _transformer != null && _transformer.OnOff;
-                int error = _transformer != null ? _transformer.Error : -1;
+                long refId = _device != null ? _device.ReferenceId : -1;
+                var dev = _device as Assets.Scripts.Objects.Pipes.Device;
+                bool onOff = dev != null && dev.OnOff;
+                int error = dev != null ? dev.Error : -1;
                 Plugin.Log?.LogInfo($"[BFB-DIAG] {transition} ref={refId} OnOff={onOff} Error={error} renderers={_renderers.Length}");
                 // Also walk the Switch hierarchy and dump every MonoBehaviour
                 // so we can identify what's competing for the LED renderer.
