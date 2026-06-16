@@ -29,10 +29,17 @@ Append at the next free slot. Increments of 1. Compact packing - a mod may have 
 | 6575 | PowerTransmitterPlus | MicrowaveAutoAimTarget | R / W | Target Thing.ReferenceId. Set 0 to disable. |
 | 6576 | PowerTransmitterPlus | MicrowaveLinkedPartner | R | Linked partner's ReferenceId, or 0 when unlinked. |
 | 6577 | PowerGridPlus | LogicPassthroughMode | R / W | 0 = vanilla logic-opaque transformer, 1 = logic-transparent. |
-| 6578 | PowerGridPlus | Priority | R / W | Per-transformer dispatch priority (int >= 0, default 100). Strict-priority allocation: highest priority gets first dibs on input-network supply; lower-priority transformers get the leftover. A transformer that cannot get its full OutputMaximum from the input network sheds for 10 seconds. |
-| 6579 | PowerGridPlus | Shedding | R | Returns 1 when the transformer is currently shed (browned out) by the strict-priority allocation, 0 otherwise. Read-only. Server-derived; replicated to clients. |
+| 6578 | PowerGridPlus | Priority | R / W | Per-transformer dispatch priority (int >= 0, default 100). Strict-priority allocation: highest priority gets first dibs on input-network supply; lower-priority transformers get the leftover. A transformer that cannot get its share of the input sheds for 60 seconds. |
+| 6579 | PowerGridPlus | Shedding | R | Returns 1 when the transformer is currently shed (upstream-side protection: input cannot supply enough), 0 otherwise. Read-only. Server-derived; replicated to clients. |
+| 6580 | PowerGridPlus | Overloaded | R | Returns 1 when the transformer is currently in overload protection (downstream-side protection: output network demands more than the transformer can deliver), 0 otherwise. Read-only. Server-derived; replicated to clients. |
+| 6581 | PowerGridPlus | CycleFault | R | Returns 1 while the device is in CYCLE_FAULT lockout (it is part of a closed power loop). Auto-clears after 60 s. Read-only. Server-derived; replicated to clients. |
+| 6582 | PowerGridPlus | VariableVoltageFault | R | Returns 1 while the producer is in VARIABLE_VOLTAGE_FAULT lockout (a power producer wired to anything other than producers or a transformer). Auto-clears after 60 s. Read-only. Server-derived; replicated to clients. |
+| 6583 | PowerGridPlus | MaxChargeSpeed | R | Configured per-prefab charge-rate cap in Watts (battery / APC / rocket umbilical). Read-only. |
+| 6584 | PowerGridPlus | MaxDischargeSpeed | R | Configured per-prefab discharge-rate cap in Watts (battery / APC / rocket umbilical). Read-only. |
+| 6585 | PowerGridPlus | ChargeSpeed | R | Actual charge rate this tick in Watts, after elastic-supply allocation. Read-only. |
+| 6586 | PowerGridPlus | DischargeSpeed | R | Actual discharge rate this tick in Watts, after elastic-supply allocation. Read-only. |
 
-**Next free slot: 6580.**
+**Next free slot: 6587.**
 
 ## Rules for adding a new entry
 

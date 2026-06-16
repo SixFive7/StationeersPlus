@@ -33,7 +33,14 @@ namespace StationeersPlus.Shared
         public const ushort LogicPassthroughMode      = 6577;
         public const ushort Priority                  = 6578;
         public const ushort Shedding                  = 6579;
+        public const ushort Overloaded                = 6580;
+        public const ushort CycleFault                = 6581;
+        public const ushort VariableVoltageFault      = 6582;
+        public const ushort MaxChargeSpeed            = 6583;
+        public const ushort MaxDischargeSpeed         = 6584;
+        public const ushort ChargeSpeed               = 6585;
+        public const ushort DischargeSpeed            = 6586;
 
-        // Next free slot: 6580.
+        // Next free slot: 6587.
     }
 }
