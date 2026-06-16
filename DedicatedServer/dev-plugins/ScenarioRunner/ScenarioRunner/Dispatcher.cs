@@ -231,6 +231,42 @@ namespace ScenarioRunner
                     Scenario_PgpShedTrace();
                     return;
 
+                case "pgp-pt-hover-all":
+                    Scenario_PgpPtHoverAll();
+                    return;
+
+                case "pgp-pt-flash-all":
+                    Scenario_PgpPtFlashAll();
+                    return;
+
+                case "pgp-pt-logic-all":
+                    Scenario_PgpPtLogicAll();
+                    return;
+
+                case "pgp-pt-onoff-table":
+                    Scenario_PgpPtOnOffTable();
+                    return;
+
+                case "pgp-pt-synthetic-all":
+                    Scenario_PgpPtSyntheticAll();
+                    return;
+
+                case "pgp-pt-topology-all":
+                    Scenario_PgpPtTopologyAll();
+                    return;
+
+                case "pgp-pt-extra-all":
+                    Scenario_PgpPtExtraAll();
+                    return;
+
+                case "pgp-pt-crossmod-all":
+                    Scenario_PgpPtCrossModAll();
+                    return;
+
+                case "pgp-pt-burnreason":
+                    Scenario_PgpPtBurnReason();
+                    return;
+
                 case "ptp-autoaim-cache-probe":
                     Scenario_PtpAutoAimCacheProbe();
                     return;
