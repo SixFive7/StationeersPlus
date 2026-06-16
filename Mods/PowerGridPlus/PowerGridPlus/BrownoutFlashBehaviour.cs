@@ -128,7 +128,11 @@ namespace PowerGridPlus
             // least visible. Prefer the active built-state body (named "BuildState..." or after the
             // prefab); skip the BrokenState meshes (inactive on an intact device). Reached only after
             // (1) and (2) both fail, i.e. Battery / APC-without-lever, never a transformer.
-            var body = System.Array.Find(all, r =>
+            // Flash ALL body candidates (the prefab-named root body + any "BuildState" built-stage mesh,
+            // minus the inactive "BrokenState" meshes), not just the first: a battery exposes both a root
+            // body renderer and a BuildState00 mesh, and which one is the visible built mesh varies, so
+            // tinting both guarantees the fault is seen.
+            var body = System.Array.FindAll(all, r =>
             {
                 var n = r != null && r.gameObject != null ? r.gameObject.name : null;
                 if (string.IsNullOrEmpty(n)) return false;
@@ -136,7 +140,7 @@ namespace PowerGridPlus
                 return n.IndexOf("BuildState", System.StringComparison.OrdinalIgnoreCase) >= 0
                     || (device.PrefabName != null && n == device.PrefabName);
             });
-            return body != null ? new[] { body } : new MeshRenderer[0];
+            return body;
         }
 
         private void CacheBaseline()
