@@ -2325,6 +2325,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CalculateState accumulates into Required/Potential; only Initialise resets them
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7382,6 +7393,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CalculateState accumulates into Required/Potential; only Initialise resets them
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7493,7 +7515,7 @@
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-10
+verified_at: 2026-06-17
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState)
@@ -7642,11 +7664,21 @@ tags: [power, threading]</p>
 </span></code></pre></div>
 <p>Vanilla cable burn is <strong>instantaneous</strong> and <strong>per-cable</strong>: any cable whose <code>MaxVoltage &lt; _actual</code> (where <code>_actual = min(Potential, Required)</code>) is a burn candidate this tick; <code>BreakableCables.Pick()</code> picks one at random and <code>Break()</code>s it (after a fuse, if any fuse's <code>PowerBreak &lt; _actual</code>, blows first). Re-Volt replaces this whole class (<code>RevoltTick : PowerTick</code>) with a probabilistic, sliding-window model. A mod that wants e.g. heavy cables to never burn must intercept <code>GetBreakableCables</code> (private; <code>AccessTools.Method(typeof(PowerTick), "GetBreakableCables")</code>) or <code>BreakSingleCable</code>, or guard <code>Cable.Break()</code> -- and must account for Re-Volt having swapped the instance if both are installed.</p>
 <p><code>CalculateState</code> calls a private <code>CheckForRecursiveProviders()</code> (declared at decompile line 254613, called at line 254610) -- this is the "force-burn cables when the grid loops through multiple transformers/batteries" check that walks <code>_networkTraversalRecord</code>. <code>CacheState()</code> is private at line 254656. Both are private instance methods on <code>PowerTick</code>; a subclass-replacement tick that wants the vanilla behaviour back can reach them via Harmony reverse patches (<code>[HarmonyReversePatch, HarmonyPatch("CacheState")] static void CacheState(PowerTick _)</code>), which is what Re-Volt and Power Grid Plus do for <code>CacheState</code> (always) and <code>CheckForRecursiveProviders</code> (only when the recursive-network-limits option is on).</p>
+<h2 id="calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them">CalculateState accumulates into Required/Potential; only Initialise resets them<a class="headerlink" href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-17 -->
+
+<p><code>CalculateState</code> ADDS to the running sums (<code>Required += usedPower</code> at decompile line 254594, <code>Potential += generatedPower</code> at 254599); it never zeroes them itself. The reset lives in <code>Initialise</code> (<code>Potential = 0f; Required = 0f; Consumed = 0f;</code>, lines 254574-254576). The two are therefore a mandatory pair: every <code>CalculateState</code> must be preceded by <code>Initialise</code>, or the sums double-count.</p>
+<p>This matters for any mod that ticks a network more than once per game tick. PowerGridPlus's atomic tick splits the work into an OBSERVE pass and an ENFORCE pass, and each pass calls <code>Initialise</code> then <code>CalculateState</code>, so the second pass starts from a clean zero instead of doubling the first. <code>ApplyState</code> is different: it has real side effects (it drains <code>Providers[].Energy</code> and calls <code>Device.ReceivePower</code> via <code>ConsumePower</code>, lines 254634-254654 -- which mutates a transformer's <code>_powerProvided</code> ledger -- sets <code>Device.Powered</code>, and may <code>Break()</code> a fuse or cable), so it is run only once per game tick, in the enforce pass. Re-running <code>ApplyState</code> a second time would double-drain providers and re-trigger the break checks.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-12: page created. Sourced from a voltage-tier research dive (planned mod "Power Grid Plus") into <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines 254512-254760 and 253668-253681; verbatim excerpts of the <code>PowerTick</code> field block, <code>CableNetwork.OnPowerTick</code>, <code>CacheState</code>, <code>GetBreakableFuses</code>, <code>GetBreakableCables</code>, <code>BreakSingleFuse</code>, <code>BreakSingleCable</code>, <code>ApplyState</code>. Reconciles the class-attribution imprecision on <a href="../CableNetwork/">CableNetwork</a> (those <code>ConsumePower</code>/<code>CalculateState</code> bodies are <code>PowerTick</code> members). Re-Volt mod source (<code>RevoltTick : PowerTick</code>, reverse-patches <code>PowerTick.Initialise</code>/<code>CalculateState</code>/<code>ApplyState</code>) independently corroborates ownership.</li>
 <li>2026-06-10: re-read lines 254512-254761 in full against the same 0.2.6228.27061 decompile during the PowerGridPlus single-architecture rework (the mod now runs this vanilla class unmodified in its atomic Phases 1 and 3). All sections still match verbatim; no content change.</li>
-<li>2026-05-12: while building Power Grid Plus, confirmed <code>PowerTick.CheckForRecursiveProviders()</code> is a private instance method (decompile line 254613, called from <code>CalculateState</code> at 254610) and <code>CacheState()</code> is private at line 254656; added a note that both are reachable via Harmony reverse patches (Power Grid Plus, like Re-Volt, reverse-patches <code>CacheState</code> unconditionally and <code>CheckForRecursiveProviders</code> when its recursive-network-limits option is on). Also: <code>PowerTick</code> and <code>PowerProvider</code> are in namespace <code>Assets.Scripts.Networks</code>; the <code>Pick&lt;T&gt;(this List&lt;T&gt;)</code> / <code>Pick&lt;T&gt;(this List&lt;T&gt;, System.Random)</code> extension used by <code>BreakSingleCable</code>/<code>BreakSingleFuse</code> lives in <code>Assets.Scripts.Util</code> (decompile ~line 214049).</li>
+<li>
+<p>2026-05-12: while building Power Grid Plus, confirmed <code>PowerTick.CheckForRecursiveProviders()</code> is a private instance method (decompile line 254613, called from <code>CalculateState</code> at 254610) and <code>CacheState()</code> is private at line 254656; added a note that both are reachable via Harmony reverse patches (Power Grid Plus, like Re-Volt, reverse-patches <code>CacheState</code> unconditionally and <code>CheckForRecursiveProviders</code> when its recursive-network-limits option is on). Also: <code>PowerTick</code> and <code>PowerProvider</code> are in namespace <code>Assets.Scripts.Networks</code>; the <code>Pick&lt;T&gt;(this List&lt;T&gt;)</code> / <code>Pick&lt;T&gt;(this List&lt;T&gt;, System.Random)</code> extension used by <code>BreakSingleCable</code>/<code>BreakSingleFuse</code> lives in <code>Assets.Scripts.Util</code> (decompile ~line 214049).</p>
+</li>
+<li>
+<p>2026-06-17: added the "CalculateState accumulates; Initialise resets" pairing note. Re-confirmed against the 0.2.6228.27061 decompile: <code>Initialise</code> zeroes <code>Potential</code>/<code>Required</code>/<code>Consumed</code> (lines 254574-254576), <code>CalculateState</code> uses <code>+=</code> (254594, 254599), and <code>ApplyState</code>/<code>ConsumePower</code> drain <code>Providers[].Energy</code> and call <code>Device.ReceivePower</code> (254634-254654). Surfaced while explaining PowerGridPlus's two-pass atomic tick (Initialise+CalculateState in Phase 1 OBSERVE and Phase 3 ENFORCE; ApplyState only in Phase 3).</p>
+</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
