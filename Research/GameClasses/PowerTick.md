@@ -3,7 +3,7 @@ title: PowerTick
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-10
+verified_at: 2026-06-17
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState)
@@ -164,11 +164,20 @@ Vanilla cable burn is **instantaneous** and **per-cable**: any cable whose `MaxV
 
 `CalculateState` calls a private `CheckForRecursiveProviders()` (declared at decompile line 254613, called at line 254610) -- this is the "force-burn cables when the grid loops through multiple transformers/batteries" check that walks `_networkTraversalRecord`. `CacheState()` is private at line 254656. Both are private instance methods on `PowerTick`; a subclass-replacement tick that wants the vanilla behaviour back can reach them via Harmony reverse patches (`[HarmonyReversePatch, HarmonyPatch("CacheState")] static void CacheState(PowerTick _)`), which is what Re-Volt and Power Grid Plus do for `CacheState` (always) and `CheckForRecursiveProviders` (only when the recursive-network-limits option is on).
 
+## CalculateState accumulates into Required/Potential; only Initialise resets them
+<!-- verified: 0.2.6228.27061 @ 2026-06-17 -->
+
+`CalculateState` ADDS to the running sums (`Required += usedPower` at decompile line 254594, `Potential += generatedPower` at 254599); it never zeroes them itself. The reset lives in `Initialise` (`Potential = 0f; Required = 0f; Consumed = 0f;`, lines 254574-254576). The two are therefore a mandatory pair: every `CalculateState` must be preceded by `Initialise`, or the sums double-count.
+
+This matters for any mod that ticks a network more than once per game tick. PowerGridPlus's atomic tick splits the work into an OBSERVE pass and an ENFORCE pass, and each pass calls `Initialise` then `CalculateState`, so the second pass starts from a clean zero instead of doubling the first. `ApplyState` is different: it has real side effects (it drains `Providers[].Energy` and calls `Device.ReceivePower` via `ConsumePower`, lines 254634-254654 -- which mutates a transformer's `_powerProvided` ledger -- sets `Device.Powered`, and may `Break()` a fuse or cable), so it is run only once per game tick, in the enforce pass. Re-running `ApplyState` a second time would double-drain providers and re-trigger the break checks.
+
 ## Verification history
 
 - 2026-05-12: page created. Sourced from a voltage-tier research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 254512-254760 and 253668-253681; verbatim excerpts of the `PowerTick` field block, `CableNetwork.OnPowerTick`, `CacheState`, `GetBreakableFuses`, `GetBreakableCables`, `BreakSingleFuse`, `BreakSingleCable`, `ApplyState`. Reconciles the class-attribution imprecision on [CableNetwork](./CableNetwork.md) (those `ConsumePower`/`CalculateState` bodies are `PowerTick` members). Re-Volt mod source (`RevoltTick : PowerTick`, reverse-patches `PowerTick.Initialise`/`CalculateState`/`ApplyState`) independently corroborates ownership.
 - 2026-06-10: re-read lines 254512-254761 in full against the same 0.2.6228.27061 decompile during the PowerGridPlus single-architecture rework (the mod now runs this vanilla class unmodified in its atomic Phases 1 and 3). All sections still match verbatim; no content change.
 - 2026-05-12: while building Power Grid Plus, confirmed `PowerTick.CheckForRecursiveProviders()` is a private instance method (decompile line 254613, called from `CalculateState` at 254610) and `CacheState()` is private at line 254656; added a note that both are reachable via Harmony reverse patches (Power Grid Plus, like Re-Volt, reverse-patches `CacheState` unconditionally and `CheckForRecursiveProviders` when its recursive-network-limits option is on). Also: `PowerTick` and `PowerProvider` are in namespace `Assets.Scripts.Networks`; the `Pick<T>(this List<T>)` / `Pick<T>(this List<T>, System.Random)` extension used by `BreakSingleCable`/`BreakSingleFuse` lives in `Assets.Scripts.Util` (decompile ~line 214049).
+
+- 2026-06-17: added the "CalculateState accumulates; Initialise resets" pairing note. Re-confirmed against the 0.2.6228.27061 decompile: `Initialise` zeroes `Potential`/`Required`/`Consumed` (lines 254574-254576), `CalculateState` uses `+=` (254594, 254599), and `ApplyState`/`ConsumePower` drain `Providers[].Energy` and call `Device.ReceivePower` (254634-254654). Surfaced while explaining PowerGridPlus's two-pass atomic tick (Initialise+CalculateState in Phase 1 OBSERVE and Phase 3 ENFORCE; ApplyState only in Phase 3).
 
 ## Open questions
 
