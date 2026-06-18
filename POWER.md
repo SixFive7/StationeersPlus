@@ -985,7 +985,7 @@ Four distinct failure modes (after the producer-fault addition in §11.5). Colou
 
 | Fault | Colour | Hex | Hover text template |
 |---|---|---|---|
-| SHED | orange | `#ff8c00` band | `(Shedding: Insufficient upstream supply! {n}s)` |
+| SHED | orange | `#ffa500` band | `(Shedding: Insufficient upstream supply! {n}s)` |
 | OVERLOAD | red | `#ff2626` | `(Overloaded: {device clause} {n}s)` (device-specific, see below) |
 | CYCLE_FAULT | red | `#ff2626` | `(Cycle Fault: This device is part of a loop! {n}s)` |
 | VARIABLE_VOLTAGE_FAULT | red | `#ff2626` | `Variable Voltage Fault: connected to <ClassName> without transformer ({n}s)` |
@@ -1078,7 +1078,7 @@ A device can in principle hit more than one fault state on the same tick. Preced
 3. OVERLOAD
 4. SHED (lowest)
 
-Only ONE fault appears in hover text per tick: the highest-precedence active fault, on a single line with its countdown. Lower-precedence faults that are also active are NOT shown -- no stacking. The flash uses the highest-precedence fault's colour (CYCLE_FAULT red, VARIABLE_VOLTAGE_FAULT red, OVERLOAD red, SHED orange `#ff8c00`).
+Only ONE fault appears in hover text per tick: the highest-precedence active fault, on a single line with its countdown. Lower-precedence faults that are also active are NOT shown -- no stacking. The flash uses the highest-precedence fault's colour (CYCLE_FAULT red, VARIABLE_VOLTAGE_FAULT red, OVERLOAD red, SHED orange `#ffa500`).
 
 IC10 readings (`Shedding`, `Overloaded`, `CycleFault`, `VariableVoltageFault`) all read independently of precedence; a device in two states simultaneously reads 1 on both relevant LogicTypes. Only the hover text and flash collapse to the highest-precedence fault.
 
@@ -1480,7 +1480,7 @@ Class `Battery : ElectricalInputOutput` at decompile L370616. Used by `Structure
 
 Class `Transformer : ElectricalInputOutput` at decompile L403300.
 
-19. **LogicType.Setting** (12, vanilla, read+write) - vanilla `_outputSetting` in `[0, OutputMaximum]`. **PGP override**: when `ShedSettingsSync.Effective`, reads return `OutputMaximum` and writes redirect to `Priority`. `TransformerPriorityLogicPatches.cs`.
+19. **LogicType.Setting** (12, vanilla, read+write) - vanilla `_outputSetting` in `[0, OutputMaximum]`. PGP does NOT intercept Setting: IC10 reads return the live Setting and writes update it (the vanilla `[0, OutputMaximum]` clamp), exactly as in vanilla. Only the in-world knob and the Labeller redirect to `Priority` (§5.3). `TransformerPriorityLogicPatches.cs` wires Priority / Shedding / Overloaded / CycleFault, not Setting.
 20. **LogicType.Maximum** (23, vanilla, read-only) - `OutputMaximum`. `Transformer.GetLogicValue:403532`.
 21. **LogicType.Ratio** (24, vanilla, read-only) - vanilla `Setting / OutputMaximum`. **PGP override**: returns 1.0 when shedding effective (Setting is hardcoded at OutputMaximum). `TransformerPriorityLogicPatches.cs`.
 22. **LogicType.PowerPotential** (25, vanilla, read-only) - `InputNetwork.PotentialLoad`. Inherited.

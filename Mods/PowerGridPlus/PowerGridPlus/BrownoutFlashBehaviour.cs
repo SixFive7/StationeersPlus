@@ -44,7 +44,7 @@ namespace PowerGridPlus
         // every other fault (OVERLOAD, CYCLE_FAULT, VARIABLE_VOLTAGE_FAULT) flashes red. The
         // highest-precedence active fault picks the colour (CYCLE > VVF > OVERLOAD > SHED), and
         // because all non-shed faults are red the resolver only needs a red-vs-orange decision.
-        internal static readonly Color OrangeFlashColor = new Color(1f, 0.55f, 0f);   // #ffa500 shed
+        internal static readonly Color OrangeFlashColor = new Color(1f, 165f / 255f, 0f);   // #ffa500 shed (matches the §0 decision and the hover orange)
         internal static readonly Color RedFlashColor = new Color(1f, 0.15f, 0.15f);   // #ff2626 overload/cycle/vvf
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_Color");

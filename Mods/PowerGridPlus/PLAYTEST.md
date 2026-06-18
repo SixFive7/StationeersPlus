@@ -24,7 +24,7 @@ Driven by new `pgp-pt-*` ScenarioRunner scenarios against the clean Downloads `L
 - P3 `DeviceOutputSanitizer.Sanitize` clamps NaN / +Inf / -Inf to 0 and passes finite through.
 - P6.1 cross-mod: `PowerTransmitterPlusInterop.SourceDrawMultiplier` reads PowerTransmitterPlus's distance multiplier end-to-end (m up to 2.545 on long links); degrades to 1 when PowerTransmitterPlus is absent.
 - Custom LogicType reads (Priority / Shedding / Overloaded / CycleFault read 0 baseline and 1 when forced; battery + APC charge/discharge speed reads).
-- Flash component attach + the `OrangeFlashColor` (1,0.55,0) / `RedFlashColor` (1,0.15,0.15) / `FlashHz` 2 constants.
+- Flash component attach + the `OrangeFlashColor` (1, 165/255, 0 = #ffa500) / `RedFlashColor` (1,0.15,0.15 = #ff2626) / `FlashHz` 2 constants. (The orange was corrected from a drifted #ff8c00 to the decided #ffa500; the exact on-screen shade is a Group A re-eyeball.)
 - Clean-Luna baseline: 207 segmenters, shed=0 overload=0 cycle=0 vvf=108, no false faults, no atomic-tick exceptions, PGP loads with no fatal.
 
 Two bugs the campaign found were FIXED + re-verified headlessly on 2026-06-16:
