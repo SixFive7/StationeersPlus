@@ -34,6 +34,21 @@ Two bugs the campaign found were FIXED + re-verified headlessly on 2026-06-16:
 Finding still open:
 - The historical "Transformer Priority + Shedding 56/56" probe suite is STALE after the v0.2.0 rework: its probes reference the removed `TransformerAllocator`, the renamed flash-color field, the old "Shedding (Priority N)" wording, and the removed `ShedStateMessage`. The current behaviors are re-verified by the `pgp-pt-*` probes; the knob (8/8), labeller (3/3), and save/load-hook (4/4) sub-probes still pass.
 
+## Single-allocator rework 2026-06-18 (overload-first; Legacy allocator + toggle removed)
+
+The allocator is now a single implementation: the old Legacy allocator, the `EnableSweepAllocator` toggle, and `SweepAllocatorSync` are removed. Overload is evaluated BEFORE shed and is sticky (grow-only within a tick, reset only by the 60 s timeout or a player turn-off); only shed is re-decidable. Verified HEADLESS on the dedicated server this session (do NOT re-test):
+
+- Core no-regression: nets 492209 and 503288 report Required == Actual == Potential every tick, `_isPowerMet=T`, `_powerRatio=1`, no oscillation, no atomic-tick exceptions or non-convergence (`pgp-reversed-transformer-probe`).
+- 60-second-freeze fix: in a contended fanout (a low-priority non-step-up consumer X plus an overloading sibling Y, tight feeder), X is NEVER shed and Y is OVERLOADED across the whole trace; a grow-only / shed-first allocator would have frozen X here (`pgp-2cycle-freeze` PASS, F=429369, X=180624, Y=420940).
+- OFF-as-reset clears every fault registry (shed / overload / cycle / VVF) for a switched-off device (code-verified, `OffAsResetSweep`).
+
+Live residue (a headless server cannot show the pixels or a real second peer):
+
+- **(Group A) Overload-before-shed label.** Throttle a transformer on a contended input net so its downstream out-demands its cap (e.g. transformer 360223 `s d0 Setting 10` while its input net is itself short): it must show the RED OVERLOAD flash + "(Overloaded: ...)" hover and IC10 `l rX d0 Overloaded` = 1, NOT the orange SHED. A transformer that is only input-starved (downstream within its cap) must still show SHED. The registry decision (overload wins, the CYCLE > VVF > OVERLOAD > SHED precedence) is dedi-verified; this is the on-screen label confirm.
+- **(Group A) Settings panel no longer shows the allocator toggle.** Open the StationeersLaunchPad mod settings: there is no "Enable Sweep Allocator" entry under `Server - Power`. The allocator is always on.
+- **(Group B) 60s-freeze, eyes-on.** Build a fanout: a step-down feeder into net F, F feeding two transformers X and Y, with X (low priority) feeding a real load and Y (high priority) feeding a load bigger than Y's throttled cap so Y overloads. Throttle the feeder so F cannot supply both. Y must flash RED (overload) and X must stay powered (NOT go dark for 60 s). Dedi-proven on a constructed topology; this is the live confirm that the low-priority consumer is not frozen.
+- **(Group D) Join handshake after the suffix change.** The join suffix no longer carries the allocator flag (removed with the toggle), so its wire format changed by one field. Re-confirm a client still joins cleanly and host-set transformer priorities plus live fault state replicate correctly (re-run the existing "MP fault sync + join handshake" check against the new build).
+
 ## Client residue, grouped to minimize reloads
 
 Setup save: `DedicatedServer/data/saves/Luna_pgp_residue/` (a clean copy of the Downloads `Luna.save`). It already shows, on load with no building: the 108 producer-isolation solar (VVF hover, stopped generating) and six Setting=0 transformers (amber throttle hover, dark subnets, refs 343183 / 343182 / 511092 / 511047 / 511050 / 511091). Load it once in single-player (copy to `Documents/My Games/Stationeers/saves/`) or join the dedicated server with it loaded. Key device refs from the campaign: transformer 360223 (small, loaded ~50 W downstream), PowerTransmitter 121753, solid generator 36369, power connector 36384, vanilla batteries 69371 / 36581 / 36261.

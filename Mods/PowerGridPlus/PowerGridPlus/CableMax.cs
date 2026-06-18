@@ -39,7 +39,7 @@ namespace PowerGridPlus
 
         /// <summary>
         ///     The weakest (lowest-cap) tier present on a network, as a Watts cap. Networks are
-        ///     single-tier once the Phase 1.5a backstop has run, so this is normally just the
+        ///     single-tier once the PROTECT (wrong-tier burn) backstop has run, so this is normally just the
         ///     network tier's cap; during the brief mixed-tier window it is the lowest tier seen.
         ///     Reads the tier scan cached by <see cref="VoltageTierEnforcer"/> (rebuilt when the
         ///     network's cable count changes), so the per-tick cost is O(1) for a stable network.

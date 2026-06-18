@@ -12,7 +12,7 @@ namespace PowerGridPlus
     // A device enters overload per POWER.md §8.4 (delivering at its Setting-like
     // cap with unmet downstream rigid demand), the elastic analog (a storage
     // device at its full effective discharge with rigid demand still unmet), or
-    // the §5.7 cable-overflow rule. Detection is per-tick atomic in Phase 2;
+    // the §5.7 cable-overflow rule. Detection is per-tick atomic in ALLOCATE;
     // lockout fires instantly (no tolerance counter).
     //
     // Client mirror model identical to BrownoutRegistry: per-tick full snapshots

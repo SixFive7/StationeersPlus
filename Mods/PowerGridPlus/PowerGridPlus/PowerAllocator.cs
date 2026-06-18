@@ -10,7 +10,7 @@ using UnityEngine;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Phase 2 of the atomic tick: the joint shed / overload / elastic-supply / surplus allocator
+    ///     ALLOCATE of the atomic tick: the joint shed / overload / elastic-supply / surplus allocator
     ///     (POWER.md §8.0 / §7.3 / §9). Replaces the former transformer-only TransformerAllocator with
     ///     a model that covers every segmenting device class (§8.0.0.1): Transformer, AreaPowerControl,
     ///     linked PowerTransmitter/PowerReceiver pairs (modelled as one contributor anchored on the PT,
@@ -20,22 +20,25 @@ namespace PowerGridPlus
     ///     Per tick:
     ///       1. Gather: per-network rigid demand + generator supply; the contributor / elastic / soft
     ///          rosters from SegmentingDeviceRegistry.
-    ///       2. Depth: BFS from source networks (generator- or storage-bearing) over conducting
-    ///          contributor edges. Cycle members are already CYCLE_FAULTed by Phase 1.5b and conduct 0,
-    ///          so the live graph is a DAG.
-    ///       3. Fixed-point loop (grow-only SHED + OVERLOAD sets, max 2N+4 rounds, §8.0):
-    ///          a. demand propagation deepest-first: each network's residual need (rigid + deeper pulls
+    ///       2. Order: topological (Kahn) order over conducting contributor edges, so every network is
+    ///          processed after all the networks that feed it. Cycle members are already CYCLE_FAULTed by
+    ///          PROTECT (cycle detection) and conduct 0, so the live graph is a DAG.
+    ///       3. Fixed-point loop (max 2N+4 rounds, §8.0). OVERLOAD is grow-only / sticky (cleared once at
+    ///          loop entry, then committed for the tick); only SHED is re-decided each round. Each round:
+    ///          a. backward desire (leaf -> source): each network's residual need (rigid + deeper pulls
     ///             - generators - elastic availability) splits greedily over its suppliers in
     ///             (priority DESC, ReferenceId ASC) order, capped per-device at effective cap;
-    ///          b. shed evaluation per input network: when consumer claims exceed the input budget,
-    ///             victims shed in (priority ASC, claim DESC, ReferenceId ASC) order (§8.3); step-up
-    ///             transformers never shed (§5.2); a dead input (no supply at all) defers instead of
-    ///             cycling 60-second lockouts;
-    ///          c. overload evaluation per device (§8.4 hit-max: throughput at the device's Setting-like
-    ///             cap with unmet downstream rigid demand), the elastic analog (a battery / APC cell /
-    ///             umbilical delivering its full effective discharge with rigid demand still unmet),
-    ///             and the §5.7 cable-overflow rule (flow above the weakest cable's cap with generators
-    ///             alone under it trips every supplier of that network instead of burning the cable).
+    ///          b. structural overload, evaluated BEFORE shed (§8.4 hit-max: a contributor at its
+    ///             Setting-like cap with unmet downstream rigid demand), so a structurally-overloaded
+    ///             device surfaces as OVERLOAD, not shed (the CYCLE > VVF > OVERLOAD > SHED precedence);
+    ///          c. forward supply + re-decided shed per input network: when consumer claims exceed the
+    ///             input budget, victims shed in (priority ASC, claim DESC, ReferenceId ASC) order (§8.3);
+    ///             step-up transformers never shed (§5.2); a dead input (no supply at all) defers instead
+    ///             of cycling 60-second lockouts;
+    ///          d. supply overload after the forward pass: the elastic analog (a battery / APC cell /
+    ///             umbilical delivering its full effective discharge with rigid demand still unmet) and the
+    ///             §5.7 cable-overflow rule (flow above the weakest cable's cap with generators alone under
+    ///             it trips every supplier of that network instead of burning the cable).
     ///       4. Elastic shares (§7.3): per output network, batteries cover only the rigid shortfall
     ///          left after generators + transformer inflow; proportional split against effective caps
     ///          (min(rate cap, stored)); written to SoftSupplyShareCache for the GetGeneratedPower
@@ -57,7 +60,7 @@ namespace PowerGridPlus
         private const int UnreachableDepth = int.MaxValue / 2;
 
         // Networks in shallow-first (depth ASC, ReferenceId ASC) order, recomputed by the DEPTH phase
-        // every tick. AtomicElectricityTickPatch Phase 3 ENFORCE iterates this so each network is
+        // every tick. AtomicElectricityTickPatch ENFORCE iterates this so each network is
         // recomputed AFTER its upstream input network's PotentialLoad has been refreshed this tick,
         // eliminating the one-tick supply-propagation lag that made multi-stage transformer chains
         // oscillate power on/off under variable load. Read-only outside this class.
@@ -404,7 +407,7 @@ namespace PowerGridPlus
             List<Net> netsDeepFirst = new List<Net>(topo);
             netsDeepFirst.Reverse();                           // leaf -> source
 
-            // Publish the shallow-first network order for Phase 3 ENFORCE (AtomicElectricityTickPatch).
+            // Publish the shallow-first network order for ENFORCE (AtomicElectricityTickPatch).
             // Iterating ENFORCE upstream-first (topological order) is what eliminates the one-tick
             // transformer supply lag.
             var shallowOrder = new List<CableNetwork>(netsShallowFirst.Count);
@@ -417,11 +420,13 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
-            // 3. DECIDE: shed / overload fixed point. Re-decidable backward/forward sweep iterated to a
-            //    fixed point (Direction C). Sheds and overloads are recomputed FRESH against the settled
-            //    state every round, so an unnecessary shed cannot freeze for 60 s once another device's
-            //    overload frees the budget (the 2c case), and a downstream shed that relieves an overload
-            //    is honoured. Throughputs are exact (no headroom). Convergence is bounded (2N+4 rounds);
+            // 3. DECIDE: shed / overload fixed point. Backward/forward sweep iterated to a fixed point.
+            //    Overload is evaluated BEFORE shed each round and is GROW-ONLY (sticky: cleared only at
+            //    loop entry, then reset only by the 60 s timeout or a player turn-off); ONLY SHED is
+            //    re-decided each round against the settled state. So an unnecessary shed cannot freeze for
+            //    60 s once another device's overload frees the budget (the 2c case), and a transformer that
+            //    structurally cannot serve its downstream surfaces as OVERLOAD, not shed. Throughputs are
+            //    exact (no headroom). Convergence is bounded (2N+4 rounds);
             //    the per-net field values it leaves (Unmet / InflowCommitted / PullsGranted /
             //    ElasticDelivered / Throughput) feed the shared dead-input / commit / elastic-share /
             //    surplus tail below.
@@ -453,7 +458,7 @@ namespace PowerGridPlus
             // is about to re-partition, so its merged-topology supply/demand math is not the topology
             // the lockout would apply to. Defer committing NEW shed / overload lockouts for such a
             // network until the split lands (SplitPendingRegistry clears it). Existing lockouts
-            // (seg.Locked) still enforce; the network still distributes power via vanilla Phase 3.
+            // (seg.Locked) still enforce; the network still distributes power via vanilla ENFORCE.
             // ----------------------------------------------------------------
             foreach (var seg in segs)
             {
@@ -574,7 +579,7 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
-            // Write the share caches (Phase 3's postfixes read these).
+            // Write the share caches (ENFORCE's postfixes read these).
             // ----------------------------------------------------------------
             foreach (var e in elastics)
             {
@@ -631,7 +636,7 @@ namespace PowerGridPlus
                || (seg.OutNet != null && SplitPendingRegistry.IsPending(seg.OutNet.ReferenceId));
 
         // =====================================================================
-        // ALLOCATOR (Direction C): topological backward-demand / forward-supply
+        // ALLOCATOR: topological backward-demand / forward-supply
         // sweep, iterated to a fixed point with RE-DECIDABLE shed + overload.
         // Computes each contributor's exact in-tick throughput (no headroom) and
         // avoids the 60-second freeze of a shed that another device's overload
@@ -647,7 +652,7 @@ namespace PowerGridPlus
         // Locked and excluded, so the live graph is a forest/DAG; every network lands AFTER all the
         // networks that feed it (diamonds correct). Ready nodes are popped in ReferenceId order for
         // determinism. Net.Depth is set to the topo index. A residual cycle (should not occur after
-        // Phase 1.5b cycle removal) is appended in ReferenceId order with a warning.
+        // PROTECT cycle detection / removal) is appended in ReferenceId order with a warning.
         private static List<Net> BuildTopoOrder(List<Net> netList, Dictionary<long, Net> nets)
         {
             var indeg = new Dictionary<long, int>(netList.Count);

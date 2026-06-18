@@ -154,7 +154,7 @@ namespace PowerGridPlus.Patches
         // ------------------------------------------------------------------
         // Soft-power LogicTypes (POWERTODO 0.2.7.5): MaxChargeSpeed / MaxDischargeSpeed report the
         // configured caps; ChargeSpeed / DischargeSpeed report the live allocator shares (the same
-        // cache values Phase 2 writes; not latched). APC declares its own CanLogicRead /
+        // cache values ALLOCATE writes; not latched). APC declares its own CanLogicRead /
         // GetLogicValue, so the patches attach per-class without the inherited-method trap.
         // ------------------------------------------------------------------
 

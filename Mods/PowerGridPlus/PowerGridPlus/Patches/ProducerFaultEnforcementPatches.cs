@@ -11,7 +11,7 @@ namespace PowerGridPlus.Patches
     ///     Zeroes a producer's generated power while it is in VARIABLE_VOLTAGE_FAULT lockout, so the
     ///     faulted producer visibly stops generating (POWER.md §8.5). Replaces the central
     ///     CalculateState producer-zero that lived in the deleted PowerGridTick: with the vanilla
-    ///     PowerTick running Phases 1 and 3, enforcement moves to per-class GetGeneratedPower
+    ///     PowerTick running OBSERVE and ENFORCE, enforcement moves to per-class GetGeneratedPower
     ///     postfixes.
     ///
     ///     <para>Patch targets: every producer class DECLARES its own GetGeneratedPower override

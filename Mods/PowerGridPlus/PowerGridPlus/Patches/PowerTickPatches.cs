@@ -6,15 +6,15 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Targeted fixes on the VANILLA <see cref="PowerTick"/>, which runs unmodified in Phases 1
-    ///     and 3 of the atomic tick (single-architecture decision, POWER.md §0.1; the former
+    ///     Targeted fixes on the VANILLA <see cref="PowerTick"/>, which runs unmodified in OBSERVE
+    ///     and ENFORCE of the atomic tick (single-architecture decision, POWER.md §0.1; the former
     ///     PowerGridTick subclass and its routing prefixes are deleted). Three patches:
     ///
     ///     <para>1. <b>Per-anchor traversal-record clear</b> (POWER.md §4.2 bug 2). Vanilla
     ///     CheckForRecursiveProviders clears _networkTraversalRecord once before the anchor loop, so
     ///     an anchor visited during an earlier anchor's walk gets pruned on its own first call and
     ///     its cycle is missed. The full-body prefix clears the record per anchor. This is the
-    ///     belt-and-braces detector only; PowerGridPlus's own directed-SCC walk (Phase 1.5b) is the
+    ///     belt-and-braces detector only; PowerGridPlus's own directed-SCC walk (PROTECT (cycle detection)) is the
     ///     primary cycle handler and normally dissolves every loop before this can fire.</para>
     ///
     ///     <para>2. <b>NaN/Infinity guard</b>. A device reporting NaN watts poisons the network sums
@@ -33,7 +33,7 @@ namespace PowerGridPlus.Patches
     ///     cable burns when the 20-tick running average of the direct generator power flowing on a
     ///     network exceeds the weakest cable's cap (<see cref="CableBurnWindow"/>; 20 ticks = 10 s of
     ///     grace). Overflow caused by transformer / battery / APC contributions does NOT burn the
-    ///     cable; the allocator trips those suppliers into OVERLOAD instead (PowerAllocator, Phase 2).
+    ///     cable; the allocator trips those suppliers into OVERLOAD instead (PowerAllocator, ALLOCATE).
     ///     The burn victim is the cable at the output of the generator that produced the most over the
     ///     window. Entries added by CheckForRecursiveProviders remain in BreakableCables untouched, so
     ///     the vanilla recursive backstop still breaks its cable in ApplyState.</para>
@@ -53,7 +53,7 @@ namespace PowerGridPlus.Patches
             AccessTools.FieldRefAccess<PowerTick, float>("_powerRatio");
 
         // Reusable per-tick generator-production map for the §5.7 check. GetBreakableCables runs only
-        // in Phase 3, one network at a time on the worker thread, so a shared instance is safe.
+        // in ENFORCE, one network at a time on the worker thread, so a shared instance is safe.
         private static readonly Dictionary<long, float> _producersThisTick = new Dictionary<long, float>();
 
         // ------------------------------------------------------------------
@@ -169,7 +169,7 @@ namespace PowerGridPlus.Patches
             // Sum this tick's direct generator supply (everything generating that is not an
             // ElectricalInputOutput; WirelessPower derives from EIO so PT/PR are excluded). Batteries,
             // transformers, APCs and umbilicals are segmenters -- their overflow trips OVERLOAD in the
-            // allocator (Phase 2), not a cable burn. Also capture each generator's production so the
+            // allocator (ALLOCATE), not a cable burn. Also capture each generator's production so the
             // burn victim can be ranked by 20-tick output.
             float generatorSupply = 0f;
             _producersThisTick.Clear();

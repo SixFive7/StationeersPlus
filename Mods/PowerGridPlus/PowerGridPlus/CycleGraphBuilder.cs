@@ -6,8 +6,8 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     Finds every segmenting device that participates in a powered closed power loop, for CYCLE_FAULT
-    ///     marking (POWER.md §4). Runs in Phase 1.5b of the atomic tick, before the allocator, so the loop
-    ///     is dissolved (each member contributes 0) before Phase 2 sees its inflated Potential / Required.
+    ///     marking (POWER.md §4). Runs in PROTECT (cycle detection) of the atomic tick, before the allocator, so the loop
+    ///     is dissolved (each member contributes 0) before ALLOCATE sees its inflated Potential / Required.
     ///
     ///     <para>Model (deviation from POWER.md §4.2.5's undirected bipartite DFS, see POWER_DEVIATIONS.md
     ///     D5): a DIRECTED multigraph where nodes are cable networks and each segmenter contributes one

@@ -8,7 +8,7 @@ using Assets.Scripts.Objects.Pipes;   // Device base lives here (Device : SmallG
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Phase 1.5b producer-isolation walk (POWER.md §8.5). A power producer may only connect to a
+    ///     PROTECT (producer-isolation) walk (POWER.md §8.5). A power producer may only connect to a
     ///     transformer or to other producers; a producer that shares a cable network with a rigid
     ///     consumer and no transformer enters VARIABLE_VOLTAGE_FAULT and stops generating
     ///     (ProducerFaultEnforcementPatches).
@@ -49,7 +49,7 @@ namespace PowerGridPlus
         private static bool _diagLogged;
 
         // Networks where OffAsResetSweep cleared a producer's VVF lock this tick (the toggle edge).
-        // Populated in Phase 1 (the sweep), drained at the start of Run in Phase 1.5b -- both on the
+        // Populated in OBSERVE (the sweep), drained at the start of Run in PROTECT (producer-isolation) -- both on the
         // same power-tick worker thread, sequentially within the tick. The lock guards against any
         // future re-ordering. A flagged net gets a cohort-wide retry even when nothing is newly
         // violating, which is how toggling a buttoned producer clears the buttonless ones on its net.

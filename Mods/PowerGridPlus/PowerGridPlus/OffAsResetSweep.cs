@@ -34,7 +34,7 @@ namespace PowerGridPlus
     ///     clear. When the player toggles back ON, the next allocator / detector pass re-decides; a
     ///     persisting condition re-fires the lockout instantly.</para>
     ///
-    ///     <para>Threading: runs on the power-tick worker (AtomicElectricityTickPatch Phase 1), so this
+    ///     <para>Threading: runs on the power-tick worker (AtomicElectricityTickPatch OBSERVE), so this
     ///     stays managed-memory only -- the connector presence check is a plain reference test, never
     ///     the Unity <c>(bool)</c>/<c>==null</c> operator. Cost: bounded by the number of currently-
     ///     locked devices (usually zero); Thing.Find is a dictionary lookup.</para>

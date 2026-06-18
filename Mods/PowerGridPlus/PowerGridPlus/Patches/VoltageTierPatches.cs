@@ -19,7 +19,7 @@ namespace PowerGridPlus.Patches
         ///     Build-time cursor reject: if the cable being previewed would merge into a network that
         ///     already carries a different tier, OR would sit next to a device the new tier isn't valid for,
         ///     refuse the placement with a player-visible message. (Reactive burns from
-        ///     <see cref="VoltageTierEnforcer"/> (atomic Phase 1.5a) remain the authoritative backstop --
+        ///     <see cref="VoltageTierEnforcer"/> (atomic PROTECT (wrong-tier burn)) remain the authoritative backstop --
         ///     they fire on the next power tick if power is actually flowing.)
         ///
         ///     Note: this is intentionally cable-side only. Placing a device on a wrong-tier cable is NOT

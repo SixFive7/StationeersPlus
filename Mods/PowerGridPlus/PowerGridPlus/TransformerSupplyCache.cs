@@ -4,7 +4,7 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     Per-transformer EXACT in-tick throughput (Watts) the allocator decides each tick
-    ///     (POWER.md §8.0, Direction C). Two figures per device:
+    ///     (POWER.md, the allocator section). Two figures per device:
     ///
     ///     <list type="bullet">
     ///       <item><c>OutThroughput</c>: the power the transformer actually delivers on its OUTPUT
@@ -25,9 +25,9 @@ namespace PowerGridPlus
     ///     <para>Freshness-stamped, in-memory only, self-cleaning, exactly like
     ///     <see cref="SoftSupplyShareCache"/>: entries carry the tick they were written; a read older than
     ///     one tick reports "no fresh value" so the reporting patches report 0 until the allocator roster
-    ///     includes the device again. The allocator writes in Phase 2 DECIDE; Phase 3 ENFORCE (same tick)
-    ///     reads the current value, Phase 1 OBSERVE (before DECIDE) reads last tick's -- both within the
-    ///     one-tick window, and Phase 1's transformer output does not feed the allocator's own model.</para>
+    ///     includes the device again. The allocator writes in ALLOCATE; ENFORCE (same tick)
+    ///     reads the current value, OBSERVE (before ALLOCATE) reads last tick's -- both within the
+    ///     one-tick window, and OBSERVE's transformer output does not feed the allocator's own model.</para>
     /// </summary>
     internal static class TransformerSupplyCache
     {

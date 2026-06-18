@@ -9,7 +9,7 @@ namespace PowerGridPlus
     // lockout duration constant, separate dictionary so each protection mode is
     // independently observable and the hover error can name the specific cause.
     //
-    // A segmenting device enters CYCLE_FAULT when Phase 1.5b's directed-SCC walk
+    // A segmenting device enters CYCLE_FAULT when PROTECT (cycle detection)'s directed-SCC walk
     // (CycleGraphBuilder) finds it on a powered closed power loop. Every member
     // contributes 0 on both terminals for the lockout window, dissolving the
     // loop without burning a cable.

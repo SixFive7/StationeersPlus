@@ -10,7 +10,7 @@ namespace PowerGridPlus
     ///
     ///     <para>Freshness-stamped, in-memory only, self-cleaning: entries carry the tick they were
     ///     written; a read older than one tick is distrusted and falls back to vanilla. The one-tick
-    ///     window means Phase 1 OBSERVE reads last tick's share (smooth) and Phase 3 ENFORCE reads
+    ///     window means OBSERVE reads last tick's share (smooth) and ENFORCE reads
     ///     this tick's fresh allocation.</para>
     /// </summary>
     internal static class SoftDemandShareCache

@@ -14,7 +14,7 @@ namespace PowerGridPlus
     ///
     ///     <para><b>Detection runs on the worker thread; burns run on the main thread.</b> Tier
     ///     detection only reads cached state (cable types, <c>Connection.GetCable</c> which uses the
-    ///     cached <c>LocalGrid</c>, the network's device list), so it is safe in Phase 1.5a of the
+    ///     cached <c>LocalGrid</c>, the network's device list), so it is safe in PROTECT (wrong-tier burn) of the
     ///     atomic tick. The actual <c>Cable.Break</c> and its victim selection (the mixed-tier boundary
     ///     walk uses <c>ConnectedCables</c>, which reads <c>Transform.position</c> and is main-thread
     ///     only) are marshalled to the main thread via <see cref="UnityMainThreadDispatcher"/>. There,
@@ -208,7 +208,7 @@ namespace PowerGridPlus
         }
 
         /// <summary>
-        ///     Per-tick backstop (Phase 1.5a, worker thread). Clears landed pendings, then re-checks
+        ///     Per-tick backstop (PROTECT (wrong-tier burn), worker thread). Clears landed pendings, then re-checks
         ///     every network and marshals a burn to the main thread for any non-pending violation.
         /// </summary>
         internal static void Run()
