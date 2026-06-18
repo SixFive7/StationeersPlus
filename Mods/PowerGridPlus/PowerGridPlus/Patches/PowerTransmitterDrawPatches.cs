@@ -5,17 +5,17 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Sweep-mode fresh input-draw reporting for the wireless PowerTransmitter, the analog of the
-    ///     transformer and APC fixes.
+    ///     Fresh input-draw reporting for the wireless PowerTransmitter, the analog of the transformer
+    ///     and APC fixes.
     ///
     ///     <para>Vanilla <c>PowerTransmitter.GetUsedPower(InputNetwork)</c> bills
     ///     <c>min(MaxPowerTransmission, _powerProvided)</c>, where <c>_powerProvided</c> is the
     ///     one-tick-lagging downstream-consumption accumulator (filled during the PREVIOUS tick's
-    ///     ApplyState; see Research/GameClasses/Device.md). In Sweep the allocator sizes the input
-    ///     network's supply to the PT/PR pair's CURRENT pull (delivered throughput * the
-    ///     PowerTransmitterPlus distance multiplier + the pair's quiescent), so billing the stale
-    ///     <c>_powerProvided</c> leaves the input network short by the one-tick demand change -- the same
-    ///     flicker the APC had on net 503288. This prefix reports the fresh pull the allocator cached in
+    ///     ApplyState; see Research/GameClasses/Device.md). The allocator sizes the input network's
+    ///     supply to the PT/PR pair's CURRENT pull (delivered throughput * the PowerTransmitterPlus
+    ///     distance multiplier + the pair's quiescent), so billing the stale <c>_powerProvided</c>
+    ///     leaves the input network short by the one-tick demand change -- the same flicker the APC had
+    ///     on net 503288. This prefix reports the fresh pull the allocator cached in
     ///     <see cref="TransformerSupplyCache"/> (keyed by the transmitter's ReferenceId, which is the
     ///     PT-pair seg's RefId). An inactive pair (shed / overloaded / cycle-faulted) caches a pull of 0,
     ///     so it draws nothing.</para>
@@ -26,13 +26,11 @@ namespace PowerGridPlus.Patches
     ///     zeros a cycle-faulted transmitter, which is consistent (its cached pull is already 0).</para>
     /// </summary>
     [HarmonyPatch(typeof(PowerTransmitter))]
-    public static class PowerTransmitterSweepPatches
+    public static class PowerTransmitterDrawPatches
     {
         [HarmonyPrefix, HarmonyPatch(nameof(PowerTransmitter.GetUsedPower))]
         public static bool GetUsedPowerPatch(CableNetwork cableNetwork, PowerTransmitter __instance, ref float __result)
         {
-            if (!SweepAllocatorSync.Effective)
-                return true;   // Legacy / vanilla path
             if (__instance.InputNetwork == null || cableNetwork != __instance.InputNetwork)
                 return true;   // not the input cable network: let vanilla return 0
             if (!__instance.OnOff || __instance.Error == 1)

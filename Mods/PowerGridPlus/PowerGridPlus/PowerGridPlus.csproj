@@ -84,7 +84,7 @@
     <Compile Include="Patches\StationaryBatteryPatches.cs" />
     <Compile Include="Patches\BatteryLogicPatches.cs" />
     <Compile Include="Patches\TransformerExploitPatches.cs" />
-    <Compile Include="Patches\PowerTransmitterSweepPatches.cs" />
+    <Compile Include="Patches\PowerTransmitterDrawPatches.cs" />
     <Compile Include="Patches\TransformerLogicPatches.cs" />
     <Compile Include="Patches\AreaPowerControlPatches.cs" />
     <Compile Include="Patches\VoltageTierPatches.cs" />
@@ -116,7 +116,6 @@
     <Compile Include="BrownoutFlashBehaviour.cs" />
     <Compile Include="ElectricityTickCounter.cs" />
     <Compile Include="ShedSettingsSync.cs" />
-    <Compile Include="SweepAllocatorSync.cs" />
     <Compile Include="OverloadSettingsSync.cs" />
     <Compile Include="OverloadRegistry.cs" />
     <Compile Include="PowerAllocator.cs" />

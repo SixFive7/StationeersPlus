@@ -124,23 +124,20 @@ namespace PowerGridPlus.Patches
         }
 
         // ------------------------------------------------------------------
-        // 2b. Power-met boundary relaxation (Sweep allocator only).
+        // 2b. Power-met boundary relaxation.
         // ------------------------------------------------------------------
         // Vanilla CacheState sets _isPowerMet = (Potential - Required) > 0f (STRICT), so a network
         // whose supply exactly equals its demand reads as NOT powered and its rigid loads go dark. The
-        // Legacy allocator hides this by advertising a little transformer headroom; the Sweep allocator
-        // reports each transformer's EXACT throughput (no headroom), so a fully served network lands at
-        // Potential == Required and would be darkened by the strict test. This postfix relaxes the test
-        // to >=: meeting demand counts as powered. It only nudges the exact-balance boundary (Required
-        // positive, supply within Eps of covering it, and vanilla had set not-met); a genuinely short
-        // network (Potential < Required - Eps) is untouched. Gated on Sweep mode so Legacy / vanilla
-        // semantics are unchanged. BreakSingleFuse / BreakSingleCable call CacheState again after
-        // lowering Required to a cable / fuse cap; this postfix re-runs against that lowered Required,
-        // which is still correct (the network is still meeting the reduced figure).
+        // allocator reports each transformer's EXACT throughput (no headroom), so a fully served network
+        // lands at Potential == Required and would be darkened by the strict test. This postfix relaxes
+        // the test to >=: meeting demand counts as powered. It only nudges the exact-balance boundary
+        // (Required positive, supply within Eps of covering it, and vanilla had set not-met); a genuinely
+        // short network (Potential < Required - Eps) is untouched. BreakSingleFuse / BreakSingleCable call
+        // CacheState again after lowering Required to a cable / fuse cap; this postfix re-runs against that
+        // lowered Required, which is still correct (the network is still meeting the reduced figure).
         [HarmonyPostfix, HarmonyPatch("CacheState")]
         public static void CacheState_PowerMetBoundary(PowerTick __instance)
         {
-            if (!SweepAllocatorSync.Effective) return;
             float required = __instance.Required;
             if (required <= 0f) return;                 // nothing demanded: leave vanilla _powerRatio = 1
             if (IsPowerMetRef(__instance)) return;      // already met under the strict test

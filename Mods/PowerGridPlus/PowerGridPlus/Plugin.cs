@@ -156,11 +156,6 @@ namespace PowerGridPlus
                 writer.WriteInt32(entry.remainingTicks);
                 writer.WriteString(entry.violators ?? string.Empty);
             }
-
-            // The Sweep-allocator master toggle (Server - Power). Appended last so the field order of
-            // every block above is untouched; the joining client computes the same allocation mode as
-            // the host. Order must match DeserializeJoinSuffix.
-            writer.WriteBoolean(Settings.EnableSweepAllocator.Value);
         }
 
         private static void WriteRemaining(RocketBinaryWriter writer, IEnumerable<KeyValuePair<long, int>> snapshot)
@@ -232,10 +227,6 @@ namespace PowerGridPlus
                 vvf.Add((refId, remaining, violators));
             }
             VariableVoltageFaultRegistry.ReplaceClientSnapshot(vvf);
-
-            // The Sweep-allocator master toggle (same order as SerializeJoinSuffix). The client's local
-            // simulation reads SweepAllocatorSync.Effective, which now returns the host's value.
-            SweepAllocatorSync.SetSyncedValue(reader.ReadBoolean());
         }
 
         /// <summary>
