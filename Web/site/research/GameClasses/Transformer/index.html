@@ -726,6 +726,8 @@
       
         
       
+        
+      
     
     
     
@@ -2428,6 +2430,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../RocketPowerUmbilical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RocketPowerUmbilical
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Room/" class="md-nav__link">
         
   
@@ -3062,6 +3092,17 @@
     <span class="md-ellipsis">
       
         CheckError and Error write path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rocket-internal-variant-same-class-prefab-distinguished" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rocket-internal variant (same class, prefab-distinguished)
       
     </span>
   </a>
@@ -7470,6 +7511,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rocket-internal-variant-same-class-prefab-distinguished" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rocket-internal variant (same class, prefab-distinguished)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7581,7 +7633,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-06-02.
+           on 2026-06-18.
         </p>
       
       
@@ -7779,8 +7831,18 @@
 </ul>
 <p><code>!IsOperable</code> (the trigger for <code>Error = 1</code>) means: <code>InputNetwork == OutputNetwork</code> (self-shorted; the <code>ElectricalInputOutput.IsOperable</code> rule at L373803-373813) OR <code>base.IsOperable</code> is false (Device-level: <code>!IsStructureCompleted</code> or <code>IsBroken</code>). There is no per-tick <code>CheckError</code> call: a transient overload during steady-state operation is NOT mapped to <code>Error</code> by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on <code>CheckError</code> to fire.</p>
 <p>Vanilla never writes <code>Error</code> to values other than 0 or 1. The field is <code>int</code> so higher codes survive the round-trip, but vanilla animator states for <code>Interactable.ErrorState</code> are only bound for 0 / 1; unmapped integer values silently produce no animation transition.</p>
+<h2 id="rocket-internal-variant-same-class-prefab-distinguished">Rocket-internal variant (same class, prefab-distinguished)<a class="headerlink" href="#rocket-internal-variant-same-class-prefab-distinguished" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+
+<p><code>Transformer</code> implements <code>IRocketInternals, IRocketComponent</code> (class header, decompile L403300) and carries two <code>[SerializeField]</code> fields the rocket prefab variant sets (decompile L403327-L403331):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="w"> </span><span class="n">_rocketInternalCellType</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
+</span></code></pre></div>
+<p>"Transformer Rocket (Small)" and the station "Transformer (Small)" are the SAME <code>Transformer</code> class; the rocket variant is a separate prefab with <code>_strictlyInternal = true</code>, a non-<code>None</code> <code>_rocketInternalCellType</code>, and its own serialized <code>OpenEnds</code>. No <code>RocketTransformer</code> subclass exists (consistent with "There is exactly one Transformer class" above). A Harmony patch on <code>typeof(Transformer)</code> catches both; code that wants to treat only the rocket variant differently must branch at runtime on <code>StrictlyInternal</code> / <code>InternalCellType</code> / the prefab name, not on the C# type.</p>
+<p>A reported "extra data port" on the rocket transformer is a property of that prefab's <code>OpenEnds</code> (a dedicated <code>NetworkType.Data</code> connector alongside the two power connectors) instead of data riding on a <code>PowerAndData</code> power connector as on the station prefab. The <code>OpenEnds</code> count and per-connector <code>NetworkType</code> are prefab asset data and are NOT in the decompile; see <a href="../Connection/">Connection</a> "Data-port discovery". Confirm a specific prefab's layout with a live read (InspectorPlus <code>OpenEnds</code> dump or a <code>Prefab.AllPrefabs</code> scenario dump).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab; the "extra data port" is prefab <code>OpenEnds</code> data). Additive; no conflict with existing content.</li>
 <li>
 <p>2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed <code>Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)</code> (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does <code>_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)</code> -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that <code>Thing.OnFinishedLoad</code> doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.</p>
 </li>

@@ -726,6 +726,8 @@
       
         
       
+        
+      
     
     
     
@@ -1018,6 +1020,17 @@
     <span class="md-ellipsis">
       
         Subclassing notes for mods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rocket-internal-variant-same-class-prefab-distinguished" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rocket-internal variant (same class, prefab-distinguished)
       
     </span>
   </a>
@@ -2554,6 +2567,34 @@
     
   
     RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RocketPowerUmbilical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RocketPowerUmbilical
   
 
     
@@ -7470,6 +7511,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rocket-internal-variant-same-class-prefab-distinguished" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rocket-internal variant (same class, prefab-distinguished)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7581,7 +7633,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-26.
+           on 2026-06-18.
         </p>
       
       
@@ -7947,8 +7999,18 @@
 <li>The mod's prefab MUST populate <code>displayRenderers[]</code> and <code>displayModeMaterials[]</code> (length 7, indices 0..6) on the <code>Battery</code> component. Without these, <code>SetRenderersState</code> returns early or assigns null materials and the bar stays dark.</li>
 <li>Patching <code>RefreshAnimState</code> away (e.g. swapping the entire renderer to a single material on <code>PoweredChanged</code>) replaces the segment-count behavior with whatever the override does. MorePowerMod's <code>StationBatteryNuclear.PoweredChanged</code> writes a single solid material to <code>gameObject.GetComponent&lt;MeshRenderer&gt;().materials</code> regardless of <code>Powered</code>, but does NOT touch the <code>displayRenderers[]</code> segment bar, so the inherited 5-segment color ladder still drives the visible charge indicator.</li>
 </ul>
+<h2 id="rocket-internal-variant-same-class-prefab-distinguished">Rocket-internal variant (same class, prefab-distinguished)<a class="headerlink" href="#rocket-internal-variant-same-class-prefab-distinguished" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+
+<p><code>Battery</code> implements <code>IRocketInternals, IRocketComponent, IRocketMassContributor</code> (class header L370616) and carries the same two <code>[SerializeField]</code> rocket fields as <code>Transformer</code> (decompile L370633-L370637):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="w"> </span><span class="n">_rocketInternalCellType</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
+</span></code></pre></div>
+<p>"Rocket Battery Medium" and the station wall battery are the SAME <code>Battery</code> class; the rocket variant is a separate prefab (<code>_strictlyInternal = true</code>, a non-<code>None</code> <code>_rocketInternalCellType</code>, its own <code>OpenEnds</code>). No <code>RocketBattery</code> subclass exists. A Harmony patch on <code>typeof(Battery)</code> catches both. <code>IRocketMassContributor.MassContribution</code> adds the stored charge to rocket mass (<code>Transformer</code> does not implement this interface).</p>
+<p>The reported "rocket battery data port accepts a heavy cable instead of a normal cable" is prefab connector geometry, not a C# rule: there is no per-connector accepted-cable-type field anywhere in code (cable type lives on <code>Cable</code>, see <a href="../Cable/">Cable</a>; <code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> + grid coincidence only). Which cable coil snaps into a connector is decided by that connector's prefab grid cell / collider, so the data-port-takes-heavy issue is a prefab-data discrepancy, confirmable / fixable at the prefab level, not in the decompiled <code>Battery</code> class. Confirm with a live <code>OpenEnds</code> read.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab; the data-port cable-type is prefab geometry, not code). Additive; no conflict with existing content.</li>
 <li>2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a>. No factual change to the underlying patches.</li>
 <li>2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla <code>StructureBatteryNuclear</code>), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> / <code>GetGeneratedPower</code> at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.</li>
 <li>2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that <code>Battery : ElectricalInputOutput, ...</code> mirrors <code>Transformer</code> and <code>AreaPowerControl</code> in having both <code>InputNetwork</code> and <code>OutputNetwork</code> cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.</li>

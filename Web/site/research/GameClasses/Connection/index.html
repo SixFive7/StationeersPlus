@@ -726,6 +726,8 @@
       
         
       
+        
+      
     
     
     
@@ -1316,6 +1318,17 @@
     <span class="md-ellipsis">
       
         Fully qualified type and shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-port-discovery-and-the-poweranddata-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data-port discovery and the PowerAndData connector
       
     </span>
   </a>
@@ -2488,6 +2501,34 @@
     
   
     RoboticArmRail family (rail pieces built by ItemKitLinearRail, plus docks / junctions / bypass)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RocketPowerUmbilical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RocketPowerUmbilical
   
 
     
@@ -7338,6 +7379,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#data-port-discovery-and-the-poweranddata-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data-port discovery and the PowerAndData connector
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7449,7 +7501,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-15.
+           on 2026-06-18.
         </p>
       
       
@@ -7535,8 +7587,24 @@
 <li><code>Parent</code> is the <code>SmallGrid</code> (Cable, Device, Pipe, etc.) that owns this Connection.</li>
 <li><code>ConnectionRole</code> is the directional/role tag (Input, Output, Output2, Waste, ...).</li>
 </ul>
+<h2 id="data-port-discovery-and-the-poweranddata-connector">Data-port discovery and the PowerAndData connector<a class="headerlink" href="#data-port-discovery-and-the-poweranddata-connector" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+
+<p><code>NetworkType</code> is <code>[Flags]</code> (decompile L293197): <code>None=0, Pipe=1, Power=2, Data=4, Chute=8, Elevator=0x10, PipeLiquid=0x20, LandingPad=0x40, LaunchPad=0x80, RoboticArmRail=0x100, PowerAndData=6 (= Power | Data), All=int.MaxValue</code>. A device's "data port" is not a dedicated field; it is discovered from the <code>OpenEnds</code> list:</p>
+<ul>
+<li><code>Device.DataConnection</code> (decompile L349649) returns <code>OpenEnds.Find(c =&gt; c.ConnectionType == NetworkType.Data || c.ConnectionType == NetworkType.PowerAndData)</code> -- the first connector carrying data, whether a Data-only connector or a combined PowerAndData connector.</li>
+<li><code>SmallGrid.HasDataConnection</code> (a <code>[ReadOnly]</code> bool, L293498) is set in <code>SmallGrid.Awake</code> (L293563) by scanning <code>OpenEnds</code> for those same two types.</li>
+<li><code>SmallGrid.GetConnection(NetworkType type, ConnectionRole role, out Connection)</code> (L293576) fetches one connector by type + role.</li>
+</ul>
+<p>Consequences for "how many connectors does a device have":</p>
+<ul>
+<li>Data riding on a power connector = an <code>OpenEnds</code> entry typed <code>PowerAndData</code> (=6); <code>DataConnection</code> returns that same physical connector. Typical 2-connector power device (power-in + power-out, one of them PowerAndData).</li>
+<li>A dedicated data port = a separate <code>OpenEnds</code> entry typed <code>Data</code> (=4) alongside the <code>Power</code> connectors. This is the 3-connector shape on rocket-internal device prefabs (see <a href="../Transformer/">Transformer</a>, <a href="../Battery/">Battery</a>, <a href="../RocketPowerUmbilical/">RocketPowerUmbilical</a>).</li>
+</ul>
+<p>The number of <code>OpenEnds</code> entries and each entry's <code>ConnectionType</code> / <code>ConnectionRole</code> are serialized prefab asset data (the only <code>ConnectionType =</code> assignment in the decompile is the field default <code>= NetworkType.Pipe</code>). The decompile gives the model; the per-prefab layout requires a live read (InspectorPlus <code>OpenEnds</code> dump, or a <code>Prefab.AllPrefabs</code> ScenarioRunner dump).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-06-18: added "Data-port discovery and the PowerAndData connector" section (NetworkType.PowerAndData=6 at L293197, Device.DataConnection L349649, SmallGrid.HasDataConnection L293498 set in Awake L293563, GetConnection L293576). Additive, sourced from a PowerGridPlus rocket-device investigation; no conflict with existing content.</li>
 <li>2026-05-15: page created. Sourced from decompile line 293240 (class declaration) and the <code>Connection</code> field listing immediately after. Created while writing a Bug 2 diagnostic Harmony patch that needed to log per-OpenEnd identity; the patch initially used <code>connection.name</code> which fails to compile because <code>Connection</code> is a serializable POCO without a Unity name.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
