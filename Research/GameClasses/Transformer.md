@@ -3,7 +3,7 @@ title: Transformer
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-02
+verified_at: 2026-06-18
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)
@@ -194,8 +194,23 @@ private void CheckError()
 
 Vanilla never writes `Error` to values other than 0 or 1. The field is `int` so higher codes survive the round-trip, but vanilla animator states for `Interactable.ErrorState` are only bound for 0 / 1; unmapped integer values silently produce no animation transition.
 
+## Rocket-internal variant (same class, prefab-distinguished)
+<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+
+`Transformer` implements `IRocketInternals, IRocketComponent` (class header, decompile L403300) and carries two `[SerializeField]` fields the rocket prefab variant sets (decompile L403327-L403331):
+
+```csharp
+[SerializeField] private RocketInternalCellType _rocketInternalCellType;
+[SerializeField] private bool _strictlyInternal;
+```
+
+"Transformer Rocket (Small)" and the station "Transformer (Small)" are the SAME `Transformer` class; the rocket variant is a separate prefab with `_strictlyInternal = true`, a non-`None` `_rocketInternalCellType`, and its own serialized `OpenEnds`. No `RocketTransformer` subclass exists (consistent with "There is exactly one Transformer class" above). A Harmony patch on `typeof(Transformer)` catches both; code that wants to treat only the rocket variant differently must branch at runtime on `StrictlyInternal` / `InternalCellType` / the prefab name, not on the C# type.
+
+A reported "extra data port" on the rocket transformer is a property of that prefab's `OpenEnds` (a dedicated `NetworkType.Data` connector alongside the two power connectors) instead of data riding on a `PowerAndData` power connector as on the station prefab. The `OpenEnds` count and per-connector `NetworkType` are prefab asset data and are NOT in the decompile; see [Connection](./Connection.md) "Data-port discovery". Confirm a specific prefab's layout with a live read (InspectorPlus `OpenEnds` dump or a `Prefab.AllPrefabs` scenario dump).
+
 ## Verification history
 
+- 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab; the "extra data port" is prefab `OpenEnds` data). Additive; no conflict with existing content.
 - 2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed `Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)` (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does `_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)` -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that `Thing.OnFinishedLoad` doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.
 
 - 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373766 and 403300-403545; verbatim excerpts of the `ElectricalInputOutput` `InputNetwork`/`OutputNetwork` fields, the `Transformer` class header + `Setting` clamp + logic getters + `GetGeneratedPower` head. Confirmed no `TransformerLarge`/`TransformerSmall` class exists. Re-Volt mod source (`TransformerExploitPatch` / `TransformerLogicPatch` targeting `Transformer`) corroborates the class name and the patch surface.

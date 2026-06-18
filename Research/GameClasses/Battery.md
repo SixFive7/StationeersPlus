@@ -3,7 +3,7 @@ title: Battery (station-mounted)
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-26
+verified_at: 2026-06-18
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
 related:
@@ -254,8 +254,23 @@ A mod that subclasses `Battery` (e.g., `StationBatteryNuclear : Battery` in More
 - The mod's prefab MUST populate `displayRenderers[]` and `displayModeMaterials[]` (length 7, indices 0..6) on the `Battery` component. Without these, `SetRenderersState` returns early or assigns null materials and the bar stays dark.
 - Patching `RefreshAnimState` away (e.g. swapping the entire renderer to a single material on `PoweredChanged`) replaces the segment-count behavior with whatever the override does. MorePowerMod's `StationBatteryNuclear.PoweredChanged` writes a single solid material to `gameObject.GetComponent<MeshRenderer>().materials` regardless of `Powered`, but does NOT touch the `displayRenderers[]` segment bar, so the inherited 5-segment color ladder still drives the visible charge indicator.
 
+## Rocket-internal variant (same class, prefab-distinguished)
+<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+
+`Battery` implements `IRocketInternals, IRocketComponent, IRocketMassContributor` (class header L370616) and carries the same two `[SerializeField]` rocket fields as `Transformer` (decompile L370633-L370637):
+
+```csharp
+[SerializeField] private RocketInternalCellType _rocketInternalCellType;
+[SerializeField] private bool _strictlyInternal;
+```
+
+"Rocket Battery Medium" and the station wall battery are the SAME `Battery` class; the rocket variant is a separate prefab (`_strictlyInternal = true`, a non-`None` `_rocketInternalCellType`, its own `OpenEnds`). No `RocketBattery` subclass exists. A Harmony patch on `typeof(Battery)` catches both. `IRocketMassContributor.MassContribution` adds the stored charge to rocket mass (`Transformer` does not implement this interface).
+
+The reported "rocket battery data port accepts a heavy cable instead of a normal cable" is prefab connector geometry, not a C# rule: there is no per-connector accepted-cable-type field anywhere in code (cable type lives on `Cable`, see [Cable](./Cable.md); `SmallGrid.IsConnected` gates on `NetworkType` + grid coincidence only). Which cable coil snaps into a connector is decided by that connector's prefab grid cell / collider, so the data-port-takes-heavy issue is a prefab-data discrepancy, confirmable / fixable at the prefab level, not in the decompiled `Battery` class. Confirm with a live `OpenEnds` read.
+
 ## Verification history
 
+- 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab; the data-port cable-type is prefab geometry, not code). Additive; no conflict with existing content.
 - 2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in [PowerTickThreading.md](../GameSystems/PowerTickThreading.md). No factual change to the underlying patches.
 - 2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla `StructureBatteryNuclear`), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of `UsePower` / `ReceivePower` / `GetUsedPower` / `GetGeneratedPower` at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.
 - 2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that `Battery : ElectricalInputOutput, ...` mirrors `Transformer` and `AreaPowerControl` in having both `InputNetwork` and `OutputNetwork` cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.
