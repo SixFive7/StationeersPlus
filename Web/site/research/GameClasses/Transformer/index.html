@@ -7839,10 +7839,41 @@
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
 </span></code></pre></div>
 <p>"Transformer Rocket (Small)" and the station "Transformer (Small)" are the SAME <code>Transformer</code> class; the rocket variant is a separate prefab with <code>_strictlyInternal = true</code>, a non-<code>None</code> <code>_rocketInternalCellType</code>, and its own serialized <code>OpenEnds</code>. No <code>RocketTransformer</code> subclass exists (consistent with "There is exactly one Transformer class" above). A Harmony patch on <code>typeof(Transformer)</code> catches both; code that wants to treat only the rocket variant differently must branch at runtime on <code>StrictlyInternal</code> / <code>InternalCellType</code> / the prefab name, not on the C# type.</p>
-<p>A reported "extra data port" on the rocket transformer is a property of that prefab's <code>OpenEnds</code> (a dedicated <code>NetworkType.Data</code> connector alongside the two power connectors) instead of data riding on a <code>PowerAndData</code> power connector as on the station prefab. The <code>OpenEnds</code> count and per-connector <code>NetworkType</code> are prefab asset data and are NOT in the decompile; see <a href="../Connection/">Connection</a> "Data-port discovery". Confirm a specific prefab's layout with a live read (InspectorPlus <code>OpenEnds</code> dump or a <code>Prefab.AllPrefabs</code> scenario dump).</p>
+<p>A reported "extra data port" on the rocket transformer is a property of that prefab's <code>OpenEnds</code>. Confirmed by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, game 0.2.6228.27061), measured per transformer prefab:</p>
+<table>
+<thead>
+<tr>
+<th>Prefab</th>
+<th>OpenEnds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StructureTransformerSmall</code></td>
+<td>2: <code>PowerAndData/Input</code>, <code>Power/Output</code> (data folded onto the input power connector)</td>
+</tr>
+<tr>
+<td><code>StructureTransformerSmallReversed</code></td>
+<td>2: <code>Power/Output</code>, <code>PowerAndData/Input</code></td>
+</tr>
+<tr>
+<td><code>StructureTransformerMedium</code> (+ <code>(Reversed)</code>)</td>
+<td>2: <code>Power/Input</code>, <code>PowerAndData/Output</code> (data on the output)</td>
+</tr>
+<tr>
+<td><code>StructureTransformer</code> (the large transformer)</td>
+<td>3: <code>Data/None</code>, <code>Power/Input</code>, <code>Power/Output</code> (a dedicated Data port)</td>
+</tr>
+<tr>
+<td><code>StructureRocketTransformerSmall</code></td>
+<td>3: <code>Power/Input</code>, <code>Power/Output</code>, <code>Data/None</code> (a dedicated Data port)</td>
+</tr>
+</tbody>
+</table>
+<p>So the rocket small transformer carries a dedicated <code>Data</code> connector (3 connectors) where the station small transformer folds data onto its input power connector (2 connectors). The large station transformer has the same separate-Data-port shape as the rocket one; the small and medium are the only transformers whose data rides on an Input/Output power connector. See <a href="../Connection/">Connection</a> "Data-port discovery".</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab; the "extra data port" is prefab <code>OpenEnds</code> data). Additive; no conflict with existing content.</li>
+<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): rocket small transformer = 3 connectors with a dedicated <code>Data</code> port, station small = 2 with <code>PowerAndData/Input</code>, large <code>StructureTransformer</code> = 3 with a dedicated <code>Data</code> port, medium = 2 with <code>PowerAndData/Output</code>. Additive; no conflict with existing content.</li>
 <li>
 <p>2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed <code>Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)</code> (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does <code>_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)</code> -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that <code>Thing.OnFinishedLoad</code> doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.</p>
 </li>

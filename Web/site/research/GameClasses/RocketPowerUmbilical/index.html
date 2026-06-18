@@ -2523,10 +2523,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#connectors-and-cable-type" class="md-nav__link">
+  <a href="#connectors-confirmed-and-cable-type" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Connectors and cable type
+        Connectors (confirmed) and cable type
       
     </span>
   </a>
@@ -7434,10 +7434,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#connectors-and-cable-type" class="md-nav__link">
+  <a href="#connectors-confirmed-and-cable-type" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Connectors and cable type
+        Connectors (confirmed) and cable type
       
     </span>
   </a>
@@ -7722,21 +7722,45 @@
 </span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Like a vanilla <code>Battery</code>, there is no per-tick rate cap on the umbilical's own methods: it offers full headroom (<code>PowerMaximum - PowerStored</code>) on charge and full stored energy on discharge each tick. PowerGridPlus's <code>RocketUmbilicalPatches</code> adds the rate caps and the soft-power LogicTypes; see that file. The <code>LastPowerAdded</code> / <code>LastPowerRemoved</code> accessors divide by 1000 and decay one tick after the last write (Female L147974-L148025), and <code>LastPowerAdded</code> rides <code>NetworkUpdateFlags |= 256</code> for client sync.</p>
-<h2 id="connectors-and-cable-type">Connectors and cable type<a class="headerlink" href="#connectors-and-cable-type" title="Permanent link">&para;</a></h2>
+<h2 id="connectors-confirmed-and-cable-type">Connectors (confirmed) and cable type<a class="headerlink" href="#connectors-confirmed-and-cable-type" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
 
-<p>Each half connects to its grid through the <code>ElectricalInputOutput</code> <code>InputConnection</code> / <code>OutputConnection</code> (resolved in <code>CheckConnections</code>). The number and <code>NetworkType</code> of the connectors, and which cable coil (normal vs heavy, see <a href="../Cable/">Cable</a>) can snap onto a given connector, are prefab asset data, NOT in the decompile: there is no per-connector "accepted cable type" field anywhere in code. Cable type lives on the <code>Cable</code> (<code>Cable.Type { normal, heavy, superHeavy }</code>), and <code>SmallGrid.IsConnected</code> gates only on <code>NetworkType</code> overlap plus grid coincidence, never on <code>Cable.CableType</code>. So whether an umbilical connector accepts a heavy cable, a normal cable, or both is decided by the connector's prefab grid cell / collider geometry. See <a href="../Connection/">Connection</a> "Data-port discovery" for the connector model and how to read a prefab's <code>OpenEnds</code> live.</p>
+<p>Each half connects to its grid through the <code>ElectricalInputOutput</code> <code>InputConnection</code> / <code>OutputConnection</code> (resolved in <code>CheckConnections</code>). The per-prefab <code>OpenEnds</code> layout, confirmed by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, game 0.2.6228.27061):</p>
+<table>
+<thead>
+<tr>
+<th>Prefab (player-facing)</th>
+<th>OpenEnds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StructurePowerUmbilicalMale</code> (Item Umbilical (Power))</td>
+<td>2: <code>Power/Input</code>, <code>Data/None</code> (a dedicated data port)</td>
+</tr>
+<tr>
+<td><code>StructurePowerUmbilicalFemale</code> (Umbilical Socket (Power))</td>
+<td>1: <code>Power/Output</code></td>
+</tr>
+<tr>
+<td><code>StructurePowerUmbilicalFemaleSide</code> (Umbilical Socket Angle (Power))</td>
+<td>1: <code>Power/Output</code></td>
+</tr>
+</tbody>
+</table>
+<p>So only the male half carries a data connector; both sockets are power-only (one <code>Power/Output</code> connector each). Which cable coil (normal vs heavy, see <a href="../Cable/">Cable</a>) can physically snap onto a given connector is a separate matter of the connector's prefab grid-cell / collider geometry, NOT its <code>NetworkType</code>: there is no per-connector "accepted cable type" field in code (<code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> overlap plus grid coincidence only; cable type lives on the <code>Cable</code>, <code>Cable.Type { normal, heavy, superHeavy }</code>). The connector-dump measures <code>NetworkType</code>/<code>ConnectionRole</code>, not coil-fit geometry. See <a href="../Connection/">Connection</a> "Data-port discovery".</p>
 <h2 id="logic-data">Logic / data<a class="headerlink" href="#logic-data" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
 
 <p>The Male declares its own <code>CanLogicRead</code>; the Female inherits the <code>Device</code> base logic methods (relevant to Harmony targeting: a base-<code>Device</code> patch with an <code>is RocketPowerUmbilicalFemale</code> filter is required for the Female, while the Male can be patched directly; see <a href="../../Patterns/HarmonyInheritedMethods/">HarmonyInheritedMethods</a>). The umbilical does NOT carry logic/data across the coupling: <code>MovePowerToUmbilical</code> moves energy only, and the two halves sit on independent cable networks. Any logic bridging would have to go through the rocket's own data network, not the umbilical.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-06-18: confirmed the connector layouts via a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): Male = 2 connectors (<code>Power/Input</code> + dedicated <code>Data/None</code>), Female and Female-Side = 1 connector (<code>Power/Output</code>). Updated the Connectors section and resolved the OpenEnds open question.</li>
 <li>2026-06-18: page created. Sourced from a PowerGridPlus rocket-device investigation reading <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> L147890-148260 (Female) and L148260-148810 (Male) directly: class headers, the <code>PowerMaximum = 10000f</code> internal cells, <code>MovePowerToUmbilical</code> (L148715) doing <code>_partnerUmbilical.ReceivePower(null, n)</code>, the side-keyed power quartet, and the <code>IUmbilical</code> partner machinery. Confirms umbilicals are paired battery-buffer transfer devices, not dumb wires, and that connector layout / cable-type acceptance is prefab data.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Exact prefab names and <code>OpenEnds</code> layout (connector count, per-connector <code>NetworkType</code> / <code>ConnectionRole</code>, and which cable tiers each connector accepts) for the Male, Female, and Female-Side prefabs. Prefab asset data; read via InspectorPlus (<code>types=[RocketPowerUmbilicalMale, RocketPowerUmbilicalFemale]</code>, <code>fields=[OpenEnds, InputConnection, OutputConnection, HasDataConnection]</code>) on placed instances, or a <code>Prefab.AllPrefabs</code> ScenarioRunner <code>OpenEnds</code> dump.</li>
+<li>Which cable tiers (normal / heavy / super-heavy coil) each umbilical connector physically accepts. The <code>OpenEnds</code> <code>NetworkType</code> layout is confirmed (see Connectors above); coil-fit is connector grid-cell / collider geometry, not measured by the connector-type dump. Observe in-game or inspect the prefab colliders.</li>
 <li>Whether the umbilical's InputNetwork/OutputNetwork on the rocket side are ordinary <code>CableNetwork</code>s (rocket-internal cables) in all dock states, which determines whether <code>Cable</code>-tier rules apply to that side.</li>
 </ul>
 
