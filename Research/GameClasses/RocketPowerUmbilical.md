@@ -110,10 +110,18 @@ public override float GetGeneratedPower(CableNetwork cableNetwork)              
 
 Like a vanilla `Battery`, there is no per-tick rate cap on the umbilical's own methods: it offers full headroom (`PowerMaximum - PowerStored`) on charge and full stored energy on discharge each tick. PowerGridPlus's `RocketUmbilicalPatches` adds the rate caps and the soft-power LogicTypes; see that file. The `LastPowerAdded` / `LastPowerRemoved` accessors divide by 1000 and decay one tick after the last write (Female L147974-L148025), and `LastPowerAdded` rides `NetworkUpdateFlags |= 256` for client sync.
 
-## Connectors and cable type
+## Connectors (confirmed) and cable type
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
 
-Each half connects to its grid through the `ElectricalInputOutput` `InputConnection` / `OutputConnection` (resolved in `CheckConnections`). The number and `NetworkType` of the connectors, and which cable coil (normal vs heavy, see [Cable](./Cable.md)) can snap onto a given connector, are prefab asset data, NOT in the decompile: there is no per-connector "accepted cable type" field anywhere in code. Cable type lives on the `Cable` (`Cable.Type { normal, heavy, superHeavy }`), and `SmallGrid.IsConnected` gates only on `NetworkType` overlap plus grid coincidence, never on `Cable.CableType`. So whether an umbilical connector accepts a heavy cable, a normal cable, or both is decided by the connector's prefab grid cell / collider geometry. See [Connection](./Connection.md) "Data-port discovery" for the connector model and how to read a prefab's `OpenEnds` live.
+Each half connects to its grid through the `ElectricalInputOutput` `InputConnection` / `OutputConnection` (resolved in `CheckConnections`). The per-prefab `OpenEnds` layout, confirmed by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, game 0.2.6228.27061):
+
+| Prefab (player-facing) | OpenEnds |
+|---|---|
+| `StructurePowerUmbilicalMale` (Item Umbilical (Power)) | 2: `Power/Input`, `Data/None` (a dedicated data port) |
+| `StructurePowerUmbilicalFemale` (Umbilical Socket (Power)) | 1: `Power/Output` |
+| `StructurePowerUmbilicalFemaleSide` (Umbilical Socket Angle (Power)) | 1: `Power/Output` |
+
+So only the male half carries a data connector; both sockets are power-only (one `Power/Output` connector each). Which cable coil (normal vs heavy, see [Cable](./Cable.md)) can physically snap onto a given connector is a separate matter of the connector's prefab grid-cell / collider geometry, NOT its `NetworkType`: there is no per-connector "accepted cable type" field in code (`SmallGrid.IsConnected` gates on `NetworkType` overlap plus grid coincidence only; cable type lives on the `Cable`, `Cable.Type { normal, heavy, superHeavy }`). The connector-dump measures `NetworkType`/`ConnectionRole`, not coil-fit geometry. See [Connection](./Connection.md) "Data-port discovery".
 
 ## Logic / data
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
@@ -122,9 +130,10 @@ The Male declares its own `CanLogicRead`; the Female inherits the `Device` base 
 
 ## Verification history
 
+- 2026-06-18: confirmed the connector layouts via a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): Male = 2 connectors (`Power/Input` + dedicated `Data/None`), Female and Female-Side = 1 connector (`Power/Output`). Updated the Connectors section and resolved the OpenEnds open question.
 - 2026-06-18: page created. Sourced from a PowerGridPlus rocket-device investigation reading `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` L147890-148260 (Female) and L148260-148810 (Male) directly: class headers, the `PowerMaximum = 10000f` internal cells, `MovePowerToUmbilical` (L148715) doing `_partnerUmbilical.ReceivePower(null, n)`, the side-keyed power quartet, and the `IUmbilical` partner machinery. Confirms umbilicals are paired battery-buffer transfer devices, not dumb wires, and that connector layout / cable-type acceptance is prefab data.
 
 ## Open questions
 
-- Exact prefab names and `OpenEnds` layout (connector count, per-connector `NetworkType` / `ConnectionRole`, and which cable tiers each connector accepts) for the Male, Female, and Female-Side prefabs. Prefab asset data; read via InspectorPlus (`types=[RocketPowerUmbilicalMale, RocketPowerUmbilicalFemale]`, `fields=[OpenEnds, InputConnection, OutputConnection, HasDataConnection]`) on placed instances, or a `Prefab.AllPrefabs` ScenarioRunner `OpenEnds` dump.
+- Which cable tiers (normal / heavy / super-heavy coil) each umbilical connector physically accepts. The `OpenEnds` `NetworkType` layout is confirmed (see Connectors above); coil-fit is connector grid-cell / collider geometry, not measured by the connector-type dump. Observe in-game or inspect the prefab colliders.
 - Whether the umbilical's InputNetwork/OutputNetwork on the rocket side are ordinary `CableNetwork`s (rocket-internal cables) in all dock states, which determines whether `Cable`-tier rules apply to that side.

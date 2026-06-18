@@ -206,11 +206,21 @@ Vanilla never writes `Error` to values other than 0 or 1. The field is `int` so 
 
 "Transformer Rocket (Small)" and the station "Transformer (Small)" are the SAME `Transformer` class; the rocket variant is a separate prefab with `_strictlyInternal = true`, a non-`None` `_rocketInternalCellType`, and its own serialized `OpenEnds`. No `RocketTransformer` subclass exists (consistent with "There is exactly one Transformer class" above). A Harmony patch on `typeof(Transformer)` catches both; code that wants to treat only the rocket variant differently must branch at runtime on `StrictlyInternal` / `InternalCellType` / the prefab name, not on the C# type.
 
-A reported "extra data port" on the rocket transformer is a property of that prefab's `OpenEnds` (a dedicated `NetworkType.Data` connector alongside the two power connectors) instead of data riding on a `PowerAndData` power connector as on the station prefab. The `OpenEnds` count and per-connector `NetworkType` are prefab asset data and are NOT in the decompile; see [Connection](./Connection.md) "Data-port discovery". Confirm a specific prefab's layout with a live read (InspectorPlus `OpenEnds` dump or a `Prefab.AllPrefabs` scenario dump).
+A reported "extra data port" on the rocket transformer is a property of that prefab's `OpenEnds`. Confirmed by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, game 0.2.6228.27061), measured per transformer prefab:
+
+| Prefab | OpenEnds |
+|---|---|
+| `StructureTransformerSmall` | 2: `PowerAndData/Input`, `Power/Output` (data folded onto the input power connector) |
+| `StructureTransformerSmallReversed` | 2: `Power/Output`, `PowerAndData/Input` |
+| `StructureTransformerMedium` (+ `(Reversed)`) | 2: `Power/Input`, `PowerAndData/Output` (data on the output) |
+| `StructureTransformer` (the large transformer) | 3: `Data/None`, `Power/Input`, `Power/Output` (a dedicated Data port) |
+| `StructureRocketTransformerSmall` | 3: `Power/Input`, `Power/Output`, `Data/None` (a dedicated Data port) |
+
+So the rocket small transformer carries a dedicated `Data` connector (3 connectors) where the station small transformer folds data onto its input power connector (2 connectors). The large station transformer has the same separate-Data-port shape as the rocket one; the small and medium are the only transformers whose data rides on an Input/Output power connector. See [Connection](./Connection.md) "Data-port discovery".
 
 ## Verification history
 
-- 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab; the "extra data port" is prefab `OpenEnds` data). Additive; no conflict with existing content.
+- 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab). Connector layouts confirmed the same day by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): rocket small transformer = 3 connectors with a dedicated `Data` port, station small = 2 with `PowerAndData/Input`, large `StructureTransformer` = 3 with a dedicated `Data` port, medium = 2 with `PowerAndData/Output`. Additive; no conflict with existing content.
 - 2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed `Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)` (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does `_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)` -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that `Thing.OnFinishedLoad` doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.
 
 - 2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373766 and 403300-403545; verbatim excerpts of the `ElectricalInputOutput` `InputNetwork`/`OutputNetwork` fields, the `Transformer` class header + `Setting` clamp + logic getters + `GetGeneratedPower` head. Confirmed no `TransformerLarge`/`TransformerSmall` class exists. Re-Volt mod source (`TransformerExploitPatch` / `TransformerLogicPatch` targeting `Transformer`) corroborates the class name and the patch surface.
