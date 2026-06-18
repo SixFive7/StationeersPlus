@@ -705,6 +705,9 @@ namespace PowerGridPlus
         private static void RunAllocationLoop(List<Net> topo, List<Net> topoRev, List<Seg> segs,
             List<Elastic> elastics, List<Net> netList, bool shedOn, bool overloadOn)
         {
+            // Clean slate once per tick. Within the loop SHED is re-decided every round (ForwardSupplyAndShed
+            // clears it); OVERLOAD only ever GROWS (sticky: committed on detection, reset only by the 60 s
+            // timeout or a player turn-off), so it is cleared here once and never inside a round.
             foreach (var seg in segs) { seg.Shed = false; seg.Overloaded = false; }
             foreach (var e in elastics) e.Overloaded = false;
 
@@ -716,8 +719,14 @@ namespace PowerGridPlus
             for (int round = 0; round < maxRounds; round++)
             {
                 BackwardDesirePass(topoRev);
+                // Overload is evaluated BEFORE shed and is grow-only (precedence CYCLE > VVF > OVERLOAD >
+                // SHED, POWER.md decision 3). Only SHED is re-decidable within a tick: a transformer that
+                // structurally cannot serve its downstream is diagnosed as OVERLOAD here, before the shed
+                // pass could mislabel it as input-starved. The structural rule is desire-based (pre-shed);
+                // the supply rules (elastic / cable) need the forward pass's Unmet, so they run after it.
+                DetectStructuralOverload(netList, segs, overloadOn);
                 ForwardSupplyAndShed(topo, segs, shedOn, settleOnly: false);
-                OverloadPass(netList, segs, elastics, overloadOn);
+                DetectSupplyOverload(netList, elastics, overloadOn);
 
                 var curShed = CollectFlagged(segs, shed: true);
                 var curOver = CollectFlagged(segs, shed: false);
@@ -893,12 +902,16 @@ namespace PowerGridPlus
         //      live elastics, so a battery-fed subnet goes dark cleanly instead of partial-powering.
         //   3. §5.7 cable overflow: flow above the weakest cable cap with generators alone under it trips
         //      every supplier + elastic on the network (transformer/battery overflow does not burn cable).
-        private static void OverloadPass(List<Net> netList, List<Seg> segs, List<Elastic> elastics, bool overloadOn)
+        // Structural overload (rule 1): a network whose demand exceeds gen + elastic + its Setting-limited
+        // suppliers' caps overloads those suppliers. Runs BEFORE the shed pass so a transformer that
+        // structurally cannot serve its downstream is diagnosed as OVERLOAD (the higher-precedence fault)
+        // instead of getting shed first and mislabeled input-starved. GROW-ONLY: never clears within a tick,
+        // so the overload commits even if a same-tick shed in its subnetwork would have removed the condition
+        // (desired: overload is the structural signal the player must act on). Desire-based, no forward
+        // dependency, so it is safe to run before the forward pass.
+        private static void DetectStructuralOverload(List<Net> netList, List<Seg> segs, bool overloadOn)
         {
-            foreach (var seg in segs) seg.Overloaded = false;
-            foreach (var e in elastics) e.Overloaded = false;
             if (!overloadOn) return;
-
             foreach (var n in netList)
             {
                 float demand = n.RigidDemand;
@@ -910,21 +923,29 @@ namespace PowerGridPlus
                 if (demand <= cap + Eps) continue;
                 foreach (var s in n.Suppliers)
                 {
-                    if (s.Locked || s.Shed) continue;
+                    if (s.Locked || s.Shed || s.Overloaded) continue;
                     if (s.CapSetting >= float.MaxValue) continue;   // APC: no throughput rating to hit
                     if (s.CapSetting > s.CableCap) continue;        // cable-limited (rule 3), not Setting-limited
                     s.Overloaded = true;                            // includes input-limited PT pairs (taken offline)
                 }
             }
+        }
 
-            foreach (var n in netList)
+        // Supply overload (rules 2 and 3): elastic hit-max and the §5.7 cable overflow. Both read the forward
+        // pass's Unmet / PullsGranted, so they run AFTER ForwardSupplyAndShed. GROW-ONLY, like the structural
+        // pass: never cleared within a tick.
+        private static void DetectSupplyOverload(List<Net> netList, List<Elastic> elastics, bool overloadOn)
+        {
+            if (!overloadOn) return;
+
+            foreach (var n in netList)   // rule 2: elastic hit-max
             {
                 if (n.Unmet <= Eps) continue;
                 foreach (var e in n.Elastics)
                     if (!e.Locked && !e.Overloaded) e.Overloaded = true;
             }
 
-            foreach (var n in netList)
+            foreach (var n in netList)   // rule 3: §5.7 cable overflow
             {
                 float flow = (n.RigidDemand - n.Unmet) + n.PullsGranted;
                 if (flow <= Eps) continue;
