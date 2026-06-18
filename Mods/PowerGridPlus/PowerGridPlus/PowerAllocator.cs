@@ -56,6 +56,13 @@ namespace PowerGridPlus
         private const float Eps = 0.01f;
         private const int UnreachableDepth = int.MaxValue / 2;
 
+        // Networks in shallow-first (depth ASC, ReferenceId ASC) order, recomputed by the DEPTH phase
+        // every tick. AtomicElectricityTickPatch Phase 3 ENFORCE iterates this so each network is
+        // recomputed AFTER its upstream input network's PotentialLoad has been refreshed this tick,
+        // eliminating the one-tick supply-propagation lag that made multi-stage transformer chains
+        // oscillate power on/off under variable load. Read-only outside this class.
+        internal static List<CableNetwork> ShallowFirstNetworks = new List<CableNetwork>();
+
         private enum SegKind { Transformer, PtPair, Apc }
 
         // A pull-through contributor: draws from InNet to serve OutNet (Transformer, APC, PT/PR pair).
@@ -80,6 +87,10 @@ namespace PowerGridPlus
             public bool Overloaded;
             public float Throughput;       // committed passthrough this round
             public float Pull;             // Throughput + UsedPower, the demand presented on InNet
+            // Sweep allocator (backward desire pass) scratch: what this contributor WANTS to pass
+            // assuming its input can supply it (capped at EffCap), and the matching input-side draw.
+            public float DesiredThroughput;
+            public float DesiredPull;
             // surplus walk:
             public float PropagatedReq;
             public float GrantThrough;
@@ -121,6 +132,9 @@ namespace PowerGridPlus
             public float PullsGranted;
             public float InflowCommitted;
             public float ElasticDelivered;
+            // Sweep allocator (backward desire pass) scratch: total power demanded on this network
+            // assuming nothing is shed (rigid + every non-locked, non-overloaded consumer's desired pull).
+            public float DesiredDemand;
             // surplus walk:
             public float SoftReqTotal;
             public float IncomingGrant;
@@ -379,57 +393,84 @@ namespace PowerGridPlus
             foreach (var s in softs) GetNet(s.InNet)?.Softs.Add(s);
 
             // ----------------------------------------------------------------
-            // 2. DEPTH (BFS over conducting contributor edges).
+            // 2. ORDER. Two strategies behind the Sweep toggle:
+            //   - Legacy: BFS depth = MIN hops from a source network; deep-first / shallow-first sorts.
+            //   - Sweep: TRUE topological order over the live contributor edges (every network after ALL
+            //     the networks that feed it, diamonds included), so the backward/forward sweep sees fresh
+            //     upstream supply at every depth with no residual lag.
             // ----------------------------------------------------------------
-            var frontier = new List<Net>();
-            foreach (var n in netList)
+            bool sweep = SweepAllocatorSync.Effective;
+            List<Net> netsDeepFirst;
+            List<Net> netsShallowFirst;
+            List<Net> topo = null;
+
+            if (sweep)
             {
-                bool hasLiveElastic = false;
-                foreach (var e in n.Elastics) if (!e.Locked) { hasLiveElastic = true; break; }
-                if (n.GenSupply > 0f || hasLiveElastic || n.Suppliers.Count == 0)
-                {
-                    n.Depth = 0;
-                    frontier.Add(n);
-                }
+                topo = BuildTopoOrder(netList, nets);          // assigns Net.Depth = topo index
+                foreach (var seg in segs)
+                    seg.Depth = nets[seg.InNet.ReferenceId].Depth;
+                netsShallowFirst = topo;                       // source -> leaf
+                netsDeepFirst = new List<Net>(topo);
+                netsDeepFirst.Reverse();                       // leaf -> source
             }
-            frontier.Sort((a, b) => a.Id.CompareTo(b.Id));
-            int depth = 0;
-            while (frontier.Count > 0)
+            else
             {
-                depth++;
-                var next = new List<Net>();
-                foreach (var n in frontier)
+                var frontier = new List<Net>();
+                foreach (var n in netList)
                 {
-                    foreach (var seg in n.Consumers)
+                    bool hasLiveElastic = false;
+                    foreach (var e in n.Elastics) if (!e.Locked) { hasLiveElastic = true; break; }
+                    if (n.GenSupply > 0f || hasLiveElastic || n.Suppliers.Count == 0)
                     {
-                        if (seg.Locked) continue;
-                        var outNet = nets[seg.OutNet.ReferenceId];
-                        if (outNet.Depth > depth)
-                        {
-                            outNet.Depth = depth;
-                            next.Add(outNet);
-                        }
+                        n.Depth = 0;
+                        frontier.Add(n);
                     }
                 }
-                next.Sort((a, b) => a.Id.CompareTo(b.Id));
-                frontier = next;
-            }
-            foreach (var seg in segs)
-                seg.Depth = nets[seg.InNet.ReferenceId].Depth;
+                frontier.Sort((a, b) => a.Id.CompareTo(b.Id));
+                int depth = 0;
+                while (frontier.Count > 0)
+                {
+                    depth++;
+                    var next = new List<Net>();
+                    foreach (var n in frontier)
+                    {
+                        foreach (var seg in n.Consumers)
+                        {
+                            if (seg.Locked) continue;
+                            var outNet = nets[seg.OutNet.ReferenceId];
+                            if (outNet.Depth > depth)
+                            {
+                                outNet.Depth = depth;
+                                next.Add(outNet);
+                            }
+                        }
+                    }
+                    next.Sort((a, b) => a.Id.CompareTo(b.Id));
+                    frontier = next;
+                }
+                foreach (var seg in segs)
+                    seg.Depth = nets[seg.InNet.ReferenceId].Depth;
 
-            // Deterministic walk orders.
-            var netsDeepFirst = new List<Net>(netList);
-            netsDeepFirst.Sort((a, b) =>
-            {
-                int c = b.Depth.CompareTo(a.Depth);
-                return c != 0 ? c : a.Id.CompareTo(b.Id);
-            });
-            var netsShallowFirst = new List<Net>(netList);
-            netsShallowFirst.Sort((a, b) =>
-            {
-                int c = a.Depth.CompareTo(b.Depth);
-                return c != 0 ? c : a.Id.CompareTo(b.Id);
-            });
+                netsDeepFirst = new List<Net>(netList);
+                netsDeepFirst.Sort((a, b) =>
+                {
+                    int c = b.Depth.CompareTo(a.Depth);
+                    return c != 0 ? c : a.Id.CompareTo(b.Id);
+                });
+                netsShallowFirst = new List<Net>(netList);
+                netsShallowFirst.Sort((a, b) =>
+                {
+                    int c = a.Depth.CompareTo(b.Depth);
+                    return c != 0 ? c : a.Id.CompareTo(b.Id);
+                });
+            }
+
+            // Publish the shallow-first network order for Phase 3 ENFORCE (AtomicElectricityTickPatch).
+            // Iterating ENFORCE upstream-first is what eliminates the one-tick transformer supply lag
+            // (topological order in Sweep mode, min-depth in Legacy).
+            var shallowOrder = new List<CableNetwork>(netsShallowFirst.Count);
+            for (int i = 0; i < netsShallowFirst.Count; i++) shallowOrder.Add(netsShallowFirst[i].Network);
+            ShallowFirstNetworks = shallowOrder;
             foreach (var n in netList)
             {
                 n.Suppliers.Sort(SupplierOrder);
@@ -437,8 +478,23 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
-            // 3. FIXED-POINT LOOP (§8.0). Sheds/overloads only grow.
+            // 3. DECIDE: shed / overload fixed point.
             // ----------------------------------------------------------------
+            if (sweep)
+            {
+                // Sweep: re-decidable backward/forward sweep iterated to a fixed point (Direction C).
+                // Sheds and overloads are recomputed FRESH against the settled state every round, so an
+                // unnecessary shed cannot freeze for 60 s once another device's overload frees the budget
+                // (the 2c case), and a downstream shed that relieves an overload is honoured. Throughputs
+                // are exact (no headroom). Convergence is bounded (2N+4 rounds); the per-net field values
+                // it leaves (Unmet / InflowCommitted / PullsGranted / ElasticDelivered / Throughput) feed
+                // the shared dead-input / commit / elastic-share / surplus tail below, exactly like
+                // EvaluateDemand does for the Legacy path.
+                RunSweepLoop(topo, netsDeepFirst, segs, elastics, netList, shedOn, overloadOn);
+            }
+            else
+            {
+            // 3a. LEGACY FIXED-POINT LOOP (§8.0). Sheds/overloads only grow.
             int maxRounds = 2 * segs.Count + 4;
             bool changed = true;
             for (int round = 0; round < maxRounds && changed; round++)
@@ -549,6 +605,7 @@ namespace PowerGridPlus
 
             // Final demand pass so shares reflect the converged state.
             EvaluateDemand(netsDeepFirst, nets);
+            }   // end Legacy DECIDE branch
 
             // Dead-input cue (POWER.md §8.3): a contributor whose input network has NO effective supply
             // (no generators, no upstream inflow, no live battery -- the same totalAvail the shed pass
@@ -560,8 +617,12 @@ namespace PowerGridPlus
             {
                 if (n.Consumers.Count == 0) continue;
                 if (n.GenSupply + n.InflowCommitted + AvailableElastic(n) > Eps) continue;   // has supply -> not dead
+                // Legacy sets Throughput to the demand-share (nonzero on a dead net); Sweep clamps
+                // Throughput by actual upstream supply (zero on a dead net), so fall back to the desired
+                // throughput there. A contributor actively trying to pass power on an unsupplied input is
+                // the dead-input cue (no lockout, instant recovery when the input is powered).
                 foreach (var c in n.Consumers)
-                    if (IsActive(c) && c.Throughput > Eps)
+                    if (IsActive(c) && (c.Throughput > Eps || c.DesiredThroughput > Eps))
                         DeadInputRegistry.MarkDeadInput(c.RefId);
             }
 
@@ -716,6 +777,35 @@ namespace PowerGridPlus
             }
             foreach (var s in softs)
                 SoftDemandShareCache.SetShare(s.RefId, s.Share);
+
+            // Sweep: publish each TRANSFORMER's exact converged throughput so its GetGeneratedPower /
+            // GetUsedPower report the real in-tick flow (no headroom). Output side = seg.Throughput;
+            // input side = seg.Pull (throughput + the transformer's own quiescent draw). Inactive
+            // transformers (shed / overloaded / cycle-faulted) carry Throughput = Pull = 0, so they
+            // report 0 both ways. APC / battery / umbilical already report their exact shares through
+            // SoftSupplyShareCache (driven by the same supply-accurate seg.Throughput); PT pairs keep
+            // reporting their vanilla deliverable cap (harmless headroom on the wireless side, and they
+            // are not part of the multi-stage-chain regression this addresses).
+            if (sweep)
+            {
+                foreach (var seg in segs)
+                {
+                    if (seg.Kind == SegKind.Transformer)
+                        TransformerSupplyCache.Set(seg.RefId, seg.Throughput, seg.Pull);
+                    else if (seg.Kind == SegKind.PtPair)
+                        // The wireless PT/PR pair bills its input draw via the PowerTransmitter on
+                        // InNet. seg.Pull = Throughput * distance-multiplier + the pair's quiescent --
+                        // the exact input draw. PowerTransmitterSweepPatches.GetUsedPower reports this
+                        // instead of the lagging _powerProvided (an inactive pair caches Pull = 0).
+                        TransformerSupplyCache.Set(seg.RefId, seg.Throughput, seg.Pull);
+                    else if (seg.Kind == SegKind.Apc)
+                        // Fresh passthrough draw the APC bills on its INPUT network: committed rigid
+                        // passthrough + soft-charge grant flowing through. Replaces the lagging
+                        // _powerProvided in AreaPowerControlPatches.GetUsedPower so the APC's input draw
+                        // is current (input == output, no one-tick lag -> no input-network undershoot).
+                        ApcPassthroughCache.Set(seg.RefId, seg.Throughput + seg.GrantThrough);
+                }
+            }
         }
 
         // Option C gate: true when a cable burn is in flight on either side of this contributor's span,
@@ -802,6 +892,332 @@ namespace PowerGridPlus
                 residual -= elasticUsed;
                 n.Unmet = residual;
             }
+        }
+
+        // =====================================================================
+        // SWEEP ALLOCATOR (Direction C): topological backward-demand / forward-
+        // supply sweep, iterated to a fixed point with RE-DECIDABLE shed +
+        // overload. Computes each contributor's exact in-tick throughput (no
+        // headroom) and avoids the 60-second freeze of a shed that another
+        // device's overload would have relieved (the 2c case). Used in place of
+        // the Legacy grow-only loop when SweepAllocatorSync.Effective is true.
+        // =====================================================================
+
+        // A contributor is eligible to DESIRE power (backward pass) when it is not locked and not
+        // overloaded. Shed is deliberately IGNORED here: the forward pass re-decides shedding every
+        // round, so a previously-shed contributor must still present its desired pull to be reconsidered.
+        private static bool DesireActive(Seg s) => !s.Locked && !s.Overloaded;
+
+        // Kahn topological order over the live contributor edges InNet -> OutNet. Cycle-faulted segs are
+        // Locked and excluded, so the live graph is a forest/DAG; every network lands AFTER all the
+        // networks that feed it (diamonds correct). Ready nodes are popped in ReferenceId order for
+        // determinism. Net.Depth is set to the topo index. A residual cycle (should not occur after
+        // Phase 1.5b cycle removal) is appended in ReferenceId order with a warning.
+        private static List<Net> BuildTopoOrder(List<Net> netList, Dictionary<long, Net> nets)
+        {
+            var indeg = new Dictionary<long, int>(netList.Count);
+            foreach (var n in netList)
+            {
+                int d = 0;
+                foreach (var s in n.Suppliers) if (!s.Locked) d++;
+                indeg[n.Id] = d;
+            }
+            var queue = new List<Net>();
+            foreach (var n in netList) if (indeg[n.Id] == 0) queue.Add(n);
+            queue.Sort((a, b) => a.Id.CompareTo(b.Id));
+
+            var topo = new List<Net>(netList.Count);
+            int qi = 0;
+            while (qi < queue.Count)
+            {
+                var n = queue[qi++];
+                topo.Add(n);
+                foreach (var c in n.Consumers)        // edges out of n: n -> c.OutNet
+                {
+                    if (c.Locked) continue;
+                    var m = nets[c.OutNet.ReferenceId];
+                    if (--indeg[m.Id] != 0) continue;
+                    // insert m into the unprocessed tail [qi..end], keeping that tail sorted by Id, so we
+                    // always pop the smallest-Id ready network next (deterministic order).
+                    int ins = queue.Count;
+                    for (int k = qi; k < queue.Count; k++)
+                        if (queue[k].Id > m.Id) { ins = k; break; }
+                    queue.Insert(ins, m);
+                }
+            }
+
+            if (topo.Count < netList.Count)
+            {
+                var seen = new HashSet<long>();
+                foreach (var n in topo) seen.Add(n.Id);
+                var leftover = new List<Net>();
+                foreach (var n in netList) if (!seen.Contains(n.Id)) leftover.Add(n);
+                leftover.Sort((a, b) => a.Id.CompareTo(b.Id));
+                UnityEngine.Debug.LogWarning(
+                    $"[PowerGridPlus] Sweep topo: {leftover.Count} network(s) in a residual cycle after cycle-fault removal; appended in ReferenceId order.");
+                topo.AddRange(leftover);
+            }
+            for (int i = 0; i < topo.Count; i++) topo[i].Depth = i;
+            return topo;
+        }
+
+        // The iterated fixed point. Each round: backward desire sweep, forward supply sweep (which
+        // RE-DECIDES shedding against the settled upstream supply), then the overload pass (which
+        // RE-DECIDES overload against the post-shed demand). Forward-before-overload means a shed that
+        // relieves an over-demanded network is honoured the same round, killing the shed<->overload
+        // 2-cycle. Converges when the (shed, overload) sets stop changing. Bounded by 2N+4 rounds; a
+        // detected 2-cycle resolves to the safe union of the two states, then settles throughputs.
+        private static void RunSweepLoop(List<Net> topo, List<Net> topoRev, List<Seg> segs,
+            List<Elastic> elastics, List<Net> netList, bool shedOn, bool overloadOn)
+        {
+            foreach (var seg in segs) { seg.Shed = false; seg.Overloaded = false; }
+            foreach (var e in elastics) e.Overloaded = false;
+
+            int maxRounds = 2 * segs.Count + 4;
+            HashSet<long> prevShed = null, prevOver = null, prevEl = null;
+            HashSet<long> prev2Shed = null, prev2Over = null, prev2El = null;
+            bool converged = false;
+
+            for (int round = 0; round < maxRounds; round++)
+            {
+                SweepDesire(topoRev);
+                SweepForwardAndShed(topo, segs, shedOn, settleOnly: false);
+                SweepOverload(netList, segs, elastics, overloadOn);
+
+                var curShed = CollectFlagged(segs, shed: true);
+                var curOver = CollectFlagged(segs, shed: false);
+                var curEl = CollectFlaggedElastic(elastics);
+
+                if (prevShed != null && curShed.SetEquals(prevShed)
+                    && curOver.SetEquals(prevOver) && curEl.SetEquals(prevEl))
+                {
+                    converged = true;
+                    break;
+                }
+                if (prev2Shed != null && curShed.SetEquals(prev2Shed)
+                    && curOver.SetEquals(prev2Over) && curEl.SetEquals(prev2El))
+                {
+                    // 2-cycle between two states: OR the intermediate state's flags in (safe superset,
+                    // never under-protective), then settle throughputs without re-deciding.
+                    foreach (var seg in segs)
+                    {
+                        if (prevShed.Contains(seg.RefId)) seg.Shed = true;
+                        if (prevOver.Contains(seg.RefId)) seg.Overloaded = true;
+                    }
+                    foreach (var e in elastics) if (prevEl.Contains(e.RefId)) e.Overloaded = true;
+                    SweepDesire(topoRev);
+                    SweepForwardAndShed(topo, segs, shedOn, settleOnly: true);
+                    converged = true;
+                    break;
+                }
+                prev2Shed = prevShed; prev2Over = prevOver; prev2El = prevEl;
+                prevShed = curShed; prevOver = curOver; prevEl = curEl;
+            }
+
+            if (!converged)
+                UnityEngine.Debug.LogWarning(
+                    $"[PowerGridPlus] Sweep allocator did not converge in {maxRounds} rounds; using last settled state (internally consistent, safe).");
+        }
+
+        // Backward demand sweep (leaf -> source). Each contributor's DesiredThroughput = its share of its
+        // output network's demand (priority tier DESC, proportional by EffCap within a tier, capped at
+        // EffCap), and DesiredPull = the matching input-side draw (throughput * distance factor + quiescent).
+        // Generators are subtracted first; elastic storage is the documented last resort and is not modelled
+        // here (it absorbs the per-net shortfall in the forward sweep / elastic-share pass, matching the
+        // gen -> transformer -> battery supply order).
+        private static void SweepDesire(List<Net> topoRev)
+        {
+            foreach (var n in topoRev)
+            {
+                float pulls = 0f;
+                foreach (var c in n.Consumers)
+                {
+                    c.DesiredPull = (DesireActive(c) && c.DesiredThroughput > 0f)
+                        ? c.DesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f) + c.UsedPower
+                        : 0f;
+                    pulls += c.DesiredPull;
+                }
+                n.DesiredDemand = n.RigidDemand + pulls;
+
+                float residual = n.DesiredDemand - n.GenSupply;
+                if (residual < 0f) residual = 0f;
+
+                var supList = n.Suppliers;
+                int si = 0;
+                while (si < supList.Count && residual > Eps)
+                {
+                    int tierPriority = supList[si].Priority;
+                    int blockEnd = si;
+                    float tierCap = 0f;
+                    while (blockEnd < supList.Count && supList[blockEnd].Priority == tierPriority)
+                    {
+                        if (DesireActive(supList[blockEnd])) tierCap += supList[blockEnd].EffCap;
+                        else supList[blockEnd].DesiredThroughput = 0f;
+                        blockEnd++;
+                    }
+                    float tierGive = tierCap > Eps ? Mathf.Min(tierCap, residual) : 0f;
+                    for (int j = si; j < blockEnd; j++)
+                    {
+                        var seg = supList[j];
+                        if (!DesireActive(seg)) continue;
+                        seg.DesiredThroughput = tierCap > Eps ? tierGive * (seg.EffCap / tierCap) : 0f;
+                    }
+                    residual -= tierGive;
+                    si = blockEnd;
+                }
+                for (; si < supList.Count; si++)
+                    supList[si].DesiredThroughput = 0f;
+            }
+        }
+
+        // Forward supply sweep (source -> leaf). For each network in topo order (so every supplier's
+        // actual throughput is already finalized), compute the supply actually reaching it and distribute
+        // to its consumers highest-priority-first. When deciding (settleOnly == false) shedding is RE-
+        // DECIDED here: if the active consumers' desired pulls exceed the budget the network can pass, the
+        // lowest-priority victims shed (whole, never partial) until the rest fit; a network with no supply
+        // at all (avail <= Eps) sheds nothing (dead-input idle). settleOnly == true keeps the current
+        // shed/overload flags and only recomputes throughputs + per-net fields (used to settle a 2-cycle).
+        private static void SweepForwardAndShed(List<Net> topo, List<Seg> segs, bool shedOn, bool settleOnly)
+        {
+            foreach (var seg in segs)
+            {
+                seg.Throughput = 0f;
+                seg.Pull = 0f;
+                if (!settleOnly) seg.Shed = false;
+            }
+
+            foreach (var n in topo)
+            {
+                float firmIn = n.GenSupply;
+                foreach (var s in n.Suppliers)
+                    if (IsActive(s)) firmIn += s.Throughput;
+                float elasticCap = AvailableElastic(n);
+                float avail = firmIn + elasticCap;
+                n.InflowCommitted = firmIn - n.GenSupply;
+
+                float budget = avail - n.RigidDemand;
+                if (budget < 0f) budget = 0f;
+
+                if (shedOn && !settleOnly && avail > Eps)
+                {
+                    float claims = 0f;
+                    foreach (var c in n.Consumers)
+                        if (!c.Locked && !c.Overloaded && !c.Shed) claims += c.DesiredPull;
+                    while (claims > budget + Eps)
+                    {
+                        Seg victim = null;
+                        foreach (var c in n.Consumers)
+                        {
+                            if (c.Locked || c.Overloaded || c.Shed || c.StepUp || c.DesiredPull <= Eps) continue;
+                            if (victim == null || ShedVictimOrder(c, victim) < 0) victim = c;
+                        }
+                        if (victim == null) break;   // only step-up / non-sheddable left: accept
+                        victim.Shed = true;
+                        claims -= victim.DesiredPull;
+                    }
+                }
+
+                float remaining = budget;
+                float survivorPull = 0f;
+                foreach (var c in n.Consumers)
+                {
+                    if (!IsActive(c)) { c.Throughput = 0f; c.Pull = 0f; continue; }
+                    float want = c.DesiredPull;
+                    float grant = want < remaining ? want : remaining;
+                    if (grant < 0f) grant = 0f;
+                    float m = Mathf.Max(c.InputDrawFactor, 1f);
+                    float outThr = (grant - c.UsedPower) / m;
+                    c.Throughput = outThr > 0f ? outThr : 0f;
+                    c.Pull = grant;
+                    remaining -= grant;
+                    survivorPull += grant;
+                }
+                n.PullsGranted = survivorPull;
+
+                float rigidServed = avail < n.RigidDemand ? avail : n.RigidDemand;
+                float elasticDelivered = (rigidServed + survivorPull) - firmIn;
+                if (elasticDelivered < 0f) elasticDelivered = 0f;
+                if (elasticDelivered > elasticCap) elasticDelivered = elasticCap;
+                n.ElasticDelivered = elasticDelivered;
+
+                float activeWant = n.RigidDemand;
+                foreach (var c in n.Consumers) if (IsActive(c)) activeWant += c.DesiredPull;
+                float unmet = activeWant - avail;
+                n.Unmet = unmet > 0f ? unmet : 0f;
+            }
+        }
+
+        // Overload pass (re-decidable). Three rules, recomputed fresh from the settled state each round:
+        //   1. Per-network capacity hit-max (§8.4): a network whose post-shed demand exceeds gen + elastic
+        //      + suppliers-at-their-caps overloads its SETTING-limited suppliers (downstream demand truly
+        //      exceeds what the transformers can deliver). Suppliers are counted at EffCap even when already
+        //      overloaded, so the condition keeps re-detecting them (an overloaded supplier contributes 0,
+        //      which would otherwise make the network look relieved and oscillate). Cable-limited suppliers
+        //      (CapSetting > CableCap) and APCs (no rating) are excluded -- cable overflow is rule 3.
+        //   2. Elastic hit-max: a network still short after gen + inflow + full elastic discharge trips its
+        //      live elastics, so a battery-fed subnet goes dark cleanly instead of partial-powering.
+        //   3. §5.7 cable overflow: flow above the weakest cable cap with generators alone under it trips
+        //      every supplier + elastic on the network (transformer/battery overflow does not burn cable).
+        private static void SweepOverload(List<Net> netList, List<Seg> segs, List<Elastic> elastics, bool overloadOn)
+        {
+            foreach (var seg in segs) seg.Overloaded = false;
+            foreach (var e in elastics) e.Overloaded = false;
+            if (!overloadOn) return;
+
+            foreach (var n in netList)
+            {
+                float demand = n.RigidDemand;
+                foreach (var c in n.Consumers)
+                    if (IsActive(c)) demand += c.DesiredPull;
+                float cap = n.GenSupply + AvailableElastic(n);
+                foreach (var s in n.Suppliers)
+                    if (!s.Locked && !s.Shed) cap += s.EffCap;
+                if (demand <= cap + Eps) continue;
+                foreach (var s in n.Suppliers)
+                {
+                    if (s.Locked || s.Shed) continue;
+                    if (s.CapSetting >= float.MaxValue) continue;   // APC: no throughput rating to hit
+                    if (s.CapSetting > s.CableCap) continue;        // cable-limited (rule 3), not Setting-limited
+                    s.Overloaded = true;                            // includes input-limited PT pairs (taken offline)
+                }
+            }
+
+            foreach (var n in netList)
+            {
+                if (n.Unmet <= Eps) continue;
+                foreach (var e in n.Elastics)
+                    if (!e.Locked && !e.Overloaded) e.Overloaded = true;
+            }
+
+            foreach (var n in netList)
+            {
+                float flow = (n.RigidDemand - n.Unmet) + n.PullsGranted;
+                if (flow <= Eps) continue;
+                float cableCap = CableMax.WeakestCapOnNetwork(n.Network);
+                if (flow <= cableCap || n.GenSupply > cableCap) continue;
+                foreach (var s in n.Suppliers)
+                {
+                    if (s.Locked || s.Shed || s.Overloaded) continue;
+                    s.Overloaded = true;
+                }
+                foreach (var e in n.Elastics)
+                    if (!e.Locked && !e.Overloaded) e.Overloaded = true;
+            }
+        }
+
+        private static HashSet<long> CollectFlagged(List<Seg> segs, bool shed)
+        {
+            var set = new HashSet<long>();
+            foreach (var seg in segs)
+                if (shed ? seg.Shed : seg.Overloaded) set.Add(seg.RefId);
+            return set;
+        }
+
+        private static HashSet<long> CollectFlaggedElastic(List<Elastic> elastics)
+        {
+            var set = new HashSet<long>();
+            foreach (var e in elastics) if (e.Overloaded) set.Add(e.RefId);
+            return set;
         }
 
         private static float AvailableElastic(Net n)

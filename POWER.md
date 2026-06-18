@@ -824,6 +824,80 @@ Sort by (priority ASC, demand DESC, RefId ASC): T_c (2.0), T_b (1.0), T_a (0.5).
 
 If we'd shed T_a or T_b first we'd still have a residual deficit; the rule converges in fewer sheds.
 
+### 8.8 Sweep allocator (Direction C)
+
+Everything in §8.0 through §8.5 describes the **Legacy** DECIDE-phase allocator: BFS min-depth ordering and a grow-only fixed point whose shed and overload sets can only gain entries within a tick (§8.0 convergence guarantee). The **Sweep** allocator (Direction C) is an alternative DECIDE-phase strategy selected by a runtime toggle. It replaces the ordering and the fixed-point loop; the GATHER (§8.0.0.1 contributor roster), the dead-input carveout (§8.3.1), the elastic-share pass (§7.3), and the surplus walk (§9) are shared verbatim between the two paths. `PowerAllocator.RunAtomic` branches on `bool sweep = SweepAllocatorSync.Effective` (`PowerAllocator.cs:402`); the ORDER step (line 396) and the DECIDE step (line 483) each have a Legacy and a Sweep arm, after which control rejoins the common commit / share / surplus tail.
+
+#### 8.8.1 The toggle
+
+`Settings.EnableSweepAllocator` (`Config.Bind`, section `Server - Power`, key `Enable Sweep Allocator`, **default false = Legacy**). Sweep is opt-in; Legacy is the shipped behaviour.
+
+The toggle is host-authoritative. `PowerAllocator` and the supply-reporting / boundary patches read `SweepAllocatorSync.Effective`, never `Settings.EnableSweepAllocator.Value` directly. `SweepAllocatorSync` (mirroring `ShedSettingsSync`) returns the local config value on the host / single-player and the host-pushed value on a client; the host value is carried in the join handshake (`Plugin.SerializeJoinSuffix` / `DeserializeJoinSuffix`), and a client falls back to its own config until the suffix arrives. This matters because the allocator runs on every peer's local simulation: if a client ran Legacy while the host ran Sweep, the two would disagree on which contributors are powered, shed, or overloaded, and the in-world flash / hover state would diverge. A mid-session change takes effect on the next tick.
+
+#### 8.8.2 Topological order (Kahn) replaces min-depth BFS
+
+Legacy assigns each network a depth equal to the MINIMUM hop count from a source network (`GenSupply > 0`, a live elastic, or no suppliers) and sorts shallow-first / deep-first by `(depth, ReferenceId)`. A diamond (a network fed through two contributor chains of different length) takes the shorter depth, so the longer feeder's supply has not yet been finalized when that network is processed: the residual the multi-stage chain leaves is exactly the one-tick lag §1 calls out.
+
+Sweep instead builds a true topological order over the live contributor edges `InNet -> OutNet` (`BuildTopoOrder`, `PowerAllocator.cs:916`), a Kahn sweep: in-degree counts only non-`Locked` suppliers (cycle-faulted segs are `Locked` and excluded, so the live graph is a DAG / forest), ready networks are popped in `ReferenceId` order for MP determinism (§8.0.1), and `Net.Depth` is set to the topo index. Every network now lands AFTER all the networks that feed it, diamonds included. A residual cycle (should not occur after Phase 1.5b removal) is appended in `ReferenceId` order with a `LogWarning`.
+
+Both paths publish the same `ShallowFirstNetworks` list (`PowerAllocator.cs:471`) for Phase 3 ENFORCE to iterate (§2 step 3 reads it). In Sweep the list is the topo order; in Legacy it is the min-depth order. Iterating ENFORCE upstream-first is what lets each network's `CalculateState` run after its feeders' `PotentialLoad` was refreshed this tick.
+
+#### 8.8.3 The re-decidable backward / forward sweep
+
+`RunSweepLoop` (`PowerAllocator.cs:970`) iterates to a fixed point. Each round runs three passes in this fixed order:
+
+1. **Backward desire** (`SweepDesire`, `PowerAllocator.cs:1028`), leaf to source over `topoRev`. Each contributor's `DesiredThroughput` is its share of its output network's demand (priority tier DESC, proportional by `EffCap` within a tier, capped at `EffCap`); `DesiredPull` is the matching input-side draw (`throughput * max(InputDrawFactor, 1) + UsedPower`). Eligibility is `DesireActive(s) = !s.Locked && !s.Overloaded` (`PowerAllocator.cs:909`): **shed is deliberately ignored here** so a previously-shed contributor still presents its desired pull and can be reconsidered. Generators are subtracted first; elastic storage is the documented last resort (§7.3) and is not modelled in this pass.
+
+2. **Forward supply + re-decide shed** (`SweepForwardAndShed`, `PowerAllocator.cs:1080`), source to leaf over `topo` (so every supplier's actual `Throughput` is already final). For each network it computes the supply actually arriving (`firmIn = GenSupply + active suppliers' Throughput`, plus `AvailableElastic`), then `budget = avail - RigidDemand`. Shed is RE-DECIDED: `seg.Shed` is cleared for every seg at the top of the pass (when `!settleOnly`), then if active consumers' desired pulls exceed the budget, the lowest-priority victims shed whole (never partial) in `ShedVictimOrder` (priority ASC, claim DESC, ReferenceId ASC; §8.3) until the rest fit; step-up segs never shed (§5.2). A network with no supply at all (`avail <= Eps`) sheds nothing (dead-input idle, §8.3.1). Survivors are then granted highest-priority-first, and each contributor's exact `Throughput`, `Pull`, and the per-net `InflowCommitted` / `PullsGranted` / `ElasticDelivered` / `Unmet` are written.
+
+3. **Re-decide overload** (`SweepOverload`, `PowerAllocator.cs:1161`). `seg.Overloaded` and `e.Overloaded` are cleared every round, then recomputed fresh against the post-shed state under three rules:
+   - **Per-network capacity hit-max** (§8.4): a network whose post-shed demand exceeds `GenSupply + AvailableElastic + sum of its non-shed suppliers' EffCap` overloads its Setting-limited suppliers (input-limited PT pairs included, taken offline). Suppliers are summed at `EffCap` even when already overloaded, so the condition keeps re-detecting them rather than oscillating (an overloaded supplier contributes 0, which would otherwise make the network look relieved). Cable-limited suppliers (`CapSetting > CableCap`) and APCs (no rating) are excluded; cable overflow is rule 3.
+   - **Elastic hit-max**: a network still `Unmet` after gen + inflow + full elastic discharge trips its live elastics (§8.4.1), so a storage-fed subnet goes dark cleanly.
+   - **§5.7 cable overflow**: flow above the weakest cable cap with generators alone under it trips every supplier + elastic on the network (transformer / battery overflow does not burn cable).
+
+The **forward-before-overload** ordering is load-bearing: a shed that relieves an over-demanded network is honoured in pass 2 of the SAME round, so pass 3 sees the reduced demand and does not also overload. That is what kills the shed<->overload 2-cycle (§8.8.6).
+
+**Convergence test.** After the three passes, the `(shed, overload, elastic-overload)` RefId sets are collected (`CollectFlagged` / `CollectFlaggedElastic`). If they equal the previous round's sets, the loop has converged. If they equal the round-before-previous sets, the loop is in a 2-cycle between two states: the flags of the intermediate state are OR-ed in (a safe superset, never under-protective), one final `SweepDesire` + `SweepForwardAndShed(settleOnly: true)` settles throughputs without re-deciding, and the loop exits. The round cap is `2 * segs.Count + 4` (same bound as Legacy, `PowerAllocator.cs:976`); exhausting it logs a `LogWarning` and keeps the last settled state (internally consistent and safe, just possibly not minimal).
+
+Contrast with Legacy (`PowerAllocator.cs:497-608`): its loop calls `EvaluateDemand` once per round and only ever SETS `seg.Shed` / `seg.Overloaded` / `e.Overloaded` (grow-only, never cleared within a tick). That guarantees termination trivially (each seg flips at most once) but cannot retract a shed or overload that a later round's relief would have made unnecessary.
+
+#### 8.8.4 Exact in-tick throughput, no headroom
+
+Legacy `Transformer.GetGeneratedPower` advertises DELIVERABLE CAPACITY (`min(Setting, InputNetwork.PotentialLoad)`), which leaves a little headroom so vanilla's strict power-met test does not darken a fully-supplied chain at exact balance (the net-492209 regression, §8.8.6). Sweep removes that headroom by publishing each contributor's exact converged throughput and pairing it with the `>=` boundary fix (§8.8.5).
+
+After the loop, the Sweep-only cache-write tail (`PowerAllocator.cs:789-808`) stamps the fresh in-tick figures:
+- **Transformer** and **PT pair** (`SegKind.Transformer` / `SegKind.PtPair`) -> `TransformerSupplyCache.Set(RefId, seg.Throughput, seg.Pull)`. `Throughput` is the output-side delivery; `Pull` is the input-side draw (`throughput * distance factor + quiescent`). An inactive seg (shed / overloaded / cycle-faulted) carries `Throughput = Pull = 0`.
+- **APC** (`SegKind.Apc`) -> `ApcPassthroughCache.Set(RefId, seg.Throughput + seg.GrantThrough)`: the fresh rigid passthrough plus any soft-charge grant flowing through.
+
+Both caches are tick-stamped, in-memory, self-cleaning per-refId stores (same shape as `SoftSupplyShareCache`): a read older than one tick (`tickWritten >= CurrentTick - 1` fails) falls back to "no fresh value", so the reporting patches revert to their Legacy / vanilla formula. The allocator writes in Phase 2 DECIDE; Phase 3 ENFORCE (same tick) reads the current value.
+
+The reason these caches exist is the vanilla `_powerProvided` accumulator, which is filled during the PREVIOUS tick's `ApplyState` and so lags the output-side delivery by one tick (see `Research/GameClasses/Device.md`). Legacy hides the lag with capacity headroom on the output side and bills `_powerProvided` on the input side. Sweep sizes upstream supply to each contributor's CURRENT pull, so billing a stale `_powerProvided` on the input would leave the input network short by the one-tick demand change (the net-503288 flicker). Each pass-through class is therefore overridden in Sweep mode to report the allocator's fresh figure:
+- `TransformerExploitPatches.GetGeneratedPowerPatch` reports `TransformerSupplyCache` output (exact delivery) instead of the capacity formula; `GetUsedPowerPatch` reports `TransformerSupplyCache` input draw instead of `min(Setting + UsedPower, _powerProvided)`. Conservation holds (input == output + conversion loss), so the free-power exploit stays closed.
+- `AreaPowerControlPatches.GetUsedPowerPatch` adds `ApcPassthroughCache` passthrough (input == output, no lag) instead of `_powerProvided` for the pass-through term; the cell charge term still caps to the surplus-walk share.
+- `PowerTransmitterSweepPatches.GetUsedPowerPatch` reports `TransformerSupplyCache` input draw for the PT/PR pair (the transmitter bills the pair's input cable; the receiver's `InputNetwork` is null so it already returns 0).
+
+**Battery and Umbilical are NOT pass-through and need no cache.** They are terminal storage: their discharge onto an output network is gated to the elastic-share pass (`SoftSupplyShareCache`, §7.3) and their charge draw to the surplus walk (`SoftDemandShareCache`, §9), both already computed fresh in-tick from the same supply-accurate `seg.Throughput`. PT pairs still advertise their vanilla deliverable cap on the wireless OUTPUT side (harmless headroom there; they are not part of the multi-stage-chain regression this addresses); only their input-side draw is overridden.
+
+#### 8.8.5 The `>=` power-met boundary fix (Sweep-gated)
+
+Vanilla `PowerTick.CacheState` sets `_isPowerMet = (Potential - Required) > 0f` (STRICT `>`), so a network whose Potential exactly equals its Required reads as NOT powered and its rigid loads go dark. Legacy avoids this by advertising transformer headroom (§8.8.4); Sweep reports exact throughput, so a fully served network lands at `Potential == Required` and the strict test would darken it.
+
+`PowerTickPatches.CacheState_PowerMetBoundary` (`PowerTickPatches.cs:141`) is a postfix gated on `SweepAllocatorSync.Effective`. When `Required > 0`, the strict test had set not-met, and `Potential >= Required - Eps`, it sets `_isPowerMet = true` and `_powerRatio = 1`. It only nudges the exact-balance boundary; a genuinely short network (`Potential < Required - Eps`) is untouched, and Legacy / vanilla semantics are unchanged. `BreakSingleFuse` / `BreakSingleCable` call `CacheState` again after lowering `Required`; the postfix re-runs correctly against the reduced figure.
+
+#### 8.8.6 Why Sweep exists
+
+Two concrete defects in the Legacy path motivate it.
+
+1. **One-tick supply-propagation lag (the 492209 / 503288 oscillation).** On a multi-stage transformer chain under variable load, Legacy's min-depth order plus capacity-headroom advertising plus the lagging `_powerProvided` input draw let a downstream network's demand and its upstream supply drift one tick out of phase, so the chain flickers power on and off. Sweep's topological order (supply finalized before each network is read), exact throughput, fresh per-class input-draw caches, and the `>=` boundary together close the loop within one tick: input equals output on every pass-through class and a fully served chain stays powered at exact balance.
+
+2. **The shed<->overload 2-cycle ("60-second freeze").** Legacy's grow-only loop can commit a shed AND an overload that are individually justified but jointly contradictory: device A sheds because its input looks short, which relieves device B's network so B's overload should clear, but B's overload was already committed and Legacy never retracts it within the tick, so the relief that would have made A's shed unnecessary never registers. The committed pair then locks both devices out for 60 seconds. Sweep's re-decidable loop (flags cleared and recomputed every round) plus forward-before-overload ordering settles A's shed and B's relief in the same round, so the contradictory pair is never committed.
+
+#### 8.8.7 Validation status (2026-06-18, dedicated-server testing)
+
+- **Sweep core: validated, regression-free.** On the test save, nets 492209 and 503288 report exact supply every tick, 0 of 117 networks oscillate, conservation holds, and there were 0 exceptions and 0 non-convergence events. Shed priority direction is correct, the step-up shed exemption works, and overload fires correctly. All four `_powerProvided`-class pass-throughs (Transformer, APC, PowerTransmitter, PowerReceiver via its PT) report fresh draw.
+- **The shed<->overload freeze fix is IMPLEMENTED and the loop converges, but the freeze itself is UNPROVEN (not disproven).** The freeze requires a transformer-fed fanout with at least two shed-eligible (non-step-up) consumers contending for an input budget while a sibling overload holds the relief. The test save (Luna_revbug) has no such construction, so the 2-cycle could not be triggered to observe the fix preventing it. Open verification item: build a purpose-made save with that topology and confirm no 60 s lockout is committed.
+- **Open design question (not yet resolved): which diagnosis is canonical for a "doomed" transformer.** When a transformer's downstream out-demands its throttled cap while a step-up sibling holds the input-budget priority, Legacy labels it OVERLOAD and Sweep labels it SHED. Both take it offline correctly (no-partial-power holds either way); only the registry / hover LABEL the player sees differs. Which label is the truthful diagnosis for that case is an open question, deferred.
+
 ## 9. The surplus distribution pass
 
 ### 9.1 Goal

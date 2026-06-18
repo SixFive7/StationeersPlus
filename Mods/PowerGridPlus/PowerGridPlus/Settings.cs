@@ -9,6 +9,9 @@ namespace PowerGridPlus
     /// </summary>
     internal static class Settings
     {
+        // --- Server - Power ---
+        internal static ConfigEntry<bool> EnableSweepAllocator;
+
         // --- Server - Cable Simulation ---
         internal static ConfigEntry<int> CableNormalMaxWatts;
         internal static ConfigEntry<int> CableHeavyMaxWatts;
@@ -73,6 +76,19 @@ namespace PowerGridPlus
 
         internal static void Bind(ConfigFile config)
         {
+            // --- Server - Power ---
+            EnableSweepAllocator = config.Bind("Server - Power", "Enable Sweep Allocator", false,
+                Desc("(Server-authoritative) Selects how the global power allocator distributes supply each tick. " +
+                     "Off (default, \"Legacy\"): networks are ordered nearest-source-first and transformers advertise their " +
+                     "deliverable capacity, which leaves a little headroom on multi-stage chains. On (\"Sweep\"): networks " +
+                     "are processed in true topological order (every network after all the networks that feed it, diamonds " +
+                     "included), supply is solved by an iterated backward-demand / forward-supply pass to a fixed point, and " +
+                     "each transformer advertises its exact in-tick throughput with no headroom (a fully served network with " +
+                     "supply equal to demand still counts as powered). The Sweep allocator also re-decides shedding and " +
+                     "overload against the settled state every tick, so a transformer is never locked out for 60 seconds on " +
+                     "the basis of a shortfall that another device's overload had already cleared. Host value applies for " +
+                     "everyone in multiplayer. A mid-session change takes effect on the next tick.", 10));
+
             // --- Server - Cable Simulation ---
             // Cable burnout itself is deterministic and hardcoded (no setting): a cable burns when the
             // 20-tick running average of direct generator power on its network exceeds the weakest

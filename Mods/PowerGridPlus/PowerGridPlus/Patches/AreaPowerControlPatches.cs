@@ -122,7 +122,19 @@ namespace PowerGridPlus.Patches
                 usedPower += __instance.UsedPower;
 
                 if (__instance.OutputNetwork != null)
-                    usedPower += ____powerProvided;
+                {
+                    // Passthrough draw on the input network. Legacy/vanilla bills it from _powerProvided,
+                    // the accumulator filled during the PREVIOUS tick's ApplyState, so it lags one tick.
+                    // In Sweep the allocator sizes upstream supply to the APC's CURRENT passthrough, so we
+                    // bill the fresh figure here (Throughput + soft-charge grant-through); otherwise the
+                    // input network is short by the one-tick demand change (the net-503288 flicker). Falls
+                    // back to _powerProvided when no fresh value exists (APC not in this tick's roster).
+                    if (SweepAllocatorSync.Effective
+                        && ApcPassthroughCache.TryGet(__instance.ReferenceId, out var freshPassthrough))
+                        usedPower += freshPassthrough;
+                    else
+                        usedPower += ____powerProvided;
+                }
 
                 if ((bool)__instance.Battery && !__instance.Battery.IsCharged)
                 {

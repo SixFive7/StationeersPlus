@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects.Electrical;
@@ -156,7 +157,17 @@ namespace PowerGridPlus.Patches
                 // overloaded fuses / cables, distributes power. Trailing field
                 // copies mirror vanilla CableNetwork.OnPowerTick L253670-L253680.
                 // ----------------------------------------------------------------
-                CableNetwork.AllCableNetworks.ForEach(net =>
+                // ENFORCE iterates networks UPSTREAM-FIRST (shallow depth first), the order the
+                // allocator's DEPTH phase just computed. Processing a transformer's input network
+                // before its output network means the output network's CalculateState reads an
+                // InputNetwork.PotentialLoad that was already refreshed THIS tick (the write at the
+                // end of this body), so multi-stage transformer chains see current supply instead of
+                // last tick's. Without the ordering a downstream network read the prior tick's
+                // upstream PotentialLoad, so a chain under variable load oscillated power on/off every
+                // tick (the net-492209 regression). Order is a hint for correctness of the lag fix,
+                // not of the per-network math: each network is still enforced exactly once, and a
+                // trailing sweep covers any network the allocator's roster did not include.
+                void EnforceNet(CableNetwork net)
                 {
                     if (net == null) return;
                     var pt = net.PowerTick;
@@ -171,6 +182,23 @@ namespace PowerGridPlus.Patches
                     net.PotentialLoad = pt.Potential;
                     net.ShortfallLoad = pt.Required > pt.Potential
                         ? pt.Required - pt.Potential : 0f;
+                }
+
+                var enforced = new HashSet<long>();
+                var ordered = PowerAllocator.ShallowFirstNetworks;
+                if (ordered != null)
+                {
+                    for (int i = 0; i < ordered.Count; i++)
+                    {
+                        var net = ordered[i];
+                        if (net == null || !enforced.Add(net.ReferenceId)) continue;
+                        EnforceNet(net);
+                    }
+                }
+                CableNetwork.AllCableNetworks.ForEach(net =>
+                {
+                    if (net == null || !enforced.Add(net.ReferenceId)) return;
+                    EnforceNet(net);
                 });
 
                 // ----------------------------------------------------------------

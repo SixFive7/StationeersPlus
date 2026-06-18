@@ -41,10 +41,16 @@ namespace PowerGridPlus.Patches
     [HarmonyPatch(typeof(PowerTick))]
     public static class PowerTickPatches
     {
+        private const float Eps = 0.01f;
+
         private static readonly AccessTools.FieldRef<PowerTick, List<long>> TraversalRecordRef =
             AccessTools.FieldRefAccess<PowerTick, List<long>>("_networkTraversalRecord");
         private static readonly AccessTools.FieldRef<PowerTick, float> ActualRef =
             AccessTools.FieldRefAccess<PowerTick, float>("_actual");
+        private static readonly AccessTools.FieldRef<PowerTick, bool> IsPowerMetRef =
+            AccessTools.FieldRefAccess<PowerTick, bool>("_isPowerMet");
+        private static readonly AccessTools.FieldRef<PowerTick, float> PowerRatioRef =
+            AccessTools.FieldRefAccess<PowerTick, float>("_powerRatio");
 
         // Reusable per-tick generator-production map for the §5.7 check. GetBreakableCables runs only
         // in Phase 3, one network at a time on the worker thread, so a shared instance is safe.
@@ -114,6 +120,34 @@ namespace PowerGridPlus.Patches
                 float gen = device.GetGeneratedPower(net);
                 if (float.IsNaN(gen) || float.IsInfinity(gen))
                     DeviceOutputSanitizer.Report(device, true, gen);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 2b. Power-met boundary relaxation (Sweep allocator only).
+        // ------------------------------------------------------------------
+        // Vanilla CacheState sets _isPowerMet = (Potential - Required) > 0f (STRICT), so a network
+        // whose supply exactly equals its demand reads as NOT powered and its rigid loads go dark. The
+        // Legacy allocator hides this by advertising a little transformer headroom; the Sweep allocator
+        // reports each transformer's EXACT throughput (no headroom), so a fully served network lands at
+        // Potential == Required and would be darkened by the strict test. This postfix relaxes the test
+        // to >=: meeting demand counts as powered. It only nudges the exact-balance boundary (Required
+        // positive, supply within Eps of covering it, and vanilla had set not-met); a genuinely short
+        // network (Potential < Required - Eps) is untouched. Gated on Sweep mode so Legacy / vanilla
+        // semantics are unchanged. BreakSingleFuse / BreakSingleCable call CacheState again after
+        // lowering Required to a cable / fuse cap; this postfix re-runs against that lowered Required,
+        // which is still correct (the network is still meeting the reduced figure).
+        [HarmonyPostfix, HarmonyPatch("CacheState")]
+        public static void CacheState_PowerMetBoundary(PowerTick __instance)
+        {
+            if (!SweepAllocatorSync.Effective) return;
+            float required = __instance.Required;
+            if (required <= 0f) return;                 // nothing demanded: leave vanilla _powerRatio = 1
+            if (IsPowerMetRef(__instance)) return;      // already met under the strict test
+            if (__instance.Potential >= required - Eps)
+            {
+                IsPowerMetRef(__instance) = true;
+                PowerRatioRef(__instance) = 1f;
             }
         }
 
