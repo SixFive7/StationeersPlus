@@ -70,6 +70,9 @@
     <Compile Include="Dispatcher.cs" />
     <Compile Include="Dispatcher.Shedding.cs" />
     <Compile Include="Dispatcher.PtCampaign.cs" />
+    <Compile Include="Dispatcher.RevXfmr.cs" />
+    <Compile Include="Dispatcher.ShedVerify.cs" />
+    <Compile Include="Dispatcher.TwoCycleFreeze.cs" />
     <Compile Include="SimTickPump.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

@@ -222,6 +222,18 @@ namespace ScenarioRunner
                     Scenario_PgpShortfallNetProbe();
                     return;
 
+                case "pgp-reversed-transformer-probe":
+                    Scenario_PgpReversedTransformerProbe();
+                    return;
+
+                case "pgp-shed-multilevel":
+                    Scenario_PgpShedMultilevel();
+                    return;
+
+                case "pgp-2cycle-freeze":
+                    Scenario_Pgp2CycleFreeze();
+                    return;
+
                 case "pgp-atomic-all":
                     // Runs the synthetic probes one-shot (internally gated)
                     // PLUS the multi-tick live trace against Luna.save. Both
