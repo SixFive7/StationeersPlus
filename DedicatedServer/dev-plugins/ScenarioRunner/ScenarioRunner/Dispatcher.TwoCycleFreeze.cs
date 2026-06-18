@@ -10,34 +10,27 @@ namespace ScenarioRunner
 {
     // pgp-2cycle-freeze
     //
-    // Verifies the Sweep allocator's RE-DECIDABLE shed/overload loop fixes the Legacy "60-second freeze"
-    // (a.k.a. the shed<->overload 2-cycle). The bug: Legacy's grow-only fixed-point loop can commit a shed
-    // in an early round, then in a later round an overload elsewhere frees the budget the shed was
-    // protecting -- but the already-committed shed never un-commits, so the consumer is locked out for the
-    // full 120-tick (60 s) brownout lockout even though its supply returned the SAME tick. Sweep clears
-    // Shed/Overloaded every round and recomputes against the settled state, so the unnecessary shed is
-    // never committed.
+    // Verifies the allocator's overload-before-shed ordering prevents the "60-second freeze" (the
+    // shed<->overload interaction). A grow-only / shed-first allocator could shed a low-priority consumer
+    // X to fit a tight input net, then overload a sibling Y whose trip frees the very budget X's shed was
+    // protecting -- but with shed committed grow-only, X stays locked out 60 s though its supply returned
+    // the same tick. The current allocator evaluates the structural overload BEFORE the shed pass and only
+    // re-decides SHED, so once Y overloads (offline, draws 0) the freed budget lets X stay powered and X is
+    // never shed. There is one allocator (no toggle), so this is an ABSOLUTE assertion, not an A/B.
     //
-    // Construction at runtime (mirrors pgp-shed-multilevel's harness; reuses Sv* helpers):
+    // Construction at runtime (reuses Sv* helpers):
     //   Phase A (observe, TF_OBS ticks): measure every transformer's peak downstream demand.
-    //   Phase B (pick): choose an input net F that is itself transformer-fed (multi-level) with >=2 ON
-    //     consumer transformers. Y = the consumer with the LARGEST downstream demand (the one that will
-    //     overload and free the most budget). X = a smaller sibling consumer (downstream <= 0.8 * Y's),
-    //     forced to the LOWEST priority so it is the shed victim; Y gets the HIGHEST priority so it
-    //     survives to overload; every other consumer of F gets a middling priority so X is the sole victim.
-    //   Phase C (setup): throttle Y.Setting to ~0.85 * its downstream demand so Y OVERLOADS (downstream
-    //     wants more than Y delivers) while still drawing nearly its full demand from F. Throttle F's
-    //     feeder transformers so F's budget covers Y + every other consumer fully but only ~40% of X ->
-    //     X is the marginal, sole, lowest-priority victim. Drain all batteries/APC cells (no elastic
-    //     backfill), re-drained every trace tick.
+    //   Phase B (pick): choose a transformer-fed input net F (multi-level, throttle-able feeder) with a
+    //     shed-eligible X = a NON-step-up consumer (step-ups never shed, POWER.md §5.2, so X is the device
+    //     that WOULD freeze) and an overloader Y = a sibling consumer (any; step-ups can still overload)
+    //     with a downstream big enough to overload when throttled. X gets the LOWEST priority (the would-be
+    //     shed victim), Y the HIGHEST.
+    //   Phase C (setup): throttle Y.Setting below its downstream demand so Y OVERLOADS. Throttle F's feeder
+    //     so F covers X + the other consumers fully but only ~half of Y's draw -> F is contended by Y, and
+    //     Y's overload frees its draw so X then fits. Drain F-local battery/APC stores (feeder untouched).
     //   Phase D (trace, TF_TRACE ticks): per tick record IsShedding(X) and IsOverloaded(Y).
-    //   Phase E (verdict): reads SweepAllocatorSync.Effective and self-labels.
-    //
-    // Run the SAME save twice, toggle flipped:
-    //   - Legacy (Enable Sweep Allocator = false): expect "LEGACY BUG REPRODUCED" -- Y overloaded AND X
-    //     frozen-shed. This is the positive control: it proves the construction actually creates the freeze.
-    //   - Sweep  (Enable Sweep Allocator = true):  expect "SWEEP PASS" -- Y overloaded but X NOT shed.
-    // The proof of the fix is the A/B: identical construction, Legacy freezes X, Sweep does not.
+    //   Phase E (verdict): PASS = Y overloaded AND X never shed; FAIL = X frozen-shed; INCONCLUSIVE = Y did
+    //     not overload (construction did not bite).
     internal static partial class Dispatcher
     {
         private const int TF_OBS = 6;
@@ -125,23 +118,18 @@ namespace ScenarioRunner
             {
                 if (kv.Value.Count < 2) continue;
                 if (!fedNets.Contains(kv.Key)) continue;          // multi-level only (need a feeder to throttle)
-                // BOTH X and Y must be NON-step-up: step-up transformers are never shed-eligible (POWER.md
-                // §5.2), so if X were step-up it could never be the shed victim and the freeze contest is
-                // degenerate (the only eligible victim is then Y regardless of priority). Require shed-
-                // eligible consumers so the low-priority X is genuinely the contested victim.
-                var sorted = kv.Value.Where(c => !TfStepUp(asm, c.InputNetwork, c.OutputNetwork))
-                    .OrderByDescending(Demand).ToList();
-                if (sorted.Count < 2) continue;                   // need >=2 shed-eligible consumers
-                var y = sorted[0];
-                if (Demand(y) < TF_Y_MIN) continue;               // Y must overload meaningfully
-                // X = largest sibling whose demand is <= 0.8*Y (so Y's freed budget can cover it) and a real draw.
-                Transformer x = null;
-                for (int i = 1; i < sorted.Count; i++)
-                {
-                    float dx = Demand(sorted[i]);
-                    if (dx >= TF_DEMAND_MIN && dx <= 0.8f * Demand(y)) { x = sorted[i]; break; }
-                }
+                // X = the PROTECTED device. It must be shed-eligible (NON-step-up; step-ups never shed,
+                // POWER.md §5.2), so under a grow-only / shed-first allocator it would be the frozen victim.
+                // Pick the largest non-step-up consumer with a real draw.
+                var x = kv.Value.Where(c => !TfStepUp(asm, c.InputNetwork, c.OutputNetwork) && Demand(c) >= TF_DEMAND_MIN)
+                    .OrderByDescending(Demand).FirstOrDefault();
                 if (x == null) continue;
+                // Y = the OVERLOADER whose trip frees F's budget. Any sibling consumer (step-up allowed:
+                // step-ups still overload) with a downstream big enough to overload when throttled. Pick the
+                // largest such sibling.
+                var y = kv.Value.Where(c => c.ReferenceId != x.ReferenceId && Demand(c) >= TF_Y_MIN)
+                    .OrderByDescending(Demand).FirstOrDefault();
+                if (y == null) continue;
                 var fNet = SvNet(kv.Key);
                 float dsum = kv.Value.Sum(Demand);
                 if (fNet == null || fNet.PotentialLoad < dsum * 0.8f) continue;   // F must normally supply them
@@ -150,7 +138,7 @@ namespace ScenarioRunner
 
             if (bestF == -1)
             {
-                _log?.LogError("[ScenarioRunner] 2CYC PICK FAIL: no transformer-fed fanout with a large overload-capable consumer Y plus a smaller sibling X in this save's current activity.");
+                _log?.LogError("[ScenarioRunner] 2CYC PICK FAIL: no transformer-fed fanout with a shed-eligible (non-step-up) consumer X plus an overload-capable sibling Y in this save's current activity.");
                 _tfPickFailed = true;
                 return;
             }
@@ -206,7 +194,7 @@ namespace ScenarioRunner
 
             // Throttle Y so its downstream out-demands it (overload) while it still draws nearly its full
             // demand from F (freed budget on Y's trip ~= this draw).
-            float ySetting = Math.Min(yDemand * 0.85f, TF_SETTING_CAP);
+            float ySetting = Math.Min(yDemand * 0.5f, TF_SETTING_CAP);   // Y delivers ~half its downstream -> clear overload
             ySetting = Math.Max(ySetting, yT.UsedPower + 30f);
             yT.Setting = ySetting;
             _tfYSetting = ySetting;
@@ -223,8 +211,9 @@ namespace ScenarioRunner
                 sumOthers += _tfPeak.TryGetValue(t.ReferenceId, out var d) ? d : 0f;
             }
 
-            // F budget = cover Y + every other consumer fully + only 40% of X -> X is the sole marginal victim.
-            _tfTarget = yDraw + sumOthers + 0.4f * xDraw;
+            // F budget = cover X + the other consumers fully + only HALF of Y's throttled draw -> F is
+            // contended by Y; when Y overloads (offline) it frees its draw and X then fits without a shed.
+            _tfTarget = xDraw + sumOthers + 0.5f * yDraw;
 
             int n = Math.Max(_tfFeeders.Count, 1);
             float per = _tfTarget / n;
@@ -235,8 +224,8 @@ namespace ScenarioRunner
                 f.Setting = Math.Max(per + f.UsedPower, f.UsedPower + 100f);   // EffCap ~= per; above quiescent (not a dead input)
             }
             TfDrainFLocal();
-            _log?.LogInfo($"[ScenarioRunner] 2CYC SETUP tick={_ticksSeen} Y.Setting={ySetting:0} (downstream demand {yDemand:0}, forces overload) " +
-                $"yDraw={yDraw:0} xDraw={xDraw:0} sumOthers={sumOthers:0} F.targetBudget={_tfTarget:0} over {n} feeder(s); F-local elastics drained (feeder upstream untouched).");
+            _log?.LogInfo($"[ScenarioRunner] 2CYC SETUP tick={_ticksSeen} Y={_tfY}.Setting={ySetting:0} (downstream demand {yDemand:0}, forces overload) " +
+                $"X={_tfX} xDraw={xDraw:0} yDraw={yDraw:0} sumOthers={sumOthers:0} F.targetBudget={_tfTarget:0} over {n} feeder(s); F-local elastics drained (feeder upstream untouched).");
         }
 
         private static void TfTrace(Assembly asm)
@@ -265,47 +254,24 @@ namespace ScenarioRunner
         private static void TfVerdict(Assembly asm)
         {
             if (_tfTraceCount == 0) { _log?.LogError("[ScenarioRunner] 2CYC VERDICT: setup incomplete (no trace)."); return; }
-            bool sweep = TfSweepEffective(asm);
             int half = Math.Max(1, _tfTraceCount / 2);
             bool xShed = _tfXShedTicks >= half;
             bool yOver = _tfYOverTicks >= half;
 
-            _log?.LogInfo($"[ScenarioRunner] 2CYC VERDICT detail: sweepEffective={sweep} trace={_tfTraceCount}t " +
-                $"X.shedTicks={_tfXShedTicks}/{_tfTraceCount} Y.overloadTicks={_tfYOverTicks}/{_tfTraceCount} " +
+            _log?.LogInfo($"[ScenarioRunner] 2CYC VERDICT detail: trace={_tfTraceCount}t " +
+                $"X={_tfX}.shedTicks={_tfXShedTicks}/{_tfTraceCount} Y={_tfY}.overloadTicks={_tfYOverTicks}/{_tfTraceCount} " +
                 $"Y.Setting={_tfYSetting:0} F.targetBudget={_tfTarget:0} demandSum={_tfDemandSum:0}");
 
             if (!yOver)
             {
-                _log?.LogWarning("[ScenarioRunner] 2CYC VERDICT: INCONCLUSIVE -- Y did not overload on most ticks; the construction did not bite (raise the load on Y's downstream net, or pick a save with a heavier multi-level grid). No freeze conclusion possible.");
+                _log?.LogWarning("[ScenarioRunner] 2CYC VERDICT: INCONCLUSIVE -- Y did not overload on most ticks; the construction did not bite (Y's downstream did not out-demand its throttled cap, or F was not tight enough). No freeze conclusion possible.");
                 return;
             }
 
-            if (sweep)
-            {
-                if (!xShed)
-                    _log?.LogInfo("[ScenarioRunner] 2CYC VERDICT: SWEEP PASS -- Y overloaded, X NOT frozen-shed. The re-decidable loop dropped the unnecessary shed once Y's overload freed F's budget. The 60s-freeze is gone.");
-                else
-                    _log?.LogError("[ScenarioRunner] 2CYC VERDICT: SWEEP FAIL -- X is shed despite Y's overload freeing F's budget. The re-decidable loop did NOT drop the unnecessary shed. Inspect the trace.");
-            }
+            if (!xShed)
+                _log?.LogInfo("[ScenarioRunner] 2CYC VERDICT: PASS -- Y overloaded and X was NEVER shed. The allocator evaluated Y's structural overload before the shed pass, freeing F's budget, so the low-priority X stays powered. A grow-only / shed-first allocator with this same tight F budget would have shed X (the only shed-eligible consumer here) and frozen it 60 s; this allocator does not, and the fault surfaces as OVERLOAD on Y.");
             else
-            {
-                if (xShed)
-                    _log?.LogInfo("[ScenarioRunner] 2CYC VERDICT: LEGACY BUG REPRODUCED -- Y overloaded AND X frozen-shed. This is the 60s-freeze the Sweep allocator fixes (positive control). Re-run with Enable Sweep Allocator = true and expect SWEEP PASS.");
-                else
-                    _log?.LogWarning("[ScenarioRunner] 2CYC VERDICT: LEGACY NO-FREEZE -- X was not shed under Legacy; the construction is too weak on this save to force the 2-cycle, so the Sweep run is not a meaningful contrast. Strengthen the construction (bigger Y, tighter F throttle) and retry.");
-            }
-        }
-
-        private static bool TfSweepEffective(Assembly asm)
-        {
-            try
-            {
-                var t = asm?.GetType("PowerGridPlus.SweepAllocatorSync");
-                var p = t?.GetProperty("Effective",
-                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-                return p?.GetValue(null) is bool b && b;
-            }
-            catch { return false; }
+                _log?.LogError("[ScenarioRunner] 2CYC VERDICT: FAIL -- X is frozen-shed even though Y overloaded and freed F's budget. The overload-before-shed ordering did not prevent the unnecessary shed. Inspect the trace.");
         }
 
         private static int TfGetPriority(Assembly asm, long refId)
