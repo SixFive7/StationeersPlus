@@ -3,11 +3,12 @@ title: Structure
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-29
+verified_at: 2026-06-19
 sources:
   - Mods/SprayPaintPlus/RESEARCH.md:177-179
   - Mods/SprayPaintPlus/SprayPaintPlus/NetworkPainterPatch.cs:320-328
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Structure
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Ladder / LadderEnd / LadderPlatform / SmallGrid
 related:
   - ./Thing.md
   - ./Wall.md
@@ -88,9 +89,11 @@ A `Structure` is `IsBroken` when either:
 Read-only property; no setter. Use it verbatim as `thing.IsBroken` to detect "is this structure currently wreckage / destroyed." For detecting structures that have broken build states in their prefab definition (not the runtime state), use `Structure.HasBrokenBuildStates` (getter tests `BrokenBuildStates?.Count > 0`).
 
 ## Build-state model and the destruction path
-<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 `Structure : Thing`. Subclass tree of interest: `Structure -> LargeStructure -> Wall` / `Frame` (and `Geyser`, `StructureFuselage`, `LaunchMount`); `Structure -> SmallGrid` (attached devices / small wall-mounted machines), `Cladding`, `Stairs`, `RoverFrame`. The player-facing "structure frame" is `Frame : LargeStructure`, a trivial subclass; there is no class literally named `StructureFrame`. (`MultiConstructor` is the *kit item* you build frames from, not the structure.)
+
+Ladders sit on the `SmallGrid` branch, not `LargeStructure`: `Ladder : SmallGrid, ISmartRotatable` and `LadderEnd : Ladder`. The contrast is `LadderPlatform : Floor : Wall : LargeStructure` -- a ladder *platform* is a `LargeStructure`, a plain ladder is not. Code that branches on `is LargeStructure` (a grid-walk / flood-fill, for example) therefore catches ladder platforms but skips ladders and ladder ends. (`Stairs : Structure` directly, also not `LargeStructure`.)
 
 Construction is genuinely stage-by-stage. A `Structure` carries `List<BuildState> BuildStates`, `List<BrokenBuildState> BrokenBuildStates`, `int CurrentBuildStateIndex` (setter clamps, fires `OnBuildState`, sets `NetworkUpdateFlags |= 64`), `BuildState CurrentBuildState`, `bool IsStructureCompleted`, `bool HasBrokenMesh => BrokenBuildStates?.Count > 0`, plus grid registration (`LocalGrid`, `BlockingGrids`). `Structure.AttackWith` with the matching tool moves `CurrentBuildStateIndex` up (construct) or down (deconstruct) one step; deconstructing build state 0 is what removes the object (via `BuildStates[0].Tool.Deconstruct(eventInstance)` then `OnServer.Destroy`). A `Structure` can also be removed in one shot by `Thing.Delete` / `OnServer.Destroy` (the engine path), bypassing the build-stage walk and the tool/ingot requirements.
 
@@ -150,6 +153,7 @@ public override void OnDamageDestroyed()
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0029e, F0322. No conflicts.
 - 2026-04-21: added "IsBroken property" section from direct decompile of `Assets.Scripts.Objects.Structure` and `Assets.Scripts.Objects.Thing`. Additive only; no existing content changed. Game version 0.2.6228.27061.
 - 2026-04-29: added "Build-state model and the destruction path" section (with "When DamageState maxes out" and "OnDamageDestroyed and StructureDestroyed" subsections) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: `Assets.Scripts.Objects.Structure` (`BuildStates`, `BrokenBuildStates`, `CurrentBuildStateIndex`, `HasBrokenMesh`, `AttackWith`, `OnDamageDestroyed`, `StructureDestroyed`, `OnDestroy`), `ThingDamageState.OnDamageUpdated` / `Destroy`, `IWreckage` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
+- 2026-06-19: extended the subclass tree with the ladder family (`Ladder : SmallGrid, ISmartRotatable`, `LadderEnd : Ladder`, `LadderPlatform : Floor : Wall : LargeStructure`) and a `Stairs : Structure` note. Additive; no existing content changed. Sources: `Assets.Scripts.Objects.Ladder` / `LadderEnd` / `LadderPlatform`, `SmallGrid`, `LargeStructure`, `Wall`, `Floor`, `Stairs` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
 
 ## Open questions
 
