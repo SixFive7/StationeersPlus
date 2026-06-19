@@ -3,7 +3,7 @@ title: Cell
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-22
+verified_at: 2026-06-19
 sources:
   - Mods/SprayPaintPlus/RESEARCH.md:108-110
   - Mods/SprayPaintPlus/SprayPaintPlus/NetworkPainterPatch.cs:298-303
@@ -13,6 +13,7 @@ related:
   - ./Grid3.md
   - ./GridController.md
   - ./Structure.md
+  - ./SmallCell.md
 tags: [terrain]
 ---
 
@@ -39,7 +40,7 @@ Cell.NeighborCells contains all 26 surrounding cells (includeCorners:true in the
 ```
 
 ## Cell fields
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 Field cluster on `Cell`:
 
@@ -64,6 +65,8 @@ public bool HasLight;
 ```
 
 `Structural` is the face-keyed structure map (one `Grid3` key per occupied face, up to six faces plus a body per cell). `AllStructures` is the flat list of everything touching the cell, which the SprayPaintPlus wall and large-structure floods iterate. `NeighborCells` is the precomputed all-26 neighbor list (see the section above). `AllCells` is the global set of every cell.
+
+`AllStructures` and `Structural` hold large-grid structures. `SmallGrid`-derived occupants (pipes, cables, chutes, small devices, robotic-arm rails, ladders) register in the parallel 0.5 m small grid, one occupant per typed slot on a `SmallCell`, not here. See `SmallCell.md`. This is why the mod floods pipes and cables through their dedicated network objects and reserves the large-cell BFS (`AllStructures` + `NeighborCells`) for walls and large structures.
 
 ### IsBlocked / IsBlockedLight
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
@@ -96,6 +99,7 @@ Both resolve the structure at the cell's own `Position` via `GetStructural` and 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0028, F0353. No conflicts.
 - 2026-05-15: verified namespace `Assets.Scripts.GridSystem.Cell` (decompile line 272151); added pre-page note for mod authors patching method signatures that take `Cell`.
 - 2026-05-22: added "Cell fields" section (with "IsBlocked / IsBlockedLight" subsection) from a room/grid/atmospherics decompile pass. Additive; existing sections unchanged. Source: `Assets.Scripts.GridSystem.Cell` in `Assembly-CSharp`, game version 0.2.6228.27061. Added related links to GridController, Structure.
+- 2026-06-19: noted in "Cell fields" that `SmallGrid` occupants (pipes, cables, ladders, etc.) register in the parallel `SmallCell` small grid, not `AllStructures`; added related link to the new `SmallCell.md`. Game version 0.2.6228.27061.
 
 ## Open questions
 
