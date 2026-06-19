@@ -734,6 +734,8 @@
       
         
       
+        
+      
     
     
     
@@ -2877,6 +2879,34 @@
     
   
     Sleeper (OccupantAtmospherics)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SmallCell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SmallCell
   
 
     
@@ -7659,7 +7689,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-05-22.
+           on 2026-06-19.
         </p>
       
       
@@ -7679,7 +7709,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>./Room.md</code></li>
@@ -7689,6 +7719,8 @@
               <li><code>./GridController.md</code></li>
             
               <li><code>./Structure.md</code></li>
+            
+              <li><code>./SmallCell.md</code></li>
             
           </ul>
         </details>
@@ -7726,7 +7758,7 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Cell.NeighborCells contains all 26 surrounding cells (includeCorners:true in the Cell ctor). We want 6-orthogonal only: exactly one grid axis differs between the two cells.
 </span></code></pre></div>
 <h2 id="cell-fields">Cell fields<a class="headerlink" href="#cell-fields" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 <p>Field cluster on <code>Cell</code>:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">ConcurrentDictionary</span><span class="o">&lt;</span><span class="n">Cell</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AllCells</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ConcurrentDictionary</span><span class="o">&lt;</span><span class="n">Cell</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">();</span>
@@ -7748,6 +7780,7 @@
 </span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">HasLight</span><span class="p">;</span>
 </span></code></pre></div>
 <p><code>Structural</code> is the face-keyed structure map (one <code>Grid3</code> key per occupied face, up to six faces plus a body per cell). <code>AllStructures</code> is the flat list of everything touching the cell, which the SprayPaintPlus wall and large-structure floods iterate. <code>NeighborCells</code> is the precomputed all-26 neighbor list (see the section above). <code>AllCells</code> is the global set of every cell.</p>
+<p><code>AllStructures</code> and <code>Structural</code> hold large-grid structures. <code>SmallGrid</code>-derived occupants (pipes, cables, chutes, small devices, robotic-arm rails, ladders) register in the parallel 0.5 m small grid, one occupant per typed slot on a <code>SmallCell</code>, not here. See <code>SmallCell.md</code>. This is why the mod floods pipes and cables through their dedicated network objects and reserves the large-cell BFS (<code>AllStructures</code> + <code>NeighborCells</code>) for walls and large structures.</p>
 <h3 id="isblocked-isblockedlight">IsBlocked / IsBlockedLight<a class="headerlink" href="#isblocked-isblockedlight" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
@@ -7777,6 +7810,7 @@
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0028, F0353. No conflicts.</li>
 <li>2026-05-15: verified namespace <code>Assets.Scripts.GridSystem.Cell</code> (decompile line 272151); added pre-page note for mod authors patching method signatures that take <code>Cell</code>.</li>
 <li>2026-05-22: added "Cell fields" section (with "IsBlocked / IsBlockedLight" subsection) from a room/grid/atmospherics decompile pass. Additive; existing sections unchanged. Source: <code>Assets.Scripts.GridSystem.Cell</code> in <code>Assembly-CSharp</code>, game version 0.2.6228.27061. Added related links to GridController, Structure.</li>
+<li>2026-06-19: noted in "Cell fields" that <code>SmallGrid</code> occupants (pipes, cables, ladders, etc.) register in the parallel <code>SmallCell</code> small grid, not <code>AllStructures</code>; added related link to the new <code>SmallCell.md</code>. Game version 0.2.6228.27061.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
