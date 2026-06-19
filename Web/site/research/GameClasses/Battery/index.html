@@ -728,6 +728,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1439,6 +1445,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../ConnectionRole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConnectionRole
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Constructor/" class="md-nav__link">
         
   
@@ -2055,6 +2089,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../LogicMirror/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LogicMirror
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../LogicOnOffButton/" class="md-nav__link">
         
   
@@ -2287,6 +2349,34 @@
     
   
     NetworkManager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../NetworkType/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NetworkType
   
 
     
@@ -8000,7 +8090,7 @@
 <li>Patching <code>RefreshAnimState</code> away (e.g. swapping the entire renderer to a single material on <code>PoweredChanged</code>) replaces the segment-count behavior with whatever the override does. MorePowerMod's <code>StationBatteryNuclear.PoweredChanged</code> writes a single solid material to <code>gameObject.GetComponent&lt;MeshRenderer&gt;().materials</code> regardless of <code>Powered</code>, but does NOT touch the <code>displayRenderers[]</code> segment bar, so the inherited 5-segment color ladder still drives the visible charge indicator.</li>
 </ul>
 <h2 id="rocket-internal-variant-same-class-prefab-distinguished">Rocket-internal variant (same class, prefab-distinguished)<a class="headerlink" href="#rocket-internal-variant-same-class-prefab-distinguished" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 <p><code>Battery</code> implements <code>IRocketInternals, IRocketComponent, IRocketMassContributor</code> (class header L370616) and carries the same two <code>[SerializeField]</code> rocket fields as <code>Transformer</code> (decompile L370633-L370637):</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="w"> </span><span class="n">_rocketInternalCellType</span><span class="p">;</span>
