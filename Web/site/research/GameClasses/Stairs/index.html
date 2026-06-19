@@ -2998,6 +2998,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#isstairs-the-cellstairs-slot-and-the-entryexit-run-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IsStairs, the Cell.Stairs slot, and the Entry/Exit run model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flood-traversal-implication" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7551,6 +7562,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#isstairs-the-cellstairs-slot-and-the-entryexit-run-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IsStairs, the Cell.Stairs slot, and the Entry/Exit run model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flood-traversal-implication" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7752,13 +7774,35 @@
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>A stairs is therefore present in <code>Cell.AllStructures</code> and occupies the dedicated <code>Cell.Stairs</code> slot (see <code>Cell.md</code>). <code>CanConstructCell</code> (lines 307828-307858) reads <code>allStructure.IsStairs</code> and per-cell <code>StructureCollisionType</code> values to block overlapping placement.</p>
+<h2 id="isstairs-the-cellstairs-slot-and-the-entryexit-run-model">IsStairs, the Cell.Stairs slot, and the Entry/Exit run model<a class="headerlink" href="#isstairs-the-cellstairs-slot-and-the-entryexit-run-model" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+
+<p>There is no separate <code>Stairwell</code> class in <code>Assembly-CSharp</code> (the string does not appear anywhere in the assembly); a "stairwell" is a prefab built on the <code>Stairs</code> class. The game's canonical "is this a stairs" test is <code>Structure.IsStairs</code> (decompile lines 295378-295384):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsStairs</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">GetType</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="n">Stairs</span><span class="p">)))</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nf">GetType</span><span class="p">().</span><span class="n">IsSubclassOf</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">Stairs</span><span class="p">));</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>IsStairs</code> (equivalently a C# <code>is Stairs</code> test) matches <code>Stairs</code> and any subclass, covering every stairs/stairwell prefab in one check.</p>
+<p>On registration, <code>Cell.Add</code> routes a <code>Stairs</code> into the dedicated <code>Cell.Stairs</code> slot (decompile lines 272258-272261):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">Stairs</span><span class="w"> </span><span class="n">stairs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">structure</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Stairs</span><span class="p">;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">stairs</span><span class="p">)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">Stairs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stairs</span><span class="p">;</span>
+</span></code></pre></div>
+<p>NPC pathing walks a connected stair run through the <code>Entry</code> / <code>Exit</code> grid points, not raw cell adjacency: <code>GetStairExitPoint</code> / <code>GetStairEntryPoint</code> (decompile lines 272840-272905) recurse from a stair's <code>Exit</code> to the stair whose <code>Entry</code> matches (<code>cell.Stairs.Entry == startGrid</code>), and vice versa, chaining the run floor by floor. Because a stair climbs up AND forward, consecutive stairs are diagonally offset, so the <code>Entry</code>/<code>Exit</code> chain (not orthogonal cell adjacency) is the reliable way to enumerate a run.</p>
 <h2 id="flood-traversal-implication">Flood / traversal implication<a class="headerlink" href="#flood-traversal-implication" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
-<p>Because <code>Stairs : Structure</code> is not a <code>LargeStructure</code>, a flood keyed on <code>thing is LargeStructure</code> (the SprayPaintPlus large-structure grid flood) does not catch stairs; a sprayed stairs falls through every paint branch and only the single piece is recolored. But stairs ARE on the large grid (<code>Cell.AllStructures</code> + <code>Cell.NeighborCells</code>), so a stairs flood can reuse the same large-cell BFS used for walls and large structures, filtered by <code>is Stairs</code> (base type) instead of exact <code>GetType()</code>. This is cheaper than ladders, which are small-grid (<code>SmallCell</code>) and need a separate small-grid <code>OpenEnds</code> walk.</p>
+<p>Because <code>Stairs : Structure</code> is not a <code>LargeStructure</code>, a flood keyed on <code>thing is LargeStructure</code> (the SprayPaintPlus large-structure grid flood) does not catch stairs; a sprayed stairs falls through every paint branch and only the single piece is recolored. Stairs live on the large grid (<code>Cell</code> / <code>GetCell</code>, the <code>Cell.Stairs</code> slot), not the 0.5 m small grid, so they are cheaper to reach than ladders. But a plain 6-neighbor orthogonal BFS will NOT connect a multi-floor run, because stacked stairs are diagonally offset (see the Entry/Exit model above). To walk a run, hop along the <code>Entry</code>/<code>Exit</code> chain: from a stair, take the <code>Cell.Stairs</code> occupying the cell at its <code>Exit</code> and the cell at its <code>Entry</code>, recursing. An orthogonal-neighbor scan can be layered on top to catch side-by-side stairs of the same prefab. Filter by <code>is Stairs</code> (base type) to include any stairwell subclass.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-06-19: page created while scoping ladder and stairs flood-painting for Spray Paint Plus. Verbatim from <code>Assets.Scripts.Objects.Stairs</code> (class shape, <code>CanConstruct</code>, <code>OnRegistered</code>, <code>CanConstructCell</code>), game version 0.2.6228.27061. Additive; new page. The hierarchy fact <code>Stairs : Structure</code> is also noted in <code>Structure.md</code>.</li>
+<li>2026-06-19: added "IsStairs, the Cell.Stairs slot, and the Entry/Exit run model" section (<code>Structure.IsStairs</code> verbatim, <code>Cell.Add</code> stairs routing, the <code>GetStairExitPoint</code>/<code>GetStairEntryPoint</code> pathing chain) and corrected the "Flood / traversal implication" section: stacked stairs are diagonally offset and connect via <code>Entry</code>/<code>Exit</code>, so a plain orthogonal BFS does not walk a run. Confirmed no <code>Stairwell</code> class exists in <code>Assembly-CSharp</code>. Sources: <code>Structure.IsStairs</code>, <code>Cell.Add</code>, <code>Assets.Scripts.GridSystem</code> stair-pathing helpers, game version 0.2.6228.27061.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
