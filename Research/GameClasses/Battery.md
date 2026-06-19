@@ -3,7 +3,7 @@ title: Battery (station-mounted)
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-18
+verified_at: 2026-06-19
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
 related:
@@ -255,7 +255,7 @@ A mod that subclasses `Battery` (e.g., `StationBatteryNuclear : Battery` in More
 - Patching `RefreshAnimState` away (e.g. swapping the entire renderer to a single material on `PoweredChanged`) replaces the segment-count behavior with whatever the override does. MorePowerMod's `StationBatteryNuclear.PoweredChanged` writes a single solid material to `gameObject.GetComponent<MeshRenderer>().materials` regardless of `Powered`, but does NOT touch the `displayRenderers[]` segment bar, so the inherited 5-segment color ladder still drives the visible charge indicator.
 
 ## Rocket-internal variant (same class, prefab-distinguished)
-<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 `Battery` implements `IRocketInternals, IRocketComponent, IRocketMassContributor` (class header L370616) and carries the same two `[SerializeField]` rocket fields as `Transformer` (decompile L370633-L370637):
 
@@ -266,18 +266,28 @@ A mod that subclasses `Battery` (e.g., `StationBatteryNuclear : Battery` in More
 
 "Rocket Battery Medium" and the station wall battery are the SAME `Battery` class; the rocket variant is a separate prefab (`_strictlyInternal = true`, a non-`None` `_rocketInternalCellType`, its own `OpenEnds`). No `RocketBattery` subclass exists. A Harmony patch on `typeof(Battery)` catches both. `IRocketMassContributor.MassContribution` adds the stored charge to rocket mass (`Transformer` does not implement this interface).
 
-A live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, game 0.2.6228.27061) confirms there is **no rocket-battery prefab**; the only `Battery`-class prefabs are `StructureBattery` (Station), `StructureBatteryLarge`, `StructureBatteryMedium`, `StructureBatterySmall`, plus the two cell-chargers (and the modded `StationBatteryNuclear`). A "rocket battery" placed inside a rocket is one of these prefabs. Measured `OpenEnds`:
+The `Battery`-class prefabs split into TWO families by display name + build kit, despite generic prefab codenames. From `english.xml` (`StreamingAssets/Language`) and a Luna rocket save (`PrefabName` of ref 525400):
+
+| Prefab (codename) | Display name | Build kit | Family |
+|---|---|---|---|
+| `StructureBattery` | Station Battery | Kit (Battery) | station |
+| `StructureBatteryLarge` | Station Battery (Large) | Kit (Battery) | station |
+| `StructureBatteryMedium` | Battery (Medium) | Kit (Rocket Battery) | **rocket** |
+| `StructureBatterySmall` | Auxiliary Rocket Battery | Kit (Rocket Battery) | **rocket** |
+
+So the "medium rocket battery" IS `StructureBatteryMedium` (the codename is misleadingly generic; its small sibling is literally "Auxiliary Rocket Battery"). There is no prefab literally named `*RocketBattery*` -- the rocket batteries ARE `StructureBatteryMedium` / `StructureBatterySmall`, distinct from the station wall batteries `StructureBattery` / `StructureBatteryLarge`. (Plus the two cell-chargers, and the modded `StationBatteryNuclear`.) Measured `OpenEnds` (ScenarioRunner `connector-dump`):
 
 | Prefab | OpenEnds |
 |---|---|
-| `StructureBattery` (Station), `StructureBatteryLarge` | 3: `Data/None`, `Power/Input`, `Power/Output` (a dedicated pure-Data port) |
-| `StructureBatteryMedium`, `StructureBatterySmall` | 3: `Power/Input`, `Power/Output`, `PowerAndData/None` (the third port is `PowerAndData`, i.e. it carries power as well as data) |
+| `StructureBattery`, `StructureBatteryLarge` (station) | 3: `Data/None`, `Power/Input`, `Power/Output` (dedicated pure-Data third port) |
+| `StructureBatteryMedium`, `StructureBatterySmall` (rocket) | 3: `Power/Input`, `Power/Output`, `PowerAndData/None` (third port is `PowerAndData`: it carries power as well as data, so it accepts a heavy power cable) |
 
-So the medium/small batteries' third "data port" is a power-carrying `PowerAndData` node, while the station/large batteries' is a pure `Data` node. No vanilla battery folds data onto its `Power/Input` or `Power/Output` connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its `NetworkType`: there is no per-connector accepted-cable-type field in code (cable type lives on `Cable`, see [Cable](./Cable.md); `SmallGrid.IsConnected` gates on `NetworkType` + grid coincidence only).
+So the station batteries carry a pure `Data` third port; the rocket batteries carry a `PowerAndData` third port. No vanilla battery folds data onto its `Power/Input` or `Power/Output` connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its `NetworkType` (cable type lives on `Cable`, see [Cable](./Cable.md); `SmallGrid.IsConnected` gates on `NetworkType` + grid coincidence only).
 
 ## Verification history
 
-- 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab). Connector layouts confirmed the same day by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): no rocket-battery prefab exists; Station + Large batteries have a dedicated pure-`Data` third port, Medium + Small have a `PowerAndData` third port, none fold data onto a `Power/Input`/`Power/Output` connector. Additive; no conflict with existing content.
+- 2026-06-19: corrected the battery-family identification (restamped the section). The 2026-06-18 entry below wrongly said "no rocket-battery prefab exists." Per `english.xml` (`StructureBatteryMedium` = "Battery (Medium)", `StructureBatterySmall` = "Auxiliary Rocket Battery", `StructureBattery` = "Station Battery", `StructureBatteryLarge` = "Station Battery (Large)", `ItemKitRocketBattery` = "Kit (Rocket Battery)", lines 1972 / 5460 / 7423 / 7523 / 8184) and a Luna rocket save (ref 525400 = `StructureBatteryMedium` at a rocket position), `StructureBatteryMedium` + `StructureBatterySmall` are the ROCKET battery line and `StructureBattery` + `StructureBatteryLarge` are the STATION line; the prefab codenames are misleadingly generic. Connector data unchanged (rocket batteries: `PowerAndData` third port; station batteries: pure `Data` third port). Confirmed via a runtime probe on the rocket save (ref 525400 = `StructureBatteryMedium`) plus the direct `english.xml` reads.
+- 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab). Connector layouts confirmed the same day by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): Station + Large batteries have a dedicated pure-`Data` third port, Medium + Small have a `PowerAndData` third port, none fold data onto a `Power/Input`/`Power/Output` connector. (The "no rocket-battery prefab" claim in this entry was corrected 2026-06-19, above.) Additive; no conflict with existing content.
 - 2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in [PowerTickThreading.md](../GameSystems/PowerTickThreading.md). No factual change to the underlying patches.
 - 2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla `StructureBatteryNuclear`), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of `UsePower` / `ReceivePower` / `GetUsedPower` / `GetGeneratedPower` at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.
 - 2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that `Battery : ElectricalInputOutput, ...` mirrors `Transformer` and `AreaPowerControl` in having both `InputNetwork` and `OutputNetwork` cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.
