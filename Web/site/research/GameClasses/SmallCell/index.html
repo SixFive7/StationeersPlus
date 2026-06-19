@@ -2902,6 +2902,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#small-grid-key-scale-lookup-conversion-and-observed-ladder-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Small-grid key scale, lookup conversion, and observed ladder registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7628,6 +7639,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#small-grid-key-scale-lookup-conversion-and-observed-ladder-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Small-grid key scale, lookup conversion, and observed ladder registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7862,15 +7884,22 @@
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 <p><code>Ladder : SmallGrid, ISmartRotatable</code> (decompile line 287263) and <code>LadderEnd : Ladder</code> (line 295026). Neither is a chute, pipe, device, cable, or rail, so <code>SmallCell.Add</code> routes both to <code>Other</code> (the final <code>else</code>, lines 274860-274863), and <code>SmallCell.Get&lt;Ladder&gt;</code> retrieves them from <code>Other</code>. For the Ladder / SmallGrid / LargeStructure hierarchy split (a ladder is a <code>SmallGrid</code>, a ladder platform is a <code>LargeStructure</code>), see <code>Structure.md</code>.</p>
-<p>Consequence for anything that wants to walk a connected ladder run (for example a flood-paint over ladders): use the small grid. Seed from the ladder's <code>SmallCell</code>, follow its <code>OpenEnds</code> connections via <code>SmallCell.Get&lt;Ladder&gt;(localPosition, connection)</code> (treating <code>Ladder</code> as the base type so <code>LadderEnd</code> pieces are included), rather than the large-cell <code>NeighborCells</code> / <code>AllStructures</code> BFS used for walls and large structures.</p>
+<p>Consequence for anything that wants to walk a connected ladder run (for example a flood-paint over ladders): use the small grid. Seed from the ladder's own registered key (<code>origin.SmallCell.SmallGrid</code>) and step it in whole small cells (5 Grid3 units) along each axis, reading <code>GetSmallCell(key).Other as Ladder</code> (which matches <code>LadderEnd</code> caps, <code>LadderEnd : Ladder</code>), rather than the large-cell <code>NeighborCells</code> / <code>AllStructures</code> BFS used for walls and large structures. See the next section for why stepping the key beats probing world positions, and for the multi-cell-footprint caveat.</p>
+<h2 id="small-grid-key-scale-lookup-conversion-and-observed-ladder-registration">Small-grid key scale, lookup conversion, and observed ladder registration<a class="headerlink" href="#small-grid-key-scale-lookup-conversion-and-observed-ladder-registration" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+
+<p><code>SmallCell</code> keys are world metres scaled by <code>Grid3.one</code> (10), so one 0.5 m small cell is 5 Grid3 units and two structures stacked 2 m apart differ by 20 in the key. Verified live (InspectorPlus, a vertical ladder run): three stacked ladders at world y 283 / 281 / 279 carry <code>SmallCell.SmallGrid</code> y-keys 2835 / 2815 / 2795 (uniform minus-20 per 2 m).</p>
+<p><code>GetSmallCell(Vector3)</code> and <code>SmallCell.Get&lt;T&gt;(Vector3)</code> convert the probe position with <code>new Grid3(worldPosition)</code>, that is <code>Round(worldPosition * 10)</code> with NO <code>GridCenter</code> snapping (decompile lines 150910-150912 and 158148-158150), in contrast to <code>GetCell</code>, which normalizes through <code>WorldGrid</code>. A lookup therefore only succeeds when the probe rounds to the structure's exact registered key; probing a position even a fraction of a cell off (for example a <code>SmallGrid.CenterPosition</code>, which adds <code>Forward * 0.2</code>) snaps into a neighbouring cell and misses. Stepping a known registered key (<code>origin.SmallCell.SmallGrid</code>) in 5-unit increments is robust; deriving the key from a world position is fragile.</p>
+<p>Observed for ladders (InspectorPlus): the registered <code>SmallCell.SmallGrid</code> anchors half a small cell above <code>Position</code> in the vertical axis (<code>key.y == Position.y * 10 + 5</code>; <code>key.x</code> / <code>key.z</code> track <code>Position</code>, not the <code>CenterPosition.z</code> that carries the 0.2 m forward offset). A ladder also occupies more than one small cell along its run axis, so a key-stepping traversal first re-encounters the seed's own cells and must skip past them (<code>ReferenceEquals(found, seed)</code>) before it reaches the next distinct ladder, and must scan a few cells (not just one) to bridge the 2 m pitch. SprayPaintPlus's ladder flood relies on all three facts.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-06-19: page created from a small-grid registration decompile pass while scoping ladder flood-painting for Spray Paint Plus. Verbatim content from <code>Assets.Scripts.GridSystem.SmallCell</code> (slots, <code>Add</code>, <code>Get&lt;T&gt;</code>, <code>RemoveCellObjectReferences</code>) and <code>Assets.Scripts.Objects.SmallGrid</code> (<code>OpenEnds</code>, <code>SmallGridSize</code> / <code>SmallGridOffset</code>, <code>SmallCell</code>, <code>CenterPosition</code>, <code>Awake</code>, <code>RebuildGridState</code>), game version 0.2.6228.27061. Additive; new page, no existing content changed.</li>
+<li>2026-06-19: added "Small-grid key scale, lookup conversion, and observed ladder registration" from a live InspectorPlus ladder-run capture plus the <code>GetSmallCell</code> / <code>Get&lt;T&gt;</code> conversion path (<code>new Grid3(worldPos)</code> = <code>Round(world * 10)</code>, no snapping; decompile 150910-150912, 158148-158150). Corrected the ladder-run consequence to key-stepping (verified working in-game) in place of the earlier unverified <code>OpenEnds</code>-walk suggestion. Resolved the prior open question on stacked-ladder small-cell pitch (2 m = 20 key units). Game version 0.2.6228.27061.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Whether a <code>SmallGrid</code> structure is ALSO added to the large <code>Cell.AllStructures</code> (the <code>DualRegister</code> flag hints some small grids dual-register) or lives only in <code>SmallCell</code> is not confirmed here. The ladder-flood design does not depend on it (it walks the small grid regardless), but a definitive answer would let a reader reason about both grids.</li>
-<li>The vertical extent of one ladder in 0.5 m small-grid cells, and therefore the exact small-cell step between stacked ladder pieces, is not determined from static reading. Resolve with an InspectorPlus probe (dump two stacked ladders' <code>Position</code>, <code>GridPosition</code>, <code>SmallCell.SmallGrid</code> key, and <code>OpenEnds</code>) before relying on a fixed step rather than the <code>OpenEnds</code> connection walk.</li>
+<li>The exact size and direction of one ladder's multi-cell small-grid footprint (how many cells, anchored which way) is inferred from the flood's need to skip the seed's own cells, not read from the registration code directly. The 2 m stacked-ladder pitch (20 key units) and the <code>Position.y * 10 + 5</code> anchor are confirmed from live captures.</li>
 </ul>
 
 
