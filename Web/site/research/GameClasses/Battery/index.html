@@ -7723,7 +7723,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-06-18.
+           on 2026-06-19.
         </p>
       
       
@@ -8097,7 +8097,44 @@
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
 </span></code></pre></div>
 <p>"Rocket Battery Medium" and the station wall battery are the SAME <code>Battery</code> class; the rocket variant is a separate prefab (<code>_strictlyInternal = true</code>, a non-<code>None</code> <code>_rocketInternalCellType</code>, its own <code>OpenEnds</code>). No <code>RocketBattery</code> subclass exists. A Harmony patch on <code>typeof(Battery)</code> catches both. <code>IRocketMassContributor.MassContribution</code> adds the stored charge to rocket mass (<code>Transformer</code> does not implement this interface).</p>
-<p>A live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, game 0.2.6228.27061) confirms there is <strong>no rocket-battery prefab</strong>; the only <code>Battery</code>-class prefabs are <code>StructureBattery</code> (Station), <code>StructureBatteryLarge</code>, <code>StructureBatteryMedium</code>, <code>StructureBatterySmall</code>, plus the two cell-chargers (and the modded <code>StationBatteryNuclear</code>). A "rocket battery" placed inside a rocket is one of these prefabs. Measured <code>OpenEnds</code>:</p>
+<p>The <code>Battery</code>-class prefabs split into TWO families by display name + build kit, despite generic prefab codenames. From <code>english.xml</code> (<code>StreamingAssets/Language</code>) and a Luna rocket save (<code>PrefabName</code> of ref 525400):</p>
+<table>
+<thead>
+<tr>
+<th>Prefab (codename)</th>
+<th>Display name</th>
+<th>Build kit</th>
+<th>Family</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StructureBattery</code></td>
+<td>Station Battery</td>
+<td>Kit (Battery)</td>
+<td>station</td>
+</tr>
+<tr>
+<td><code>StructureBatteryLarge</code></td>
+<td>Station Battery (Large)</td>
+<td>Kit (Battery)</td>
+<td>station</td>
+</tr>
+<tr>
+<td><code>StructureBatteryMedium</code></td>
+<td>Battery (Medium)</td>
+<td>Kit (Rocket Battery)</td>
+<td><strong>rocket</strong></td>
+</tr>
+<tr>
+<td><code>StructureBatterySmall</code></td>
+<td>Auxiliary Rocket Battery</td>
+<td>Kit (Rocket Battery)</td>
+<td><strong>rocket</strong></td>
+</tr>
+</tbody>
+</table>
+<p>So the "medium rocket battery" IS <code>StructureBatteryMedium</code> (the codename is misleadingly generic; its small sibling is literally "Auxiliary Rocket Battery"). There is no prefab literally named <code>*RocketBattery*</code> -- the rocket batteries ARE <code>StructureBatteryMedium</code> / <code>StructureBatterySmall</code>, distinct from the station wall batteries <code>StructureBattery</code> / <code>StructureBatteryLarge</code>. (Plus the two cell-chargers, and the modded <code>StationBatteryNuclear</code>.) Measured <code>OpenEnds</code> (ScenarioRunner <code>connector-dump</code>):</p>
 <table>
 <thead>
 <tr>
@@ -8107,19 +8144,20 @@
 </thead>
 <tbody>
 <tr>
-<td><code>StructureBattery</code> (Station), <code>StructureBatteryLarge</code></td>
-<td>3: <code>Data/None</code>, <code>Power/Input</code>, <code>Power/Output</code> (a dedicated pure-Data port)</td>
+<td><code>StructureBattery</code>, <code>StructureBatteryLarge</code> (station)</td>
+<td>3: <code>Data/None</code>, <code>Power/Input</code>, <code>Power/Output</code> (dedicated pure-Data third port)</td>
 </tr>
 <tr>
-<td><code>StructureBatteryMedium</code>, <code>StructureBatterySmall</code></td>
-<td>3: <code>Power/Input</code>, <code>Power/Output</code>, <code>PowerAndData/None</code> (the third port is <code>PowerAndData</code>, i.e. it carries power as well as data)</td>
+<td><code>StructureBatteryMedium</code>, <code>StructureBatterySmall</code> (rocket)</td>
+<td>3: <code>Power/Input</code>, <code>Power/Output</code>, <code>PowerAndData/None</code> (third port is <code>PowerAndData</code>: it carries power as well as data, so it accepts a heavy power cable)</td>
 </tr>
 </tbody>
 </table>
-<p>So the medium/small batteries' third "data port" is a power-carrying <code>PowerAndData</code> node, while the station/large batteries' is a pure <code>Data</code> node. No vanilla battery folds data onto its <code>Power/Input</code> or <code>Power/Output</code> connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its <code>NetworkType</code>: there is no per-connector accepted-cable-type field in code (cable type lives on <code>Cable</code>, see <a href="../Cable/">Cable</a>; <code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> + grid coincidence only).</p>
+<p>So the station batteries carry a pure <code>Data</code> third port; the rocket batteries carry a <code>PowerAndData</code> third port. No vanilla battery folds data onto its <code>Power/Input</code> or <code>Power/Output</code> connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its <code>NetworkType</code> (cable type lives on <code>Cable</code>, see <a href="../Cable/">Cable</a>; <code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> + grid coincidence only).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): no rocket-battery prefab exists; Station + Large batteries have a dedicated pure-<code>Data</code> third port, Medium + Small have a <code>PowerAndData</code> third port, none fold data onto a <code>Power/Input</code>/<code>Power/Output</code> connector. Additive; no conflict with existing content.</li>
+<li>2026-06-19: corrected the battery-family identification (restamped the section). The 2026-06-18 entry below wrongly said "no rocket-battery prefab exists." Per <code>english.xml</code> (<code>StructureBatteryMedium</code> = "Battery (Medium)", <code>StructureBatterySmall</code> = "Auxiliary Rocket Battery", <code>StructureBattery</code> = "Station Battery", <code>StructureBatteryLarge</code> = "Station Battery (Large)", <code>ItemKitRocketBattery</code> = "Kit (Rocket Battery)", lines 1972 / 5460 / 7423 / 7523 / 8184) and a Luna rocket save (ref 525400 = <code>StructureBatteryMedium</code> at a rocket position), <code>StructureBatteryMedium</code> + <code>StructureBatterySmall</code> are the ROCKET battery line and <code>StructureBattery</code> + <code>StructureBatteryLarge</code> are the STATION line; the prefab codenames are misleadingly generic. Connector data unchanged (rocket batteries: <code>PowerAndData</code> third port; station batteries: pure <code>Data</code> third port). Confirmed via a runtime probe on the rocket save (ref 525400 = <code>StructureBatteryMedium</code>) plus the direct <code>english.xml</code> reads.</li>
+<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): Station + Large batteries have a dedicated pure-<code>Data</code> third port, Medium + Small have a <code>PowerAndData</code> third port, none fold data onto a <code>Power/Input</code>/<code>Power/Output</code> connector. (The "no rocket-battery prefab" claim in this entry was corrected 2026-06-19, above.) Additive; no conflict with existing content.</li>
 <li>2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a>. No factual change to the underlying patches.</li>
 <li>2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla <code>StructureBatteryNuclear</code>), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> / <code>GetGeneratedPower</code> at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.</li>
 <li>2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that <code>Battery : ElectricalInputOutput, ...</code> mirrors <code>Transformer</code> and <code>AreaPowerControl</code> in having both <code>InputNetwork</code> and <code>OutputNetwork</code> cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.</li>
