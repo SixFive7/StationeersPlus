@@ -109,6 +109,14 @@ namespace ScenarioRunner
                     Scenario_PowerPrefabDump();
                     return;
 
+                case "connector-dump":
+                    Scenario_ConnectorDump();
+                    return;
+
+                case "pgp-passthrough-port-probe":
+                    Scenario_PgpPassthroughPortProbe();
+                    return;
+
                 case "merge-long-variant-num4":
                     Scenario_MergeLongVariantNum4();
                     return;
@@ -531,6 +539,211 @@ namespace ScenarioRunner
             {
                 return "unknown";
             }
+        }
+
+        // ---- General scenario: connector-dump ----
+        //
+        // One-shot. Iterates Prefab.AllPrefabs and, for every SmallGrid prefab carrying at
+        // least one Power or Data connector (or any ElectricalInputOutput), emits its full
+        // OpenEnds layout: connector count, each connector as NetworkType/ConnectionRole, and
+        // a breakdown into purePower / pureData / powerAndData / pipe / other. NetworkType is a
+        // [Flags] enum (Power=2, Data=4, PowerAndData=6=Power|Data), so a connector with the
+        // data bit but NOT the power bit (pureData) is a DEDICATED data port; a connector with
+        // both bits (powerAndData) is data riding on a power connector. Flags THREE_PLUS (>=3
+        // connectors) and SEPARATE_DATA (>=1 dedicated Data connector) -- the shape the
+        // PowerGridPlus passthrough code (which only bridges the InputNetwork/OutputNetwork
+        // power pair) does not handle.
+        //
+        // Answers: rocket vs station transformer/battery connector layout, the umbilical
+        // connectors, and the exhaustive set of power/data devices with 3+ connectors or a
+        // separate data port. Run on a fresh -New world; the prefab registry is populated at
+        // Prefab.OnPrefabsLoaded so no save is needed.
+        //
+        // Threading: managed-state only (Prefab.AllPrefabs iteration, OpenEnds list, enum
+        // reads). Does NOT touch Connection.Transform (a Unity object) so it is safe from the
+        // UniTask worker the sim-tick pump runs on.
+
+        private static bool _connectorDumpFired;
+
+        private static void Scenario_ConnectorDump()
+        {
+            if (_connectorDumpFired) return;
+            _connectorDumpFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] connector-dump START");
+
+                int total = 0, emitted = 0, withSeparateData = 0, threePlus = 0;
+
+                foreach (var prefab in Prefab.AllPrefabs)
+                {
+                    if (prefab == null) continue;
+                    total++;
+
+                    if (!(prefab is SmallGrid grid)) continue;
+                    var ends = grid.OpenEnds;
+                    if (ends == null || ends.Count == 0) continue;
+
+                    int count = ends.Count;
+                    int purePower = 0, pureData = 0, powerAndData = 0, pipe = 0, other = 0;
+                    var parts = new List<string>(count);
+
+                    foreach (var c in ends)
+                    {
+                        if (c == null) { parts.Add("<null>"); other++; continue; }
+                        var ct = c.ConnectionType;
+                        bool powerBit = (ct & NetworkType.Power) != NetworkType.None;
+                        bool dataBit = (ct & NetworkType.Data) != NetworkType.None;
+                        bool pipeBit = (ct & NetworkType.Pipe) != NetworkType.None;
+
+                        if (powerBit && dataBit) powerAndData++;
+                        else if (dataBit) pureData++;
+                        else if (powerBit) purePower++;
+                        else if (pipeBit) pipe++;
+                        else other++;
+
+                        parts.Add($"{ct}/{c.ConnectionRole}");
+                    }
+
+                    // Scope: only devices that participate in a power or data network.
+                    bool relevant = purePower > 0 || pureData > 0 || powerAndData > 0 || prefab is ElectricalInputOutput;
+                    if (!relevant) continue;
+
+                    bool separateDataPort = pureData > 0;   // dedicated Data connector (not PowerAndData)
+                    if (separateDataPort) withSeparateData++;
+                    if (count >= 3) threePlus++;
+
+                    string flags = "";
+                    if (count >= 3) flags += " THREE_PLUS";
+                    if (separateDataPort) flags += " SEPARATE_DATA";
+
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] connector-dump | PrefabName={prefab.PrefabName} | Type={prefab.GetType().Name} | " +
+                        $"Count={count} | purePower={purePower} pureData={pureData} powerAndData={powerAndData} pipe={pipe} other={other} | " +
+                        $"HasDataConnection={grid.HasDataConnection} | Conns=[{string.Join(", ", parts)}]{flags}");
+                    emitted++;
+                }
+
+                _log?.LogInfo(
+                    $"[ScenarioRunner] connector-dump END emitted={emitted} threePlus={threePlus} " +
+                    $"separateDataPort={withSeparateData} totalPrefabs={total}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] connector-dump threw: {e}");
+            }
+        }
+
+        // ---- PGP scenario: passthrough-port-probe ----
+        //
+        // Verifies the all-port logic-passthrough fix. For every ElectricalInputOutput bridge device on
+        // the loaded save it forces LogicPassthroughMode = 1, then reflection-invokes
+        // PowerGridPlus.Patches.PassthroughTopology.GatherReachable on each of the device's networks
+        // (power input, power output, dedicated data port) and logs the reachable network-id set. Key
+        // metric: dataReachableFromPower -- whether a device's separate Data-port network is reachable
+        // from a power side. Pre-fix the binary bridge only ever returned the opposite power side, so a
+        // separate Data port was never reachable from a power side (false); post-fix it is (true).
+        // Requires PowerGridPlus loaded. Managed-state reflection only; worker-safe.
+
+        private static bool _pppFired;
+
+        private static void Scenario_PgpPassthroughPortProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-passthrough-port-probe")) return;
+            if (_pppFired) return;
+            _pppFired = true;
+
+            try
+            {
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                var topo = asm.GetType("PowerGridPlus.Patches.PassthroughTopology");
+                var store = asm.GetType("PowerGridPlus.PassthroughModeStore");
+                var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+                var gather = topo?.GetMethod("GatherReachable", flags);
+                var setMode = store?.GetMethod("SetMode", flags);
+                var getMode = store?.GetMethod("GetMode", flags);
+                if (gather == null || setMode == null || getMode == null)
+                {
+                    _log?.LogError($"[ScenarioRunner] PPP reflection failed (gather={gather != null} setMode={setMode != null} getMode={getMode != null})");
+                    return;
+                }
+
+                _log?.LogInfo("[ScenarioRunner] pgp-passthrough-port-probe START");
+
+                var bridges = new List<Device>();
+                OcclusionManager.AllThings.ForEach(t =>
+                {
+                    if (t is Assets.Scripts.Objects.Electrical.ElectricalInputOutput) bridges.Add((Device)t);
+                });
+
+                int reported = 0, distinctData = 0, bridgedOk = 0, sampled = 0;
+                const int SAMPLE_CAP = 20;
+                foreach (var d in bridges)
+                {
+                    if (d == null) continue;
+                    var eio = (Assets.Scripts.Objects.Electrical.ElectricalInputOutput)d;
+                    var inNet = eio.InputNetwork;
+                    var outNet = eio.OutputNetwork;
+                    var dataNet = d.DataCableNetwork;
+                    long inId = inNet?.ReferenceId ?? 0;
+                    long outId = outNet?.ReferenceId ?? 0;
+                    long dataId = dataNet?.ReferenceId ?? 0;
+                    bool dataDistinct = dataNet != null && dataNet != inNet && dataNet != outNet;
+                    if (dataDistinct) distinctData++;
+
+                    string prefab = d.PrefabName ?? "";
+                    bool isRocket = prefab.IndexOf("Rocket", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool isTarget = d.ReferenceId == 525400L;
+
+                    // Always report the interesting devices (separate data port, rocket-internal, the
+                    // medium battery the user flagged); sample the rest so the log stays readable.
+                    bool report = dataDistinct || isRocket || isTarget;
+                    if (!report)
+                    {
+                        if (sampled >= SAMPLE_CAP) continue;
+                        sampled++;
+                    }
+
+                    int preMode = getMode.Invoke(null, new object[] { d }) is int pm ? pm : -1;
+                    setMode.Invoke(null, new object[] { d, 1 });
+
+                    var reachIn = PppReach(gather, inNet);
+                    var reachOut = PppReach(gather, outNet);
+                    var reachData = PppReach(gather, dataNet);
+                    bool dataFromPower = dataNet != null && (reachIn.Contains(dataId) || reachOut.Contains(dataId));
+                    if (dataDistinct && dataFromPower) bridgedOk++;
+
+                    string tags = (isTarget ? " [TARGET-525400]" : "") + (isRocket ? " [ROCKET]" : "");
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] PPP {d.GetType().Name} ref={d.ReferenceId} prefab={prefab} modePreForce={preMode} " +
+                        $"in={inId} out={outId} data={dataId} dataDistinct={dataDistinct} | " +
+                        $"reach(in)=[{string.Join(",", reachIn)}] reach(out)=[{string.Join(",", reachOut)}] reach(data)=[{string.Join(",", reachData)}] | " +
+                        $"dataReachableFromPower={dataFromPower}{tags}");
+                    reported++;
+                }
+
+                _log?.LogInfo($"[ScenarioRunner] pgp-passthrough-port-probe END reported={reported} withSeparateDataPort={distinctData} dataPortBridgedFromPower={bridgedOk}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] PPP threw: {e}");
+            }
+        }
+
+        private static List<long> PppReach(System.Reflection.MethodInfo gather, CableNetwork net)
+        {
+            var ids = new List<long>();
+            if (net == null) return ids;
+            try
+            {
+                var r = gather.Invoke(null, new object[] { net }) as System.Collections.IEnumerable;
+                if (r == null) return ids;
+                foreach (var x in r)
+                    if (x is CableNetwork cn) ids.Add(cn.ReferenceId);
+            }
+            catch { }
+            return ids;
         }
 
         // ---- General scenario: merge-long-variant-num4 ----
