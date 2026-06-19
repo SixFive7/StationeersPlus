@@ -3,11 +3,12 @@ title: GridController
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-05-22
+verified_at: 2026-06-19
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.GridController
 related:
   - ./Cell.md
+  - ./SmallCell.md
   - ./Room.md
   - ./RoomController.md
   - ./Grid3.md
@@ -68,8 +69,8 @@ public Cell GetCell(Vector3 worldPosition)
 
 A pure `ConcurrentDictionary.TryGetValue`. Returns `null` for an empty cell; it does NOT create a cell on miss. Reads are cheap and trigger no recomputation. `GridCells` is a `ConcurrentDictionary` so the lookup itself is thread-safe, but the returned `Cell`'s `List` members (`AllStructures`, `NeighborCells`) are main-thread-mutated; enumerate them on the main thread.
 
-## GetStructure: cell-resolved structure
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+## GetStructure: cell-resolved structure (large grid only)
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 ```csharp
 public Structure GetStructure(Grid3 localGrid)
@@ -83,7 +84,28 @@ public Structure GetStructure(Grid3 localGrid)
 }
 ```
 
-Resolves the cell, then the structure registered at that grid key via the cell's `Structural` dictionary (see `./Cell.md`).
+Resolves the cell, then the structure registered at that grid key via the cell's `Structural` dictionary (see `./Cell.md`). This is the LARGE 2 m grid only. `Structural` holds large-grid structures, so `GetStructure` does NOT return small-grid occupants (pipes, cables, chutes, small devices, rails, ladders). For those, use `GetSmallCell` + `SmallCell.Get<T>` (next section).
+
+## GetSmallCell: small-grid lookup
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+
+The 0.5 m small grid lives in the separate `SmallGridCells` map and is reached through `GetSmallCell`, not `GetCell` / `GetStructure`:
+
+```csharp
+public SmallCell GetSmallCell(Vector3 worldPosition)
+{
+    Grid3 localGrid = WorldToLocalGrid(worldPosition, SmallGrid.SmallGridSize, SmallGrid.SmallGridOffset);
+    return GetSmallCell(localGrid);
+}
+
+public SmallCell GetSmallCell(Grid3 localGrid)
+{
+    SmallGridCells.TryGetValue(localGrid, out var value);
+    return value;
+}
+```
+
+`SmallGrid.SmallGridSize` is `0.5` and `SmallGridOffset` is `0.25`. The canonical "what small-grid thing is at this position" call is the static `SmallCell.Get<T>(Vector3 worldPosition)` (and its `Grid3` overload), which fetches the `SmallCell` and returns the first slot matching `T` (`Chute` / `Pipe` / `Device` / `Cable` / `Rail` / `Other`). For example `SmallCell.Get<Ladder>(worldPos)` returns a ladder (a `SmallGrid` in the `Other` slot, including a `LadderEnd` since it is a `Ladder` subclass). See `./SmallCell.md`.
 
 ## FaceLookup: the face registry
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
@@ -210,6 +232,7 @@ public bool IsBlockedAirGrid(Grid3 localGrid)
 ## Verification history
 
 - 2026-05-22: page created from a room/grid/atmospherics decompile pass (feasibility study on networking composite cladding for SprayPaintPlus). All sections verified against `Assets.Scripts.GridController` in `Assembly-CSharp`, game version 0.2.6228.27061. New page; no conflicts.
+- 2026-06-19: clarified that `GetStructure` resolves the LARGE 2 m grid only (`Cell.Structural`) and does not return small-grid occupants; added the "GetSmallCell: small-grid lookup" section (`GetSmallCell` overloads, `SmallCell.Get<T>`) while scoping ladder flood-painting for Spray Paint Plus. Additive plus one clarification; related link to `./SmallCell.md`. Source: `Assets.Scripts.GridController` (`GetSmallCell`) and `Assets.Scripts.GridSystem.SmallCell` (`Get<T>`), game version 0.2.6228.27061.
 
 ## Open questions
 
