@@ -7703,13 +7703,13 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-29.
+           on 2026-06-19.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:177-179</code></li>
@@ -7717,6 +7717,8 @@
               <li><code>Mods/SprayPaintPlus/SprayPaintPlus/NetworkPainterPatch.cs:320-328</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Structure'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Ladder / LadderEnd / LadderPlatform / SmallGrid'}</code></li>
             
           </ul>
         </details>
@@ -7819,9 +7821,10 @@
 </ul>
 <p>Read-only property; no setter. Use it verbatim as <code>thing.IsBroken</code> to detect "is this structure currently wreckage / destroyed." For detecting structures that have broken build states in their prefab definition (not the runtime state), use <code>Structure.HasBrokenBuildStates</code> (getter tests <code>BrokenBuildStates?.Count &gt; 0</code>).</p>
 <h2 id="build-state-model-and-the-destruction-path">Build-state model and the destruction path<a class="headerlink" href="#build-state-model-and-the-destruction-path" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 <p><code>Structure : Thing</code>. Subclass tree of interest: <code>Structure -&gt; LargeStructure -&gt; Wall</code> / <code>Frame</code> (and <code>Geyser</code>, <code>StructureFuselage</code>, <code>LaunchMount</code>); <code>Structure -&gt; SmallGrid</code> (attached devices / small wall-mounted machines), <code>Cladding</code>, <code>Stairs</code>, <code>RoverFrame</code>. The player-facing "structure frame" is <code>Frame : LargeStructure</code>, a trivial subclass; there is no class literally named <code>StructureFrame</code>. (<code>MultiConstructor</code> is the <em>kit item</em> you build frames from, not the structure.)</p>
+<p>Ladders sit on the <code>SmallGrid</code> branch, not <code>LargeStructure</code>: <code>Ladder : SmallGrid, ISmartRotatable</code> and <code>LadderEnd : Ladder</code>. The contrast is <code>LadderPlatform : Floor : Wall : LargeStructure</code> -- a ladder <em>platform</em> is a <code>LargeStructure</code>, a plain ladder is not. Code that branches on <code>is LargeStructure</code> (a grid-walk / flood-fill, for example) therefore catches ladder platforms but skips ladders and ladder ends. (<code>Stairs : Structure</code> directly, also not <code>LargeStructure</code>.)</p>
 <p>Construction is genuinely stage-by-stage. A <code>Structure</code> carries <code>List&lt;BuildState&gt; BuildStates</code>, <code>List&lt;BrokenBuildState&gt; BrokenBuildStates</code>, <code>int CurrentBuildStateIndex</code> (setter clamps, fires <code>OnBuildState</code>, sets <code>NetworkUpdateFlags |= 64</code>), <code>BuildState CurrentBuildState</code>, <code>bool IsStructureCompleted</code>, <code>bool HasBrokenMesh =&gt; BrokenBuildStates?.Count &gt; 0</code>, plus grid registration (<code>LocalGrid</code>, <code>BlockingGrids</code>). <code>Structure.AttackWith</code> with the matching tool moves <code>CurrentBuildStateIndex</code> up (construct) or down (deconstruct) one step; deconstructing build state 0 is what removes the object (via <code>BuildStates[0].Tool.Deconstruct(eventInstance)</code> then <code>OnServer.Destroy</code>). A <code>Structure</code> can also be removed in one shot by <code>Thing.Delete</code> / <code>OnServer.Destroy</code> (the engine path), bypassing the build-stage walk and the tool/ingot requirements.</p>
 <h3 id="when-damagestate-maxes-out">When DamageState maxes out<a class="headerlink" href="#when-damagestate-maxes-out" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
@@ -7871,6 +7874,7 @@
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0029e, F0322. No conflicts.</li>
 <li>2026-04-21: added "IsBroken property" section from direct decompile of <code>Assets.Scripts.Objects.Structure</code> and <code>Assets.Scripts.Objects.Thing</code>. Additive only; no existing content changed. Game version 0.2.6228.27061.</li>
 <li>2026-04-29: added "Build-state model and the destruction path" section (with "When DamageState maxes out" and "OnDamageDestroyed and StructureDestroyed" subsections) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: <code>Assets.Scripts.Objects.Structure</code> (<code>BuildStates</code>, <code>BrokenBuildStates</code>, <code>CurrentBuildStateIndex</code>, <code>HasBrokenMesh</code>, <code>AttackWith</code>, <code>OnDamageDestroyed</code>, <code>StructureDestroyed</code>, <code>OnDestroy</code>), <code>ThingDamageState.OnDamageUpdated</code> / <code>Destroy</code>, <code>IWreckage</code> (all in <code>Assembly-CSharp</code>, game version 0.2.6228.27061).</li>
+<li>2026-06-19: extended the subclass tree with the ladder family (<code>Ladder : SmallGrid, ISmartRotatable</code>, <code>LadderEnd : Ladder</code>, <code>LadderPlatform : Floor : Wall : LargeStructure</code>) and a <code>Stairs : Structure</code> note. Additive; no existing content changed. Sources: <code>Assets.Scripts.Objects.Ladder</code> / <code>LadderEnd</code> / <code>LadderPlatform</code>, <code>SmallGrid</code>, <code>LargeStructure</code>, <code>Wall</code>, <code>Floor</code>, <code>Stairs</code> (all in <code>Assembly-CSharp</code>, game version 0.2.6228.27061).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
