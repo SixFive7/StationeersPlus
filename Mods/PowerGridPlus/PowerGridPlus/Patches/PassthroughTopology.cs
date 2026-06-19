@@ -28,42 +28,27 @@ namespace PowerGridPlus.Patches
             || PassthroughSettingsSync.EffectivePowerTransmitter;
 
         /// <summary>
-        ///     If <paramref name="device"/> is an enabled, mode-1 bridge sitting on
-        ///     <paramref name="from"/>, returns the cable network on its other side; otherwise null.
-        ///     Mirrors the per-type gating (server toggle + per-device mode) of the original single-hop
-        ///     merge exactly, so enabling transitivity does not change which devices bridge.
+        ///     True if <paramref name="device"/> is an enabled, mode-1 logic-passthrough bridge: its
+        ///     per-type server toggle is on AND its per-device LogicPassthroughMode is 1. The per-type
+        ///     gating is identical to the original single-hop merge, so all-port bridging does not change
+        ///     WHICH devices bridge, only how many of each bridge's own networks are folded together.
         /// </summary>
-        internal static CableNetwork GetOtherSide(Device device, CableNetwork from)
+        internal static bool IsEnabledBridge(Device device)
         {
             switch (device)
             {
                 case Transformer transformer:
-                    if (!PassthroughSettingsSync.EffectiveTransformer) return null;
-                    if (PassthroughModeStore.GetMode(transformer) == 0) return null;
-                    return transformer.InputNetwork == from ? transformer.OutputNetwork : transformer.InputNetwork;
-
+                    return PassthroughSettingsSync.EffectiveTransformer && PassthroughModeStore.GetMode(transformer) != 0;
                 case AreaPowerControl apc:
-                    if (!PassthroughSettingsSync.EffectiveApc) return null;
-                    if (PassthroughModeStore.GetMode(apc) == 0) return null;
-                    return apc.InputNetwork == from ? apc.OutputNetwork : apc.InputNetwork;
-
+                    return PassthroughSettingsSync.EffectiveApc && PassthroughModeStore.GetMode(apc) != 0;
                 case Battery battery:
-                    if (!PassthroughSettingsSync.EffectiveBattery) return null;
-                    if (PassthroughModeStore.GetMode(battery) == 0) return null;
-                    return battery.InputNetwork == from ? battery.OutputNetwork : battery.InputNetwork;
-
+                    return PassthroughSettingsSync.EffectiveBattery && PassthroughModeStore.GetMode(battery) != 0;
                 case PowerTransmitter tx:
-                    if (!PassthroughSettingsSync.EffectivePowerTransmitter) return null;
-                    if (PassthroughModeStore.GetMode(tx) == 0) return null;
-                    return tx.LinkedReceiver?.OutputNetwork;
-
+                    return PassthroughSettingsSync.EffectivePowerTransmitter && PassthroughModeStore.GetMode(tx) != 0;
                 case PowerReceiver rx:
-                    if (!PassthroughSettingsSync.EffectivePowerTransmitter) return null;
-                    if (PassthroughModeStore.GetMode(rx) == 0) return null;
-                    return rx.LinkedPowerTransmitter?.InputNetwork;
-
+                    return PassthroughSettingsSync.EffectivePowerTransmitter && PassthroughModeStore.GetMode(rx) != 0;
                 default:
-                    return null;
+                    return false;
             }
         }
 
@@ -91,9 +76,17 @@ namespace PowerGridPlus.Patches
                 {
                     var device = devices[i];
                     if (device == null) continue;
-                    var other = GetOtherSide(device, net);
-                    if (other != null && other != net && visited.Add(other))
-                        stack.Push(other);
+                    if (!IsEnabledBridge(device)) continue;
+                    // All-port bridging: fold in EVERY cable network this enabled bridge connects (power
+                    // input, power output, a dedicated data-port network, and a linked dish's far
+                    // networks), not just the opposite power side. So a reader on ANY of the device's
+                    // ports -- including a separate Data port (rocket transformer, station / large
+                    // battery, wireless dish) -- sees across the device.
+                    foreach (var other in GetBridgeNetworks(device))
+                    {
+                        if (other != null && other != net && visited.Add(other))
+                            stack.Push(other);
+                    }
                 }
             }
 
@@ -105,11 +98,16 @@ namespace PowerGridPlus.Patches
         }
 
         /// <summary>
-        ///     The two cable networks a bridging device joins, regardless of its current mode (a
-        ///     transformer / battery's input and output sides; a transmitter / receiver and its linked
-        ///     partner's far side). Yields only non-null networks. Used to dirty + refresh exactly the
-        ///     networks whose merged device list changes when this device's passthrough mode is written,
-        ///     for both the 0 -> 1 and 1 -> 0 directions (mode is not consulted here on purpose).
+        ///     Every cable network a bridging device joins, regardless of its current mode: its power
+        ///     input and output sides, its dedicated data-port network (<see cref="Device.DataCableNetwork"/>,
+        ///     distinct from the power sides only when the device has a separate Data connector -- rocket
+        ///     transformer, station / large battery, wireless dish), and for a linked transmitter /
+        ///     receiver the partner's far power and data networks. Yields only non-null networks; callers
+        ///     dedupe (a `PowerAndData` connector makes the data network equal to a power side, yielded
+        ///     twice). Used by the reachability walk (gated by <see cref="IsEnabledBridge"/>) and to dirty
+        ///     + refresh exactly the networks whose merged device list changes when this device's
+        ///     passthrough mode is written, for both the 0 -> 1 and 1 -> 0 directions (mode is not
+        ///     consulted here on purpose).
         /// </summary>
         internal static IEnumerable<CableNetwork> GetBridgeNetworks(Device device)
         {
@@ -118,22 +116,29 @@ namespace PowerGridPlus.Patches
                 case Transformer t:
                     if (t.InputNetwork != null) yield return t.InputNetwork;
                     if (t.OutputNetwork != null) yield return t.OutputNetwork;
+                    if (t.DataCableNetwork != null) yield return t.DataCableNetwork;
                     break;
                 case Battery b:
                     if (b.InputNetwork != null) yield return b.InputNetwork;
                     if (b.OutputNetwork != null) yield return b.OutputNetwork;
+                    if (b.DataCableNetwork != null) yield return b.DataCableNetwork;
                     break;
                 case AreaPowerControl apc:
                     if (apc.InputNetwork != null) yield return apc.InputNetwork;
                     if (apc.OutputNetwork != null) yield return apc.OutputNetwork;
+                    if (apc.DataCableNetwork != null) yield return apc.DataCableNetwork;
                     break;
                 case PowerTransmitter tx:
                     if (tx.InputNetwork != null) yield return tx.InputNetwork;
+                    if (tx.DataCableNetwork != null) yield return tx.DataCableNetwork;
                     if (tx.LinkedReceiver?.OutputNetwork != null) yield return tx.LinkedReceiver.OutputNetwork;
+                    if (tx.LinkedReceiver?.DataCableNetwork != null) yield return tx.LinkedReceiver.DataCableNetwork;
                     break;
                 case PowerReceiver rx:
                     if (rx.OutputNetwork != null) yield return rx.OutputNetwork;
+                    if (rx.DataCableNetwork != null) yield return rx.DataCableNetwork;
                     if (rx.LinkedPowerTransmitter?.InputNetwork != null) yield return rx.LinkedPowerTransmitter.InputNetwork;
+                    if (rx.LinkedPowerTransmitter?.DataCableNetwork != null) yield return rx.LinkedPowerTransmitter.DataCableNetwork;
                     break;
             }
         }

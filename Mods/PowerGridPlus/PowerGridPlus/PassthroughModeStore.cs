@@ -10,8 +10,8 @@ namespace PowerGridPlus
     // and PowerReceiver.
     //
     // Per-PrefabName defaults:
-    //   - Small Transformer + Reversed: 1 (logic-transparent out of the box).
-    //   - Other Transformer variants:    0 (vanilla-opaque).
+    //   - Small Transformer + Reversed + Rocket Small: 1 (logic-transparent out of the box).
+    //   - Other Transformer variants:                  0 (vanilla-opaque).
     // Per-type defaults (anything without a specific PrefabName override):
     //   - Battery:           1 (logic-transparent across input / output cable ports).
     //   - AreaPowerControl:  1 (logic-transparent across input / output cable ports).
@@ -48,6 +48,7 @@ namespace PowerGridPlus
             {
                 case "StructureTransformerSmall":
                 case "StructureTransformerSmallReversed":
+                case "StructureRocketTransformerSmall":
                     return 1;
             }
             if (thing is Battery) return 1;
