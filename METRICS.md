@@ -32,6 +32,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-31 | 414 | 1102 | 44 | 37 | 15 | insufficient ratings | 1.8.0 (Workshop updated 2026-05-21) |
 | 2026-06-01 | 421 | 1111 | 44 | 40 | 16 | insufficient ratings | 1.8.0 (Workshop updated 2026-05-21) |
 | 2026-06-20 | 463 | 1210 | 45 | 47 | 16 | insufficient ratings | 1.9.0 (Workshop updated 2026-06-20) |
+| 2026-06-20 | 466 | 1216 | 45 | 48 | 16 | insufficient ratings | 1.10.0 (Workshop updated 2026-06-20) |
 
 ## Power Transmitter Plus
 
@@ -45,6 +46,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-21 | 188 | 712 | 27 | 20 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
 | 2026-05-31 | 206 | 774 | 29 | 21 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
 | 2026-06-01 | 213 | 794 | 29 | 22 | 6 | insufficient ratings | 1.8.0 (Workshop updated 2026-06-01) |
+| 2026-06-20 | 252 | 956 | 35 | 28 | 6 | insufficient ratings | 1.8.0 (Workshop updated 2026-06-01) |
 
 ## Network Purist Plus
 
@@ -58,6 +60,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-21 | 22 | 231 | 0 | 0 | 2 | insufficient ratings | 1.1.2 (Workshop updated 2026-05-21) |
 | 2026-05-31 | 32 | 447 | 3 | 0 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
 | 2026-06-01 | 35 | 542 | 4 | 0 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
+| 2026-06-20 | 54 | 802 | 6 | 2 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
 
 ## Inspector Plus
 
@@ -69,6 +72,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-21 | 1 | 1 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-05-31 | 6 | 71 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-06-01 | 6 | 112 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
+| 2026-06-20 | 9 | 204 | 2 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 
 ## KeypadMod Fix
 
@@ -78,6 +82,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
 |---|---|---|---|---|---|---|---|
 | 2026-06-01 | 2 | 3 | 0 | 0 | 0 | insufficient ratings | 1.0.0 (Workshop updated 2026-06-01) |
+| 2026-06-20 | 103 | 382 | 5 | 13 | 0 | insufficient ratings | 1.0.0 (Workshop updated 2026-06-01) |
 
 ## Not yet published
 
