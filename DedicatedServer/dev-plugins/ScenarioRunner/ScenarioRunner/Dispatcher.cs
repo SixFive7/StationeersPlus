@@ -113,6 +113,10 @@ namespace ScenarioRunner
                     Scenario_ConnectorDump();
                     return;
 
+                case "paintable-prefab-dump":
+                    Scenario_PaintablePrefabDump();
+                    return;
+
                 case "pgp-passthrough-port-probe":
                     Scenario_PgpPassthroughPortProbe();
                     return;
@@ -633,6 +637,112 @@ namespace ScenarioRunner
             {
                 _log?.LogError($"[ScenarioRunner] connector-dump threw: {e}");
             }
+        }
+
+        // ---- General scenario: paintable-prefab-dump ----
+        //
+        // One-shot. Answers "which structures are spray-paintable" by reading each
+        // prefab's serialized PaintableMaterial field. Thing.IsPaintable returns true
+        // iff PaintableMaterial != null (for non-mask types), and the in-game
+        // Stationpedia "Paintable: Yes/No" line reads the same field, so a non-null
+        // PaintableMaterial IS the paintability signal. Dumps a fixed list of the
+        // steel- and iron-frame construction variants plus the composite walls (a
+        // known-paintable control), then a one-line summary across every Structure
+        // prefab (preview for a future whole-game paintability sweep).
+        //
+        // Threading: PaintableMaterial is a plain managed field read; null is tested
+        // with ReferenceEquals (NOT the UnityEngine.Object == operator, which marshals
+        // to native) so no Unity API is touched. structureRenderMode and
+        // _customMaterials are read via reflection (value-type / managed List). All
+        // managed-state -> safe from the UniTask worker the sim-tick pump runs on.
+
+        private static bool _paintableDumpFired;
+
+        private static void Scenario_PaintablePrefabDump()
+        {
+            if (_paintableDumpFired) return;
+            _paintableDumpFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] paintable-prefab-dump START");
+
+                string[] frameNames =
+                {
+                    // steel frame kit (ItemSteelFrames) -> 4 shapes (the question)
+                    "StructureFrame", "StructureFrameSide", "StructureFrameCorner", "StructureFrameCornerCut",
+                    // iron frame kit (ItemIronFrames) for comparison
+                    "StructureFrameIron",
+                    // composite walls + window (separate Kit (Wall)) -- known paintable control
+                    "StructureCompositeWall", "StructureCompositeWall02", "StructureCompositeWall03",
+                    "StructureCompositeWall04", "StructureCompositeWindow",
+                };
+
+                foreach (var name in frameNames)
+                {
+                    var prefab = Prefab.Find(name) as Thing;
+                    if (prefab == null)
+                    {
+                        _log?.LogInfo($"[ScenarioRunner] paintable | {name} NOT FOUND");
+                        continue;
+                    }
+                    _log?.LogInfo($"[ScenarioRunner] paintable | {PaintLine(prefab)}");
+                }
+
+                // Summary across all Structure prefabs (preview for the whole-game sweep).
+                int total = 0, set = 0, unset = 0;
+                foreach (var p in Prefab.AllPrefabs)
+                {
+                    if (p == null) continue;
+                    if (!(p is Structure)) continue;
+                    total++;
+                    if (PaintableSet(p)) set++; else unset++;
+                }
+                _log?.LogInfo($"[ScenarioRunner] paintable SUMMARY structures={total} paintable={set} notPaintable={unset}");
+                _log?.LogInfo("[ScenarioRunner] paintable-prefab-dump END");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] paintable-prefab-dump threw: {e}");
+            }
+        }
+
+        private static bool PaintableSet(Thing t)
+        {
+            try { return !object.ReferenceEquals(t.PaintableMaterial, null); }
+            catch { return false; }
+        }
+
+        private static string PaintLine(Thing prefab)
+        {
+            string name = prefab.PrefabName ?? "";
+            string type = prefab.GetType().Name;
+            bool paintable = PaintableSet(prefab);
+
+            string renderMode = "n/a";
+            if (prefab is Structure)
+            {
+                try
+                {
+                    var f = typeof(Structure).GetField("structureRenderMode",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var v = f?.GetValue(prefab);
+                    renderMode = v?.ToString() ?? "null";
+                }
+                catch { renderMode = "err"; }
+            }
+
+            int cmCount = -1;
+            try
+            {
+                var f = typeof(Thing).GetField("_customMaterials",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var v = f?.GetValue(prefab) as System.Collections.ICollection;
+                cmCount = v?.Count ?? -1;
+            }
+            catch { cmCount = -2; }
+
+            return $"{name} type={type} PaintableMaterialSet={paintable} renderMode={renderMode} customMaterials={cmCount}";
         }
 
         // ---- PGP scenario: passthrough-port-probe ----
