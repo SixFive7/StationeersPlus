@@ -28,7 +28,7 @@ The power umbilical pair that links a rocket's internal power grid to an externa
 (The exact prefab names are prefab asset data; the class is decompile-confirmed. The "Angle" socket is a second prefab of the same `RocketPowerUmbilicalFemale` class.)
 
 ## Class model
-<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
 
 Both halves derive from `ElectricalInputOutput` (the same power base as `Battery` / `Transformer` / `AreaPowerControl`, so each has `InputNetwork` / `OutputNetwork` cable references and `InputConnection` / `OutputConnection`) and implement `IUmbilical`:
 
@@ -43,7 +43,7 @@ The Female is the rocket-internal side: `InternalCellType => RocketInternalCellT
 - Male `IsCompatibleWith(other) => other is RocketPowerUmbilicalFemale` (L148792); on `SetPartner` it stores `partner as RocketPowerUmbilicalFemale` and re-checks error state (L148785-L148790).
 - `OnLaunch` severs the partner (`_partnerUmbilical = null`); `OnLanded` re-runs `FindAndSetOtherUmbilical` (Female L148200-L148220, Male L148774-L148783).
 
-Each half carries its own internal battery cell: `[Header("Battery")] public float PowerMaximum = 10000f;` (Female L147898, Male L148272). `PowerStored` is clamped to `[0, PowerMaximum]`; `AvailablePower => PowerStored`.
+Each half carries its own internal battery cell. The class field default is `[Header("Battery")] public float PowerMaximum = 10000f;` (Female L147898, Male L148272), but the prefab overrides it to **4900 J** for both `StructurePowerUmbilicalMale` and `StructurePowerUmbilicalFemale` (runtime-confirmed via a `Prefab.AllPrefabs` dump, 2026-06-21), so the real in-game cell is 4.9 kJ, not 10 kJ. `PowerStored` is clamped to `[0, PowerMaximum]`; `AvailablePower => PowerStored`.
 
 ## Partner pairing and connection state
 <!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
@@ -93,7 +93,7 @@ private bool PartnerValid
 `IsOperable` differs per half: Male = `PartnerValid && InputNetwork != null` (L148342-148352); Female = `OutputNetwork != null && base.IsOperable` (L147962-147972). `CanTransfer` / `PartnerValid` gate the per-tick `MovePowerToUmbilical` (so power flow also requires the rocket to be on the launch mount). For "physically docked" alone, `_partnerUmbilical != null` is the correct gate: it is non-null whenever the two halves are coupled, regardless of power or launch state.
 
 ## Power transfer: paired batteries, NOT a dumb wire
-<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
 
 The coupling across the gap is an explicit, one-directional, per-tick transfer between the two internal cells, not a cable-network merge. The Male half drives it from `OnPowerTick` (L148573):
 
@@ -117,7 +117,7 @@ So the Male moves `min(partner headroom, own stored)` into the Female's cell eac
 
 The game also forbids wiring a plain cable straight onto an umbilical connector: `Cable.CanConstruct` rejects placement adjacent to an umbilical (`IsConnectingToUmbilical`), so the two halves cannot be bridged by an ordinary cable. The umbilical is its own transfer device.
 
-Net model: `[external grid] -> Male cell (10 kW) --MovePowerToUmbilical--> Female cell (10 kW) -> rocket-internal grid`. Each cell is a 10000 J buffer; the two cells decouple the two grids and meter flow across the gap.
+Net model: `[external grid] -> Male cell --MovePowerToUmbilical--> Female cell -> rocket-internal grid`. Each cell is a 4900 J buffer (the prefab value; the class default is 10000f, see Class model); the two cells decouple the two grids and meter flow across the gap.
 
 ## Per-tick power methods (battery-like, side-keyed)
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
@@ -177,6 +177,7 @@ The Male declares its own `CanLogicRead`; the Female inherits the `Device` base 
 
 ## Verification history
 
+- 2026-06-21: corrected the umbilical cell size -- the prefab overrides `PowerMaximum` to 4900 J on both halves, not the 10000f class default; runtime-confirmed via a `Prefab.AllPrefabs` dump on the dedicated server. Restamped Class model + Power transfer.
 - 2026-06-21: added "Partner pairing and connection state" section (private `_partnerUmbilical` fields typed to the partner class, L147900 / L148283; no public `IUmbilical` partner getter; `_savedPartnerId` L148295; exact `CanTransfer` / `PartnerValid` / `IsOperable` per half). Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` while implementing the PowerGridPlus umbilical logic-passthrough feature. Additive; no conflict with existing content.
 - 2026-06-18: confirmed the connector layouts via a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): Male = 2 connectors (`Power/Input` + dedicated `Data/None`), Female and Female-Side = 1 connector (`Power/Output`). Updated the Connectors section and resolved the OpenEnds open question.
 - 2026-06-18: page created. Sourced from a PowerGridPlus rocket-device investigation reading `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` L147890-148260 (Female) and L148260-148810 (Male) directly: class headers, the `PowerMaximum = 10000f` internal cells, `MovePowerToUmbilical` (L148715) doing `_partnerUmbilical.ReceivePower(null, n)`, the side-keyed power quartet, and the `IUmbilical` partner machinery. Confirms umbilicals are paired battery-buffer transfer devices, not dumb wires, and that connector layout / cable-type acceptance is prefab data.
