@@ -46,6 +46,13 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 - Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
 - Same Shift / Ctrl modifiers apply
 
+### Extra Paintable Structures
+Some structures ship from the base game without a paintable surface, so the spray can ignores them. This mod adds the missing surface so they paint like their siblings.
+- Currently covers the **Steel Frame (Corner)** and **Steel Frame (Side)** shapes from the Steel Frames kit; the base Steel Frame and Steel Frame (Corner Cut) were already paintable
+- Controlled by the **Make More Structures Paintable** client setting (default on)
+- Painted frames also flow through Network Paint Large Structures like any other connected structure
+- More normally-unpaintable structures will be added in future versions
+
 ### Glow Paint
 
 *Flavour: classified ODA research paint; the datasheet redacts everything below "handle with gloves".*
@@ -67,7 +74,13 @@ You can remove Spray Paint Plus from an existing save without breaking it. Saves
 
 All features are configurable via the mod settings panel.
 
-Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the sixteen entries under four headers:
+Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the seventeen entries under five headers:
+
+**Client - Paintability**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Make More Structures Paintable | On | Spray-paint structures the base game leaves unpaintable (currently the Steel Frame corner and side shapes) |
 
 **Client - Preferences**:
 

@@ -31,6 +31,7 @@ namespace SprayPaintPlus
         // Client settings
         internal static ConfigEntry<bool> InvertColorScrollDirection;
         internal static ConfigEntry<bool> PaintSingleItemByDefault;
+        internal static ConfigEntry<bool> MakeMoreStructuresPaintable;
 
         // Server settings
         internal static ConfigEntry<bool> UnlimitedSprayPaintUses;
@@ -98,11 +99,60 @@ namespace SprayPaintPlus
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
                 Log.LogInfo("Patches applied successfully");
+
+                ApplyExtraPaintability();
             }
             catch (Exception e)
             {
                 Log.LogFatal($"Failed to apply patches: {e}");
             }
+        }
+
+        // Structures the base game ships without a PaintableMaterial, so the vanilla
+        // spray can refuses them. Setting PaintableMaterial flips Thing.IsPaintable to
+        // true; the recolor itself works because the steel-frame material is a
+        // Texture2DArray-backed paint material (Thing builds its _customMaterials list
+        // from any renderer whose material == PaintableMaterial OR uses a Texture2DArray),
+        // and the frames render in Standard mode so Structure.SetCustomColor does not
+        // throw. Verified on game 0.2.6228.27061: the Steel Frame and Steel Frame
+        // (Corner Cut) ship paintable; Steel Frame (Corner) and (Side) do not. Once
+        // paintable they also flow through the existing "Network Paint Large Structures"
+        // flood automatically.
+        private static readonly string[] ExtraPaintableStructures =
+        {
+            "StructureFrameSide",
+            "StructureFrameCorner",
+        };
+
+        private static void ApplyExtraPaintability()
+        {
+            if (!MakeMoreStructuresPaintable.Value) return;
+
+            // Donor material from a paintable sibling in the same Steel Frame kit; the
+            // Corner/Side meshes use this same steel paint material.
+            var donor = Prefab.Find("StructureFrame") as Thing;
+            var donorMaterial = (donor != null) ? donor.PaintableMaterial : null;
+            if (donorMaterial == null)
+            {
+                Log.LogWarning("Extra paintability: donor 'StructureFrame' has no PaintableMaterial; skipping.");
+                return;
+            }
+
+            int changed = 0;
+            foreach (var prefabName in ExtraPaintableStructures)
+            {
+                var thing = Prefab.Find(prefabName) as Thing;
+                if (thing == null)
+                {
+                    Log.LogWarning($"Extra paintability: prefab '{prefabName}' not found; skipping.");
+                    continue;
+                }
+                if (thing.PaintableMaterial != null) continue; // already paintable in vanilla
+                thing.PaintableMaterial = donorMaterial;
+                changed++;
+                Log.LogInfo($"Extra paintability: '{prefabName}' is now paintable.");
+            }
+            Log.LogInfo($"Extra paintability: {changed} structure(s) made paintable.");
         }
 
         private static void RegisterSaveDataTypeLate(Type t)
@@ -166,6 +216,16 @@ namespace SprayPaintPlus
                     "through spray can colors. Each player can set this independently.",
                     null,
                     new KeyValuePair<string, int>("Order", 20)));
+
+            MakeMoreStructuresPaintable = Config.Bind(
+                "Client - Paintability", "Make More Structures Paintable", true,
+                new ConfigDescription(
+                    "(Client-local) Lets you spray-paint structures the base game leaves unpaintable. " +
+                    "This version covers the Steel Frame (Corner) and Steel Frame (Side) shapes, which the " +
+                    "base game ships without a paintable surface; more structures will be added in future versions. " +
+                    "Each player sets this independently; applies when the game starts.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
 
             UnlimitedSprayPaintUses = Config.Bind(
                 "Server - Consumables", "Unlimited Spray Paint Uses", true,
