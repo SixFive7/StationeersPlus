@@ -2,6 +2,13 @@
 
 Full version history for Spray Paint Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.10.0: Paint the Steel Frame corner and side variants
+- NEW: The Steel Frame (Corner) and Steel Frame (Side) shapes now accept spray paint, like the other two shapes from the Steel Frames kit. The base game ships them without a paintable surface, so the spray can ignored them.
+- NEW: Client setting "Make More Structures Paintable" (default On), under a new Client - Paintability group. More normally-unpaintable structures will be added in later versions.
+- Painted frames also flood through Network Paint Large Structures like any other connected structure.
+- Multiplayer-safe; no save-format changes.
+- REQUIRES: All players on a server must run 1.10.0 (matching-version handshake).
+
 ## v1.9.0: Paint ladders, stairs, and stairwells
 - NEW: Painting a ladder paints the whole vertical run, ladder end caps included.
 - NEW: Painting a stair flight paints the whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it.

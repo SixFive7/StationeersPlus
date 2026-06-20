@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.9.0</Version>
+  <Version>1.10.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
@@ -21,7 +21,7 @@ Scroll your mouse wheel while holding a spray can to cycle through all paint col
 [h3]Color Picking (Eyedropper)[/h3]
 Right-click any paintable object with a spray can in hand to copy its color onto the can. Left-click the next item to match.
 [list]
-[*][b]Ctrl+right-click[/b] picks the as-built color the target would have coming out of its kit, ignoring any later repaint
+[*][b]Ctrl+right-click[/b] picks the as-built kit color, ignoring any later repaint
 [*][b]Shift+right-click[/b] is reserved (currently no-op)
 [*]Works on any paintable object
 [/list]
@@ -34,14 +34,14 @@ Spray-paint one piece of a connected network and the whole network gets painted 
 [list]
 [*][b]Hold Shift[/b] to paint just a single item (or swap this default, see Settings)
 [*][b]Hold Ctrl[/b] for a checkered/alternating paint pattern
-[*]Works on: pipe networks (hydroponic trays and passive vents are separate paint groups), cable networks, chute networks, robotic arm rail assemblies (rails, junctions, bypass pieces, docks), and elevators (all shaft and level segments; the carriage is painted separately)
-[*]Stairs connect every flight forming one continuous staircase, set side by side to widen it or run up or down to lengthen it; stairwells connect every adjacent block across all eight types and any orientation; ladders connect the vertical column, ladder end caps included
+[*]Works on pipe networks (hydroponic trays and passive vents paint separately), cable networks, chute networks, robotic arm rail assemblies, and elevators (the carriage is painted separately)
+[*]Stairs connect every flight of a continuous staircase; stairwells connect every adjacent block, all eight types and any orientation; ladders connect the column, end caps included
 [/list]
 
 [h3]Room &amp; Structure Painting[/h3]
 Spray-paint a wall and every same-type wall bounding the same room is painted. Spray-paint a frame, girder, or any other large structure and all orthogonally-connected structures of the same exact type are painted with it.
 [list]
-[*]Walls use the game's Room membership to decide the paint set. Paint spills across any wall the room touches, but never past a doorway into another room
+[*]Walls flood by Room membership: paint spills across the room's walls but never past a doorway
 [*]Large structures flood-fill on a grid using 6-neighbor (cardinal) adjacency only; diagonals are not followed
 [*]Same Shift / Ctrl modifiers apply
 [/list]
@@ -58,11 +58,16 @@ The [b]Spray Paint Gun[/b] becomes a glow applicator: fire at a painted target t
 [/list]
 
 [h3]Safe to Uninstall[/h3]
-Saves written by v1.6.0+ open cleanly without this mod; glow lives in a side-car the vanilla loader ignores. Re-install to restore glow.
+Saves written by v1.6.0+ open cleanly without this mod; glow lives in a side-car the vanilla loader ignores.
 
 [h3]Settings[/h3]
 
 All features are configurable via the mod settings panel.
+
+[b]Client - Paintability[/b] (personal preference, each player sets independently):
+[list]
+[*][b]Make More Structures Paintable[/b] (default On): Paint structures the base game leaves unpaintable, currently the Steel Frame corner and side shapes
+[/list]
 
 [b]Client - Preferences[/b] (personal preference, each player sets independently):
 [list]
@@ -130,14 +135,12 @@ Found a bug? Please open an issue on [url=https://github.com/SixFive7/Stationeer
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.9.0: Paint ladders, stairs, and stairwells
-- NEW: Painting a ladder paints the whole vertical run, ladder end caps included.
-- NEW: Painting a stair flight paints the whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it.
-- NEW: Painting a stairwell paints every adjacent stairwell, across all eight stairwell types and any orientation.
-- NEW: Server toggles "Network Paint Ladders", "Network Paint Stairs", and "Network Paint Stairwells" (all default On).
-- Shift restricts to the single piece; Ctrl gives a checkered pattern (a checkerboard across a staircase, a 3D checker for stairwell blocks, alternating rungs up a ladder).
+v1.10.0: Paint the Steel Frame corner and side variants
+- NEW: The Steel Frame (Corner) and Steel Frame (Side) shapes now accept spray paint, like the other two shapes from the Steel Frames kit. The base game ships them without a paintable surface, so the spray can ignored them.
+- NEW: Client setting "Make More Structures Paintable" (default On), under a new Client - Paintability group. More normally-unpaintable structures will be added in later versions.
+- Painted frames also flood through Network Paint Large Structures like any other connected structure.
 - Multiplayer-safe; no save-format changes.
-- REQUIRES: All players on a server must run 1.9.0 (matching-version handshake).
+- REQUIRES: All players on a server must run 1.10.0 (matching-version handshake).
   </ChangeLog>
   <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
