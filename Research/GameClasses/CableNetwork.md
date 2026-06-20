@@ -3,7 +3,7 @@ title: CableNetwork
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-13
+verified_at: 2026-06-20
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.CableNetwork
 related:
@@ -146,6 +146,27 @@ Consequences:
 - Dirtying is split. `DirtyPowerAndDataDeviceLists()` dirties both; `DirtyDataDeviceList()` dirties only the data side.
 
 This is the architectural hook that lets a single physical cable carry both signals while letting a device participate in only one.
+
+## Consumer: the Network Analyser reads the raw `DeviceList`, not `DataDeviceList`
+<!-- verified: 0.2.6228.27061 @ 2026-06-20 -->
+
+The `NetworkAnalyser` tablet cartridge (decompile line 331171, `public class NetworkAnalyser : Cartridge`) populates its screen from the scanned network's base `DeviceList` field, not from `DataDeviceList`. `GetScannedNetwork()` (line 331205) returns the `CableNetwork`; `OnPreScreenUpdate()` (line 331273) reads the device count and iterates the device list directly (lines 331287 and 331295):
+
+```csharp
+_devicesValueText = _scannedNetwork.DeviceList.Count.ToString();
+...
+foreach (Device device in _scannedNetwork.DeviceList)
+{
+    num++;
+    _tempDeviceOutput += $"\n{StringManager.Get(num)}.{device.DisplayName}";
+    // ...per-device OnOff / Powered / Open / Error state appended...
+}
+```
+
+Consequences:
+
+- The on-screen device list and "Total Devices" count reflect physical cable membership only. `DeviceList` is the superset rebuilt from each device's `PowerCables` / `DataCables` pointing into this network (see "Data device list" above); it is never augmented by the data-relay path. Devices merged into `_dataDeviceList` are NOT shown on the analyser: `HandleDataNetTransmissionDevice` (the rocket data-link relay) and any mod that augments the data list target `_dataDeviceList`, never the base `DeviceList`.
+- A mod that makes remote devices logic-visible by augmenting the data list (a postfix on the `DataDeviceList` getter, or on `RefreshPowerAndDataDeviceLists` that appends to `_dataDeviceList`) changes what IC10 batch ops (`lb` / `sb`) and logic readers traverse, but does NOT change what the Network Analyser screen displays. Reflecting such a merge on the analyser requires separately patching `NetworkAnalyser.OnPreScreenUpdate`, for example a transpiler that redirects the two `DeviceList` field loads to a merged list. Observed in the wild: the third-party OmniLink mod pairs a `DataDeviceList`-getter postfix with exactly such a `NetworkAnalyser.OnPreScreenUpdate` transpiler for this reason.
 
 ## Refresh cadence: device lists dirty only on structural change, never per tick
 <!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
@@ -621,6 +642,7 @@ A neighbour is considered "connected" if **any** of its OpenEnds shares a Networ
 - 2026-05-18: added "Resolution: deterministic Merge sort" section. Confirmed via the full decompile that the bug was vanilla-structural, not Power Grid Plus -- the original 2026-05-15 "disappears when Power Grid Plus is disabled" observation was symptomatic of Power Grid Plus's tier-burn mechanic generating enough cable destroy/place churn to expose the latent ordering bug, not a Power Grid Plus patch directly mutating cable state on the client. Reviewed all 15 Power Grid Plus patches, plus the NetworkPuristPlus and SprayPaintPlus patches that touch cable / glow state: every state-mutating path is either caller-gated on `GameManager.RunSimulation` (host-only) or mode-gated on a thread-static set inside a `RunSimulation` branch. None mutate cable rotation, OpenEnds, or network state on a client instance. The remaining open question is upstream-cause-of-rotation-divergence, narrowed below. Sourced from decompile lines 253998-254014 (`CableNetwork.Merge(List)`), 177412-177430 (`StructureNetwork.Merge(List, out)`), 254113 (`CableNetwork.ConnectedNetworks`), 177115 (`StructureNetwork.ConnectedNetworks`), 150889 / 162600 (`INetworkedRocketPart` / `INetworkedRoboticArm` `DeserializeOnJoin` client-side local merge call sites).
 - 2026-06-13: extended the ConnectedCables-iteration-order note in the **Merge** section to record that the `ConnectedCables(NetworkType)` overload (line 294319) ALSO reads `openEnd.Transform.position` (line 294326), so it is buffer-safe (fresh list) but NOT worker-thread-safe -- the same main-thread-only Transform coupling as the parameterless overload. Documents that the game routes around this on the worker thread via cached `Connection.LocalGrid`, that Power Grid Plus's `VoltageTier.HasHigherTierNeighbour` wraps its call in a `try/catch` for exactly this reason (degraded boundary targeting on the worker thread, not a crash), and that this coupling is why vanilla's `RebuildNetwork` split BFS cannot be invoked from the power-tick worker thread to land a split in-tick. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 294267-294335 (both `ConnectedCables` overloads verbatim). Produced while evaluating whether Power Grid Plus could make a cable burn's network split land in the same tick. Cross-links the new [Cable](./Cable.md) "Network split on destruction" section.
 - 2026-05-21: added "Refresh cadence: device lists dirty only on structural change, never per tick" section. Enumerated all `DirtyPowerAndDataDeviceLists()` / `DirtyDataDeviceList()` call sites from the decompile (lines 253652, 253849, 253858, 253892, 253966, 253995, 350798-350799, 364937, 365077, 365094, 365182, 365333): every one is a membership / connectivity / data-link-config event, none per-tick. Additive (no existing claim contradicted). Documents that a postfix on `RefreshPowerAndDataDeviceLists` runs at topology-change cadence and that transitive cross-network logic passthrough must propagate its own dirty. Produced while designing multi-hop logic passthrough for Power Grid Plus.
+- 2026-06-20: added "Consumer: the Network Analyser reads the raw `DeviceList`, not `DataDeviceList`" section, sourced from `Assembly-CSharp` decompile lines 331171 (`NetworkAnalyser : Cartridge`), 331205 (`GetScannedNetwork`), and 331273-331317 (`OnPreScreenUpdate` reading `_scannedNetwork.DeviceList.Count` at 331287 and iterating `_scannedNetwork.DeviceList` at 331295). Additive; no existing claim contradicted. Documents that the analyser screen shows physical `DeviceList` membership only, so devices merged into `_dataDeviceList` (the rocket data-link relay, or a mod's logic-passthrough) do not appear there unless `NetworkAnalyser.OnPreScreenUpdate` is also patched. Found while analyzing the third-party OmniLink mod, which pairs a `DataDeviceList`-getter postfix with a `NetworkAnalyser.OnPreScreenUpdate` transpiler for exactly this reason.
 
 ## Open questions
 
