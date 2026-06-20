@@ -85,6 +85,13 @@ if ((bool)stairs)
 
 NPC pathing walks a connected stair run through the `Entry` / `Exit` grid points, not raw cell adjacency: `GetStairExitPoint` / `GetStairEntryPoint` (decompile lines 272840-272905) recurse from a stair's `Exit` to the stair whose `Entry` matches (`cell.Stairs.Entry == startGrid`), and vice versa, chaining the run floor by floor. Because a stair climbs up AND forward, consecutive stairs are diagonally offset, so the `Entry`/`Exit` chain (not orthogonal cell adjacency) is the reliable way to enumerate a run.
 
+## Stairwell variants (zero Entry/Exit)
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+
+The buildable stairwells are all the `Stairs` class, not a separate type. The variants observed are `StructureStairwellFrontPassthrough`, `StructureStairwellBackPassthrough`, `StructureStairwellNoDoors`, `StructureStairwellFrontLeft`, `StructureStairwellFrontRight`, `StructureStairwellBackLeft`, and `StructureStairwellBackRight` (display names "Stairwell (Front Passthrough)", "Stairwell (Back Right)", etc.); the in-game kit lists eight. Unlike an angled flight, a stairwell is a vertical pass / door piece with no climb, so the game leaves its `Entry` and `Exit` at `(0,0,0)`. Angled `Stairs` flights set `Entry` / `Exit` from their `EntryPoint` / `ExitPoint` transforms in `OnRegistered` (see above). So a runtime `Entry == Exit == Grid3.zero` test reliably separates a stairwell from an angled flight, even though both are the same C# class.
+
+Verified via InspectorPlus on 2026-06-19 in game version 0.2.6228.27061. Request: `types=[Stairs], fields=[ReferenceId, DisplayName, PrefabHash, Position, Entry, Exit, Forward]` over a stacked column built from each variant; every stairwell variant reported `Entry` and `Exit` of `(0,0,0)`, while adjacent angled `StructureStairs4x2` flights carried non-zero `Entry`/`Exit`.
+
 ## Flood / traversal implication
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
@@ -94,6 +101,7 @@ Because `Stairs : Structure` is not a `LargeStructure`, a flood keyed on `thing 
 
 - 2026-06-19: page created while scoping ladder and stairs flood-painting for Spray Paint Plus. Verbatim from `Assets.Scripts.Objects.Stairs` (class shape, `CanConstruct`, `OnRegistered`, `CanConstructCell`), game version 0.2.6228.27061. Additive; new page. The hierarchy fact `Stairs : Structure` is also noted in `Structure.md`.
 - 2026-06-19: added "IsStairs, the Cell.Stairs slot, and the Entry/Exit run model" section (`Structure.IsStairs` verbatim, `Cell.Add` stairs routing, the `GetStairExitPoint`/`GetStairEntryPoint` pathing chain) and corrected the "Flood / traversal implication" section: stacked stairs are diagonally offset and connect via `Entry`/`Exit`, so a plain orthogonal BFS does not walk a run. Confirmed no `Stairwell` class exists in `Assembly-CSharp`. Sources: `Structure.IsStairs`, `Cell.Add`, `Assets.Scripts.GridSystem` stair-pathing helpers, game version 0.2.6228.27061.
+- 2026-06-19: added "Stairwell variants (zero Entry/Exit)" section from an InspectorPlus capture of a stacked column built from each stairwell variant; every variant reports `Entry` / `Exit` of `(0,0,0)` while adjacent angled `StructureStairs4x2` flights do not, giving a reliable runtime stairwell-versus-flight test. Game version 0.2.6228.27061.
 
 ## Open questions
 
