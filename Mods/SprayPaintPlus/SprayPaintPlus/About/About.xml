@@ -3,10 +3,10 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.8.0</Version>
+  <Version>1.9.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
-Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod. See the Credits section below for attribution to the original mods this one builds on.
+Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
 
 Full multiplayer compatibility. Safe to remove from existing savegames.
 
@@ -16,25 +16,26 @@ Full multiplayer compatibility. Safe to remove from existing savegames.
 Works for host and clients alike; late joiners immediately see the correct spray can colors.
 
 [h3]Color Cycling[/h3]
-Scroll your mouse wheel while holding a spray can to cycle through all available paint colors. No more carrying twelve cans in a backpack.
+Scroll your mouse wheel while holding a spray can to cycle through all paint colors. No more carrying twelve cans in a backpack.
 
 [h3]Color Picking (Eyedropper)[/h3]
-Right-click any paintable object while holding a spray can to copy its color onto the can. Left-click the next item to match.
+Right-click any paintable object with a spray can in hand to copy its color onto the can. Left-click the next item to match.
 [list]
-[*][b]Ctrl+right-click[/b] picks the as-built color the target would have coming out of its kit, independent of any later repaint
+[*][b]Ctrl+right-click[/b] picks the as-built color the target would have coming out of its kit, ignoring any later repaint
 [*][b]Shift+right-click[/b] is reserved (currently no-op)
 [*]Works on any paintable object
 [/list]
 
 [h3]Infinite Spray Paint[/h3]
-All spray cans have unlimited uses and produce no pollution. Both are configurable.
+Spray cans have unlimited uses and produce no pollution. Both are configurable.
 
 [h3]Network Painting[/h3]
-Spray-paint a pipe, cable, chute, robotic arm rail, or elevator and the entire connected network gets painted at once.
+Spray-paint one piece of a connected network and the whole network gets painted at once.
 [list]
 [*][b]Hold Shift[/b] to paint just a single item (or swap this default, see Settings)
 [*][b]Hold Ctrl[/b] for a checkered/alternating paint pattern
-[*]Works on: pipe networks (including hydroponic trays and passive vents as separate paint groups), cable networks, chute networks, robotic arm rail assemblies (rails, junctions, bypass pieces, and docks), and elevators (all shaft and level segments; the carriage is painted separately)
+[*]Works on: pipe networks (hydroponic trays and passive vents are separate paint groups), cable networks, chute networks, robotic arm rail assemblies (rails, junctions, bypass pieces, docks), and elevators (all shaft and level segments; the carriage is painted separately)
+[*]Stairs connect every flight forming one continuous staircase, set side by side to widen it or run up or down to lengthen it; stairwells connect every adjacent block across all eight types and any orientation; ladders connect the vertical column, ladder end caps included
 [/list]
 
 [h3]Room &amp; Structure Painting[/h3]
@@ -46,18 +47,18 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 [/list]
 
 [h3]Glow Paint[/h3]
-The [b]Spray Paint Gun[/b] becomes a glow applicator: fire at a painted target to add a glow halo (visible in unlit rooms) while keeping its color. Every vanilla paint color supports glow.
+The [b]Spray Paint Gun[/b] becomes a glow applicator: fire at a painted target to add a glow halo (visible in unlit rooms) while keeping its color. Every paint color supports glow.
 [list]
 [*]Gun is ammo-less. It no longer accepts spray cans; its can slot is hidden in the inventory
-[*]Gun never changes a target's color. To change color, paint with a plain can first; then fire the gun to add glow
+[*]Gun never changes a target's color. To change color, paint with a plain can first, then fire the gun to add glow
 [*]Shift (single target) and Ctrl (checkered pattern) modifiers apply to gun-paint too
 [*]Right-click the gun to switch between [b]Add Glow[/b] and [b]Remove Glow[/b] modes (vanilla on/off toggle, HUD label rebranded)
-[*]Glow state persists across save/load and syncs correctly in multiplayer; every connected player sees the same glowing targets
-[*]Server toggle "Enable Glow Paint" lets admins disable the feature; when off, the gun reverts to the vanilla can-accepting behavior
+[*]Glow state persists across save/load and syncs in multiplayer
+[*]Server toggle "Enable Glow Paint" disables the feature; when off, the gun reverts to vanilla can-accepting behavior
 [/list]
 
 [h3]Safe to Uninstall[/h3]
-Saves written by v1.6.0+ open cleanly without this mod; glow lives in a side-car the vanilla loader ignores. Re-install and load a pre-removal save to restore glow.
+Saves written by v1.6.0+ open cleanly without this mod; glow lives in a side-car the vanilla loader ignores. Re-install to restore glow.
 
 [h3]Settings[/h3]
 
@@ -77,7 +78,7 @@ All features are configurable via the mod settings panel.
 
 [b]Server - Glow Paint[/b]:
 [list]
-[*][b]Enable Glow Paint[/b] (default On): The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior (accepts and uses loaded spray cans as ammo)
+[*][b]Enable Glow Paint[/b] (default On): The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior
 [/list]
 
 [b]Server - Network Painting[/b]:
@@ -90,6 +91,9 @@ All features are configurable via the mod settings panel.
 [*][b]Network Paint Rails[/b] (default On): Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke
 [*][b]Network Paint Large Structures[/b] (default On): Paint connected frames, girders, and other large structures in a 6-neighbor grid
 [*][b]Network Paint Elevators[/b] (default On): Paint all shaft and level segments on one elevator (the carriage is painted separately)
+[*][b]Network Paint Ladders[/b] (default On): Paint a whole ladder column in one stroke, including ladder end caps
+[*][b]Network Paint Stairs[/b] (default On): Paint a whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it
+[*][b]Network Paint Stairwells[/b] (default On): Paint every adjacent stairwell, across all eight stairwell types and any orientation
 [/list]
 
 [h2]Compatibility[/h2]
@@ -111,16 +115,14 @@ All features are configurable via the mod settings panel.
 [b]All players[/b] (including dedicated servers) need the same BepInEx + StationeersLaunchPad + Spray Paint Plus setup; matching versions are enforced by the handshake.
 
 [h2]Reporting Issues[/h2]
-If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+Found a bug? Please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url] with the mod name in the title. Steam comment notifications are unreliable, so GitHub is the way to make sure a report is seen.
 
 [h2]Credits[/h2]
-
-Spray Paint Plus would not exist without the modders who came before:
 [list]
-[*][b]Elmotrix[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url] and [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url], the original spray paint enhancement mods for Stationeers. The core ideas of scroll-to-cycle and paint-entire-networks are theirs.
+[*][b]Elmotrix[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3163662298]Color Cycler[/url] and [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2876605527]Network Painter[/url]. The core ideas of scroll-to-cycle and paint-entire-networks are theirs.
 [*][b]SubHobo[/b] (bls220): Contributed the initial multiplayer networking code to Color Cycler via [url=https://github.com/Elmotrix/ColorCyclerMod/pull/1]PR #1[/url].
-[*][b]Aspct[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url], the original clean infinite paint mod for Stationeers.
-[*][b]Dingo (DingoPD)[/b]: Created the original [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url], the first infinite spray paint mod for Stationeers.
+[*][b]Aspct[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3576112002]Infinite Spray Paint[/url].
+[*][b]Dingo (DingoPD)[/b]: Created the original [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1761980496]Infinite Paint Mod[/url].
 [/list]
 
 [url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus]Source Code on GitHub[/url]
@@ -128,13 +130,14 @@ Spray Paint Plus would not exist without the modders who came before:
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.8.0: Paint whole elevators
-- NEW: Painting any elevator shaft or level segment paints every shaft and level segment on the same elevator in one stroke, including the with-cable and without-cable build variants.
-- NEW: Server toggle "Network Paint Elevators" (default On).
-- The moving carriage is left out of the flood and painted on its own; painting the carriage directly does not repaint the shaft.
-- Shift restricts to the single targeted piece; Ctrl gives a checkered pattern that alternates segments up the column.
+v1.9.0: Paint ladders, stairs, and stairwells
+- NEW: Painting a ladder paints the whole vertical run, ladder end caps included.
+- NEW: Painting a stair flight paints the whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it.
+- NEW: Painting a stairwell paints every adjacent stairwell, across all eight stairwell types and any orientation.
+- NEW: Server toggles "Network Paint Ladders", "Network Paint Stairs", and "Network Paint Stairwells" (all default On).
+- Shift restricts to the single piece; Ctrl gives a checkered pattern (a checkerboard across a staircase, a 3D checker for stairwell blocks, alternating rungs up a ladder).
 - Multiplayer-safe; no save-format changes.
-- REQUIRES: All players on a server must run 1.8.0 (matching-version handshake).
+- REQUIRES: All players on a server must run 1.9.0 (matching-version handshake).
   </ChangeLog>
   <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
@@ -150,7 +153,7 @@ Full multiplayer compatibility. Safe to remove from existing savegames.
 - Scroll wheel cycles spray can colors
 - Right-click a target with a can to copy its color; Ctrl+right-click picks the as-built kit color
 - Infinite spray paint, no pollution (both configurable)
-- One-stroke paint for pipe / cable / chute networks, rooms of same-type walls, connected large structures, robotic arm rail assemblies, and elevators
+- One-stroke paint for pipe / cable / chute networks, rooms of same-type walls, connected large structures, robotic arm rail assemblies, elevators, ladder columns, staircases, and stairwell blocks
 - Spray Paint Gun adds glow to painted targets (ammo-less, preserves color); right-click the gun to toggle Add Glow / Remove Glow mode
 - Shift = single item, Ctrl = checkered pattern
 - Full multiplayer with matching-version handshake

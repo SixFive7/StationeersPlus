@@ -2,6 +2,15 @@
 
 Full version history for Spray Paint Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.9.0: Paint ladders, stairs, and stairwells
+- NEW: Painting a ladder paints the whole vertical run, ladder end caps included.
+- NEW: Painting a stair flight paints the whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it.
+- NEW: Painting a stairwell paints every adjacent stairwell, across all eight stairwell types and any orientation.
+- NEW: Server toggles "Network Paint Ladders", "Network Paint Stairs", and "Network Paint Stairwells" (all default On).
+- Shift restricts to the single piece; Ctrl gives a checkered pattern (a checkerboard across a staircase, a 3D checker for stairwell blocks, alternating rungs up a ladder).
+- Multiplayer-safe; no save-format changes.
+- REQUIRES: All players on a server must run 1.9.0 (matching-version handshake).
+
 ## v1.8.0: Paint whole elevators
 - NEW: Painting any elevator shaft or level segment paints every shaft and level segment on the same elevator in one stroke, including the with-cable and without-cable build variants.
 - NEW: Server toggle "Network Paint Elevators" (default On).
