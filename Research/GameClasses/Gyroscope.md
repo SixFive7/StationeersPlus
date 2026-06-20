@@ -79,18 +79,28 @@ From `english.xml` (lines 2306-2310):
 - Display name: **Gyroscope**.
 - Description: pure lore/joke flavor text ("an ancient class of spaceship... rotate in at least one of the universe's most popular directions"). It gives no build instructions, no kit name, no usage, and no "work in progress" note. The string in `english.xml` is the only localized content; the other language files match only on the unrelated substring "gyroscope" inside other words, not on a `StructureGyroscope` key (confirmed: english.xml is the only language file with a `StructureGyroscope` record).
 
+## Model and historical purpose
+<!-- verified: 0.2.6228.27061 @ 2026-06-20 -->
+
+Despite the empty class, the prefab has a **finished model**. Confirmed in-game on 2026-06-20 by injecting a `StructureGyroscope` into a save (`tools/save-edit`: clone a `StructureSaveData` donor, rename to `StructureGyroscope`) and viewing it on the dedicated server: it renders as a real structure with a **power connector and a separate data port**. So it is not a no-mesh stub; it is fully-modeled, connector-equipped cut content whose behaviour was never coded.
+
+The connectors line up with the inherited surface (`Device` is `IPowered` + `ILogicable`): it was set up to be a powered, logic/data-driven device. But there are no gyroscope-specific logic types or behaviour anywhere, so the data port drives nothing.
+
+Historical purpose (community-wiki + Steam-discussion search summaries; the live wiki is Cloudflare-blocked from this network, so not deeply verified): the gyroscope was part of Stationeers' planned **mothership** system, large player-built spacecraft. A mothership was described as needing "rocket engines, gyroscopes, a command chair, a stellar anchor, a piping network, fuel tanks, electric power, and a cable network," with the Command Chair lighting up correctly-connected systems. The gyroscope's role was attitude/rotation control (turning and stabilising the ship), matching the flavor text ("rotate in at least one of the universe's most popular directions") and the power + data ports (a logic-steerable orientation device). The small-rocket system shipped; the full mothership (gyroscope + command chair + stellar anchor) did not, leaving the gyroscope as modeled-but-empty, uncraftable content. Sources: stationeers-wiki.com/Gyroscope/en, the "Ship Design" Steam discussion, and the long-discontinued "Advanced Gyroscope" Workshop mod (filedetails id 299506613).
+
 ## Bottom line
 <!-- verified: 0.2.6228.27061 @ 2026-06-20 -->
 
-`StructureGyroscope` is a legacy / placeholder prefab, not a real player-facing structure. The class is an empty `Electrical` shell with zero implementation, no construction kit builds it, and it has only flavor-text localization. A player cannot place it or see it in normal play. Treat it as inaccessible and skip it for any feature that targets buildable structures (spray-paint support, etc.).
+`StructureGyroscope` is legacy / cut content, not a real player-facing structure. The class is an empty `Electrical` shell with zero implementation and no construction kit builds it (only flavor-text localization). It DOES have a finished model with power + data connectors (see "Model and historical purpose"), so it is not a no-mesh stub, but with no recipe a player cannot obtain it in normal play (only via admin spawn or a save edit). Skip it for any feature that targets buildable structures (spray-paint support, etc.).
 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-06-20 -->
 
 - 2026-06-20: page created. `Gyroscope : Electrical` confirmed as an empty class body (decompile lines 376045-376047); `Electrical` base read in full (lines 373728-373754); english.xml `StructureGyroscope` record read (lines 2306-2310); no kit / BuildStates / Stationpedia reference found anywhere in `Assembly-CSharp`. Conclusion: not buildable, not accessible. Additive page, no prior content contradicted.
 - 2026-06-20: independently cross-verified during a SprayPaintPlus paintability follow-up (decompile `Gyroscope` hit only at line 376045; `StructureGyroscope` unpaintable in the scan). Added the dangling `ItemKitGyroscope` note to "Not buildable" (english.xml line 1466; the kit string is unreferenced in `Assembly-CSharp` and has no fabricator recipe, only a bare entry in `paints.xml`). Conclusion unchanged.
+- 2026-06-20: added "Model and historical purpose"; resolved the mesh open question. Injected a `StructureGyroscope` into a save (`tools/save-edit` clone + rename) and viewed it in-game on the dedicated server: it has a finished model with a power connector and a data port. Documented the mothership historical purpose from community-wiki / Steam-discussion search summaries (live wiki Cloudflare-blocked, so flagged as not deeply verified). Refined the Bottom line (modeled but uncraftable, not a no-mesh stub). Core conclusion unchanged: empty class, no implemented function, not normally obtainable.
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-06-20 -->
 
-- Whether the Unity prefab asset for `StructureGyroscope` carries any authored `BuildStates` or a mesh is not determinable from the decompiled C# alone. It is moot for buildability (no kit references it), but a future check against the prefab asset or an in-game raw spawn could confirm whether a model even exists.
+- None. The earlier open question (whether the prefab carries a mesh) is resolved: it has a finished model with a power connector and a data port, confirmed by an in-game spawn (see "Model and historical purpose").
