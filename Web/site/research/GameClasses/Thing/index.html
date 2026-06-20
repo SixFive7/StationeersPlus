@@ -3146,6 +3146,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="CustomColorMapping build rule (which renderers recolor)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structures-build-the-recolor-set-per-build-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structures build the recolor set per build state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -7687,6 +7704,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="CustomColorMapping build rule (which renderers recolor)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structures-build-the-recolor-set-per-build-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structures build the recolor set per build state
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8094,6 +8128,9 @@
 <li><code>colorIndex</code> (the <code>CustomColorMapping</code> default-color, third ctor arg) is <code>GameManager.GetColorIndex(PaintableMaterial)</code>. With <code>PaintableMaterial</code> null this is <code>-1</code>; assigning the prefab its real base paint material gives the mapping the correct "unpainted default" index. Active painting (<code>SetCustomColor(index)</code>) applies the chosen index regardless, so a wrong default does not block painting, only the unpainted baseline.</li>
 <li>Worked example (game 0.2.6228.27061): the Steel Frame kit (<code>ItemSteelFrames</code>) builds four shapes. <code>StructureFrame</code> and <code>StructureFrameCornerCut</code> ship with <code>PaintableMaterial</code> set (paintable); <code>StructureFrameCorner</code> and <code>StructureFrameSide</code> ship with it null (non-sprayable in vanilla) even though their steel material is the same texture-array material. Copying the base <code>StructureFrame.PaintableMaterial</code> onto the two null prefabs at load makes all four sprayable; cross-checked on the dedicated server that the two flip to <code>IsPaintable == true</code> after the assignment, and all four report <code>structureRenderMode == Standard</code> so <code>Structure.SetCustomColor</code> does not throw the batched-mesh <code>NotImplementedException</code> (see <code>./Structure.md</code>).</li>
 </ul>
+<h3 id="structures-build-the-recolor-set-per-build-state">Structures build the recolor set per build state<a class="headerlink" href="#structures-build-the-recolor-set-per-build-state" title="Permanent link">&para;</a></h3>
+<p><code>Structure.Awake</code> (decompile line 295943-295980) runs its own copy of this inclusion test, once per <code>BuildState</code>: for each <code>BuildState.InitialDrawData.materials</code> slot it adds a <code>CustomColorMapping</code> when <code>material == PaintableMaterial || material.mainTexture is Texture2DArray</code>. That is why a structure recolors at every construction stage, not only when finished. <code>Structure.SetCustomColor</code> (line 295933) forwards to <code>base.SetCustomColor</code> (the <code>Thing</code> version above) when <code>structureRenderMode == StructureRenderMode.Standard</code>, and throws <code>NotImplementedException</code> when it is <code>Batched</code> (combined-mesh structures cannot be recolored per instance; see <code>./Structure.md</code>).</p>
+<p>Because the <code>Texture2DArray</code> branch does not depend on <code>PaintableMaterial</code>, this defines the removal-safe behaviour when a mod makes a structure paintable by assigning <code>PaintableMaterial</code> at runtime and is later uninstalled: the assignment is an in-memory prefab mutation that is never serialized, so on the next load <code>PaintableMaterial</code> is null again and the structure is no longer sprayable, yet its texture-array renderers are still gathered into <code>_customMaterials</code>, so a <code>CustomColorIndex</code> persisted in the ordinary vanilla save is reapplied and the structure keeps its color. Painting via the vanilla path adds no custom save-data type, so such a save still loads in the unmodded base game.</p>
 <h2 id="initial-customcolor-by-spawn-path">Initial CustomColor by spawn path<a class="headerlink" href="#initial-customcolor-by-spawn-path" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-22 -->
 
@@ -8261,6 +8298,7 @@
 <li>2026-04-29: added "Delete(Thing sourceItem) and the destruction entry points" section (and "Enumerating Things near a point" subsection) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: <code>Thing.Delete</code>, <code>DynamicThing.Delete</code>, <code>Thing.AttackWith</code> / <code>Structure.AttackWith</code>, <code>DestroyThingRequest</code>, <code>Thing.Find(Collider)</code> / <code>Thing._colliderLookup</code>, <code>OcclusionManager.AllThings</code> / <code>Register</code> / <code>Deregister</code>, <code>WorldManager.DeleteOutOfBoundsObjects</code> (all in <code>Assembly-CSharp</code>, game version 0.2.6228.27061).</li>
 <li>2026-04-22: refined "Initial CustomColor by spawn path" and rewrote "Printer-default color lookup" after user reported a yellow-kit-vs-orange-structure color asymmetry on a placed Ladder. Prior opening sentence "console/creative/fabricator/constructor all end at the same default" was misleading: it was true that Awake sets a default, but omitted that the Constructor path always re-overwrites that default with the KIT's color (not the target Structure's), and it failed to note that no vanilla path lets a raw Structure reach the world without going through a kit. Additions: (a) new subsection "Kit / Structure color asymmetry" explaining the two PaintableMaterial slots on a built structure, (b) new subsection "Per-spawn-path behavior" with the Authoring Tool / placement-click path (<code>OnServer.UseItemPrimaryAuthoring</code> line 948-956 substitutes <code>Prefab.Find&lt;Constructor&gt;(spawnPrefab.SpawnId)</code> for the held <code>AuthoringTool</code>), &copy; documentation of the <code>_constructKitLookup</code> reverse-lookup registered in <code>Prefab.OnLoad</code> line 244-247 and read via <code>ElectronicReader.GetAllConstructors(Thing)</code> line 642-646, (d) rewrote <code>PrinterDefaultColorIndex</code> into a kit-aware <code>AsBuiltColorIndex</code> helper. No verified claim was removed — the <code>Constructor</code> bullet at original line 120 already carried the <code>instance.CustomColor</code> detail correctly; this pass promotes that detail to the top of the section and adds the reverse-lookup primitive. No fresh validator required: refinement/addition, not contradiction of previously-verified claims. Sources additionally consulted: <code>Constructor.Construct</code> line 23-34, <code>MultiConstructor.Construct</code> line 47-61, <code>CreateStructureInstance(Structure, Grid3, Quaternion, ulong, int = -1)</code> ctor line 35-43, <code>Structure.SetStructureData</code> line 2239-2248, <code>OnServer.UseItemPrimary</code> / <code>UseItemPrimaryAuthoring</code> line 938-956, <code>Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu</code> line 58-64 + 166-200, <code>InventoryManager.SpawnDynamicThing(ICreativeSpawnable)</code> line 937-947, <code>Prefab.OnLoad</code> kit-registration line 244-247, <code>ElectronicReader._constructKitLookup</code> line 89 and <code>GetAllConstructors</code> line 642-646, <code>ElectronicReader.AddToLookup(IConstructionKit)</code> line 529-539 and 599-614, <code>DynamicThingConstructor.OnUseItem</code> at game-DLL line ~323731. All in game version 0.2.6228.27061.</li>
 <li>2026-06-20: added "CustomColorMapping build rule (which renderers recolor)" section. Additive; no existing content changed (the "CustomColor field and IsPaintable gate" section described <code>IsPaintable</code> and <code>SetCustomColor</code>'s swap loop, but not the Awake-time rule that decides which renderers populate <code>_customMaterials</code>). Source: <code>Thing.Awake</code> <code>_customMaterials</code> build at decompile line 301261-301284 (the <code>material == PaintableMaterial || material.mainTexture is Texture2DArray</code> inclusion test), game version 0.2.6228.27061. Worked example (the steel-frame Corner/Side shapes made paintable by copying <code>PaintableMaterial</code>) cross-checked live on the dedicated server via the ScenarioRunner <code>paintable-prefab-dump</code> probe: <code>StructureFrameCorner</code> and <code>StructureFrameSide</code> flip to <code>PaintableMaterialSet=True</code> after the load-time assignment, all four steel-frame shapes report <code>renderMode=Standard</code>. No fresh validator required: additive, no contradiction of previously-verified claims.</li>
+<li>2026-06-20: extended the "CustomColorMapping build rule" section with a "Structures build the recolor set per build state" subsection while answering a SprayPaintPlus savegame-removal-safety question. Documents <code>Structure.Awake</code>'s per-<code>BuildState</code> <code>_customMaterials</code> build (decompile 295943-295980, same <code>== PaintableMaterial || Texture2DArray</code> rule) and <code>Structure.SetCustomColor</code>'s Standard-forwards / Batched-throws dispatch (line 295933-295941), and spells out the removal-safe consequence (a runtime <code>PaintableMaterial</code> assignment is never serialized; a vanilla <code>CustomColorIndex</code> is reapplied via the Texture2DArray branch on load even without the mod). Additive; consistent with the existing <code>./Structure.md</code> <code>SetCustomColor</code> coverage. No fresh validator required.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
