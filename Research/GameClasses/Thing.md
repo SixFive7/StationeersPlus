@@ -3,7 +3,7 @@ title: Thing
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-04-29
+verified_at: 2026-06-20
 sources:
   - Plans/RepairPrototype/plan.md:373-383
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing
@@ -95,6 +95,45 @@ if (index < 0) return; // defensive: swatch not yet registered in GameManager.Cu
 ```
 
 The client-local `CustomColor` reflects the last value applied by either a local paint action or an incoming `ThingColorMessage`; no server round-trip is needed to read it.
+
+## CustomColorMapping build rule (which renderers recolor)
+
+<!-- verified: 0.2.6228.27061 @ 2026-06-20 -->
+
+`IsPaintable` (above) only gates whether the spray can will *target* a Thing. The set of renderers that actually change color when `SetCustomColor` runs is a separate list, `_customMaterials` (`protected List<CustomColorMapping>`), built once in `Thing.Awake` (decompile line 301261-301284):
+
+```csharp
+_customMaterials = new List<CustomColorMapping>();
+int colorIndex = GameManager.GetColorIndex(PaintableMaterial);
+MeshRenderer[] componentsInChildren = GetComponentsInChildren<MeshRenderer>(includeInactive: true);
+foreach (MeshRenderer meshRenderer in componentsInChildren)
+{
+    if (!CanCacheRenderer(meshRenderer)) continue;
+    ThingRenderer thingRenderer = new ThingRenderer(this, meshRenderer);
+    for (int num2 = 0; num2 < meshRenderer.sharedMaterials.Length; num2++)
+    {
+        Material material = meshRenderer.sharedMaterials[num2];
+        if ((object)material != null && (material == PaintableMaterial || material?.mainTexture is Texture2DArray))
+        {
+            _customMaterials.Add(new CustomColorMapping(thingRenderer, num2, colorIndex));
+        }
+    }
+    Renderers.Add(thingRenderer);
+}
+```
+
+A renderer material slot is added to the recolor set when **either**:
+
+1. the material reference-equals `PaintableMaterial`, **or**
+2. the material's `mainTexture` is a `Texture2DArray` (the standard Stationeers paint shader uses a texture-array atlas; this is how the bulk of a paintable prefab's surfaces are caught).
+
+`SetCustomColor(int)` later iterates `_customMaterials` and swaps each mapped material (skipping renderers whose GameObject is tagged `"NotPaintable"`); see the "CustomColor field and IsPaintable gate" section.
+
+Consequences (relevant to making a normally-unpaintable Thing paintable):
+
+- The two conditions are independent. `IsPaintable` is gated solely by `PaintableMaterial != null`, but the recolor set is gated by the per-renderer rule above. A prefab can therefore have texture-array materials (so its renderers *would* recolor) yet be non-sprayable because its `PaintableMaterial` slot was left null. Assigning any non-null `PaintableMaterial` flips `IsPaintable` to true, and the already-present texture-array renderers recolor with no further work.
+- `colorIndex` (the `CustomColorMapping` default-color, third ctor arg) is `GameManager.GetColorIndex(PaintableMaterial)`. With `PaintableMaterial` null this is `-1`; assigning the prefab its real base paint material gives the mapping the correct "unpainted default" index. Active painting (`SetCustomColor(index)`) applies the chosen index regardless, so a wrong default does not block painting, only the unpainted baseline.
+- Worked example (game 0.2.6228.27061): the Steel Frame kit (`ItemSteelFrames`) builds four shapes. `StructureFrame` and `StructureFrameCornerCut` ship with `PaintableMaterial` set (paintable); `StructureFrameCorner` and `StructureFrameSide` ship with it null (non-sprayable in vanilla) even though their steel material is the same texture-array material. Copying the base `StructureFrame.PaintableMaterial` onto the two null prefabs at load makes all four sprayable; cross-checked on the dedicated server that the two flip to `IsPaintable == true` after the assignment, and all four report `structureRenderMode == Standard` so `Structure.SetCustomColor` does not throw the batched-mesh `NotImplementedException` (see `./Structure.md`).
 
 ## Initial CustomColor by spawn path
 
@@ -295,6 +334,7 @@ private static Action<Thing> _destroyOutOfBounds = delegate(Thing thing)
 - 2026-04-28: added "PrefabName and PrefabHash visual-variant identity" section after a SprayPaintPlus bug report ("wall painting spills across visual wall variants"). Additive; no existing content contradicted. Sources: `Assets.Scripts.Objects.Thing` fields at decompile line 297860-297865 (`[Header("Thing")] [ReadOnly] public string PrefabName; [ReadOnly] public int PrefabHash;`), in game version 0.2.6228.27061.
 - 2026-04-29: added "Delete(Thing sourceItem) and the destruction entry points" section (and "Enumerating Things near a point" subsection) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: `Thing.Delete`, `DynamicThing.Delete`, `Thing.AttackWith` / `Structure.AttackWith`, `DestroyThingRequest`, `Thing.Find(Collider)` / `Thing._colliderLookup`, `OcclusionManager.AllThings` / `Register` / `Deregister`, `WorldManager.DeleteOutOfBoundsObjects` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
 - 2026-04-22: refined "Initial CustomColor by spawn path" and rewrote "Printer-default color lookup" after user reported a yellow-kit-vs-orange-structure color asymmetry on a placed Ladder. Prior opening sentence "console/creative/fabricator/constructor all end at the same default" was misleading: it was true that Awake sets a default, but omitted that the Constructor path always re-overwrites that default with the KIT's color (not the target Structure's), and it failed to note that no vanilla path lets a raw Structure reach the world without going through a kit. Additions: (a) new subsection "Kit / Structure color asymmetry" explaining the two PaintableMaterial slots on a built structure, (b) new subsection "Per-spawn-path behavior" with the Authoring Tool / placement-click path (`OnServer.UseItemPrimaryAuthoring` line 948-956 substitutes `Prefab.Find<Constructor>(spawnPrefab.SpawnId)` for the held `AuthoringTool`), (c) documentation of the `_constructKitLookup` reverse-lookup registered in `Prefab.OnLoad` line 244-247 and read via `ElectronicReader.GetAllConstructors(Thing)` line 642-646, (d) rewrote `PrinterDefaultColorIndex` into a kit-aware `AsBuiltColorIndex` helper. No verified claim was removed — the `Constructor` bullet at original line 120 already carried the `instance.CustomColor` detail correctly; this pass promotes that detail to the top of the section and adds the reverse-lookup primitive. No fresh validator required: refinement/addition, not contradiction of previously-verified claims. Sources additionally consulted: `Constructor.Construct` line 23-34, `MultiConstructor.Construct` line 47-61, `CreateStructureInstance(Structure, Grid3, Quaternion, ulong, int = -1)` ctor line 35-43, `Structure.SetStructureData` line 2239-2248, `OnServer.UseItemPrimary` / `UseItemPrimaryAuthoring` line 938-956, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu` line 58-64 + 166-200, `InventoryManager.SpawnDynamicThing(ICreativeSpawnable)` line 937-947, `Prefab.OnLoad` kit-registration line 244-247, `ElectronicReader._constructKitLookup` line 89 and `GetAllConstructors` line 642-646, `ElectronicReader.AddToLookup(IConstructionKit)` line 529-539 and 599-614, `DynamicThingConstructor.OnUseItem` at game-DLL line ~323731. All in game version 0.2.6228.27061.
+- 2026-06-20: added "CustomColorMapping build rule (which renderers recolor)" section. Additive; no existing content changed (the "CustomColor field and IsPaintable gate" section described `IsPaintable` and `SetCustomColor`'s swap loop, but not the Awake-time rule that decides which renderers populate `_customMaterials`). Source: `Thing.Awake` `_customMaterials` build at decompile line 301261-301284 (the `material == PaintableMaterial || material.mainTexture is Texture2DArray` inclusion test), game version 0.2.6228.27061. Worked example (the steel-frame Corner/Side shapes made paintable by copying `PaintableMaterial`) cross-checked live on the dedicated server via the ScenarioRunner `paintable-prefab-dump` probe: `StructureFrameCorner` and `StructureFrameSide` flip to `PaintableMaterialSet=True` after the load-time assignment, all four steel-frame shapes report `renderMode=Standard`. No fresh validator required: additive, no contradiction of previously-verified claims.
 
 ## Open questions
 
