@@ -3009,6 +3009,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#stairwell-variants-zero-entryexit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stairwell variants (zero Entry/Exit)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flood-traversal-implication" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7573,6 +7584,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#stairwell-variants-zero-entryexit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stairwell variants (zero Entry/Exit)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#flood-traversal-implication" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7795,6 +7817,11 @@
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">Stairs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stairs</span><span class="p">;</span>
 </span></code></pre></div>
 <p>NPC pathing walks a connected stair run through the <code>Entry</code> / <code>Exit</code> grid points, not raw cell adjacency: <code>GetStairExitPoint</code> / <code>GetStairEntryPoint</code> (decompile lines 272840-272905) recurse from a stair's <code>Exit</code> to the stair whose <code>Entry</code> matches (<code>cell.Stairs.Entry == startGrid</code>), and vice versa, chaining the run floor by floor. Because a stair climbs up AND forward, consecutive stairs are diagonally offset, so the <code>Entry</code>/<code>Exit</code> chain (not orthogonal cell adjacency) is the reliable way to enumerate a run.</p>
+<h2 id="stairwell-variants-zero-entryexit">Stairwell variants (zero Entry/Exit)<a class="headerlink" href="#stairwell-variants-zero-entryexit" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+
+<p>The buildable stairwells are all the <code>Stairs</code> class, not a separate type. The variants observed are <code>StructureStairwellFrontPassthrough</code>, <code>StructureStairwellBackPassthrough</code>, <code>StructureStairwellNoDoors</code>, <code>StructureStairwellFrontLeft</code>, <code>StructureStairwellFrontRight</code>, <code>StructureStairwellBackLeft</code>, and <code>StructureStairwellBackRight</code> (display names "Stairwell (Front Passthrough)", "Stairwell (Back Right)", etc.); the in-game kit lists eight. Unlike an angled flight, a stairwell is a vertical pass / door piece with no climb, so the game leaves its <code>Entry</code> and <code>Exit</code> at <code>(0,0,0)</code>. Angled <code>Stairs</code> flights set <code>Entry</code> / <code>Exit</code> from their <code>EntryPoint</code> / <code>ExitPoint</code> transforms in <code>OnRegistered</code> (see above). So a runtime <code>Entry == Exit == Grid3.zero</code> test reliably separates a stairwell from an angled flight, even though both are the same C# class.</p>
+<p>Verified via InspectorPlus on 2026-06-19 in game version 0.2.6228.27061. Request: <code>types=[Stairs], fields=[ReferenceId, DisplayName, PrefabHash, Position, Entry, Exit, Forward]</code> over a stacked column built from each variant; every stairwell variant reported <code>Entry</code> and <code>Exit</code> of <code>(0,0,0)</code>, while adjacent angled <code>StructureStairs4x2</code> flights carried non-zero <code>Entry</code>/<code>Exit</code>.</p>
 <h2 id="flood-traversal-implication">Flood / traversal implication<a class="headerlink" href="#flood-traversal-implication" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
@@ -7803,6 +7830,7 @@
 <ul>
 <li>2026-06-19: page created while scoping ladder and stairs flood-painting for Spray Paint Plus. Verbatim from <code>Assets.Scripts.Objects.Stairs</code> (class shape, <code>CanConstruct</code>, <code>OnRegistered</code>, <code>CanConstructCell</code>), game version 0.2.6228.27061. Additive; new page. The hierarchy fact <code>Stairs : Structure</code> is also noted in <code>Structure.md</code>.</li>
 <li>2026-06-19: added "IsStairs, the Cell.Stairs slot, and the Entry/Exit run model" section (<code>Structure.IsStairs</code> verbatim, <code>Cell.Add</code> stairs routing, the <code>GetStairExitPoint</code>/<code>GetStairEntryPoint</code> pathing chain) and corrected the "Flood / traversal implication" section: stacked stairs are diagonally offset and connect via <code>Entry</code>/<code>Exit</code>, so a plain orthogonal BFS does not walk a run. Confirmed no <code>Stairwell</code> class exists in <code>Assembly-CSharp</code>. Sources: <code>Structure.IsStairs</code>, <code>Cell.Add</code>, <code>Assets.Scripts.GridSystem</code> stair-pathing helpers, game version 0.2.6228.27061.</li>
+<li>2026-06-19: added "Stairwell variants (zero Entry/Exit)" section from an InspectorPlus capture of a stacked column built from each stairwell variant; every variant reports <code>Entry</code> / <code>Exit</code> of <code>(0,0,0)</code> while adjacent angled <code>StructureStairs4x2</code> flights do not, giving a reliable runtime stairwell-versus-flight test. Game version 0.2.6228.27061.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
