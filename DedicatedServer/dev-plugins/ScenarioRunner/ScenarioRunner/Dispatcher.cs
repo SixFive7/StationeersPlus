@@ -696,7 +696,8 @@ namespace ScenarioRunner
                     if (p == null) continue;
                     if (!(p is Structure)) continue;
                     total++;
-                    if (PaintableSet(p)) set++; else unset++;
+                    if (PaintableSet(p)) { set++; }
+                    else { unset++; _log?.LogInfo($"[ScenarioRunner] paintable UNPAINTABLE | {PaintLine(p)} | DLC={ExtractDlcTag(p)}"); }
                 }
                 _log?.LogInfo($"[ScenarioRunner] paintable SUMMARY structures={total} paintable={set} notPaintable={unset}");
                 _log?.LogInfo("[ScenarioRunner] paintable-prefab-dump END");
