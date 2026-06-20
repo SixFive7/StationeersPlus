@@ -4,6 +4,7 @@ using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts.Objects.Structures;
 using Objects.RoboticArm;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -221,6 +222,35 @@ namespace SprayPaintPlus
                 return;
             }
 
+            // Ladders are SmallGrid structures (Ladder, plus LadderEnd caps) on the
+            // 0.5 m small grid, not the large Cell grid, so the large-structure
+            // flood never catches them; they need their own small-grid walk.
+            if (SprayPaintPlusPlugin.NetworkPaintLadders.Value && thing is Ladder ladderSeed)
+            {
+                PaintLadderRun(ladderSeed, colorIndex, checkered);
+                return;
+            }
+
+            // Stairs are plain Structures (not LargeStructure), linked into runs by
+            // their Entry/Exit grid points rather than orthogonal adjacency.
+            // `is Stairs` covers any stairwell prefab (a Stairs subclass).
+            if (thing is Stairs stairsSeed)
+            {
+                // Stairwells (the eight passthrough/door variants) are a different
+                // structure than angled stair flights: each floods by its own rules
+                // under its own toggle.
+                if (IsStairwell(stairsSeed))
+                {
+                    if (SprayPaintPlusPlugin.NetworkPaintStairwells.Value)
+                        PaintStairwellRun(stairsSeed, colorIndex, checkered);
+                }
+                else if (SprayPaintPlusPlugin.NetworkPaintStairs.Value)
+                {
+                    PaintStairsRun(stairsSeed, colorIndex, checkered);
+                }
+                return;
+            }
+
             // Wall branch must precede the LargeStructure branch because Wall
             // derives from LargeStructure. Walls flood by shared Room, not grid
             // adjacency. A wall with walls-painting disabled is *not* forwarded
@@ -356,6 +386,323 @@ namespace SprayPaintPlus
             for (int i = 0; i < shafts.Count; i++)
             {
                 ElevatorShaft item = shafts[i];
+                if (ReferenceEquals(item, seed))
+                    continue;
+                if (checkered && (((i - anchorIdx) & 1) != 0))
+                    continue;
+                PaintSafe(item, colorIndex);
+            }
+        }
+
+        // The small grid is 0.5 m; Grid3 keys are world metres x 10, so one small
+        // cell is 5 Grid3 units. Verified from live SmallCell.SmallGrid keys: two
+        // ladders 2 m apart differ by exactly 20 in the key (4 small cells).
+        private const int SmallCellKeyStep = 5;
+
+        // A ladder occupies several small cells and the next rung's anchor sits one
+        // 2 m pitch (4 small cells) away. Scan exactly one pitch: a directly-adjacent
+        // rung is reached, but a full missing rung (two pitches off) is not, so a gap
+        // in the column breaks it.
+        private const int LadderScanCells = 4;
+
+        // Ladders connect only to the ladder directly above or directly below in
+        // the same column (and same facing, checked below). Ladders to the side are
+        // a separate run, so the scan is vertical only.
+        private static readonly Grid3[] SmallGridDirs =
+        {
+            new Grid3(0, 1, 0), new Grid3(0, -1, 0),
+        };
+
+        /// <summary>
+        /// Paints a connected run of ladders. Ladders register on the 0.5 m small
+        /// grid (one SmallCell each, in the Other slot) with no network object. We
+        /// walk piece to piece in small-grid KEY space, not world space: the seed's
+        /// own registered key (origin.SmallCell.SmallGrid) is exact, and we step it
+        /// by whole small cells (SmallCellKeyStep) along each axis, scanning across
+        /// empty cells up to LadderScanCells so the vertical pitch is not hard-coded.
+        /// Probing world positions instead fails: SmallGrid.CenterPosition carries a
+        /// 0.2 m forward offset and the key anchors off Position, so a world-space
+        /// probe snaps into the wrong cell. Other-as-Ladder matches LadderEnd caps.
+        /// </summary>
+        private static void PaintLadderRun(Ladder origin, int colorIndex, bool checkered)
+        {
+            GridController world = GridController.World;
+            if (world == null || origin.SmallCell == null)
+                return;
+
+            var visited = new HashSet<Ladder> { origin };
+            var run = new List<Structure> { origin };
+            var queue = new Queue<Ladder>();
+            queue.Enqueue(origin);
+
+            while (queue.Count > 0)
+            {
+                Ladder current = queue.Dequeue();
+                if (current.SmallCell == null)
+                    continue;
+                Grid3 key = current.SmallCell.SmallGrid;
+
+                foreach (Grid3 dir in SmallGridDirs)
+                {
+                    for (int step = 1; step <= LadderScanCells; step++)
+                    {
+                        Grid3 probe = key + dir * (SmallCellKeyStep * step);
+                        Ladder neighbor = world.GetSmallCell(probe)?.Other as Ladder;
+                        if (neighbor == null)
+                            continue;               // empty sub-cell within one pitch: keep scanning
+                        if (ReferenceEquals(neighbor, current))
+                            continue;               // our own multi-cell footprint: scan past it
+                        // first distinct ladder within one pitch (a full missing rung is
+                        // two pitches away and so is never reached): connect if it is the
+                        // same type and facing, then stop this axis either way.
+                        if (Vector3.Dot(neighbor.Forward, origin.Forward) > 0.9f
+                            && visited.Add(neighbor))
+                        {
+                            run.Add(neighbor);          // same facing; matches LadderEnd caps too (LadderEnd : Ladder)
+                            queue.Enqueue(neighbor);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            PaintRunByHeight(origin, run, colorIndex, checkered);
+        }
+
+        /// <summary>
+        /// Paints a connected run of stairs, including stairwell prefabs (a
+        /// "stairwell" is the Stairs class, e.g. StructureStairwellFrontPassthrough).
+        /// Pieces connect by spatial adjacency when they share the same prefab and
+        /// the same facing; that distinguishes a continuous staircase / stairwell
+        /// column from a separate one beside it or facing another way. Entry/Exit
+        /// grid points are not used: stairwells leave them zero, and even regular
+        /// 4x2 flights do not reliably chain Exit-to-Entry.
+        /// </summary>
+        private static void PaintStairsRun(Stairs origin, int colorIndex, bool checkered)
+        {
+            var visited = new HashSet<Stairs> { origin };
+            var run = new List<Structure> { origin };
+            var queue = new Queue<Stairs>();
+            queue.Enqueue(origin);
+
+            while (queue.Count > 0)
+            {
+                Stairs current = queue.Dequeue();
+                foreach (Stairs neighbor in StairNeighbors(current))
+                {
+                    if (neighbor == null || !visited.Add(neighbor))
+                        continue;
+                    run.Add(neighbor);
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            // A staircase spans a 2D plane (width x climb), so the checker is a true
+            // checkerboard on that plane, not the 1D height-index alternation used for
+            // single-file runs like ladders and elevators (which would stripe here).
+            foreach (Structure m in run)
+            {
+                if (ReferenceEquals(m, origin))
+                    continue;
+                if (checkered && !StairCheckerSameColour(origin, (Stairs)m))
+                    continue;
+                PaintSafe(m, colorIndex);
+            }
+        }
+
+        /// <summary>
+        /// Checkerboard colour for a stair piece relative to the seed, across the plane
+        /// the staircase spans: one axis is the width (side-by-side widening), the other
+        /// is the climb (one level per lengthening step). Parity of (widthSteps +
+        /// levelSteps) gives a true 2D checker, so width neighbours and climb neighbours
+        /// are the opposite colour while diagonals match. True = shares the seed's
+        /// colour (so it is painted under the checkered modifier).
+        /// </summary>
+        private static bool StairCheckerSameColour(Stairs seed, Stairs piece)
+        {
+            Grid3 d = piece.GridPosition - seed.GridPosition;
+            Vector3 f = seed.Forward;
+            bool runIsZ = Mathf.Abs(f.z) >= Mathf.Abs(f.x);
+            int cell = Grid3.one.x * 2;                   // one 2 m cell in Grid3 units
+            int widthSteps = (runIsZ ? d.x : d.z) / cell; // across the width axis
+            int levelSteps = d.y / cell;                  // up the climb, one level per step
+            return ((widthSteps + levelSteps) & 1) == 0;
+        }
+
+        private static bool IsStairwell(Stairs s)
+        {
+            // The eight stairwell variants are vertical pass/door pieces with no climb,
+            // so the game leaves Entry/Exit unset; angled flights set them.
+            return IsZero(s.Entry) && IsZero(s.Exit);
+        }
+
+        /// <summary>
+        /// Floods a block of stairwells. Stairwells are a separate structure from
+        /// angled flights: any of the eight variants, in any orientation, count as
+        /// connected when spatially adjacent. So this is a plain cell flood over every
+        /// adjacent stairwell with a simple 3D checkerboard, independent of the stair
+        /// widening / lengthening logic.
+        /// </summary>
+        private static void PaintStairwellRun(Stairs origin, int colorIndex, bool checkered)
+        {
+            GridController world = GridController.World;
+            Cell startCell = world?.GetCell(origin.GridPosition);
+            if (startCell == null)
+                return;
+
+            var visitedCells = new HashSet<Cell> { startCell };
+            var cellQueue = new Queue<Cell>();
+            cellQueue.Enqueue(startCell);
+            var seen = new HashSet<Stairs>();
+
+            while (cellQueue.Count > 0)
+            {
+                Cell cell = cellQueue.Dequeue();
+                foreach (Structure s in cell.AllStructures)
+                {
+                    if (!(s is Stairs sw) || !IsStairwell(sw) || !seen.Add(sw))
+                        continue;
+                    if (ReferenceEquals(sw, origin))
+                        continue;
+                    if (checkered && !CheckeredCheckGrid(origin, sw))
+                        continue;
+                    PaintSafe(sw, colorIndex);
+                }
+
+                // Expand to every neighbouring cell holding a stairwell. NeighborCells is
+                // the full 26-cell set, so adjacency counts in any direction; an empty
+                // cell stops the flood, so a gap separates two blocks.
+                foreach (Cell n in cell.NeighborCells)
+                {
+                    if (n == null || visitedCells.Contains(n) || !CellHasStairwell(n))
+                        continue;
+                    visitedCells.Add(n);
+                    cellQueue.Enqueue(n);
+                }
+            }
+        }
+
+        private static bool CellHasStairwell(Cell cell)
+        {
+            foreach (Structure s in cell.AllStructures)
+                if (s is Stairs sw && IsStairwell(sw))
+                    return true;
+            return false;
+        }
+
+        // A flight spans several cells, and its lengthwise neighbour sits ~4 m (2
+        // cells) away, so gather candidates from a small cube around the seed and
+        // keep only those in a valid run relationship.
+        private const int StairScanCells = 2;
+
+        private static IEnumerable<Stairs> StairNeighbors(Stairs s)
+        {
+            GridController world = GridController.World;
+            if (world == null)
+                yield break;
+
+            Grid3 baseKey = s.GridPosition;
+            int step = Grid3.one.x * 2;          // one 2 m cell in Grid3 units
+            var seen = new HashSet<Stairs>();
+
+            for (int dx = -StairScanCells; dx <= StairScanCells; dx++)
+                for (int dy = -StairScanCells; dy <= StairScanCells; dy++)
+                    for (int dz = -StairScanCells; dz <= StairScanCells; dz++)
+                    {
+                        Cell c = world.GetCell(new Grid3(baseKey.x + dx * step, baseKey.y + dy * step, baseKey.z + dz * step));
+                        if (c == null)
+                            continue;
+                        foreach (Structure st in c.AllStructures)
+                        {
+                            if (!(st is Stairs t) || ReferenceEquals(t, s))
+                                continue;
+                            if (t.PrefabHash != s.PrefabHash || Vector3.Dot(t.Forward, s.Forward) < 0.9f)
+                                continue;
+                            if (!seen.Add(t))
+                                continue;
+                            if (StairsConnect(s, t))
+                                yield return t;
+                        }
+                    }
+        }
+
+        /// <summary>
+        /// True when two same-prefab, same-facing stairs belong to one staircase:
+        /// either side by side at the same level (widening), or one run-step along
+        /// the facing axis with a coupled level change in the direction the flight
+        /// ascends (lengthening). Passthrough stairwells carry no Entry/Exit and
+        /// instead stack straight up as a column. Pieces adjacent in any other way
+        /// (crossing runs) do not connect.
+        /// </summary>
+        private static bool StairsConnect(Stairs s, Stairs t)
+        {
+            Vector3 d = t.Position - s.Position;
+            Vector3 f = s.Forward;
+            bool runIsZ = Mathf.Abs(f.z) >= Mathf.Abs(f.x);
+            float dRun = runIsZ ? d.z : d.x;     // along the facing axis (run length)
+            float dWidth = runIsZ ? d.x : d.z;   // across the facing axis (width)
+            float dy = d.y;
+            const float tol = 0.5f;
+
+            // Passthrough stairwells (Entry/Exit unset) stack straight up/down.
+            if (IsZero(s.Entry) && IsZero(s.Exit))
+                return Mathf.Abs(dRun) < tol && Mathf.Abs(dWidth) < tol && Mathf.Abs(dy) > tol;
+
+            // Widening: same level, directly to the side, aligned along the run.
+            if (Mathf.Abs(dy) < tol && Mathf.Abs(dRun) < tol && Mathf.Abs(dWidth) > tol)
+                return true;
+
+            // Lengthening: a run-step along the facing axis with a coupled level
+            // change, in the same sense the flight ascends (Exit is above Entry).
+            if (Mathf.Abs(dWidth) < tol && Mathf.Abs(dy) > tol && Mathf.Abs(dRun) > tol)
+            {
+                // Run direction and one-flight rise taken straight from the Grid3
+                // ports (Exit/Entry are world x10). Dividing the rise by Grid3.one
+                // puts oneLevel in the same world scale as dy, independent of any
+                // Grid3.ToVector3 scaling.
+                int runDir = runIsZ ? (s.Exit.z - s.Entry.z) : (s.Exit.x - s.Entry.x);
+                float oneLevel = Mathf.Abs(s.Exit.y - s.Entry.y) / (float)Grid3.one.y;
+                // A single lengthening step is exactly one level up/down. A piece two
+                // levels up over the same run (d = (0,+4,+4)) is a different flight
+                // hovering above, not the next step, so it must NOT connect.
+                if (runDir != 0 && oneLevel > tol
+                    && Mathf.Abs(Mathf.Abs(dy) - oneLevel) < tol)
+                {
+                    bool up = Mathf.Sign(dRun) == Mathf.Sign((float)runDir) && dy > 0f;
+                    bool down = Mathf.Sign(dRun) == -Mathf.Sign((float)runDir) && dy < 0f;
+                    return up || down;
+                }
+            }
+            return false;
+        }
+
+        private static bool IsZero(Grid3 g)
+        {
+            return g.x == 0 && g.y == 0 && g.z == 0;
+        }
+
+        /// <summary>
+        /// Checker helper for vertical runs (ladders, stairs). As with elevators, a
+        /// world-position or grid-parity check degrades when pieces sit an even
+        /// number of cells apart, so alternate by each piece's order along the run
+        /// (sorted by height, then x/z), keyed off the seed so the seed always paints.
+        /// </summary>
+        private static void PaintRunByHeight(Structure seed, List<Structure> members, int colorIndex, bool checkered)
+        {
+            List<Structure> ordered = members
+                .Where(m => m != null)
+                .OrderBy(m => m.GridPosition.y)
+                .ThenBy(m => m.GridPosition.x)
+                .ThenBy(m => m.GridPosition.z)
+                .ToList();
+
+            int anchorIdx = ordered.IndexOf(seed);
+            if (anchorIdx < 0)
+                anchorIdx = 0;
+
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                Structure item = ordered[i];
                 if (ReferenceEquals(item, seed))
                     continue;
                 if (checkered && (((i - anchorIdx) & 1) != 0))

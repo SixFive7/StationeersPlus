@@ -43,6 +43,9 @@ namespace SprayPaintPlus
         internal static ConfigEntry<bool> NetworkPaintLargeStructures;
         internal static ConfigEntry<bool> NetworkPaintRails;
         internal static ConfigEntry<bool> NetworkPaintElevators;
+        internal static ConfigEntry<bool> NetworkPaintLadders;
+        internal static ConfigEntry<bool> NetworkPaintStairs;
+        internal static ConfigEntry<bool> NetworkPaintStairwells;
         internal static ConfigEntry<bool> EnableGlowPaint;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
@@ -270,6 +273,37 @@ namespace SprayPaintPlus
                     "Only the server's value matters in multiplayer.",
                     null,
                     new KeyValuePair<string, int>("Order", 80)));
+
+            NetworkPaintLadders = Config.Bind(
+                "Server - Network Painting", "Network Paint Ladders", true,
+                new ConfigDescription(
+                    "(Server-authoritative) When spray-painting a ladder, every connected ladder " +
+                    "and ladder end in the same run is painted too. " +
+                    "Has no effect if Enable Network Painting is disabled. " +
+                    "Only the server's value matters in multiplayer.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 90)));
+
+            NetworkPaintStairs = Config.Bind(
+                "Server - Network Painting", "Network Paint Stairs", true,
+                new ConfigDescription(
+                    "(Server-authoritative) When spray-painting a stair flight, the rest of the " +
+                    "staircase is painted too: flights set side by side to widen it and flights " +
+                    "run up or down to lengthen it. " +
+                    "Has no effect if Enable Network Painting is disabled. " +
+                    "Only the server's value matters in multiplayer.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 100)));
+
+            NetworkPaintStairwells = Config.Bind(
+                "Server - Network Painting", "Network Paint Stairwells", true,
+                new ConfigDescription(
+                    "(Server-authoritative) When spray-painting a stairwell, every adjacent " +
+                    "stairwell is painted too, across all eight stairwell types and any orientation. " +
+                    "Has no effect if Enable Network Painting is disabled. " +
+                    "Only the server's value matters in multiplayer.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 110)));
         }
     }
 }
