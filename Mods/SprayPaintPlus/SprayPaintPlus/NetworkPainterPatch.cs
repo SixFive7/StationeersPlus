@@ -470,13 +470,13 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// Paints a connected run of stairs, including stairwell prefabs (a
-        /// "stairwell" is the Stairs class, e.g. StructureStairwellFrontPassthrough).
-        /// Pieces connect by spatial adjacency when they share the same prefab and
-        /// the same facing; that distinguishes a continuous staircase / stairwell
-        /// column from a separate one beside it or facing another way. Entry/Exit
-        /// grid points are not used: stairwells leave them zero, and even regular
-        /// 4x2 flights do not reliably chain Exit-to-Entry.
+        /// Paints a connected run of angled stair flights. Stairwell prefabs flood
+        /// separately (see PaintStairwellRun); this path only runs for a flight with
+        /// a real climb (non-zero Entry/Exit). Pieces connect when they share the same
+        /// prefab and facing and sit in a widening (side by side) or lengthening (one
+        /// step up or down the run) relationship; StairsConnect makes that call. That
+        /// distinguishes a continuous staircase from a separate one beside it, facing
+        /// another way, or crossing it.
         /// </summary>
         private static void PaintStairsRun(Stairs origin, int colorIndex, bool checkered)
         {
@@ -627,12 +627,12 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// True when two same-prefab, same-facing stairs belong to one staircase:
-        /// either side by side at the same level (widening), or one run-step along
-        /// the facing axis with a coupled level change in the direction the flight
-        /// ascends (lengthening). Passthrough stairwells carry no Entry/Exit and
-        /// instead stack straight up as a column. Pieces adjacent in any other way
-        /// (crossing runs) do not connect.
+        /// True when two same-prefab, same-facing angled flights belong to one
+        /// staircase: either side by side at the same level (widening), or one
+        /// run-step along the facing axis with a coupled level change in the direction
+        /// the flight ascends (lengthening). Pieces adjacent in any other way (crossing
+        /// runs, or a flight hovering a level above) do not connect. Stairwells never
+        /// reach this method; they flood separately under their own path.
         /// </summary>
         private static bool StairsConnect(Stairs s, Stairs t)
         {
@@ -643,10 +643,6 @@ namespace SprayPaintPlus
             float dWidth = runIsZ ? d.x : d.z;   // across the facing axis (width)
             float dy = d.y;
             const float tol = 0.5f;
-
-            // Passthrough stairwells (Entry/Exit unset) stack straight up/down.
-            if (IsZero(s.Entry) && IsZero(s.Exit))
-                return Mathf.Abs(dRun) < tol && Mathf.Abs(dWidth) < tol && Mathf.Abs(dy) > tol;
 
             // Widening: same level, directly to the side, aligned along the run.
             if (Mathf.Abs(dy) < tol && Mathf.Abs(dRun) < tol && Mathf.Abs(dWidth) > tol)
