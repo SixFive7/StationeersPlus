@@ -3,7 +3,7 @@ title: RocketPowerUmbilical
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-18
+verified_at: 2026-06-21
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Objects.Rockets.RocketPowerUmbilicalFemale (L147895-148259), Objects.Rockets.RocketPowerUmbilicalMale (L148269-148810)
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Objects.Rockets.RocketPowerUmbilicalMale, Objects.Rockets.RocketPowerUmbilicalFemale
@@ -44,6 +44,53 @@ The Female is the rocket-internal side: `InternalCellType => RocketInternalCellT
 - `OnLaunch` severs the partner (`_partnerUmbilical = null`); `OnLanded` re-runs `FindAndSetOtherUmbilical` (Female L148200-L148220, Male L148774-L148783).
 
 Each half carries its own internal battery cell: `[Header("Battery")] public float PowerMaximum = 10000f;` (Female L147898, Male L148272). `PowerStored` is clamped to `[0, PowerMaximum]`; `AvailablePower => PowerStored`.
+
+## Partner pairing and connection state
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+Each half stores its partner in a private field typed to the partner class; `IUmbilical` exposes no public partner getter (interface members L140614-L140631: `AsThing`, `PartnerType`, `PartnerDistance`, `FirstPartnerSearchPosition`, `UmbilicalType`, `PartnerRemoved()`, `IsCompatibleWith(IUmbilical)`, `SetPartner(IUmbilical)`). Reading the partner from outside the class requires reflection on the field:
+
+- `RocketPowerUmbilicalFemale._partnerUmbilical` : `RocketPowerUmbilicalMale` (L147900).
+- `RocketPowerUmbilicalMale._partnerUmbilical` : `RocketPowerUmbilicalFemale` (L148283).
+
+"Connected" (docked) is exactly `_partnerUmbilical != null`. The field is assigned by `RocketUmbilicalHelper.FindAndSetOtherUmbilical` (geometry-based partner search, via `SetPartner`), nulled on launch, and restored on land. The Male also persists `_savedPartnerId` (long, L148295) so the pairing survives save / load.
+
+Per-half transfer / validity gates (decompile-verified):
+
+```csharp
+// Female (L147929-147941)
+public bool CanTransfer => true;
+private bool PartnerValid => (object)_partnerUmbilical != null && _partnerUmbilical.CanTransfer;
+
+// Male (L148309-148340)
+public bool CanTransfer
+{
+    get
+    {
+        if (Powered && OnOff && Error == 0 && IsOpen) return !IsBroken;
+        return false;
+    }
+}
+private bool PartnerValid
+{
+    get
+    {
+        if ((object)_partnerUmbilical != null && _partnerUmbilical.CanTransfer)
+        {
+            if (_partnerUmbilical.RocketNetwork != null)
+            {
+                Rocket rocket = _partnerUmbilical.RocketNetwork.Rocket;
+                if (rocket == null) return false;
+                return rocket.RocketState == RocketState.OnLaunchMount;
+            }
+            return true;
+        }
+        return false;
+    }
+}
+```
+
+`IsOperable` differs per half: Male = `PartnerValid && InputNetwork != null` (L148342-148352); Female = `OutputNetwork != null && base.IsOperable` (L147962-147972). `CanTransfer` / `PartnerValid` gate the per-tick `MovePowerToUmbilical` (so power flow also requires the rocket to be on the launch mount). For "physically docked" alone, `_partnerUmbilical != null` is the correct gate: it is non-null whenever the two halves are coupled, regardless of power or launch state.
 
 ## Power transfer: paired batteries, NOT a dumb wire
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
@@ -130,6 +177,7 @@ The Male declares its own `CanLogicRead`; the Female inherits the `Device` base 
 
 ## Verification history
 
+- 2026-06-21: added "Partner pairing and connection state" section (private `_partnerUmbilical` fields typed to the partner class, L147900 / L148283; no public `IUmbilical` partner getter; `_savedPartnerId` L148295; exact `CanTransfer` / `PartnerValid` / `IsOperable` per half). Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` while implementing the PowerGridPlus umbilical logic-passthrough feature. Additive; no conflict with existing content.
 - 2026-06-18: confirmed the connector layouts via a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): Male = 2 connectors (`Power/Input` + dedicated `Data/None`), Female and Female-Side = 1 connector (`Power/Output`). Updated the Connectors section and resolved the OpenEnds open question.
 - 2026-06-18: page created. Sourced from a PowerGridPlus rocket-device investigation reading `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` L147890-148260 (Female) and L148260-148810 (Male) directly: class headers, the `PowerMaximum = 10000f` internal cells, `MovePowerToUmbilical` (L148715) doing `_partnerUmbilical.ReceivePower(null, n)`, the side-keyed power quartet, and the `IUmbilical` partner machinery. Confirms umbilicals are paired battery-buffer transfer devices, not dumb wires, and that connector layout / cable-type acceptance is prefab data.
 
