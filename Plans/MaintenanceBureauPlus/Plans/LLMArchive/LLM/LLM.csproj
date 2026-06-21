@@ -1,39 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{B8E3A1F0-7C42-4D19-9A6E-3F1D5C8B2E47}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>LLM</RootNamespace>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>LLM</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <RootNamespace>LLM</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <FileAlignment>512</FileAlignment>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
-    <!-- Enable PackageReference in old-style csproj -->
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <!-- LLamaSharp targets net8.0 primarily but works on net472 via netstandard2.0 -->
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <!-- Copy the managed NuGet assemblies (LLamaSharp, etc.) next to LLM.dll in the
+         output folder, matching the legacy PackageReference copy-local behaviour. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
@@ -63,24 +48,20 @@
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="LLamaSharp" Version="0.19.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.19.0" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Plugin.cs" />
-    <Compile Include="LlmEngine.cs" />
-    <Compile Include="ChatPatch.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
+
   <ItemGroup>
     <Content Include="About\About.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
   <!-- Copy native llama.cpp libraries to output. LLamaSharp.Backend.Cpu's
        built-in copy target only fires for packages.config, not PackageReference.
        LLamaSharp probes runtimes/{rid}/native/ at runtime. -->

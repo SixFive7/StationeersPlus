@@ -1,35 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{C7F1A2B3-4D5E-4F6A-8B9C-0D1E2F3A4B5C}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>NetworkPuristPlus</RootNamespace>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>NetworkPuristPlus</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <RootNamespace>NetworkPuristPlus</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <FileAlignment>512</FileAlignment>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
@@ -58,20 +42,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Plugin.cs" />
-    <Compile Include="Settings.cs" />
-    <Compile Include="SettingsConfigMessage.cs" />
-    <Compile Include="SettingsConfigSync.cs" />
-    <Compile Include="LongVariantRegistry.cs" />
-    <Compile Include="ReplaceLongPiecesOnLoadPatch.cs" />
-    <Compile Include="CableRoll.cs" />
-    <Compile Include="RewriteCableRollOnConstructPatch.cs" />
-    <Compile Include="ClampNegativeMergeQuantityPatch.cs" />
-    <Compile Include="NormalizeCableRollOnLoadPatch.cs" />
-    <Compile Include="HideLongVariantsStationpediaPatch.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
+
   <ItemGroup>
     <Content Include="About\About.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -83,5 +54,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

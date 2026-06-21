@@ -1,35 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{D95AF260-7E26-4C16-8792-E60657E03B13}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>PowerTransmitterPlus</RootNamespace>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>PowerTransmitterPlus</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <RootNamespace>PowerTransmitterPlus</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <FileAlignment>512</FileAlignment>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
@@ -70,38 +54,11 @@
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="Plugin.cs" />
-    <Compile Include="MainThreadDispatcher.cs" />
-    <Compile Include="BeamManager.cs" />
-    <Compile Include="BeamLine.cs" />
-    <Compile Include="BeamPulseTrain.cs" />
-    <Compile Include="BeamVisibility.cs" />
-    <Compile Include="VisualiserPatches.cs" />
-    <Compile Include="RotationPatches.cs" />
-    <Compile Include="OnOffPatches.cs" />
-    <Compile Include="DistanceCostPatches.cs" />
     <Compile Include="..\..\..\Patterns\Logic\LogicTypeNumbers.cs" Link="Patterns\LogicTypeNumbers.cs" />
-    <Compile Include="LogicTypeRegistry.cs" />
-    <Compile Include="DistanceConfigMessage.cs" />
-    <Compile Include="DistanceConfigSync.cs" />
-    <Compile Include="MaxCapacityConfigMessage.cs" />
-    <Compile Include="MaxCapacityConfigSync.cs" />
-    <Compile Include="Ic10ConstantsPatcher.cs" />
-    <Compile Include="LogicableInitializePatch.cs" />
-    <Compile Include="EnumNamePatches.cs" />
-    <Compile Include="LogicReadoutPatches.cs" />
-    <Compile Include="AutoAimPatches.cs" />
-    <Compile Include="AutoAimSideCar.cs" />
-    <Compile Include="AutoAimSaveLoadPatches.cs" />
-    <Compile Include="PlacementPatcher.cs" />
-    <Compile Include="LinkPatch.cs" />
-    <Compile Include="LinkVisibilityPatch.cs" />
-    <Compile Include="BeamVisualConfigMessage.cs" />
-    <Compile Include="BeamVisualConfigSync.cs" />
-    <Compile Include="StationpediaPatches.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+
   <ItemGroup>
     <Content Include="About\About.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -113,5 +70,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

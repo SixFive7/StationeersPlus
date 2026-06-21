@@ -1,35 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6A868153-58F7-43A6-82B7-7AA5AF5219A6}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>PowerGridPlus</RootNamespace>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>PowerGridPlus</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <RootNamespace>PowerGridPlus</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <FileAlignment>512</FileAlignment>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>$(StationeersPath)\BepInEx\core\0Harmony.dll</HintPath>
@@ -74,95 +58,12 @@
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="Plugin.cs" />
-    <Compile Include="Settings.cs" />
-    <Compile Include="VoltageTier.cs" />
-    <Compile Include="BurnReasonRegistry.cs" />
-    <Compile Include="Patches\CableNetworkPatches.cs" />
-    <Compile Include="Patches\PowerTickPatches.cs" />
-    <Compile Include="Patches\StationaryBatteryPatches.cs" />
-    <Compile Include="Patches\BatteryLogicPatches.cs" />
-    <Compile Include="Patches\TransformerExploitPatches.cs" />
-    <Compile Include="Patches\PowerTransmitterDrawPatches.cs" />
-    <Compile Include="Patches\TransformerLogicPatches.cs" />
-    <Compile Include="Patches\AreaPowerControlPatches.cs" />
-    <Compile Include="Patches\VoltageTierPatches.cs" />
-    <Compile Include="Patches\CableCostPatches.cs" />
-    <Compile Include="Patches\BurnReasonPatches.cs" />
-    <Compile Include="Patches\LogicPassthroughPatches.cs" />
-    <Compile Include="Patches\PassthroughTopology.cs" />
-    <Compile Include="Patches\DishLinkPatches.cs" />
-    <Compile Include="Patches\MergeDeterminismPatches.cs" />
     <Compile Include="..\..\..\Patterns\Logic\LogicTypeNumbers.cs" Link="Patterns\LogicTypeNumbers.cs" />
     <Compile Include="..\..\..\Patterns\Threading\MainThreadDispatcher.cs" Link="Patterns\MainThreadDispatcher.cs" />
-    <Compile Include="LogicTypeRegistry.cs" />
-    <Compile Include="PassthroughModeStore.cs" />
-    <Compile Include="PassthroughModeMessage.cs" />
-    <Compile Include="PassthroughSettingsSync.cs" />
-    <Compile Include="PassthroughSideCar.cs" />
-    <Compile Include="Ic10ConstantsPatcher.cs" />
-    <Compile Include="StationpediaPatches.cs" />
-    <Compile Include="Patches\TransformerPassthroughLogicPatches.cs" />
-    <Compile Include="Patches\InheritedLogicablePassthroughLogicPatches.cs" />
-    <Compile Include="Patches\PassthroughSaveLoadPatches.cs" />
-    <Compile Include="Patches\LogicableInitializePatch.cs" />
-    <Compile Include="Patches\EnumNamePatches.cs" />
-    <Compile Include="Patches\EmergencyLightPatches.cs" />
-    <Compile Include="PriorityStore.cs" />
-    <Compile Include="PrioritySideCar.cs" />
-    <Compile Include="PriorityMessage.cs" />
-    <Compile Include="BrownoutRegistry.cs" />
-    <Compile Include="BrownoutFlashBehaviour.cs" />
-    <Compile Include="ElectricityTickCounter.cs" />
-    <Compile Include="ShedSettingsSync.cs" />
-    <Compile Include="OverloadSettingsSync.cs" />
-    <Compile Include="OverloadRegistry.cs" />
-    <Compile Include="PowerAllocator.cs" />
-    <Compile Include="MonotonicClock.cs" />
-    <Compile Include="OffAsResetSweep.cs" />
-    <Compile Include="FaultHover.cs" />
-    <Compile Include="TransformerThrottleHover.cs" />
-    <Compile Include="FaultRegistrySnapshotMessage.cs" />
-    <Compile Include="BurnReasonSideCar.cs" />
-    <Compile Include="Patches\BurnReasonSaveLoadPatches.cs" />
-    <Compile Include="Patches\RocketUmbilicalPatches.cs" />
-    <Compile Include="Patches\UmbilicalPassthroughPatches.cs" />
-    <Compile Include="Patches\ProducerLogicPatches.cs" />
-    <Compile Include="Patches\FaultHoverPatches.cs" />
-    <Compile Include="CableMax.cs" />
-    <Compile Include="CableBurnWindow.cs" />
-    <Compile Include="PowerTransmitterPlusInterop.cs" />
-    <Compile Include="DeviceOutputSanitizer.cs" />
-    <Compile Include="DeadInputRegistry.cs" />
-    <Compile Include="SplitPendingRegistry.cs" />
-    <Compile Include="VoltageTierEnforcer.cs" />
-    <Compile Include="Patches\ProducerFaultEnforcementPatches.cs" />
-    <Compile Include="Patches\TransformerSettingInitPatch.cs" />
-    <Compile Include="ApcDischargeRateRegistry.cs" />
-    <Compile Include="CycleFaultRegistry.cs" />
-    <Compile Include="SegmentingDeviceRegistry.cs" />
-    <Compile Include="CycleGraphBuilder.cs" />
-    <Compile Include="Patches\CycleFaultEnforcementPatches.cs" />
-    <Compile Include="VariableVoltageFaultRegistry.cs" />
-    <Compile Include="ProducerClassifier.cs" />
-    <Compile Include="VariableVoltageFaultDetector.cs" />
-    <Compile Include="SoftSupplyShareCache.cs" />
-    <Compile Include="TransformerSupplyCache.cs" />
-    <Compile Include="ApcPassthroughCache.cs" />
-    <Compile Include="ApcCellDischargeCache.cs" />
-    <Compile Include="SoftDemandShareCache.cs" />
-    <Compile Include="Patches\FaultRegistryLoadPatches.cs" />
-    <Compile Include="Patches\AtomicElectricityTickPatch.cs" />
-    <Compile Include="Patches\PrioritySaveLoadPatches.cs" />
-    <Compile Include="Patches\TransformerPriorityLogicPatches.cs" />
-    <Compile Include="Patches\TransformerInteractWithPatches.cs" />
-    <Compile Include="Patches\TransformerHoverErrorPatches.cs" />
-    <Compile Include="Patches\TransformerFlashAttachPatches.cs" />
-    <Compile Include="Patches\SwitchOnOffShedPatches.cs" />
-    <Compile Include="Patches\TransformerLabellerPatches.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+
   <ItemGroup>
     <Content Include="About\About.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -177,5 +78,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
