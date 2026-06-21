@@ -68,6 +68,7 @@
   <ItemGroup>
     <Compile Include="Plugin.cs" />
     <Compile Include="Dispatcher.cs" />
+    <Compile Include="Dispatcher.DevicePortDump.cs" />
     <Compile Include="Dispatcher.Umbilical.cs" />
     <Compile Include="Dispatcher.Shedding.cs" />
     <Compile Include="Dispatcher.PtCampaign.cs" />

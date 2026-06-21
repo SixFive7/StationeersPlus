@@ -117,6 +117,10 @@ namespace ScenarioRunner
                     Scenario_PaintablePrefabDump();
                     return;
 
+                case "device-port-dump":
+                    Scenario_DevicePortDump();
+                    return;
+
                 case "pgp-passthrough-port-probe":
                     Scenario_PgpPassthroughPortProbe();
                     return;
