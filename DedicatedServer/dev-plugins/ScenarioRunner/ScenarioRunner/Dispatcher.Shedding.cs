@@ -1415,7 +1415,8 @@ namespace ScenarioRunner
         // Target device id is hardcoded -- edit `_pfdTargetRef` and rebuild.
         // ============================================================
         private static bool _pfdFired;
-        private const long _pfdTargetRef = 468558L;
+        // Target may be EITHER a device reference id OR a CableNetwork reference id.
+        private const long _pfdTargetRef = 551749L;
         private const int _pfdMaxHops = 6;
 
         private static void Scenario_PgpPowerFlowDiagnose()
@@ -1448,31 +1449,41 @@ namespace ScenarioRunner
 
                 if (_transformers.Count == 0) RebuildCaches();
 
-                // Find the target device (by ref id) in OcclusionManager.AllThings.
+                // Resolve the start network. The target ref may be EITHER a device
+                // reference id (find the Thing, then resolve its CableNetwork) OR a
+                // CableNetwork reference id directly (no Thing carries that id).
+                CableNetwork startNet = null;
+
                 Thing target = null;
                 OcclusionManager.AllThings.ForEach(t =>
                 {
                     if (target == null && t != null && t.ReferenceId == _pfdTargetRef)
                         target = t;
                 });
-                if (target == null)
+                if (target != null)
                 {
-                    _log?.LogError($"[ScenarioRunner] PFD target ref={_pfdTargetRef} not found in scene.");
-                    return;
+                    _log?.LogInfo($"[ScenarioRunner] PFD target found (device): ref={target.ReferenceId} type={target.GetType().FullName} prefab={target.PrefabName}");
+                    startNet = ResolveCableNetwork(target);
+                    if (startNet == null)
+                        _log?.LogError("[ScenarioRunner] PFD could not resolve a CableNetwork for the device target.");
                 }
-                _log?.LogInfo($"[ScenarioRunner] PFD target found: ref={target.ReferenceId} type={target.GetType().FullName} prefab={target.PrefabName}");
-
-                // Walk every CableNetwork the target may sit on. PowerTransmitter has
-                // a CableNetwork via its IO; print via reflection.
-                CableNetwork startNet = ResolveCableNetwork(target);
-                if (startNet == null)
+                else
                 {
-                    _log?.LogError("[ScenarioRunner] PFD could not resolve a CableNetwork for the target.");
-                    return;
+                    // No Thing with that id; treat the target ref as a CableNetwork id.
+                    CableNetwork.AllCableNetworks.ForEach(cn =>
+                    {
+                        if (startNet == null && cn != null && cn.ReferenceId == _pfdTargetRef)
+                            startNet = cn;
+                    });
+                    if (startNet != null)
+                        _log?.LogInfo($"[ScenarioRunner] PFD target is a CableNetwork directly: ref={startNet.ReferenceId}");
+                    else
+                        _log?.LogError($"[ScenarioRunner] PFD target ref={_pfdTargetRef} not found as a device or a cable network; dumping global state only.");
                 }
 
-                DumpNetworkAndUpstream(startNet, 0, new HashSet<long>(), currentTick,
-                    getAlloc, getPrio, isShedding);
+                if (startNet != null)
+                    DumpNetworkAndUpstream(startNet, 0, new HashSet<long>(), currentTick,
+                        getAlloc, getPrio, isShedding);
 
                 // Also enumerate every cable network in the world and log those with
                 // PotentialLoad > 0 (= a generator on it that's actually producing).
@@ -1626,6 +1637,7 @@ namespace ScenarioRunner
             int total = 0, transformers = 0, consumers = 0;
             float devUsedSum = 0f;
             var xforms = new List<Transformer>();
+            var bridges = new List<ElectricalInputOutput>();   // non-transformer IO bridges (APC, etc.)
             lock (net.PowerDeviceList)
             {
                 for (int i = 0; i < net.PowerDeviceList.Count; i++)
@@ -1634,6 +1646,7 @@ namespace ScenarioRunner
                     if (d == null) continue;
                     total++;
                     if (d is Transformer ct) { transformers++; xforms.Add(ct); }
+                    else if (d is ElectricalInputOutput eio) { bridges.Add(eio); }
                     // Reflectively read UsedPower if present (Device, Battery,
                     // Transformer, Generator all expose a public UsedPower).
                     try
@@ -1684,6 +1697,22 @@ namespace ScenarioRunner
                     DumpNetworkAndUpstream(t.InputNetwork, depth + 1, visited, currentTick,
                         getAlloc, getPrio, isShedding);
                 }
+            }
+
+            // Follow non-transformer IO bridges (e.g. AreaPowerControl) upstream too,
+            // so a network fed through an APC rather than a transformer is still traced.
+            foreach (var b in bridges)
+            {
+                if (b == null) continue;
+                string brole = (b.OutputNetwork == net) ? "OUTPUT" : (b.InputNetwork == net ? "INPUT" : "UNKNOWN");
+                bool bon = false;
+                object berr = null;
+                try { bon = b.OnOff; } catch { }
+                try { berr = b.Error; } catch { }
+                _log?.LogInfo($"[ScenarioRunner] PFD{indent}  IO ref={b.ReferenceId} prefab={b.PrefabName} type={b.GetType().Name} role-on-net={brole} OnOff={bon} Error={berr} InNet={b.InputNetwork?.ReferenceId ?? -1} OutNet={b.OutputNetwork?.ReferenceId ?? -1}");
+                if (b.OutputNetwork == net && b.InputNetwork != null)
+                    DumpNetworkAndUpstream(b.InputNetwork, depth + 1, visited, currentTick,
+                        getAlloc, getPrio, isShedding);
             }
         }
 

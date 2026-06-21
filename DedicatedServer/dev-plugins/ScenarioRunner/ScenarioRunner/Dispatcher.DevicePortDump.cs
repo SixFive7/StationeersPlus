@@ -87,7 +87,7 @@ namespace ScenarioRunner
                 sb.Append("  ],\n");
 
                 sb.Append("  \"devices\": [\n");
-                int total = 0, emitted = 0, vanillaCount = 0, modCount = 0, displayFails = 0;
+                int total = 0, emitted = 0, vanillaCount = 0, modCount = 0, displayFails = 0, rocketCount = 0;
                 bool firstDev = true;
                 foreach (var prefab in Prefab.AllPrefabs)
                 {
@@ -126,6 +126,11 @@ namespace ScenarioRunner
                     sb.Append(", \"isDevice\": ").Append(prefab is Device ? "true" : "false");
                     sb.Append(", \"sourceMod\": ").Append(DpdJsonStr(srcMod));
                     sb.Append(", \"hasDataConnection\": ").Append(grid.HasDataConnection ? "true" : "false");
+                    DpdRocket(prefab, out bool rkFam, out bool rkStrict, out string rkCell);
+                    if (rkFam) rocketCount++;
+                    sb.Append(", \"rocket\": ").Append(rkFam ? "true" : "false");
+                    sb.Append(", \"rocketOnly\": ").Append(rkStrict ? "true" : "false");
+                    sb.Append(", \"rocketCell\": ").Append(DpdJsonStr(rkCell));
                     sb.Append(", \"ports\": [");
                     for (int i = 0; i < ends.Count; i++)
                     {
@@ -152,7 +157,7 @@ namespace ScenarioRunner
 
                 _log?.LogInfo(
                     $"[ScenarioRunner] device-port-dump END totalPrefabs={total} emitted={emitted} " +
-                    $"vanilla={vanillaCount} mod={modCount} mods={mods.Count} displayFallbacks={displayFails} -> {outPath}");
+                    $"vanilla={vanillaCount} mod={modCount} mods={mods.Count} rocketFamily={rocketCount} displayFallbacks={displayFails} -> {outPath}");
             }
             catch (Exception e)
             {
@@ -173,6 +178,37 @@ namespace ScenarioRunner
             if (d) return "data+";
             if (p) return "power+";
             return "other";
+        }
+
+        // Rocket build-eligibility, read from the game's own data (no name guessing). The game marks
+        // "rocket family" via IRocketComponent, and carries the build rule on IRocketInternals:
+        //   InternalCellType ([Flags] RocketInternalCellType; None=0) + StrictlyInternal (true => rocket-only).
+        // Membership matches Prefab.RegisterExisting / Stationpedia.AddRocketInfo exactly:
+        //   prefab is IRocketComponent && !(prefab is IRocketInternals { InternalCellType: None })
+        // Members are read through the INTERFACE type (works for explicit interface implementations);
+        // some classes (Battery, Transformer, Pipe, Tank, Cable) serialize these per-prefab, so this
+        // must be read at runtime. See Research/GameSystems/RocketConstructionEligibility.md.
+        private static void DpdRocket(Thing prefab, out bool family, out bool strict, out string cell)
+        {
+            family = false; strict = false; cell = "";
+            try
+            {
+                Type ircomp = null, irint = null;
+                foreach (var it in prefab.GetType().GetInterfaces())
+                {
+                    if (it.Name == "IRocketComponent") ircomp = it;
+                    else if (it.Name == "IRocketInternals") irint = it;
+                }
+                if (ircomp == null) return;                 // not rocket family at all
+                if (irint == null) { family = true; return; } // bare marker (e.g. fuselage, umbilical male) -> family
+                int ctVal = 0;
+                var ct = irint.GetProperty("InternalCellType")?.GetValue(prefab);
+                if (ct != null) { cell = ct.ToString(); try { ctVal = Convert.ToInt32(ct); } catch { } }
+                var si = irint.GetProperty("StrictlyInternal")?.GetValue(prefab);
+                if (si is bool b) strict = b;
+                family = ctVal != 0;                        // IRocketInternals with InternalCellType==None is NOT family
+            }
+            catch { }
         }
 
         private static void DpdBuildAttribution(Dictionary<int, string> hashToMod, List<DpdMod> mods)
