@@ -5,6 +5,7 @@ using Assets.Scripts.Objects.Motherboards;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 using LaunchPadBooster.Networking;
+using Objects.Rockets;
 
 namespace PowerGridPlus.Patches
 {
@@ -29,7 +30,8 @@ namespace PowerGridPlus.Patches
     public static class InheritedLogicablePassthroughLogicPatches
     {
         private static bool IsBridge(Device l) =>
-            l is Battery || l is PowerTransmitter || l is PowerReceiver;
+            l is Battery || l is PowerTransmitter || l is PowerReceiver
+            || l is RocketPowerUmbilicalMale || l is RocketPowerUmbilicalFemale;
 
         [HarmonyPrefix, HarmonyPatch(nameof(Device.CanLogicRead), new[] { typeof(LogicType) })]
         public static bool CanLogicReadPatch(Device __instance, LogicType logicType, ref bool __result)
@@ -84,6 +86,19 @@ namespace PowerGridPlus.Patches
                 PassthroughTopology.DirtyBridgeNetworks(__instance);
                 CableNetworkPatches.ScheduleCascadeForDevice(__instance);
                 new PassthroughModeMessage { DeviceId = __instance.ReferenceId, Mode = newMode }.SendAll(0L);
+            }
+
+            // Umbilical pair: the two halves are one wire, so they share a single logical mode. Mirror the
+            // write to the docked partner (set + dirty + cascade + replicate) so both always read the same
+            // value, per the "two things, one mode" requirement. No-op when undocked or not an umbilical
+            // (GetUmbilicalPartner returns null).
+            var umbilicalPartner = PassthroughTopology.GetUmbilicalPartner(__instance as ElectricalInputOutput);
+            if (umbilicalPartner != null && PassthroughModeStore.GetMode(umbilicalPartner) != newMode)
+            {
+                PassthroughModeStore.SetMode(umbilicalPartner, newMode);
+                PassthroughTopology.DirtyBridgeNetworks(umbilicalPartner);
+                CableNetworkPatches.ScheduleCascadeForDevice(umbilicalPartner);
+                new PassthroughModeMessage { DeviceId = umbilicalPartner.ReferenceId, Mode = newMode }.SendAll(0L);
             }
             return false;
         }

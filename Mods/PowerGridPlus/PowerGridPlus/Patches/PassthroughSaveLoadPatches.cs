@@ -6,6 +6,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Serialization;
 using Cysharp.Threading.Tasks;
 using HarmonyLib;
+using Objects.Rockets;
 
 namespace PowerGridPlus.Patches
 {
@@ -85,7 +86,7 @@ namespace PowerGridPlus.Patches
 
     // Per-Thing restore. Fires in Thing.OnFinishedLoad postfix. For each supported
     // bridging device (Transformer, Battery, AreaPowerControl, PowerTransmitter,
-    // PowerReceiver) with a side-car entry, restore its saved mode and dirty the
+    // PowerReceiver, rocket power umbilical Male / Female) with a side-car entry, restore its saved mode and dirty the
     // affected networks so the cached data-device lists rebuild with the restored
     // value on next read.
     // Devices without a side-car entry (legacy saves, fresh placements) fall through
@@ -129,6 +130,15 @@ namespace PowerGridPlus.Patches
                     PassthroughModeStore.RestoreFromSideCar(rx.ReferenceId, savedMode);
                     rx.OutputNetwork?.DirtyPowerAndDataDeviceLists();
                     rx.LinkedPowerTransmitter?.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+                case RocketPowerUmbilicalMale male:
+                    PassthroughModeStore.RestoreFromSideCar(male.ReferenceId, savedMode);
+                    male.InputNetwork?.DirtyPowerAndDataDeviceLists();
+                    male.DataCableNetwork?.DirtyPowerAndDataDeviceLists();
+                    break;
+                case RocketPowerUmbilicalFemale female:
+                    PassthroughModeStore.RestoreFromSideCar(female.ReferenceId, savedMode);
+                    female.OutputNetwork?.DirtyPowerAndDataDeviceLists();
                     break;
             }
         }

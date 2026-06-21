@@ -9,6 +9,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 using Objects;
+using Objects.Rockets;
 
 namespace PowerGridPlus
 {
@@ -111,6 +112,7 @@ namespace PowerGridPlus
             {
                 case "StructureTransformerSmall":
                 case "StructureTransformerSmallReversed":
+                case "StructureRocketTransformerSmall":
                     return (Cable.Type.heavy, Cable.Type.normal);
                 case "StructureTransformerMedium":
                 case "StructureTransformerMedium(Reversed)":
@@ -296,6 +298,14 @@ namespace PowerGridPlus
 
         private static bool IsStationaryBattery(Device device) => device is Battery;
 
+        /// <summary>
+        ///     True for either half of the rocket power umbilical pair. Both halves are heavy-cable-only,
+        ///     like a stationary battery: the umbilical is a high-throughput transfer link, not an ordinary
+        ///     device. (Male = the dockable side; Female / FemaleSide = the rocket-internal socket.)
+        /// </summary>
+        private static bool IsRocketPowerUmbilical(Device device) =>
+            device is RocketPowerUmbilicalMale || device is RocketPowerUmbilicalFemale;
+
         /// <summary>True for the high-draw machines that are allowed on heavy cable (in addition to normal).</summary>
         private static bool IsHighDrawMachine(Device device)
         {
@@ -332,7 +342,7 @@ namespace PowerGridPlus
             // it as tier-agnostic by name so we do not take a hard reference on the mod assembly.
             if (device.GetType().FullName == "forcefielddoormod.ForceFieldDoor")
                 return true;
-            if (IsGenerator(device) || IsStationaryBattery(device))
+            if (IsGenerator(device) || IsStationaryBattery(device) || IsRocketPowerUmbilical(device))
                 return tier == Cable.Type.heavy;
             if (IsHighDrawMachine(device))
                 return tier == Cable.Type.heavy || tier == Cable.Type.normal;

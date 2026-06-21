@@ -1,8 +1,11 @@
 using System.Collections.Generic;
+using System.Reflection;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using HarmonyLib;
+using Objects.Rockets;
 
 namespace PowerGridPlus.Patches
 {
@@ -19,13 +22,14 @@ namespace PowerGridPlus.Patches
     /// </summary>
     internal static class PassthroughTopology
     {
-        /// <summary>True if any of the four passthrough server toggles is on. Cheap pre-check so the
+        /// <summary>True if any of the five passthrough server toggles is on. Cheap pre-check so the
         /// per-network walk is skipped entirely when passthrough is globally off.</summary>
         internal static bool AnyPassthroughEnabled() =>
             PassthroughSettingsSync.EffectiveTransformer
             || PassthroughSettingsSync.EffectiveApc
             || PassthroughSettingsSync.EffectiveBattery
-            || PassthroughSettingsSync.EffectivePowerTransmitter;
+            || PassthroughSettingsSync.EffectivePowerTransmitter
+            || PassthroughSettingsSync.EffectiveUmbilical;
 
         /// <summary>
         ///     True if <paramref name="device"/> is an enabled, mode-1 logic-passthrough bridge: its
@@ -47,6 +51,14 @@ namespace PowerGridPlus.Patches
                     return PassthroughSettingsSync.EffectivePowerTransmitter && PassthroughModeStore.GetMode(tx) != 0;
                 case PowerReceiver rx:
                     return PassthroughSettingsSync.EffectivePowerTransmitter && PassthroughModeStore.GetMode(rx) != 0;
+                case RocketPowerUmbilicalMale _:
+                case RocketPowerUmbilicalFemale _:
+                    // A docked umbilical pair bridges only while connected: gate on a non-null partner so an
+                    // undocked half (the partner is severed on launch, restored on land) carries no logic,
+                    // per the connected / disconnected requirement.
+                    return PassthroughSettingsSync.EffectiveUmbilical
+                        && PassthroughModeStore.GetMode(device) != 0
+                        && GetUmbilicalPartner((ElectricalInputOutput)device) != null;
                 default:
                     return false;
             }
@@ -140,6 +152,10 @@ namespace PowerGridPlus.Patches
                     if (rx.LinkedPowerTransmitter?.InputNetwork != null) yield return rx.LinkedPowerTransmitter.InputNetwork;
                     if (rx.LinkedPowerTransmitter?.DataCableNetwork != null) yield return rx.LinkedPowerTransmitter.DataCableNetwork;
                     break;
+                case RocketPowerUmbilicalMale _:
+                case RocketPowerUmbilicalFemale _:
+                    foreach (var net in UmbilicalBridgeNetworks((ElectricalInputOutput)device)) yield return net;
+                    break;
             }
         }
 
@@ -152,6 +168,49 @@ namespace PowerGridPlus.Patches
         {
             foreach (var net in GetBridgeNetworks(device))
                 net.DirtyPowerAndDataDeviceLists();
+        }
+
+        // Reflection accessors for the private RocketPowerUmbilical*._partnerUmbilical field (IUmbilical
+        // exposes no public partner getter). Resolved once per type; readonly so the lookup is thread-safe
+        // on the power-tick worker. Each half's field is typed to its partner class, both ElectricalInputOutput.
+        private static readonly FieldInfo _malePartnerField =
+            AccessTools.Field(typeof(RocketPowerUmbilicalMale), "_partnerUmbilical");
+        private static readonly FieldInfo _femalePartnerField =
+            AccessTools.Field(typeof(RocketPowerUmbilicalFemale), "_partnerUmbilical");
+
+        /// <summary>
+        ///     The docked partner of a rocket power umbilical half, or null when undocked (or when the
+        ///     device is not an umbilical). "Connected" for passthrough purposes is exactly a non-null
+        ///     partner: the game severs it on launch and restores it on land.
+        /// </summary>
+        internal static ElectricalInputOutput GetUmbilicalPartner(ElectricalInputOutput umbilical)
+        {
+            switch (umbilical)
+            {
+                case RocketPowerUmbilicalMale _:
+                    return _malePartnerField?.GetValue(umbilical) as ElectricalInputOutput;
+                case RocketPowerUmbilicalFemale _:
+                    return _femalePartnerField?.GetValue(umbilical) as ElectricalInputOutput;
+                default:
+                    return null;
+            }
+        }
+
+        // Own power-in / power-out / data networks plus the docked partner's, so a docked pair forms one
+        // logic-transparent span. The male carries Power-in + a separate Data port; each socket carries
+        // Power-out only; the null guards drop the connectors a given half lacks.
+        private static IEnumerable<CableNetwork> UmbilicalBridgeNetworks(ElectricalInputOutput umbilical)
+        {
+            if (umbilical.InputNetwork != null) yield return umbilical.InputNetwork;
+            if (umbilical.OutputNetwork != null) yield return umbilical.OutputNetwork;
+            if (umbilical.DataCableNetwork != null) yield return umbilical.DataCableNetwork;
+            var partner = GetUmbilicalPartner(umbilical);
+            if (partner != null)
+            {
+                if (partner.InputNetwork != null) yield return partner.InputNetwork;
+                if (partner.OutputNetwork != null) yield return partner.OutputNetwork;
+                if (partner.DataCableNetwork != null) yield return partner.DataCableNetwork;
+            }
         }
     }
 }

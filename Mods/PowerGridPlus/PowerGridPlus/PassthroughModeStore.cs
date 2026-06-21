@@ -2,12 +2,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using Objects.Rockets;
 
 namespace PowerGridPlus
 {
     // Per-Thing LogicPassthroughMode state. Keyed by Thing.ReferenceId, value is
     // 0 or 1. Used for Transformer, Battery, AreaPowerControl, PowerTransmitter,
-    // and PowerReceiver.
+    // PowerReceiver, and both halves of the rocket power umbilical.
     //
     // Per-PrefabName defaults:
     //   - Small Transformer + Reversed + Rocket Small: 1 (logic-transparent out of the box).
@@ -17,6 +18,7 @@ namespace PowerGridPlus
     //   - AreaPowerControl:  1 (logic-transparent across input / output cable ports).
     //   - PowerTransmitter:  1 (logic-transparent across the wireless link to its receiver).
     //   - PowerReceiver:     1 (logic-transparent across the wireless link to its transmitter).
+    //   - Rocket power umbilical (Male / Female / FemaleSide): 1 (transparent across a docked pair).
     //   - Everything else:   0.
     //
     // Persistence: PassthroughSideCar reads / writes a sidecar XML inside the save
@@ -55,6 +57,8 @@ namespace PowerGridPlus
             if (thing is AreaPowerControl) return 1;
             if (thing is PowerTransmitter) return 1;
             if (thing is PowerReceiver) return 1;
+            if (thing is RocketPowerUmbilicalMale) return 1;
+            if (thing is RocketPowerUmbilicalFemale) return 1;
             return 0;
         }
 

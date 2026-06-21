@@ -29,11 +29,13 @@ namespace PowerGridPlus
         private static bool? _battery;
         private static bool? _apc;
         private static bool? _powerTransmitter;
+        private static bool? _umbilical;
 
         internal static bool EffectiveTransformer => Effective(_transformer, Settings.EnableTransformerLogicPassthrough);
         internal static bool EffectiveBattery => Effective(_battery, Settings.EnableBatteryLogicPassthrough);
         internal static bool EffectiveApc => Effective(_apc, Settings.EnableAreaPowerControlLogicPassthrough);
         internal static bool EffectivePowerTransmitter => Effective(_powerTransmitter, Settings.EnablePowerTransmitterLogicPassthrough);
+        internal static bool EffectiveUmbilical => Effective(_umbilical, Settings.EnableUmbilicalLogicPassthrough);
 
         private static bool Effective(bool? synced, ConfigEntry<bool> local)
         {
@@ -47,12 +49,13 @@ namespace PowerGridPlus
         // post-join data-device-list rebuild reads these via the Effective*
         // accessors above; no further refresh is necessary because the lists
         // build fresh after the join completes and the in-world UI is not yet up.
-        internal static void SetSyncedValues(bool transformer, bool battery, bool apc, bool powerTransmitter)
+        internal static void SetSyncedValues(bool transformer, bool battery, bool apc, bool powerTransmitter, bool umbilical)
         {
             _transformer = transformer;
             _battery = battery;
             _apc = apc;
             _powerTransmitter = powerTransmitter;
+            _umbilical = umbilical;
         }
     }
 }

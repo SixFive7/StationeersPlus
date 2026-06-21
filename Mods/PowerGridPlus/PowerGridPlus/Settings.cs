@@ -30,6 +30,10 @@ namespace PowerGridPlus
         internal static ConfigEntry<float> LargeBatteryDischargeRate;
         internal static ConfigEntry<float> NuclearBatteryChargeRate;
         internal static ConfigEntry<float> NuclearBatteryDischargeRate;
+        internal static ConfigEntry<float> RocketBatteryMediumChargeRate;
+        internal static ConfigEntry<float> RocketBatteryMediumDischargeRate;
+        internal static ConfigEntry<float> RocketBatterySmallChargeRate;
+        internal static ConfigEntry<float> RocketBatterySmallDischargeRate;
         internal static ConfigEntry<float> BatteryChargeEfficiency;
         internal static ConfigEntry<bool> EnableBatteryLogicAdditions;
         internal static ConfigEntry<bool> EnableBatteryLogicPassthrough;
@@ -54,6 +58,7 @@ namespace PowerGridPlus
         internal static ConfigEntry<bool> EnableRocketUmbilicalLimits;
         internal static ConfigEntry<int> RocketUmbilicalChargeRate;
         internal static ConfigEntry<int> RocketUmbilicalDischargeRate;
+        internal static ConfigEntry<bool> EnableUmbilicalLogicPassthrough;
 
         // --- Server - Emergency Lights ---
         internal static ConfigEntry<bool> EnableEmergencyLights;
@@ -143,6 +148,24 @@ namespace PowerGridPlus
             NuclearBatteryDischargeRate = config.Bind("Server - Batteries", "Nuclear Battery Discharge Rate", 50000f,
                 Desc("(Server-authoritative) Maximum discharge wattage for the Nuclear Battery (StructureBatteryNuclear, " +
                      "from the third-party MorePowerMod). No effect if MorePowerMod is not installed.", 70));
+
+            RocketBatteryMediumChargeRate = config.Bind("Server - Batteries", "Rocket Battery (Medium) Charge Rate", 5000f,
+                Desc("(Server-authoritative) Maximum charge wattage for the rocket Battery (Medium) (StructureBatteryMedium). " +
+                     "Per device, not per network. Capped further by the input cable's MaxVoltage. The rocket batteries are " +
+                     "treated exactly like stationary batteries (heavy cable, logic passthrough); this gives them the same " +
+                     "per-prefab rate cap.", 72));
+
+            RocketBatteryMediumDischargeRate = config.Bind("Server - Batteries", "Rocket Battery (Medium) Discharge Rate", 10000f,
+                Desc("(Server-authoritative) Maximum discharge wattage for the rocket Battery (Medium) (StructureBatteryMedium). " +
+                     "Per device, not per network. Capped further by the output cable's MaxVoltage.", 74));
+
+            RocketBatterySmallChargeRate = config.Bind("Server - Batteries", "Auxiliary Rocket Battery Charge Rate", 2500f,
+                Desc("(Server-authoritative) Maximum charge wattage for the Auxiliary Rocket Battery (StructureBatterySmall). " +
+                     "Per device, not per network. Capped further by the input cable's MaxVoltage.", 76));
+
+            RocketBatterySmallDischargeRate = config.Bind("Server - Batteries", "Auxiliary Rocket Battery Discharge Rate", 5000f,
+                Desc("(Server-authoritative) Maximum discharge wattage for the Auxiliary Rocket Battery (StructureBatterySmall). " +
+                     "Per device, not per network. Capped further by the output cable's MaxVoltage.", 78));
 
             BatteryChargeEfficiency = config.Bind("Server - Batteries", "Battery Charge Efficiency", 1.0f,
                 Desc("(Server-authoritative) Fraction of incoming power a stationary battery actually stores. 1.0 is " +
@@ -259,6 +282,16 @@ namespace PowerGridPlus
                 Desc("(Server-authoritative) Maximum Watts the rocket umbilical discharges per tick to the output network. " +
                      "Capped further by the output cable's MaxVoltage. Default 10000 matches the vanilla umbilical cell " +
                      "PowerMaximum.", 30));
+
+            EnableUmbilicalLogicPassthrough = config.Bind("Server - Rocket Umbilical", "Enable Umbilical Logic Passthrough", true,
+                Desc("(Server-authoritative) Master kill-switch for rocket power-umbilical logic-passthrough. When true, a " +
+                     "docked umbilical pair (Male + Socket) is logic-transparent: a logic reader on the rocket-internal grid " +
+                     "sees devices on the external grid (and its data bus) and vice versa, as if the two halves were one wire. " +
+                     "Each half honours its own LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 = " +
+                     "transparent, 0 = opaque; writing one half mirrors the value to its docked partner so both always read " +
+                     "the same. Bridging requires the pair to be docked (connected); an undocked umbilical bridges nothing. " +
+                     "Both halves default to mode 1. Per-device mode is persisted across save / load. When this master is " +
+                     "false, the umbilical carries no logic regardless of per-device mode.", 40));
 
             // --- Server - Emergency Lights ---
             EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,

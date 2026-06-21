@@ -40,6 +40,10 @@ namespace PowerGridPlus.Patches
                     return Settings.LargeBatteryChargeRate.Value;
                 case "StationBatteryNuclear":
                     return Settings.NuclearBatteryChargeRate.Value;
+                case "StructureBatteryMedium":
+                    return Settings.RocketBatteryMediumChargeRate.Value;
+                case "StructureBatterySmall":
+                    return Settings.RocketBatterySmallChargeRate.Value;
                 default:
                     return float.PositiveInfinity;
             }
@@ -60,6 +64,10 @@ namespace PowerGridPlus.Patches
                     return Settings.LargeBatteryDischargeRate.Value;
                 case "StationBatteryNuclear":
                     return Settings.NuclearBatteryDischargeRate.Value;
+                case "StructureBatteryMedium":
+                    return Settings.RocketBatteryMediumDischargeRate.Value;
+                case "StructureBatterySmall":
+                    return Settings.RocketBatterySmallDischargeRate.Value;
                 default:
                     return float.PositiveInfinity;
             }

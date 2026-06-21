@@ -118,12 +118,13 @@ namespace PowerGridPlus
                 writer.WriteInt32(entry.Value);
             }
 
-            // Then the four server-authoritative Enable*LogicPassthrough toggles (order must match
+            // Then the five server-authoritative Enable*LogicPassthrough toggles (order must match
             // DeserializeJoinSuffix), so the joining client computes the merge with the host's values.
             writer.WriteBoolean(Settings.EnableTransformerLogicPassthrough.Value);
             writer.WriteBoolean(Settings.EnableBatteryLogicPassthrough.Value);
             writer.WriteBoolean(Settings.EnableAreaPowerControlLogicPassthrough.Value);
             writer.WriteBoolean(Settings.EnablePowerTransmitterLogicPassthrough.Value);
+            writer.WriteBoolean(Settings.EnableUmbilicalLogicPassthrough.Value);
 
             // Then the per-Transformer Priority overrides + the EnableTransformerShedding toggle. The
             // priority defaults to PriorityStore.DefaultPriority for any transformer without an entry;
@@ -198,7 +199,8 @@ namespace PowerGridPlus
             bool battery = reader.ReadBoolean();
             bool apc = reader.ReadBoolean();
             bool powerTransmitter = reader.ReadBoolean();
-            PassthroughSettingsSync.SetSyncedValues(transformer, battery, apc, powerTransmitter);
+            bool umbilical = reader.ReadBoolean();
+            PassthroughSettingsSync.SetSyncedValues(transformer, battery, apc, powerTransmitter, umbilical);
 
             // Per-Transformer priority + EnableTransformerShedding master toggle.
             int priorityCount = reader.ReadInt32();

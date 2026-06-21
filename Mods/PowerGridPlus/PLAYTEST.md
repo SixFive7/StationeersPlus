@@ -62,6 +62,34 @@ Live confirm (single-player or dedi; needs a built topology the headless saves l
 
 Default mode (done 2026-06-19): `StructureRocketTransformerSmall` is now in `PassthroughModeStore.GetDefaultMode`'s transparent list (with the station small transformer + reversed), so the rocket transformer defaults to `LogicPassthroughMode 1` -- transparent out of the box. The confirm steps above no longer need the explicit `s d0 LogicPassthroughMode 1` on a fresh rocket transformer (it is already 1); to also exercise the write path, set it to 0 then back to 1.
 
+## Rocket-family power parity 2026-06-21 (transformer tier, battery caps, umbilical heavy + logic passthrough)
+
+Five changes from the friend's rocket report; all implemented, built, deployed, and **headless-verified on the dedicated server 2026-06-21 (12 / 12 checks, zero Error / Fatal)**. Only a real 2-peer multiplayer confirm remains. Uncommitted PowerGridPlus change set: `VoltageTier.cs`, `Settings.cs`, `Patches/StationaryBatteryPatches.cs`, `Patches/PassthroughTopology.cs`, `PassthroughModeStore.cs`, `PassthroughSettingsSync.cs`, `Plugin.cs`, `Patches/InheritedLogicablePassthroughLogicPatches.cs`, `Patches/PassthroughSaveLoadPatches.cs`, `LogicTypeRegistry.cs`, and the new `Patches/UmbilicalPassthroughPatches.cs`.
+
+**OPEN RISK -- item 4 multiplayer partner reference.** The umbilical logic bridge reads each half's `_partnerUmbilical` to find the docked partner. This is set per-peer by `RocketUmbilicalHelper.FindAndSetOtherUmbilical` (geometry-based), so in theory each peer sets its own and the bridge works locally on host and client alike, with no replicated back-reference needed. UNVERIFIED in multiplayer (a headless dedi has no second peer). The single most likely MP gap: if a joining client sees the host's grid but NOT across a docked umbilical, the field is host-only and needs a client-side mirror exactly like `DishLinkPatches` does for the dish `LinkedPowerTransmitter` back-reference. Confirm explicitly in the Remaining live confirm section below before shipping.
+
+### Headless-verified on the dedi 2026-06-21 (do NOT re-test)
+
+All twelve checks passed against `Luna_pgp_rocket` with the new build, zero Error / Fatal. Scenarios `pgp-rocket-parity-probe`, `pgp-umbilical-passthrough-probe`, and the save/load pair; docked pair under test male 127785 / female 91844; raw output in `.work/2026-06-21-pgp-rocket-parity/`.
+
+- **Item 1:** `GetTransformerTierMap("StructureRocketTransformerSmall")` = (heavy, normal).
+- **Item 5:** `IsAllowedOnTier(umbilical, normal)` = false, `(umbilical, heavy)` = true on a live umbilical.
+- **Items 2/3:** rocket Battery (Medium) `GetChargeCap` / `GetDischargeCap` = 5000 / 10000 (finite, not uncapped). Capacities reverse-engineered from the prefabs confirm the caps are right: `StructureBatteryMedium` = 3,600,000 J (identical to the standard `StructureBattery`, so 5000/10000 matches it), `StructureBatterySmall` = 1,800,000 J (half, so 2500/5000). No cap change made.
+- **Item 4 bridge:** the docked pair is reachable both ways AND the real merged `DataDeviceList` carries the partner's devices both ways (a CircuitHousing on the male side appears in the female's data list; a Transformer on the female side appears in the male's) -- this is what a motherboard dropdown / IC10 actually sees.
+- **Item 4 default mode:** an unwritten docked umbilical reads `LogicPassthroughMode` 1 on both halves.
+- **Item 4 mirror:** the real `SetLogicValue(LogicPassthroughMode, x)` on one half sets BOTH halves (the "two things, one mode" requirement).
+- **Item 4 undock:** nulling the partner drops the bridge (`IsEnabledBridge` = false); re-docking restores it.
+- **Item 4 master toggle:** `Enable Umbilical Logic Passthrough` off kills the bridge even when docked; on restores it.
+- **Item 4 persistence:** a non-default mode survives a save (captured in the `pwrgridplus-passthrough.xml` side-car) and is restored on reload.
+- **Item 4 MP wire format:** `Plugin.SerializeJoinSuffix` / `DeserializeJoinSuffix` round-trips the 5th (umbilical) boolean + the per-device modes in field order; `PassthroughModeMessage` round-trips. (Verifies the join-handshake format, NOT a real 2-peer join.)
+
+The tier-burn enforcement itself (items 1 + 5) was intentionally not re-tested: the burn machinery (`BurnCableForMisplacedDevice` / `BurnTransformerBothCables`) is shared with station devices and already verified; only the new per-device POLICY was new, and that passed above.
+
+### Remaining live confirm (a headless dedi cannot do these)
+
+- **Real 2-peer multiplayer (the OPEN RISK above) -- the one thing left.** Host docks an umbilical pair; a real client joins. Confirm the client also sees across the docked umbilical (an IC10 / motherboard on the rocket-internal grid lists a device on the external grid). The wire format is verified headless, but whether each peer independently sets `_partnerUmbilical` is not. If the client does NOT bridge, add a client-side partner mirror like `DishLinkPatches`. Also re-confirm a host mode write replicates to the client and the join handshake completes cleanly (the suffix grew by one boolean).
+- **Optional single-player eyeball (low priority).** Dock a pair, `s d0 LogicPassthroughMode 1`, read a far-side device from an IC10 on the other side. The merged `DataDeviceList` test already proves the logic; this is only an on-screen sanity check if you want one.
+
 ## Client residue, grouped to minimize reloads
 
 Setup save: `DedicatedServer/data/saves/Luna_pgp_residue/` (a clean copy of the Downloads `Luna.save`). It already shows, on load with no building: the 108 producer-isolation solar (VVF hover, stopped generating) and six Setting=0 transformers (amber throttle hover, dark subnets, refs 343183 / 343182 / 511092 / 511047 / 511050 / 511091). Load it once in single-player (copy to `Documents/My Games/Stationeers/saves/`) or join the dedicated server with it loaded. Key device refs from the campaign: transformer 360223 (small, loaded ~50 W downstream), PowerTransmitter 121753, solid generator 36369, power connector 36384, vanilla batteries 69371 / 36581 / 36261.

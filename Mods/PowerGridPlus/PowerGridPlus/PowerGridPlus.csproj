@@ -127,6 +127,7 @@
     <Compile Include="BurnReasonSideCar.cs" />
     <Compile Include="Patches\BurnReasonSaveLoadPatches.cs" />
     <Compile Include="Patches\RocketUmbilicalPatches.cs" />
+    <Compile Include="Patches\UmbilicalPassthroughPatches.cs" />
     <Compile Include="Patches\ProducerLogicPatches.cs" />
     <Compile Include="Patches\FaultHoverPatches.cs" />
     <Compile Include="CableMax.cs" />
