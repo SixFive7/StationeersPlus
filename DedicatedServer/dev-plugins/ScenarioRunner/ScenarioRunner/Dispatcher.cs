@@ -121,6 +121,22 @@ namespace ScenarioRunner
                     Scenario_PgpPassthroughPortProbe();
                     return;
 
+                case "pgp-rocket-parity-probe":
+                    Scenario_PgpRocketParityProbe();
+                    return;
+
+                case "pgp-umbilical-passthrough-probe":
+                    Scenario_PgpUmbilicalPassthroughProbe();
+                    return;
+
+                case "pgp-umbilical-saveload-set":
+                    Scenario_PgpUmbilicalSaveLoadSet();
+                    return;
+
+                case "pgp-umbilical-saveload-verify":
+                    Scenario_PgpUmbilicalSaveLoadVerify();
+                    return;
+
                 case "merge-long-variant-num4":
                     Scenario_MergeLongVariantNum4();
                     return;
@@ -855,6 +871,368 @@ namespace ScenarioRunner
             }
             catch { }
             return ids;
+        }
+
+        // ---- PGP scenario: rocket-parity-probe ----
+        //
+        // Headless pre-verification of the five PowerGridPlus rocket-family changes, plus a
+        // reverse-engineering capacity dump. Five blocks, each line prefixed
+        // "[ScenarioRunner] rocket-parity ...":
+        //
+        //   (A) CAPACITY DUMP. Walks Prefab.AllPrefabs and reads the public PowerMaximum field
+        //       off the battery prefabs (StructureBatteryMedium/Small/Battery/Large, plus
+        //       StationBatteryNuclear) and the rocket power-umbilical prefabs. This is the
+        //       reverse-engineering deliverable: the real PowerMaximum (stored-energy capacity)
+        //       of the medium and small rocket batteries.
+        //   (B) ROCKET TRANSFORMER TIER (item 1). VoltageTier.GetTransformerTierMap(
+        //       "StructureRocketTransformerSmall") -> expect (heavy, normal).
+        //   (C) UMBILICAL HEAVY-ONLY (item 5). VoltageTier.IsAllowedOnTier(umbilical, normal/heavy)
+        //       -> expect normal=False, heavy=True.
+        //   (D) ROCKET BATTERY CAPS (items 2/3). StationaryBatteryPatches.GetChargeCap /
+        //       GetDischargeCap on live Medium/Small battery instances -> expect finite caps
+        //       (Medium ~5000/10000, Small ~2500/5000), not Infinity.
+        //   (E) UMBILICAL LOGIC BRIDGE (item 4). For each docked male/female umbilical pair,
+        //       force PassthroughModeStore mode 1 on both halves, then
+        //       PassthroughTopology.GatherReachable on the male's InputNetwork and the female's
+        //       OutputNetwork; report whether the partner's network ReferenceId appears in each
+        //       reachable set (expect the docked pair bridges both ways).
+        //
+        // All reflected members are internal static on PGP types; read with Static|Public|NonPublic.
+        // PowerMaximum is a public field on Battery and on the rocket umbilical subclasses, read
+        // off the live instance. Cable.Type is the public game enum Assets.Scripts.Objects.Pipes.
+        // Cable.Type (normal=0, heavy=1, superHeavy=2). All reads are managed-state only (prefab
+        // fields, reflected invocations, network ReferenceId) -> safe from the UniTask worker the
+        // sim-tick pump runs on. Requires PowerGridPlus loaded.
+
+        private static bool _rocketParityFired;
+
+        private static void Scenario_PgpRocketParityProbe()
+        {
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-rocket-parity-probe")) return;
+            if (_rocketParityFired) return;
+            _rocketParityFired = true;
+
+            try
+            {
+                _log?.LogInfo("[ScenarioRunner] rocket-parity START");
+
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                const System.Reflection.BindingFlags SFLAGS =
+                    System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic;
+
+                var voltageTier = asm.GetType("PowerGridPlus.VoltageTier");
+                var batPatches = asm.GetType("PowerGridPlus.Patches.StationaryBatteryPatches");
+                var topo = asm.GetType("PowerGridPlus.Patches.PassthroughTopology");
+                var store = asm.GetType("PowerGridPlus.PassthroughModeStore");
+
+                var getTierMap = voltageTier?.GetMethod("GetTransformerTierMap", SFLAGS, null, new[] { typeof(string) }, null);
+                var isAllowedOnTier = voltageTier?.GetMethod("IsAllowedOnTier", SFLAGS, null, new[] { typeof(Device), typeof(Cable.Type) }, null);
+                var getChargeCap = batPatches?.GetMethod("GetChargeCap", SFLAGS, null, new[] { typeof(Battery) }, null);
+                var getDischargeCap = batPatches?.GetMethod("GetDischargeCap", SFLAGS, null, new[] { typeof(Battery) }, null);
+                var gather = topo?.GetMethod("GatherReachable", SFLAGS);
+                var getUmbilicalPartner = topo?.GetMethod("GetUmbilicalPartner", SFLAGS, null,
+                    new[] { typeof(Assets.Scripts.Objects.Electrical.ElectricalInputOutput) }, null);
+                var setMode = store?.GetMethod("SetMode", SFLAGS, null, new[] { typeof(Thing), typeof(int) }, null);
+
+                _log?.LogInfo(
+                    $"[ScenarioRunner] rocket-parity reflection: getTierMap={getTierMap != null} isAllowedOnTier={isAllowedOnTier != null} " +
+                    $"getChargeCap={getChargeCap != null} getDischargeCap={getDischargeCap != null} gather={gather != null} " +
+                    $"getUmbilicalPartner={getUmbilicalPartner != null} setMode={setMode != null}");
+
+                RocketParity_CapacityDump();
+                RocketParity_TransformerTier(getTierMap);
+                RocketParity_UmbilicalHeavyOnly(isAllowedOnTier);
+                RocketParity_RocketBatteryCaps(getChargeCap, getDischargeCap);
+                RocketParity_UmbilicalLogicBridge(gather, getUmbilicalPartner, setMode);
+
+                _log?.LogInfo("[ScenarioRunner] rocket-parity END");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] rocket-parity threw: {e}");
+            }
+        }
+
+        // (A) CAPACITY DUMP -- the reverse-engineering deliverable. Read PowerMaximum off each
+        // named prefab instance from Prefab.AllPrefabs. PowerMaximum is a public field on Battery
+        // and on the rocket umbilical subclasses; read it via reflection on the live type so the
+        // same helper handles both class families without a build-time reference to Objects.Rockets.
+        private static void RocketParity_CapacityDump()
+        {
+            var want = new HashSet<string>
+            {
+                "StructureBatteryMedium",
+                "StructureBatterySmall",
+                "StructureBattery",
+                "StructureBatteryLarge",
+                "StationBatteryNuclear",
+                "StructurePowerUmbilicalMale",
+                "StructurePowerUmbilicalFemale",
+            };
+
+            int found = 0;
+            foreach (var prefab in Prefab.AllPrefabs)
+            {
+                if (prefab == null) continue;
+                string name = prefab.PrefabName ?? "";
+                if (!want.Contains(name)) continue;
+                found++;
+
+                string pmax = RocketParity_ReadPowerMaximum(prefab, out bool ok);
+                _log?.LogInfo(
+                    $"[ScenarioRunner] rocket-parity CAPACITY PrefabName={name} " +
+                    $"PowerMaximum={(ok ? pmax : "n/a")} Type={prefab.GetType().Name}");
+            }
+            _log?.LogInfo($"[ScenarioRunner] rocket-parity CAPACITY found={found}/{want.Count} target prefabs");
+        }
+
+        // Read the public PowerMaximum float. Battery exposes it directly; the rocket umbilical
+        // subclasses (Objects.Rockets.RocketPowerUmbilical*) also expose it as a public field but
+        // are not referenced at build time, so go through reflection on the instance type for both.
+        private static string RocketParity_ReadPowerMaximum(object instance, out bool ok)
+        {
+            ok = false;
+            if (instance == null) return "null-instance";
+            try
+            {
+                if (instance is Battery b) { ok = true; return b.PowerMaximum.ToString("F2", System.Globalization.CultureInfo.InvariantCulture); }
+                var f = instance.GetType().GetField("PowerMaximum",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (f != null && f.FieldType == typeof(float))
+                {
+                    ok = true;
+                    return ((float)f.GetValue(instance)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                }
+                var p = instance.GetType().GetProperty("PowerMaximum",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (p != null && p.PropertyType == typeof(float))
+                {
+                    ok = true;
+                    return ((float)p.GetValue(instance)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                }
+                return "no-PowerMaximum-member";
+            }
+            catch (Exception e) { return "read-threw:" + e.Message; }
+        }
+
+        // (B) ROCKET TRANSFORMER TIER (item 1).
+        private static void RocketParity_TransformerTier(System.Reflection.MethodInfo getTierMap)
+        {
+            if (getTierMap == null)
+            {
+                _log?.LogError("[ScenarioRunner] rocket-parity TIER FAIL: VoltageTier.GetTransformerTierMap(string) not found");
+                return;
+            }
+            const string prefab = "StructureRocketTransformerSmall";
+            try
+            {
+                var result = getTierMap.Invoke(null, new object[] { prefab });
+                if (result == null)
+                {
+                    _log?.LogError($"[ScenarioRunner] rocket-parity TIER FAIL: GetTransformerTierMap(\"{prefab}\") returned NULL (expected (heavy, normal))");
+                    return;
+                }
+                // Nullable value tuple (Cable.Type Input, Cable.Type Output)? -> read the boxed
+                // ValueTuple fields Item1/Item2 reflectively (works regardless of element names).
+                var t = result.GetType();
+                var item1 = t.GetField("Item1")?.GetValue(result);
+                var item2 = t.GetField("Item2")?.GetValue(result);
+                string input = item1?.ToString() ?? "?";
+                string output = item2?.ToString() ?? "?";
+                bool pass = input == "heavy" && output == "normal";
+                _log?.LogInfo(
+                    $"[ScenarioRunner] rocket-parity TIER prefab={prefab} Input={input} Output={output} " +
+                    $"=> {(pass ? "PASS" : "FAIL")} (expect Input=heavy Output=normal)");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] rocket-parity TIER threw: {e.InnerException?.Message ?? e.Message}");
+            }
+        }
+
+        // (C) UMBILICAL HEAVY-ONLY (item 5).
+        private static void RocketParity_UmbilicalHeavyOnly(System.Reflection.MethodInfo isAllowedOnTier)
+        {
+            if (isAllowedOnTier == null)
+            {
+                _log?.LogError("[ScenarioRunner] rocket-parity HEAVYONLY FAIL: VoltageTier.IsAllowedOnTier(Device, Cable.Type) not found");
+                return;
+            }
+
+            Device umbilical = null;
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (umbilical != null || t == null) return;
+                if (t is Objects.Rockets.RocketPowerUmbilicalMale || t is Objects.Rockets.RocketPowerUmbilicalFemale)
+                    umbilical = (Device)t;
+            });
+
+            if (umbilical == null)
+            {
+                _log?.LogWarning("[ScenarioRunner] rocket-parity HEAVYONLY: no umbilical instance in save; skip.");
+                return;
+            }
+
+            try
+            {
+                bool onNormal = (bool)isAllowedOnTier.Invoke(null, new object[] { umbilical, Cable.Type.normal });
+                bool onHeavy = (bool)isAllowedOnTier.Invoke(null, new object[] { umbilical, Cable.Type.heavy });
+                bool pass = !onNormal && onHeavy;
+                _log?.LogInfo(
+                    $"[ScenarioRunner] rocket-parity HEAVYONLY ref={umbilical.ReferenceId} prefab={umbilical.PrefabName} " +
+                    $"type={umbilical.GetType().Name} allowedOnNormal={onNormal} allowedOnHeavy={onHeavy} " +
+                    $"=> {(pass ? "PASS" : "FAIL")} (expect normal=False heavy=True)");
+            }
+            catch (Exception e)
+            {
+                _log?.LogError($"[ScenarioRunner] rocket-parity HEAVYONLY threw: {e.InnerException?.Message ?? e.Message}");
+            }
+        }
+
+        // (D) ROCKET BATTERY CAPS (items 2/3).
+        private static void RocketParity_RocketBatteryCaps(
+            System.Reflection.MethodInfo getChargeCap, System.Reflection.MethodInfo getDischargeCap)
+        {
+            if (getChargeCap == null || getDischargeCap == null)
+            {
+                _log?.LogError(
+                    $"[ScenarioRunner] rocket-parity BATCAP FAIL: StationaryBatteryPatches.GetChargeCap/GetDischargeCap not found " +
+                    $"(charge={getChargeCap != null} discharge={getDischargeCap != null})");
+                return;
+            }
+
+            var targets = new List<Battery>();
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (t is Battery b && (b.PrefabName == "StructureBatteryMedium" || b.PrefabName == "StructureBatterySmall"))
+                    targets.Add(b);
+            });
+
+            if (targets.Count == 0)
+            {
+                _log?.LogWarning("[ScenarioRunner] rocket-parity BATCAP: no rocket battery instance (Medium/Small) in save; skip.");
+                return;
+            }
+
+            foreach (var bat in targets)
+            {
+                try
+                {
+                    float charge = (float)getChargeCap.Invoke(null, new object[] { bat });
+                    float discharge = (float)getDischargeCap.Invoke(null, new object[] { bat });
+                    bool finite = !float.IsInfinity(charge) && !float.IsInfinity(discharge) && !float.IsNaN(charge) && !float.IsNaN(discharge);
+                    string expect = bat.PrefabName == "StructureBatteryMedium" ? "(expect ~5000/10000)" : "(expect ~2500/5000)";
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] rocket-parity BATCAP ref={bat.ReferenceId} prefab={bat.PrefabName} " +
+                        $"chargeCap={charge:F2} dischargeCap={discharge:F2} finite={finite} " +
+                        $"=> {(finite ? "PASS" : "FAIL")} {expect}");
+                }
+                catch (Exception e)
+                {
+                    _log?.LogError($"[ScenarioRunner] rocket-parity BATCAP ref={bat.ReferenceId} threw: {e.InnerException?.Message ?? e.Message}");
+                }
+            }
+        }
+
+        // (E) UMBILICAL LOGIC BRIDGE (item 4). For each docked male/female pair, force mode 1 on
+        // both halves, then GatherReachable on the male InputNetwork and the female OutputNetwork;
+        // check the partner's network ReferenceId appears in each reachable set.
+        private static void RocketParity_UmbilicalLogicBridge(
+            System.Reflection.MethodInfo gather,
+            System.Reflection.MethodInfo getUmbilicalPartner,
+            System.Reflection.MethodInfo setMode)
+        {
+            if (gather == null || setMode == null)
+            {
+                _log?.LogError(
+                    $"[ScenarioRunner] rocket-parity BRIDGE FAIL: required reflection missing " +
+                    $"(gather={gather != null} setMode={setMode != null} getUmbilicalPartner={getUmbilicalPartner != null})");
+                return;
+            }
+
+            var males = new List<Objects.Rockets.RocketPowerUmbilicalMale>();
+            OcclusionManager.AllThings.ForEach(t =>
+            {
+                if (t is Objects.Rockets.RocketPowerUmbilicalMale m) males.Add(m);
+            });
+
+            if (males.Count == 0)
+            {
+                _log?.LogWarning("[ScenarioRunner] rocket-parity BRIDGE: no RocketPowerUmbilicalMale instance in save; skip.");
+                return;
+            }
+
+            int pairs = 0;
+            foreach (var male in males)
+            {
+                if (male == null) continue;
+                var maleEio = (Assets.Scripts.Objects.Electrical.ElectricalInputOutput)(Device)male;
+
+                // Resolve the partner. Prefer the PGP accessor; fall back to the private field.
+                Assets.Scripts.Objects.Electrical.ElectricalInputOutput partner = null;
+                if (getUmbilicalPartner != null)
+                {
+                    try { partner = getUmbilicalPartner.Invoke(null, new object[] { maleEio }) as Assets.Scripts.Objects.Electrical.ElectricalInputOutput; }
+                    catch (Exception e) { _log?.LogWarning($"[ScenarioRunner] rocket-parity BRIDGE GetUmbilicalPartner threw: {e.InnerException?.Message ?? e.Message}"); }
+                }
+                if (partner == null) partner = RocketParity_ReadPartnerField(male) as Assets.Scripts.Objects.Electrical.ElectricalInputOutput;
+
+                if (partner == null)
+                {
+                    _log?.LogInfo(
+                        $"[ScenarioRunner] rocket-parity BRIDGE male ref={male.ReferenceId} prefab={male.PrefabName} " +
+                        $"partner=NONE (not docked)");
+                    continue;
+                }
+                pairs++;
+
+                var female = partner;
+                var maleIn = maleEio.InputNetwork;
+                var femaleOut = female.OutputNetwork;
+                long maleInId = maleIn?.ReferenceId ?? 0;
+                long femaleOutId = femaleOut?.ReferenceId ?? 0;
+
+                // Force mode 1 on BOTH halves so the logic-passthrough bridge is active.
+                try { setMode.Invoke(null, new object[] { (Thing)(Device)male, 1 }); } catch { }
+                try { setMode.Invoke(null, new object[] { (Thing)female, 1 }); } catch { }
+
+                var reachFromMaleIn = PppReach(gather, maleIn);
+                var reachFromFemaleOut = PppReach(gather, femaleOut);
+
+                // Bridge both ways: from the male input side we should reach the female output net;
+                // from the female output side we should reach the male input net.
+                bool maleReachesFemale = femaleOut != null && reachFromMaleIn.Contains(femaleOutId);
+                bool femaleReachesMale = maleIn != null && reachFromFemaleOut.Contains(maleInId);
+                bool pass = maleReachesFemale && femaleReachesMale;
+
+                _log?.LogInfo(
+                    $"[ScenarioRunner] rocket-parity BRIDGE pair#{pairs} male ref={male.ReferenceId} female ref={female.ReferenceId} | " +
+                    $"maleInNet={maleInId} femaleOutNet={femaleOutId} | " +
+                    $"reach(maleIn)=[{string.Join(",", reachFromMaleIn)}] reach(femaleOut)=[{string.Join(",", reachFromFemaleOut)}] | " +
+                    $"maleReachesFemale={maleReachesFemale} femaleReachesMale={femaleReachesMale} " +
+                    $"=> {(pass ? "PASS" : "FAIL")} (expect docked pair bridges both ways)");
+            }
+
+            if (pairs == 0)
+                _log?.LogWarning("[ScenarioRunner] rocket-parity BRIDGE: no docked umbilical pair (males present but none have a partner).");
+            else
+                _log?.LogInfo($"[ScenarioRunner] rocket-parity BRIDGE summary: dockedPairs={pairs}");
+        }
+
+        // Read the private _partnerUmbilical field off an umbilical instance (fallback when the
+        // PGP accessor is unavailable). The field is declared on the concrete rocket subclass.
+        private static object RocketParity_ReadPartnerField(object umbilical)
+        {
+            if (umbilical == null) return null;
+            try
+            {
+                var f = umbilical.GetType().GetField("_partnerUmbilical",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                return f?.GetValue(umbilical);
+            }
+            catch { return null; }
         }
 
         // ---- General scenario: merge-long-variant-num4 ----
