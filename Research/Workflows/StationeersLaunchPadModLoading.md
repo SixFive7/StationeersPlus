@@ -49,6 +49,7 @@ public string ModID => About.ModID ?? "";
 `LoadedMod` (StationeersLaunchPad.decompiled.cs:14532-14712) is instantiated once per enabled mod and holds the runtime collections:
 
 ```csharp
+public ModInfo Info;                                    // the config-phase record; carries the name
 public List<Assembly> Assemblies = new List<Assembly>();
 public List<GameObject> Prefabs = new List<GameObject>();
 public List<ExportSettings> Exports = new List<ExportSettings>();
@@ -62,6 +63,8 @@ ContentHandler = new ContentHandler(mod, new List<IResource>().AsReadOnly(), Pre
 ```
 
 So once asset loading has populated `Prefabs`, the mod's own `OnLoaded(ContentHandler)` can enumerate exactly the prefabs that mod shipped. `ContentHandler` itself is defined in the main game assembly, not in StationeersLaunchPad.
+
+`LoadedMod.Info` is this mod's `ModInfo` (the config-phase record above), and it is the StationeersLaunchPad-side attribution key. `LoadedMod` has NO `Def` / `Name` / `About` member of its own; to get the mod name from a `LoadedMod`, read `LoadedMod.Info.Name` (which forwards to `About.Name`). The full instance field set, confirmed at runtime via a reflection member dump (game 0.2.6228.27061, `StationeersLaunchPad.Loading.LoadedMod`), is: `_lock`, `Info` (`ModInfo`), `Logger`, `Assemblies`, `Prefabs`, `Exports`, `ContentHandler`, `Entrypoints`, `ConfigFiles`, and the `LoadedAssemblies` / `LoadedAssets` / `LoadedEntryPoints` / `LoadFinished` / `LoadFailed` / `_configDirty` status fields; no public properties. See PrefabSourceAttribution.md for the join-by-hash attribution recipe.
 
 ## ModLoader: the global registries
 <!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
@@ -142,6 +145,7 @@ A Harmony **prefix on `Prefab.LoadAll`** (`PrefabPatch.PatchPrefabs`, lines 216-
 ## Verification history
 
 - 2026-06-21: page created from a read of the StationeersLaunchPad and LaunchPadBooster decompiles at game version 0.2.6228.27061. Documents ModInfo / LoadedMod / ModLoader, the three load phases, the absence of a current-mod static (identity via loop variable, state-machine `this`, or `TryGetExecutingMod` stack walk), and the LaunchPadBooster `Mod.AllMods` + `PrefabPatch` route. Reframed and reformatted from an initial sub-agent draft to comply with Research conventions (repo-relative source citations, triple-backtick fences, valid related links).
+- 2026-06-21: added `LoadedMod.Info` (the `ModInfo` carrying the mod name) to the LoadedMod section, plus the full runtime-confirmed instance field set, after a ScenarioRunner runtime reflection member dump (the `device-port-dump` LoadedMod diagnostic, game 0.2.6228.27061) showed `LoadedMod` exposes `Info:ModInfo` and has no `Def`/`Name`/`About` member of its own. This corrects the StationeersLaunchPad prefab-attribution name source: read `LoadedMod.Info.Name`, not `LoadedMod.Def.About.Name`. Additive correction; no prior stamped claim contradicted (the original LoadedMod member list was described as "the runtime collections", not exhaustive).
 
 ## Open questions
 
