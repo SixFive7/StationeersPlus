@@ -1,0 +1,149 @@
+---
+title: StationeersLaunchPad mod loading pipeline
+type: Workflows
+created_in: 0.2.6228.27061
+verified_in: 0.2.6228.27061
+verified_at: 2026-06-21
+sources:
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: StationeersLaunchPad.Metadata.ModInfo / LoadedMod / ModLoader (decompile .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs:13287-16400)
+  - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: PrefabEntrypoint / ModBehaviourEntrypoint (decompile lines 16892-16935)
+  - BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :: LaunchPadBooster.Mod / PrefabPatch (decompile .work/decomp/0.2.6228.27061/LaunchPadBooster.decompiled.cs:99-242)
+related:
+  - ../GameSystems/PrefabSourceAttribution.md
+  - ../GameSystems/ModLoadSequence.md
+  - ../GameSystems/ModDeduplication.md
+tags: [launchpad, prefab]
+---
+
+# StationeersLaunchPad mod loading pipeline
+
+How StationeersLaunchPad turns an enabled mod into loaded assemblies, prefabs, and a fired entrypoint, and where (if anywhere) the identity of the mod that contributed a given prefab is retained. The companion page PrefabSourceAttribution.md uses this to answer "which mod added this prefab".
+
+Line numbers below come from the 0.2.6228.27061 decompile. Several registration sites sit inside async state machines, so the cited lines are the compiler-generated `MoveNext` bodies, not hand-written source; the surrounding method names are the stable handles.
+
+## ModInfo: the config-phase mod record
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+`ModInfo` (StationeersLaunchPad.decompiled.cs:13287-13365) is the metadata-phase representation built from a mod's `About.xml`. Relevant members:
+
+```csharp
+public readonly ModDefinition Def;
+public readonly List<string> Assemblies = new List<string>();
+public readonly List<string> AssetBundles = new List<string>();
+public bool Enabled;
+
+public ModAboutEx About => Def.About;
+public ModSourceType Source => Def.Type;
+public string Name => About.Name;
+public string DirectoryPath => Def.DirectoryPath;
+public string DirectoryName => new DirectoryInfo(DirectoryPath).Name;
+public ulong WorkshopHandle => Def.WorkshopHandle;
+public string ModID => About.ModID ?? "";
+```
+
+`Assemblies` and `AssetBundles` are file-path lists (the `.dll` and `.assets` files discovered under the mod directory). `ModInfo` does NOT track which prefabs an asset bundle contains; that is resolved later, at runtime, into `LoadedMod.Prefabs`.
+
+## LoadedMod: the runtime mod record
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+`LoadedMod` (StationeersLaunchPad.decompiled.cs:14532-14712) is instantiated once per enabled mod and holds the runtime collections:
+
+```csharp
+public List<Assembly> Assemblies = new List<Assembly>();
+public List<GameObject> Prefabs = new List<GameObject>();
+public List<ExportSettings> Exports = new List<ExportSettings>();
+public ContentHandler ContentHandler;
+```
+
+The `ContentHandler` is created in the constructor with a read-only view of this mod's `Prefabs` list (line 14569):
+
+```csharp
+ContentHandler = new ContentHandler(mod, new List<IResource>().AsReadOnly(), Prefabs.AsReadOnly());
+```
+
+So once asset loading has populated `Prefabs`, the mod's own `OnLoaded(ContentHandler)` can enumerate exactly the prefabs that mod shipped. `ContentHandler` itself is defined in the main game assembly, not in StationeersLaunchPad.
+
+## ModLoader: the global registries
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+`ModLoader` (StationeersLaunchPad.decompiled.cs:16000, 16328-16332) holds the static cross-mod registries:
+
+```csharp
+public static readonly List<LoadedMod> LoadedMods = new List<LoadedMod>();
+private static readonly Dictionary<Assembly, LoadedMod> AssemblyToMod = new Dictionary<Assembly, LoadedMod>();
+```
+
+`LoadedMods` is the global "every mod that loaded" list (the StationeersLaunchPad-side analogue of `LaunchPadBooster.Mod.AllMods`). `AssemblyToMod` is populated during assembly loading via `ModLoader.RegisterAssembly(assembly, this)` and is what makes the stack-trace lookup below possible.
+
+## The three loading phases
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+StationeersLaunchPad loads mods in three async phases, each stopwatch-logged (the log strings "Assemblies loading...", "Asset loading...", "Loading entrypoints..." appear in the server/player log per StationeersLaunchPadDedicatedServer.md):
+
+1. **Assemblies.** Each mod's `.dll` files are `Assembly.LoadFrom`-ed and `ModLoader.RegisterAssembly(assembly, mod)` records the assembly -> `LoadedMod` mapping in `AssemblyToMod`.
+
+2. **Assets.** Each mod's asset bundles load and their `GameObject` contents are extracted. In `LoadAssetsSingle` (state machine around lines 14329-14460) the extracted list is appended to that mod's `Prefabs` under a lock (line 14439):
+
+   ```csharp
+   Monitor.Enter(<>s__6, ref <>s__7);
+   <>4__this.Prefabs.AddRange(<prefabs>5__2);
+   ```
+
+   `<>4__this` is the `LoadedMod` instance, so the mod identity is in scope here. The bundle extraction is `bundle.LoadAllAssetsAsync<GameObject>()` (via `ModLoader.LoadBundleExportSettings` / `LoadAllBundleAssets`).
+
+3. **Entrypoints.** Mods implementing `ModBehaviour` (StationeersMods) or BepInEx plugins are initialized. The `OnLoaded(ContentHandler)` callback fires at lines 16892-16935:
+
+   ```csharp
+   // PrefabEntrypoint.Initialize
+   foreach (ModBehaviour modBehaviour in Behaviours)
+   {
+       modBehaviour.contentHandler = mod.ContentHandler;
+       modBehaviour.OnLoaded(mod.ContentHandler);
+   }
+
+   // ModBehaviourEntrypoint.Initialize
+   Instance.contentHandler = mod.ContentHandler;
+   Instance.OnLoaded(mod.ContentHandler);
+   ```
+
+At the entrypoint phase, the mod's code runs and is responsible for actually registering its prefabs with the game (commonly by handing them to `LaunchPadBooster.Mod.AddPrefabs`, which defers the real registration to a `Prefab.LoadAll` prefix; see below and PrefabSourceAttribution.md).
+
+## No "current mod" static; identity sources
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+There is NO static field such as `CurrentMod` / `LoadingMod` / `ActiveMod`. During loading, mod identity is available only as:
+
+1. The `LoadedMod` loop variable inside the load-strategy loops (e.g. lines 14020-14022, iterating `ModLoader.LoadedMods`).
+2. The `LoadedMod <>4__this` instance captured by each async state machine (e.g. `LoadAssetsSingle`, line 14337).
+3. A runtime stack-trace lookup (lines ~16342-16365):
+
+   ```csharp
+   public static bool TryGetExecutingMod(out LoadedMod mod)
+   {
+       return TryGetStackTraceMod(new StackTrace(3), out mod);
+   }
+   ```
+
+   `TryGetStackTraceMod` walks each frame's declaring assembly against `AssemblyToMod` and returns the first match. A Harmony patch on a registration method can call `ModLoader.TryGetExecutingMod` to learn which mod's code is currently on the stack, but only when the registering call is actually made from that mod's assembly (it fails for deferred registration that runs from a StationeersLaunchPad or game frame).
+
+## LaunchPadBooster prefab path
+<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+
+LaunchPadBooster is the common registration route. A mod constructs a `LaunchPadBooster.Mod` and calls `AddPrefabs`, which stores the prefabs on that `Mod` instance (LaunchPadBooster.decompiled.cs:161-173). The static `Mod.AllMods` (line 103) retains the per-mod prefab lists permanently:
+
+```csharp
+public static readonly List<Mod> AllMods = new List<Mod>();
+internal readonly List<Thing> Prefabs = new List<Thing>();
+public readonly ModID ID;   // struct ModID { string Name; string Version; }
+```
+
+A Harmony **prefix on `Prefab.LoadAll`** (`PrefabPatch.PatchPrefabs`, lines 216-241) flushes every `Mod.AllMods[].Prefabs` into `WorldManager.Instance.SourcePrefabs` just before the game clones the source list into `Prefab.AllPrefabs`. Because `Mod.AllMods` survives, this is the reliable place to read "which mod shipped this prefab" without any extra hook. See PrefabSourceAttribution.md for the join-by-hash recipe and the full ordering.
+
+## Verification history
+
+- 2026-06-21: page created from a read of the StationeersLaunchPad and LaunchPadBooster decompiles at game version 0.2.6228.27061. Documents ModInfo / LoadedMod / ModLoader, the three load phases, the absence of a current-mod static (identity via loop variable, state-machine `this`, or `TryGetExecutingMod` stack walk), and the LaunchPadBooster `Mod.AllMods` + `PrefabPatch` route. Reframed and reformatted from an initial sub-agent draft to comply with Research conventions (repo-relative source citations, triple-backtick fences, valid related links).
+
+## Open questions
+
+- Exact line of `ModLoader.RegisterAssembly` and the phase-log print sites were cited approximately (state-machine bodies). A future pass can pin them precisely if needed.
+- `ContentHandler`'s game-side definition (it lives in Assembly-CSharp, not StationeersLaunchPad) and whether it exposes the owning mod beyond the prefab list was not chased here; not required for attribution since `Mod.AllMods` / `LoadedMods` already carry identity.
