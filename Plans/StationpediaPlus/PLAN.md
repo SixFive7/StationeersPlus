@@ -1941,13 +1941,11 @@ c:\Source\SixFive7\StationeersPlus\StationpediaPlus\
 
 ### 16.2 StationpediaPlus.csproj template
 
-Copy from `EquipmentPlus.csproj` (closest existing template: UI +
+Copy from `EquipmentPlus.csproj` (closest existing SDK-style template: UI +
 TextMeshPro + EventSystems). Key differences:
 - `RootNamespace` = `StationpediaPlus`
 - `AssemblyName` = `StationpediaPlus`
-- Generate new `ProjectGuid`
 - Remove `LaunchPadBooster` reference (not needed for UI library).
-- `OutputType` = Library.
 - No `Content` items (no About.xml, no preview images; library, not plugin).
 
 Required references:
@@ -1965,31 +1963,9 @@ Required references:
 
 Plus framework refs: `System`, `System.Core`, `Microsoft.CSharp`.
 
-Required MSBuild validation target (standard across SixFive7 mods):
+The `$(StationeersPath)` validation (`EnsureStationeersPath` target) is inherited from the repo-root `Directory.Build.props`; no per-project target is needed.
 
-```xml
-<Target Name="EnsureStationeersPath" BeforeTargets="ResolveAssemblyReferences">
-  <Error Condition="'$(StationeersPath)' == ''" Text="StationeersPath is not set. Copy Directory.Build.props.template to Directory.Build.props and edit it to point at your Stationeers install." />
-  <Error Condition="'$(StationeersPath)' != '' AND !Exists('$(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll')" Text="StationeersPath '$(StationeersPath)' does not contain rocketstation_Data\Managed\Assembly-CSharp.dll. Check the path in Directory.Build.props." />
-</Target>
-```
-
-Compile include pattern:
-
-```xml
-<ItemGroup>
-  <Compile Include="src\CategoryBuilder.cs" />
-  <Compile Include="src\ReferencePage.cs" />
-  <Compile Include="src\LogicTypePageBuilder.cs" />
-  <Compile Include="src\SpaBridge.cs" />
-  <Compile Include="src\SixFive7LinkHandler.cs" />
-  <Compile Include="src\Internal\SearchFilterPatch.cs" />
-  <Compile Include="src\Internal\SpaSearchFilter.cs" />
-  <Compile Include="src\Internal\TextElementFactory.cs" />
-  <Compile Include="src\Internal\HarmonyIdHelper.cs" />
-  <Compile Include="Properties\AssemblyInfo.cs" />
-</ItemGroup>
-```
+Sources are auto-included: SDK-style projects compile every `.cs` under the project directory, so there is no explicit `<Compile>` list. `Properties\AssemblyInfo.cs` is kept (it carries the assembly attributes) via `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>`, and `<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>` keeps the build output at the flat `bin\Release\` path.
 
 ### 16.3 Directory.Build.props.template content
 

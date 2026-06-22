@@ -331,7 +331,6 @@ Goal: per-instance burned-cable reasons survive save/load via the established `P
   - Add `internal static IEnumerable<KeyValuePair<long, string>> SnapshotAttached() => _attachedByReference.ToArray();`.
   - Add `internal static void RestoreFromSideCar(Thing wreckage, string reason)`: wraps `Attach` plus `_attachedByReference[wreckage.ReferenceId] = reason`.
   - Optional purge: on `Snapshot()` call, walk `_attachedByReference` and drop entries where `Thing.Find(refId)` returns null. Prevents unbounded growth across cable churn.
-- Add both new files to `PowerGridPlus.csproj` `<Compile Include>` list.
 - Validation:
   - `pgp-burn-reason-save-load-probe`: trigger a cable burn with a known reason. Save the world. Reload. Assert the burned cable's hover text still shows the original reason.
   - `pgp-burn-reason-mod-removal-probe`: trigger a burn with reason. Save. Disable PowerGridPlus. Load the save in vanilla. Assert world loads cleanly (no XSD error, no missing-type exception). Assert wreckage shows blank vanilla hover (no Burned: prefix).
@@ -646,7 +645,7 @@ Probes:
 
 ### 1.3 Verify `PowerGridTick.cs` and `PowerTickPatches.cs` cleanup
 
-- After 1.1 and 1.2, `PowerGridTick.cs` may be entirely unreferenced. If so, delete the file and remove its `<Compile Include>` line from `PowerGridPlus.csproj`.
+- After 1.1 and 1.2, `PowerGridTick.cs` may be entirely unreferenced. If so, delete the file.
 - Same check for `PowerTickPatches.cs`'s reverse patches if nothing else calls them.
 - Validation: full rebuild succeeds with no warnings about unreachable code.
 

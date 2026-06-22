@@ -123,7 +123,7 @@ DedicatedServer/dedicated-server.ps1 -DeployMods [-Mod <name>] [-Configuration R
 
 Copies built mod DLLs from `Mods/<X>/<X>/bin/<Configuration>/<X>.dll` into `DedicatedServer/install/BepInEx/plugins/<X>/<X>.dll`. Without `-Mod`, every mod under `Mods/` (except `Template`) is deployed. Configuration defaults to `Release`.
 
-The launcher does not build for you. Build first via the developer's normal MSBuild flow (see `DEV.md`), then run `-DeployMods`.
+The launcher does not build for you. Build first via the developer's normal build flow (see `DEV.md`), then run `-DeployMods`.
 
 This step is per-invocation and explicit so the agent driving the test always controls which mods at which build configuration are present on the server. Whenever code changes, re-run `-DeployMods` before `-Start`.
 
@@ -331,7 +331,7 @@ Save edit always finishes before `-Start`. Scenario logs always come from after 
 
 1. Acquire the session lock: `DedicatedServer/dedicated-server.ps1 -Lock -Purpose "Playtesting <what> for <mod>"`. Note the printed owner id and pass `-As <id>` on every mutating command below. Rules: `session.lock.template`.
 2. If a previous run is still alive (`-Status` shows host or server PID up), `-Stop -As <id>` first. Required before any rebuild + redeploy: the Mono runtime holds an exclusive file lock on every loaded plugin DLL, so `-DeployMods` on a running server fails or corrupts the DLL in place. The launcher enforces this check, but the test loop should never hit it.
-3. Build the mod(s) under test via the developer's MSBuild flow (see `DEV.md`).
+3. Build the mod(s) under test via the developer's build flow (see `DEV.md`).
 4. `DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod <X>` (or all mods, no `-Mod` flag).
 5. `DedicatedServer/dedicated-server.ps1 -Start -As <id> -New <Map>`, OR ask the developer for a save name and use `-Start -As <id> -Load <save> -Map <Map>`. The launcher returns within ~5 s of the server registering its PID.
 6. Wait until the world is loaded and the simulation is ticking, before asking the developer to join or running any probe. Pick a readiness pattern from "Waiting for the world to be ready" above; the sentinel InspectorPlus request is the default. Timing varies by save size; budget seconds for an empty map up to several minutes for a populated save.

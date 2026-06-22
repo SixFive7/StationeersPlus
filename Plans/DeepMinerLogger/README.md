@@ -4,7 +4,7 @@ Temporary diagnostic mod. Logs the full runtime state of every `CombustionDeepMi
 
 ## Build
 
-Requires the monorepo's `Directory.Build.props` (filled in from the template) so `$(StationeersPath)` resolves. Open `DeepMinerLogger.sln` in Visual Studio or run `msbuild DeepMinerLogger.sln /p:Configuration=Release`. Output lands in `DeepMinerLogger/bin/Release/DeepMinerLogger.dll` plus the `About/` folder.
+Requires the monorepo's `Directory.Build.props` (filled in from the template) so `$(StationeersPath)` resolves. Build with `dotnet build DeepMinerLogger.sln -c Release` (or open `DeepMinerLogger.sln` in Visual Studio). Output lands in `DeepMinerLogger/bin/Release/DeepMinerLogger.dll` plus the `About/` folder.
 
 ## Install
 

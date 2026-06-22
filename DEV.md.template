@@ -138,25 +138,20 @@ Wire the location into the environment so the launcher and ad-hoc scripts find i
 
 **Unity / mono runtime:** Stationeers runs on Unity **2022.3.62f3**. Pin this exact build: any source-level debugging runtime (a patched mono dropped into `EmbeddedRuntime`) must match it, and it is the reference for sourcing the right binaries. The build itself only needs the game assemblies under `$(StationeersPath)`, not the Unity editor. (Game version 0.2.6228.27061 at time of writing; the Unity build changes far less often than the game version.)
 
-**MSBuild (Visual Studio)**:
+**Build toolchain (.NET SDK):** The mods are SDK-style projects (`<Project Sdk="Microsoft.NET.Sdk">`, `TargetFramework=net472`) and build with the .NET SDK's `dotnet build`, which needs only the .NET SDK on PATH (no Visual Studio install required). A Visual Studio or Build Tools `MSBuild.exe` also builds them if you have one; it is optional.
 
+Build a mod (Release):
+
+```bash
+dotnet build "<REPO_CLONE_PATH>/Mods/<ModName>/<ModName>.sln" -c Release -v minimal
 ```
-<MSBUILD_PATH>
-```
 
-Typical locations:
-
-- VS Community, Windows: `C:\Program Files\Microsoft Visual Studio\<VERSION>\Community\MSBuild\Current\Bin\MSBuild.exe`
-- VS Build Tools: `C:\Program Files (x86)\Microsoft Visual Studio\<VERSION>\BuildTools\MSBuild\Current\Bin\MSBuild.exe`
-
-If you upgrade Visual Studio, the `<VERSION>` segment will change. No version-free alias is wired up by default.
-
-Build a mod (adjust path and config):
+To use Visual Studio MSBuild instead, point `<MSBUILD_PATH>` at its `MSBuild.exe` (typical locations: `C:\Program Files\Microsoft Visual Studio\<VERSION>\Community\MSBuild\Current\Bin\MSBuild.exe`, or the Build Tools path under `Program Files (x86)`):
 
 ```bash
 "<MSBUILD_PATH>" \
   "<REPO_CLONE_PATH>/Mods/<ModName>/<ModName>.sln" \
-  -t:Build -p:Configuration=Release -p:Platform="Any CPU" -v:minimal
+  -t:Build -p:Configuration=Release -v:minimal
 ```
 
 Output lands in `Mods/<ModName>/<ModName>/bin/Release/<ModName>.dll`.
@@ -390,9 +385,9 @@ The plugin deletes each request file after processing. If a request file lingers
 Same toolchain as every other mod:
 
 ```bash
-"<MSBUILD_PATH>" \
+dotnet build \
   "<REPO_CLONE_PATH>/Mods/InspectorPlus/InspectorPlus.sln" \
-  -t:Build -p:Configuration=Release -p:Platform="Any CPU" -v:minimal
+  -c Release -v minimal
 cp "<REPO_CLONE_PATH>/Mods/InspectorPlus/InspectorPlus/bin/Release/InspectorPlus.dll" \
    "<USER_DOCUMENTS>/My Games/Stationeers/mods/InspectorPlus/"
 ```
