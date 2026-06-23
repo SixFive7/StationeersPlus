@@ -267,6 +267,21 @@ The remaining round-2 gap was the build-time cursor reject for misplaced devices
 
 Net result: build-time gating is cable-side only; device placement is never blocked. The "you put it on the wrong cable" feedback is the cable burning, with a tooltip on the wreckage explaining why.
 
+### 2026-06-23: data-only ports are tier-exempt (carve-out made explicit) + a load-regression fix
+
+Two changes, both headless-verified on the dedi (ScenarioRunner `pgp-dataport-tier-diag` against `Luna_pgp_rocket`).
+
+**Data-only ports accept any cable tier.** A device's exclusive data-only port (`NetworkType.Data`, no Power bit) must be invisible to the voltage-tier rules; only Power and power+data (`PowerAndData`) ports follow them. This was already true in practice: the game builds `CableNetwork.PowerDeviceList` from `Device.PowerCables` (power-bit cables only), so a device whose data port is on its own network is never in that network's `PowerDeviceList`, and the reactive Misplaced-burn (`DetectViolation` -> `BurnCableForMisplacedDevice`) iterates exactly that list. The cursor path likewise skipped data-only ports via `CursorAttachesToPowerPortOf` (added 2026-05-18). This session made the invariant explicit and regression-proof rather than incidental:
+
+- `VoltageTier.ConnectionCarriesPower(Connection)` is the single predicate for "does this connection carry the Power bit"; the cursor's `CursorAttachesToPowerPortOf` now calls it.
+- `VoltageTier.ReachesNetworkViaPowerPort(Device, CableNetwork)` is true iff one of the device's power cables sits on that network. `VoltageTierEnforcer.DetectViolation` now guards the Misplaced classification with it, so a device can never be tier-judged on a network it touches only through a data port, even if a future game/mod change leaked a data-only device into `PowerDeviceList`.
+
+Verified headless: `runtimeInvariant=PASS` (realBugShape=0 over 402 live separate-data-port devices), `cursorCarveOut=PASS` (dataLeak=0 over 72 distinct data ports), across normal/heavy/superHeavy data networks; the 8 genuine power-tier would-burn networks stayed flagged (power and power+data enforcement unchanged). A separate data network may be any tier; a data cable that physically merges into a power network still follows the no-mixing rule (same tier, or bridge with a transformer), as intended. The on-screen cursor ghost color is the only client-side residue (a headless dedi cannot render the placement preview).
+
+**csproj-migration load regression.** The 2026-06-22 SDK-style migration (`f5e67d37`) replaced the explicit `<Compile>` list with auto-glob, which pulled in `Patches/AreaPowerControlPassthroughLogicPatches.cs`, a dead file the old list deliberately excluded. Its `[HarmonyPatch(typeof(AreaPowerControl), nameof(AreaPowerControl.CanLogicWrite))]` cannot resolve (APC inherits `CanLogicWrite` from `Device`; it does not declare it), so `Harmony.PatchAll()` threw and the whole mod loaded with no patches applied. The file was superseded by `InheritedLogicablePassthroughLogicPatches` (which patches the base `Device` logic methods APC inherits), so it was deleted; PGP loads clean again (`patches applied`, no fatal). Lesson for the glob-all build: a dead `.cs` left on disk is a landmine, delete it rather than leave it excluded.
+
+**superHeavy producers stay player error (decided 2026-06-23).** The same probe (PART-C) flagged seven superHeavy solar-collector networks (around 33 members each: solar panels, nuclear batteries, sensors) whose members would burn once the network carries power, because `IsAllowedOnTier` keeps generators, stationary batteries, and umbilicals on `heavy` exactly. Decided this is not a bug: placing a producer on a superHeavy backbone is incorrect wiring, and the heavy-only rule stands. No code change.
+
 ### 2026-06-21: rocket-family power parity (transformer tier, battery caps, umbilical heavy + logic passthrough)
 
 Five changes resolving a friend's rocket-playtest report; the goal was to make rocket-internal power devices behave like their station equivalents and to make the power umbilical act like a real (disconnectable) wire.

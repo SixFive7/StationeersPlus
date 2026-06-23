@@ -193,7 +193,7 @@ namespace PowerGridPlus.Patches
                 var oe = device.OpenEnds[i];
                 if (oe == null)
                     continue;
-                if ((oe.ConnectionType & NetworkType.Power) == NetworkType.None)
+                if (!VoltageTier.ConnectionCarriesPower(oe))
                     continue;
                 try
                 {

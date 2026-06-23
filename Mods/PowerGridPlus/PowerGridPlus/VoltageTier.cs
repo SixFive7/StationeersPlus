@@ -327,6 +327,40 @@ namespace PowerGridPlus
         }
 
         /// <summary>
+        ///     True when <paramref name="connection"/> carries the Power bit (Power or PowerAndData).
+        ///     The voltage-tier rules apply ONLY to power-bearing connections; an exclusive data-only
+        ///     port (NetworkType.Data) is invisible to tiering and accepts any cable tier. This is the
+        ///     single shared predicate behind the data-only-port carve-out on the cursor side.
+        /// </summary>
+        internal static bool ConnectionCarriesPower(Connection connection)
+        {
+            return connection != null && (connection.ConnectionType & NetworkType.Power) != NetworkType.None;
+        }
+
+        /// <summary>
+        ///     True when <paramref name="device"/> reaches <paramref name="network"/> through at least one
+        ///     Power-bit port (one of its power cables sits on that network). The per-device tier rule must
+        ///     only judge a device on a network it genuinely powers through: a network the device touches
+        ///     ONLY via its exclusive data-only port imposes no tier requirement and must never trigger a
+        ///     burn. The game's <c>CableNetwork.PowerDeviceList</c> is already filtered this way (built from
+        ///     <c>Device.PowerCables</c>), so this is the explicit, regression-proof restatement of the
+        ///     invariant the reactive enforcer relies on -- it guarantees a data-only port can never be
+        ///     tier-judged even if a future game/mod change leaks a data-only device into PowerDeviceList.
+        /// </summary>
+        internal static bool ReachesNetworkViaPowerPort(Device device, CableNetwork network)
+        {
+            if (device == null || network == null)
+                return false;
+            var cables = device.PowerCables;
+            if (cables == null)
+                return false;
+            for (int i = 0; i < cables.Count; i++)
+                if (cables[i] != null && cables[i].CableNetwork == network)
+                    return true;
+            return false;
+        }
+
+        /// <summary>
         ///     Is <paramref name="device"/> allowed to be powered by a single-tier network of tier
         ///     <paramref name="tier"/>? (When the network is cableless -- e.g. a power transmitter
         ///     relay -- callers pass tier as null and should treat that as "allowed".)

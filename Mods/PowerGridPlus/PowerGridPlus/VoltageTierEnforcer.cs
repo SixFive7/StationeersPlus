@@ -151,8 +151,14 @@ namespace PowerGridPlus
                         apcMismatch = apc;
                     }
 
+                    // Data-only-port carve-out: only judge a device on a network it reaches through a
+                    // POWER port. A device wired to this network solely via its exclusive data-only port
+                    // imposes no tier requirement and must never burn (it is not in PowerDeviceList today,
+                    // but the explicit guard keeps that guarantee robust). Power / power+data ports are
+                    // unaffected. See VoltageTier.ReachesNetworkViaPowerPort.
                     if (misplacedDevice == null
                         && info.Tier.HasValue
+                        && VoltageTier.ReachesNetworkViaPowerPort(device, net)
                         && !VoltageTier.IsAllowedOnTier(device, info.Tier.Value))
                     {
                         misplacedDevice = device;
