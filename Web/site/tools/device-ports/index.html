@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- AGENT/MAINTAINER: this file embeds a full reproduction + update manifest and the exact generator as non-rendered text. See the script blocks id="agent-manifest" and id="device-ports-generator" near the end of this file. Not shown in the browser. -->
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stationeers Devices &amp; Power/Data Ports</title>
@@ -253,5 +254,564 @@ function dl(blob,name){const a=document.createElement("a");a.href=URL.createObje
 
 window.addEventListener("resize",layout);
 updatePcountLabel();render();
+</script>
+<script type="text/plain" id="agent-manifest">
+DEVICE PORTS TOOL - AGENT / MAINTAINER MANIFEST
+(Non-rendered text. This <script type="text/plain"> block is for humans and agents reading the page
+source; it is never shown in the browser and never executed. A sibling block id="device-ports-generator"
+holds the exact generator that produced this file.)
+
+WHAT THIS IS
+  A single self-contained HTML browser of every Stationeers device that has a power/data port, across
+  the developer's full active mod set. Per device: display name, prefab name, runtime type, mod
+  attribution, and the power/data port layout (typed + role). Filters: text search, per-column
+  filters, mod, port-count, port composition, hide-cables, and rocket build-location. Exports the
+  filtered view as CSV or JSON. Published as a docs-site tool at tools/device-ports/index.html
+  (https://stationeers.huisman.io/tools/device-ports/), next to the phase-diagram tool.
+
+PROVENANCE
+  Game version: 0.2.6228.27061. Data captured: 2026-06-21. Tool finalized: 2026-06-23.
+  Active mod set at capture: 61 mods (1 core + 58 Workshop + 2 local).
+  Totals: 2041 prefabs scanned -> 378 power/data devices (321 vanilla, 57 mod,
+  29 cables, 92 buildable-in-rocket of which 24 rocket-only, 68 base+rocket).
+
+WHY IT IS A RUNTIME DUMP (cannot be derived statically)
+  Port types, mod origin, and rocket build-eligibility are Unity-serialized prefab data, not C# code.
+  The only correct source is a runtime read of Prefab.AllPrefabs on a loaded game with the mods
+  present. This tool is built from a dedicated-server dump, never from decompiled code or prefab names.
+  (Proof: StructureBatteryMedium/Small are rocket-only but StructureBattery is base-only, all the same
+  Battery class; Mirrored Devices' prefabs share classes with vanilla. Names/classes cannot classify.)
+
+PIPELINE (4 stages)
+  1) ScenarioRunner scenario "device-port-dump"  (committed)
+     DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.DevicePortDump.cs
+     Walks Prefab.AllPrefabs; per power/data-bearing SmallGrid emits:
+       prefabName, prefabHash, displayName, type, isDevice, hasDataConnection,
+       ports[]  : SmallGrid.OpenEnds -> each Connection.ConnectionType (NetworkType flags
+                  Power=2 Data=4 PowerAndData=6) + ConnectionRole + connector transform name,
+       sourceMod: PrefabHash join vs LaunchPadBooster.Mod.AllMods (Mod.ID.Name + Mod.Prefabs) and
+                  StationeersLaunchPad ModLoader.LoadedMods (LoadedMod.Info.Name + LoadedMod.Prefabs);
+                  unmatched -> "vanilla",
+       rocket/rocketOnly/rocketCell: read via the IRocketComponent / IRocketInternals INTERFACE types
+                  -> InternalCellType (RocketInternalCellType flags) + StrictlyInternal.
+     Writes <dediInstall>/BepInEx/device-port-dump.json.
+  2) Run on the dedicated server WITH THE FULL MOD SET LOADED:
+       dotnet build DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
+       DedicatedServer/dedicated-server.ps1 -Lock -Purpose "device-port dump"
+       DedicatedServer/dedicated-server.ps1 -Stop -As <id>
+       DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
+       set DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg  [Probe] Scenario = device-port-dump
+       DedicatedServer/dedicated-server.ps1 -Start -As <id> -New Lunar
+       wait for "device-port-dump END" in DedicatedServer/install/BepInEx/LogOutput.log
+       copy DedicatedServer/install/BepInEx/device-port-dump.json
+     SANITY: a correct full-mod run logs ~ totalPrefabs=2041 emitted=378 mods=77 rocketFamily=92.
+     If you see ~ totalPrefabs=1562 emitted=321 mod=0 mods=1, the Workshop mods did NOT load
+     (vanilla-only) and the dump is WRONG: the mods must be synced into DedicatedServer/data/mods/
+     and actually load ("successfully loaded the '<mod>' mod" in DedicatedServer/data/server.log).
+  3) Vanilla baseline -> vanilla-dump.json (a SECOND dump, no Workshop mods, 321 devices).
+     Needed because the loader-registry sourceMod MISSES direct-injection mods: Mirrored Devices
+     clones vanilla prefabs and registers its 18 *Mirrored variants with prefabCount 0 in the
+     registry, so they come back as "vanilla". The generator crosses the full dump against the
+     vanilla prefab-name set: in-full-not-in-vanilla = mod-introduced; the unnamed *Mirrored
+     residual is named "Mirrored Devices".
+  4) Generator generate_html.py (its FULL source is in the device-ports-generator block below).
+     Inputs in the same folder: device-port-dump.json + vanilla-dump.json. Transforms: corrected
+     mod attribution (vanilla diff) ; DROP all non-power/data ports (keep classes power/data/powerdata
+     only) ; compute rocket buckets ; emit this index.html with the device array as `const DATA=[...]`.
+
+PUBLISH (docs site)
+  Copy the generated HTML to tools/device-ports/index.html. KEEP ONLY index.html in that folder:
+  tools/publish-web/build.ps1 copies the WHOLE tool folder to the public site, so a generator or raw
+  JSON dropped there would be published too. Then:
+       tools/publish-web/build.ps1            (auto-discovers tools/*/index.html; nav title from folder name)
+       git add Web/site/ ; git commit -m "Publish: ..."        (Web/site is committed)
+       tools/publish-web/deploy.ps1           (robocopy /MIR to the SMB share)
+
+DATA SEMANTICS (do not re-derive incorrectly)
+  Ports: only Power / Data / PowerAndData shown; Pipe/Chute/LandingPad/mod-custom dropped by the
+    generator. "Power+Data" is one connector carrying both.
+  Mod: vanilla diff is authoritative for mod-vs-vanilla; the loader registry supplies the mod name.
+  Rocket build-location (the game's own data, never by name):
+    Base only     = no IRocketComponent (cannot be placed in a rocket).
+    Base + rocket = IRocketComponent and StrictlyInternal=false (buildable in a base AND a rocket).
+    Rocket only   = IRocketInternals.StrictlyInternal=true (cannot be built outside a rocket).
+
+AUTHORITATIVE RESEARCH (committed; read before changing semantics)
+  Research/GameClasses/Connection.md , NetworkType.md , ConnectionRole.md , Thing.md
+  Research/GameSystems/PrefabSourceAttribution.md        (mod attribution + Mirrored residual)
+  Research/Workflows/StationeersLaunchPadModLoading.md   (LoadedMod.Info name source)
+  Research/GameSystems/RocketConstructionEligibility.md  (rocket build-eligibility)
+
+TO UPDATE (new game version or changed mod set)
+  Re-run stages 1-4 with the current mods, then re-publish. Sanity-check the totals moved sensibly
+  and no expected content mod dropped to 0 prefabs. Update the version/date/counts in this manifest.
+
+GOTCHAS
+  - BepInEx LogOutput.log APPENDS across launches; match the LATEST "device-port-dump END" line
+    (the current run, with rocketFamily=...), not a stale earlier one. A concurrent agent run on the
+    shared dedi can pollute the log/JSON; confirm the full mod set loaded before trusting the dump.
+  - Application.version returns "1.0" at runtime; the real build (0.2.6228.27061) comes from the install
+    version.txt, not the dump's gameVersion field.
+  - The generator and the two JSON dumps live in .work/2026-06-21-device-port-table/ which is
+    gitignored scratch and may be deleted. That is why the generator is embedded here; the dumps are
+    reproducible via stages 1-3.
+  - The generator emits HTML containing <\/script>, so in the embedded copy below every <\/script> was
+    replaced with <\/script>. To run it: extract the device-ports-generator block text and globally
+    replace <\/script> back to <\/script>.
+
+</script>
+<script type="text/plain" id="device-ports-generator" data-note="generate_html.py that produced this file; globally restore the escaped close-tag before running">
+import json
+BASE = ".work/2026-06-21-device-port-table"
+d = json.load(open(f"{BASE}/device-port-dump.json", encoding="utf-8"))
+VER = "0.2.6228.27061"; DATE = "2026-06-21"
+
+ROLE = {"Input": "in", "Output": "out", "Input2": "in2", "Output2": "out2", "Waste": "waste", "None": ""}
+KEEP = {"power", "data", "powerdata"}  # power/data classes; everything else (pipe/chute/custom net) is dropped
+
+# Authoritative mod/vanilla via a no-mods baseline (vanilla-dump.json). The loader-registry sourceMod in
+# the dump misses direct-injection mods (Mirrored Devices clones vanilla prefabs -> prefabCount 0 in the
+# registry), so cross it with the vanilla diff and name the residual.
+_van = json.load(open(f"{BASE}/vanilla-dump.json", encoding="utf-8"))
+_vset = {dd["prefabName"] for dd in _van["devices"]}
+def corrected_source(x):
+    if x["prefabName"] in _vset: return "vanilla"
+    s = x["sourceMod"]
+    if s != "vanilla": return s
+    return "Mirrored Devices" if x["prefabName"].endswith("Mirrored") else "(unattributed mod)"
+
+def port(p):
+    t = p.get("type", ""); c = p.get("class", "other"); r = p.get("role", "None"); nm = p.get("name", "")
+    if t.isdigit():
+        base, cls = "custom", "custom"
+    elif t == "PowerAndData":
+        base, cls = "Power+Data", "powerdata"
+    elif t == "Power":
+        base, cls = "Power", "power"
+    elif t == "Data":
+        base, cls = "Data", "data"
+    else:
+        base = t
+        cls = "powerdata" if (("power" in c) and ("data" in c)) else ("data" if "data" in c else ("power" if "power" in c else "other"))
+    ra = ROLE.get(r, r.lower())
+    lab = base + ((" " + ra) if ra else "")
+    title = f"{t} / {r}" + (f' / "{nm}"' if nm else "")
+    return {"l": lab, "c": cls, "ti": title}
+
+devs = []
+for x in d["devices"]:
+    ports = [port(pp) for pp in x["ports"]]
+    ports = [p for p in ports if p["c"] in KEEP]   # drop non power/data ports
+    if not ports:
+        continue
+    src = corrected_source(x)
+    devs.append({
+        "n": x["displayName"], "p": x["prefabName"], "t": x["type"],
+        "m": ("" if src == "vanilla" else src),
+        "mod": src != "vanilla",
+        "cable": x["type"] == "Cable",
+        "rk": bool(x.get("rocket")),          # IRocketComponent membership (game's own rule)
+        "rko": bool(x.get("rocketOnly")),     # IRocketInternals.StrictlyInternal -> cannot build outside a rocket
+        "rkc": x.get("rocketCell", ""),       # RocketInternalCellType (flags)
+        "pc": len(ports),
+        "ports": ports,
+    })
+devs.sort(key=lambda r: (r["mod"], r["p"].lower()))
+vanilla = sum(1 for r in devs if not r["mod"]); mod = sum(1 for r in devs if r["mod"])
+cables = sum(1 for r in devs if r["cable"])
+rocketFam = sum(1 for r in devs if r["rk"]); rocketOnly = sum(1 for r in devs if r["rko"])
+META = {"ver": VER, "date": DATE, "total": len(devs), "vanilla": vanilla, "mod": mod,
+        "cables": cables, "rocketFam": rocketFam, "rocketOnly": rocketOnly}
+print("devices:", len(devs), "vanilla:", vanilla, "mod:", mod, "cables:", cables,
+      "rocketFam:", rocketFam, "rocketOnly:", rocketOnly)
+
+data_js = json.dumps(devs, separators=(",", ":")).replace("</", "<\\/")
+meta_js = json.dumps(META).replace("</", "<\\/")
+
+HTML = r"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stationeers Devices &amp; Power/Data Ports</title>
+<style>
+:root{--bg:#0f1216;--panel:#171c23;--panel2:#1e242d;--line:#2a323d;--fg:#e6edf3;--mut:#8b97a6;--accent:#3b82f6;--tbH:54px;--srH:34px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.mut{color:var(--mut)}
+header{padding:16px 20px 8px}
+h1{margin:0 0 4px;font-size:19px}
+.sub{color:var(--mut);font-size:13px}
+.chips{margin-top:9px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:12px}
+.chip b{color:#fff}
+.toolbar{position:sticky;top:0;z-index:30;background:var(--bg);padding:10px 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+input,select,.ms-btn{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:13px}
+input[type=text]{min-width:230px}
+button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:7px 11px;font-size:13px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+label.ck{display:flex;gap:6px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+label.ck input{accent-color:var(--accent);width:15px;height:15px}
+.count{margin-left:auto;color:var(--mut);font-size:13px;white-space:nowrap}
+.legend{padding:7px 20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:var(--mut);font-size:12px;border-bottom:1px solid var(--line)}
+.ms{position:relative;display:inline-block}
+.ms-btn{cursor:pointer;width:100%;text-align:left;padding:4px 8px;font-size:12px}
+.ms-btn:after{content:"\25BE";float:right;color:var(--mut);margin-left:8px}
+.ms-btn.on{border-color:var(--accent)}
+.ms-pop{position:absolute;top:calc(100% + 3px);left:0;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px;z-index:50;min-width:140px;max-height:260px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.ms-pop label{display:flex;gap:7px;align-items:center;padding:3px 7px;border-radius:5px;cursor:pointer;white-space:nowrap;font-size:12px}
+.ms-pop label:hover{background:var(--panel2)}
+.ms-pop input{accent-color:var(--accent);width:14px;height:14px}
+.wrap{padding:0 12px 48px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+thead .sortrow th{position:sticky;top:var(--tbH);z-index:20;background:var(--panel);border-bottom:1px solid var(--line);text-align:left;padding:8px 10px;cursor:pointer;user-select:none;white-space:nowrap}
+thead .sortrow th .ar{color:var(--accent);font-size:11px}
+thead .sortrow th:hover{color:#fff}
+thead .filterrow th{position:sticky;top:calc(var(--tbH) + var(--srH));z-index:19;background:var(--panel2);border-bottom:2px solid var(--line);padding:5px 8px;font-weight:normal}
+.filterrow input,.filterrow select{width:100%;min-width:0;padding:4px 6px;font-size:12px;background:var(--bg)}
+.comp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.comp label{display:flex;gap:3px;align-items:center;font-size:11px;color:var(--mut);cursor:pointer;white-space:nowrap}
+.comp input{accent-color:var(--accent);width:14px;height:14px}
+.comp select{width:auto;flex:0 0 auto}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:hover{background:#11161c}
+tr.mod{background:rgba(124,58,237,.06)}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;color:#cdd6e0}
+.tname{color:var(--mut);font-size:12px}
+.filt{cursor:pointer}
+.filt:hover{color:var(--accent);text-decoration:underline}
+.modtag{display:inline-block;background:#3b2d63;color:#d6c9ff;border:1px solid #5b4a8f;border-radius:6px;padding:1px 7px;font-size:11.5px;white-space:nowrap}
+.van{color:var(--mut)}
+.rk{display:inline-block;font-size:10px;border-radius:4px;padding:0 5px;margin-left:6px;white-space:nowrap;vertical-align:1px;cursor:pointer}
+.rk.rko{background:#7c2d12;color:#fed7aa;border:1px solid #9a3412}
+.rk.rkf{background:#134e4a;color:#99f6e4;border:1px solid #115e59}
+.badges{display:flex;gap:4px;flex-wrap:wrap}
+.b{display:inline-block;border-radius:5px;padding:1px 7px;font-size:11.5px;color:#fff;white-space:nowrap}
+.b .i{opacity:.7;font-size:10px;margin-right:3px}
+.p-powerdata{background:#7c3aed}.p-power{background:#ea580c}.p-data{background:#2563eb}
+.num{text-align:right;color:var(--mut);font-variant-numeric:tabular-nums}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+.empty{padding:40px;text-align:center;color:var(--mut)}
+footer{padding:14px 20px;color:var(--mut);font-size:12px;border-top:1px solid var(--line)}
+</style></head>
+<body>
+<header>
+<h1>Stationeers Devices &amp; Power/Data Ports</h1>
+<div class="sub" id="sub"></div>
+<div class="chips" id="chips"></div>
+</header>
+<div class="toolbar">
+<input type="text" id="q" placeholder="Search name / prefab / type   ( press / )">
+<label class="ck"><input type="checkbox" id="hideCables" checked>Hide cables (<span id="cableN"></span>)</label>
+<select id="rocketsel" title="Where it can be built (IRocketComponent / IRocketInternals.StrictlyInternal)"><option value="">Build location: all</option><option value="base">Base only</option><option value="both">Base + rocket</option><option value="only">Rocket only</option></select>
+<button id="reset">Reset</button>
+<button id="csv">Download CSV</button>
+<button id="json">Download JSON</button>
+<span class="count" id="count"></span>
+</div>
+<div class="legend">
+<span><span class="dot p-powerdata"></span>Power+Data</span>
+<span><span class="dot p-power"></span>Power</span>
+<span><span class="dot p-data"></span>Data</span>
+<span class="mut">in / out = role &middot; click a Type / Mod / rocket tag to filter &middot; click a column header to sort</span>
+</div>
+<div class="wrap">
+<table>
+<thead>
+<tr class="sortrow">
+<th data-k="n">Name <span class="ar"></span></th>
+<th data-k="p">PrefabName <span class="ar"></span></th>
+<th data-k="t">Type <span class="ar"></span></th>
+<th data-k="m">Mod <span class="ar"></span></th>
+<th data-k="pc" class="num">Ports <span class="ar"></span></th>
+<th data-k="_">Port layout (power/data only)</th>
+</tr>
+<tr class="filterrow">
+<th><input type="text" id="fN" placeholder="filter name"></th>
+<th><input type="text" id="fP" placeholder="filter prefab"></th>
+<th><input type="text" id="fT" list="typelist" placeholder="filter type"></th>
+<th><select id="modsel"></select></th>
+<th><span class="ms" id="pcountMs"><button type="button" class="ms-btn" id="pcountBtn"><span id="pcountLbl">any</span></button><div class="ms-pop" id="pcountPop" hidden></div></span></th>
+<th><div class="comp"><span class="mut">has</span>
+<label><input type="checkbox" class="pc" value="power">Pwr</label>
+<label><input type="checkbox" class="pc" value="data">Data</label>
+<label><input type="checkbox" class="pc" value="powerdata">Pwr+Dat</label>
+<select id="pmode"><option value="all">all</option><option value="any">any</option><option value="exact">exact</option></select>
+</div></th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+</table>
+<div class="empty" id="empty" style="display:none">No devices match the filters.</div>
+</div>
+<datalist id="typelist"></datalist>
+<footer id="foot"></footer>
+<script>
+const DATA=__DATA__;const META=__META__;
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+let sortK="p",sortDir=1;
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+DATA.forEach(d=>{d._cs=[...new Set(d.ports.map(p=>p.c))];});
+
+function pcCheckedVals(){return $$(".pcv:checked").map(c=>+c.value);}
+function updatePcountLabel(){
+  const v=pcCheckedVals().sort((a,b)=>a-b);
+  $("#pcountLbl").textContent=v.length?(v.length<=4?v.join(","):v.length+" sel"):"any";
+  $("#pcountBtn").classList.toggle("on",v.length>0);
+}
+
+(function(){
+  const counts={};DATA.forEach(d=>{if(d.mod)counts[d.m]=(counts[d.m]||0)+1;});
+  const names=Object.keys(counts).sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
+  $("#modsel").innerHTML='<option value="">all</option><option value="__van__">vanilla only</option><option value="__mod__">any mod</option>'
+    +names.map(n=>`<option value="${esc(n)}">${esc(n)} (${counts[n]})</option>`).join("");
+  const types=[...new Set(DATA.map(d=>d.t))].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
+  $("#typelist").innerHTML=types.map(t=>`<option value="${esc(t)}">`).join("");
+  const cnts=[...new Set(DATA.map(d=>d.pc))].sort((a,b)=>a-b);
+  $("#pcountPop").innerHTML=cnts.map(n=>{const k=DATA.filter(d=>d.pc===n).length;return `<label><input type="checkbox" class="pcv" value="${n}">${n} port${n>1?'s':''} <span class="mut">(${k})</span></label>`;}).join("");
+  $$(".pcv").forEach(c=>c.addEventListener("change",()=>{updatePcountLabel();render();}));
+})();
+$("#cableN").textContent=META.cables;
+$("#sub").textContent=`Game ${META.ver} · runtime dump of Prefab.AllPrefabs with the full active mod set (61 mods) · generated ${META.date}`;
+$("#chips").innerHTML=`<span class="chip"><b>${META.total}</b> devices</span><span class="chip"><b>${META.vanilla}</b> vanilla</span><span class="chip"><b>${META.mod}</b> mod-introduced</span><span class="chip"><b>${META.cables}</b> cables</span><span class="chip">🚀 <b>${META.rocketFam-META.rocketOnly}</b> base + rocket</span><span class="chip">🚀 <b>${META.rocketOnly}</b> rocket only</span>`;
+$("#foot").textContent=`Source: ScenarioRunner device-port-dump on the dedicated server. Ports are read from each prefab's OpenEnds (NetworkType + ConnectionRole); only Power, Data and Power+Data ports are shown (pipe, chute, landing-pad and mod-custom network ports are dropped). Mod attribution = loader registry + no-mods vanilla diff (so direct-injection mods like Mirrored Devices are credited). Build location is the game's own data (IRocketComponent membership + IRocketInternals.StrictlyInternal), read per prefab at runtime, never by name. "Base only" = cannot be placed in a rocket; "Base + rocket" = buildable in a normal base AND inside a rocket (most station gear: pressure regulators, pumps, cables...); "Rocket only" = StrictlyInternal, cannot be built outside a rocket. cell = RocketInternalCellType. The CSV/JSON artifacts in this folder retain every port.`;
+
+function filtered(){
+  const q=$("#q").value.trim().toLowerCase();
+  const hideCables=$("#hideCables").checked;
+  const rkf=$("#rocketsel").value;
+  const fN=$("#fN").value.trim().toLowerCase();
+  const fP=$("#fP").value.trim().toLowerCase();
+  const fT=$("#fT").value.trim().toLowerCase();
+  const modSel=$("#modsel").value;
+  const pcs=pcCheckedVals();
+  const checks=$$(".pc:checked").map(c=>c.value);
+  const pmode=$("#pmode").value;
+  let rows=DATA.filter(d=>{
+    if(hideCables&&d.cable)return false;
+    if(rkf==="base"&&d.rk)return false;
+    if(rkf==="both"&&!(d.rk&&!d.rko))return false;
+    if(rkf==="only"&&!d.rko)return false;
+    if(q&&!(d.n.toLowerCase().includes(q)||d.p.toLowerCase().includes(q)||d.t.toLowerCase().includes(q)))return false;
+    if(fN&&!d.n.toLowerCase().includes(fN))return false;
+    if(fP&&!d.p.toLowerCase().includes(fP))return false;
+    if(fT&&!d.t.toLowerCase().includes(fT))return false;
+    if(modSel==="__van__"&&d.mod)return false;
+    if(modSel==="__mod__"&&!d.mod)return false;
+    if(modSel&&modSel!=="__van__"&&modSel!=="__mod__"&&d.m!==modSel)return false;
+    if(pcs.length&&!pcs.includes(d.pc))return false;
+    if(checks.length){
+      const cs=d._cs;
+      if(pmode==="all"){if(!checks.every(c=>cs.includes(c)))return false;}
+      else if(pmode==="any"){if(!checks.some(c=>cs.includes(c)))return false;}
+      else{if(cs.length!==checks.length||!checks.every(c=>cs.includes(c)))return false;}
+    }
+    return true;
+  });
+  rows.sort((a,b)=>{
+    let x,y;
+    if(sortK==="pc"){x=a.pc;y=b.pc;}
+    else if(sortK==="m"){x=(a.m||"~~~").toLowerCase();y=(b.m||"~~~").toLowerCase();}
+    else{x=(a[sortK]||"").toLowerCase();y=(b[sortK]||"").toLowerCase();}
+    if(x<y)return -sortDir;if(x>y)return sortDir;
+    return a.p.toLowerCase()<b.p.toLowerCase()?-1:1;
+  });
+  return rows;
+}
+function badges(ports){return '<div class="badges">'+ports.map((p,i)=>`<span class="b p-${p.c}" title="${esc(p.ti)}"><span class="i">${i}</span>${esc(p.l)}</span>`).join("")+'</div>';}
+function rktag(d){
+  if(d.rko)return ` <span class="rk rko" data-frk="only" title="${esc("Rocket only — can only be built inside a rocket (the game blocks placing it in a base)"+(d.rkc?" · cell: "+d.rkc:""))}">🚀 Rocket only</span>`;
+  if(d.rk) return ` <span class="rk rkf" data-frk="both" title="${esc("Base + rocket — buildable in a normal base and inside a rocket"+(d.rkc?" · cell: "+d.rkc:""))}">🚀 Base + rocket</span>`;
+  return "";
+}
+function render(){
+  const rows=filtered();
+  $("#tb").innerHTML=rows.map(d=>`<tr class="${d.mod?'mod':''}">
+<td>${esc(d.n)}${rktag(d)}</td>
+<td class="mono">${esc(d.p)}</td>
+<td class="tname filt" data-ft="${esc(d.t)}">${esc(d.t)}</td>
+<td>${d.mod?`<span class="modtag filt" data-fm="${esc(d.m)}">${esc(d.m)}</span>`:'<span class="van filt" data-fv="1">vanilla</span>'}</td>
+<td class="num">${d.pc}</td>
+<td>${badges(d.ports)}</td></tr>`).join("");
+  $("#empty").style.display=rows.length?"none":"block";
+  const van=rows.filter(d=>!d.mod).length,md=rows.length-van,rko=rows.filter(d=>d.rko).length,both=rows.filter(d=>d.rk&&!d.rko).length;
+  $("#count").textContent=`${rows.length} shown · ${van} vanilla · ${md} mod · ${both} base+rocket · ${rko} rocket-only`;
+  $$(".sortrow th").forEach(th=>{const a=th.querySelector(".ar");if(a)a.textContent=th.dataset.k===sortK?(sortDir>0?"▲":"▼"):"";});
+  layout();
+}
+function layout(){
+  document.documentElement.style.setProperty("--tbH",$(".toolbar").offsetHeight+"px");
+  document.documentElement.style.setProperty("--srH",$(".sortrow").offsetHeight+"px");
+}
+
+$$(".sortrow th").forEach(th=>{if(th.dataset.k&&th.dataset.k!=="_")th.onclick=()=>{if(sortK===th.dataset.k)sortDir*=-1;else{sortK=th.dataset.k;sortDir=1;}render();};});
+["q","fN","fP","fT","modsel","pmode","rocketsel"].forEach(id=>$("#"+id).addEventListener("input",render));
+$("#hideCables").addEventListener("change",render);
+$$(".pc").forEach(c=>c.addEventListener("change",render));
+$("#pcountBtn").onclick=e=>{e.stopPropagation();$("#pcountPop").hidden=!$("#pcountPop").hidden;};
+document.addEventListener("click",e=>{if(!$("#pcountMs").contains(e.target))$("#pcountPop").hidden=true;});
+$("#tb").addEventListener("click",e=>{
+  const t=e.target.closest("[data-ft]");if(t){$("#fT").value=t.dataset.ft;render();return;}
+  const m=e.target.closest("[data-fm]");if(m){$("#modsel").value=m.dataset.fm;render();return;}
+  const v=e.target.closest("[data-fv]");if(v){$("#modsel").value="__van__";render();return;}
+  const r=e.target.closest("[data-frk]");if(r){$("#rocketsel").value=r.dataset.frk;render();return;}
+});
+document.addEventListener("keydown",e=>{
+  const tag=(document.activeElement&&document.activeElement.tagName)||"";
+  if(e.key==="/"&&!/INPUT|SELECT|TEXTAREA/.test(tag)){e.preventDefault();$("#q").focus();$("#q").select();}
+  else if(e.key==="Escape"){const a=document.activeElement;if(a&&a.tagName==="INPUT"&&a.value){a.value="";render();}}
+});
+function doReset(){
+  $("#q").value="";$("#fN").value="";$("#fP").value="";$("#fT").value="";
+  $("#modsel").value="";$("#pmode").value="all";$("#hideCables").checked=true;$("#rocketsel").value="";
+  $$(".pc").forEach(c=>c.checked=false);$$(".pcv").forEach(c=>c.checked=false);
+  updatePcountLabel();$("#pcountPop").hidden=true;sortK="p";sortDir=1;render();
+}
+$("#reset").onclick=doReset;
+$("#csv").onclick=()=>{
+  const rows=filtered();const maxp=Math.max(0,...rows.map(r=>r.pc));
+  const head=["Name","PrefabName","Type","Mod","IsModded","Rocket","RocketOnly","RocketCell","PortCount"].concat(Array.from({length:maxp},(_,i)=>"Port"+i));
+  const q=s=>'"'+String(s==null?"":s).replace(/"/g,'""')+'"';
+  const lines=[head.map(q).join(",")];
+  rows.forEach(d=>{const r=[d.n,d.p,d.t,d.m,d.mod?"yes":"no",d.rk?"yes":"no",d.rko?"yes":"no",d.rkc,d.pc];for(let i=0;i<maxp;i++)r.push(d.ports[i]?d.ports[i].l:"");lines.push(r.map(q).join(","));});
+  dl(new Blob([lines.join("\r\n")],{type:"text/csv"}),"stationeers-device-ports.csv");
+};
+$("#json").onclick=()=>{
+  const rows=filtered().map(d=>({name:d.n,prefabName:d.p,type:d.t,mod:d.m||"vanilla",rocketFamily:d.rk,rocketOnly:d.rko,rocketCell:d.rkc,portCount:d.pc,ports:d.ports.map(p=>p.l)}));
+  dl(new Blob([JSON.stringify(rows,null,2)],{type:"application/json"}),"stationeers-device-ports.json");
+};
+function dl(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+
+window.addEventListener("resize",layout);
+updatePcountLabel();render();
+<\/script>
+</body></html>
+"""
+HTML = HTML.replace("__DATA__", data_js).replace("__META__", meta_js)
+
+# --- Embed a non-rendered reproduction/update manifest + the exact generator source, for agents and
+#     maintainers reading the file. type="text/plain" script blocks are NOT executed and NOT displayed
+#     in the browser, but are plainly visible to anyone reading the source. See "GOTCHAS" for the
+#     <script> close-tag escaping used so the generator (which itself emits HTML) can be embedded.
+both_in_rocket = rocketFam - rocketOnly
+MANIFEST = f"""DEVICE PORTS TOOL - AGENT / MAINTAINER MANIFEST
+(Non-rendered text. This <script type="text/plain"> block is for humans and agents reading the page
+source; it is never shown in the browser and never executed. A sibling block id="device-ports-generator"
+holds the exact generator that produced this file.)
+
+WHAT THIS IS
+  A single self-contained HTML browser of every Stationeers device that has a power/data port, across
+  the developer's full active mod set. Per device: display name, prefab name, runtime type, mod
+  attribution, and the power/data port layout (typed + role). Filters: text search, per-column
+  filters, mod, port-count, port composition, hide-cables, and rocket build-location. Exports the
+  filtered view as CSV or JSON. Published as a docs-site tool at tools/device-ports/index.html
+  (https://stationeers.huisman.io/tools/device-ports/), next to the phase-diagram tool.
+
+PROVENANCE
+  Game version: {VER}. Data captured: 2026-06-21. Tool finalized: 2026-06-23.
+  Active mod set at capture: 61 mods (1 core + 58 Workshop + 2 local).
+  Totals: 2041 prefabs scanned -> {len(devs)} power/data devices ({vanilla} vanilla, {mod} mod,
+  {cables} cables, {rocketFam} buildable-in-rocket of which {rocketOnly} rocket-only, {both_in_rocket} base+rocket).
+
+WHY IT IS A RUNTIME DUMP (cannot be derived statically)
+  Port types, mod origin, and rocket build-eligibility are Unity-serialized prefab data, not C# code.
+  The only correct source is a runtime read of Prefab.AllPrefabs on a loaded game with the mods
+  present. This tool is built from a dedicated-server dump, never from decompiled code or prefab names.
+  (Proof: StructureBatteryMedium/Small are rocket-only but StructureBattery is base-only, all the same
+  Battery class; Mirrored Devices' prefabs share classes with vanilla. Names/classes cannot classify.)
+
+PIPELINE (4 stages)
+  1) ScenarioRunner scenario "device-port-dump"  (committed)
+     DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.DevicePortDump.cs
+     Walks Prefab.AllPrefabs; per power/data-bearing SmallGrid emits:
+       prefabName, prefabHash, displayName, type, isDevice, hasDataConnection,
+       ports[]  : SmallGrid.OpenEnds -> each Connection.ConnectionType (NetworkType flags
+                  Power=2 Data=4 PowerAndData=6) + ConnectionRole + connector transform name,
+       sourceMod: PrefabHash join vs LaunchPadBooster.Mod.AllMods (Mod.ID.Name + Mod.Prefabs) and
+                  StationeersLaunchPad ModLoader.LoadedMods (LoadedMod.Info.Name + LoadedMod.Prefabs);
+                  unmatched -> "vanilla",
+       rocket/rocketOnly/rocketCell: read via the IRocketComponent / IRocketInternals INTERFACE types
+                  -> InternalCellType (RocketInternalCellType flags) + StrictlyInternal.
+     Writes <dediInstall>/BepInEx/device-port-dump.json.
+  2) Run on the dedicated server WITH THE FULL MOD SET LOADED:
+       dotnet build DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner.sln -c Release
+       DedicatedServer/dedicated-server.ps1 -Lock -Purpose "device-port dump"
+       DedicatedServer/dedicated-server.ps1 -Stop -As <id>
+       DedicatedServer/dedicated-server.ps1 -DeployMods -As <id> -Mod ScenarioRunner -Configuration Release
+       set DedicatedServer/install/BepInEx/config/net.scenariorunner.cfg  [Probe] Scenario = device-port-dump
+       DedicatedServer/dedicated-server.ps1 -Start -As <id> -New Lunar
+       wait for "device-port-dump END" in DedicatedServer/install/BepInEx/LogOutput.log
+       copy DedicatedServer/install/BepInEx/device-port-dump.json
+     SANITY: a correct full-mod run logs ~ totalPrefabs=2041 emitted=378 mods=77 rocketFamily=92.
+     If you see ~ totalPrefabs=1562 emitted=321 mod=0 mods=1, the Workshop mods did NOT load
+     (vanilla-only) and the dump is WRONG: the mods must be synced into DedicatedServer/data/mods/
+     and actually load ("successfully loaded the '<mod>' mod" in DedicatedServer/data/server.log).
+  3) Vanilla baseline -> vanilla-dump.json (a SECOND dump, no Workshop mods, 321 devices).
+     Needed because the loader-registry sourceMod MISSES direct-injection mods: Mirrored Devices
+     clones vanilla prefabs and registers its 18 *Mirrored variants with prefabCount 0 in the
+     registry, so they come back as "vanilla". The generator crosses the full dump against the
+     vanilla prefab-name set: in-full-not-in-vanilla = mod-introduced; the unnamed *Mirrored
+     residual is named "Mirrored Devices".
+  4) Generator generate_html.py (its FULL source is in the device-ports-generator block below).
+     Inputs in the same folder: device-port-dump.json + vanilla-dump.json. Transforms: corrected
+     mod attribution (vanilla diff) ; DROP all non-power/data ports (keep classes power/data/powerdata
+     only) ; compute rocket buckets ; emit this index.html with the device array as `const DATA=[...]`.
+
+PUBLISH (docs site)
+  Copy the generated HTML to tools/device-ports/index.html. KEEP ONLY index.html in that folder:
+  tools/publish-web/build.ps1 copies the WHOLE tool folder to the public site, so a generator or raw
+  JSON dropped there would be published too. Then:
+       tools/publish-web/build.ps1            (auto-discovers tools/*/index.html; nav title from folder name)
+       git add Web/site/ ; git commit -m "Publish: ..."        (Web/site is committed)
+       tools/publish-web/deploy.ps1           (robocopy /MIR to the SMB share)
+
+DATA SEMANTICS (do not re-derive incorrectly)
+  Ports: only Power / Data / PowerAndData shown; Pipe/Chute/LandingPad/mod-custom dropped by the
+    generator. "Power+Data" is one connector carrying both.
+  Mod: vanilla diff is authoritative for mod-vs-vanilla; the loader registry supplies the mod name.
+  Rocket build-location (the game's own data, never by name):
+    Base only     = no IRocketComponent (cannot be placed in a rocket).
+    Base + rocket = IRocketComponent and StrictlyInternal=false (buildable in a base AND a rocket).
+    Rocket only   = IRocketInternals.StrictlyInternal=true (cannot be built outside a rocket).
+
+AUTHORITATIVE RESEARCH (committed; read before changing semantics)
+  Research/GameClasses/Connection.md , NetworkType.md , ConnectionRole.md , Thing.md
+  Research/GameSystems/PrefabSourceAttribution.md        (mod attribution + Mirrored residual)
+  Research/Workflows/StationeersLaunchPadModLoading.md   (LoadedMod.Info name source)
+  Research/GameSystems/RocketConstructionEligibility.md  (rocket build-eligibility)
+
+TO UPDATE (new game version or changed mod set)
+  Re-run stages 1-4 with the current mods, then re-publish. Sanity-check the totals moved sensibly
+  and no expected content mod dropped to 0 prefabs. Update the version/date/counts in this manifest.
+
+GOTCHAS
+  - BepInEx LogOutput.log APPENDS across launches; match the LATEST "device-port-dump END" line
+    (the current run, with rocketFamily=...), not a stale earlier one. A concurrent agent run on the
+    shared dedi can pollute the log/JSON; confirm the full mod set loaded before trusting the dump.
+  - Application.version returns "1.0" at runtime; the real build ({VER}) comes from the install
+    version.txt, not the dump's gameVersion field.
+  - The generator and the two JSON dumps live in .work/2026-06-21-device-port-table/ which is
+    gitignored scratch and may be deleted. That is why the generator is embedded here; the dumps are
+    reproducible via stages 1-3.
+  - The generator emits HTML containing <\/script>, so in the embedded copy below every <\/script> was
+    replaced with <\\/script>. To run it: extract the device-ports-generator block text and globally
+    replace <\\/script> back to <\/script>.
+"""
+MANIFEST = MANIFEST.replace("<\/script>", "<\\/script>")
+GEN_SRC = open(__file__, encoding="utf-8").read().replace("<\/script>", "<\\/script>")
+TOP_COMMENT = ('<!-- AGENT/MAINTAINER: this file embeds a full reproduction + update manifest and the '
+               'exact generator as non-rendered text. See the script blocks id="agent-manifest" and '
+               'id="device-ports-generator" near the end of this file. Not shown in the browser. -->')
+AGENT_BLOCKS = (
+    '<script type="text/plain" id="agent-manifest">\n' + MANIFEST + '\n<\/script>\n'
+    + '<script type="text/plain" id="device-ports-generator" '
+      'data-note="generate_html.py that produced this file; globally restore the escaped close-tag before running">\n'
+    + GEN_SRC + '\n<\/script>\n'
+)
+HTML = HTML.replace("<!doctype html>", "<!doctype html>\n" + TOP_COMMENT, 1)
+HTML = HTML.replace("</body></html>", AGENT_BLOCKS + "</body></html>", 1)
+
+open(f"{BASE}/device-ports.html", "w", encoding="utf-8").write(HTML)
+print("wrote", f"{BASE}/device-ports.html", "bytes:", len(HTML))
+
 </script>
 </body></html>
