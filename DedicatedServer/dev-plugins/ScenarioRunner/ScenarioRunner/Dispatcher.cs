@@ -129,6 +129,10 @@ namespace ScenarioRunner
                     Scenario_DataPortTierDiag();
                     return;
 
+                case "pgp-dataport-cursor-proxy":
+                    Scenario_DataPortCursorProxy();
+                    return;
+
                 case "pgp-rocket-parity-probe":
                     Scenario_PgpRocketParityProbe();
                     return;
