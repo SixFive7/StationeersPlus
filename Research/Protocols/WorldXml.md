@@ -44,10 +44,34 @@ Rooms are sealed pressurized volumes. The game tracks every airtight cell. Seale
 
 `<DifficultySetting Id="Normal" />` near the top of world.xml. Values: `Easy`, `Normal`, `Hard`, `Stationeer`.
 
+## Celestial (sun position / world time)
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+The `<Celestial>` element is a direct child of root `<WorldData>` and holds the orbital/sun clock. It serializes `OrbitSimulationSaveData` (see [../GameClasses/OrbitalSimulation.md](../GameClasses/OrbitalSimulation.md) for the full mechanism). Two attribute-valued `DoubleReference` children, both in seconds:
+
+```xml
+<Celestial>
+  <AccumulatedTime Value="407548.122450768" />
+  <SimulationTime Value="122597.43671865921" />
+</Celestial>
+```
+
+- `SimulationTime/@Value` is authoritative. On load, `OrbitSimulationSaveData.Deserialize` calls `OrbitalSimulation.SetSimulationTime(SimulationTime.Value)`, which rebuilds the sun direction `WorldSunVector` from this clock. Editing it moves the sun. Setting it does NOT freeze the sun (the sim resumes ticking on load); a freeze needs `TimeScale = 0` at runtime, e.g. the `orbital timescale 0` console command.
+- `AccumulatedTime/@Value` is total real time; used as the fallback time source and to restore `TotalRealTimeSeconds`.
+- If `<Celestial>` is absent, the loader falls back to `SetRealTime(DaysPast * siderealDaySeconds)`.
+
+Sibling clock fields (also direct children of `<WorldData>`, mirrored in `world_meta.xml`):
+
+- `<DaysPast>` (uint): in-world day counter; the `<Celestial>`-absent fallback time source.
+- `<DateTime>` (.NET `DateTime.Ticks`, 100ns units): calendar/HUD clock display only. NOT read for sun position. The time-of-day component decodes to the wall-clock time shown in-game.
+
+There is no explicit sun-angle or day-length element in world.xml; the sun is derived at runtime from the `<Celestial>` clock and the world setting's day length.
+
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
 - 2026-04-20: page created from the Research migration. Sources: F0236 (Rooms grid coordinate scale + cell size), F0250 (DifficultySetting enum location).
+- 2026-06-25: added the Celestial section (sun position / world time fields) from a decompile read of `OrbitSimulationSaveData` / `WorldData` (game version 0.2.6228.27061) and confirmation against a real Luna save's world.xml. Documents `SimulationTime`, `AccumulatedTime`, `DaysPast`, `DateTime`.
 
 ## Open questions
 
