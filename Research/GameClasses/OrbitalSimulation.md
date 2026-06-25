@@ -161,6 +161,8 @@ public static void SetDayTime(float clampedSunTime)   // line 56527
 
 Ordering trap: to "set noon then freeze," position the sun first (while `TimeScale != 0`), then `SetTimeScale(0)`. Freezing first makes `SetRealTime` zero out the clock.
 
+Thread-safety (positioning the sun from a non-main thread, e.g. an `ElectricityManager.ElectricityTick` postfix on a headless server): `SetAllBodies(double)` (line 56594) is pure managed math: it sets `SimulationTimeSeconds`, recomputes `WorldSunVector`, and updates the celestial bodies, with no Unity scene-graph access, so it is safe to call from a worker thread. `SetSimulationTime(double)` (line 56573) wraps `SetAllBodies` but then calls `HandleUpdate()` (line 56717), which writes `WorldSunTransform.position` and `.LookAt` (Unity, main-thread only; guarded by `(object)WorldSun != null`, so it no-ops when the sun GameObject is absent on a `-batchmode` server). To scan for or set a sun position off the main thread, call `SetAllBodies` directly and skip `HandleUpdate`. Setting `TimeScale = 0` before the scan makes any concurrent main-thread `UpdateEachFrame` idempotent on the `SimulationTimeSeconds` writes (`delta * 0 == 0`), so the scan cannot be raced.
+
 ## What "noon" is (sun at zenith)
 <!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
@@ -274,12 +276,13 @@ Commands derive from `CommandBase`; the menu token is the lowercased class name 
 | `celestial <body> rotation <speed>` | 97490-97496 | Sets `rotatingCelestialBody._baseRotationSpeed = float.Parse(args[2])`. `celestial <body> rotation 0` zeroes axial spin (another freeze path, but risks division-by-zero in `GetDayLength`). Blocked entirely in multiplayer ("Cannot change celestials in multiplayer", line 97455). |
 | `celestial <body> period <days>` | 97484 | Orbital period. |
 
-Multiplayer: `TimeScale` is network-synced (`NetworkUpdateFlags |= 1` in `OnTimeScaleChanged`, line 56523; serialized at 57298/57316). `orbital set/simulate/timescale` are host-only (clients rejected); `celestial` is single-player only. A freeze/set must run host-side and broadcast.
+Multiplayer: the orbital state delta-syncs to clients through `SerializeDeltaState` (line 57283) / `DeserializeDeltaState` (line 57307). `TimeScale` rides `NetworkUpdateFlags` bit 1 (set by `OnTimeScaleChanged`, line 56523; written at 57298). `TotalRealTimeSeconds` + `SimulationTimeSeconds` ride bit 2, which `SerializeDeltaState` sets on every sync (line 57290), so the sun POSITION syncs continuously, not just at join; the client applies it via `System.SetAllBodies(simTime)` + `HandleUpdate()` (lines 57321-57323). A host-side set of both `SimulationTimeSeconds` (via `SetAllBodies`) and `TimeScale = 0` therefore yields a frozen-at-position sun on every connected client. `orbital set/simulate/timescale` are host-only (clients rejected); `celestial` is single-player only. A freeze/set must run host-side and broadcast.
 
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
 - 2026-06-25: page created from a decompile read of `Assembly-CSharp.decompiled.cs` (game version 0.2.6228.27061) while researching "fix the sun to noon and freeze it" on a Luna dedicated-server save. Captures the `WorldSunVector` derivation, the `TimeScale` freeze point (line 56585), the day-length / `CalculateTimeScale` derivation, the noon = `Vector3.up` convention, the `<Celestial>` save serialization, and the `orbital` / `celestial` console commands. Consistent with the existing `OrbitalSimulation.SetDayTime(float)` "0-1 range" note in `../Workflows/TimeSkipWorldManipulation.md` (no conflict).
+- 2026-06-25: added the runtime thread-safety split (`SetAllBodies` is worker-safe pure math; `SetSimulationTime` -> `HandleUpdate` writes `WorldSunTransform`, main-thread only) and the delta-state network-sync detail (`SimulationTimeSeconds` / `TotalRealTimeSeconds` ride `SerializeDeltaState` bit 2, set every sync, so sun position syncs continuously). Captured while building the ScenarioRunner `sun-noon` freeze for a Luna dedicated-server debug session. Sources: `Assembly-CSharp.decompiled.cs` lines 56594 (`SetAllBodies`), 56717 (`HandleUpdate`), 57283-57325 (`SerializeDeltaState` / `DeserializeDeltaState`).
 
 ## Open questions
 <!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
