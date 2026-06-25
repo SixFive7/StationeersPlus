@@ -42,7 +42,7 @@ Rooms are sealed pressurized volumes. The game tracks every airtight cell. Seale
 ## DifficultySetting
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
-`<DifficultySetting Id="Normal" />` near the top of world.xml. Values: `Easy`, `Normal`, `Hard`, `Stationeer`.
+`<DifficultySetting Id="Normal" />` near the top of world.xml (a direct child of root `<WorldData>`, serialized via `XmlSaveLoad.WorldData.DifficultySetting`, a `SerializedId` whose `Id` is an `[XmlAttribute]`). Values include `Easy`, `Normal`, `Stationeer`, and `Creative`. The game mode (Survival vs Creative) is NOT a separate field; it is derived from this difficulty on load. Setting `Id="Creative"` enables creative mode and persists across reloads. See [../GameSystems/CreativeModeAndDifficulty.md](../GameSystems/CreativeModeAndDifficulty.md) for the full mechanism, the stock difficulty presets, and the `Creative` preset's field values.
 
 ## Celestial (sun position / world time)
 <!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
@@ -72,6 +72,7 @@ There is no explicit sun-angle or day-length element in world.xml; the sun is de
 
 - 2026-04-20: page created from the Research migration. Sources: F0236 (Rooms grid coordinate scale + cell size), F0250 (DifficultySetting enum location).
 - 2026-06-25: added the Celestial section (sun position / world time fields) from a decompile read of `OrbitSimulationSaveData` / `WorldData` (game version 0.2.6228.27061) and confirmation against a real Luna save's world.xml. Documents `SimulationTime`, `AccumulatedTime`, `DaysPast`, `DateTime`.
+- 2026-06-25: expanded the DifficultySetting section to note it is a `SerializedId` child of `<WorldData>`, that the live `difficultySettings.xml` ships a `Creative` value, and that the game mode (Survival/Creative) is derived from this element rather than stored separately. Cross-linked the new `../GameSystems/CreativeModeAndDifficulty.md`. Verified against a real Luna save's world.xml (`<DifficultySetting Id="Normal" />`) and the `XmlSaveLoad.WorldData` decompile.
 
 ## Open questions
 
