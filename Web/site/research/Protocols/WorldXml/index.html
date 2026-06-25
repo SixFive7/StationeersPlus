@@ -768,6 +768,8 @@
       
         
       
+        
+      
     
     
     
@@ -2310,6 +2312,34 @@
     
   
     OnServer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/OrbitalSimulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OrbitalSimulation
   
 
     
@@ -5062,6 +5092,8 @@
       
         
       
+        
+      
     
     
     
@@ -5456,6 +5488,34 @@
     
   
     Float16 quantization on network serialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/GameLoggingSinks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameLoggingSinks
   
 
     
@@ -6996,6 +7056,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#celestial-sun-position-world-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Celestial (sun position / world time)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7690,6 +7761,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#celestial-sun-position-world-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Celestial (sun position / world time)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7878,11 +7960,32 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <p><code>&lt;DifficultySetting Id="Normal" /&gt;</code> near the top of world.xml. Values: <code>Easy</code>, <code>Normal</code>, <code>Hard</code>, <code>Stationeer</code>.</p>
+<h2 id="celestial-sun-position-world-time">Celestial (sun position / world time)<a class="headerlink" href="#celestial-sun-position-world-time" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p>The <code>&lt;Celestial&gt;</code> element is a direct child of root <code>&lt;WorldData&gt;</code> and holds the orbital/sun clock. It serializes <code>OrbitSimulationSaveData</code> (see <a href="../../GameClasses/OrbitalSimulation/">../GameClasses/OrbitalSimulation.md</a> for the full mechanism). Two attribute-valued <code>DoubleReference</code> children, both in seconds:</p>
+<div class="language-xml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">&lt;Celestial&gt;</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&lt;AccumulatedTime</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;407548.122450768&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&lt;SimulationTime</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;122597.43671865921&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">&lt;/Celestial&gt;</span>
+</span></code></pre></div>
+<ul>
+<li><code>SimulationTime/@Value</code> is authoritative. On load, <code>OrbitSimulationSaveData.Deserialize</code> calls <code>OrbitalSimulation.SetSimulationTime(SimulationTime.Value)</code>, which rebuilds the sun direction <code>WorldSunVector</code> from this clock. Editing it moves the sun. Setting it does NOT freeze the sun (the sim resumes ticking on load); a freeze needs <code>TimeScale = 0</code> at runtime, e.g. the <code>orbital timescale 0</code> console command.</li>
+<li><code>AccumulatedTime/@Value</code> is total real time; used as the fallback time source and to restore <code>TotalRealTimeSeconds</code>.</li>
+<li>If <code>&lt;Celestial&gt;</code> is absent, the loader falls back to <code>SetRealTime(DaysPast * siderealDaySeconds)</code>.</li>
+</ul>
+<p>Sibling clock fields (also direct children of <code>&lt;WorldData&gt;</code>, mirrored in <code>world_meta.xml</code>):</p>
+<ul>
+<li><code>&lt;DaysPast&gt;</code> (uint): in-world day counter; the <code>&lt;Celestial&gt;</code>-absent fallback time source.</li>
+<li><code>&lt;DateTime&gt;</code> (.NET <code>DateTime.Ticks</code>, 100ns units): calendar/HUD clock display only. NOT read for sun position. The time-of-day component decodes to the wall-clock time shown in-game.</li>
+</ul>
+<p>There is no explicit sun-angle or day-length element in world.xml; the sun is derived at runtime from the <code>&lt;Celestial&gt;</code> clock and the world setting's day length.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration. Sources: F0236 (Rooms grid coordinate scale + cell size), F0250 (DifficultySetting enum location).</li>
+<li>2026-06-25: added the Celestial section (sun position / world time fields) from a decompile read of <code>OrbitSimulationSaveData</code> / <code>WorldData</code> (game version 0.2.6228.27061) and confirmation against a real Luna save's world.xml. Documents <code>SimulationTime</code>, <code>AccumulatedTime</code>, <code>DaysPast</code>, <code>DateTime</code>.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

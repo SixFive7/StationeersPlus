@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/SaveDataIsinstInheritance/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/GameLoggingSinks/">
       
       
-        <link rel="prev" href="../ProtectedMethodPublicAPIBypass/">
+        <link rel="prev" href="../Float16Quantization/">
       
       
-        <link rel="next" href="../SaveLoadOrdering/">
+        <link rel="next" href="../HarmonyFieldOrProperty/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Custom save-data type must inherit vanilla so isinst still matches - StationeersPlus</title>
+        <title>GameLoggingSinks - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#custom-save-data-type-must-inherit-vanilla-so-isinst-still-matches" class="md-skip">
+        <a href="#stationeers-game-logging-and-diagnostic-output-sinks" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Custom save-data type must inherit vanilla so isinst still matches
+              GameLoggingSinks
             
           </span>
         </div>
@@ -5507,10 +5507,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../GameLoggingSinks/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GameLoggingSinks
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -5526,6 +5553,175 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#summary-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detailed-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detailed findings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-playerlog-primary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Player.log (primary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-player-prevlog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Player-prev.log
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-console-buffer-export-playerlog_log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Console buffer export (PlayerLog_.log)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-harmony-filelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Harmony FileLog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-harmony-filewriter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Harmony FileWriter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-dedicated-server-console-rocketsystemconsole" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Dedicated server console (RocketSystemConsole)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-custom-log-file-logfile-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Custom log file (-logFile flag)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-command-line-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional command-line flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-path-constant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key path constant
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-covered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not covered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -6011,37 +6207,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom save-data type must inherit vanilla so isinst still matches
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../SaveDataIsinstInheritance/" class="md-nav__link">
         
   
   
@@ -6057,70 +6226,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#problem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Problem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#solution-recipe" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Solution / recipe
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -7728,10 +7833,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#problem" class="md-nav__link">
+  <a href="#summary-table" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Problem
+        Summary table
       
     </span>
   </a>
@@ -7739,10 +7844,126 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#solution-recipe" class="md-nav__link">
+  <a href="#detailed-findings" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Solution / recipe
+        Detailed findings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detailed findings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-playerlog-primary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Player.log (primary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-player-prevlog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Player-prev.log
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-console-buffer-export-playerlog_log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Console buffer export (PlayerLog_.log)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-harmony-filelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Harmony FileLog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-harmony-filewriter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Harmony FileWriter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-dedicated-server-console-rocketsystemconsole" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Dedicated server console (RocketSystemConsole)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-custom-log-file-logfile-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Custom log file (-logFile flag)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-command-line-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional command-line flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-path-constant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key path constant
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-covered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not covered
       
     </span>
   </a>
@@ -7754,17 +7975,6 @@
     <span class="md-ellipsis">
       
         Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
       
     </span>
   </a>
@@ -7861,26 +8071,34 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           on 2026-06-24.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
-              <li><code>Plans/EquipmentPlus/RESEARCH.md:285-286 (F0126)</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.ConsoleWindow, GameManager, Settings, LogCommand'}</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:96920-97033 (LogCommand), :206094-206957 (ConsoleWindow), :212181-212186 (Defines.Paths)</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\0Harmony.dll :': 'FileLog, FileWriter'}</code></li>
+            
+              <li><code>.work/decomp/0.2.6228.27061/0Harmony.decompiled.cs:8534-8673 (FileLog), :9332-9355 (FileWriter)</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (1)</summary>
+          <summary><strong>Related pages</strong> (2)</summary>
           <ul>
             
-              <li><code>../GameSystems/SaveDataRegistration.md</code></li>
+              <li><code>../Patterns/InGameConsoleOutput.md</code></li>
+            
+              <li><code>../GameSystems/DedicatedServerSettings.md</code></li>
             
           </ul>
         </details>
@@ -7896,55 +8114,201 @@
       
       
       
-        <span class="md-tag">save-load</span>
+        <span class="md-tag">debugging</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">diagnostics</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">logging</span>
       
     
   </nav>
 
 
 
-<h1 id="custom-save-data-type-must-inherit-vanilla-so-isinst-still-matches">Custom save-data type must inherit vanilla so isinst still matches<a class="headerlink" href="#custom-save-data-type-must-inherit-vanilla-so-isinst-still-matches" title="Permanent link">&para;</a></h1>
-<p>When extending a Thing's save-data payload by registering a custom type, inherit the vanilla save-data class. Vanilla's <code>DeserializeSave</code> often does an <code>isinst</code> check against its own type; a sibling class (no inheritance) fails the check and vanilla skips its own fields entirely. Inherit, and vanilla's check passes while the custom subclass adds fields the mod cares about.</p>
-<h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>F0126 (Plans/EquipmentPlus/RESEARCH.md:285-286):</p>
-<blockquote>
-<p>Vanilla's <code>AdvancedTablet.DeserializeSave</code> does an <code>isinst</code> check for its own <code>AdvancedTabletSaveData</code>. By inheriting from it, our subclass passes that check and any fields vanilla adds in future updates are preserved automatically. The class is named differently to avoid XML type-name collision when both are registered in <code>ExtraTypes</code>.</p>
-</blockquote>
-<p>Two failure modes if the custom type does not inherit:</p>
-<ol>
-<li>Vanilla's <code>isinst AdvancedTabletSaveData</code> returns false for a sibling class; vanilla's own field restoration is skipped. The mod's fields load; the vanilla fields silently reset to defaults.</li>
-<li>If the game version adds new fields to <code>AdvancedTabletSaveData</code>, a sibling class will not carry them forward across saves. Inheritance auto-inherits new fields.</li>
-</ol>
-<h2 id="solution-recipe">Solution / recipe<a class="headerlink" href="#solution-recipe" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="na">[Serializable]</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="na">[XmlType(&quot;MyModTabletSaveData&quot;)]</span><span class="w">  </span><span class="c1">// different XML name avoids ExtraTypes collision</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">MyModTabletSaveData</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">AdvancedTabletSaveData</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">{</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">SavedActiveCartridgeRefId</span><span class="p">;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="c1">// additional mod fields</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>Registering both <code>AdvancedTabletSaveData</code> (vanilla, already present) and <code>MyModTabletSaveData</code> (mod) in <code>XmlSaveLoad.ExtraTypes</code> requires the XML type names to differ. The C# class name and XML <code>[XmlType]</code> attribute can disagree; the XML name is what <code>ExtraTypes</code> indexes on. Keeping the class name distinct (<code>MyModTabletSaveData</code>) and the <code>[XmlType]</code> distinct prevents the collision.</p>
-<p>The deserialize path:</p>
-<ol>
-<li>Game reads the saved <code>&lt;AdvancedTabletSaveData&gt;</code> XML element.</li>
-<li>Polymorphic deserialization finds the registered subclass that matches.</li>
-<li><code>DeserializeSave</code> receives an instance whose runtime type is <code>MyModTabletSaveData</code>.</li>
-<li>Vanilla's <code>isinst AdvancedTabletSaveData</code> returns true (subclass satisfies the check); vanilla restores its fields.</li>
-<li>The mod's postfix reads the additional fields off the subclass.</li>
-</ol>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
+<h1 id="stationeers-game-logging-and-diagnostic-output-sinks">Stationeers game logging and diagnostic output sinks<a class="headerlink" href="#stationeers-game-logging-and-diagnostic-output-sinks" title="Permanent link">&para;</a></h1>
+<p>The Stationeers game writes diagnostic and telemetry data to multiple log sinks. This page catalogs every known log file and output mechanism the game itself produces.</p>
+<h2 id="summary-table">Summary table<a class="headerlink" href="#summary-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Log sink</th>
+<th>File path</th>
+<th>Condition</th>
+<th>Content</th>
+<th>Writer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Player.log</strong></td>
+<td>%USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\Player.log</td>
+<td>Always active</td>
+<td>UnityEngine.Debug.Log* and BepInEx mod logs (via LaunchPad mirror)</td>
+<td>Application.logMessageReceivedThreaded</td>
+</tr>
+<tr>
+<td><strong>Player-prev.log</strong></td>
+<td>Same folder</td>
+<td>Auto-rotated</td>
+<td>Previous session Player.log</td>
+<td>Unity built-in rotation</td>
+</tr>
+<tr>
+<td><strong>Console export</strong></td>
+<td>%USERPROFILE%\My Games\Stationeers\PlayerLog_*.log</td>
+<td>Player-initiated via log command</td>
+<td>In-game console buffer dump</td>
+<td>LogCommand.LogToFile</td>
+</tr>
+<tr>
+<td><strong>Harmony debug log</strong></td>
+<td>Desktop\harmony.log.txt OR HARMONY_LOG_FILE env var</td>
+<td>Opt-in (Harmony.DEBUG=true)</td>
+<td>Low-level patch tracing</td>
+<td>HarmonyLib.FileLog</td>
+</tr>
+<tr>
+<td><strong>Harmony FileWriter</strong></td>
+<td>CWD\HarmonyLog.txt OR FileWriter.FileWriterPath</td>
+<td>Opt-in (FileWriter.Enabled=true)</td>
+<td>Harmony runtime messages</td>
+<td>HarmonyLib.FileWriter</td>
+</tr>
+<tr>
+<td><strong>Dedicated server console</strong></td>
+<td>Console window (live, not persisted)</td>
+<td>Batch mode without -logFile</td>
+<td>ConsoleWindow output to system console</td>
+<td>RocketSystemConsole</td>
+</tr>
+<tr>
+<td><strong>Custom log file</strong></td>
+<td>Specified via -logFile flag</td>
+<td>Batch mode with -logFile</td>
+<td>UnityEngine.Debug.Log* calls</td>
+<td>UnityEngine.Debug</td>
+</tr>
+</tbody>
+</table>
+<h2 id="detailed-findings">Detailed findings<a class="headerlink" href="#detailed-findings" title="Permanent link">&para;</a></h2>
+<h3 id="1-playerlog-primary">1. Player.log (primary)<a class="headerlink" href="#1-playerlog-primary" title="Permanent link">&para;</a></h3>
 <ul>
-<li>2026-04-20: page created from the Research migration; single source (F0126).</li>
+<li><strong>Path:</strong> %USERPROFILE%\AppData\LocalLow\Rocketwerkz\rocketstation\Player.log</li>
+<li><strong>Rotation:</strong> Auto-rotated to Player-prev.log on each launch</li>
+<li><strong>Content:</strong> UnityEngine.Debug.Log/LogWarning/LogError output</li>
+<li><strong>Additional:</strong> BepInEx mod logs mirrored via StationeersLaunchPad</li>
+<li><strong>Subscriber:</strong> Application.logMessageReceivedThreaded (ConsoleWindow._Init line 206182)</li>
 </ul>
-<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<h3 id="2-player-prevlog">2. Player-prev.log<a class="headerlink" href="#2-player-prevlog" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Path:</strong> Same directory as Player.log</li>
+<li><strong>Content:</strong> Previous session's Player.log (Unity automatic rotation)</li>
+</ul>
+<h3 id="3-console-buffer-export-playerlog_log">3. Console buffer export (PlayerLog_<timestamp>.log)<a class="headerlink" href="#3-console-buffer-export-playerlog_log" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Path:</strong> %USERPROFILE%\My Games\Stationeers (see Defines.Paths.LocalData)</li>
+<li><strong>Invocation:</strong> In-game console command: log or log <customname></li>
+<li><strong>Content:</strong> Entire 1024-line in-game console buffer with timestamps</li>
+<li><strong>Implementation:</strong> LogCommand class (Assembly-CSharp:96920-97033)</li>
+<li><strong>Default naming:</strong> PlayerLog_YYYY-MM-DD_HH-mm-ss.log</li>
+<li><strong>Custom naming:</strong> Spaces replaced with underscores, .log suffix added</li>
+<li><strong>Related:</strong> log clear command deletes all *.log files in LocalData folder</li>
+</ul>
+<h3 id="4-harmony-filelog">4. Harmony FileLog<a class="headerlink" href="#4-harmony-filelog" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Path:</strong> %USERPROFILE%\Desktop\harmony.log.txt</li>
+<li><strong>Override:</strong> Environment variable HARMONY_LOG_FILE (checked at 0Harmony line 8550)</li>
+<li><strong>Activation:</strong> Only if Harmony.DEBUG = true (developer-only)</li>
+<li><strong>Content:</strong> Low-level transpiler and patch-application traces</li>
+<li><strong>Implementation:</strong> HarmonyLib.FileLog class (0Harmony:8534-8673)</li>
+<li><strong>Methods:</strong></li>
+<li>Log(string) - immediate disk write via File.AppendText (line 8650)</li>
+<li>LogBuffered(string) - queued flush</li>
+<li>Reset() - deletes harmony.log.txt from desktop</li>
+<li><strong>Thread safety:</strong> Guarded by lock object fileLock</li>
+</ul>
+<h3 id="5-harmony-filewriter">5. Harmony FileWriter<a class="headerlink" href="#5-harmony-filewriter" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Path:</strong> CWD\HarmonyLog.txt (overridable via FileWriter.FileWriterPath property)</li>
+<li><strong>Activation:</strong> Only if FileWriter.Enabled = true (not default)</li>
+<li><strong>Content:</strong> Harmony patch runtime messages (Logger.LogEventArgs events)</li>
+<li><strong>Implementation:</strong> HarmonyLib.FileWriter class (0Harmony:9314-9355)</li>
+<li><strong>Operation:</strong> Creates StreamWriter via File.Create on enable; subscribes to Logger.MessageReceived</li>
+<li><strong>Format:</strong> [LogChannel] Message (line 9352)</li>
+</ul>
+<h3 id="6-dedicated-server-console-rocketsystemconsole">6. Dedicated server console (RocketSystemConsole)<a class="headerlink" href="#6-dedicated-server-console-rocketsystemconsole" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Activation:</strong> Batch mode (GameManager.IsBatchMode) without -logFile flag</li>
+<li><strong>Path:</strong> System console window (live output, not persisted by default)</li>
+<li><strong>Content:</strong> All ConsoleWindow.Print* calls + console command input/output</li>
+<li><strong>Implementation:</strong> RocketSystemConsole class (Assembly-CSharp:105597-105642)</li>
+<li><strong>Platform support:</strong> Windows and Linux server builds (line 105627)</li>
+<li><strong>Features:</strong></li>
+<li>UTF-8 encoding (line 105636)</li>
+<li>Input thread for console commands (line 105639)</li>
+<li>Title bar with game version and command-line args</li>
+<li>Input forwarded to CommandLine.Process (line 206219)</li>
+<li><strong>Initialization:</strong> ConsoleWindow._Init line 206191 (conditional on IsBatchMode &amp;&amp; !CustomLogFile)</li>
+<li><strong>Important:</strong> This is live console, not persisted to disk unless stdout redirected</li>
+</ul>
+<h3 id="7-custom-log-file-logfile-flag">7. Custom log file (-logFile flag)<a class="headerlink" href="#7-custom-log-file-logfile-flag" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Activation:</strong> Batch mode with -logFile <path> command-line flag</li>
+<li><strong>Detection:</strong> ConsoleWindow.CustomLogFile property (line 206177): CommandLineArgs?.Contains("-logFile")</li>
+<li><strong>Path:</strong> Specified by flag or Unity default output_log.txt</li>
+<li><strong>Content:</strong> UnityEngine.Debug.Log* calls (routed from ConsoleWindow.Print)</li>
+<li><strong>Behavior:</strong> Skips RocketSystemConsole creation (line 206189)</li>
+<li><strong>Routing:</strong> ConsoleWindow.Print routes to Debug.Log/LogWarning/LogError (lines 206856-206873)</li>
+</ul>
+<h2 id="additional-command-line-flags">Additional command-line flags<a class="headerlink" href="#additional-command-line-flags" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Scope</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-logFile <path></td>
+<td>Batch mode</td>
+<td>Routes output to log file instead of system console</td>
+</tr>
+<tr>
+<td>-noclear</td>
+<td>Batch mode</td>
+<td>Prevents console window clearing on startup</td>
+</tr>
+<tr>
+<td>HARMONY_LOG_FILE (env var)</td>
+<td>Global</td>
+<td>Overrides default harmony.log.txt path</td>
+</tr>
+</tbody>
+</table>
+<h2 id="key-path-constant">Key path constant<a class="headerlink" href="#key-path-constant" title="Permanent link">&para;</a></h2>
+<p><strong>Defines.Paths.LocalData</strong> (Assembly-CSharp:212185):
+%USERPROFILE%\My Games\Stationeers (derived from Environment.SpecialFolder.MyDocuments + "\My Games\Stationeers\")</p>
+<h2 id="not-covered">Not covered<a class="headerlink" href="#not-covered" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Crash dumps (.dmp files) - OS-level, not game-code initiated</li>
+<li>Steam telemetry - third-party, not visible in game code</li>
+<li>Mod logging - documented in InGameConsoleOutput.md</li>
+<li>Network/RakNet logs - no explicit log file exposed in decompiled code</li>
+</ul>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<p>2026-06-24: Page created from exhaustive search of Assembly-CSharp.decompiled.cs and 0Harmony.decompiled.cs. Enumerated all StreamWriter, File.AppendText, File.Create, Application.logMessageReceived handlers, and console classes. Harmony logs verified from FileLog (line 8534) and FileWriter (line 9332) classes. Dedicated server logging verified from RocketSystemConsole and batch-mode initialization paths.</p>
 
 
 
@@ -7984,7 +8348,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../ProtectedMethodPublicAPIBypass/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Replace a protected method via public-API composition">
+          <a href="../Float16Quantization/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Float16 quantization on network serialization">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -7994,20 +8358,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Replace a protected method via public-API composition
+                Float16 quantization on network serialization
               </div>
             </div>
           </a>
         
         
           
-          <a href="../SaveLoadOrdering/" class="md-footer__link md-footer__link--next" aria-label="Next: SaveLoadOrdering">
+          <a href="../HarmonyFieldOrProperty/" class="md-footer__link md-footer__link--next" aria-label="Next: Harmony field-or-property reflection tolerance">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                SaveLoadOrdering
+                Harmony field-or-property reflection tolerance
               </div>
             </div>
             <div class="md-footer__button md-icon">
