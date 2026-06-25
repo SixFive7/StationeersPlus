@@ -101,6 +101,10 @@ namespace ScenarioRunner
                     // Already covered by LogInventory on first tick; nothing to do per-tick.
                     return;
 
+                case "sun-noon":
+                    Scenario_SunNoon();
+                    return;
+
                 case "battery-charge-snapshot":
                     Scenario_BatteryChargeSnapshot();
                     return;
