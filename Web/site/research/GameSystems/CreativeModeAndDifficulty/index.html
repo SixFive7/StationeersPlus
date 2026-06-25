@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/LogicType/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/CreativeModeAndDifficulty/">
       
       
-        <link rel="prev" href="../Localization/">
+        <link rel="prev" href="../ConveyorBeltCutContent/">
       
       
-        <link rel="next" href="../LogicValueFormatting/">
+        <link rel="next" href="../DamageState/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>LogicType - StationeersPlus</title>
+        <title>Creative Mode and Difficulty - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#logictype" class="md-skip">
+        <a href="#creative-mode-and-difficulty" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              LogicType
+              Creative Mode and Difficulty
             
           </span>
         </div>
@@ -3647,10 +3647,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../CreativeModeAndDifficulty/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creative Mode and Difficulty
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3666,6 +3693,181 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-gamemode-enum-and-worldmanagergamemode-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The GameMode enum and WorldManager.GameMode field
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#difficultysetting-the-persisted-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DifficultySetting: the persisted source of truth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DifficultySetting: the persisted source of truth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-bridge-setcurrent-derives-gamemode-from-creative-line-55251" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The bridge: SetCurrent derives GameMode from Creative (line 55251)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-creative-actually-gates-two-distinct-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What "Creative" actually gates: two distinct checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-stock-creative-difficulty-preset-difficultysettingsxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The stock Creative difficulty preset (difficultySettings.xml)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#save-persistence-worldxml-stores-difficultysetting-not-gamemode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save persistence: world.xml stores DifficultySetting, not GameMode
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Save persistence: world.xml stores DifficultySetting, not GameMode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load-path-xmlsaveloadloadworld-line-251347" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load path (XmlSaveLoad.LoadWorld, line 251347)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editing-a-save-to-creative-offline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing a save to creative (offline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#networking-how-creative-reaches-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Networking: how Creative reaches clients
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#console-command-difficulty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Console command: difficulty
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-flip-worker-thread-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime flip (worker-thread safety)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -4067,37 +4269,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    LogicType
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../LogicType/" class="md-nav__link">
         
   
   
@@ -4113,120 +4288,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#logictype-enum-value-inventory-f0040" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LogicType enum value inventory (F0040)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#atmospheric-gas-ratio-logictype-members" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Atmospheric gas-ratio LogicType members
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Atmospheric gas-ratio LogicType members">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#gas-fuel-relevance-for-combustion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Gas / fuel relevance for combustion
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reserved-bands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reserved bands
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enumcollection-public-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        EnumCollection public API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-custom-logictypes-dont-appear-without-patches" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why custom LogicTypes don't appear without patches
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -7808,10 +7869,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#logictype-enum-value-inventory-f0040" class="md-nav__link">
+  <a href="#the-gamemode-enum-and-worldmanagergamemode-field" class="md-nav__link">
     <span class="md-ellipsis">
       
-        LogicType enum value inventory (F0040)
+        The GameMode enum and WorldManager.GameMode field
       
     </span>
   </a>
@@ -7819,22 +7880,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#atmospheric-gas-ratio-logictype-members" class="md-nav__link">
+  <a href="#difficultysetting-the-persisted-source-of-truth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Atmospheric gas-ratio LogicType members
+        DifficultySetting: the persisted source of truth
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Atmospheric gas-ratio LogicType members">
+    <nav class="md-nav" aria-label="DifficultySetting: the persisted source of truth">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#gas-fuel-relevance-for-combustion" class="md-nav__link">
+  <a href="#the-bridge-setcurrent-derives-gamemode-from-creative-line-55251" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Gas / fuel relevance for combustion
+        The bridge: SetCurrent derives GameMode from Creative (line 55251)
       
     </span>
   </a>
@@ -7847,10 +7908,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reserved-bands" class="md-nav__link">
+  <a href="#what-creative-actually-gates-two-distinct-checks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reserved bands
+        What "Creative" actually gates: two distinct checks
       
     </span>
   </a>
@@ -7858,10 +7919,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#enumcollection-public-api" class="md-nav__link">
+  <a href="#the-stock-creative-difficulty-preset-difficultysettingsxml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        EnumCollection public API
+        The stock Creative difficulty preset (difficultySettings.xml)
       
     </span>
   </a>
@@ -7869,10 +7930,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#why-custom-logictypes-dont-appear-without-patches" class="md-nav__link">
+  <a href="#save-persistence-worldxml-stores-difficultysetting-not-gamemode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why custom LogicTypes don't appear without patches
+        Save persistence: world.xml stores DifficultySetting, not GameMode
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Save persistence: world.xml stores DifficultySetting, not GameMode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load-path-xmlsaveloadloadworld-line-251347" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load path (XmlSaveLoad.LoadWorld, line 251347)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editing-a-save-to-creative-offline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing a save to creative (offline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#networking-how-creative-reaches-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Networking: how Creative reaches clients
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#console-command-difficulty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Console command: difficulty
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-flip-worker-thread-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime flip (worker-thread safety)
       
     </span>
   </a>
@@ -7991,54 +8113,42 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-06-01.
+           on 2026-06-25.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (9)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
-              <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:664-670</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'GameMode enum (line 57660)'}</code></li>
             
-              <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:398-425</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'WorldManager.GameMode / SetCreativeMode / IsCreative (lines 58749, 58892, 60217)'}</code></li>
             
-              <li><code>Plans/StationpediaPlus/PLAN.md:225-236</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'DifficultySetting (line 55054) + SetCurrent->SetCreativeMode bridge (line 55251)'}</code></li>
             
-              <li><code>Plans/StationpediaPlus/PLAN.md:240-255</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'XmlSaveLoad.WorldData / LoadWorld (lines 250559, 251347)'}</code></li>
             
-              <li><code>Plans/StationpediaPlus/PLAN.md:229-236</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'DifficultySettingsCommand (line 95347)'}</code></li>
             
-              <li><code>Plans/StationpediaPlus/PLAN.md:240-254</code></li>
-            
-              <li><code>Plans/StationpediaPlus/PLAN.md:3483-3506</code></li>
-            
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.EnumCollection`2'}</code></li>
-            
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.EnumCollections'}</code></li>
+              <li><code><StationeersPath>/rocketstation_Data/StreamingAssets/Data/difficultySettings.xml</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (7)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
-              <li><code>../Patterns/LogicTypeRegistration.md</code></li>
+              <li><code>./DedicatedServerSettings.md</code></li>
             
-              <li><code>./IC10SyntaxHighlighting.md</code></li>
+              <li><code>./WorldStateAPIs.md</code></li>
             
-              <li><code>./ScreenDropdownBase.md</code></li>
+              <li><code>./NetworkRoles.md</code></li>
             
-              <li><code>./StationpediaPageRendering.md</code></li>
-            
-              <li><code>../GameClasses/ProgrammableChip.md</code></li>
-            
-              <li><code>../GameClasses/WirelessPower.md</code></li>
-            
-              <li><code>../GameClasses/PowerTransmitter.md</code></li>
+              <li><code>../Protocols/WorldXml.md</code></li>
             
           </ul>
         </details>
@@ -8054,404 +8164,311 @@
       
       
       
-        <span class="md-tag">ic10</span>
+        <span class="md-tag">entity</span>
       
     
       
       
       
       
-        <span class="md-tag">logic</span>
+        <span class="md-tag">network</span>
       
     
       
       
       
       
-        <span class="md-tag">ui</span>
+        <span class="md-tag">save-edit</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">save-load</span>
       
     
   </nav>
 
 
 
-<h1 id="logictype">LogicType<a class="headerlink" href="#logictype" title="Permanent link">&para;</a></h1>
-<p><code>LogicType</code> is a <code>ushort</code> enum with 350 vanilla values (0-349) that names every logic readable and writable in the game. This page is the enum-value reference: vanilla values, the gas-ratio member catalogue, and the public surface of <code>EnumCollection&lt;TEnum, TInt&gt;</code> (the generic wrapper that backs <code>EnumCollections.LogicTypes</code> and its siblings).</p>
-<p>For the runtime registration mechanism (how a mod adds custom values: the five reflection-extension sites, the three name-lookup fallback patches, the module split, and the ScreenDropdownBase Awake-survival behavior), see <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>. For the canonical SixFive7 value-assignment catalogue and known third-party reservations to avoid, see <a href="../../Patterns/Logic/README.md"><code>Patterns/Logic/README.md</code></a> at the repo root. For the "who registers what" survey of Workshop mods, see <a href="../../Patterns/ModLogicTypeRegistration/">../Patterns/ModLogicTypeRegistration.md</a>.</p>
-<h2 id="logictype-enum-value-inventory-f0040">LogicType enum value inventory (F0040)<a class="headerlink" href="#logictype-enum-value-inventory-f0040" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h1 id="creative-mode-and-difficulty">Creative Mode and Difficulty<a class="headerlink" href="#creative-mode-and-difficulty" title="Permanent link">&para;</a></h1>
+<p>How Stationeers represents "Creative Mode" (free/instant build, no resource consumption, item spawning, immortality in toxic environments). There are two linked representations: a runtime <code>GameMode</code> enum and a persisted <code>DifficultySetting</code>. Creative is derived from the difficulty, not stored as a standalone field.</p>
+<h2 id="the-gamemode-enum-and-worldmanagergamemode-field">The GameMode enum and WorldManager.GameMode field<a class="headerlink" href="#the-gamemode-enum-and-worldmanagergamemode-field" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
-<p><code>LogicType</code> enum (<code>Assets.Scripts.Objects.Motherboards.LogicType</code>): <code>ushort</code>, vanilla values 0-349 with one true gap at <strong>159</strong>. Examples: <code>Power = 1</code>, <code>On = 28</code>, <code>Charge = 11</code>, <code>Horizontal = 20</code>, <code>Vertical = 21</code>, <code>PowerPotential = 25</code>, <code>PowerActual = 26</code>, <code>Error = 4</code>, <code>PrefabHash = 84</code>, <code>ReferenceId = 217</code>, <code>PositionX/Y/Z = 76/77/78</code>.</p>
-<p>LogicType is <code>[ushort]</code> so values up to 65535 are runtime-legal. The IC10 / MIPS parser resolves name tokens against <code>ProgrammableChip.AllConstants[].Literal</code> via <code>OrdinalIgnoreCase</code> string comparison, so out-of-enum values WORK as long as we register their names in that array.</p>
-<p><code>WirelessPower.CanLogicRead</code> returns true for: Charge, Horizontal, Vertical, PowerPotential, PowerActual, PositionX/Y/Z (plus Device-base ones: Power, On, Error, Mode, RequiredPower, PrefabHash, ReferenceId). <code>PowerTransmitter</code> and <code>PowerReceiver</code> inherit without override.</p>
-<p><code>WirelessPower.GetLogicValue</code> returns:
-- <code>Horizontal</code> → <code>Horizontal × 360.0</code> (degrees)
-- <code>Vertical</code> → <code>Vertical × 180.0</code>
-- <code>HorizontalRatio</code> → <code>Horizontal</code> (0..1)
-- <code>VerticalRatio</code> → <code>Vertical</code>
-- <code>Charge</code> → <code>AvailablePower</code> = <code>InputNetwork.PotentialLoad</code>
-- <code>PowerPotential</code> → <code>base.PotentialLoad</code>
-- <code>PowerActual</code> → <code>base.CurrentLoad</code> = <code>OutputNetwork.CurrentLoad</code> ← <strong>delivered watts</strong>
-- <code>PositionX/Y/Z</code> → <code>RayTransform.position</code></p>
-<p>The game stores LogicType identity and metadata across five independent collections that a mod must extend to make a custom value visible end-to-end (<code>Logicable.LogicTypes</code> for <code>NextLogicType</code> cycling, <code>EnumCollections.LogicTypes</code> for the ConfigCartridge UI, <code>ScreenDropdownBase.LogicTypes</code> for motherboard dropdowns, <code>ProgrammableChip.AllConstants</code> for the IC10 compiler, and <code>ProgrammableChip.InternalEnums</code> for screen syntax highlighting). The full extension mechanism, the module split that fires each site at the right time, and the three name-lookup fallback patches live on <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>.</p>
-<p><code>EnumCollection&lt;T1, T2&gt;</code> lives in <code>Assets.Scripts</code>, NOT <code>Assets.Scripts.Util</code>. <code>ProgrammableChip</code> lives in <code>Assets.Scripts.Objects.Electrical</code>, NOT <code>Motherboards</code>; <code>ProgrammableChip.Constant</code> is a nested <code>public readonly struct</code>.</p>
-<p>The MIPS compiler resolves name tokens against <code>ProgrammableChip.AllConstants</code> directly: verified in-game for both <code>l r0 d0 MicrowaveSourceDraw</code> and <code>lbn ... MicrowaveSourceDraw 0</code>. The <code>Hash</code> field on <code>Constant</code> is for the <code>#hash</code> MIPS directive, not pure name lookups.</p>
-<h2 id="atmospheric-gas-ratio-logictype-members">Atmospheric gas-ratio LogicType members<a class="headerlink" href="#atmospheric-gas-ratio-logictype-members" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
-
-<p>Every combustion-relevant gas (fuels and oxidisers) has a chamber-scoped <code>Ratio*</code> LogicType member, plus per-network <code>Input</code> / <code>Input2</code> / <code>Output</code> / <code>Output2</code> variants. Verbatim from <code>Assets/Scripts/Objects/Motherboards/LogicType.cs</code> (decompile of <code>Assembly-CSharp.dll</code>, source order, with assigned integer values):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">RatioOxygen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span><span class="p">,</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">RatioCarbonDioxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">RatioNitrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">RatioPollutant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">17</span><span class="p">,</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">RatioMethane</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">18</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">RatioWater</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">19</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">Ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">24</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">RatioNitrousOxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">83</span><span class="p">,</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">RatioOxygenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">108</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">RatioCarbonDioxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">109</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">RatioNitrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">110</span><span class="p">,</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">RatioPollutantInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">111</span><span class="p">,</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">RatioMethaneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">112</span><span class="p">,</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">RatioWaterInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">113</span><span class="p">,</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">RatioNitrousOxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">114</span><span class="p">,</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="n">RatioOxygenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">118</span><span class="p">,</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">RatioCarbonDioxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">119</span><span class="p">,</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">RatioNitrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">120</span><span class="p">,</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">RatioPollutantInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">121</span><span class="p">,</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">RatioMethaneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">122</span><span class="p">,</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="n">RatioWaterInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">RatioNitrousOxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">124</span><span class="p">,</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="n">RatioOxygenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">,</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="n">RatioCarbonDioxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">129</span><span class="p">,</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="n">RatioNitrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">130</span><span class="p">,</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="n">RatioPollutantOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">131</span><span class="p">,</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">RatioMethaneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">132</span><span class="p">,</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="n">RatioWaterOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">133</span><span class="p">,</span>
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="n">RatioNitrousOxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">134</span><span class="p">,</span>
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="n">RatioOxygenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">138</span><span class="p">,</span>
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="n">RatioCarbonDioxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">139</span><span class="p">,</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="n">RatioNitrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">140</span><span class="p">,</span>
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="n">RatioPollutantOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">141</span><span class="p">,</span>
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="n">RatioMethaneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">142</span><span class="p">,</span>
-</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="n">RatioWaterOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">143</span><span class="p">,</span>
-</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="n">RatioNitrousOxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">144</span><span class="p">,</span>
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="n">RatioLiquidNitrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">177</span><span class="p">,</span>
-</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="n">RatioLiquidNitrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">178</span><span class="p">,</span>
-</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="n">RatioLiquidNitrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">179</span><span class="p">,</span>
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="n">RatioLiquidNitrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">180</span><span class="p">,</span>
-</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="n">RatioLiquidNitrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">181</span><span class="p">,</span>
-</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="n">RatioLiquidOxygen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">183</span><span class="p">,</span>
-</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="n">RatioLiquidOxygenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">184</span><span class="p">,</span>
-</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="n">RatioLiquidOxygenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">185</span><span class="p">,</span>
-</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="n">RatioLiquidOxygenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">186</span><span class="p">,</span>
-</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="n">RatioLiquidOxygenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">187</span><span class="p">,</span>
-</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="n">RatioLiquidMethane</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">188</span><span class="p">,</span>
-</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="n">RatioLiquidMethaneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">189</span><span class="p">,</span>
-</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="n">RatioLiquidMethaneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">190</span><span class="p">,</span>
-</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="n">RatioLiquidMethaneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">191</span><span class="p">,</span>
-</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="n">RatioLiquidMethaneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">192</span><span class="p">,</span>
-</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="n">RatioSteam</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">193</span><span class="p">,</span>
-</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="n">RatioSteamInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">194</span><span class="p">,</span>
-</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="n">RatioSteamInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">195</span><span class="p">,</span>
-</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="n">RatioSteamOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">196</span><span class="p">,</span>
-</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="n">RatioSteamOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">197</span><span class="p">,</span>
-</span><span id="__span-0-57"><a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="n">RatioLiquidCarbonDioxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">199</span><span class="p">,</span>
-</span><span id="__span-0-58"><a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a><span class="n">RatioLiquidCarbonDioxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">200</span><span class="p">,</span>
-</span><span id="__span-0-59"><a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a><span class="n">RatioLiquidCarbonDioxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">201</span><span class="p">,</span>
-</span><span id="__span-0-60"><a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a><span class="n">RatioLiquidCarbonDioxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">202</span><span class="p">,</span>
-</span><span id="__span-0-61"><a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="n">RatioLiquidCarbonDioxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">203</span><span class="p">,</span>
-</span><span id="__span-0-62"><a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="n">RatioLiquidPollutant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">204</span><span class="p">,</span>
-</span><span id="__span-0-63"><a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a><span class="n">RatioLiquidPollutantInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">205</span><span class="p">,</span>
-</span><span id="__span-0-64"><a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="n">RatioLiquidPollutantInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">206</span><span class="p">,</span>
-</span><span id="__span-0-65"><a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="n">RatioLiquidPollutantOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">207</span><span class="p">,</span>
-</span><span id="__span-0-66"><a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a><span class="n">RatioLiquidPollutantOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">208</span><span class="p">,</span>
-</span><span id="__span-0-67"><a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a><span class="n">RatioLiquidNitrousOxide</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">209</span><span class="p">,</span>
-</span><span id="__span-0-68"><a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a><span class="n">RatioLiquidNitrousOxideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">210</span><span class="p">,</span>
-</span><span id="__span-0-69"><a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a><span class="n">RatioLiquidNitrousOxideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">211</span><span class="p">,</span>
-</span><span id="__span-0-70"><a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a><span class="n">RatioLiquidNitrousOxideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">212</span><span class="p">,</span>
-</span><span id="__span-0-71"><a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a><span class="n">RatioLiquidNitrousOxideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">213</span><span class="p">,</span>
-</span><span id="__span-0-72"><a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a><span class="n">RatioHydrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">252</span><span class="p">,</span>
-</span><span id="__span-0-73"><a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a><span class="n">RatioLiquidHydrogen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">253</span><span class="p">,</span>
-</span><span id="__span-0-74"><a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a><span class="n">RatioPollutedWater</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">254</span><span class="p">,</span>
-</span><span id="__span-0-75"><a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a><span class="n">RatioHydrazine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">283</span><span class="p">,</span>
-</span><span id="__span-0-76"><a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a><span class="n">RatioLiquidHydrazine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">284</span><span class="p">,</span>
-</span><span id="__span-0-77"><a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a><span class="n">RatioLiquidAlcohol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">285</span><span class="p">,</span>
-</span><span id="__span-0-78"><a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a><span class="n">RatioHelium</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">286</span><span class="p">,</span>
-</span><span id="__span-0-79"><a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a><span class="n">RatioLiquidSodiumChloride</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">287</span><span class="p">,</span>
-</span><span id="__span-0-80"><a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a><span class="n">RatioSilanol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">288</span><span class="p">,</span>
-</span><span id="__span-0-81"><a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a><span class="n">RatioLiquidSilanol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">289</span><span class="p">,</span>
-</span><span id="__span-0-82"><a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a><span class="n">RatioHydrochloricAcid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">290</span><span class="p">,</span>
-</span><span id="__span-0-83"><a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a><span class="n">RatioLiquidHydrochloricAcid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">291</span><span class="p">,</span>
-</span><span id="__span-0-84"><a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a><span class="n">RatioOzone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">292</span><span class="p">,</span>
-</span><span id="__span-0-85"><a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a><span class="n">RatioLiquidOzone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">293</span><span class="p">,</span>
-</span><span id="__span-0-86"><a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a><span class="n">RatioHydrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">294</span><span class="p">,</span>
-</span><span id="__span-0-87"><a id="__codelineno-0-87" name="__codelineno-0-87" href="#__codelineno-0-87"></a><span class="n">RatioHydrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">295</span><span class="p">,</span>
-</span><span id="__span-0-88"><a id="__codelineno-0-88" name="__codelineno-0-88" href="#__codelineno-0-88"></a><span class="n">RatioHydrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">296</span><span class="p">,</span>
-</span><span id="__span-0-89"><a id="__codelineno-0-89" name="__codelineno-0-89" href="#__codelineno-0-89"></a><span class="n">RatioHydrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">297</span><span class="p">,</span>
-</span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90" href="#__codelineno-0-90"></a><span class="n">RatioLiquidHydrogenInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">298</span><span class="p">,</span>
-</span><span id="__span-0-91"><a id="__codelineno-0-91" name="__codelineno-0-91" href="#__codelineno-0-91"></a><span class="n">RatioLiquidHydrogenInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">299</span><span class="p">,</span>
-</span><span id="__span-0-92"><a id="__codelineno-0-92" name="__codelineno-0-92" href="#__codelineno-0-92"></a><span class="n">RatioLiquidHydrogenOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
-</span><span id="__span-0-93"><a id="__codelineno-0-93" name="__codelineno-0-93" href="#__codelineno-0-93"></a><span class="n">RatioLiquidHydrogenOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">301</span><span class="p">,</span>
-</span><span id="__span-0-94"><a id="__codelineno-0-94" name="__codelineno-0-94" href="#__codelineno-0-94"></a><span class="n">RatioPollutedWaterInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">302</span><span class="p">,</span>
-</span><span id="__span-0-95"><a id="__codelineno-0-95" name="__codelineno-0-95" href="#__codelineno-0-95"></a><span class="n">RatioPollutedWaterInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">303</span><span class="p">,</span>
-</span><span id="__span-0-96"><a id="__codelineno-0-96" name="__codelineno-0-96" href="#__codelineno-0-96"></a><span class="n">RatioPollutedWaterOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">304</span><span class="p">,</span>
-</span><span id="__span-0-97"><a id="__codelineno-0-97" name="__codelineno-0-97" href="#__codelineno-0-97"></a><span class="n">RatioPollutedWaterOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">305</span><span class="p">,</span>
-</span><span id="__span-0-98"><a id="__codelineno-0-98" name="__codelineno-0-98" href="#__codelineno-0-98"></a><span class="n">RatioHydrazineInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">306</span><span class="p">,</span>
-</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99" href="#__codelineno-0-99"></a><span class="n">RatioHydrazineInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">307</span><span class="p">,</span>
-</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100" href="#__codelineno-0-100"></a><span class="n">RatioHydrazineOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">308</span><span class="p">,</span>
-</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101" href="#__codelineno-0-101"></a><span class="n">RatioHydrazineOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">309</span><span class="p">,</span>
-</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102" href="#__codelineno-0-102"></a><span class="n">RatioLiquidHydrazineInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">310</span><span class="p">,</span>
-</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103" href="#__codelineno-0-103"></a><span class="n">RatioLiquidHydrazineInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">311</span><span class="p">,</span>
-</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104" href="#__codelineno-0-104"></a><span class="n">RatioLiquidHydrazineOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">312</span><span class="p">,</span>
-</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105" href="#__codelineno-0-105"></a><span class="n">RatioLiquidHydrazineOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">313</span><span class="p">,</span>
-</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106" href="#__codelineno-0-106"></a><span class="n">RatioLiquidAlcoholInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">314</span><span class="p">,</span>
-</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107" href="#__codelineno-0-107"></a><span class="n">RatioLiquidAlcoholInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">315</span><span class="p">,</span>
-</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108" href="#__codelineno-0-108"></a><span class="n">RatioLiquidAlcoholOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">316</span><span class="p">,</span>
-</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109" href="#__codelineno-0-109"></a><span class="n">RatioLiquidAlcoholOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">317</span><span class="p">,</span>
-</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110" href="#__codelineno-0-110"></a><span class="n">RatioHeliumInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">318</span><span class="p">,</span>
-</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111" href="#__codelineno-0-111"></a><span class="n">RatioHeliumInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">319</span><span class="p">,</span>
-</span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112" href="#__codelineno-0-112"></a><span class="n">RatioHeliumOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">320</span><span class="p">,</span>
-</span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113" href="#__codelineno-0-113"></a><span class="n">RatioHeliumOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">321</span><span class="p">,</span>
-</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114" href="#__codelineno-0-114"></a><span class="n">RatioLiquidSodiumChlorideInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">322</span><span class="p">,</span>
-</span><span id="__span-0-115"><a id="__codelineno-0-115" name="__codelineno-0-115" href="#__codelineno-0-115"></a><span class="n">RatioLiquidSodiumChlorideInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">323</span><span class="p">,</span>
-</span><span id="__span-0-116"><a id="__codelineno-0-116" name="__codelineno-0-116" href="#__codelineno-0-116"></a><span class="n">RatioLiquidSodiumChlorideOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">324</span><span class="p">,</span>
-</span><span id="__span-0-117"><a id="__codelineno-0-117" name="__codelineno-0-117" href="#__codelineno-0-117"></a><span class="n">RatioLiquidSodiumChlorideOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">325</span><span class="p">,</span>
-</span><span id="__span-0-118"><a id="__codelineno-0-118" name="__codelineno-0-118" href="#__codelineno-0-118"></a><span class="n">RatioSilanolInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">326</span><span class="p">,</span>
-</span><span id="__span-0-119"><a id="__codelineno-0-119" name="__codelineno-0-119" href="#__codelineno-0-119"></a><span class="n">RatioSilanolInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">327</span><span class="p">,</span>
-</span><span id="__span-0-120"><a id="__codelineno-0-120" name="__codelineno-0-120" href="#__codelineno-0-120"></a><span class="n">RatioSilanolOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">328</span><span class="p">,</span>
-</span><span id="__span-0-121"><a id="__codelineno-0-121" name="__codelineno-0-121" href="#__codelineno-0-121"></a><span class="n">RatioSilanolOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">329</span><span class="p">,</span>
-</span><span id="__span-0-122"><a id="__codelineno-0-122" name="__codelineno-0-122" href="#__codelineno-0-122"></a><span class="n">RatioLiquidSilanolInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">330</span><span class="p">,</span>
-</span><span id="__span-0-123"><a id="__codelineno-0-123" name="__codelineno-0-123" href="#__codelineno-0-123"></a><span class="n">RatioLiquidSilanolInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">331</span><span class="p">,</span>
-</span><span id="__span-0-124"><a id="__codelineno-0-124" name="__codelineno-0-124" href="#__codelineno-0-124"></a><span class="n">RatioLiquidSilanolOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">332</span><span class="p">,</span>
-</span><span id="__span-0-125"><a id="__codelineno-0-125" name="__codelineno-0-125" href="#__codelineno-0-125"></a><span class="n">RatioLiquidSilanolOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">333</span><span class="p">,</span>
-</span><span id="__span-0-126"><a id="__codelineno-0-126" name="__codelineno-0-126" href="#__codelineno-0-126"></a><span class="n">RatioHydrochloricAcidInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">334</span><span class="p">,</span>
-</span><span id="__span-0-127"><a id="__codelineno-0-127" name="__codelineno-0-127" href="#__codelineno-0-127"></a><span class="n">RatioHydrochloricAcidInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">335</span><span class="p">,</span>
-</span><span id="__span-0-128"><a id="__codelineno-0-128" name="__codelineno-0-128" href="#__codelineno-0-128"></a><span class="n">RatioHydrochloricAcidOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">336</span><span class="p">,</span>
-</span><span id="__span-0-129"><a id="__codelineno-0-129" name="__codelineno-0-129" href="#__codelineno-0-129"></a><span class="n">RatioHydrochloricAcidOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">337</span><span class="p">,</span>
-</span><span id="__span-0-130"><a id="__codelineno-0-130" name="__codelineno-0-130" href="#__codelineno-0-130"></a><span class="n">RatioLiquidHydrochloricAcidInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">338</span><span class="p">,</span>
-</span><span id="__span-0-131"><a id="__codelineno-0-131" name="__codelineno-0-131" href="#__codelineno-0-131"></a><span class="n">RatioLiquidHydrochloricAcidInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">339</span><span class="p">,</span>
-</span><span id="__span-0-132"><a id="__codelineno-0-132" name="__codelineno-0-132" href="#__codelineno-0-132"></a><span class="n">RatioLiquidHydrochloricAcidOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">340</span><span class="p">,</span>
-</span><span id="__span-0-133"><a id="__codelineno-0-133" name="__codelineno-0-133" href="#__codelineno-0-133"></a><span class="n">RatioLiquidHydrochloricAcidOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">341</span><span class="p">,</span>
-</span><span id="__span-0-134"><a id="__codelineno-0-134" name="__codelineno-0-134" href="#__codelineno-0-134"></a><span class="n">RatioOzoneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">342</span><span class="p">,</span>
-</span><span id="__span-0-135"><a id="__codelineno-0-135" name="__codelineno-0-135" href="#__codelineno-0-135"></a><span class="n">RatioOzoneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">343</span><span class="p">,</span>
-</span><span id="__span-0-136"><a id="__codelineno-0-136" name="__codelineno-0-136" href="#__codelineno-0-136"></a><span class="n">RatioOzoneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">344</span><span class="p">,</span>
-</span><span id="__span-0-137"><a id="__codelineno-0-137" name="__codelineno-0-137" href="#__codelineno-0-137"></a><span class="n">RatioOzoneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">345</span><span class="p">,</span>
-</span><span id="__span-0-138"><a id="__codelineno-0-138" name="__codelineno-0-138" href="#__codelineno-0-138"></a><span class="n">RatioLiquidOzoneInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">346</span><span class="p">,</span>
-</span><span id="__span-0-139"><a id="__codelineno-0-139" name="__codelineno-0-139" href="#__codelineno-0-139"></a><span class="n">RatioLiquidOzoneInput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">347</span><span class="p">,</span>
-</span><span id="__span-0-140"><a id="__codelineno-0-140" name="__codelineno-0-140" href="#__codelineno-0-140"></a><span class="n">RatioLiquidOzoneOutput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">348</span><span class="p">,</span>
-</span><span id="__span-0-141"><a id="__codelineno-0-141" name="__codelineno-0-141" href="#__codelineno-0-141"></a><span class="n">RatioLiquidOzoneOutput2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">349</span><span class="p">,</span>
+<p>The enum has exactly two values (line 57660). There is no <code>Sandbox</code> member.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">GameMode</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kt">byte</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">Survival</span><span class="p">,</span><span class="w">    </span><span class="c1">// 0</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="n">Creative</span><span class="w">     </span><span class="c1">// 1</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>The bare <code>Ratio = 24</code> member is the generic ratio readout (used by some non-atmosphere devices for proportional state), unrelated to gas content.</p>
-<p>Notably absent: there is no <code>RatioVolatiles</code> member in the current enum. Hydrogen is exposed as <code>RatioHydrogen = 252</code>. Older Stationeers IC10 references that mention <code>RatioVolatiles</code> are from a previous enum revision. Use <code>RatioHydrogen</code> in scripts written against this game version.</p>
-<p>For atmosphere-readable devices (those with <code>HasReadableAtmosphere =&gt; true</code>, e.g. <code>CombustionDeepMiner</code>), the bare-name members (no <code>Input</code> / <code>Output</code> suffix) read the <strong>chamber's internal atmosphere</strong>, not any pipe network. The <code>Input</code> / <code>Input2</code> / <code>Output</code> / <code>Output2</code> variants read the corresponding pipe networks on devices that expose them.</p>
-<h3 id="gas-fuel-relevance-for-combustion">Gas / fuel relevance for combustion<a class="headerlink" href="#gas-fuel-relevance-for-combustion" title="Permanent link">&para;</a></h3>
-<p>Cross-reference with <code>Mole.Enthalpy</code> and <code>EnthalpyMultiplier</code> (verbatim tables in <code>../GameClasses/CombustionDeepMiner.md</code>):</p>
-<table>
-<thead>
-<tr>
-<th>Role</th>
-<th>Gas</th>
-<th>Chamber LogicType</th>
-<th>Enthalpy / Multiplier</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Fuel</td>
-<td>Hydrogen</td>
-<td><code>RatioHydrogen</code></td>
-<td>306,000 J/mol</td>
-</tr>
-<tr>
-<td>Fuel</td>
-<td>LiquidHydrogen</td>
-<td><code>RatioLiquidHydrogen</code></td>
-<td>306,000 J/mol</td>
-</tr>
-<tr>
-<td>Fuel</td>
-<td>Methane</td>
-<td><code>RatioMethane</code></td>
-<td>286,000 J/mol</td>
-</tr>
-<tr>
-<td>Fuel</td>
-<td>LiquidMethane</td>
-<td><code>RatioLiquidMethane</code></td>
-<td>286,000 J/mol</td>
-</tr>
-<tr>
-<td>Fuel</td>
-<td>Hydrazine</td>
-<td><code>RatioHydrazine</code></td>
-<td>306,000 J/mol</td>
-</tr>
-<tr>
-<td>Fuel</td>
-<td>LiquidHydrazine</td>
-<td><code>RatioLiquidHydrazine</code></td>
-<td>306,000 J/mol</td>
-</tr>
-<tr>
-<td>Fuel</td>
-<td>LiquidAlcohol</td>
-<td><code>RatioLiquidAlcohol</code></td>
-<td>566,000 J/mol</td>
-</tr>
-<tr>
-<td>Oxidiser</td>
-<td>Oxygen</td>
-<td><code>RatioOxygen</code></td>
-<td>×1.0</td>
-</tr>
-<tr>
-<td>Oxidiser</td>
-<td>LiquidOxygen</td>
-<td><code>RatioLiquidOxygen</code></td>
-<td>×1.0</td>
-</tr>
-<tr>
-<td>Oxidiser</td>
-<td>NitrousOxide</td>
-<td><code>RatioNitrousOxide</code></td>
-<td>×2.0</td>
-</tr>
-<tr>
-<td>Oxidiser</td>
-<td>LiquidNitrousOxide</td>
-<td><code>RatioLiquidNitrousOxide</code></td>
-<td>×2.0</td>
-</tr>
-<tr>
-<td>Oxidiser</td>
-<td>Ozone</td>
-<td><code>RatioOzone</code></td>
-<td>×2.0</td>
-</tr>
-<tr>
-<td>Oxidiser</td>
-<td>LiquidOzone</td>
-<td><code>RatioLiquidOzone</code></td>
-<td>×2.0</td>
-</tr>
-</tbody>
-</table>
-<p>This is the full set of IC10-readable gases that contribute to <code>Atmosphere.CombustionEnergy</code> accumulation.</p>
-<h2 id="reserved-bands">Reserved bands<a class="headerlink" href="#reserved-bands" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
-
-<p><code>LogicType</code> values are <code>ushort</code>; any 0-65535 value is legal at runtime once injected into <code>EnumCollections.LogicTypes</code>. The full assignment catalogue (SixFive7 mods plus known third-party reservations from a 124-mod Workshop scan: vanilla 0-349, Stationeers Logic Extended 1000-1830, IC10 Inspector/Debugger 500-502 soft, the SixFive7 6571+ allocations) lives in <a href="../../Patterns/Logic/README.md"><code>Patterns/Logic/README.md</code></a>. Cross-check that file before reserving a new band; do not duplicate the table here.</p>
-<h2 id="enumcollection-public-api">EnumCollection<TEnum, TInt> public API<a class="headerlink" href="#enumcollection-public-api" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-27 -->
-
-<p><code>Assets.Scripts.EnumCollection&lt;T1, T2&gt;</code> is the generic wrapper that backs every entry in the static <code>Assets.Scripts.EnumCollections</code> class (<code>LogicTypes</code>, <code>LogicSlotTypes</code>, <code>DeviceModes</code>, etc.). Verbatim public surface from the decompile of <code>Assets.Scripts.EnumCollection</code>2`:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IEnumCollection</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Enum</span><span class="p">,</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">()</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">T2</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IConvertible</span><span class="p">,</span><span class="w"> </span><span class="n">IEquatable</span><span class="o">&lt;</span><span class="n">T2</span><span class="o">&gt;</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">{</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">  </span><span class="n">Values</span><span class="p">;</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">  </span><span class="n">ValuesAsInts</span><span class="p">;</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Names</span><span class="p">;</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">PaddedNames</span><span class="p">;</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">string</span><span class="w">   </span><span class="n">LongestName</span><span class="p">;</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="k">this</span><span class="p">[</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">]</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">index</span><span class="p">];</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Length</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="kt">string</span><span class="p">[](</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">implicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="n">T2</span><span class="p">[]</span><span class="w">   </span><span class="p">(</span><span class="n">EnumCollection</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span><span class="w"> </span><span class="n">T2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">EnumCollection</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">toProper</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="p">[]</span><span class="w">   </span><span class="nf">GetValues</span><span class="p">();</span>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetName</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetEnumTypeName</span><span class="p">();</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetNameFromValue</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">padded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIndexFromValue</span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="k">value</span><span class="p">);</span><span class="w">     </span><span class="c1">// throws IndexOutOfRangeException on miss</span>
-</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w">    </span><span class="nf">GetIntFromIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
-</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">PrintAll</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">begin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">);</span>
-</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w">     </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">);</span><span class="w">                 </span><span class="c1">// case-insensitive name -&gt; value lookup</span>
-</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="p">}</span>
+<p><code>WorldManager</code> carries it as a plain public instance field (line 58749), NOT a property. No getter/setter, no backing field, no change event:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="n">GameMode</span><span class="w"> </span><span class="n">GameMode</span><span class="p">;</span>
 </span></code></pre></div>
-<p>Lookup directions and miss behavior:</p>
-<table>
-<thead>
-<tr>
-<th>Direction</th>
-<th>Method</th>
-<th>Miss behavior</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>name -&gt; enum</td>
-<td><code>Get(string name)</code></td>
-<td>Returns <code>default(T1)</code> (NOT exception)</td>
-</tr>
-<tr>
-<td>enum -&gt; name</td>
-<td><code>GetName(T1 value, bool padded)</code></td>
-<td>Returns <code>string.Empty</code></td>
-</tr>
-<tr>
-<td>int -&gt; name</td>
-<td><code>GetNameFromValue(int, bool)</code></td>
-<td>Returns <code>string.Empty</code></td>
-</tr>
-<tr>
-<td>index -&gt; name</td>
-<td><code>GetNameFromIndex(int, bool)</code></td>
-<td>Throws (array bounds)</td>
-</tr>
-<tr>
-<td>enum -&gt; index</td>
-<td><code>GetIndexFromValue(T1)</code></td>
-<td>Throws <code>IndexOutOfRangeException</code></td>
-</tr>
-<tr>
-<td>index -&gt; int</td>
-<td><code>GetIntFromIndex(int)</code></td>
-<td>Throws (array bounds)</td>
-</tr>
-<tr>
-<td>index -&gt; enum</td>
-<td>indexer <code>this[int]</code></td>
-<td>Throws (array bounds)</td>
-</tr>
-</tbody>
-</table>
-<p><code>Get(string)</code> body, verbatim:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">T1</span><span class="w"> </span><span class="nf">Get</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
+<p><code>WorldManager.Instance</code> is the singleton, so <code>WorldManager.Instance.GameMode</code> is directly assignable. Helper accessor <code>WorldManager.IsCreative()</code> (static, line 58892) returns <code>Instance.GameMode == GameMode.Creative</code>. The canonical mutator is <code>WorldManager.SetCreativeMode(bool)</code> (static, line 60217):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetCreativeMode</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">isCreative</span><span class="p">)</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isCreative</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Instance</span><span class="p">.</span><span class="n">GameMode</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GameMode</span><span class="p">.</span><span class="n">Creative</span><span class="p">)</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Names</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Equals</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">StringComparison</span><span class="p">.</span><span class="n">InvariantCultureIgnoreCase</span><span class="p">))</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Values</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="n">T1</span><span class="p">);</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">}</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">&quot;Enabling Creative Mode&quot;</span><span class="p">);</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="n">Instance</span><span class="p">.</span><span class="n">GameMode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">isCreative</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">GameMode</span><span class="p">.</span><span class="n">Creative</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">GameMode</span><span class="p">.</span><span class="n">Survival</span><span class="p">);</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Caller pitfall: <code>Get</code> returning <code>default(T1)</code> is indistinguishable from a real hit on whichever enum member maps to the zero value. For unambiguous not-found detection, scan <code>Names</code> directly with <code>Array.FindIndex(coll.Names, n =&gt; string.Equals(n, name, StringComparison.InvariantCultureIgnoreCase))</code> and check for <code>-1</code>, then index <code>coll.Values[i]</code>.</p>
-<p>The constructor populates <code>Values</code>, <code>ValuesAsInts</code>, <code>Names</code>, and <code>PaddedNames</code> from <code>Enum.GetValues(typeof(T1))</code> / <code>Enum.GetNames(typeof(T1))</code> exactly once at static class load, so custom enum values added later by <code>(T1)cast</code> are invisible to <code>Get</code> / <code>GetName</code> / <code>GetNameFromValue</code> until those arrays are resized via reflection. <code>Values</code> and <code>ValuesAsInts</code> are not <code>readonly</code>; <code>Names</code> and <code>PaddedNames</code> are <code>readonly</code> references whose array contents must be replaced via reflection (the <code>valuesField.SetValue(collection, newValues)</code> pattern in <a href="../../Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicableInitializePatch.cs"><code>LogicableInitializePatch.ExtendEnumCollection</code></a>).</p>
-<h2 id="why-custom-logictypes-dont-appear-without-patches">Why custom LogicTypes don't appear without patches<a class="headerlink" href="#why-custom-logictypes-dont-appear-without-patches" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<p>There is no <code>SetGameMode(GameMode)</code> method and no static <code>CurrentGameMode</code>. The field is assigned in exactly three places: <code>SetCreativeMode</code> (line 60223), <code>SyncGameMode.Process</code> (line 260680, the network message), and via <code>DifficultySetting.SetCurrent</code> (line 55254). There is no <code>OnGameModeChanged</code> / <code>CreativeModeChanged</code> event anywhere.</p>
+<h2 id="difficultysetting-the-persisted-source-of-truth">DifficultySetting: the persisted source of truth<a class="headerlink" href="#difficultysetting-the-persisted-source-of-truth" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
-<p>Early investigation established that vanilla Stationpedia pages for stock devices (like the Microwave Power Transmitter) have a frozen <code>LogicInsert</code> list built once at game startup. Even though <code>Logicable.LogicTypes</code> can be extended at runtime, the page's <code>LogicInsert</code> is populated inside <code>AddLogicTypeInfo</code> which iterates <code>EnumCollections.LogicTypes.Values</code>, a collection constructed from <code>Enum.GetValues(typeof(LogicType))</code> at <code>EnumCollection&lt;LogicType,ushort&gt;</code> construction time. Our runtime-cast <code>ushort -&gt; LogicType</code> values are NOT in the compiled enum, so <code>Enum.GetValues</code> does not return them. The same construction-time snapshot underlies the other four extension sites; the registration recipe extends all five to make <code>AddLogicTypeInfo</code> naturally discover and emit native rows for custom LogicTypes (this is why the LogicInsert fallback once labelled "Decision 11" is NOT needed under normal operation).</p>
-<p>The full enumeration of the five extension sites, the three name-lookup fallback patches, and the module split that ties them together is on <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>. Per-device <code>CanLogicRead</code> / <code>CanLogicWrite</code> / <code>GetLogicValue</code> / <code>SetLogicValue</code> overrides (which decide whether a particular device responds to the registered LogicType) are an orthogonal concern; see <a href="../../Patterns/CustomLogicValueInjection/">../Patterns/CustomLogicValueInjection.md</a>.</p>
+<p><code>DifficultySetting : SettingBase</code> (line 55054) is a data-driven preset loaded from XML, registered by Id/hash. <code>Creative</code> is one <code>BoolReference</code> toggle among ~25 independent rate/toggle fields. Selected fields (full list at lines 55056-55119):</p>
+<table>
+<thead>
+<tr>
+<th>Member</th>
+<th>Type</th>
+<th>Default</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Creative</code> (line 55095)</td>
+<td><code>BoolReference</code></td>
+<td>false</td>
+<td>The flag that drives <code>GameMode.Creative</code>.</td>
+</tr>
+<tr>
+<td><code>HungerRate</code></td>
+<td><code>FloatReference</code></td>
+<td>1f</td>
+<td>Hunger consumption multiplier.</td>
+</tr>
+<tr>
+<td><code>HydrationRate</code></td>
+<td><code>FloatReference</code></td>
+<td>1f</td>
+<td>Thirst multiplier.</td>
+</tr>
+<tr>
+<td><code>BreathingRate</code></td>
+<td><code>FloatReference</code></td>
+<td>2f</td>
+<td>Oxygen consumption multiplier.</td>
+</tr>
+<tr>
+<td><code>RobotBatteryRate</code></td>
+<td><code>FloatReference</code></td>
+<td>1f</td>
+<td>Suit/robot battery drain.</td>
+</tr>
+<tr>
+<td><code>MiningYield</code></td>
+<td><code>FloatReference</code></td>
+<td>1f</td>
+<td>Ore yield multiplier.</td>
+</tr>
+<tr>
+<td><code>LungDamageRate</code></td>
+<td><code>FloatReference</code></td>
+<td>1f</td>
+<td>Toxic-atmosphere lung damage.</td>
+</tr>
+<tr>
+<td><code>FoodDecayRate</code></td>
+<td><code>FloatReference</code></td>
+<td>1f</td>
+<td>Food spoilage rate.</td>
+</tr>
+<tr>
+<td><code>Achievements</code></td>
+<td><code>BoolReference</code></td>
+<td>true</td>
+<td>Whether achievements fire.</td>
+</tr>
+<tr>
+<td><code>EatWhileHelmetClosed</code> / <code>DrinkWhileHelmetClosed</code></td>
+<td><code>BoolReference</code></td>
+<td>false</td>
+<td></td>
+</tr>
+<tr>
+<td><code>RespawnCondition</code></td>
+<td><code>SerializedId</code></td>
+<td></td>
+<td>Respawn ruleset id.</td>
+</tr>
+</tbody>
+</table>
+<p>Statics: <code>DifficultySetting.Current</code> (line 55160, backing <code>_current</code> at line 55132, private), <code>DifficultySetting.Default</code> (line 55125), <code>DifficultySetting.Fallback</code> (non-creative, lines 55134-55141), <code>DifficultySetting.Find(string)</code> (hashes the name via <code>Animator.StringToHash</code>, lines 55227-55230; unknown ids fall back to <code>Fallback</code>).</p>
+<h3 id="the-bridge-setcurrent-derives-gamemode-from-creative-line-55251">The bridge: SetCurrent derives GameMode from Creative (line 55251)<a class="headerlink" href="#the-bridge-setcurrent-derives-gamemode-from-creative-line-55251" title="Permanent link">&para;</a></h3>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetCurrent</span><span class="p">(</span><span class="n">DifficultySetting</span><span class="w"> </span><span class="n">difficultySetting</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">difficultySetting</span><span class="p">;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">WorldManager</span><span class="p">.</span><span class="n">SetCreativeMode</span><span class="p">(</span><span class="n">difficultySetting</span><span class="p">.</span><span class="n">Creative</span><span class="p">);</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>GameMode</code> is a cached projection of <code>DifficultySetting.Current.Creative</code>. Whenever the difficulty is set (on world load, new game, the <code>difficulty</code> console command, or a multiplayer join), <code>WorldManager.GameMode</code> is reconstructed from it.</p>
+<h2 id="what-creative-actually-gates-two-distinct-checks">What "Creative" actually gates: two distinct checks<a class="headerlink" href="#what-creative-actually-gates-two-distinct-checks" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p>Creative behavior is gated by TWO different reads that are NOT equivalent. This matters for any runtime flip.</p>
+<ol>
+<li>Checks reading <code>WorldManager.Instance.GameMode == GameMode.Creative</code> / <code>WorldManager.IsCreative()</code>:</li>
+<li>Creative item-spawn menu visibility (<code>ImguiCreativeSpawnMenu.ShowMenu</code>, line 268494).</li>
+<li>
+<p><code>Human.SpawnDynamicThing</code> (spawn item from nothing, line 343286).</p>
+</li>
+<li>
+<p>Checks reading <code>DifficultySetting.Current.Creative</code> directly (these do NOT consult <code>WorldManager.GameMode</code>):</p>
+</li>
+<li>Lava immunity for dropped things (line 199905: <code>!DifficultySetting.Current.Creative</code>).</li>
+<li>Creative-only console commands: <code>power chargeall</code> (line 98050), rocket cheats (line 98297), <code>teleport</code> (line 99223), debug minimap (line 99293), each printing "only available in creative mode" otherwise.</li>
+<li>Ash-storm / first-day weather suppression on Vulcan (lines 93594, 211595).</li>
+</ol>
+<p>Crucial nuance: "no consumption / free build / infinite-ish resources" is NOT gated by the <code>Creative</code> bool at all. Those come from the difficulty's RATE fields (HungerRate, BreathingRate, MiningYield, etc.). The stock <code>Creative</code> difficulty preset zeroes those rates AND sets <code>Creative=true</code> together as data. So <code>Creative=true</code> alone unlocks spawning/teleport/lava-immunity/creative-commands; the zero-consumption feel comes from the preset's rate values, set independently.</p>
+<p>All these reads are live (read fresh each call, never snapshotted at load), so a runtime change to the underlying state takes effect on the next read.</p>
+<h2 id="the-stock-creative-difficulty-preset-difficultysettingsxml">The stock Creative difficulty preset (difficultySettings.xml)<a class="headerlink" href="#the-stock-creative-difficulty-preset-difficultysettingsxml" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p>Difficulty presets are defined in <code>&lt;StationeersPath&gt;/rocketstation_Data/StreamingAssets/Data/difficultySettings.xml</code> (root <code>&lt;GameData&gt;</code> -&gt; <code>&lt;DifficultySettings&gt;</code> -&gt; <code>&lt;DifficultySetting&gt;</code> entries). It is plain XML, not a binary asset bundle. The serialized shape uses an attribute-on-element form (<code>&lt;Creative Value="true"/&gt;</code>, NOT <code>&lt;Creative&gt;true&lt;/Creative&gt;</code>); <code>Id</code> is an XML attribute on <code>&lt;DifficultySetting&gt;</code>.</p>
+<p>Complete list of stock difficulty Ids and their <code>Creative</code> flag:</p>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Creative</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Creative</code></td>
+<td><strong>true</strong> (<code>&lt;Creative Value="true"/&gt;</code>)</td>
+<td>All consumption rates zeroed; <code>MiningYield=5</code>; <code>Achievements=false</code>.</td>
+</tr>
+<tr>
+<td><code>Easy</code></td>
+<td>false (no <code>&lt;Creative&gt;</code> element)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>Normal</code></td>
+<td>false</td>
+<td><code>Default="true"</code> (the game default).</td>
+</tr>
+<tr>
+<td><code>Stationeer</code></td>
+<td>false</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Note: the <code>WorldXml.md</code> Protocols page lists difficulty values as <code>Easy / Normal / Hard / Stationeer</code>; the live <code>difficultySettings.xml</code> in this install ships <code>Easy / Normal / Stationeer / Creative</code> (no <code>Hard</code> entry found this pass). The exact ship list is data-defined and can vary; <code>Normal</code> is the <code>Default="true"</code> entry and the value real Luna saves carry.</p>
+<p>The <code>Creative</code> entry verbatim:</p>
+<div class="language-xml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">&lt;DifficultySetting</span><span class="w"> </span><span class="na">Id=</span><span class="s">&quot;Creative&quot;</span><span class="nt">&gt;</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nt">&lt;Name</span><span class="w"> </span><span class="na">Key=</span><span class="s">&quot;DifficultyCreative&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">&lt;Description</span><span class="w"> </span><span class="na">Key=</span><span class="s">&quot;DifficultyDescriptionCreative&quot;</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;Access item spawning functions and no resource usage. You will survive forever in toxic environments. Respawning is no issue.&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">&lt;PreviewButton</span><span class="w"> </span><span class="na">Path=</span><span class="s">&quot;Interface/button_creative.png&quot;</span><span class="w"> </span><span class="na">Format=</span><span class="s">&quot;RGB24&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">&lt;HungerRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="nt">&lt;HydrationRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nt">&lt;BreathingRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">&lt;RobotBatteryRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nt">&lt;MoodRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="nt">&lt;HygieneRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nt">&lt;JetpackRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="nt">&lt;LungDamageRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">&lt;FoodDecayRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="nt">&lt;MiningYield</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;5&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="nt">&lt;OfflineMetabolism</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0.0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="nt">&lt;EatWhileHelmetClosed</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;true&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="nt">&lt;DrinkWhileHelmetClosed</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;true&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="nt">&lt;WeatherLanderDamageRate</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="nt">&lt;Creative</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;true&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="nt">&lt;SpaceMapDistanceMultiplier</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;1&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span><span class="nt">&lt;Achievements</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;false&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">    </span><span class="nt">&lt;StartingWeatherMultiplier</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;2&quot;</span><span class="nt">/&gt;</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span><span class="nt">&lt;RespawnStressTime</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;0&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">    </span><span class="nt">&lt;RespawnStressConsumptionSpeed</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;1&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">    </span><span class="nt">&lt;RespawnStressToolUseSpeed</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;1&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">    </span><span class="nt">&lt;RespawnStressTradePenalty</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;1&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-27"><a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">    </span><span class="nt">&lt;GoodHygieneToolSpeedMultiplier</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;1&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-28"><a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">    </span><span class="nt">&lt;MoodToolSpeedMultiplier</span><span class="w"> </span><span class="na">Value=</span><span class="s">&quot;1&quot;</span><span class="w"> </span><span class="nt">/&gt;</span>
+</span><span id="__span-4-29"><a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="nt">&lt;/DifficultySetting&gt;</span>
+</span></code></pre></div>
+<p>The Id string is case-sensitive (<code>Creative</code>, capital C). An unknown Id resolves to <code>Fallback</code> (non-creative).</p>
+<h2 id="save-persistence-worldxml-stores-difficultysetting-not-gamemode">Save persistence: world.xml stores DifficultySetting, not GameMode<a class="headerlink" href="#save-persistence-worldxml-stores-difficultysetting-not-gamemode" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p><code>GameMode</code> is NEVER serialized into the save. The save records only the difficulty by Id, and <code>GameMode</code> is reconstructed from it on load.</p>
+<p>The serializer is <code>XmlSaveLoad.WorldData</code> (nested class, <code>[XmlRoot("WorldData")]</code>, line 250559). The difficulty field (lines 250587-250588):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="na">[XmlElement(&quot;DifficultySetting&quot;)]</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">public</span><span class="w"> </span><span class="n">SerializedId</span><span class="w"> </span><span class="n">DifficultySetting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SerializedId</span><span class="p">(</span><span class="s">&quot;Fallback&quot;</span><span class="p">);</span>
+</span></code></pre></div>
+<p><code>SerializedId</code> (line 54964) serializes its <code>Id</code> as a single <code>[XmlAttribute]</code>. So the on-disk XML is exactly <code>&lt;DifficultySetting Id="Normal" /&gt;</code> (self-closing, <code>Id</code> attribute only), a direct child of root <code>&lt;WorldData&gt;</code>. Confirmed against a real Luna save: the top of world.xml carries <code>&lt;WorldSetting Id="Lunar" /&gt;</code> then <code>&lt;DifficultySetting Id="Normal" /&gt;</code> as adjacent children of <code>&lt;WorldData&gt;</code>.</p>
+<p><code>WorldData</code> also stores the world/planet id separately as <code>&lt;WorldSetting Id="..." /&gt;</code> (line 250578, default <code>"Space"</code>). GameMode is NOT part of WorldSetting; <code>WorldSetting</code> covers the planet (skybox, gravity, celestial, terrain). The <code>[XmlInclude(typeof(GameMode))]</code> at line 60591 sits on <code>WorldSettingData : DataCollection</code> (content definitions), not on the save's <code>WorldData</code>, so it does not put GameMode into world.xml.</p>
+<h3 id="load-path-xmlsaveloadloadworld-line-251347">Load path (XmlSaveLoad.LoadWorld, line 251347)<a class="headerlink" href="#load-path-xmlsaveloadloadworld-line-251347" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Line 251362: <code>XmlSerialization.Deserialize(Serializers.WorldData, ...)</code> reads world.xml verbatim into <code>WorldData</code>.</li>
+<li>Line 251395: <code>WorldSetting.SetCurrent(...)</code> applies the planet.</li>
+<li>Line 251396: <code>DifficultySetting.SetCurrent(worldData.DifficultySetting)</code> reads the edited difficulty Id and runs the <code>SetCreativeMode</code> bridge. This is the line that makes an offline edit take effect.</li>
+<li>Line 251437-251440: the ONE override: if <code>GameManager.IsNewTutorial</code>, difficulty is force-reset to <code>"Normal"</code>. Does not fire for normal saves.</li>
+</ul>
+<p>There is no recompute that silently overwrites a normal save's difficulty. An offline edit of <code>&lt;DifficultySetting Id="..."&gt;</code> is honored on next load (outside the tutorial path).</p>
+<p>Write path: <code>GetWorldData</code> (line 251197) emits <code>worldData.DifficultySetting = new SerializedId(DifficultySetting.Current)</code>.</p>
+<h3 id="editing-a-save-to-creative-offline">Editing a save to creative (offline)<a class="headerlink" href="#editing-a-save-to-creative-offline" title="Permanent link">&para;</a></h3>
+<p>Change the world.xml element <code>&lt;DifficultySetting Id="Normal" /&gt;</code> to <code>&lt;DifficultySetting Id="Creative" /&gt;</code>. On next load the host resolves it against <code>difficultySettings.xml</code>, sets <code>_current</code> to the Creative preset (zero rates + <code>Creative=true</code>), and derives <code>GameMode.Creative</code>. This persists across reloads (it IS the saved state). Editing to <code>Easy</code>/<code>Normal</code>/<code>Stationeer</code> yields survival. The <code>tools/save-edit/</code> Python editor can do this by changing the <code>Id</code> attribute of the <code>&lt;DifficultySetting&gt;</code> element.</p>
+<h2 id="networking-how-creative-reaches-clients">Networking: how Creative reaches clients<a class="headerlink" href="#networking-how-creative-reaches-clients" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p>The server is authoritative. <code>GameMode</code> propagates to clients in two ways:</p>
+<ol>
+<li>
+<p>Join handshake (the durable path). <code>WorldManager.SerializeOnJoin</code> (line 60194) writes <code>World.CurrentId</code>, <code>WorldSetting.GetHash()</code>, <code>DifficultySetting.GetHash()</code>, and <code>IsCreative()</code> (a bool). <code>WorldManager.DeserializeOnJoin</code> (line 60202) reads them back, calls <code>WorldSetting.SetCurrent</code> + <code>DifficultySetting.SetCurrent</code>, and <code>SetCreativeMode(true)</code> if the bool was set. So a freshly joining client picks up whatever difficulty/creative the host currently holds. This is why a save-edit (which changes what the host loads) correctly reaches a player who connects afterward.</p>
+</li>
+<li>
+<p>Live mid-session sync. <code>SyncGameMode</code> message (message-table id 78, line 179621; class at line 260674). Its <code>Process</code> sets <code>WorldManager.Instance.GameMode = GameMode;</code> (line 260680). This is how a host toggling creative WHILE clients are connected pushes the change. Note the <code>difficulty</code> console command path (<code>SetCurrent</code> -&gt; <code>SetCreativeMode</code>) does NOT itself send <code>SyncGameMode</code>; a console difficulty change made after clients connect does not auto-push to them (they would need to reconnect). <code>Settings.ServerInfo.ServerGameMode</code> (line 262224) is server-listing metadata, not a live push.</p>
+</li>
+</ol>
+<h2 id="console-command-difficulty">Console command: difficulty <name><a class="headerlink" href="#console-command-difficulty" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p>The ONLY console command that changes game mode is <code>difficulty</code> (<code>DifficultySettingsCommand</code>, line 95347, registered at line 94995). There is no <code>creative</code>, <code>sandbox</code>, <code>gamemode</code>, or <code>cheat</code> command in the dispatch table, and no <code>AllowCheats</code>/<code>CheatsEnabled</code> toggle anywhere in the assembly.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">HelpText</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s">&quot;Prints the current difficulty setting to the console or sets a new one if provided as an argument&quot;</span><span class="p">;</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="n">Arguments</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;&lt;?difficulty&gt;&quot;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsLaunchCmd</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span></code></pre></div>
+<ul>
+<li><code>difficulty</code> (no args): prints <code>DifficultySetting.Current.DebugPrint()</code>.</li>
+<li><code>difficulty &lt;name&gt;</code>: <code>DifficultySetting.Find(name)</code> then <code>DifficultySetting.SetCurrent(...)</code>. Passing <code>difficulty Creative</code> puts the world into creative.</li>
+<li>Host-only: calls <code>CommandBase.CannotAsClient("difficulty")</code> (line 95379), so a remote client is blocked. No single-player block. <code>IsLaunchCmd =&gt; true</code> (also a launch flag; defers via <code>WaitExecute</code> until <code>GameManager.IsInitialized</code> if not ready).</li>
+<li>No network push inside Execute (see Networking above). Logic-only, no UI dependency, so it works headless IF stdin reaches the dispatcher.</li>
+</ul>
+<p><code>worldsetting</code> (<code>WorldSettingWindowCommand</code>, line 100254) only opens an ImGui authoring window (a no-op on <code>-batchmode -nographics</code>); <code>world</code> (<code>PrintWorldSettingsCommand</code>, line 98090) only prints. Neither sets game mode.</p>
+<p><code>NewGameCommand</code> (line 97302, <code>IsLaunchCmd =&gt; true</code>) takes <code>&lt;worldname&gt; &lt;difficulty&gt; &lt;startcondition&gt;</code>, so a brand-new world can launch directly into creative via <code>-new &lt;Map&gt; Creative &lt;startcondition&gt;</code> (verify the start-condition id). It does not change an already-running world.</p>
+<h2 id="runtime-flip-worker-thread-safety">Runtime flip (worker-thread safety)<a class="headerlink" href="#runtime-flip-worker-thread-safety" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<p>For a Harmony postfix running on a worker thread (e.g. on <code>ElectricityManager.ElectricityTick</code>), where only pure managed-state writes are safe and Unity-API calls are not:</p>
+<ul>
+<li><code>WorldManager.Instance.GameMode = GameMode.Creative;</code> is a single enum (<code>byte</code>) field write with no setter body, no Unity call, no event subscriber. It is worker-thread-safe and takes effect on the next read.</li>
+<li>Do NOT call <code>WorldManager.SetCreativeMode(...)</code> on a worker thread: it calls <code>ConsoleWindow.PrintAction("Enabling Creative Mode")</code> on the creative transition, which touches console/UI and is not guaranteed thread-safe. Write the field directly instead (it reproduces the only state change <code>SetCreativeMode</code> makes minus the print).</li>
+<li>Do NOT call <code>DifficultySetting.SetCurrent(...)</code> on a worker thread: it ends in <code>SetCreativeMode</code> (same <code>ConsoleWindow</code> issue).</li>
+</ul>
+<p>Completeness caveat: flipping ONLY <code>WorldManager.Instance.GameMode</code> enables the <code>GameMode</code>-gated features (spawn menu, <code>SpawnDynamicThing</code>, anything via <code>IsCreative()</code>) but does NOT waive build costs or grant lava immunity (those read <code>DifficultySetting.Current.Creative</code>) and does NOT zero consumption (that is the difficulty's rate fields). For full creative parity at runtime, also point <code>DifficultySetting._current</code> (private static, line 55132) at the Creative preset via reflection (a pure managed write, no Unity call) so the rate fields and the <code>DifficultySetting.Current.Creative</code> reads also flip. Both writes are worker-safe; only the <code>ConsoleWindow</code>-touching helpers are not. In multiplayer a worker-thread field write does NOT send <code>SyncGameMode</code>, so already-connected clients would not see it; a fresh join would (via <code>SerializeOnJoin</code>).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
 <ul>
-<li>2026-04-20: page created from the Research migration; F0054 is the primary source per MigrationMap §5.1. Additional sources: F0040, F0219a, F0219b, F0244, F0245, F0247 (primary for "why custom LogicTypes don't appear without patches"; F0219v is a duplicate extraction that merges here), F0305, F0316.</li>
-<li>2026-04-25: added "Atmospheric gas-ratio LogicType members" section. Verbatim list of all 130+ <code>Ratio*</code> enum members (chamber + per-network variants) decompiled from <code>Assets/Scripts/Objects/Motherboards/LogicType.cs</code> at v0.2.6228.27061. Cross-references combustion-relevant gases against <code>Mole.Enthalpy</code> and <code>EnthalpyMultiplier</code> from <code>../GameClasses/CombustionDeepMiner.md</code>. Verified via <code>ilspycmd</code> against the local Stationeers install. Confirms <code>RatioMethane</code>, <code>RatioHydrazine</code>, <code>RatioLiquidAlcohol</code>, <code>RatioOzone</code>, <code>RatioLiquidOzone</code>, <code>RatioLiquidHydrazine</code> all exist and are IC10-readable; no <code>RatioVolatiles</code> member in the current enum (Hydrogen exposed as <code>RatioHydrogen = 252</code>).</li>
-<li>2026-04-27: added "EnumCollection<TEnum, TInt> public API" section. Verbatim public surface (fields, indexer, constructor, all methods) of <code>Assets.Scripts.EnumCollection</code>2<code>decompiled at v0.2.6228.27061 via</code>ilspycmd<code>against the local Stationeers install. Documents the</code>Get(string name)<code>case-insensitive name-to-value lookup (returns</code>default(T1)<code>on miss, NOT exception), the value-to-name</code>GetName<code>/</code>GetNameFromValue<code>(return</code>string.Empty<code>on miss), the indexer /</code>GetIndexFromValue<code>/</code>GetIntFromIndex<code>(throw on miss), the implicit operators to</code>string[]<code>and</code>T2[]<code>, and the constructor's one-shot</code>Enum.GetValues<code>/</code>Enum.GetNames<code>snapshot that explains why custom enum values added via</code>(T1)cast` are invisible until the arrays are resized via reflection. No conflicts with prior page content; section is purely additive.</li>
-<li>2026-06-01: split the registration mechanism out of this page into a dedicated <a href="../../Patterns/LogicTypeRegistration/">../Patterns/LogicTypeRegistration.md</a>. Removed sections "Four separate LogicType registries", "Three LogicType arrays extension mechanism", "LogicableInitializePatch three-extension-points comment", and "EnumNamePatches class header" (verbatim content preserved on the new page, lossless). Replaced the "Reserved bands" table with a one-line pointer to <a href="../../Patterns/Logic/README.md"><code>Patterns/Logic/README.md</code></a> (the canonical assignment catalogue; the table on this page was stale: it showed <code>6571-6599 PowerTransmitterPlus</code> instead of the actual 6571-6576 usage and did not list PowerGridPlus's 6577 reservation). Trimmed the in-section "three separate arrays" listing in "LogicType enum value inventory" to a one-paragraph pointer at the new mechanism page. Corrected drift relative to the 2026-05-28 fresh-validator resolution on <a href="../ScreenDropdownBase/">./ScreenDropdownBase.md</a> by removing the prior page's references to ScreenDropdownBase as "IC housing on-screen dropdowns" (it actually backs <code>LogicMotherboard</code> condition / action dropdowns on Big Screens, Wall Screens, and Consoles) and the implicit claim that reflection-extension of <code>ScreenDropdownBase.LogicTypes</code> is fragile against <code>Awake</code> (the appended tail survives every Awake). Page now serves only as the enum-value reference. The "five extension sites" framing on the new page consolidates the prior "four registries" vs "three arrays" inconsistency on this page; site 4 (<code>ProgrammableChip.AllConstants</code>) was previously mentioned only in "Why custom LogicTypes don't appear without patches" and not counted in either registry tally. Implementation verified by direct reads of both in-repo registrar mods (<code>Mods/PowerTransmitterPlus/</code>, <code>Mods/PowerGridPlus/</code>).</li>
+<li>2026-06-25: page created from a decompile read of <code>Assembly-CSharp</code> at game version 0.2.6228.27061 (<code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>) plus the live <code>difficultySettings.xml</code> content data. The <code>GameMode</code> enum, <code>WorldManager.GameMode</code>/<code>SetCreativeMode</code>/<code>IsCreative</code>, the <code>DifficultySetting.SetCurrent</code> -&gt; <code>SetCreativeMode</code> bridge, the <code>XmlSaveLoad.WorldData</code>/<code>LoadWorld</code> save path, the <code>DifficultySettingsCommand</code>, the join handshake (<code>SerializeOnJoin</code>/<code>DeserializeOnJoin</code>), and the <code>SyncGameMode</code> (id 78) live-sync are all verbatim from the decompile with line numbers. The stock <code>Creative</code> difficulty preset block is verbatim from <code>difficultySettings.xml</code>. The <code>&lt;DifficultySetting Id="Normal" /&gt;</code> / <code>&lt;WorldSetting Id="Lunar" /&gt;</code> save shape was confirmed against a real Luna save's world.xml.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
+
+<ul>
+<li>Whether <code>difficultySettings.xml</code> ever ships a <code>Hard</code> entry. The <code>WorldXml.md</code> page lists <code>Easy/Normal/Hard/Stationeer</code>; this install's file has <code>Easy/Normal/Stationeer/Creative</code> (no <code>Hard</code>). The set is data-defined and may differ by version or DLC.</li>
+<li>The exact <code>startcondition</code> id to pair with <code>-new &lt;Map&gt; Creative</code> for a fresh creative world (the <code>NewGameCommand</code> third argument); not enumerated this pass.</li>
+</ul>
 
 
 
@@ -8491,7 +8508,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../Localization/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Localization">
+          <a href="../ConveyorBeltCutContent/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ConveyorBeltCutContent">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8501,20 +8518,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Localization
+                ConveyorBeltCutContent
               </div>
             </div>
           </a>
         
         
           
-          <a href="../LogicValueFormatting/" class="md-footer__link md-footer__link--next" aria-label="Next: LogicValueFormatting">
+          <a href="../DamageState/" class="md-footer__link md-footer__link--next" aria-label="Next: DamageState">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                LogicValueFormatting
+                DamageState
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -3456,6 +3456,8 @@
       
         
       
+        
+      
     
     
     
@@ -3626,6 +3628,34 @@
     
   
     ConveyorBeltCutContent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/CreativeModeAndDifficulty/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creative Mode and Difficulty
   
 
     
@@ -7959,7 +7989,7 @@
 <h2 id="difficultysetting">DifficultySetting<a class="headerlink" href="#difficultysetting" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
-<p><code>&lt;DifficultySetting Id="Normal" /&gt;</code> near the top of world.xml. Values: <code>Easy</code>, <code>Normal</code>, <code>Hard</code>, <code>Stationeer</code>.</p>
+<p><code>&lt;DifficultySetting Id="Normal" /&gt;</code> near the top of world.xml (a direct child of root <code>&lt;WorldData&gt;</code>, serialized via <code>XmlSaveLoad.WorldData.DifficultySetting</code>, a <code>SerializedId</code> whose <code>Id</code> is an <code>[XmlAttribute]</code>). Values include <code>Easy</code>, <code>Normal</code>, <code>Stationeer</code>, and <code>Creative</code>. The game mode (Survival vs Creative) is NOT a separate field; it is derived from this difficulty on load. Setting <code>Id="Creative"</code> enables creative mode and persists across reloads. See <a href="../../GameSystems/CreativeModeAndDifficulty/">../GameSystems/CreativeModeAndDifficulty.md</a> for the full mechanism, the stock difficulty presets, and the <code>Creative</code> preset's field values.</p>
 <h2 id="celestial-sun-position-world-time">Celestial (sun position / world time)<a class="headerlink" href="#celestial-sun-position-world-time" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-25 -->
 
@@ -7986,6 +8016,7 @@
 <ul>
 <li>2026-04-20: page created from the Research migration. Sources: F0236 (Rooms grid coordinate scale + cell size), F0250 (DifficultySetting enum location).</li>
 <li>2026-06-25: added the Celestial section (sun position / world time fields) from a decompile read of <code>OrbitSimulationSaveData</code> / <code>WorldData</code> (game version 0.2.6228.27061) and confirmation against a real Luna save's world.xml. Documents <code>SimulationTime</code>, <code>AccumulatedTime</code>, <code>DaysPast</code>, <code>DateTime</code>.</li>
+<li>2026-06-25: expanded the DifficultySetting section to note it is a <code>SerializedId</code> child of <code>&lt;WorldData&gt;</code>, that the live <code>difficultySettings.xml</code> ships a <code>Creative</code> value, and that the game mode (Survival/Creative) is derived from this element rather than stored separately. Cross-linked the new <code>../GameSystems/CreativeModeAndDifficulty.md</code>. Verified against a real Luna save's world.xml (<code>&lt;DifficultySetting Id="Normal" /&gt;</code>) and the <code>XmlSaveLoad.WorldData</code> decompile.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
