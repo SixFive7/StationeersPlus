@@ -11,7 +11,7 @@ Source and build output for the public documentation site at https://stationeers
 | `content/` | yes | Hand-written pages that exist only for the site (landing page, section intros) |
 | `overrides/` | yes | MkDocs Material template overrides (renders the Research frontmatter metadata) |
 | `_staging/` | no (gitignored) | Intermediate docs tree assembled by the build script; combines `content/` + `Research/` + `tools/*/index.html` |
-| `site/` | yes | Built static site. This is what gets mirrored to the SMB share at `\\10.20.30.250\nvme-system\containers\stationeers\` |
+| `site/` | yes | Built static site. This is what gets mirrored to the SMB share (configured in DEV.md via the `STATIONEERS_WEB_SMB_TARGET` environment variable) |
 
 ## Build, commit, and deploy
 

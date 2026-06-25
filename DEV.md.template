@@ -134,6 +134,19 @@ Wire the location into the environment so the launcher and ad-hoc scripts find i
 
 ---
 
+## Web publish: SMB deploy target
+
+`tools/publish-web/deploy.ps1` mirrors the built site under `Web/site/` to an SMB share with robocopy `/MIR`. The share is machine-specific (a homelab server on your LAN), so the path lives in an environment variable, not in the committed script:
+
+```powershell
+# Permanent (current user; new shells pick it up):
+[Environment]::SetEnvironmentVariable('STATIONEERS_WEB_SMB_TARGET', '\\<server>\<share>\<path>', 'User')
+```
+
+`deploy.ps1` reads `$env:STATIONEERS_WEB_SMB_TARGET` and throws at startup if the variable is unset. It then checks the share is reachable before mirroring, and refuses to mirror if `Web/site/` has fewer than 5 files. There is no fallback or default path. Only the host that owns the share needs this set; a contributor without the share never runs `deploy.ps1`.
+
+---
+
 ## Build toolchain
 
 **Unity / mono runtime:** Stationeers runs on Unity **2022.3.62f3**. Pin this exact build: any source-level debugging runtime (a patched mono dropped into `EmbeddedRuntime`) must match it, and it is the reference for sourcing the right binaries. The build itself only needs the game assemblies under `$(StationeersPath)`, not the Unity editor. (Game version 0.2.6228.27061 at time of writing; the Unity build changes far less often than the game version.)

@@ -24,7 +24,7 @@ Before ending the turn, run the publish flow (after committing the source change
     git commit -m "Publish: <summary>"
     .\tools\publish-web\deploy.ps1
 
-The `Publish:` commit is the second autonomous-commit lane (see CLAUDE.md "Workflow: site publish commits are autonomous"). Build regenerates Web/site/ from Research/, tools/, and Web/content/. Deploy mirrors Web/site/ to the SMB share at \\10.20.30.250\nvme-system\containers\stationeers\. The SMB share is a strict downstream copy of Web/site/; never hand-edit it.
+The `Publish:` commit is the second autonomous-commit lane (see CLAUDE.md "Workflow: site publish commits are autonomous"). Build regenerates Web/site/ from Research/, tools/, and Web/content/. Deploy mirrors Web/site/ to the SMB share configured in DEV.md (the STATIONEERS_WEB_SMB_TARGET environment variable). The SMB share is a strict downstream copy of Web/site/; never hand-edit it.
 
 If multiple source files are changing this turn, you only need to run the publish flow once at the end -- not after every edit.
 '@

@@ -1,5 +1,5 @@
 # deploy.ps1
-# Mirrors Web/site/ to the SMB share at \\10.20.30.250\nvme-system\containers\stationeers\.
+# Mirrors Web/site/ to the SMB deploy share configured in DEV.md (the STATIONEERS_WEB_SMB_TARGET environment variable).
 #
 # The SMB share is treated as a strict downstream copy; any file present there
 # that is not in Web/site/ will be deleted by the /MIR pass. Never hand-edit
@@ -23,7 +23,10 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot  = Resolve-Path (Join-Path $scriptDir '..\..')
 $siteDir   = Join-Path $repoRoot 'Web\site'
-$smbTarget = '\\10.20.30.250\nvme-system\containers\stationeers'
+$smbTarget = $env:STATIONEERS_WEB_SMB_TARGET
+if ([string]::IsNullOrWhiteSpace($smbTarget)) {
+    throw "STATIONEERS_WEB_SMB_TARGET environment variable is not set. Set it to the UNC path of the SMB deploy share (for example \\server\share\path). See DEV.md."
+}
 
 if (-not (Test-Path $siteDir)) {
     throw "Build output missing: $siteDir. Run .\tools\publish-web\build.ps1 first."

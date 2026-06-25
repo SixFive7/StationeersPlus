@@ -248,7 +248,7 @@ A `PreToolUse` hook (`.claude/hooks/research-commit-hook.ps1`, wired in `.claude
 
 ## Workflow: site publish commits are autonomous
 
-Build output under `Web/site/` should be committed without asking immediately after running `.\tools\publish-web\build.ps1`, in the same turn as the rebuild, and followed by `.\tools\publish-web\deploy.ps1`. This is the second autonomous-commit lane, parallel to research commits. The motivation: the SMB mirror at `\\10.20.30.250\nvme-system\containers\stationeers\` is the public face of the project, and it should always match git HEAD. Leaving a rebuilt `Web/site/` uncommitted lets the public site drift from git, defeating the mirror invariant.
+Build output under `Web/site/` should be committed without asking immediately after running `.\tools\publish-web\build.ps1`, in the same turn as the rebuild, and followed by `.\tools\publish-web\deploy.ps1`. This is the second autonomous-commit lane, parallel to research commits. The motivation: the SMB mirror (the deploy share configured in DEV.md) is the public face of the project, and it should always match git HEAD. Leaving a rebuilt `Web/site/` uncommitted lets the public site drift from git, defeating the mirror invariant.
 
 The publish lane fires whenever publishable source has been committed in the current turn and a new build has been produced. Triggers:
 
@@ -430,7 +430,7 @@ The toolchain:
 - `Web/_staging/` is gitignored. The build script assembles `Web/content/` + `Research/` + `tools/*/index.html` into this temp directory and feeds it to MkDocs.
 - `Web/site/` is the build output and IS committed to git. The SMB-as-mirror invariant only makes sense if `Web/site/` is in git; otherwise nobody could verify drift.
 - `tools/publish-web/build.ps1` runs the build. It wipes staging, assembles inputs, runs `python -m mkdocs build`, and removes staging.
-- `tools/publish-web/deploy.ps1` mirrors `Web/site/` to `\\10.20.30.250\nvme-system\containers\stationeers\` via robocopy `/MIR`. It refuses to mirror if `Web/site/` has fewer than 5 files (sanity check; would otherwise wipe the share).
+- `tools/publish-web/deploy.ps1` mirrors `Web/site/` with robocopy `/MIR` to the SMB deploy share, whose path comes from the `STATIONEERS_WEB_SMB_TARGET` environment variable (configured in DEV.md). It refuses to mirror if `Web/site/` has fewer than 5 files (sanity check; would otherwise wipe the share).
 
 Five hooks govern the publish flow:
 
