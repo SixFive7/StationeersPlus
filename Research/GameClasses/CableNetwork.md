@@ -10,6 +10,8 @@ related:
   - ./PowerTransmitter.md
   - ./Cable.md
   - ./Device.md
+  - ./PowerTick.md
+  - ./ElectricityManager.md
 tags: [power, logic, network]
 ---
 

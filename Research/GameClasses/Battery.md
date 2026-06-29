@@ -8,6 +8,8 @@ sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
 related:
   - ./HelmetBattery.md
+  - ./ElectricalInputOutput.md
+  - ./PowerTick.md
 tags: [power, prefab]
 ---
 

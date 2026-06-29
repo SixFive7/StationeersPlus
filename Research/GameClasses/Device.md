@@ -14,6 +14,9 @@ related:
   - ./Cable.md
   - ./CableNetwork.md
   - ./WirelessPower.md
+  - ./ElectricalInputOutput.md
+  - ./ElectricityManager.md
+  - ./PowerTick.md
   - ../GameSystems/StructurePlacementValidation.md
   - ../Patterns/CursorAdjacencyLookup.md
 tags: [power, prefab, network]

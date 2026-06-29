@@ -12,6 +12,7 @@ related:
   - ./Cable.md
   - ./PowerTransmitter.md
   - ./PowerTick.md
+  - ./ElectricalInputOutput.md
   - ./LogicOnOffButton.md
 tags: [power, logic]
 ---
