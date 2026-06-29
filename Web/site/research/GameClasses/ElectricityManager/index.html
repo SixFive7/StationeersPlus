@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/Sleeper/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/ElectricityManager/">
       
       
-        <link rel="prev" href="../Silo/">
+        <link rel="prev" href="../ElectricalInputOutput/">
       
       
-        <link rel="next" href="../SmallCell/">
+        <link rel="next" href="../Elevator/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Sleeper (OccupantAtmospherics) - StationeersPlus</title>
+        <title>ElectricityManager - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#sleeper-occupantatmospherics" class="md-skip">
+        <a href="#electricitymanager" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Sleeper (OccupantAtmospherics)
+              ElectricityManager
             
           </span>
         </div>
@@ -1551,10 +1551,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../ElectricityManager/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ElectricityManager
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1570,6 +1597,98 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#electricitytick-three-phases-in-fixed-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ElectricityTick: three phases in fixed order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-pools-densepool-slot-order-iteration-no-sort-no-double-buffer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The pools: DensePool, slot-order iteration, no sort, no double-buffer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The pools: DensePool, slot-order iteration, no sort, no double-buffer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-this-is-the-key-architectural-fact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this is the key architectural fact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registration-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registration and lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2895,37 +3014,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Sleeper (OccupantAtmospherics)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../Sleeper/" class="md-nav__link">
         
   
   
@@ -2941,125 +3033,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-occupant-breathes-the-piped-in-internal-atmosphere-not-the-room" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The occupant breathes the piped-in internal atmosphere, not the room
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#internal-atmosphere-volume-and-pipe-wiring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Internal atmosphere volume and pipe wiring
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#safe-atmosphere-check-isunsafeatmosphere" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Safe-atmosphere check (IsUnsafeAtmosphere)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#passive-heater-toward-24-c" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Passive heater toward 24 C
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operating-conditions-and-metabolic-suspension" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operating conditions and metabolic suspension
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#practical-optimal-atmosphere-to-pipe-into-a-sleeper" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Practical: optimal atmosphere to pipe into a Sleeper
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#info-panel-display-bug-the-oxygenation-line" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Info panel display bug: the Oxygenation line
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -7873,10 +7846,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-occupant-breathes-the-piped-in-internal-atmosphere-not-the-room" class="md-nav__link">
+  <a href="#electricitytick-three-phases-in-fixed-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The occupant breathes the piped-in internal atmosphere, not the room
+        ElectricityTick: three phases in fixed order
       
     </span>
   </a>
@@ -7884,65 +7857,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#internal-atmosphere-volume-and-pipe-wiring" class="md-nav__link">
+  <a href="#the-pools-densepool-slot-order-iteration-no-sort-no-double-buffer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Internal atmosphere volume and pipe wiring
+        The pools: DensePool, slot-order iteration, no sort, no double-buffer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The pools: DensePool, slot-order iteration, no sort, no double-buffer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-this-is-the-key-architectural-fact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this is the key architectural fact
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#safe-atmosphere-check-isunsafeatmosphere" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Safe-atmosphere check (IsUnsafeAtmosphere)
-      
-    </span>
-  </a>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#passive-heater-toward-24-c" class="md-nav__link">
+  <a href="#registration-and-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Passive heater toward 24 C
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operating-conditions-and-metabolic-suspension" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operating conditions and metabolic suspension
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#practical-optimal-atmosphere-to-pipe-into-a-sleeper" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Practical: optimal atmosphere to pipe into a Sleeper
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#info-panel-display-bug-the-oxygenation-line" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Info panel display bug: the Oxygenation line
+        Registration and lifecycle
       
     </span>
   </a>
@@ -8061,36 +8007,36 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6228.27061</code>
-           on 2026-06-01.
+           on 2026-06-29.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Items.Sleeper'}</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networks.ElectricityManager'}</code></li>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Items.OccupantAtmospherics'}</code></li>
-            
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Items.SpawnPointAtmospherics'}</code></li>
-            
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Thing.SetWorldAtmosphere'}</code></li>
+              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 254818-254964 (ElectricityManager), 254905 (ElectricityTick), 254830-254840 (AllPoweredThings pool + action delegates), 253430 (AllCableNetworks pool), 212399-212412 (DensePool.ForEach), 371855-371886 (CircuitHolders.Execute)'}</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (3)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
-              <li><code>../GameSystems/BreathingAndOxygenation.md</code></li>
+              <li><code>./CableNetwork.md</code></li>
             
-              <li><code>../GameSystems/StunStateMachine.md</code></li>
+              <li><code>./PowerTick.md</code></li>
             
-              <li><code>ILifeSuspender.md</code></li>
+              <li><code>./Device.md</code></li>
+            
+              <li><code>../GameSystems/PowerTickThreading.md</code></li>
+            
+              <li><code>../GameSystems/IC10ExecutionTick.md</code></li>
             
           </ul>
         </details>
@@ -8106,180 +8052,137 @@
       
       
       
-        <span class="md-tag">damage</span>
+        <span class="md-tag">network</span>
       
     
       
       
       
       
-        <span class="md-tag">entity</span>
+        <span class="md-tag">power</span>
       
     
       
       
       
       
-        <span class="md-tag">slots</span>
+        <span class="md-tag">threading</span>
       
     
   </nav>
 
 
 
-<h1 id="sleeper-occupantatmospherics">Sleeper (OccupantAtmospherics)<a class="headerlink" href="#sleeper-occupantatmospherics" title="Permanent link">&para;</a></h1>
-<p>The Sleeper is the device a player lies in to safely log out. This page documents its atmosphere subsystem: where the occupant's breathed air actually comes from, the device's safe-atmosphere check, its passive heater, and the conditions under which it suspends metabolism. The sleep/stun mechanic itself (how the occupant is put and held unconscious) lives in <a href="../../GameSystems/StunStateMachine/">StunStateMachine.md</a>; the breathing/oxygenation math lives in <a href="../../GameSystems/BreathingAndOxygenation/">BreathingAndOxygenation.md</a>.</p>
-<p>Class hierarchy: <code>Sleeper : OccupantAtmospherics : SpawnPointAtmospherics : DeviceInputOutput</code>. <code>CryoTube</code> is a sibling (<code>CryoTube : OccupantAtmospherics, ILifeSuspender, ICryogenicRegenerator</code>) that adds a separate coolant loop; see Open Questions for what was not traced here.</p>
-<h2 id="the-occupant-breathes-the-piped-in-internal-atmosphere-not-the-room">The occupant breathes the piped-in internal atmosphere, not the room<a class="headerlink" href="#the-occupant-breathes-the-piped-in-internal-atmosphere-not-the-room" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<h1 id="electricitymanager">ElectricityManager<a class="headerlink" href="#electricitymanager" title="Permanent link">&para;</a></h1>
+<p>Vanilla power-simulation driver. <code>Assets.Scripts.Networks.ElectricityManager : ThreadedManager</code> (decompile line 254818). The single entry point for one whole power tick: <code>ElectricityManager.ElectricityTick()</code> (line 254905) runs every game tick (the 500 ms / 2 Hz <code>GameManager</code> simulation tick, the same cadence that drives IC10; see <a href="../../GameSystems/IC10ExecutionTick/">IC10ExecutionTick</a>) and does three things in fixed order: tick every <code>CableNetwork</code>, fire every <code>IPowered.OnPowerTick</code>, then execute every IC10 circuit.</p>
+<p>This page covers the top-level orchestration and the cross-network propagation-order consequence. The per-network arithmetic (supply/demand summation, brownout, fuse/cable burn, provider settle) lives on <a href="../PowerTick/">PowerTick</a>; the per-network book-keeping and load mirrors live on <a href="../CableNetwork/">CableNetwork</a>.</p>
+<h2 id="electricitytick-three-phases-in-fixed-order">ElectricityTick: three phases in fixed order<a class="headerlink" href="#electricitytick-three-phases-in-fixed-order" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
 
-<p>This is the central and most misread fact. A human in a Sleeper does NOT breathe the room the sleeper sits in. They breathe the device's internal atmosphere, which is the gas on the connected pipe network.</p>
-<p>The mechanism is <code>Thing.SetWorldAtmosphere()</code> (line 281183):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetWorldAtmosphere</span><span class="p">()</span>
+<p><code>ElectricityTick</code> is <code>static</code>, gated on <code>GameManager.RunSimulation</code> (host / single-player only; clients do not run it), and wraps the whole body in a try/catch that logs to the console rather than letting a power-tick exception kill the frame. Verbatim (decompile lines 254905-254931):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ElectricityTick</span><span class="p">()</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">Slot</span><span class="w"> </span><span class="n">parentSlot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ParentSlot</span><span class="p">;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">parentSlot</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">parentSlot</span><span class="p">.</span><span class="n">UseInternalAtmosphere</span><span class="p">)</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">            </span><span class="n">WorldAtmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parentSlot</span><span class="p">.</span><span class="n">Parent</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">parentSlot</span><span class="p">.</span><span class="n">Parent</span><span class="p">.</span><span class="n">AsDynamicThing</span><span class="p">)</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">            </span><span class="n">WorldAtmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parentSlot</span><span class="p">.</span><span class="n">Parent</span><span class="p">.</span><span class="n">AsDynamicThing</span><span class="p">.</span><span class="n">WorldAtmosphere</span><span class="p">;</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parentSlot</span><span class="p">.</span><span class="n">Parent</span><span class="o">?.</span><span class="n">RootParent</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="k">this</span><span class="p">;</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="n">WorldAtmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">AtmosphericsController</span><span class="p">.</span><span class="n">SampleGlobalAtmosphere</span><span class="p">(</span><span class="n">thing</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">);</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="n">WorldAtmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">AtmosphericsController</span><span class="p">.</span><span class="n">SampleGlobalAtmosphere</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">);</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="p">...</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="p">}</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="k">try</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">        </span><span class="n">CableNetwork</span><span class="p">.</span><span class="n">AllCableNetworks</span><span class="p">.</span><span class="n">ForEach</span><span class="p">(</span><span class="n">CableNetworkTickAction</span><span class="p">);</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">        </span><span class="n">AllPoweredThings</span><span class="p">.</span><span class="n">ForEach</span><span class="p">(</span><span class="n">IPoweredThingsAction</span><span class="p">);</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">        </span><span class="n">CircuitHolders</span><span class="p">.</span><span class="n">Execute</span><span class="p">();</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="w"> </span><span class="n">ex</span><span class="p">)</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Exception: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ex</span><span class="p">.</span><span class="n">Message</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;\n&quot;</span><span class="p">;</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">stackTrace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ex</span><span class="p">.</span><span class="n">StackTrace</span><span class="p">;</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">stackTrace</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">            </span><span class="n">text</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">stackTrace</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">None</span><span class="p">)</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">            </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Debug</span><span class="p">.</span><span class="n">LogError</span><span class="p">(</span><span class="n">text</span><span class="p">);</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">            </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Electronics THread Exception.&lt;/b&gt; &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ex</span><span class="p">.</span><span class="n">Message</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;/color&gt;&quot;</span><span class="p">);</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>When the occupant sits in a slot whose <code>UseInternalAtmosphere</code> flag is set (the sleeper's bed slot), the occupant's <code>WorldAtmosphere</code> is bound to <code>parentSlot.Parent.InternalAtmosphere</code>, i.e. the sleeper's internal atmosphere. A human with no sealed-suit internals reads that as its breathing atmosphere (<code>Human.BreathingAtmosphere</code> at line 340241 returns <code>base.BreathingAtmosphere</code> -&gt; <code>Entity.BreathingAtmosphere</code> at 283661 -&gt; <code>base.WorldAtmosphere</code>). See <a href="../../GameSystems/BreathingAndOxygenation/">BreathingAndOxygenation.md</a> "Which atmosphere is breathed".</p>
-<p>The device confirms this in its own UI: the info-panel tooltip (line 399496-399497) prints the <code>GameStrings.BreathingAtmosphere</code> label (localized "Occupant Atmosphere") and renders the gas contents of <code>base.InternalAtmosphere</code>:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">stringBuilder</span><span class="p">.</span><span class="n">AppendLine</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">BreathingAtmosphere</span><span class="p">.</span><span class="n">AsColor</span><span class="p">(</span><span class="s">&quot;white&quot;</span><span class="p">));</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">AtmosphericsManager</span><span class="p">.</span><span class="n">MakeGasTooltip</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">,</span><span class="w"> </span><span class="n">stringBuilder</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<p>The two action delegates are plain null-guarded forwarders (lines 254832-254840):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Action</span><span class="o">&lt;</span><span class="n">IPowered</span><span class="o">&gt;</span><span class="w"> </span><span class="n">IPoweredThingsAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delegate</span><span class="p">(</span><span class="n">IPowered</span><span class="w"> </span><span class="n">ipowered</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">ipowered</span><span class="o">?.</span><span class="n">OnPowerTick</span><span class="p">();</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">};</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Action</span><span class="o">&lt;</span><span class="n">CableNetwork</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CableNetworkTickAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delegate</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="n">cableNetwork</span><span class="o">?.</span><span class="n">OnPowerTick</span><span class="p">();</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">};</span>
 </span></code></pre></div>
-<p>Consequence: to keep a sleeping occupant healthy you pipe a breathable atmosphere into the sleeper's gas input. The room around the sleeper is irrelevant while the door is closed.</p>
-<p>Door open exception: <code>SpawnPointAtmospherics.OnAtmosphericTick</code> (line 401387) mixes the internal atmosphere with <code>GetWorldAtmosphere()</code> (the room) instead of the pipe when <code>IsOpen</code>, and an open sleeper drops to the Inactive mode and shows the red <code>SleeperDoorIsOpen</code> string (399513-399520). A closed, powered sleeper uses the pipe.</p>
-<h2 id="internal-atmosphere-volume-and-pipe-wiring">Internal atmosphere volume and pipe wiring<a class="headerlink" href="#internal-atmosphere-volume-and-pipe-wiring" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
-
-<p><code>Sleeper.InitInternalAtmosphere()</code> (line 399681) creates an 800 litre internal atmosphere:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">InitInternalAtmosphere</span><span class="p">()</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Atmosphere</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">VolumeLitres</span><span class="p">(</span><span class="mf">800.0</span><span class="p">),</span><span class="w"> </span><span class="mi">0L</span><span class="p">);</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>The base <code>SpawnPointAtmospherics.InitInternalAtmosphere()</code> (line 401100) defaults to 10 litres; the Sleeper overrides to 800.</p>
-<p>Each atmospheric tick (<code>SpawnPointAtmospherics.OnAtmosphericTick</code>, line 401381) the internal atmosphere is mixed toward the input network's atmosphere (gas), and liquids are drained from the pipe:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">InputNetwork</span><span class="o">?.</span><span class="n">Atmosphere</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">}</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">AtmosphereHelper</span><span class="p">.</span><span class="n">Mix</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">,</span><span class="w"> </span><span class="n">IsOpen</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">GetWorldAtmosphere</span><span class="p">()</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">InputNetwork</span><span class="p">.</span><span class="n">Atmosphere</span><span class="p">,</span><span class="w"> </span><span class="n">AtmosphereHelper</span><span class="p">.</span><span class="n">MatterState</span><span class="p">.</span><span class="n">Gas</span><span class="p">);</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">IsOpen</span><span class="p">)</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">{</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="n">AtmosphereHelper</span><span class="p">.</span><span class="n">DrainLiquids</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">,</span><span class="w"> </span><span class="n">InputNetwork</span><span class="p">.</span><span class="n">Atmosphere</span><span class="p">,</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">PipeVolume</span><span class="p">);</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">}</span>
-</span></code></pre></div>
-<p><code>Sleeper.AssessError()</code> (line 399702) sets <code>OutputNetwork = InputNetwork</code>, so the device sits on a single connected pipe network rather than pumping from a distinct input to a distinct output. A missing pipe yields the red <code>CryoNoAtmosphericInput</code> string (399521-399527).</p>
-<h2 id="safe-atmosphere-check-isunsafeatmosphere">Safe-atmosphere check (IsUnsafeAtmosphere)<a class="headerlink" href="#safe-atmosphere-check-isunsafeatmosphere" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
-
-<p><code>OccupantAtmospherics</code> holds the device limits (lines 399447-399449):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">private</span><span class="w"> </span><span class="n">TemperatureKelvin</span><span class="w"> </span><span class="n">_minimumTemperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">TemperatureKelvin</span><span class="p">(</span><span class="mf">263.15</span><span class="p">);</span><span class="w">  </span><span class="c1">// -10 C</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">private</span><span class="w"> </span><span class="n">PressurekPa</span><span class="w"> </span><span class="n">_minimumPressure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">PressurekPa</span><span class="p">(</span><span class="mf">30.0</span><span class="p">);</span><span class="w">                   </span><span class="c1">// 30 kPa</span>
-</span></code></pre></div>
-<p><code>IsUnsafeAtmosphere</code> (lines 399457-399478) evaluates the device's own internal atmosphere:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsUnsafeAtmosphere</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">get</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">PressureGassesAndLiquids</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">_minimumPressure</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">   </span><span class="c1">// &lt; 30 kPa</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">Temperature</span><span class="p">.</span><span class="n">FiftyDegrees</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w"> </span><span class="c1">// &gt; 50 C (323.15 K)</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">        </span><span class="c1">// ... (intervening lines)</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">_minimumTemperature</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">             </span><span class="c1">// &lt; -10 C (263.15 K)</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>So the device considers its internal (piped) atmosphere unsafe if pressure is below 30 kPa or temperature is outside the -10 C to +50 C band. An unsafe atmosphere yields the red <code>CryoAtmosphereIsUnsafe</code> string (399529-399535) and flips the device to the Error mode (<code>OnServerTick</code>, line 399596).</p>
-<p>Important gap: <code>IsUnsafeAtmosphere</code> does NOT check oxygen content. A nitrogen-only atmosphere at 50 kPa and 20 C passes the device's safe check, but the occupant's lungs still need at least 16 kPa O2 partial pressure (<code>Chemistry.MinimumOxygenPartialPressure</code>) to refill oxygenation. The green device light is necessary but not sufficient for occupant health; the player must ensure O2 themselves. See <a href="../../GameSystems/BreathingAndOxygenation/">BreathingAndOxygenation.md</a>.</p>
-<h2 id="passive-heater-toward-24-c">Passive heater toward 24 C<a class="headerlink" href="#passive-heater-toward-24-c" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
-
-<p><code>SpawnPointAtmospherics</code> defines <code>_maxHeatKelvin = 297.15 K</code> (24 C, line 401094). At the end of <code>OnAtmosphericTick</code> (lines 401416-401421) the device adds heat to its internal atmosphere up to that target, but only when the atmosphere is above the Armstrong limit and currently below 24 C:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">IsAboveArmstrong</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">_maxHeatKelvin</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_maxHeatKelvin</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">TemperatureKelvin</span><span class="p">.</span><span class="n">Zero</span><span class="p">)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">MoleEnergy</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">IdealGas</span><span class="p">.</span><span class="n">Energy</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">HeatCapacity</span><span class="p">,</span><span class="w"> </span><span class="n">_maxHeatKelvin</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">Temperature</span><span class="p">);</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">InternalAtmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">AddEnergy</span><span class="p">(</span><span class="n">RocketMath</span><span class="p">.</span><span class="n">Min</span><span class="p">(</span><span class="n">MaxEnergyPull</span><span class="p">,</span><span class="w"> </span><span class="n">val</span><span class="p">));</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="n">_powerUsedDuringTick</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RocketMath</span><span class="p">.</span><span class="n">Min</span><span class="p">(</span><span class="n">MaxEnergyPull</span><span class="p">,</span><span class="w"> </span><span class="n">val</span><span class="p">).</span><span class="n">ToFloat</span><span class="p">();</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}</span>
-</span></code></pre></div>
-<p><code>MaxEnergyPull = 250 MoleEnergy</code> (line 401084) caps heating per tick. The device warms cold piped gas toward 24 C but does not cool hot gas, so piping in atmosphere hotter than 50 C trips <code>IsUnsafeAtmosphere</code> with no relief.</p>
-<h2 id="operating-conditions-and-metabolic-suspension">Operating conditions and metabolic suspension<a class="headerlink" href="#operating-conditions-and-metabolic-suspension" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
-
-<p><code>Sleeper.IsSuspendingLife =&gt; Powered</code> (line 399670). The <code>ILifeSuspender</code> contract is what skips the occupant's nutrition, hydration, mood, and hygiene ticks while suspended (see <a href="../../GameSystems/BreathingAndOxygenation/">BreathingAndOxygenation.md</a> and StunStateMachine for the life-tick short-circuit). Breathing and organ damage still run, so a suspended occupant can still suffocate, freeze, cook, or be poisoned through the piped atmosphere.</p>
-<p><code>Sleeper.IsOperable</code> (lines 399641-399645) gates the green "metabolic suspension" state on both a valid input and a safe atmosphere:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">IsInputValid</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="k">base</span><span class="p">.</span><span class="n">IsUnsafeAtmosphere</span><span class="p">;</span>
-</span></code></pre></div>
-<p><code>OnServerTick</code> (line 399596) maps the device to one of Standby / Error / Inactive / Occupied / Dead based on power, door state, <code>IsUnsafeAtmosphere</code>, and occupant presence/death.</p>
-<p>The stun handling that puts and keeps the occupant asleep (STUN_PER_TICK = 10, STUN_MAX = 100, lines 401086-401088, 401396-401414) is in <code>SpawnPointAtmospherics.OnAtmosphericTick</code>; full detail in <a href="../../GameSystems/StunStateMachine/">StunStateMachine.md</a>.</p>
-<h2 id="practical-optimal-atmosphere-to-pipe-into-a-sleeper">Practical: optimal atmosphere to pipe into a Sleeper<a class="headerlink" href="#practical-optimal-atmosphere-to-pipe-into-a-sleeper" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
-
-<p>Hard requirements that must all hold in the piped (internal) atmosphere:</p>
-<ul>
-<li>Total pressure at least 30 kPa (device <code>_minimumPressure</code>). Stay below <code>Chemistry.Limits.PressureMaximumSafe</code> (607.95 kPa).</li>
-<li>Oxygen partial pressure at least 16 kPa (<code>Chemistry.MinimumOxygenPartialPressure</code>) for full breathing efficiency; the device does not enforce this, the lungs do.</li>
-<li>Temperature between -10 C and +50 C (device <code>IsUnsafeAtmosphere</code>, and the human lung damage band is the same -10 C to +50 C). The device heats toward 24 C.</li>
-<li>Methane + Pollutant partial pressure below 0.5 kPa (warning) / 1.0 kPa (lung toxic damage). NitrousOxide below 5 kPa (stun damage).</li>
-</ul>
-<p>Robust optimum: standard breathable station air, about 100-101 kPa total, roughly 21 kPa O2 partial pressure with the balance nitrogen, at 20-24 C, free of pollutants. Nitrogen is inert filler that contributes pressure without aiding breathing, but the pressure and temperature must sit inside the bands above. A minimal pure-O2 fill of about 50 kPa at 20-24 C also works (it clears both the 30 kPa device floor and the 16 kPa O2 floor with margin); keep it replenished because the occupant slowly consumes O2 and exhales CO2 into the closed internal volume.</p>
-<h2 id="info-panel-display-bug-the-oxygenation-line">Info panel display bug: the Oxygenation line<a class="headerlink" href="#info-panel-display-bug-the-oxygenation-line" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
-
-<p>The Sleeper info panel "Occupant" block prints Hydration, Nutrition, and Oxygenation via <code>OccupantAtmospherics.AddOccupantString</code> (lines 401205-401223). The Oxygenation line is doubly bugged:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kt">int</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">RoundToInt</span><span class="p">(</span><span class="n">entity</span><span class="p">.</span><span class="n">HydrationRatio</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100f</span><span class="p">);</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">StringManager</span><span class="p">.</span><span class="n">AddKeyValueLine</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">Hydration</span><span class="p">,</span><span class="w"> </span><span class="n">num</span><span class="p">.</span><span class="n">ToStringPrefix</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GetStateColor</span><span class="p">(</span><span class="n">num</span><span class="p">)),</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kt">int</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">RoundToInt</span><span class="p">(</span><span class="n">entity</span><span class="p">.</span><span class="n">NutritionRatio</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100f</span><span class="p">);</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">StringManager</span><span class="p">.</span><span class="n">AddKeyValueLine</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">Nutrition</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">.</span><span class="n">ToStringPrefix</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GetStateColor</span><span class="p">(</span><span class="n">num2</span><span class="p">)),</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="kt">int</span><span class="w"> </span><span class="n">num3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">RoundToInt</span><span class="p">(</span><span class="n">entity</span><span class="p">.</span><span class="n">OxygenationRatio</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100f</span><span class="p">);</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">StringManager</span><span class="p">.</span><span class="n">AddKeyValueLine</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span><span class="w"> </span><span class="n">GameStrings</span><span class="p">.</span><span class="n">Oxygenation</span><span class="p">,</span><span class="w"> </span><span class="n">num2</span><span class="p">.</span><span class="n">ToStringPrefix</span><span class="p">(</span><span class="s">&quot;%&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GetStateColor</span><span class="p">(</span><span class="n">num3</span><span class="p">)),</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
-</span></code></pre></div>
+<p>The three phases:</p>
 <ol>
-<li>Wrong number. The Oxygenation line (line 401216) displays <code>num2</code>, the Nutrition value, not <code>num3</code>, the Oxygenation value. A copy-paste slip. The visible symptom is that the panel's Oxygenation percent always equals its Nutrition percent.</li>
-<li>Always red. <code>num3 = RoundToInt(entity.OxygenationRatio * 100f)</code>, and <code>OxygenationRatio =&gt; Oxygenation / 100f</code> (line 283823) where the live <code>Oxygenation</code> reserve is clamped to a maximum of 0.024 (Entity.Oxygenation setter, line 283803). At full health <code>num3 = RoundToInt(0.024) = 0</code>, which <code>GetStateColor</code> maps to red. So the line is red whenever the occupant is alive, regardless of actual oxygen state.</li>
+<li><strong><code>CableNetwork.AllCableNetworks.ForEach(CableNetworkTickAction)</code></strong> -&gt; <code>CableNetwork.OnPowerTick()</code> on every network. This is where the actual power arithmetic happens: each network runs <code>PowerTick.Initialise -&gt; CalculateState -&gt; ApplyState</code> and then copies the result into its four display load fields. See <a href="../PowerTick/">PowerTick</a> and <a href="../CableNetwork/">CableNetwork</a>. After this phase, every device's <code>Powered</code> flag and every provider's energy has been settled for the tick.</li>
+<li><strong><code>AllPoweredThings.ForEach(IPoweredThingsAction)</code></strong> -&gt; <code>IPowered.OnPowerTick()</code> on every registered powered thing. This is the per-device post-power hook (batteries recompute their charge-state ladder and segment bar here, the <a href="../Battery/">Battery</a> <code>OnPowerTick</code> runs in this phase, lights update, machines react to their now-known <code>Powered</code> state, etc.). It runs AFTER all networks have settled, so a device's <code>OnPowerTick</code> sees this tick's final power result, not a mid-settle value.</li>
+<li><strong><code>CircuitHolders.Execute()</code></strong> -&gt; every IC10 chip runs up to 128 instructions. <code>CircuitHolders</code> is a separate static class (decompile line 371855); its <code>Execute()</code> (line 371882) is <code>AllCircuitHolders.ForEach(iCircuitHolder?.Execute())</code>. So IC10 logic executes LAST in the power tick, reading the power state that phases 1 and 2 already finalised. See <a href="../../GameSystems/IC10ExecutionTick/">IC10ExecutionTick</a> for the chip-level execution model.</li>
 </ol>
-<p><code>GetStateColor</code> bands (lines 401228-401242):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">private</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetStateColor</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">percent</span><span class="p">)</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">percent</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">50f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">percent</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">75f</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;green&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;yellow&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">percent</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">25f</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;orange&quot;</span><span class="p">;</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;red&quot;</span><span class="p">;</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>Reading the panel: ignore the Oxygenation line's number and color. To judge whether the occupant is actually oxygenating, read the Occupant Atmosphere block instead (O2 partial pressure should be at least 16 kPa). A powered sleeper fed pure O2 at 100 kPa keeps the occupant's oxygen reserve pegged at its 0.024 maximum and triggers no oxygen damage (the <code>Oxygenation &lt;= 0</code> damage branch at line 321991 never fires), even though the panel paints "Oxygenation" red. See the corrected scale in <a href="../../GameSystems/BreathingAndOxygenation/">../GameSystems/BreathingAndOxygenation.md</a>.</p>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-01 -->
+<p><code>SerialiseDeltaState</code> / <code>DeserializeDeltaState</code> (lines 254938-254963) ship each network's <code>CurrentLoad</code> / <code>PotentialLoad</code> / <code>RequiredLoad</code> to clients per tick; clients do not run <code>ElectricityTick</code> themselves (the <code>RunSimulation</code> gate), they receive these three load floats and display them. This is consistent with <a href="../../Patterns/ServerAuthoritativeSimulation/">ServerAuthoritativeSimulation</a>: the power simulation is host-only, clients are display mirrors.</p>
+<h2 id="the-pools-densepool-slot-order-iteration-no-sort-no-double-buffer">The pools: DensePool, slot-order iteration, no sort, no double-buffer<a class="headerlink" href="#the-pools-densepool-slot-order-iteration-no-sort-no-double-buffer" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
 
+<p>Both phase-1 and phase-2 collections are <code>DensePool</code>-family containers iterated by <code>ForEach</code>:</p>
 <ul>
-<li>2026-06-01: page created from decompiled Assembly-CSharp.dll, game version 0.2.6228.27061. Source lines: Sleeper class 399619-399713 (InitInternalAtmosphere 800 L at 399681, IsOperable 399641, IsSuspendingLife 399670, AssessError/OutputNetwork 399699-399713), OccupantAtmospherics 399413-399618 (limits 399447-399449, IsUnsafeAtmosphere 399457-399478, tooltip "Occupant Atmosphere" 399496-399497, error strings 399503-399537, OnServerTick mode mapping 399592-399601), SpawnPointAtmospherics 401082-401423 (InitInternalAtmosphere 10 L at 401100, stun constants 401086-401088, OnAtmosphericTick mix/stun/heater 401381-401423, _maxHeatKelvin 24 C at 401094), Thing.SetWorldAtmosphere 281183-281202, Human.BreathingAtmosphere 340241-340262. Corrects an earlier sub-agent claim that a sleeper occupant breathes the room: the bed slot is a <code>UseInternalAtmosphere</code> slot, so the occupant breathes the device internal (piped) atmosphere.</li>
-<li>2026-06-02: added "Info panel display bug: the Oxygenation line" documenting the <code>AddOccupantString</code> bug (line 401216 prints <code>num2</code>/Nutrition instead of <code>num3</code>/Oxygenation; the color from <code>GetStateColor(num3)</code> is always red because <code>OxygenationRatio</code> collapses the 0.024-max reserve to 0). Verified directly and via a fresh validator against decompiled Assembly-CSharp.dll. Cross-references the corrected Oxygenation scale in GameSystems/BreathingAndOxygenation.md.</li>
+<li><code>CableNetwork.AllCableNetworks</code> is a <code>ConcurrentDensePool&lt;CableNetwork&gt;("AllCableNetworks", 4096)</code> (decompile line 253430).</li>
+<li><code>ElectricityManager.AllPoweredThings</code> is a <code>DensePool&lt;IPowered&gt;("AllPoweredThings", 8192)</code> (line 254830, <code>MAX_POWERED_ITEMS = 8192</code>).</li>
+<li><code>CircuitHolders.AllCircuitHolders</code> is a <code>DensePool&lt;ICircuitHolder&gt;("AllCircuitHolders", 4096)</code> (line 371859).</li>
+</ul>
+<p><code>DensePool&lt;T&gt;.ForEach</code> (decompile lines 212399-212412) walks the pool's <code>_activeList</code> in slot order with a plain <code>for</code> loop, no copy, no sort, no double-buffer:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ForEach</span><span class="p">(</span><span class="n">Action</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">action</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">ArgumentNullException</span><span class="p">(</span><span class="s">&quot;action&quot;</span><span class="p">);</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="n">T</span><span class="p">[]</span><span class="w"> </span><span class="n">entries</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_entries</span><span class="p">;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="kt">int</span><span class="p">[]</span><span class="w"> </span><span class="n">activeList</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_activeList</span><span class="p">;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">activeCount</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_activeCount</span><span class="p">;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">activeCount</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="n">action</span><span class="p">(</span><span class="n">entries</span><span class="p">[</span><span class="n">activeList</span><span class="p">[</span><span class="n">i</span><span class="p">]]);</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>_activeList[i]</code> is the slot index of the i-th active entry. Slots are assigned on <code>Add</code> from a free-list LIFO (<code>_freeList[_freeCount - 1]</code>, line 212365) and compacted on <code>RemoveAt</code> by swapping the last active entry into the freed position (lines 212379-212391). So the iteration order is <strong>pool-slot order</strong>: the order in which the surviving entries were added, perturbed by the swap-with-last compaction whenever an entry is removed. It is NOT topological, NOT by <code>ReferenceId</code>, NOT distance-sorted, NOT stable across a removal.</p>
+<h3 id="why-this-is-the-key-architectural-fact">Why this is the key architectural fact<a class="headerlink" href="#why-this-is-the-key-architectural-fact" title="Permanent link">&para;</a></h3>
+<p>Phase 1 ticks each <code>CableNetwork</code> in isolation, but power crosses between networks through bridge devices (<a href="../ElectricalInputOutput/">ElectricalInputOutput</a>: transformers, batteries, APCs, and the wireless transmitter/receiver pair). A bridge device reports its INPUT-side draw from a debt accumulator (<code>_powerProvided</code>) that was filled when its OUTPUT side was ticked (see <a href="../Device/">Device</a>, "Two per-device draw-state fields", and <a href="../PowerTick/">PowerTick</a>). Whether the upstream network sees this tick's downstream demand or last tick's depends entirely on <strong>which of the two networks <code>AllCableNetworks.ForEach</code> visits first this tick</strong> -- and that is pool-slot order, an artifact of construction/destruction history, not of grid topology.</p>
+<p>Consequences:</p>
+<ul>
+<li>A multi-hop power chain (source network -&gt; transformer -&gt; intermediate network -&gt; transformer -&gt; load network) does NOT settle in one tick. Each bridge hop the propagation has to "swim against" the iteration order adds one tick of lag. The microwave transmitter/receiver path is a two-hop debt chain whose source-payment lags the load by roughly two ticks for the same reason; see <a href="../PowerTransmitter/">PowerTransmitter</a> / <a href="../PowerReceiver/">PowerReceiver</a>.</li>
+<li>The lag is order-DEPENDENT, so destroying and replacing a cable, transformer, or any pooled network member can change the slot order and therefore change how many ticks a given chain takes to settle, without any change to the wiring the player sees. This is the structural reason power readings on a transformer cascade can "shimmer" for a tick or two after a topology edit.</li>
+<li>A mod that needs deterministic same-tick cross-network settlement cannot get it by patching one network's tick; it has to re-architect the pass (compute all supply/demand first, then settle), which is exactly what PowerGridPlus's atomic two-pass tick does (OBSERVE all networks, then ENFORCE all networks; see <a href="../PowerTick/">PowerTick</a>, "CalculateState accumulates; Initialise resets").</li>
+<li><code>ConcurrentDensePool</code> (used for <code>AllCableNetworks</code>) takes a lock on <code>Add</code> / <code>RemoveAt</code> (the <code>lock</code> block at decompile line ~212360), so registration is thread-safe, but <code>ForEach</code> itself snapshots <code>_entries</code> / <code>_activeList</code> / <code>_activeCount</code> into locals and iterates without a lock -- consistent with the tick running on the worker thread while structural edits are gated to the main thread.</li>
+</ul>
+<h2 id="registration-and-lifecycle">Registration and lifecycle<a class="headerlink" href="#registration-and-lifecycle" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+
+<p><code>AllPoweredThings</code> is populated by <code>ElectricityManager.Register(IPowered)</code> / <code>Deregister(IPowered)</code> (lines 254889-254903), both no-ops when <code>GameManager.GameState == GameState.None</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Register</span><span class="p">(</span><span class="n">IPowered</span><span class="w"> </span><span class="n">item</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">None</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="n">AllPoweredThings</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">item</span><span class="p">);</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>IPowered</code> (interface, declares only <code>void OnPowerTick()</code>) is implemented by every <code>Device</code> and by the non-Device powered things; the device registers itself during its registration chain. <code>ClearAll()</code> (line 254933) empties the pool on world teardown.</p>
+<p><code>ElectricityManager : ThreadedManager</code> also owns the solar pass: <code>SolarProcessing</code> (an <code>async UniTaskVoid</code> started in <code>StartManager</code>, line 254876) runs <code>SolarRadiators.AllSolarRadiators.ForEachAsync(...CalculateSolarEfficiencyAction)</code> once per <code>FixedUpdate</code> frame, separate from <code>ElectricityTick</code>. So solar EFFICIENCY (the per-radiator sun reading) is computed on the FixedUpdate loop, while the power the panel contributes to its network is pulled inside phase 1 via <code>SolarPanel.GetGeneratedPower</code>. See <a href="../SolarPanel/">SolarPanel</a>.</p>
+<p>The class is a singleton (<code>public static ElectricityManager Instance;</code>, assigned in <code>ManagerAwake</code>, line 254855). Being a <code>ThreadedManager</code>, the tick body runs on the UniTask ThreadPool worker; see <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading</a> for why any Unity-API call from a power-tick-adjacent patch needs a <code>MainThreadDispatcher</code>.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-06-29: page created. Sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>: <code>ElectricityManager</code> class (line 254818), <code>ElectricityTick</code> verbatim (254905-254931) with its three-phase <code>AllCableNetworks.ForEach(CableNetworkTickAction)</code> -&gt; <code>AllPoweredThings.ForEach(IPoweredThingsAction)</code> -&gt; <code>CircuitHolders.Execute()</code> order, the two action delegates (254832-254840), the pool declarations (<code>AllCableNetworks</code> ConcurrentDensePool 253430, <code>AllPoweredThings</code> DensePool 254830, <code>AllCircuitHolders</code> DensePool 371859), <code>DensePool.ForEach</code> slot-order walk (212399-212412) with the <code>Add</code> free-list LIFO (212365) and <code>RemoveAt</code> swap-with-last compaction (212379-212391), <code>CircuitHolders.Execute</code> (371882), <code>Register</code>/<code>Deregister</code>/<code>ClearAll</code> (254889-254936), and the <code>SolarProcessing</code> FixedUpdate loop (254864-254881). Establishes the KEY architectural fact that cross-network power propagation order is pool-slot order (construction/destruction history), not topological, so multi-hop bridge chains settle over multiple ticks in an order-dependent way. Cross-links the existing <a href="../PowerTick/">PowerTick</a>, <a href="../CableNetwork/">CableNetwork</a>, <a href="../ElectricalInputOutput/">ElectricalInputOutput</a>, and <a href="../Device/">Device</a> pages, which carry the per-network and per-device detail. Additive (new page); no existing verified content contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The bed slot's <code>UseInternalAtmosphere == true</code> is inferred from the coherent behavior of the whole subsystem (internal 800 L atmosphere, IsUnsafeAtmosphere evaluating it, the "Occupant Atmosphere" tooltip rendering it) plus <code>SetWorldAtmosphere</code>'s slot branch, rather than read directly off the prefab slot definition. In-game verification via InspectorPlus (snapshot the occupant's <code>WorldAtmosphere</code> reference and compare to the sleeper's <code>InternalAtmosphere</code>) would close this.</li>
-<li>CryoTube specifics (coolant loop via <code>InputNetwork2</code>, <code>ICryogenicRegenerator</code> regeneration behavior, its internal atmosphere volume) were not traced; only that it shares the <code>OccupantAtmospherics</code> base and <code>ILifeSuspender</code> contract.</li>
+<li>The exact call site that invokes <code>ElectricityManager.ElectricityTick()</code> from the <code>GameManager</code> simulation tick was not re-traced in this pass; <a href="../../GameSystems/IC10ExecutionTick/">IC10ExecutionTick</a> documents the <code>GameManager -&gt; ElectricityManager.ElectricityTick -&gt; CircuitHolders.Execute</code> chain and the 500 ms cadence. Confirm the caller (likely <code>ThreadedManager.SimulationTick</code> / a <code>GameManager</code> driver) if precise timing relative to the atmospheric tick is needed.</li>
 </ul>
 
 
@@ -8320,7 +8223,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../Silo/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Silo">
+          <a href="../ElectricalInputOutput/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ElectricalInputOutput">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8330,20 +8233,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Silo
+                ElectricalInputOutput
               </div>
             </div>
           </a>
         
         
           
-          <a href="../SmallCell/" class="md-footer__link md-footer__link--next" aria-label="Next: SmallCell">
+          <a href="../Elevator/" class="md-footer__link md-footer__link--next" aria-label="Next: Elevator">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                SmallCell
+                Elevator
               </div>
             </div>
             <div class="md-footer__button md-icon">

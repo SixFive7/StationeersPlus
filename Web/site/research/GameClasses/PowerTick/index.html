@@ -772,6 +772,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1502,6 +1506,62 @@
     
   
     Door / Airlock CanAirPass (atmosphere gating) and the ForceFieldDoor mod override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ElectricalInputOutput/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ElectricalInputOutput
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ElectricityManager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ElectricityManager
   
 
     
@@ -2504,6 +2564,39 @@
     <span class="md-ellipsis">
       
         State calculation and the break checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-querysettle-split-getgeneratedpowergetusedpower-are-pure-reads-receivepowerusepower-are-the-mutations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The query/settle split: GetGeneratedPower/GetUsedPower are pure reads; ReceivePower/UsePower are the mutations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cachestate-strict-power-met-brownout-ratio-and-_actual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CacheState: strict power-met, brownout ratio, and _actual
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumepower-and-powerproviderapplypower-the-two-settle-loops" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConsumePower and PowerProvider.ApplyPower: the two settle loops
       
     </span>
   </a>
@@ -7813,6 +7906,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-querysettle-split-getgeneratedpowergetusedpower-are-pure-reads-receivepowerusepower-are-the-mutations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The query/settle split: GetGeneratedPower/GetUsedPower are pure reads; ReceivePower/UsePower are the mutations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cachestate-strict-power-met-brownout-ratio-and-_actual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CacheState: strict power-met, brownout ratio, and _actual
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumepower-and-powerproviderapplypower-the-two-settle-loops" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ConsumePower and PowerProvider.ApplyPower: the two settle loops
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7935,14 +8061,17 @@
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6228.27061
-verified_at: 2026-06-17
+verified_at: 2026-06-29
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
-  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 254484-254511 (PowerProvider), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState), 350696-350724 (Device base query/settle methods)
   - Mods/PowerGridPlus/RESEARCH.md (voltage-tier research); .work/revolt-source/Assets/Scripts/RevoltTick.cs (RevoltTick : PowerTick); Mods/PowerGridPlus (PowerGridTick : PowerTick, reverse-patches CacheState + CheckForRecursiveProviders)
 related:
   - ./CableNetwork.md
   - ./Cable.md
+  - ./ElectricityManager.md
+  - ./ElectricalInputOutput.md
+  - ./Device.md
   - ../GameSystems/PowerTickThreading.md
 tags: [power, threading]</p>
 <hr />
@@ -8077,13 +8206,59 @@ tags: [power, threading]</p>
 </span><span id="__span-2-68"><a id="__codelineno-2-68" name="__codelineno-2-68" href="#__codelineno-2-68"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">usedPower</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span>
 </span><span id="__span-2-69"><a id="__codelineno-2-69" name="__codelineno-2-69" href="#__codelineno-2-69"></a><span class="w">        </span><span class="n">usedPower</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">_powerRatio</span><span class="p">;</span>
 </span><span id="__span-2-70"><a id="__codelineno-2-70" name="__codelineno-2-70" href="#__codelineno-2-70"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">usedPower</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0f</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ConsumePower</span><span class="p">(</span><span class="n">device</span><span class="p">,</span><span class="w"> </span><span class="n">CableNetwork</span><span class="p">,</span><span class="w"> </span><span class="n">usedPower</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">_isPowerMet</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="n">device</span><span class="p">.</span><span class="n">IsPowerProvider</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_powerRatio</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0f</span><span class="p">)))</span>
-</span><span id="__span-2-71"><a id="__codelineno-2-71" name="__codelineno-2-71" href="#__codelineno-2-71"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="n">gets</span><span class="w"> </span><span class="n">power</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-2-72"><a id="__codelineno-2-72" name="__codelineno-2-72" href="#__codelineno-2-72"></a><span class="w">        </span><span class="p">...</span>
-</span><span id="__span-2-73"><a id="__codelineno-2-73" name="__codelineno-2-73" href="#__codelineno-2-73"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-74"><a id="__codelineno-2-74" name="__codelineno-2-74" href="#__codelineno-2-74"></a><span class="p">}</span>
+</span><span id="__span-2-71"><a id="__codelineno-2-71" name="__codelineno-2-71" href="#__codelineno-2-71"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-72"><a id="__codelineno-2-72" name="__codelineno-2-72" href="#__codelineno-2-72"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">device</span><span class="p">.</span><span class="n">Powered</span><span class="p">)</span>
+</span><span id="__span-2-73"><a id="__codelineno-2-73" name="__codelineno-2-73" href="#__codelineno-2-73"></a><span class="w">                </span><span class="n">device</span><span class="p">.</span><span class="n">SetPowerFromThread</span><span class="p">(</span><span class="n">CableNetwork</span><span class="p">,</span><span class="w"> </span><span class="n">hasPower</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">).</span><span class="n">Forget</span><span class="p">();</span>
+</span><span id="__span-2-74"><a id="__codelineno-2-74" name="__codelineno-2-74" href="#__codelineno-2-74"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-2-75"><a id="__codelineno-2-75" name="__codelineno-2-75" href="#__codelineno-2-75"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">device</span><span class="p">.</span><span class="n">AllowSetPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">Powered</span><span class="p">)</span>
+</span><span id="__span-2-76"><a id="__codelineno-2-76" name="__codelineno-2-76" href="#__codelineno-2-76"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-77"><a id="__codelineno-2-77" name="__codelineno-2-77" href="#__codelineno-2-77"></a><span class="w">            </span><span class="n">device</span><span class="p">.</span><span class="n">SetPowerFromThread</span><span class="p">(</span><span class="n">CableNetwork</span><span class="p">,</span><span class="w"> </span><span class="n">hasPower</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">).</span><span class="n">Forget</span><span class="p">();</span>
+</span><span id="__span-2-78"><a id="__codelineno-2-78" name="__codelineno-2-78" href="#__codelineno-2-78"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-2-79"><a id="__codelineno-2-79" name="__codelineno-2-79" href="#__codelineno-2-79"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-80"><a id="__codelineno-2-80" name="__codelineno-2-80" href="#__codelineno-2-80"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Providers</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span>
+</span><span id="__span-2-81"><a id="__codelineno-2-81" name="__codelineno-2-81" href="#__codelineno-2-81"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="o">--</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-2-82"><a id="__codelineno-2-82" name="__codelineno-2-82" href="#__codelineno-2-82"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-83"><a id="__codelineno-2-83" name="__codelineno-2-83" href="#__codelineno-2-83"></a><span class="w">        </span><span class="n">Providers</span><span class="p">[</span><span class="n">num</span><span class="p">]</span><span class="o">?.</span><span class="n">ApplyPower</span><span class="p">();</span>
+</span><span id="__span-2-84"><a id="__codelineno-2-84" name="__codelineno-2-84" href="#__codelineno-2-84"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-85"><a id="__codelineno-2-85" name="__codelineno-2-85" href="#__codelineno-2-85"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Vanilla cable burn is <strong>instantaneous</strong> and <strong>per-cable</strong>: any cable whose <code>MaxVoltage &lt; _actual</code> (where <code>_actual = min(Potential, Required)</code>) is a burn candidate this tick; <code>BreakableCables.Pick()</code> picks one at random and <code>Break()</code>s it (after a fuse, if any fuse's <code>PowerBreak &lt; _actual</code>, blows first). Re-Volt replaces this whole class (<code>RevoltTick : PowerTick</code>) with a probabilistic, sliding-window model. A mod that wants e.g. heavy cables to never burn must intercept <code>GetBreakableCables</code> (private; <code>AccessTools.Method(typeof(PowerTick), "GetBreakableCables")</code>) or <code>BreakSingleCable</code>, or guard <code>Cable.Break()</code> -- and must account for Re-Volt having swapped the instance if both are installed.</p>
 <p><code>CalculateState</code> calls a private <code>CheckForRecursiveProviders()</code> (declared at decompile line 254613, called at line 254610) -- this is the "force-burn cables when the grid loops through multiple transformers/batteries" check that walks <code>_networkTraversalRecord</code>. <code>CacheState()</code> is private at line 254656. Both are private instance methods on <code>PowerTick</code>; a subclass-replacement tick that wants the vanilla behaviour back can reach them via Harmony reverse patches (<code>[HarmonyReversePatch, HarmonyPatch("CacheState")] static void CacheState(PowerTick _)</code>), which is what Re-Volt and Power Grid Plus do for <code>CacheState</code> (always) and <code>CheckForRecursiveProviders</code> (only when the recursive-network-limits option is on).</p>
+<h2 id="the-querysettle-split-getgeneratedpowergetusedpower-are-pure-reads-receivepowerusepower-are-the-mutations">The query/settle split: GetGeneratedPower/GetUsedPower are pure reads; ReceivePower/UsePower are the mutations<a class="headerlink" href="#the-querysettle-split-getgeneratedpowergetusedpower-are-pure-reads-receivepowerusepower-are-the-mutations" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+
+<p>The four <code>Device</code> power methods divide cleanly into two reads and two writes, and the tick uses them in two distinct phases:</p>
+<ul>
+<li><strong>Queries (called by <code>CalculateState</code> AND again at the top of the <code>ApplyState</code> device loop):</strong> <code>device.GetGeneratedPower(network)</code> and <code>device.GetUsedPower(network)</code>. These must be side-effect-free with respect to the power ledger. <code>CalculateState</code> calls each once per device to build the running <code>Potential</code> / <code>Required</code> sums and the <code>Providers[]</code> array; <code>ApplyState</code> re-reads <code>GetUsedPower</code> per device to know how much to actually pull. A device returns <code>-1f</code> from either when the queried network is not its own <code>PowerCable.CableNetwork</code> (the sentinel that means "I am not on this network"; see <a href="../Device/">Device</a>). On a bridge device the query reads a debt/store field (<code>Transformer</code>/<code>PowerTransmitter</code>/<code>PowerReceiver</code>/<code>AreaPowerControl</code> read <code>_powerProvided</code>; <code>Battery</code> reads <code>PowerStored</code>), so the value already encodes prior-tick state -- the query stays a read, but the field it reads was written by last tick's settle. (A few processing machines read <code>_powerUsedDuringTick</code>, which is set during their own work loop and reset in <code>ReceivePower</code>; still a read at query time. See <a href="../Device/">Device</a>, "Two per-device draw-state fields".)</li>
+<li><strong>Settles (called only inside <code>ApplyState</code>):</strong> <code>device.ReceivePower(network, amount)</code> is the CONSUMER settle (the device just received <code>amount</code> watts), called from <code>ConsumePower</code>. <code>device.UsePower(network, amount)</code> is the PRODUCER settle (the device just supplied <code>amount</code> watts), called from <code>PowerProvider.ApplyPower</code>. These are where the mutation happens: a battery moves <code>PowerStored</code>, a transformer/transmitter moves <code>_powerProvided</code>, a processing machine resets <code>_powerUsedDuringTick</code>. The base <code>Device</code> makes both no-ops (decompile lines 350718-350724); only devices that store or bridge power override them.</li>
+</ul>
+<p>So one network's <code>ApplyState</code> runs both settles: consumers via <code>ConsumePower -&gt; ReceivePower</code>, then producers via the final <code>Providers[].ApplyPower -&gt; UsePower</code> loop. The mutation a settle performs on a BRIDGE device (<code>_powerProvided</code>) is what the OTHER network's query reads on a later tick -- and which network is "later" is pool-slot order, not topology (see <a href="../ElectricityManager/">ElectricityManager</a>). This read-now / write-now / read-elsewhere-next-tick structure is the mechanism behind every cross-network one-tick lag in the vanilla model.</p>
+<h2 id="cachestate-strict-power-met-brownout-ratio-and-_actual">CacheState: strict power-met, brownout ratio, and <code>_actual</code><a class="headerlink" href="#cachestate-strict-power-met-brownout-ratio-and-_actual" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+
+<p><code>CacheState</code> (decompile lines 254656-254669, excerpted verbatim above) derives three values from the summed <code>Potential</code> and <code>Required</code>:</p>
+<ul>
+<li><code>_isPowerMet = (Potential - Required) &gt; 0f</code> is <strong>strict</strong>: potential must EXCEED required, not merely equal it. A network with <code>Potential == Required</code> exactly reports <code>_isPowerMet == false</code> and runs in brownout. This matters because <code>_isPowerMet</code> is the primary gate in the <code>ApplyState</code> device loop for marking a device <code>Powered</code>: a device on a network that exactly meets its load is not flagged powered unless it is itself a provider (<code>device.IsPowerProvider &amp;&amp; _powerRatio &gt; 0f</code>). A mod computing "is this network fully supplied" must use <code>&gt;</code> to match vanilla, not <code>&gt;=</code>.</li>
+<li><code>_powerRatio = Clamp(_isPowerMet ? 1f : Potential / Required, 0f, 1f)</code> when both <code>Potential &gt; 0</code> and <code>Required &gt; 0</code>, else <code>1f</code>. This is the <strong>brownout factor</strong>. In <code>ApplyState</code> every device's draw is scaled by it: <code>usedPower *= _powerRatio</code> (line 254742) before <code>ConsumePower</code> pulls. So under-supply does not black out the network; it linearly de-rates every consumer's draw by the supply/demand ratio. A network supplying 60% of its demand runs every device at 60% draw. (Note the empty-network case <code>_powerRatio = 1f</code>: a network with no generation AND no load has ratio 1, harmless because the device loop's <code>usedPower &gt; 0f</code> guard skips it.)</li>
+<li><code>_actual = Min(Potential, Required)</code> is the figure the burn checks compare cable/fuse ratings against (<code>cable.MaxVoltage &lt; _actual</code>, <code>fuse.PowerBreak &lt; _actual</code>). It is the power that will actually flow this tick (you cannot draw more than is generated, nor more than is demanded).</li>
+</ul>
+<p><code>CacheState</code> is called at the top of <code>ApplyState</code> and AGAIN inside <code>BreakSingleFuse</code> / <code>BreakSingleCable</code> after they set <code>Required = the broken element's rating</code> (lines 254700-254712), so the post-break <code>_powerRatio</code> / <code>_actual</code> reflect the reduced network capacity before the device loop runs.</p>
+<h2 id="consumepower-and-powerproviderapplypower-the-two-settle-loops">ConsumePower and PowerProvider.ApplyPower: the two settle loops<a class="headerlink" href="#consumepower-and-powerproviderapplypower-the-two-settle-loops" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+
+<p><code>ApplyState</code>'s device loop (lines 254730-254754) drives the CONSUMER settle, and the trailing provider loop (lines 254755-254759) drives the PRODUCER settle.</p>
+<p><strong>Consumer settle</strong> -- <code>ConsumePower(device, network, powerRequired)</code> (lines 254634-254654) walks <code>Providers[]</code> from the end toward 0, pulling <code>Min(powerRequired, provider.Energy)</code> from each until demand is met (the single-supplier-first behaviour documented on <a href="../CableNetwork/">CableNetwork</a>). For each pull it does <code>provider.Energy -= num2</code>, <code>Consumed += num2</code>, and <code>device.ReceivePower(network, num2)</code>. So the consumer's <code>ReceivePower</code> is called once per provider drained, with the slice that provider supplied. The provider's <code>Energy</code> is decremented here (this is what records how much each provider gave).</p>
+<p><strong>Producer settle</strong> -- after the device loop, the trailing loop calls <code>Providers[num]?.ApplyPower()</code> backward over the whole array. <code>PowerProvider.ApplyPower</code> (decompile lines 254504-254510) is:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ApplyPower</span><span class="p">()</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">Device</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="p">(</span><span class="n">EnergyUsed</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mf">0f</span><span class="p">))</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="n">Device</span><span class="p">.</span><span class="n">UsePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="p">,</span><span class="w"> </span><span class="n">EnergyUsed</span><span class="p">);</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>where <code>PowerProvider.EnergyUsed =&gt; _originalEnergy - Energy</code> (line 254494) and <code>_originalEnergy</code> was captured at construction as <code>device.GetGeneratedPower(cableNetwork)</code> (lines 254500-254501). So <code>EnergyUsed</code> is exactly how much of that provider's offered generation was actually drained by the consumer settle above. <code>ApplyPower</code> then calls the producer's <code>UsePower(network, EnergyUsed)</code> ONCE with that total, which is where a battery decrements <code>PowerStored</code>, a transformer increments <code>_powerProvided</code> on its output side, a transmitter increments <code>_powerProvided</code> on its wireless side, and so on.</p>
+<p>The ordering is load-bearing: consumers are settled FIRST (draining <code>provider.Energy</code> and calling <code>ReceivePower</code>), then each provider's net contribution is settled via a single <code>UsePower</code>. A producer therefore learns its total delivery for the tick only after all consumers on the network have pulled. This is why a bridge device's input-side draw (reported next tick from <code>_powerProvided</code>) lags its output-side delivery: the <code>UsePower</code> that grows <code>_powerProvided</code> runs at the END of the output network's tick, and the input network may already have been ticked earlier this same tick (pool-slot order again).</p>
 <h2 id="calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them">CalculateState accumulates into Required/Potential; only Initialise resets them<a class="headerlink" href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-17 -->
 
@@ -8099,6 +8274,7 @@ tags: [power, threading]</p>
 <li>
 <p>2026-06-17: added the "CalculateState accumulates; Initialise resets" pairing note. Re-confirmed against the 0.2.6228.27061 decompile: <code>Initialise</code> zeroes <code>Potential</code>/<code>Required</code>/<code>Consumed</code> (lines 254574-254576), <code>CalculateState</code> uses <code>+=</code> (254594, 254599), and <code>ApplyState</code>/<code>ConsumePower</code> drain <code>Providers[].Energy</code> and call <code>Device.ReceivePower</code> (254634-254654). Surfaced while explaining PowerGridPlus's two-pass atomic tick (Initialise+CalculateState in Phase 1 OBSERVE and Phase 3 ENFORCE; ApplyState only in Phase 3).</p>
 </li>
+<li>2026-06-29: completed the <code>ApplyState</code> excerpt (was previously truncated with <code>...</code>; now shows the full device loop with <code>usedPower *= _powerRatio</code>, the <code>SetPowerFromThread</code> powered/unpowered branch, and the trailing <code>Providers[num]?.ApplyPower()</code> loop, decompile lines 254717-254760) and added three sections during the vanilla power-model curation pass: "The query/settle split" (GetGeneratedPower/GetUsedPower are pure reads returning the <code>-1f</code> off-network sentinel from base Device at lines 350696-350716; ReceivePower is the consumer settle and UsePower the producer settle, both no-ops on base Device at 350718-350724), "CacheState: strict power-met, brownout ratio, and <code>_actual</code>" (<code>_isPowerMet = (Potential - Required) &gt; 0f</code> is STRICT not <code>&gt;=</code>, <code>_powerRatio</code> is the brownout de-rate applied as <code>usedPower *= _powerRatio</code>, <code>_actual = Min(Potential, Required)</code> feeds the burn checks; lines 254656-254669 + 254742), and "ConsumePower and PowerProvider.ApplyPower: the two settle loops" (verbatim <code>PowerProvider.ApplyPower</code> at 254504-254510 with <code>EnergyUsed =&gt; _originalEnergy - Energy</code> at 254494 and <code>_originalEnergy = device.GetGeneratedPower(...)</code> captured at construction 254500-254501; consumer settle drains <code>provider.Energy</code> and calls <code>ReceivePower</code> per drained provider, producer settle calls <code>UsePower</code> once with the net <code>EnergyUsed</code>). Additive; no prior claim contradicted (the existing <code>CacheState</code> and <code>ConsumePower</code> verbatim bodies already on the page are unchanged, the new sections explain their semantics). Cross-links the new <a href="../ElectricityManager/">ElectricityManager</a> (pool-slot cross-network order) and <a href="../ElectricalInputOutput/">ElectricalInputOutput</a> (the bridge base whose <code>_powerProvided</code> the settle mutates) pages. Restamped <code>verified_at</code> to 2026-06-29.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
