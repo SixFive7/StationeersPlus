@@ -137,12 +137,64 @@ public static void Register(IPowered item)
 
 `IPowered` (interface, declares only `void OnPowerTick()`) is implemented by every `Device` and by the non-Device powered things; the device registers itself during its registration chain. `ClearAll()` (line 254933) empties the pool on world teardown.
 
-`ElectricityManager : ThreadedManager` also owns the solar pass: `SolarProcessing` (an `async UniTaskVoid` started in `StartManager`, line 254876) runs `SolarRadiators.AllSolarRadiators.ForEachAsync(...CalculateSolarEfficiencyAction)` once per `FixedUpdate` frame, separate from `ElectricityTick`. So solar EFFICIENCY (the per-radiator sun reading) is computed on the FixedUpdate loop, while the power the panel contributes to its network is pulled inside phase 1 via `SolarPanel.GetGeneratedPower`. See [SolarPanel](./SolarPanel.md).
+`ElectricityManager : ThreadedManager` also owns the solar pass: `SolarProcessing` (an `async UniTaskVoid` started in `StartManager`, line 254876) walks `SolarRadiators.AllSolarRadiators.ForEachAsync(PlayerLoopTiming.FixedUpdate, ..., CalculateSolarEfficiencyAction)` on the `FixedUpdate` `PlayerLoopTiming`, separate from `ElectricityTick`. So solar EFFICIENCY (the per-radiator sun reading, `SolarPanel.GenerationEfficiency`) is computed on the FixedUpdate player-loop, while the power the panel contributes to its network is pulled inside phase 1 via `SolarPanel.GetGeneratedPower`. See [SolarPanel](./SolarPanel.md). The per-frame throughput and the headless-load ramp consequence are detailed in "The solar efficiency pass: one radiator per FixedUpdate, and the load-time ramp" below.
 
 The class is a singleton (`public static ElectricityManager Instance;`, assigned in `ManagerAwake`, line 254855). Being a `ThreadedManager`, the tick body runs on the UniTask ThreadPool worker; see [PowerTickThreading](../GameSystems/PowerTickThreading.md) for why any Unity-API call from a power-tick-adjacent patch needs a `MainThreadDispatcher`.
 
+## The solar efficiency pass: one radiator per FixedUpdate, and the load-time ramp
+<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+
+`SolarPanel.GenerationRate` (the watts a panel contributes to its `CableNetwork`, returned through `GetGeneratedPower`, decompile line 400139) multiplies two terms that update on DIFFERENT clocks:
+
+```csharp
+// SolarPanel.GenerationRate (line 399911)
+_generated = PowerGenerated() * GenerationEfficiency * (1f - DamageState.TotalRatio);
+```
+
+- `PowerGenerated()` (line 399948) reads `OrbitalSimulation.SolarIrradiance * _panelArea * weatherFactor` through the log soft-cap. `SolarIrradiance` is an **instantaneous** function of body-to-sun distance, `SolarConstant / distanceAu^2` (`OrbitalSimulation.CalculateSolarIrradiance`, line 56827), set on world load in `OrbitalSimulation.Load` (line 57089) and again every frame in `HandleUpdate` (line 56723). It is NOT smoothed, lerped, or time-averaged. At a fixed orbital distance it is a constant. So `PowerGenerated()` is at its steady value from the first tick.
+- `GenerationEfficiency` is a plain `public float` field on `SolarPanel` (line 399791), C#-default **0** until first written. It is written ONLY by `SolarPanel.CalculateSolarEfficiency()` (line 400354), and the only caller is the `ElectricityManager.SolarProcessing` FixedUpdate pass via `CalculateSolarEfficiencyAction` (line 254826). Until that pass touches a given panel, the panel multiplies its full `PowerGenerated()` by `0` and contributes `0` W.
+
+Therefore a freshly-loaded panel reads `Gen = 0` and steps up to its steady value the moment the solar pass first computes its efficiency. The ramp lives entirely in `GenerationEfficiency`, not in the irradiance or the orbital state.
+
+`SolarProcessing` (line 254864) and the throughput of `DensePool.ForEachAsync` (line 212674) determine HOW FAST efficiency settles:
+
+```csharp
+// ElectricityManager.SolarProcessing (line 254864)
+private static async UniTaskVoid SolarProcessing(CancellationToken cancellationToken)
+{
+    while (!cancellationToken.IsCancellationRequested)
+    {
+        if (!WorldManager.IsGamePaused && GameManager.GameState == GameState.Running)
+        {
+            await SolarRadiators.AllSolarRadiators.ForEachAsync(PlayerLoopTiming.FixedUpdate, cancellationToken, CalculateSolarEfficiencyAction);
+        }
+        await UniTask.NextFrame(PlayerLoopTiming.FixedUpdate, cancellationToken);
+    }
+}
+
+// DensePool<T>.ForEachAsync (line 212674)
+public async UniTask ForEachAsync(PlayerLoopTiming timing, CancellationToken cancellationToken, Func<T, bool> action)
+{
+    ...
+    for (int i = 0; i < count; i++)
+    {
+        if (action(entries[activeList[i]]))
+        {
+            await UniTask.NextFrame(timing, cancellationToken);   // yields AFTER each radiator whose action returned true
+        }
+    }
+}
+```
+
+`ForEachAsync` is NOT a one-frame sweep of the whole pool. It `await UniTask.NextFrame(FixedUpdate)` after EVERY radiator whose action returned `true`, and `SolarPanel.CalculateSolarEfficiency()` always returns `true` (lines 400359, 400392). So the pass advances **one radiator per FixedUpdate frame**: a pool of N solar radiators takes N FixedUpdate frames to complete one full efficiency sweep, then the outer `while` yields one more frame and starts the next sweep. With a single panel in the pool, its efficiency is set on the first FixedUpdate the pass runs; with many panels, a given panel's first non-zero efficiency is delayed by its slot position in `AllSolarRadiators`. (Note: `RadiatorRotatable.CalculateSolarEfficiency` returns `false` when its 60-frame cooldown blocks it, line ~303 of `RadiatorRotatable`; a `false` return does NOT yield, so cooled-down radiators are skipped without consuming a frame.)
+
+Critical consequence for headless / `-batchmode -nographics` dedicated servers: this pass rides the Unity `FixedUpdate` player-loop, which is exactly the loop the dedicated-server docs flag as not firing reliably after world load (see [SimulationTickDriverHooks](../GameSystems/SimulationTickDriverHooks.md): "`MonoBehaviour.Update` does not reliably fire after world load"; the `FixedUpdate` continuation timing is in the same player-loop family). `ElectricityTick` itself runs off `GameManager.GameTick` (an `async UniTask` self-scheduling loop, gated on `GameManager.RunSimulation = !NetworkManager.IsClient`, line 188999) and ticks normally headless, so the panel's power is PULLED every sim tick, but the `GenerationEfficiency` it multiplies by is only refreshed when the FixedUpdate player-loop advances. If FixedUpdate fires slowly or sporadically headless (e.g. only when the player-loop is pumped), `GenerationEfficiency` rises slowly, producing the observed 0 -> full ramp over tens of sim ticks that a normal client (with FixedUpdate firing every physics step) would not show, or would show only for a frame or two. The eclipse term that also gates efficiency to 0 (`OrbitalSimulation.IsEclipse => EclipseRatio > 0`, line 56392) is irrelevant headless because `EclipseRatio` is only updated in `SetSunState`, which early-returns under `GameManager.IsBatchMode` (line 56735).
+
+Inputs to `CalculateSolarEfficiency` that could themselves ramp, and their status on a headless load: `OrbitalSimulation.WorldSunVector` is settled at load by `OrbitalSimulation.Load` -> `SetAllBodies` (line 57107), not ramped; `PanelCells.forward` (panel orientation) only changes while `RotatableBehaviour.DoMoveTask` is slewing (line 201998), and that loop runs on `UniTask.NextFrame()` default (Update) timing and only when current orientation differs from target, so a panel loaded already at its target does not slew; the five `IsRaycastObscured` structural raycasts and the `VoxelTerrain.OctreeRaycast` terrain check (lines 400383, 400410) depend on colliders/terrain being present, which is a candidate second-order ramp if collision is still streaming in early post-load, but the dominant and sufficient explanation is the 0-initialised `GenerationEfficiency` waiting on the FixedUpdate pass.
+
 ## Verification history
 
+- 2026-06-29: added section "The solar efficiency pass: one radiator per FixedUpdate, and the load-time ramp" and refined the Registration-and-lifecycle description of `SolarProcessing`. New finding while investigating why solar generation ramps 0 -> full over tens of sim ticks immediately after a headless world load. Key facts sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`: `SolarPanel.GenerationRate` = `PowerGenerated() * GenerationEfficiency * (1 - damage)` (line 399911); `GenerationEfficiency` is a `public float` default-0 field (line 399791) written only by `CalculateSolarEfficiency()` (line 400354); `PowerGenerated()` reads instantaneous `OrbitalSimulation.SolarIrradiance` (line 399948), which is `SolarConstant / distanceAu^2` with no smoothing (`CalculateSolarIrradiance` line 56827, set at load line 57089 and per-frame line 56723); `SolarProcessing` (line 254864) drives `ForEachAsync(PlayerLoopTiming.FixedUpdate, ...)`; `DensePool.ForEachAsync` (line 212674) `await UniTask.NextFrame` after EACH radiator whose action returns `true`, so it processes one radiator per FixedUpdate frame, not a whole-pool sweep per frame. Refines the prior "once per FixedUpdate frame" phrasing (which described how often the outer sweep restarts, not its per-frame throughput); no factual claim on the page was reversed, this is an additive clarification of throughput. Also captured: `WorldSunVector` settled at load via `SetAllBodies` (line 57107); `EclipseRatio` not updated headless because `SetSunState` early-returns under `IsBatchMode` (line 56735); `RotatableBehaviour.DoMoveTask` slews on Update timing only when off-target (line 201998). Cross-links [SimulationTickDriverHooks](../GameSystems/SimulationTickDriverHooks.md) for the headless FixedUpdate-does-not-fire-reliably fact.
 - 2026-06-29: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`: `ElectricityManager` class (line 254818), `ElectricityTick` verbatim (254905-254931) with its three-phase `AllCableNetworks.ForEach(CableNetworkTickAction)` -> `AllPoweredThings.ForEach(IPoweredThingsAction)` -> `CircuitHolders.Execute()` order, the two action delegates (254832-254840), the pool declarations (`AllCableNetworks` ConcurrentDensePool 253430, `AllPoweredThings` DensePool 254830, `AllCircuitHolders` DensePool 371859), `DensePool.ForEach` slot-order walk (212399-212412) with the `Add` free-list LIFO (212365) and `RemoveAt` swap-with-last compaction (212379-212391), `CircuitHolders.Execute` (371882), `Register`/`Deregister`/`ClearAll` (254889-254936), and the `SolarProcessing` FixedUpdate loop (254864-254881). Establishes the KEY architectural fact that cross-network power propagation order is pool-slot order (construction/destruction history), not topological, so multi-hop bridge chains settle over multiple ticks in an order-dependent way. Cross-links the existing [PowerTick](./PowerTick.md), [CableNetwork](./CableNetwork.md), [ElectricalInputOutput](./ElectricalInputOutput.md), and [Device](./Device.md) pages, which carry the per-network and per-device detail. Additive (new page); no existing verified content contradicted.
 
 ## Open questions
