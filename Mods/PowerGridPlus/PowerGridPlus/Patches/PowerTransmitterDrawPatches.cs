@@ -43,5 +43,31 @@ namespace PowerGridPlus.Patches
             }
             return true;   // no fresh value this tick (unlinked / not in roster): vanilla
         }
+
+        /// <summary>
+        ///     Gates the wireless DELIVERY to the allocator's committed throughput. PowerTransmitterPlus's
+        ///     <c>GetGeneratedPower</c> prefix advertises <c>min(MaxTransferCapacity, InputNetwork.PotentialLoad)</c>
+        ///     onto the wireless bus: the full source-side potential, which under the allocator carries the
+        ///     distance overhead (delivered * m). Left ungoverned the receiver re-emits that inflated figure, so
+        ///     the pair delivers more than it was granted -- phantom power on the receiver net, and a
+        ///     <c>_powerProvided</c> debt the source can never pay down (it ran away on every long link, seeded by
+        ///     ungated delivery during a startup/shed transient). The allocator's exact output-side delivery is
+        ///     <c>seg.Throughput</c>, cached in <see cref="TransformerSupplyCache"/> by the transmitter's
+        ///     ReferenceId. Clamp the advertised delivery to it so delivery follows the grant and the debt cannot
+        ///     be seeded; a shed / inactive pair caches a throughput of 0 and so delivers 0. Last-priority postfix:
+        ///     the final word over the PowerTransmitterPlus prefix, consistent with the cycle-fault zeroing postfix.
+        /// </summary>
+        [HarmonyPostfix, HarmonyPatch(nameof(PowerTransmitter.GetGeneratedPower)), HarmonyPriority(Priority.Last)]
+        public static void DeliveryGatePatch(CableNetwork cableNetwork, PowerTransmitter __instance, ref float __result)
+        {
+            if (__result <= 0f) return;
+            if (__instance.OutputNetwork == null || cableNetwork != __instance.OutputNetwork)
+                return;   // only the wireless OUTPUT side carries the deliverable
+            if (TransformerSupplyCache.TryGetOutput(__instance.ReferenceId, out var grant))
+            {
+                float g = grant < 0f ? 0f : grant;
+                if (g < __result) __result = g;
+            }
+        }
     }
 }

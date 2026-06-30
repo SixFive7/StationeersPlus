@@ -52,17 +52,31 @@ namespace PowerGridPlus
                     type = asm.GetType("PowerTransmitterPlus.DistanceCostShared", false);
                     if (type != null) break;
                 }
+                // Prefer the public SourceDrawMultiplier wrapper (forward-compatible). It was added to
+                // PowerTransmitterPlus after the currently-published build, so when it is absent fall back
+                // to the internal GetMultiplier -- the identical computation (SourceDrawMultiplier =>
+                // GetMultiplier). Without this fallback the reflection fails against the shipped
+                // PowerTransmitterPlus and the allocator silently bills distance links at m = 1 while
+                // PowerTransmitterPlus inflates the _powerProvided debt at the true m, running the source
+                // debt away on every long link.
                 var mi = type?.GetMethod(
                     "SourceDrawMultiplier",
                     BindingFlags.Public | BindingFlags.Static,
                     null,
                     new[] { typeof(PowerTransmitter) },
                     null);
+                if (mi == null)
+                    mi = type?.GetMethod(
+                        "GetMultiplier",
+                        BindingFlags.NonPublic | BindingFlags.Static,
+                        null,
+                        new[] { typeof(PowerTransmitter) },
+                        null);
                 if (mi != null)
                 {
                     _multiplier = (Func<PowerTransmitter, float>)
                         Delegate.CreateDelegate(typeof(Func<PowerTransmitter, float>), mi);
-                    Plugin.Log?.LogInfo("PowerTransmitterPlus detected; modelling transmitter distance draw overhead.");
+                    Plugin.Log?.LogInfo($"PowerTransmitterPlus detected (via {mi.Name}); modelling transmitter distance draw overhead.");
                 }
             }
             catch
@@ -70,6 +84,83 @@ namespace PowerGridPlus
                 _multiplier = null;   // any resolution failure -> vanilla (m = 1)
             }
             return _multiplier;
+        }
+
+        // --- Max Transfer Capacity: the link's static delivery rating (server-authoritative) ---
+
+        private static bool _capResolved;
+        private static Func<float> _effCap;
+
+        /// <summary>
+        ///     PowerTransmitterPlus's effective Max Transfer Capacity in watts (0 = unlimited), or a
+        ///     negative sentinel (-1) when PowerTransmitterPlus is not loaded, so the caller falls back
+        ///     to the vanilla transmission rating. Never throws.
+        /// </summary>
+        internal static float EffectiveMaxCapacityOrAbsent()
+        {
+            var fn = ResolveCap();
+            if (fn == null) return -1f;
+            float c;
+            try { c = fn(); }
+            catch { return -1f; }
+            if (float.IsNaN(c) || c < 0f) return 0f;   // garbage -> treat as unlimited (0)
+            return c;
+        }
+
+        private static Func<float> ResolveCap()
+        {
+            if (_capResolved) return _effCap;
+            _capResolved = true;
+            try
+            {
+                Type type = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    type = asm.GetType("PowerTransmitterPlus.MaxCapacityConfigSync", false);
+                    if (type != null) break;
+                }
+                var mi = type?.GetMethod(
+                    "GetEffectiveMaxCapacity",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+                if (mi != null && mi.ReturnType == typeof(float))
+                    _effCap = (Func<float>)Delegate.CreateDelegate(typeof(Func<float>), mi);
+            }
+            catch
+            {
+                _effCap = null;   // PTP absent / renamed -> caller uses the vanilla rating
+            }
+            return _effCap;
+        }
+
+        // --- Linked-receiver distance in metres (vanilla rating fallback only) ---
+
+        private static bool _distResolved;
+        private static FieldInfo _distField;
+
+        /// <summary>
+        ///     The transmitter's cached linked-receiver distance (vanilla private field
+        ///     <c>_linkedReceiverDistance</c>), used only for the vanilla rating's distance derate when
+        ///     PowerTransmitterPlus is absent. Returns 0 on any failure. Never throws.
+        /// </summary>
+        internal static float LinkedReceiverDistance(PowerTransmitter pt)
+        {
+            if (pt == null) return 0f;
+            if (!_distResolved)
+            {
+                _distResolved = true;
+                try { _distField = typeof(PowerTransmitter).GetField("_linkedReceiverDistance", BindingFlags.NonPublic | BindingFlags.Instance); }
+                catch { _distField = null; }
+            }
+            if (_distField == null) return 0f;
+            try
+            {
+                var v = _distField.GetValue(pt);
+                return v is float f && !float.IsNaN(f) && f >= 0f ? f : 0f;
+            }
+            catch { return 0f; }
         }
     }
 }

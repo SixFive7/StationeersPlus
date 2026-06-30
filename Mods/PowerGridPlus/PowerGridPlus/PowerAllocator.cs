@@ -58,6 +58,9 @@ namespace PowerGridPlus
     {
         private const float Eps = 0.01f;
         private const int UnreachableDepth = int.MaxValue / 2;
+        // Finite stand-in for an "unlimited" (config-0) cap. Never float.MaxValue: the structural-
+        // overload detector sums supplier EffCaps, and a MaxValue term overflows that sum to +Infinity.
+        private const float RateSentinel = 1e9f;
 
         // Networks in shallow-first (depth ASC, ReferenceId ASC) order, recomputed by the DEPTH phase
         // every tick. AtomicElectricityTickPatch ENFORCE iterates this so each network is
@@ -80,7 +83,6 @@ namespace PowerGridPlus
             public float EffCap;           // min(CapSetting, cable caps) - own quiescent draw(s)
             public float UsedPower;
             public float InputDrawFactor;  // input-side draw per unit Throughput (PT-pair distance overhead m, §8.4.2); 0 treated as 1
-            public bool InputLimited;      // PT pair only (§8.4 / P6): deliverable == input PotentialLoad, so the SOURCE (not the link's own rated cap) binds; a downstream shortfall is SHED, not OVERLOAD
             public int Priority;
             public int Depth;
             public bool StepUp;            // never sheds (§5.2)
@@ -245,48 +247,66 @@ namespace PowerGridPlus
                         var pr = pt.LinkedReceiver;
                         if (pr == null || !pr.OnOff || pt.InputNetwork == null || pr.OutputNetwork == null) break;
                         if (pt.InputNetwork.ReferenceId == pr.OutputNetwork.ReferenceId) break;
-                        // liveCap is the link's DELIVERABLE cap on the wireless/output side, already
-                        // reflecting the active distance model (POWER.md §6.3). The PT/PR pair is the
-                        // one supplier class not run through DeviceOutputSanitizer, so guard a
-                        // non-finite read here before it can poison the allocator's network sums.
-                        float liveCap = 0f;
-                        try { liveCap = pt.GetGeneratedPower(pt.OutputNetwork); } catch { }
-                        if (float.IsNaN(liveCap) || float.IsInfinity(liveCap) || liveCap < 0f) liveCap = 0f;
-                        // Source-draw multiplier (POWER.md §6.3 / §8.4.2). PowerTransmitterPlus does NOT
-                        // derate delivered power for distance; it inflates the INPUT-side draw to
-                        // delivered * m (m = 1 + k * distance_km). With vanilla, or no PowerTransmitterPlus,
-                        // m = 1 (delivered == drawn). The input cable carries delivered * m and the input
-                        // network is billed delivered * m, so both the input-cable bound and the shed
-                        // demand on the source network must use m, or a long link silently brown-outs its
-                        // source network (the no-partial-power invariant fails on the input side).
+
+                        // The PT/PR pair's cap is a STATIC link RATING, never the live
+                        // InputNetwork.PotentialLoad. Reading the live potential (as vanilla / PTP
+                        // GetGeneratedPower do) created a cross-tick zero fixed point: on a
+                        // transformer-fed source the potential reads 0 until something pulls, so the cap
+                        // collapsed to 0, the pair desired 0, nothing pulled, and a false OVERLOAD re-armed
+                        // forever. The forward supply sweep is the only throttle on actually-delivered
+                        // power; the rating only sizes a genuine OVERLOAD breach (delivered demand above
+                        // what the link itself can carry, independent of the source).
+                        float linkRate;
+                        float ptpCap = PowerTransmitterPlusInterop.EffectiveMaxCapacityOrAbsent();
+                        if (ptpCap >= 0f)
+                        {
+                            // PowerTransmitterPlus loaded: rating = the configured Max Transfer Capacity
+                            // (0 = unlimited -> a large FINITE sentinel, never float.MaxValue). PTP reprices
+                            // distance as a source-side overhead m (folded into the input-cable bound
+                            // below), not an output derate, so no distance term enters the rating here.
+                            linkRate = ptpCap > 0f ? ptpCap : RateSentinel;
+                        }
+                        else
+                        {
+                            // Vanilla (no PowerTransmitterPlus): rating = MaxPowerTransmission minus the
+                            // vanilla distance-DELIVERY loss (PowerLossOverDistance), independent of the
+                            // live source potential.
+                            float maxT = PowerTransmitter.MaxPowerTransmission;
+                            float dist = PowerTransmitterPlusInterop.LinkedReceiverDistance(pt);
+                            float loss;
+                            try { loss = pt.PowerLossOverDistance.Evaluate(Mathf.Clamp01(dist / 500f)) * maxT; }
+                            catch { loss = Mathf.Min(dist * 10f, maxT); }
+                            if (float.IsNaN(loss) || loss < 0f) loss = 0f;
+                            linkRate = Mathf.Max(0f, maxT - loss);
+                        }
+
+                        // Source-draw multiplier (POWER.md §6.3 / §8.4.2): PowerTransmitterPlus inflates the
+                        // INPUT-side draw to delivered * m (m = 1 + k * distance_km); vanilla m = 1. The
+                        // output cable carries delivered; the input cable carries delivered * m. Clamp to a
+                        // finite sentinel so an unlimited (config-0) tier cannot reach the EffCap sum as
+                        // +Infinity.
                         float m = PowerTransmitterPlusInterop.SourceDrawMultiplier(pt);
                         var inCable = pt.InputConnection?.GetCable();
                         var outCable = pr.OutputConnection?.GetCable();
-                        // Output cable carries the delivered throughput; input cable carries throughput * m.
-                        float cableCap = Mathf.Min(CableMax.For(inCable) / m, CableMax.For(outCable));
-                        float effCap = Mathf.Min(liveCap, cableCap) - pt.UsedPower - pr.UsedPower;
+                        float cableCap = Mathf.Min(Mathf.Min(CableMax.For(inCable) / m, CableMax.For(outCable)), RateSentinel);
+
+                        // staticCap <= cableCap always, so the §5.7 "CapSetting > CableCap" cable-bound
+                        // exclusion can no longer fire for a PT pair: a cable-bound breach now reads as a
+                        // genuine OVERLOAD instead of silently under-delivering with no hover.
+                        float staticCap = Mathf.Min(linkRate, cableCap);
+                        float effCap = staticCap - pt.UsedPower - pr.UsedPower;
                         if (effCap < 0f) effCap = 0f;
-                        // P6 / §8.4: distinguish a link-rated-cap bottleneck (OVERLOAD) from an
-                        // input-supply bottleneck (SHED). liveCap = min(rated cap, InputNetwork.PotentialLoad)
-                        // [minus a vanilla distance loss]; when it equals the input network's PotentialLoad
-                        // the deliverable is held down by the SOURCE, not the link's own rating, so a
-                        // downstream shortfall is "insufficient upstream supply" (SHED), not "the link cannot
-                        // carry the demand" (OVERLOAD). PowerTransmitterPlus applies no output-side loss, so
-                        // liveCap == potential exactly when input-limited; a long vanilla link whose loss pulls
-                        // liveCap below potential reads as link-limited, which is truthful (the loss is the link's).
-                        bool inputLimited = liveCap >= pt.InputNetwork.PotentialLoad - Eps;
                         segs.Add(new Seg
                         {
                             RefId = pt.ReferenceId,
                             Kind = SegKind.PtPair,
                             InNet = pt.InputNetwork,
                             OutNet = pr.OutputNetwork,
-                            CapSetting = liveCap,
+                            CapSetting = staticCap,
                             CableCap = cableCap,
                             EffCap = effCap,
                             UsedPower = pt.UsedPower + pr.UsedPower,
                             InputDrawFactor = m,
-                            InputLimited = inputLimited,
                             Priority = PriorityStore.GetPriority(pt.ReferenceId),
                             StepUp = IsStepUp(pt.InputNetwork, pr.OutputNetwork),
                             Locked = IsPowerLocked(pt.ReferenceId) || CycleFaultRegistry.IsCycleFaulted(pr.ReferenceId, currentTick),

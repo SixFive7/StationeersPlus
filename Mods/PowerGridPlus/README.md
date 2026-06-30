@@ -100,11 +100,20 @@ Always-on behaviour with no toggle: voltage tiers, cycle faults, and producer is
 
 ## How it works
 
-The power simulation is built in three layers, and the layering is the fastest way to read the source. Nothing here rewrites the vanilla power math.
+Think of the grid as rooms joined by doors. Each cable network is a room. Transformers, linked wireless dishes, and Area Power Controllers are the doors between rooms, and power flows through them from one network to the next. Generators put power into a room, machines and lights and IC10 housings take it out, and batteries store it.
 
-1. **The vanilla per-network simulation runs unmodified.** Each cable network still ticks through the base game's `PowerTick`: observe demand and supply, then distribute power and burn anything over its rating. Power Grid Plus never replaces that core.
-2. **Device-level patches change what each device reports.** A transformer, battery, Area Power Controller, or umbilical that is shed, overloaded, or faulted reports 0 power for that tick through a small patch on its power methods. The vanilla simulation then sees a grid that already reflects every decision without knowing the decisions were made elsewhere.
-3. **A global allocator runs once per tick, across every network at once.** This is the piece vanilla cannot express: the base game ticks each network independently, so no per-network code can weigh a transformer against its siblings or balance demand across the whole grid. The allocator sits between observing every network and enforcing the result.
+Power is pulled, not pushed. Vanilla solves each network on its own and lets a short network borrow power a tick before its supplier actually delivers it, which is the cause of the flicker and the half-powered machines. Power Grid Plus instead looks at the whole grid at once, twice a second, and works backward from the machines that need power to the generators that make it:
+
+1. **Look:** add up what every device wants and what every generator is making, on every network.
+2. **Protect:** check for trouble first, power loops and cables carrying the wrong voltage tier.
+3. **Share:** each door works out how much its far side needs and asks its near side for exactly that much, and the request flows back through the doors until it reaches the generators.
+4. **Deliver:** push the agreed amounts forward, generators to machines, so nothing lags a tick behind.
+
+When a network cannot cover everything asking for power, the lowest-Priority doors are switched fully off (shed) until the rest can run at full strength, so whole rooms go dark rather than every machine browning out. When a transformer is already passing its full rated throughput and the rooms behind it still want more, it trips Overloaded, a breaker telling you that door needs a bigger transformer or the load split across more of them. Batteries fill only the shortfall left after generators and transformers, and recharge only from leftover power, so they never ping-pong.
+
+The result is a grid where a machine is either fully powered or cleanly off, supply always reaches a network before it is spent, and the protections act like breakers and priorities you can reason about instead of random brownouts.
+
+Under the hood this is three layers: the vanilla per-network `PowerTick` runs unmodified; small device-level patches make a shed or faulted device report 0 power so the vanilla flow already reflects every decision; and a global allocator runs once per tick across every network at once (the piece vanilla cannot express, since the base game ticks each network in isolation).
 
 ### The five-phase tick
 
