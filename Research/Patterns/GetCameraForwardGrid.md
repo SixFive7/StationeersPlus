@@ -10,7 +10,7 @@ sources:
   - StationeersCommunityMods/LibConstruct (LibConstructReloaded) PlacementBoardPatches.Construction.cs, commit 38ea9ed5 "Fix for latest Stationeers beta" (2026-06-14)
 related:
   - ./CursorAdjacencyLookup.md
-  - ./PlacementOrientation.md
+  - ../GameSystems/PlacementOrientation.md
   - ../GameClasses/Device.md
   - ../GameSystems/StructurePlacementValidation.md
 tags: [prefab, ui, transforms]
