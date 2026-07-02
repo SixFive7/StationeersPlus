@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -38,18 +39,24 @@ namespace PowerGridPlus.Patches
                 // (a) Cable-to-cable: don't allow placing into a POWER network that already has a different
                 // tier. Port-aware: only considers cables reached via a Power-bit OpenEnd overlap. A purely
                 // data-side adjacency (Data-bit only) does NOT engage tier rules, so heavy / normal data
-                // cables mix freely. ConnectedCables(NetworkType.Power) returns adjacent cables whose open
-                // ends overlap on the Power bit, so combo (PowerAndData) cables still count on the power side.
-                var powerAdjacent = __instance.ConnectedCables(NetworkType.Power);
-                if (powerAdjacent != null && powerAdjacent.Count > 0)
+                // cables mix freely. Per Power-bit OpenEnd, SmallCell.Get<Cable>(grid, openEnd) resolves the
+                // adjacent cable whose open ends overlap on the Power bit (0.2.6403 removed the
+                // list-returning ConnectedCables overloads; this is the same per-cell test the game's
+                // Span-based replacement FillConnected<Cable>(NetworkType.Power, ...) performs), so combo
+                // (PowerAndData) cables still count on the power side. Connection.GetLocalGrid() computes
+                // the grid from the live Transform while the cable is an uninitialized cursor ghost.
+                var seenNetworks = new HashSet<CableNetwork>();
+                foreach (var openEnd in __instance.OpenEnds)
                 {
-                    var seenNetworks = new HashSet<CableNetwork>();
-                    foreach (var c in powerAdjacent)
-                    {
-                        if (c?.CableNetwork == null)
-                            continue;
-                        seenNetworks.Add(c.CableNetwork);
-                    }
+                    if (openEnd == null || !VoltageTier.ConnectionCarriesPower(openEnd))
+                        continue;
+                    var c = SmallCell.Get<Cable>(openEnd.GetLocalGrid(), openEnd);
+                    if (c == null || ReferenceEquals(c, __instance) || c.CableNetwork == null)
+                        continue;
+                    seenNetworks.Add(c.CableNetwork);
+                }
+                if (seenNetworks.Count > 0)
+                {
                     foreach (var network in seenNetworks)
                     {
                         if (network == null)
@@ -69,23 +76,25 @@ namespace PowerGridPlus.Patches
                 }
 
                 // (b) Cable-to-device: don't allow placing a cable next to an existing device that wouldn't
-                // be allowed on the new cable's tier. ConnectedDevices() is the same SmallGrid pipeline as
-                // ConnectedCables() and is valid on a cursor ghost (Connection.SetGrids refreshes the
-                // ghost's OpenEnds' LocalGrid every frame -- see Research/Patterns/CursorAdjacencyLookup.md).
-                var adjacentDevices = __instance.ConnectedDevices();
-                if (adjacentDevices != null)
+                // be allowed on the new cable's tier. SmallCell.Get<Device>(grid, openEnd) is the same
+                // per-cell lookup as the cable case above and is valid on a cursor ghost
+                // (Connection.GetLocalGrid() computes the ghost's grid from the live Transform every
+                // frame -- see Research/Patterns/CursorAdjacencyLookup.md).
+                var cursorEnds = __instance.OpenEnds;
+                if (cursorEnds != null)
                 {
-                    foreach (var device in adjacentDevices)
+                    foreach (var cursorEnd in cursorEnds)
                     {
+                        var device = cursorEnd == null ? null : SmallCell.Get<Device>(cursorEnd.GetLocalGrid(), cursorEnd);
                         if (device == null)
                             continue;
 
                         // Port-aware: skip the entire per-device tier check when the cursor cable would
                         // attach to this device only through a non-power Connection (e.g. a data port).
                         // Tier rules are about power flow; a data-only adjacency does not engage them.
-                        // ConnectedDevices() returns the device whenever ANY OpenEnd bitmask overlaps, so
-                        // a heavy data cable next to a transformer's data port is reported here even though
-                        // the device's power-tier rule should not apply to it.
+                        // The per-OpenEnd lookup returns the device whenever ANY OpenEnd bitmask overlaps,
+                        // so a heavy data cable next to a transformer's data port is reported here even
+                        // though the device's power-tier rule should not apply to it.
                         if (!CursorAttachesToPowerPortOf(__instance, device))
                             continue;
 
@@ -208,5 +217,27 @@ namespace PowerGridPlus.Patches
             }
             return false;
         }
+
+        /// <summary>
+        ///     Restores the Option B immediate re-check (POWER.md §4.3) after 0.2.6403 removed the static
+        ///     <c>CableNetwork.OnNetworkChanged</c> event. The event used to fire at the tail of all three
+        ///     CableNetwork constructors, of Add(Cable), and of the rebuild BFS; these postfixes decorate
+        ///     the surviving mutation points so every membership change (placement, merge, split re-fold,
+        ///     save/join load) still calls <see cref="VoltageTierEnforcer.RequestRecheck"/>. The rebuild
+        ///     BFS needs no postfix of its own: it always runs through the seed constructor and per-cable
+        ///     Add, and RequestRecheck coalesces the burst into one main-thread re-check exactly as it
+        ///     coalesced the event's multiple firings per mutation.
+        /// </summary>
+        [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), MethodType.Constructor)]
+        public static void CableNetwork_Ctor_Postfix() => VoltageTierEnforcer.RequestRecheck();
+
+        [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), MethodType.Constructor, typeof(long))]
+        public static void CableNetwork_CtorFromId_Postfix() => VoltageTierEnforcer.RequestRecheck();
+
+        [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), MethodType.Constructor, typeof(Cable))]
+        public static void CableNetwork_CtorFromCable_Postfix() => VoltageTierEnforcer.RequestRecheck();
+
+        [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), nameof(CableNetwork.Add), typeof(Cable))]
+        public static void CableNetwork_Add_Postfix() => VoltageTierEnforcer.RequestRecheck();
     }
 }

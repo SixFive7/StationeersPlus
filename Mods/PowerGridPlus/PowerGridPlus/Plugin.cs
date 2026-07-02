@@ -74,14 +74,15 @@ namespace PowerGridPlus
                 harmony.PatchAll();
 
                 // Option B (POWER.md §4.3): catch a wrong-tier junction the instant any topology
-                // mutation creates one. CableNetwork.OnNetworkChanged is a main-thread-only event fired
-                // by every membership change (placement, merge, split, load, device add), so the handler
-                // re-checks and burns synchronously before the next tick ever sees the violation. The
-                // per-tick worker sweep (VoltageTierEnforcer.Run) remains the backstop for any path this
-                // does not cover. Host-only: the handler early-outs on !RunSimulation. Subscribed once
-                // (OnPrefabsLoaded runs a single time); never unsubscribed -- the plugin lives for the
-                // process and the static event is harmless on a client (burns are RunSimulation-gated).
-                Assets.Scripts.Networks.CableNetwork.OnNetworkChanged += VoltageTierEnforcer.RequestRecheck;
+                // mutation creates one. The static CableNetwork.OnNetworkChanged event this used to
+                // subscribe to was removed in game version 0.2.6403; the same firing points (every
+                // CableNetwork constructor and Add(Cable)) are now Harmony postfixes in
+                // VoltageTierPatches, applied by PatchAll above. Each calls
+                // VoltageTierEnforcer.RequestRecheck on every membership change (placement, merge,
+                // split, load), so a fresh violation still re-checks and burns synchronously before the
+                // next tick ever sees it. The per-tick worker sweep (VoltageTierEnforcer.Run) remains
+                // the backstop for any path this does not cover. Host-only: the handler early-outs on
+                // !RunSimulation, so the patches are harmless on a client (burns are RunSimulation-gated).
 
                 // Run the runtime recipe override AFTER the game's GameData XML pipeline has processed
                 // every mod's overlays, so the configured multiplier always wins over any shipped overlay

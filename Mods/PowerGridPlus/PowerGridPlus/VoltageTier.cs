@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Assets.Scripts;
+using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -245,21 +246,25 @@ namespace PowerGridPlus
         private static bool HasHigherTierNeighbour(Cable cable)
         {
             if (cable == null) return false;
-            List<Cable> neighbours;
+            int myRank = TierRank(cable.CableType);
             try
             {
-                neighbours = cable.ConnectedCables(NetworkType.Power);
+                // Per Power-bit OpenEnd, the same per-cell adjacency lookup as the cursor-reject path
+                // (0.2.6403 removed the list-returning ConnectedCables overloads). Runs on the power-tick
+                // worker thread: Connection.GetLocalGrid() returns the cached grid there (placed cables
+                // are initialized), and the try/catch keeps any uninitialized-connection Transform
+                // fallback a degraded "no" instead of a crash, as before.
+                foreach (var openEnd in cable.OpenEnds)
+                {
+                    if (openEnd == null || !ConnectionCarriesPower(openEnd)) continue;
+                    var n = SmallCell.Get<Cable>(openEnd.GetLocalGrid(), openEnd);
+                    if (n == null || ReferenceEquals(n, cable)) continue;
+                    if (TierRank(n.CableType) > myRank) return true;
+                }
             }
             catch
             {
                 return false;
-            }
-            if (neighbours == null) return false;
-            int myRank = TierRank(cable.CableType);
-            foreach (var n in neighbours)
-            {
-                if (n == null) continue;
-                if (TierRank(n.CableType) > myRank) return true;
             }
             return false;
         }
@@ -354,7 +359,7 @@ namespace PowerGridPlus
             var cables = device.PowerCables;
             if (cables == null)
                 return false;
-            for (int i = 0; i < cables.Count; i++)
+            for (int i = 0; i < cables.Length; i++)
                 if (cables[i] != null && cables[i].CableNetwork == network)
                     return true;
             return false;
