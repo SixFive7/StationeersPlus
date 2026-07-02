@@ -72,6 +72,12 @@ namespace PowerGridPlus.Patches
                 // on every later tick.
                 UnknownBridgeCensus.RunIfPending();
 
+                // One-shot world-load ledger sweep (Stage 3 ledger adoption): zero every modeled
+                // segmenter's saved _powerProvided before the first OBSERVE ever reads it, so a
+                // stale credit from the save (the -176k class) can never bill as free energy and a
+                // stale debt never lump-bills. Same armed-at-load lifecycle as the census.
+                LedgerAdoption.RunSweepIfPending();
+
                 // ----------------------------------------------------------------
                 // OBSERVE (SETUP/OBSERVE). Initialise + CalculateState per network
                 // with CURRENT state. Populates PowerTick.Required / .Potential /
@@ -213,6 +219,32 @@ namespace PowerGridPlus.Patches
                     if (net == null || !enforced.Add(net.ReferenceId)) return;
                     EnforceNet(net);
                 });
+
+                // ----------------------------------------------------------------
+                // ENFORCE TAIL (Stage 3). Runs after every network's ApplyState has
+                // settled, still on the power worker, before the device tick.
+                //   - Powered reconcile: assert Powered=True on healthy segmenters
+                //     vanilla left dark (idle at zero pull). The False edge was
+                //     already blocked inside ApplyState by the AllowSetPower
+                //     postfixes; both halves read the roster ALLOCATE published
+                //     this tick. Server-authoritative: this code only runs on the
+                //     sim host, and SetPowerFromThread routes the write through
+                //     OnServer.Interact, so clients get it via normal replication.
+                //   - Ledger settle: set every enrolled transformer / wireless
+                //     half's _powerProvided to its vanilla-equivalent standing
+                //     value (transformer := TotalThrough, transmitter := 0,
+                //     receiver := min(debt, TotalThrough)), AFTER the tick's
+                //     chunked UsePower / ReceivePower mutations. PowerGridPlus
+                //     owns the billing for these devices, so the vestigial
+                //     vanilla ledger never strands residue into the save again
+                //     (negative = the free-energy credit class; positive = the
+                //     ramp-lag plateaus). A warn-only, globally throttled
+                //     high-water detector keeps genuine leaks visible. The IC10
+                //     LOGIC phase below reads the settled value
+                //     (LogicType.PowerActual = current throughput).
+                // ----------------------------------------------------------------
+                PoweredPresentation.ReconcileEnforceTail();
+                LedgerAdoption.SettleEnforceTail(currentTick);
 
                 // ----------------------------------------------------------------
                 // DEVICE TICK: per-device IPowered.OnPowerTick. Vanilla copy.

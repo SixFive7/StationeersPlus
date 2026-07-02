@@ -41,6 +41,16 @@ namespace PowerGridPlus.Patches
             // is re-surveyed on its first atomic tick (fresh worlds are covered by the armed-at-load
             // default; this hook covers hot-swapped saves).
             UnknownBridgeCensus.Arm();
+            // Stage 3 ledger adoption: re-arm the world-load _powerProvided sweep (zeroes every
+            // modeled segmenter's saved ledger on the first atomic tick, killing stale credits),
+            // and drop the previous world's Powered-presentation snapshots so no stale device
+            // references or health verdicts leak across a hot-swap. The first atomic tick
+            // republishes both.
+            LedgerAdoption.Arm();
+            PoweredPresentation.Clear();
+            // The per-net shortfall classification snapshot is per-world diagnostics; drop it so
+            // the census never joins a stale world's net ids. The first atomic tick republishes.
+            ShortfallDiagnostics.Clear();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }

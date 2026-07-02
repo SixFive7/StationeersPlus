@@ -20,7 +20,8 @@ namespace PowerGridPlus
     ///     <list type="number">
     ///       <item><b>ModApi</b> (PowerTransmitterPlus 1.9.0+): the public, versioned cross-mod
     ///       surface <c>PowerTransmitterPlus.ModApi</c> (requires <c>Version >= 1</c>). Binds
-    ///       EffectiveMaxCapacity, TryGetLink, SourceDrawMultiplier, and ClaimBillingOwnership, then
+    ///       EffectiveMaxCapacity, TryGetLink, SourceDrawMultiplier, ClaimBillingOwnership, and the
+    ///       GetTransferDebt / SetTransferDebt ledger accessors (Stage 3 ledger adoption), then
     ///       claims wireless billing ownership as "net.powergridplus": while the claim is held,
     ///       PowerTransmitterPlus's own debt billing (UsePower debt inflation + GetUsedPower cap
     ///       lift + standalone debt ceiling) stands down and this mod's allocator is the single
@@ -46,9 +47,10 @@ namespace PowerGridPlus
     ///     allocator only asks about linked pairs), so switching tiers never changes the allocator's
     ///     numbers for the same world state.</para>
     ///
-    ///     <para>Threading: first use happens inside GATHER on the UniTask power worker, the only
-    ///     caller of these methods, so the lazy one-shot resolve needs no lock. ModApi members are
-    ///     documented thread-safe. Any failure at any step degrades one tier and never throws.</para>
+    ///     <para>Threading: every caller (GATHER, the Stage 3 world-load ledger sweep, and the
+    ///     ENFORCE-tail ledger settle) runs on the UniTask power worker inside the atomic tick, so
+    ///     the lazy one-shot resolve needs no lock. ModApi members are documented thread-safe. Any
+    ///     failure at any step degrades one tier and never throws.</para>
     /// </summary>
     internal static class PowerTransmitterPlusInterop
     {
@@ -64,12 +66,24 @@ namespace PowerGridPlus
         private static Func<PowerTransmitter, float> _modMultiplier;
         private static Func<float> _modEffCap;
         private static TryGetLinkFn _modTryGetLink;
+        // Wireless _powerProvided ledger accessors (Stage 3 ledger adoption). ModApi
+        // GetTransferDebt / SetTransferDebt when the ModApi tier resolved (PowerTransmitterPlus
+        // owns the wireless billing model, so its API is the front door); bound leniently so a
+        // hypothetical surface without them still degrades to the field tier below.
+        private static Func<WirelessPower, float> _modGetDebt;
+        private static Action<WirelessPower, float> _modSetDebt;
 
         // Legacy tier.
         private static Func<PowerTransmitter, float> _legacyMultiplier;
         private static string _legacyMultiplierName;
         private static Func<float> _legacyEffCap;
         private static FieldInfo _legacyDistField;
+
+        // Vanilla ledger fields, one per class (PowerTransmitter and PowerReceiver each declare
+        // their own private _powerProvided). Exist regardless of PowerTransmitterPlus; the
+        // fallback route for the legacy and absent tiers. Cached once at first use.
+        private static FieldInfo _txLedgerField;
+        private static FieldInfo _rxLedgerField;
 
         /// <summary>
         ///     The factor by which a transmitter's input-network draw exceeds its delivered output
@@ -136,6 +150,61 @@ namespace PowerGridPlus
             catch { return 0f; }
         }
 
+        /// <summary>
+        ///     Read a wireless half's private <c>_powerProvided</c> transfer-debt ledger. Routes
+        ///     through PowerTransmitterPlus ModApi.GetTransferDebt when the ModApi tier resolved,
+        ///     else through the cached vanilla FieldInfo (the field exists with or without
+        ///     PowerTransmitterPlus). False only when the half is null or no route resolved.
+        ///     Never throws.
+        /// </summary>
+        internal static bool TryGetWirelessDebt(WirelessPower half, out float value)
+        {
+            value = 0f;
+            if (half == null) return false;
+            EnsureResolved();
+            if (_modGetDebt != null)
+            {
+                try { value = _modGetDebt(half); return true; }
+                catch { return false; }
+            }
+            var field = LedgerFieldFor(half);
+            if (field == null) return false;
+            try
+            {
+                if (!(field.GetValue(half) is float f)) return false;
+                value = f;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        ///     Overwrite a wireless half's private <c>_powerProvided</c> transfer-debt ledger, same
+        ///     routing as <see cref="TryGetWirelessDebt"/>. False when the half is null or no route
+        ///     resolved. Never throws.
+        /// </summary>
+        internal static bool TrySetWirelessDebt(WirelessPower half, float value)
+        {
+            if (half == null) return false;
+            EnsureResolved();
+            if (_modSetDebt != null)
+            {
+                try { _modSetDebt(half, value); return true; }
+                catch { return false; }
+            }
+            var field = LedgerFieldFor(half);
+            if (field == null) return false;
+            try { field.SetValue(half, value); return true; }
+            catch { return false; }
+        }
+
+        private static FieldInfo LedgerFieldFor(WirelessPower half)
+        {
+            if (half is PowerTransmitter) return _txLedgerField;
+            if (half is PowerReceiver) return _rxLedgerField;
+            return null;
+        }
+
         // ------------------------------------------------------------------
         // One-shot resolution.
         // ------------------------------------------------------------------
@@ -153,6 +222,8 @@ namespace PowerGridPlus
                 _modMultiplier = null;
                 _modEffCap = null;
                 _modTryGetLink = null;
+                _modGetDebt = null;
+                _modSetDebt = null;
             }
             if (_modMultiplier == null)
             {
@@ -163,6 +234,21 @@ namespace PowerGridPlus
                     _legacyEffCap = null;
                     _legacyDistField = null;
                 }
+            }
+
+            // Vanilla wireless ledger fields, resolved once regardless of tier: the fallback route
+            // for TryGetWirelessDebt / TrySetWirelessDebt when the ModApi accessors are absent.
+            try
+            {
+                _txLedgerField = typeof(PowerTransmitter).GetField(
+                    "_powerProvided", BindingFlags.NonPublic | BindingFlags.Instance);
+                _rxLedgerField = typeof(PowerReceiver).GetField(
+                    "_powerProvided", BindingFlags.NonPublic | BindingFlags.Instance);
+            }
+            catch
+            {
+                _txLedgerField = null;
+                _rxLedgerField = null;
             }
 
             // Exactly one Info line stating which tier resolved (and, on the ModApi tier, the
@@ -230,12 +316,26 @@ namespace PowerGridPlus
                 Delegate.CreateDelegate(typeof(Func<PowerTransmitter, float>), multiplier);
             var boundClaim = (Func<string, bool>)Delegate.CreateDelegate(typeof(Func<string, bool>), claim);
 
+            // Ledger accessors (Stage 3): part of the ModApi v1 surface, but bound leniently so a
+            // build without them degrades to the vanilla-field route instead of dropping the tier.
+            var getDebt = type.GetMethod("GetTransferDebt",
+                BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(WirelessPower) }, null);
+            var setDebt = type.GetMethod("SetTransferDebt",
+                BindingFlags.Public | BindingFlags.Static, null,
+                new[] { typeof(WirelessPower), typeof(float) }, null);
+
             // Commit the tier only after every member bound, then claim billing ownership exactly
             // once. A rejected claim (another mod holds it) still leaves the read surface bound.
             _modApiVersion = version;
             _modEffCap = boundEffCap;
             _modTryGetLink = boundTryGetLink;
             _modMultiplier = boundMultiplier;
+            if (getDebt != null && getDebt.ReturnType == typeof(float))
+                _modGetDebt = (Func<WirelessPower, float>)
+                    Delegate.CreateDelegate(typeof(Func<WirelessPower, float>), getDebt);
+            if (setDebt != null && setDebt.ReturnType == typeof(void))
+                _modSetDebt = (Action<WirelessPower, float>)
+                    Delegate.CreateDelegate(typeof(Action<WirelessPower, float>), setDebt);
             bool granted;
             try { granted = boundClaim(OwnerId); }
             catch { granted = false; }

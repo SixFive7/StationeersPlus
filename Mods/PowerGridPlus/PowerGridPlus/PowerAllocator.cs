@@ -70,7 +70,13 @@ namespace PowerGridPlus
     ///          totals (TotalThrough = rigid + soft throughput, TotalPull = TotalThrough * max(m,1) +
     ///          quiescent) to TransformerSupplyCache for EVERY routed seg kind, plus the APC bundle
     ///          caches. The vanilla-facing advertise/bill patches serve these totals verbatim, so a
-    ///          granted soft flow always has a carrier on both terminals of its segment.
+    ///          granted soft flow always has a carrier on both terminals of its segment. Also swaps
+    ///          in the Stage 3 presentation snapshots (PoweredPresentation): the healthy-segmenter
+    ///          set the AllowSetPower postfixes read, and the enrolled-seg roster the ENFORCE tail
+    ///          uses for the Powered reconcile and the _powerProvided ledger settle. Also publishes
+    ///          the per-net shortfall classification snapshot (ShortfallDiagnostics: Served / Dry /
+    ///          Throttled / Deadlock) the regression census joins against; diagnostics only, read
+    ///          from the converged fields, never fed back into any decision.
     ///       6. Conservation check (ConservationChecker, config-gated): per net, granted inflow must
     ///          equal granted outflow within tolerance; per seg, TotalPull must equal
     ///          TotalThrough * max(m,1) + quiescent. Violations log throttled warnings.
@@ -111,6 +117,12 @@ namespace PowerGridPlus
             public int Depth;
             public bool StepUp;            // never sheds (§5.2)
             public bool Locked;            // cycle-faulted or in a prior-tick shed/overload window: conducts 0, not re-decided
+            // Presentation identity (Stage 3): the enumerated bridge device, its pair partner
+            // (linked receiver, 0/null when none), consumed by the Powered-presentation and
+            // ledger-settle publish tail. References live for this tick's publish only.
+            public long PartnerRefId;
+            public ElectricalInputOutput AnchorDevice;
+            public ElectricalInputOutput PartnerDevice;
             // per-round:
             public bool Shed;
             public bool Overloaded;
@@ -243,7 +255,10 @@ namespace PowerGridPlus
             // Attach allocator POLICY to an adapter's physical description (SegAdapters.cs):
             // priority, and the lockout gate over the device's own registries plus -- for a paired
             // bridge -- the partner half's cycle-fault state (either dish faulted locks the pair).
-            Seg MakeSeg(SegKind kind, long refId, in SegSpec spec)
+            // The anchor / partner device references ride along for the Stage 3 publish tail
+            // (Powered presentation + ledger settle); they are consumed within this tick.
+            Seg MakeSeg(SegKind kind, long refId, in SegSpec spec,
+                ElectricalInputOutput anchor, ElectricalInputOutput partner = null)
             {
                 return new Seg
                 {
@@ -260,6 +275,9 @@ namespace PowerGridPlus
                     StepUp = spec.StepUp,
                     Locked = IsPowerLocked(refId)
                         || (spec.PartnerRefId != 0L && CycleFaultRegistry.IsCycleFaulted(spec.PartnerRefId, currentTick)),
+                    PartnerRefId = spec.PartnerRefId,
+                    AnchorDevice = anchor,
+                    PartnerDevice = partner,
                 };
             }
 
@@ -274,7 +292,7 @@ namespace PowerGridPlus
                     case Transformer t:
                     {
                         if (!SegAdapters.Transformer.TryDescribe(t, out var spec)) break;
-                        segs.Add(MakeSeg(SegKind.Transformer, t.ReferenceId, spec));
+                        segs.Add(MakeSeg(SegKind.Transformer, t.ReferenceId, spec, t));
                         break;
                     }
                     case PowerTransmitter pt:
@@ -284,7 +302,7 @@ namespace PowerGridPlus
                         // reflection tier, or the vanilla curve) live in WirelessPairAdapter; the
                         // partner receiver's cycle-fault state locks the pair via MakeSeg.
                         if (!SegAdapters.WirelessPair.TryDescribe(pt, out var spec)) break;
-                        segs.Add(MakeSeg(SegKind.PtPair, pt.ReferenceId, spec));
+                        segs.Add(MakeSeg(SegKind.PtPair, pt.ReferenceId, spec, pt, pt.LinkedReceiver));
                         break;
                     }
                     case PowerReceiver _:
@@ -292,7 +310,7 @@ namespace PowerGridPlus
                     case AreaPowerControl apc:
                     {
                         if (!SegAdapters.Apc.TryDescribe(apc, out var spec)) break;
-                        var seg = MakeSeg(SegKind.Apc, apc.ReferenceId, spec);
+                        var seg = MakeSeg(SegKind.Apc, apc.ReferenceId, spec, apc);
                         segs.Add(seg);
                         // The APC's internal cell is a storage half alongside the routed seg (not
                         // part of the adapter's description): discharge is elastic onto the output
@@ -587,6 +605,69 @@ namespace PowerGridPlus
                     TransformerSupplyCache.Set(seg.RefId, totalThrough, totalPull);
                 }
             }
+
+            // Powered presentation + ledger-settle roster (Stage 3), swapped atomically like the
+            // share caches. HEALTHY = enrolled this tick, carrying no fault (not locked / shed /
+            // overloaded; segmenters are never VVF candidates), and either conducting flow or
+            // sitting idle on an input network that has effective supply with its rigid demand
+            // met. The AllowSetPower postfixes (PoweredPresentationPatches) read the set inside
+            // ENFORCE's ApplyState to block vanilla from un-powering a healthy segmenter, and the
+            // ENFORCE tail (PoweredPresentation.ReconcileEnforceTail) re-asserts Powered=True on
+            // healthy segmenters vanilla left dark: an idle healthy charger bills a fresh pull of
+            // 0, which vanilla reads as "unpowered", the diagnostic trap this kills. An idle seg
+            // on a DARK input (night-time solar feed) is deliberately unhealthy, so vanilla
+            // un-powers it in line with the dead-input hover cue. A pair publishes health under
+            // both halves' ReferenceIds so transmitter and receiver present the same verdict.
+            var healthySet = new HashSet<long>();
+            var presentationRoster = new List<PoweredPresentation.EnrolledSeg>(segs.Count);
+            foreach (var seg in segs)
+            {
+                bool conducts = seg.Throughput + seg.SoftThrough > Eps;
+                bool inNetMet = false;
+                if (!conducts && seg.InNet != null && nets.TryGetValue(seg.InNet.ReferenceId, out var inRec))
+                    inNetMet = inRec.GenSupply + inRec.InflowCommitted + AvailableElastic(inRec) > Eps
+                               && inRec.Unmet <= Eps;
+                bool healthy = IsActive(seg) && (conducts || inNetMet);
+                if (healthy)
+                {
+                    healthySet.Add(seg.RefId);
+                    if (seg.PartnerRefId != 0L) healthySet.Add(seg.PartnerRefId);
+                }
+                presentationRoster.Add(new PoweredPresentation.EnrolledSeg
+                {
+                    RefId = seg.RefId,
+                    Anchor = seg.AnchorDevice,
+                    Partner = seg.PartnerDevice,
+                    InNet = seg.InNet,
+                    OutNet = seg.OutNet,
+                    Healthy = healthy,
+                    TotalThrough = seg.Throughput + seg.SoftThrough,
+                    TotalPull = seg.Pull + seg.SoftPull,
+                    // Ledger-settle eligibility (LedgerAdoption.SettleEnforceTail). The APC is
+                    // excluded: its positive _powerProvided is how vanilla UsePower drains the
+                    // internal cell one tick after the cell covers a shortfall, and its
+                    // GetUsedPower uses Max(ledger, quiescent) so negatives are inert; settling
+                    // would hand the cell free energy. The transformer is settled only while the
+                    // fresh-pull billing replaces the vanilla ledger handshake (mitigation off
+                    // leaves vanilla owning the transformer ledger).
+                    SettleLedger = seg.Kind == SegKind.PtPair
+                                   || (seg.Kind == SegKind.Transformer
+                                       && Settings.EnableTransformerExploitMitigation.Value),
+                });
+            }
+            PoweredPresentation.Publish(healthySet, presentationRoster);
+
+            // Shortfall classification snapshot (diagnostics): label every allocator net's
+            // end-of-tick RIGID state for the regression census (ShortfallDiagnostics: Served /
+            // Dry / Throttled / Deadlock, ClassifyNetShortfall below). Pure read-over of the
+            // converged per-net / per-seg fields the passes above already computed; allocation
+            // math, orders, and cache contents are untouched. Swapped by volatile reference
+            // exactly like the Powered-presentation snapshots; a net absent from the map was
+            // outside allocator scope this tick (the census reads absence as off-scope).
+            var shortfallClasses = new Dictionary<long, byte>(netList.Count);
+            foreach (var n in netList)
+                shortfallClasses[n.Id] = ClassifyNetShortfall(n, nets);
+            ShortfallDiagnostics.Publish(shortfallClasses);
 
             // ----------------------------------------------------------------
             // 6. CONSERVATION CHECK (config-gated): audit the converged grants. Per net, granted
@@ -1089,6 +1170,59 @@ namespace PowerGridPlus
         }
 
         private static bool IsActive(Seg seg) => !seg.Locked && !seg.Shed && !seg.Overloaded;
+
+        // Diagnostic tolerance for the shortfall classifier's supply comparisons. kW-scale float
+        // sums carry more rounding noise than the allocator's own Eps (0.01 W), and the census's
+        // vanilla-side test already works with a 0.5 W margin, so the classification questions
+        // ("did the seg have headroom", "did the input net retain supply") use the same 0.5 W.
+        private const float DiagEps = 0.5f;
+
+        // End-of-tick shortfall class for one allocator net (the ShortfallDiagnostics byte values),
+        // derived entirely from the converged state: Unmet / GenSupply / InflowCommitted /
+        // RigidServed / PullsGranted per net, Locked / Shed / Overloaded / EffCap / Throughput /
+        // SoftThrough per seg. Diagnostics only; decides nothing. Decision ladder:
+        //   Served    - no unmet rigid demand.
+        //   Deadlock  - unmet while the allocator's own accounting says supply existed: an ACTIVE
+        //               supplier had headroom above its committed flow AND its input net retained
+        //               undelivered supply (gen + inflow + elastic beyond what it served and
+        //               granted). On a correct allocator this is impossible (an unmet net's
+        //               suppliers either sit at their caps or drained their inputs), so it is the
+        //               invisible-deadlock regression shape and must be zero on a healthy build.
+        //               Checked BEFORE the throttle rung so a genuine routing failure is never
+        //               masked by an unrelated closed valve on the same net (e.g. a tripped
+        //               battery next to a deadlocked transformer feed).
+        //   Throttled - unmet, and some feed valve is deliberately closed: a supplier seg that is
+        //               lockout-locked / shed / overloaded or has zero effective capacity
+        //               (Setting=0 "firewall", rate-limited to zero), or a locked / overloaded
+        //               elastic on the net. Wins over Dry when both apply (a closed valve makes
+        //               the upstream state moot; honest darkness either way).
+        //   Dry       - unmet with every remaining feed genuinely exhausted: each active supplier
+        //               is saturated or draws from an input net with nothing left. Source-side
+        //               shortage (dead-input chains, unaimed solar islands).
+        private static byte ClassifyNetShortfall(Net n, Dictionary<long, Net> nets)
+        {
+            if (n.Unmet <= Eps) return ShortfallDiagnostics.Served;
+
+            foreach (var s in n.Suppliers)
+            {
+                if (!IsActive(s)) continue;   // closed valve: the throttle rung below reports it
+                float headroom = s.EffCap - s.Throughput - s.SoftThrough;
+                if (headroom <= DiagEps) continue;   // saturated: transport maxed, not a routing failure
+                if (s.InNet == null || !nets.TryGetValue(s.InNet.ReferenceId, out var src)) continue;
+                float leftover = src.GenSupply + src.InflowCommitted + AvailableElastic(src)
+                                 - src.RigidServed - src.PullsGranted;
+                if (leftover > DiagEps) return ShortfallDiagnostics.Deadlock;
+            }
+
+            foreach (var s in n.Suppliers)
+                if (s.Locked || s.Shed || s.Overloaded || s.EffCap <= Eps)
+                    return ShortfallDiagnostics.Throttled;
+            foreach (var e in n.Elastics)
+                if (e.Locked || e.Overloaded)
+                    return ShortfallDiagnostics.Throttled;
+
+            return ShortfallDiagnostics.Dry;
+        }
 
         // (priority DESC, ReferenceId ASC): integer-only, MP-deterministic (§8.0.1).
         private static int SupplierOrder(Seg a, Seg b)
