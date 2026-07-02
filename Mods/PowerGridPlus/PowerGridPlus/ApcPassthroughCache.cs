@@ -5,7 +5,7 @@ namespace PowerGridPlus
     /// <summary>
     ///     Per-Area-Power-Control FRESH passthrough draw (Watts) the allocator decides each tick:
     ///     the power flowing INPUT-&gt;OUTPUT through the APC this tick (its committed rigid passthrough
-    ///     <c>seg.Throughput</c> plus any soft-charge grant flowing through it, <c>seg.GrantThrough</c>).
+    ///     <c>seg.Throughput</c> plus the granted soft-charge flow crossing it, <c>seg.SoftThrough</c>).
     ///
     ///     <para>Vanilla <c>AreaPowerControl.GetUsedPower(InputNetwork)</c> bills this passthrough from
     ///     <c>_powerProvided</c>, the accumulator filled during the PREVIOUS tick's ApplyState, so the

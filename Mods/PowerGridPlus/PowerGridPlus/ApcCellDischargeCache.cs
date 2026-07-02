@@ -5,7 +5,7 @@ namespace PowerGridPlus
     /// <summary>
     ///     Per-APC CELL-ONLY discharge share (Watts) for the <c>DischargeSpeed</c> LogicType display
     ///     (POWER.md §7.3 / deviation P9). An APC's <see cref="SoftSupplyShareCache"/> entry is the
-    ///     BUNDLED supply (passthrough + grant-through + cell), because the APC's <c>GetGeneratedPower</c>
+    ///     BUNDLED supply (total passthrough + cell), because the APC's <c>GetGeneratedPower</c>
     ///     surface bundles passthrough with the cell (vanilla <c>AvailablePower</c>). But
     ///     <c>DischargeSpeed</c> means the same thing on every storage device: the cell's discharge rate.
     ///     The allocator already computes the APC cell's elastic share separately, so it stamps the

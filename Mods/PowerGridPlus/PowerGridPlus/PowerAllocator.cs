@@ -10,12 +10,22 @@ using UnityEngine;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     ALLOCATE of the atomic tick: the joint shed / overload / elastic-supply / surplus allocator
-    ///     (POWER.md §8.0 / §7.3 / §9). Replaces the former transformer-only TransformerAllocator with
+    ///     ALLOCATE of the atomic tick: the joint shed / overload / elastic-supply allocator
+    ///     (POWER.md §8.0 / §7.3). Replaces the former transformer-only TransformerAllocator with
     ///     a model that covers every segmenting device class (§8.0.0.1): Transformer, AreaPowerControl,
     ///     linked PowerTransmitter/PowerReceiver pairs (modelled as one contributor anchored on the PT,
     ///     §6.2), Battery, and the rocket power umbilicals (the latter three as elastic suppliers / soft
     ///     demanders rather than pull-through contributors).
+    ///
+    ///     Two flow classes ride ONE demand vector through the same backward/forward sweep:
+    ///       - RIGID: ordinary consumer demand plus the contributor pulls that serve it. Drives every
+    ///         fault decision (shed, structural overload, supply overload).
+    ///       - SOFT: storage charge (battery / APC cell / umbilical). Propagates leaf-to-source through
+    ///         the same splitter as rigid but capped at each contributor's headroom left after rigid
+    ///         (soft never displaces rigid capacity), and is granted forward out of the firm residual
+    ///         only (generators + contributor inflow after rigid is served; elastic discharge never
+    ///         funds charging). Unmet soft desire is silently clamped: never a shed, never an overload,
+    ///         never a lockout, never a dead-input cue.
     ///
     ///     Per tick:
     ///       1. Gather: per-network rigid demand + generator supply; the contributor / elastic / soft
@@ -25,28 +35,39 @@ namespace PowerGridPlus
     ///          PROTECT (cycle detection) and conduct 0, so the live graph is a DAG.
     ///       3. Fixed-point loop (max 2N+4 rounds, §8.0). OVERLOAD is grow-only / sticky (cleared once at
     ///          loop entry, then committed for the tick); only SHED is re-decided each round. Each round:
-    ///          a. backward desire (leaf -> source): each network's residual need (rigid + deeper pulls
-    ///             - generators - elastic availability) splits greedily over its suppliers in
-    ///             (priority DESC, ReferenceId ASC) order, capped per-device at effective cap;
+    ///          a. backward desire (leaf -> source): each network's residual rigid need (rigid + deeper
+    ///             pulls - generators - elastic availability) splits greedily over its suppliers in
+    ///             (priority DESC, ReferenceId ASC) order, capped per-device at effective cap; then the
+    ///             network's soft desire (local charge requests + deeper soft pulls) splits over the same
+    ///             suppliers with the same priority-tier-first proportional splitter, capped per-device
+    ///             at (EffCap - rigid desired throughput);
     ///          b. structural overload, evaluated BEFORE shed (§8.4 hit-max: a contributor at its
-    ///             Setting-like cap with unmet downstream rigid demand), so a structurally-overloaded
-    ///             device surfaces as OVERLOAD, not shed (the CYCLE > VVF > OVERLOAD > SHED precedence);
-    ///          c. forward supply + re-decided shed per input network: when consumer claims exceed the
-    ///             input budget, victims shed in (priority ASC, claim DESC, ReferenceId ASC) order (§8.3);
-    ///             step-up transformers never shed (§5.2); a dead input (no supply at all) defers instead
-    ///             of cycling 60-second lockouts;
-    ///          d. supply overload after the forward pass: the elastic analog (a battery / APC cell /
-    ///             umbilical delivering its full effective discharge with rigid demand still unmet) and the
-    ///             §5.7 cable-overflow rule (flow above the weakest cable's cap with generators alone under
-    ///             it trips every supplier of that network instead of burning the cable).
-    ///       4. Elastic shares (§7.3): per output network, batteries cover only the rigid shortfall
+    ///             Setting-like cap with unmet downstream rigid demand -- RIGID ONLY), so a structurally-
+    ///             overloaded device surfaces as OVERLOAD, not shed (CYCLE > VVF > OVERLOAD > SHED);
+    ///          c. forward supply + re-decided shed per input network: when consumer RIGID claims exceed
+    ///             the input budget, victims shed in (priority ASC, claim DESC, ReferenceId ASC) order
+    ///             (§8.3); step-up transformers never shed (§5.2); a dead input (no supply at all) defers
+    ///             instead of cycling 60-second lockouts. After the rigid grants, soft is granted from the
+    ///             net's firm residual (plus soft inflow arriving through its suppliers), proportionally
+    ///             over local charge requests and consumer soft pulls, capped by the weakest cable's
+    ///             remaining headroom; a shed / locked / overloaded contributor gets zero soft;
+    ///          d. supply overload after the forward pass (RIGID ONLY): the elastic analog (a battery /
+    ///             APC cell / umbilical delivering its full effective discharge with rigid demand still
+    ///             unmet) and the §5.7 cable-overflow rule (rigid flow above the weakest cable's cap with
+    ///             generators alone under it trips every supplier of that network instead of burning the
+    ///             cable).
+    ///       4. Elastic shares (§7.3): per output network, batteries cover only the RIGID shortfall
     ///          left after generators + transformer inflow; proportional split against effective caps
     ///          (min(rate cap, stored)); written to SoftSupplyShareCache for the GetGeneratedPower
-    ///          postfixes.
-    ///       5. Surplus walk (§9): soft charge requests aggregate bottom-up through non-shed
-    ///          contributors (capped by remaining contributor headroom), surplus allocates top-down
-    ///          pure-proportionally, single pass; written to SoftDemandShareCache for the GetUsedPower
-    ///          postfixes.
+    ///          postfixes. Elastic stays net-local; it never propagates across contributors.
+    ///       5. Publish: per-device charge shares to SoftDemandShareCache; per-contributor presentation
+    ///          totals (TotalThrough = rigid + soft throughput, TotalPull = TotalThrough * max(m,1) +
+    ///          quiescent) to TransformerSupplyCache for EVERY routed seg kind, plus the APC bundle
+    ///          caches. The vanilla-facing advertise/bill patches serve these totals verbatim, so a
+    ///          granted soft flow always has a carrier on both terminals of its segment.
+    ///       6. Conservation check (ConservationChecker, config-gated): per net, granted inflow must
+    ///          equal granted outflow within tolerance; per seg, TotalPull must equal
+    ///          TotalThrough * max(m,1) + quiescent. Violations log throttled warnings.
     ///
     ///     Determinism (§8.0.1): every ordering is integer-keyed -- (depth, priority, ReferenceId),
     ///     with float claims quantised to whole Watts where they enter a sort. Networks iterate in
@@ -90,15 +111,19 @@ namespace PowerGridPlus
             // per-round:
             public bool Shed;
             public bool Overloaded;
-            public float Throughput;       // committed passthrough this round
-            public float Pull;             // Throughput + UsedPower, the demand presented on InNet
+            public float Throughput;       // committed RIGID passthrough this round
+            public float Pull;             // the rigid demand presented on InNet (Throughput * m + UsedPower when granted)
             // Backward desire pass scratch: what this contributor WANTS to pass assuming its input can
             // supply it (capped at EffCap), and the matching input-side draw.
             public float DesiredThroughput;
             public float DesiredPull;
-            // surplus walk:
-            public float PropagatedReq;
-            public float GrantThrough;
+            // Soft (storage-charge) flow, riding the same backward/forward sweep as rigid. The
+            // contributor's quiescent draw is carried exactly once: on the rigid pull when the
+            // contributor carries any rigid flow, else on the soft pull.
+            public float SoftDesiredThroughput;   // backward: share of OutNet's soft desire (output-side Watts)
+            public float SoftDesiredPull;         // backward: the matching input-side draw
+            public float SoftThrough;             // forward: granted soft passthrough (output-side Watts)
+            public float SoftPull;                // forward: granted input-side soft draw
         }
 
         // An elastic supplier: discharges a store onto OutNet only to fill rigid shortfall (§7.3).
@@ -112,7 +137,7 @@ namespace PowerGridPlus
             public float Share;            // final delivered share
         }
 
-        // A soft demander: charges a store from InNet out of surplus only (§7.4/§9).
+        // A soft demander: charges a store from InNet out of the firm residual only (§7.4).
         private sealed class Soft
         {
             public long RefId;
@@ -132,17 +157,21 @@ namespace PowerGridPlus
             public readonly List<Seg> Consumers = new List<Seg>();
             public readonly List<Elastic> Elastics = new List<Elastic>();
             public readonly List<Soft> Softs = new List<Soft>();
+            // Static per tick: total local storage charge requests (sum of Softs' Request).
+            public float SoftRequestLocal;
             // per-round:
             public float Unmet;
             public float PullsGranted;
             public float InflowCommitted;
-            public float ElasticDelivered;
+            public float RigidServed;
             // Backward desire pass scratch: total power demanded on this network assuming nothing is
-            // shed (rigid + every non-locked, non-overloaded consumer's desired pull).
+            // shed (rigid + every non-locked, non-overloaded consumer's desired pull), and the soft
+            // analog (local charge requests + every active consumer's soft desired pull).
             public float DesiredDemand;
-            // surplus walk:
-            public float SoftReqTotal;
-            public float IncomingGrant;
+            public float SoftDesire;
+            // Forward soft grants (for the conservation check): local charge granted + soft pulls granted.
+            public float SoftGrantedLocal;
+            public float SoftPullsGranted;
         }
 
         internal static void RunAtomic(int currentTick)
@@ -413,7 +442,13 @@ namespace PowerGridPlus
                 outNet.Suppliers.Add(seg);
             }
             foreach (var e in elastics) GetNet(e.OutNet)?.Elastics.Add(e);
-            foreach (var s in softs) GetNet(s.InNet)?.Softs.Add(s);
+            foreach (var s in softs)
+            {
+                var n = GetNet(s.InNet);
+                if (n == null) continue;
+                n.Softs.Add(s);
+                n.SoftRequestLocal += s.Request;
+            }
 
             // ----------------------------------------------------------------
             // 2. ORDER. TRUE topological order over the live contributor edges (every network after ALL
@@ -447,9 +482,9 @@ namespace PowerGridPlus
             //    60 s once another device's overload frees the budget (the 2c case), and a transformer that
             //    structurally cannot serve its downstream surfaces as OVERLOAD, not shed. Throughputs are
             //    exact (no headroom). Convergence is bounded (2N+4 rounds);
-            //    the per-net field values it leaves (Unmet / InflowCommitted / PullsGranted /
-            //    ElasticDelivered / Throughput) feed the shared dead-input / commit / elastic-share /
-            //    surplus tail below.
+            //    the per-net field values it leaves (Unmet / InflowCommitted / PullsGranted / RigidServed /
+            //    SoftGrantedLocal / SoftPullsGranted / Throughput / SoftThrough) feed the shared
+            //    dead-input / commit / elastic-share / publish tail below.
             // ----------------------------------------------------------------
             RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList, shedOn, overloadOn);
 
@@ -547,105 +582,87 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
-            // 5. SURPLUS WALK (§9) -> SoftDemandShareCache.
-            // ----------------------------------------------------------------
-            // Requests aggregate bottom-up (deepest nets first): a network's total request is its own
-            // soft demand plus what flows up through each non-shed consumer, capped by that
-            // contributor's remaining headroom.
-            foreach (var n in netList)
-            {
-                n.SoftReqTotal = 0f;
-                n.IncomingGrant = 0f;
-                foreach (var s in n.Softs) { s.Share = 0f; n.SoftReqTotal += s.Request; }
-            }
-            foreach (var seg in segs) { seg.PropagatedReq = 0f; seg.GrantThrough = 0f; }
-            foreach (var n in netsDeepFirst)
-            {
-                foreach (var seg in n.Consumers)   // seg.InNet == n, seg.OutNet deeper
-                {
-                    if (!IsActive(seg)) continue;
-                    var outNet = nets[seg.OutNet.ReferenceId];
-                    float headroom = seg.EffCap - seg.Throughput;
-                    if (headroom <= 0f) continue;
-                    seg.PropagatedReq = Mathf.Min(outNet.SoftReqTotal, headroom);
-                    n.SoftReqTotal += seg.PropagatedReq;
-                }
-            }
-            // Grants flow top-down (shallowest first), pure-proportional (§9.4), capped by the weakest
-            // cable's remaining headroom on the granting network.
-            foreach (var n in netsShallowFirst)
-            {
-                float localGive = n.GenSupply + n.InflowCommitted - (n.RigidDemand - n.Unmet) - n.PullsGranted;
-                if (localGive < 0f) localGive = 0f;
-                float avail = localGive + n.IncomingGrant;
-                if (avail <= 0f || n.SoftReqTotal <= 0f) continue;
-
-                float cableHeadroom = CableMax.WeakestCapOnNetwork(n.Network) - ((n.RigidDemand - n.Unmet) + n.PullsGranted);
-                if (cableHeadroom < 0f) cableHeadroom = 0f;
-                if (avail > cableHeadroom) avail = cableHeadroom;
-
-                float granted = Mathf.Min(avail, n.SoftReqTotal);
-                if (granted <= 0f) continue;
-                float ratio = granted / n.SoftReqTotal;
-
-                foreach (var s in n.Softs)
-                    s.Share = s.Request * ratio;
-                foreach (var seg in n.Consumers)
-                {
-                    if (seg.PropagatedReq <= 0f || !IsActive(seg)) continue;
-                    seg.GrantThrough = seg.PropagatedReq * ratio;
-                    nets[seg.OutNet.ReferenceId].IncomingGrant += seg.GrantThrough;
-                }
-            }
-
-            // ----------------------------------------------------------------
-            // Write the share caches (ENFORCE's postfixes read these).
+            // 5. PUBLISH: write the share caches (ENFORCE's postfixes read these).
             // ----------------------------------------------------------------
             foreach (var e in elastics)
             {
                 // For APCs the GetGeneratedPower surface bundles passthrough + cell (vanilla
-                // AvailablePower), so the cap must include the committed passthrough and any soft
-                // grant flowing through; the matching Seg is found below.
+                // AvailablePower), so the cap must include the total committed passthrough (rigid +
+                // soft); the matching Seg is found below.
                 SoftSupplyShareCache.SetShare(e.RefId, e.Share);
             }
-            foreach (var seg in segs)
-            {
-                if (seg.Kind != SegKind.Apc) continue;
-                // The APC's bundled supply (passthrough + grant-through + cell) goes to
-                // SoftSupplyShareCache because vanilla GetGeneratedPower bundles them. But DischargeSpeed
-                // must mean the CELL rate, consistent with battery / umbilical (P9), so stamp the
-                // cell-only share separately first, before the bundled entry overwrites it.
-                float cellShare = 0f;
-                foreach (var e in elastics)
-                    if (e.RefId == seg.RefId) { cellShare = e.Share; break; }
-                ApcCellDischargeCache.SetShare(seg.RefId, cellShare);
-                SoftSupplyShareCache.SetShare(seg.RefId, seg.Throughput + seg.GrantThrough + cellShare);
-            }
+            // Storage charge shares: the forward sweep's per-device soft grants. The soft-demand
+            // GetUsedPower postfixes cap the reported charge demand to these, so each store charges
+            // exactly what the allocator granted.
             foreach (var s in softs)
                 SoftDemandShareCache.SetShare(s.RefId, s.Share);
 
-            // Publish each TRANSFORMER's exact converged throughput so its GetGeneratedPower /
-            // GetUsedPower report the real in-tick flow (no headroom). Output side = seg.Throughput;
-            // input side = seg.Pull (throughput + the transformer's own quiescent draw). Inactive
-            // transformers (shed / overloaded / cycle-faulted) carry Throughput = Pull = 0, so they
-            // report 0 both ways. APC / battery / umbilical already report their exact shares through
-            // SoftSupplyShareCache (driven by the same supply-accurate seg.Throughput).
+            // Publish each routed contributor's exact converged PRESENTATION TOTALS so its
+            // GetGeneratedPower / GetUsedPower report the real in-tick flow (no headroom), soft
+            // included. Output side = TotalThrough (rigid Throughput + granted SoftThrough); input
+            // side = TotalPull (rigid Pull + granted SoftPull == TotalThrough * max(m,1) + the
+            // contributor's own quiescent draw whenever it conducts). Publishing totals for EVERY seg
+            // kind is what guarantees a granted soft flow has a carrier on both terminals of its
+            // segment: a battery charging behind a transformer or wireless pair sees the charge
+            // advertised downstream AND billed upstream in the same tick. Inactive contributors
+            // (shed / overloaded / cycle-faulted) carry all-zero totals, so they report 0 both ways.
             foreach (var seg in segs)
             {
-                if (seg.Kind == SegKind.Transformer)
-                    TransformerSupplyCache.Set(seg.RefId, seg.Throughput, seg.Pull);
-                else if (seg.Kind == SegKind.PtPair)
-                    // The wireless PT/PR pair bills its input draw via the PowerTransmitter on InNet.
-                    // seg.Pull = Throughput * distance-multiplier + the pair's quiescent -- the exact
-                    // input draw. PowerTransmitterDrawPatches.GetUsedPower reports this instead of the
-                    // lagging _powerProvided (an inactive pair caches Pull = 0).
-                    TransformerSupplyCache.Set(seg.RefId, seg.Throughput, seg.Pull);
+                float totalThrough = seg.Throughput + seg.SoftThrough;
+                float totalPull = seg.Pull + seg.SoftPull;
+                if (seg.Kind == SegKind.Transformer || seg.Kind == SegKind.PtPair)
+                {
+                    // The transformer bills via TransformerExploitPatches; the wireless PT/PR pair
+                    // bills its input draw via PowerTransmitterDrawPatches on the PT (seg.RefId) and
+                    // advertises through the DeliveryGatePatch clamp. Both read this cache pair.
+                    TransformerSupplyCache.Set(seg.RefId, totalThrough, totalPull);
+                }
                 else if (seg.Kind == SegKind.Apc)
-                    // Fresh passthrough draw the APC bills on its INPUT network: committed rigid
-                    // passthrough + soft-charge grant flowing through. Replaces the lagging
+                {
+                    // Fresh passthrough draw the APC bills on its INPUT network: total committed
+                    // passthrough (rigid + soft-charge flowing through). Replaces the lagging
                     // _powerProvided in AreaPowerControlPatches.GetUsedPower so the APC's input draw
                     // is current (input == output, no one-tick lag -> no input-network undershoot).
-                    ApcPassthroughCache.Set(seg.RefId, seg.Throughput + seg.GrantThrough);
+                    ApcPassthroughCache.Set(seg.RefId, totalThrough);
+                    // The APC's bundled supply (total passthrough + cell) goes to SoftSupplyShareCache
+                    // because vanilla GetGeneratedPower bundles them. But DischargeSpeed must mean the
+                    // CELL rate, consistent with battery / umbilical (P9), so stamp the cell-only share
+                    // separately first, before the bundled entry overwrites it.
+                    float cellShare = 0f;
+                    foreach (var e in elastics)
+                        if (e.RefId == seg.RefId) { cellShare = e.Share; break; }
+                    ApcCellDischargeCache.SetShare(seg.RefId, cellShare);
+                    SoftSupplyShareCache.SetShare(seg.RefId, totalThrough + cellShare);
+                    // Presentation totals for the APC too, so every routed seg kind publishes the same
+                    // (TotalThrough, TotalPull) surface (nothing reads the APC entry yet; the APC
+                    // patches bill quiescent + cell charge themselves on top of the passthrough cache).
+                    TransformerSupplyCache.Set(seg.RefId, totalThrough, totalPull);
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // 6. CONSERVATION CHECK (config-gated): audit the converged grants. Per net, granted
+            //    inflow == granted outflow within tolerance; per seg, TotalPull == TotalThrough *
+            //    max(m,1) + quiescent. A violation is a code bug in the allocator, never a player
+            //    problem; warnings are throttled per net / per seg.
+            // ----------------------------------------------------------------
+            if (ConservationChecker.Enabled)
+            {
+                foreach (var n in netList)
+                {
+                    float softInflow = 0f;
+                    foreach (var s in n.Suppliers)
+                        if (IsActive(s)) softInflow += s.SoftThrough;
+                    float elasticGranted = 0f;
+                    foreach (var e in n.Elastics) elasticGranted += e.Share;
+                    ConservationChecker.CheckNet(n.Id, currentTick, n.GenSupply, n.InflowCommitted,
+                        softInflow, elasticGranted, n.RigidServed, n.PullsGranted, n.SoftPullsGranted,
+                        n.SoftGrantedLocal);
+                }
+                foreach (var seg in segs)
+                    ConservationChecker.CheckSeg(seg.RefId, seg.Kind.ToString(), currentTick,
+                        seg.Throughput + seg.SoftThrough, seg.Pull + seg.SoftPull,
+                        seg.InputDrawFactor, seg.UsedPower);
             }
         }
 
@@ -788,25 +805,46 @@ namespace PowerGridPlus
                     $"[PowerGridPlus] Allocator did not converge in {maxRounds} rounds; using last settled state (internally consistent, safe).");
         }
 
-        // Backward demand sweep (leaf -> source). Each contributor's DesiredThroughput = its share of its
-        // output network's demand (priority tier DESC, proportional by EffCap within a tier, capped at
-        // EffCap), and DesiredPull = the matching input-side draw (throughput * distance factor + quiescent).
-        // Generators are subtracted first; elastic storage is the documented last resort and is not modelled
-        // here (it absorbs the per-net shortfall in the forward sweep / elastic-share pass, matching the
+        // Backward demand sweep (leaf -> source), carrying BOTH flow classes in one walk. Each
+        // contributor's DesiredThroughput = its share of its output network's rigid demand (priority
+        // tier DESC, proportional by EffCap within a tier, capped at EffCap), and DesiredPull = the
+        // matching input-side draw (throughput * distance factor + quiescent). Generators are
+        // subtracted first; elastic storage is the documented last resort and is not modelled here (it
+        // absorbs the per-net shortfall in the forward sweep / elastic-share pass, matching the
         // gen -> transformer -> battery supply order).
+        //
+        // The soft class follows: SoftDesiredThroughput = the contributor's share of its output
+        // network's soft desire (local charge requests + deeper soft pulls), split with the SAME
+        // priority-tier-first proportional splitter but capped per contributor at
+        // (EffCap - DesiredThroughput), so soft never displaces rigid capacity. The proportional split
+        // is what kills the old surplus walk's double-count: parallel contributors divide the
+        // downstream request instead of each propagating it whole. The quiescent draw rides the rigid
+        // pull when the contributor carries any rigid flow, else the soft pull -- exactly once.
         private static void BackwardDesirePass(List<Net> topoRev)
         {
             foreach (var n in topoRev)
             {
                 float pulls = 0f;
+                float softPulls = 0f;
                 foreach (var c in n.Consumers)
                 {
                     c.DesiredPull = (DesireActive(c) && c.DesiredThroughput > 0f)
                         ? c.DesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f) + c.UsedPower
                         : 0f;
                     pulls += c.DesiredPull;
+                    // Soft gates on IsActive, NOT DesireActive: rigid must keep a shed contributor's
+                    // claim visible so the forward pass can re-decide the shed, but soft never drives
+                    // a shed, so a shed contributor's charge desire must NOT size its suppliers --
+                    // the delivered soft would strand on this net (billed upstream, consumed by
+                    // nobody). An un-shed next round restores the desire one round later.
+                    c.SoftDesiredPull = (IsActive(c) && c.SoftDesiredThroughput > 0f)
+                        ? c.SoftDesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f)
+                          + (c.DesiredPull > 0f ? 0f : c.UsedPower)
+                        : 0f;
+                    softPulls += c.SoftDesiredPull;
                 }
                 n.DesiredDemand = n.RigidDemand + pulls;
+                n.SoftDesire = n.SoftRequestLocal + softPulls;
 
                 float residual = n.DesiredDemand - n.GenSupply;
                 if (residual < 0f) residual = 0f;
@@ -836,22 +874,62 @@ namespace PowerGridPlus
                 }
                 for (; si < supList.Count; si++)
                     supList[si].DesiredThroughput = 0f;
+
+                // Soft split over the same suppliers: same tier walk, but each contributor's capacity
+                // is the headroom LEFT after its rigid desired throughput. Runs independently of the
+                // rigid residual (a net can have zero rigid residual and still route charge).
+                float softResidual = n.SoftDesire;
+                si = 0;
+                while (si < supList.Count && softResidual > Eps)
+                {
+                    int tierPriority = supList[si].Priority;
+                    int blockEnd = si;
+                    float tierCap = 0f;
+                    while (blockEnd < supList.Count && supList[blockEnd].Priority == tierPriority)
+                    {
+                        var seg = supList[blockEnd];
+                        if (DesireActive(seg))
+                        {
+                            float head = seg.EffCap - seg.DesiredThroughput;
+                            if (head > 0f) tierCap += head;
+                        }
+                        else seg.SoftDesiredThroughput = 0f;
+                        blockEnd++;
+                    }
+                    float tierGive = tierCap > Eps ? Mathf.Min(tierCap, softResidual) : 0f;
+                    for (int j = si; j < blockEnd; j++)
+                    {
+                        var seg = supList[j];
+                        if (!DesireActive(seg)) continue;
+                        float head = seg.EffCap - seg.DesiredThroughput;
+                        if (head < 0f) head = 0f;
+                        seg.SoftDesiredThroughput = tierCap > Eps ? tierGive * (head / tierCap) : 0f;
+                    }
+                    softResidual -= tierGive;
+                    si = blockEnd;
+                }
+                for (; si < supList.Count; si++)
+                    supList[si].SoftDesiredThroughput = 0f;
             }
         }
 
         // Forward supply sweep (source -> leaf). For each network in topo order (so every supplier's
         // actual throughput is already finalized), compute the supply actually reaching it and distribute
         // to its consumers highest-priority-first. When deciding (settleOnly == false) shedding is RE-
-        // DECIDED here: if the active consumers' desired pulls exceed the budget the network can pass, the
-        // lowest-priority victims shed (whole, never partial) until the rest fit; a network with no supply
-        // at all (avail <= Eps) sheds nothing (dead-input idle). settleOnly == true keeps the current
-        // shed/overload flags and only recomputes throughputs + per-net fields (used to settle a 2-cycle).
+        // DECIDED here: if the active consumers' desired RIGID pulls exceed the budget the network can
+        // pass, the lowest-priority victims shed (whole, never partial) until the rest fit; a network with
+        // no supply at all (avail <= Eps) sheds nothing (dead-input idle). settleOnly == true keeps the
+        // current shed/overload flags and only recomputes throughputs + per-net fields (used to settle a
+        // 2-cycle). After the rigid grants, SOFT (storage charge) is granted per net from the firm
+        // residual: shed decisions, budgets, and Unmet never see the soft class.
         private static void ForwardSupplyAndShed(List<Net> topo, List<Seg> segs, bool shedOn, bool settleOnly)
         {
             foreach (var seg in segs)
             {
                 seg.Throughput = 0f;
                 seg.Pull = 0f;
+                seg.SoftThrough = 0f;
+                seg.SoftPull = 0f;
                 if (!settleOnly) seg.Shed = false;
             }
 
@@ -902,17 +980,70 @@ namespace PowerGridPlus
                     survivorPull += grant;
                 }
                 n.PullsGranted = survivorPull;
-
-                float rigidServed = avail < n.RigidDemand ? avail : n.RigidDemand;
-                float elasticDelivered = (rigidServed + survivorPull) - firmIn;
-                if (elasticDelivered < 0f) elasticDelivered = 0f;
-                if (elasticDelivered > elasticCap) elasticDelivered = elasticCap;
-                n.ElasticDelivered = elasticDelivered;
+                n.RigidServed = avail < n.RigidDemand ? avail : n.RigidDemand;
 
                 float activeWant = n.RigidDemand;
                 foreach (var c in n.Consumers) if (IsActive(c)) activeWant += c.DesiredPull;
                 float unmet = activeWant - avail;
                 n.Unmet = unmet > 0f ? unmet : 0f;
+
+                // ---- Soft grants (storage charge), funded by the FIRM residual only ----
+                // Pool: local firm supply left after rigid loads and granted rigid pulls (never
+                // elastic: a battery must not discharge to charge another store), plus the soft
+                // inflow arriving through this net's suppliers (granted when their input nets were
+                // processed earlier in topo order). Capped by the weakest cable's remaining headroom
+                // so a charge grant cannot push a network past its tier rating. Granted
+                // proportionally over local charge requests and active consumers' soft pulls; a
+                // shed / locked / overloaded consumer gets zero soft. Note: if any rigid pull on
+                // this net was only partially granted, the firm residual is necessarily zero, so a
+                // soft grant here implies every rigid pull was granted whole.
+                float softLocal = firmIn - n.RigidDemand - survivorPull;
+                if (softLocal < 0f) softLocal = 0f;
+                float softInflow = 0f;
+                foreach (var s in n.Suppliers)
+                    if (IsActive(s)) softInflow += s.SoftThrough;
+                float softAvail = softLocal + softInflow;
+                if (softAvail > 0f)
+                {
+                    float cableHeadroom = CableMax.WeakestCapOnNetwork(n.Network) - (n.RigidServed + survivorPull);
+                    if (cableHeadroom < 0f) cableHeadroom = 0f;
+                    if (softAvail > cableHeadroom) softAvail = cableHeadroom;
+                }
+
+                float softDemand = n.SoftRequestLocal;
+                foreach (var c in n.Consumers)
+                    if (IsActive(c) && c.SoftDesiredPull > 0f) softDemand += c.SoftDesiredPull;
+
+                float softRatio = (softAvail > 0f && softDemand > Eps)
+                    ? Mathf.Min(1f, softAvail / softDemand)
+                    : 0f;
+
+                float softGrantedLocal = 0f;
+                foreach (var s in n.Softs)
+                {
+                    s.Share = s.Request * softRatio;
+                    softGrantedLocal += s.Share;
+                }
+                float softPullsGranted = 0f;
+                foreach (var c in n.Consumers)
+                {
+                    if (!IsActive(c) || c.SoftDesiredPull <= 0f) { c.SoftThrough = 0f; c.SoftPull = 0f; continue; }
+                    float grant = c.SoftDesiredPull * softRatio;
+                    float m = Mathf.Max(c.InputDrawFactor, 1f);
+                    // Quiescent rides the soft pull only when the rigid side carries none (the
+                    // backward pass made the same choice when it sized SoftDesiredPull).
+                    float q = c.DesiredPull > 0f ? 0f : c.UsedPower;
+                    float outThr = (grant - q) / m;
+                    if (outThr < 0f) outThr = 0f;
+                    float headroom = c.EffCap - c.Throughput;
+                    if (headroom < 0f) headroom = 0f;
+                    if (outThr > headroom) outThr = headroom;
+                    c.SoftThrough = outThr;
+                    c.SoftPull = outThr > 0f ? outThr * m + q : Mathf.Min(grant, q);
+                    softPullsGranted += c.SoftPull;
+                }
+                n.SoftGrantedLocal = softGrantedLocal;
+                n.SoftPullsGranted = softPullsGranted;
             }
         }
 

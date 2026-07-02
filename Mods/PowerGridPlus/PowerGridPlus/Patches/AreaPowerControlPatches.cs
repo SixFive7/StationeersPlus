@@ -126,7 +126,7 @@ namespace PowerGridPlus.Patches
                     // Passthrough draw on the input network. Vanilla bills it from _powerProvided, the
                     // accumulator filled during the PREVIOUS tick's ApplyState, so it lags one tick. The
                     // allocator sizes upstream supply to the APC's CURRENT passthrough, so we bill the
-                    // fresh figure here (Throughput + soft-charge grant-through); otherwise the input
+                    // fresh figure here (total passthrough: rigid + soft-charge flow); otherwise the input
                     // network is short by the one-tick demand change (the net-503288 flicker). An APC not
                     // in this tick's roster caches no value and bills 0 passthrough until the next tick
                     // includes it.
@@ -138,9 +138,9 @@ namespace PowerGridPlus.Patches
                 {
                     float chargeCap = ComputeChargeCap(__instance);
                     float chargePortion = Mathf.Min(chargeCap, __instance.Battery.PowerDelta);
-                    // Elastic charge (POWER.md §7.5 / §9.5): the surplus walk allocates the APC's
-                    // internal-cell charge a per-tick share; only the CHARGE portion caps to it, the
-                    // passthrough (_powerProvided) stays rigid.
+                    // Soft charge (POWER.md §7.5): the allocator grants the APC's internal-cell charge
+                    // a per-tick share; only the CHARGE portion caps to it, the passthrough stays as
+                    // billed above.
                     if (chargePortion > 0f && SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var share))
                         chargePortion = Mathf.Min(chargePortion, share);
                     usedPower += chargePortion;
@@ -208,7 +208,7 @@ namespace PowerGridPlus.Patches
                 __result = maxVoltage;
 
             // Elastic supply (POWER.md §7.3.0.1): vanilla AvailablePower bundles passthrough + cell,
-            // so the allocator writes the APC's share as committed passthrough + soft grant-through +
+            // so the allocator writes the APC's share as total committed passthrough (rigid + soft) +
             // the cell's elastic discharge share. Stale share = float.MaxValue (vanilla fallback).
             __result = Mathf.Min(__result, SoftSupplyShareCache.GetShare(__instance.ReferenceId));
         }

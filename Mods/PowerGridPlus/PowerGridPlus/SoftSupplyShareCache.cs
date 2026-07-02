@@ -14,7 +14,7 @@ namespace PowerGridPlus
     ///     invalidation. Stale entries from a cable break or supplier reassignment age out naturally.</para>
     ///
     ///     <para>Populated every tick by PowerAllocator's elastic pass (step 4). For APCs the stored
-    ///     share is passthrough + grant-through + cell share, because the APC's GetGeneratedPower
+    ///     share is total passthrough (rigid + soft) + cell share, because the APC's GetGeneratedPower
     ///     surface bundles passthrough with the cell (vanilla AvailablePower).</para>
     /// </summary>
     internal static class SoftSupplyShareCache

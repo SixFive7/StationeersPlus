@@ -104,10 +104,10 @@ namespace PowerGridPlus.Patches
             __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: false);
             if (Settings.EnableBatteryLimits.Value)
                 __result = Mathf.Min(__result, EffectiveChargeCap(__instance));
-            // Elastic charge demand (POWER.md §7.4 / §9.5): the surplus walk allocates each battery a
-            // per-tick charge share; the reported demand caps to it so vanilla never sees soft demand
-            // beyond what the grid's surplus covers. Falls back to the rate-capped value when no fresh
-            // share exists (first ticks after load).
+            // Soft charge demand (POWER.md §7.4): the allocator grants each battery a per-tick charge
+            // share; the reported demand caps to it so vanilla never sees soft demand beyond what the
+            // grid's firm residual covers. Falls back to the rate-capped value when no fresh share
+            // exists (first ticks after load).
             if (__result > 0f && SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var share))
                 __result = Mathf.Min(__result, share);
         }

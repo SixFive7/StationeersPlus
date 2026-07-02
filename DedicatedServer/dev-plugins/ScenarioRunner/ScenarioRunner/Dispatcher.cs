@@ -278,6 +278,10 @@ namespace ScenarioRunner
                     Scenario_Pgp2CycleFreeze();
                     return;
 
+                case "pgp-rearch-suite":
+                    Scenario_PgpRearchSuite();
+                    return;
+
                 case "pgp-atomic-all":
                     // Runs the synthetic probes one-shot (internally gated)
                     // PLUS the multi-tick live trace against Luna.save. Both

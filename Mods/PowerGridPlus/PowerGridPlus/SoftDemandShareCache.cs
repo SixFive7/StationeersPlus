@@ -3,10 +3,10 @@ using System.Collections.Concurrent;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Per-soft-demander charge share (Watts) the allocator's surplus walk decides each tick for
-    ///     batteries / APCs / rocket umbilicals (POWER.md §9 / POWERTODO 3). The soft-demand
+    ///     Per-soft-demander charge share (Watts) the allocator's forward sweep grants each tick for
+    ///     batteries / APCs / rocket umbilicals (POWER.md §7.4 / POWERTODO 3). The soft-demand
     ///     <c>GetUsedPower</c> postfixes cap the reported charge demand to this allocated share so a battery
-    ///     charges only its fair slice of the input network's surplus.
+    ///     charges only its fair slice of the input network's firm residual.
     ///
     ///     <para>Freshness-stamped, in-memory only, self-cleaning: entries carry the tick they were
     ///     written; a read older than one tick is distrusted and falls back to vanilla. The one-tick

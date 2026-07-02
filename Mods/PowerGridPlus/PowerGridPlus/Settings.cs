@@ -60,6 +60,9 @@ namespace PowerGridPlus
         internal static ConfigEntry<int> RocketUmbilicalDischargeRate;
         internal static ConfigEntry<bool> EnableUmbilicalLogicPassthrough;
 
+        // --- Server - Diagnostics ---
+        internal static ConfigEntry<bool> EnableConservationCheck;
+
         // --- Server - Emergency Lights ---
         internal static ConfigEntry<bool> EnableEmergencyLights;
         internal static ConfigEntry<string> EmergencyLightPrefabs;
@@ -292,6 +295,16 @@ namespace PowerGridPlus
                      "the same. Bridging requires the pair to be docked (connected); an undocked umbilical bridges nothing. " +
                      "Both halves default to mode 1. Per-device mode is persisted across save / load. When this master is " +
                      "false, the umbilical carries no logic regardless of per-device mode.", 40));
+
+            // --- Server - Diagnostics ---
+            EnableConservationCheck = config.Bind("Server - Diagnostics", "Enable Conservation Check", true,
+                Desc("(Server-authoritative) When true, the power allocator audits its own decisions every tick: per " +
+                     "cable network, the granted inflow (generators, contributor throughput, battery discharge) must " +
+                     "match the granted outflow (loads served, storage charge, contributor draws) within half a Watt, " +
+                     "and every transformer / wireless pair / APC must bill its input exactly what it passes downstream " +
+                     "plus its own quiescent draw. A violation logs a warning with a per-component breakdown, throttled " +
+                     "to once per network per five minutes. Violations indicate a mod bug, not a base problem; the " +
+                     "check costs a few microseconds per tick, so leave it on unless chasing maximum performance.", 10));
 
             // --- Server - Emergency Lights ---
             EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,
