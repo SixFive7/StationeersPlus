@@ -146,6 +146,10 @@ namespace ScenarioRunner
                         var hbsField = patchType.GetField("HandleButtonSettingMethod",
                             BindingFlags.NonPublic | BindingFlags.Static);
                         var savedHbs = hbsField?.GetValue(null);
+                        // InteractWithPatch's first line is `if (!ShedSettingsSync.Effective)
+                        // return true;` -- with the server cfg toggle off, every button drive
+                        // below is a silent no-op. Pin the toggle for the probe window.
+                        var restoreShedToggle = ForcePgpToggleOn(asm, "EnableTransformerShedding", "KBP");
                         try
                         {
                             setKnobMethodField?.SetValue(null, null);
@@ -224,9 +228,11 @@ namespace ScenarioRunner
                         finally
                         {
                             // Restore SetKnobMethod and HandleButtonSettingMethod resolution so
-                            // other scenarios + production code see the real path.
+                            // other scenarios + production code see the real path, and put the
+                            // shedding toggle back to the cfg value.
                             setKnobMethodField?.SetValue(null, savedSetKnob);
                             hbsField?.SetValue(null, savedHbs);
+                            restoreShedToggle();
                         }
                     }
                 }
@@ -245,8 +251,9 @@ namespace ScenarioRunner
         // Verifies BrownoutFlashBehaviour attach mechanic + colour
         // constants. Cannot validate visual rendering headlessly, but
         // can confirm every transformer has the component, the renderer
-        // discovery succeeded, the orange FlashColor constant is right,
-        // and the Harmony attach patch is registered.
+        // discovery succeeded, the per-fault OrangeFlashColor /
+        // RedFlashColor constants are right, and the Harmony attach
+        // patch is registered.
         // ============================================================
         private static bool _fpFired;
 
@@ -275,21 +282,30 @@ namespace ScenarioRunner
                     return;
                 }
 
-                // ---- P1: FlashColor constant ----
-                var flashColorField = flashType.GetField("FlashColor",
+                // ---- P1: flash colour constants ----
+                // The single FlashColor const was split when the flash gained
+                // per-fault colours (FaultHover §11.5 precedence): shed pulses
+                // OrangeFlashColor #ffa500 = (1, 165/255, 0); every non-shed fault
+                // (overload / cycle / variable-voltage) pulses RedFlashColor
+                // #ff2626 = (1, 0.15, 0.15). Both are internal static readonly on
+                // BrownoutFlashBehaviour.
+                var orangeField = flashType.GetField("OrangeFlashColor",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                Color flashColor = flashColorField != null ? (Color)flashColorField.GetValue(null) : Color.black;
+                var redField = flashType.GetField("RedFlashColor",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                Color orange = orangeField != null ? (Color)orangeField.GetValue(null) : Color.black;
+                Color red = redField != null ? (Color)redField.GetValue(null) : Color.black;
                 totalChecks++;
-                // Source code uses Color(1f, 0.55f, 0f) commented as "#ffa500".
-                // The actual value is approximately #FF8C00 (DarkOrange). Both look
-                // orange in-game; the constant just needs to be in the orange band:
-                // R = 1, G in [0.4, 0.7], B = 0.
-                if (Math.Abs(flashColor.r - 1f) < 0.01f
-                    && flashColor.g >= 0.4f && flashColor.g <= 0.7f
-                    && flashColor.b < 0.01f)
-                { _log?.LogInfo($"[ScenarioRunner] FP P1 PASS: FlashColor=({flashColor.r:F2},{flashColor.g:F2},{flashColor.b:F2}) (orange band)."); passCount++; }
+                bool orangeOk = Math.Abs(orange.r - 1f) < 0.01f
+                    && orange.g >= 0.4f && orange.g <= 0.7f
+                    && orange.b < 0.01f;                          // #ffa500 -> (1, 0.647, 0)
+                bool redOk = Math.Abs(red.r - 1f) < 0.01f
+                    && Math.Abs(red.g - 0.15f) < 0.02f
+                    && Math.Abs(red.b - 0.15f) < 0.02f;           // #ff2626 -> (1, 0.149, 0.149)
+                if (orangeOk && redOk)
+                { _log?.LogInfo($"[ScenarioRunner] FP P1 PASS: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) in the shed orange band, RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) matches #ff2626."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] FP P1 FAIL: FlashColor=({flashColor.r:F2},{flashColor.g:F2},{flashColor.b:F2}) not in expected orange band (R=1, G~0.5, B=0)."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] FP P1 FAIL: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) (expected #ffa500 shed / #ff2626 non-shed per-fault split)."); failCount++; }
 
                 // ---- P2: FlashHz constant ----
                 var flashHzField = flashType.GetField("FlashHz",
@@ -358,9 +374,11 @@ namespace ScenarioRunner
         // ============================================================
         // Scenario: pgp-priority-shedding-hover-probe (C-d)
         // ------------------------------------------------------------
-        // Drives the postfix on Thing.GetPassiveTooltip by forcing a
-        // shed state on a sample transformer, calling GetPassiveTooltip,
-        // and checking the Extended field for the expected colored text.
+        // Drives the GetPassiveTooltip fault-hover postfix (now
+        // FaultHoverPatches.Postfix, attached per-override via
+        // TargetMethods) by forcing a shed state on a sample transformer,
+        // calling GetPassiveTooltip, and checking the Extended field for
+        // the expected colored text.
         // ============================================================
         private static bool _hpFired;
 
@@ -476,20 +494,27 @@ namespace ScenarioRunner
                 _log?.LogInfo($"[ScenarioRunner] HP P3 pre-call: ElectricityTickCounter.CurrentTick={currentTickAtCall} IsShedding(ref,currentTick)={sheddingAtCall}");
                 object ttShed = gptOnThing.Invoke(sampleT, gptArgs);
                 string extendedShed = ReflectGetExtended(ttShed) ?? string.Empty;
-                bool hasShedLine = extendedShed.IndexOf("Shedding (Priority", StringComparison.OrdinalIgnoreCase) >= 0;
+                // Shed line format is owned by FaultHover.TryGetLine (single source of
+                // truth for all fault hovers): "<color=#ffa500>(Shedding: Insufficient
+                // upstream supply! {seconds}s)</color>". The old "Shedding (Priority N)"
+                // wording was dropped in the FaultHover consolidation.
+                bool hasShedLine = extendedShed.IndexOf("(Shedding:", StringComparison.OrdinalIgnoreCase) >= 0;
                 bool hasOrange = extendedShed.IndexOf("#ffa500", StringComparison.OrdinalIgnoreCase) >= 0;
                 bool hasInsufficient = extendedShed.IndexOf("insufficient upstream supply", StringComparison.OrdinalIgnoreCase) >= 0;
                 totalChecks++;
                 if (hasShedLine && hasOrange && hasInsufficient)
-                { _log?.LogInfo($"[ScenarioRunner] HP P3 PASS: tooltip Extended contains 'Shedding (Priority' + '#ffa500' + 'insufficient upstream supply'. len={extendedShed.Length}"); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] HP P3 PASS: tooltip Extended contains '(Shedding:' + '#ffa500' + 'insufficient upstream supply'. len={extendedShed.Length}"); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P3 FAIL: hasShedLine={hasShedLine} hasOrange={hasOrange} hasInsufficient={hasInsufficient}. Extended={Truncate(extendedShed, 300)}. (If P3 fails but P3b passes, the postfix logic is correct but virtual dispatch bypasses the Thing-level patch -- fix PGP's TransformerHoverErrorPatches to target the actually-overriding class)."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P3 FAIL: hasShedLine={hasShedLine} hasOrange={hasOrange} hasInsufficient={hasInsufficient}. Extended={Truncate(extendedShed, 300)}. (If P3 fails but P3b passes, the postfix logic is correct but virtual dispatch bypasses the patched override -- fix PGP's FaultHoverPatches.TargetMethods to cover the actually-overriding class)."); failCount++; }
 
                 // ---- P3b: postfix logic invoked DIRECTLY with a synthetic baseline PassiveTooltip ----
                 // Decouples postfix-correctness from postfix-reachability so we can tell whether
                 // P3 failure is a logic bug or a virtual-dispatch reachability bug.
-                var postfixType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
-                var postfixMethod = postfixType?.GetMethod("Thing_GetPassiveTooltip_Postfix",
+                // The GetPassiveTooltip postfix moved in the rearchitecture: it now lives on
+                // FaultHoverPatches.Postfix (multi-target TargetMethods over the seven overriding
+                // classes); TransformerHoverErrorPatches kept only the GetContextualName postfix.
+                var postfixType = asm.GetType("PowerGridPlus.Patches.FaultHoverPatches");
+                var postfixMethod = postfixType?.GetMethod("Postfix",
                     BindingFlags.Public | BindingFlags.Static);
                 if (postfixMethod != null)
                 {
@@ -523,7 +548,7 @@ namespace ScenarioRunner
                     object[] pArgs = new object[] { sampleT, ptInst };
                     postfixMethod.Invoke(null, pArgs);
                     string after = ReflectGetExtended(pArgs[1]) ?? string.Empty;
-                    bool hasShed = after.IndexOf("Shedding (Priority", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool hasShed = after.IndexOf("(Shedding:", StringComparison.OrdinalIgnoreCase) >= 0;
                     totalChecks++;
                     if (hasShed)
                     { _log?.LogInfo($"[ScenarioRunner] HP P3b PASS: postfix invoked directly appends shed line to Extended. len={after.Length}"); passCount++; }
@@ -574,6 +599,55 @@ namespace ScenarioRunner
         {
             if (string.IsNullOrEmpty(s)) return s ?? "";
             return s.Length <= n ? s : s.Substring(0, n) + "...";
+        }
+
+        // ============================================================
+        // Probe fixture: pin a PGP master toggle ON for one probe.
+        // ------------------------------------------------------------
+        // KBP / LP / OP assert enabled-mode behaviour of patches that
+        // early-out when ShedSettingsSync.Effective / OverloadSettingsSync
+        // .Effective is false. On a server, Effective reads the local
+        // BepInEx ConfigEntry, and the dedi's persisted cfg can carry the
+        // toggle off (observed 2026-07-02: net.powergridplus.cfg had
+        // "Enable Transformer Shedding = false" and "Enable Transformer
+        // Overload Protection = false", which silently turned the whole
+        // knob / labeller / logic probe family into vanilla no-ops).
+        // Pin the entry to true for the probe and restore the original
+        // value in the caller's finally. BepInEx SaveOnConfigSet may
+        // flush the flip to disk; the restore write flushes it back, so
+        // the cfg file is net-unchanged. Returns a never-null restore
+        // delegate (no-op when the toggle was already on or unresolvable).
+        // ============================================================
+        private static Action ForcePgpToggleOn(Assembly asm, string settingsFieldName, string probeTag)
+        {
+            try
+            {
+                var settingsType = asm.GetType("PowerGridPlus.Settings");
+                var entryField = settingsType?.GetField(settingsFieldName,
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                object entry = entryField?.GetValue(null);
+                var valueProp = entry?.GetType().GetProperty("Value",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (valueProp == null)
+                {
+                    _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: Settings.{settingsFieldName} not resolvable; probe runs against the live cfg value.");
+                    return () => { };
+                }
+                bool original = (bool)valueProp.GetValue(entry);
+                if (original) return () => { };
+                _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: {settingsFieldName} is OFF in the server cfg; force-enabling for this probe, restoring after.");
+                valueProp.SetValue(entry, true);
+                return () =>
+                {
+                    try { valueProp.SetValue(entry, false); }
+                    catch (Exception e) { _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: toggle restore failed: {e.GetBaseException().Message}"); }
+                };
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: ForcePgpToggleOn threw: {e.GetBaseException().Message}");
+                return () => { };
+            }
         }
 
         // ============================================================
@@ -631,6 +705,13 @@ namespace ScenarioRunner
                     _log?.LogWarning("[ScenarioRunner] LP SKIP: no transformer in scene.");
                     return;
                 }
+
+                // Both prefixes early-out when ShedSettingsSync.Effective is false
+                // (feature master toggle); pin the toggle for the probe window so the
+                // swap logic itself is what gets tested.
+                var restoreShedToggle = ForcePgpToggleOn(asm, "EnableTransformerShedding", "LP");
+                try
+                {
 
                 // ---- P1: Set_Prefix on Transformer with Setting -> swap to Priority ----
                 object[] args = new object[] { sampleT, LogicType.Setting };
@@ -693,6 +774,12 @@ namespace ScenarioRunner
                     _log?.LogWarning("[ScenarioRunner] LP P4 SKIP: no non-Transformer ISetable in scene (APC etc.). ISetable interface lookup also exercised.");
                 }
 
+                }
+                finally
+                {
+                    restoreShedToggle();
+                }
+
                 _log?.LogInfo($"[ScenarioRunner] LP END pass={passCount} fail={failCount} total={totalChecks}");
             }
             catch (Exception e)
@@ -705,10 +792,11 @@ namespace ScenarioRunner
         // Scenario: pgp-priority-shedding-mp-probe (C-f)
         // ------------------------------------------------------------
         // Verifies the multiplayer-sync code paths that can be exercised
-        // in-process: ShedStateMessage.Process host short-circuit, the
-        // BrownoutRegistry client-shed state machine, and a full
-        // SerializeJoinSuffix -> DeserializeJoinSuffix round-trip via
-        // a MemoryStream-backed RocketBinaryWriter/Reader.
+        // in-process: FaultRegistrySnapshotMessage.Process host
+        // short-circuit, the BrownoutRegistry client-mirror state
+        // machine, and a full SerializeJoinSuffix ->
+        // DeserializeJoinSuffix round-trip via a MemoryStream-backed
+        // RocketBinaryWriter/Reader.
         //
         // Cross-process multiplayer delivery cannot be tested headless
         // from a single dedi server, but the message-handler / state
@@ -732,51 +820,63 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] MP no PGP assembly"); return; }
 
-                var shedMsgType = asm.GetType("PowerGridPlus.ShedStateMessage");
+                // The per-transition ShedStateMessage / OverloadStateMessage pair was
+                // replaced by per-tick FULL registry snapshots (POWER.md §13 heartbeat
+                // model): FaultRegistrySnapshotMessage carries (refId, remainingTicks)
+                // entries per registry Kind.
+                var faultMsgType = asm.GetType("PowerGridPlus.FaultRegistrySnapshotMessage");
                 var prioMsgType = asm.GetType("PowerGridPlus.PriorityMessage");
                 var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                if (shedMsgType == null || prioMsgType == null || brownoutType == null || priorityStoreType == null)
+                if (faultMsgType == null || prioMsgType == null || brownoutType == null || priorityStoreType == null)
                 {
-                    _log?.LogError("[ScenarioRunner] MP FAIL: type lookup failed.");
+                    _log?.LogError($"[ScenarioRunner] MP FAIL: type lookup FM={faultMsgType != null} PM={prioMsgType != null} BR={brownoutType != null} PS={priorityStoreType != null}.");
                     failCount++; return;
                 }
 
                 var setClientShedding = brownoutType.GetMethod("SetClientShedding",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var clientIsShedding = brownoutType.GetMethod("ClientIsShedding",
+                // ClientIsShedding was folded into the peer-aware IsShedding during the
+                // rearchitecture; on a HOST IsShedding reads the host lockout dict, so
+                // the client mirror (_clientShedding -> _clientExpiryMs, now expiry-
+                // stamped against MonotonicClock) is asserted directly.
+                var clientMirrorField = brownoutType.GetField("_clientExpiryMs",
                     BindingFlags.NonPublic | BindingFlags.Static);
+                var clientMirror = clientMirrorField?.GetValue(null) as System.Collections.IDictionary;
 
                 long testRef = 7777777777L;
 
-                // ---- P1: BrownoutRegistry client-shed state machine ----
+                // ---- P1: BrownoutRegistry client-mirror state machine ----
                 setClientShedding?.Invoke(null, new object[] { testRef, true });
-                bool after1 = (bool)(clientIsShedding?.Invoke(null, new object[] { testRef }) ?? false);
+                bool after1 = clientMirror != null && clientMirror.Contains(testRef);
                 setClientShedding?.Invoke(null, new object[] { testRef, false });
-                bool after2 = (bool)(clientIsShedding?.Invoke(null, new object[] { testRef }) ?? true);
+                bool after2 = clientMirror != null && clientMirror.Contains(testRef);
                 totalChecks++;
-                if (after1 && !after2)
-                { _log?.LogInfo($"[ScenarioRunner] MP P1 PASS: SetClientShedding(true)->{after1} then SetClientShedding(false)->{after2} (state machine works)."); passCount++; }
+                if (clientMirror != null && after1 && !after2)
+                { _log?.LogInfo($"[ScenarioRunner] MP P1 PASS: SetClientShedding(true) inserts the _clientExpiryMs mirror entry ({after1}), SetClientShedding(false) removes it ({after2})."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] MP P1 FAIL: state machine inconsistent. trueRead={after1} falseRead={after2}."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] MP P1 FAIL: state machine inconsistent. mirrorDict={clientMirror != null} trueRead={after1} falseRead={after2}."); failCount++; }
 
-                // ---- P2: ShedStateMessage.Process on host short-circuits ----
-                // Host's NetworkManager.IsServer=true, so Process must NOT modify _clientShedding.
+                // ---- P2: FaultRegistrySnapshotMessage.Process on host short-circuits ----
+                // Host's NetworkManager.IsServer=true, so Process must NOT touch the client mirror.
                 long testRef2 = 8888888888L;
                 setClientShedding?.Invoke(null, new object[] { testRef2, false });    // baseline
-                var msg = Activator.CreateInstance(shedMsgType);
-                shedMsgType.GetField("DeviceId")?.SetValue(msg, testRef2);
-                shedMsgType.GetField("Shedding")?.SetValue(msg, true);
-                var processMethod = shedMsgType.GetMethod("Process");
+                var msg = Activator.CreateInstance(faultMsgType);
+                byte kindShed = (byte)(faultMsgType.GetField("KindShed",
+                    BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ?? (byte)0);
+                faultMsgType.GetField("Kind")?.SetValue(msg, kindShed);
+                faultMsgType.GetField("Entries")?.SetValue(msg,
+                    new List<KeyValuePair<long, int>> { new KeyValuePair<long, int>(testRef2, 120) });
+                var processMethod = faultMsgType.GetMethod("Process");
                 processMethod?.Invoke(msg, new object[] { 0L });
-                bool afterProcess = (bool)(clientIsShedding?.Invoke(null, new object[] { testRef2 }) ?? false);
+                bool afterProcess = clientMirror != null && clientMirror.Contains(testRef2);
                 totalChecks++;
                 if (!afterProcess && NetworkManager.IsServer)
-                { _log?.LogInfo($"[ScenarioRunner] MP P2 PASS: ShedStateMessage.Process(0) short-circuited on host (IsServer=true); ClientIsShedding still false."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] MP P2 PASS: FaultRegistrySnapshotMessage(KindShed).Process(0) short-circuited on host (IsServer=true); client mirror untouched."); passCount++; }
                 else if (afterProcess && !NetworkManager.IsServer)
-                { _log?.LogInfo($"[ScenarioRunner] MP P2 NOTE: running as non-server peer; Process correctly set ClientIsShedding=true."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] MP P2 NOTE: running as non-server peer; Process correctly applied the snapshot to the client mirror."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] MP P2 FAIL: IsServer={NetworkManager.IsServer} but afterProcess={afterProcess}; expected host short-circuit."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] MP P2 FAIL: IsServer={NetworkManager.IsServer} but mirrorTouched={afterProcess}; expected host short-circuit."); failCount++; }
                 setClientShedding?.Invoke(null, new object[] { testRef2, false });    // cleanup
 
                 // ---- P3: PriorityMessage.Process host short-circuit (re-verify PSP P8) ----
@@ -829,32 +929,43 @@ namespace ScenarioRunner
                     return false;
                 }
 
-                // Find live Plugin instance via BepInEx Chainloader.
-                object pluginInstance = null;
-                try
+                // Find the live Plugin instance. The mod loads EITHER via BepInEx
+                // proper (install/BepInEx/plugins -> Chainloader.PluginInfos) OR via
+                // StationeersLaunchPad from data/mods (e.g. Local_PowerGridPlus),
+                // where the plugin NEVER enters Chainloader.PluginInfos:
+                // StationeersLaunchPad's BepInExEntrypoint does its own
+                // parent.AddComponent(Type) and keeps the component in the public
+                // BehaviourEntrypoint<BaseUnityPlugin>.Instance field. Three tiers:
+                //   1. a static self-reference on the plugin type (PGP has none
+                //      today; cheap future-proofing),
+                //   2. BepInEx Chainloader.PluginInfos["net.powergridplus"].Instance,
+                //   3. StationeersLaunchPad ModLoader.LoadedMods[].Entrypoints[].Instance.
+                // No UnityEngine.Object.FindObjectsOfType here: forbidden off the
+                // main thread (Research/Patterns/ThingEnumerationOffMainThread.md).
+                object pluginInstance = FindPluginInstanceStatic(pluginType);
+                string instanceTier = pluginInstance != null ? "static-member" : null;
+                if (pluginInstance == null)
                 {
-                    var chainloaderType = AppDomain.CurrentDomain.GetAssemblies()
-                        .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
-                        .FirstOrDefault(t => t.FullName == "BepInEx.Bootstrap.Chainloader");
-                    var pluginInfosProp = chainloaderType?.GetProperty("PluginInfos",
-                        BindingFlags.Public | BindingFlags.Static);
-                    var pluginInfos = pluginInfosProp?.GetValue(null) as System.Collections.IDictionary;
-                    object info = null;
-                    if (pluginInfos != null && pluginInfos.Contains("net.powergridplus"))
-                        info = pluginInfos["net.powergridplus"];
-                    pluginInstance = info?.GetType().GetProperty("Instance")?.GetValue(info);
+                    pluginInstance = FindPluginInstanceChainloader("net.powergridplus");
+                    if (pluginInstance != null) instanceTier = "BepInEx Chainloader";
                 }
-                catch (Exception e)
+                if (pluginInstance == null)
                 {
-                    _log?.LogWarning($"[ScenarioRunner] MP P4 NOTE: Chainloader.PluginInfos lookup threw: {e.GetBaseException().Message}");
+                    pluginInstance = FindPluginInstanceLaunchPad(pluginType);
+                    if (pluginInstance != null) instanceTier = "StationeersLaunchPad ModLoader";
                 }
 
                 if (pluginInstance == null)
                 {
-                    _log?.LogError("[ScenarioRunner] MP P4 FAIL: could not locate live Plugin instance via Chainloader.");
-                    failCount++; totalChecks++;
+                    // Environmental, not a mod defect: which registry holds the
+                    // instance depends on the deploy path (BepInEx/plugins vs
+                    // data/mods). If all three tiers miss, the loader registry shape
+                    // has drifted; retarget FindPluginInstanceLaunchPad rather than
+                    // failing the suite on a deploy-layout condition.
+                    _log?.LogWarning("[ScenarioRunner] MP P4 SKIP: live Plugin instance not found via static-member, BepInEx Chainloader, or StationeersLaunchPad ModLoader tiers (on this server PowerGridPlus loads from data/mods via StationeersLaunchPad, so Chainloader alone can never see it). Join-suffix round-trip not exercised.");
                     return false;
                 }
+                _log?.LogInfo($"[ScenarioRunner] MP P4 plugin instance resolved via {instanceTier}: {pluginInstance.GetType().FullName}");
 
                 // Find the Plugin's SerializeJoinSuffix / DeserializeJoinSuffix methods.
                 var serializeMethod = pluginType.GetMethod("SerializeJoinSuffix",
@@ -974,6 +1085,117 @@ namespace ScenarioRunner
                 failCount++; totalChecks++;
                 return false;
             }
+        }
+
+        // ---- Plugin-instance resolution tiers (MP P4) ----
+
+        // Tier 1: classic `public static Plugin Instance` self-reference. PGP's
+        // Plugin currently exposes only the static MOD / Log members, so this
+        // tier finds nothing today; scanning keeps the probe working if a static
+        // self-reference is ever added.
+        private static object FindPluginInstanceStatic(Type pluginType)
+        {
+            try
+            {
+                foreach (var f in pluginType.GetFields(
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                {
+                    if (!pluginType.IsAssignableFrom(f.FieldType)) continue;
+                    var v = f.GetValue(null);
+                    if (v != null && pluginType.IsInstanceOfType(v)) return v;
+                }
+                foreach (var p in pluginType.GetProperties(
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                {
+                    if (!pluginType.IsAssignableFrom(p.PropertyType)) continue;
+                    if (p.GetIndexParameters().Length != 0) continue;
+                    object v = null;
+                    try { v = p.GetValue(null); } catch { }
+                    if (v != null && pluginType.IsInstanceOfType(v)) return v;
+                }
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] MP P4 NOTE: static-member tier threw: {e.GetBaseException().Message}");
+            }
+            return null;
+        }
+
+        // Tier 2: BepInEx Chainloader. Only populated for plugins BepInEx itself
+        // chainloaded from install/BepInEx/plugins; a StationeersLaunchPad-loaded
+        // mod (data/mods) never appears here.
+        private static object FindPluginInstanceChainloader(string pluginGuid)
+        {
+            try
+            {
+                var chainloaderType = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+                    .FirstOrDefault(t => t.FullName == "BepInEx.Bootstrap.Chainloader");
+                var pluginInfosProp = chainloaderType?.GetProperty("PluginInfos",
+                    BindingFlags.Public | BindingFlags.Static);
+                var pluginInfos = pluginInfosProp?.GetValue(null) as System.Collections.IDictionary;
+                object info = null;
+                if (pluginInfos != null && pluginInfos.Contains(pluginGuid))
+                    info = pluginInfos[pluginGuid];
+                return info?.GetType().GetProperty("Instance")?.GetValue(info);
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] MP P4 NOTE: Chainloader tier threw: {e.GetBaseException().Message}");
+                return null;
+            }
+        }
+
+        // Tier 3: StationeersLaunchPad load path (data/mods/Local_* / Workshop_*).
+        // Registry shape confirmed against the dedi's shipped StationeersLaunchPad
+        // (decompile .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs):
+        //   - StationeersLaunchPad.Loading.ModLoader.LoadedMods is
+        //     `public static readonly List<LoadedMod>` (L18552);
+        //   - LoadedMod.Entrypoints is `public List<ModEntrypoint>` (L16791);
+        //   - BepInExEntrypoint : BehaviourEntrypoint<BaseUnityPlugin> stores the
+        //     AddComponent'ed plugin in the base's `public T Instance` field
+        //     (Instantiate at L18663, Instance at L19082). Public base fields are
+        //     visible through derived-type GetField.
+        // Pure managed field reads; safe from the sim worker thread (no Unity API,
+        // no FindObjectsOfType).
+        private static object FindPluginInstanceLaunchPad(Type pluginType)
+        {
+            try
+            {
+                var modLoaderType = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+                    .FirstOrDefault(t => t.FullName == "StationeersLaunchPad.Loading.ModLoader"
+                                      || (t.Name == "ModLoader"
+                                          && t.Assembly.GetName().Name == "StationeersLaunchPad"));
+                var loadedModsField = modLoaderType?.GetField("LoadedMods",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                var loadedMods = loadedModsField?.GetValue(null) as System.Collections.IEnumerable;
+                if (loadedMods == null) return null;
+                foreach (var mod in loadedMods)
+                {
+                    if (mod == null) continue;
+                    var entrypointsField = mod.GetType().GetField("Entrypoints",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    var entrypoints = entrypointsField?.GetValue(mod) as System.Collections.IEnumerable;
+                    if (entrypoints == null) continue;
+                    foreach (var entry in entrypoints)
+                    {
+                        if (entry == null) continue;
+                        var et = entry.GetType();
+                        object inst =
+                            (et.GetField("Instance",
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(entry))
+                            ?? (et.GetProperty("Instance",
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(entry));
+                        if (inst != null && pluginType.IsInstanceOfType(inst)) return inst;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] MP P4 NOTE: StationeersLaunchPad tier threw: {e.GetBaseException().Message}");
+            }
+            return null;
         }
 
         // ============================================================
@@ -1967,22 +2189,22 @@ namespace ScenarioRunner
 
                 var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
                 var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
-                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
+                // TransformerAllocator was renamed to PowerAllocator when storage
+                // charge and the bridge adapters became first-class allocator flows.
+                var allocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
                 var shedSyncType = asm.GetType("PowerGridPlus.ShedSettingsSync");
                 var overloadSyncType = asm.GetType("PowerGridPlus.OverloadSettingsSync");
                 if (brownoutType == null || allocatorType == null || tickCounterType == null)
                 {
-                    _log?.LogError("[ScenarioRunner] STR FAIL: type lookup failed.");
+                    _log?.LogError($"[ScenarioRunner] STR FAIL: type lookup BR={brownoutType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
                     _stTickCount = _stMaxTicks; return;
                 }
 
                 var lockoutDictField = brownoutType.GetField("_lockoutUntilTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var overloadLockoutDictField = overloadType?.GetField("_lockoutUntilTick",
-                    BindingFlags.NonPublic | BindingFlags.Static);
-                var clientShedDictField = brownoutType.GetField("_clientShedding",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var currentTickProp = tickCounterType.GetProperty("CurrentTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
@@ -2183,8 +2405,9 @@ namespace ScenarioRunner
         //   P4: BrownoutRegistry.ShortfallTolerance is GONE.
         //   P5: NoteShed -> instant lockout; IsLockedOut + IsShedding true.
         //   P6: ClearAll drops lockout.
-        //   P7: TransformerAllocator.RunAtomic exists.
-        //   P8: Old TransformerAllocator API (RunDetection, InvalidateAll,
+        //   P7: PowerAllocator.RunAtomic exists (TransformerAllocator was
+        //       renamed to PowerAllocator in the rearchitecture).
+        //   P8: Old allocator API (RunDetection, InvalidateAll,
         //       GetAllocatedSupply, TrimCache) is GONE.
         // ============================================================
         private static bool _atomicFired;
@@ -2199,7 +2422,9 @@ namespace ScenarioRunner
                 _log?.LogInfo("[ScenarioRunner] AP START atomic-probe");
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
-                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
+                // TransformerAllocator was renamed to PowerAllocator when storage
+                // charge and the bridge adapters became first-class allocator flows.
+                var allocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
                 var atomicPatchType = asm.GetType("PowerGridPlus.Patches.AtomicElectricityTickPatch");
                 var oldTickPatchType = asm.GetType("PowerGridPlus.Patches.ElectricityTickPatches");
@@ -2217,6 +2442,16 @@ namespace ScenarioRunner
                 { _log?.LogInfo("[ScenarioRunner] AP P2 PASS: legacy ElectricityTickPatches deleted."); pass++; }
                 else
                 { _log?.LogError("[ScenarioRunner] AP P2 FAIL: ElectricityTickPatches still present."); fail++; }
+
+                // Loud guard instead of an NRE on the next rename: everything below
+                // dereferences these three types.
+                if (brownoutType == null || allocatorType == null || tickCounterType == null)
+                {
+                    total++; fail++;
+                    _log?.LogError($"[ScenarioRunner] AP FAIL: type lookup BR={brownoutType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
+                    _log?.LogInfo($"[ScenarioRunner] AP END pass={pass} fail={fail} total={total}");
+                    return;
+                }
 
                 // P3: LockoutDurationTicks = 120.
                 var ldField = brownoutType.GetField("LockoutDurationTicks",
@@ -2273,12 +2508,12 @@ namespace ScenarioRunner
                 { _log?.LogError($"[ScenarioRunner] AP P6 FAIL: lockedAtBoundary={lockedAtBoundary} unlockedAfter={unlockedAfter}."); fail++; }
                 clearAll?.Invoke(null, null);
 
-                // P7: TransformerAllocator.RunAtomic present.
+                // P7: PowerAllocator.RunAtomic present.
                 var runAtomic = allocatorType.GetMethod("RunAtomic",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 total++;
                 if (runAtomic != null)
-                { _log?.LogInfo("[ScenarioRunner] AP P7 PASS: TransformerAllocator.RunAtomic exists."); pass++; }
+                { _log?.LogInfo("[ScenarioRunner] AP P7 PASS: PowerAllocator.RunAtomic exists."); pass++; }
                 else
                 { _log?.LogError("[ScenarioRunner] AP P7 FAIL: RunAtomic missing."); fail++; }
 
@@ -2323,17 +2558,29 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
                 var overloadSyncType = asm.GetType("PowerGridPlus.OverloadSettingsSync");
-                var overloadMsgType = asm.GetType("PowerGridPlus.OverloadStateMessage");
+                // The per-transition OverloadStateMessage was replaced by the per-tick
+                // full-registry FaultRegistrySnapshotMessage (Kind = KindOverload).
+                var faultMsgType = asm.GetType("PowerGridPlus.FaultRegistrySnapshotMessage");
                 var logicRegType = asm.GetType("PowerGridPlus.LogicTypeRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
                 var hoverPatchType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
 
                 // P1: types present.
                 total++;
-                if (overloadType != null && overloadSyncType != null && overloadMsgType != null)
-                { _log?.LogInfo("[ScenarioRunner] OP P1 PASS: OverloadRegistry + OverloadSettingsSync + OverloadStateMessage exist."); pass++; }
+                if (overloadType != null && overloadSyncType != null && faultMsgType != null)
+                { _log?.LogInfo("[ScenarioRunner] OP P1 PASS: OverloadRegistry + OverloadSettingsSync + FaultRegistrySnapshotMessage exist."); pass++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] OP P1 FAIL: type lookup OR={overloadType != null} OS={overloadSyncType != null} OM={overloadMsgType != null}"); fail++; }
+                { _log?.LogError($"[ScenarioRunner] OP P1 FAIL: type lookup OR={overloadType != null} OS={overloadSyncType != null} FM={faultMsgType != null}"); fail++; }
+
+                // Loud guard instead of an NRE / ArgumentNullException on the next
+                // rename: everything below dereferences these types.
+                if (overloadType == null || faultMsgType == null || logicRegType == null
+                    || tickCounterType == null || hoverPatchType == null)
+                {
+                    _log?.LogError($"[ScenarioRunner] OP FAIL: aborting, missing types (LR={logicRegType != null} TC={tickCounterType != null} HP={hoverPatchType != null}).");
+                    _log?.LogInfo($"[ScenarioRunner] OP END pass={pass} fail={fail} total={total}");
+                    return;
+                }
 
                 // P2: LockoutDurationTicks = 120.
                 var ldField = overloadType.GetField("LockoutDurationTicks",
@@ -2392,10 +2639,16 @@ namespace ScenarioRunner
                 { _log?.LogError($"[ScenarioRunner] OP P5 FAIL: Overloaded LogicType value = {(ushort)overloadedLogic}, expected 6580."); fail++; }
 
                 // P6: live transformer GetLogicValue for Overloaded.
+                // The Overloaded logic slot (TransformerPriorityLogicPatches) is gated on
+                // OverloadSettingsSync.Effective, which on a server reads the local cfg
+                // toggle; pin it for the probe window so the slot wiring itself is tested.
                 if (_transformers.Count == 0) RebuildCaches();
                 var sampleT = _transformers.FirstOrDefault(x => x != null);
                 if (sampleT != null)
                 {
+                    var restoreOverloadToggle = ForcePgpToggleOn(asm, "EnableTransformerOverloadProtection", "OP");
+                    try
+                    {
                     noteOverload?.Invoke(null, new object[] { sampleT.ReferenceId, tick });
                     double v = sampleT.GetLogicValue(overloadedLogic);
                     total++;
@@ -2404,7 +2657,9 @@ namespace ScenarioRunner
                     else
                     { _log?.LogError($"[ScenarioRunner] OP P6 FAIL: GetLogicValue(Overloaded)={v}, expected 1.0."); fail++; }
 
-                    // P7: hover text contains the overload phrase.
+                    // P7: hover text contains the overload phrase. Wording is owned by
+                    // FaultHover.OverloadClause and is per-device-type; a Transformer
+                    // reports "Downstream demand exceeds this transformer's limit!".
                     var hoverPostfix = hoverPatchType.GetMethod("GetContextualName_Postfix",
                         BindingFlags.Public | BindingFlags.Static);
                     var btn = sampleT.Interactables?.FirstOrDefault(x => x?.Action == InteractableType.OnOff);
@@ -2416,7 +2671,7 @@ namespace ScenarioRunner
                         string after = (string)args[2];
                         total++;
                         bool hasOverload = after.IndexOf("Overloaded:", StringComparison.OrdinalIgnoreCase) >= 0;
-                        bool hasLimit = after.IndexOf("exceeds transformer limit", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool hasLimit = after.IndexOf("exceeds this transformer's limit", StringComparison.OrdinalIgnoreCase) >= 0;
                         if (hasOverload && hasLimit)
                         { _log?.LogInfo($"[ScenarioRunner] OP P7 PASS: hover text appends overload phrase. after='{after}'"); pass++; }
                         else
@@ -2440,26 +2695,39 @@ namespace ScenarioRunner
                     { _log?.LogInfo("[ScenarioRunner] OP P9 PASS: Overloaded is CanLogicRead=true, CanLogicWrite=false (read-only)."); pass++; }
                     else
                     { _log?.LogError($"[ScenarioRunner] OP P9 FAIL: canR={canR} canW={canW}."); fail++; }
+                    }
+                    finally
+                    {
+                        restoreOverloadToggle();
+                    }
                 }
 
-                // P10: OverloadStateMessage host short-circuits Process.
+                // P10: FaultRegistrySnapshotMessage(KindOverload) host short-circuits
+                // Process. ClientIsOverloaded was folded into the peer-aware
+                // IsOverloaded; on a HOST that reads the host lockout dict, so the
+                // client mirror (_clientExpiryMs) is asserted directly.
                 long testRef = 33445566L;
                 var setClientOverloaded = overloadType.GetMethod("SetClientOverloaded",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var clientIsOverloaded = overloadType.GetMethod("ClientIsOverloaded",
+                var overloadMirrorField = overloadType.GetField("_clientExpiryMs",
                     BindingFlags.NonPublic | BindingFlags.Static);
+                var overloadMirror = overloadMirrorField?.GetValue(null) as System.Collections.IDictionary;
                 setClientOverloaded?.Invoke(null, new object[] { testRef, false });
-                var msg = Activator.CreateInstance(overloadMsgType);
-                overloadMsgType.GetField("DeviceId")?.SetValue(msg, testRef);
-                overloadMsgType.GetField("Overloaded")?.SetValue(msg, true);
-                var process = overloadMsgType.GetMethod("Process");
+                var msg = Activator.CreateInstance(faultMsgType);
+                byte kindOverload = (byte)(faultMsgType.GetField("KindOverload",
+                    BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ?? (byte)1);
+                faultMsgType.GetField("Kind")?.SetValue(msg, kindOverload);
+                faultMsgType.GetField("Entries")?.SetValue(msg,
+                    new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<long, int>>
+                    { new System.Collections.Generic.KeyValuePair<long, int>(testRef, 120) });
+                var process = faultMsgType.GetMethod("Process");
                 process?.Invoke(msg, new object[] { 0L });
-                bool afterProcess = (bool)(clientIsOverloaded?.Invoke(null, new object[] { testRef }) ?? false);
+                bool afterProcess = overloadMirror != null && overloadMirror.Contains(testRef);
                 total++;
                 if (!afterProcess && Assets.Scripts.Networking.NetworkManager.IsServer)
-                { _log?.LogInfo("[ScenarioRunner] OP P10 PASS: OverloadStateMessage.Process(0) short-circuited on host (IsServer=true)."); pass++; }
+                { _log?.LogInfo("[ScenarioRunner] OP P10 PASS: FaultRegistrySnapshotMessage(KindOverload).Process(0) short-circuited on host (IsServer=true); client mirror untouched."); pass++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] OP P10 FAIL: IsServer={Assets.Scripts.Networking.NetworkManager.IsServer} afterProcess={afterProcess}"); fail++; }
+                { _log?.LogError($"[ScenarioRunner] OP P10 FAIL: IsServer={Assets.Scripts.Networking.NetworkManager.IsServer} mirrorDict={overloadMirror != null} mirrorTouched={afterProcess}"); fail++; }
                 setClientOverloaded?.Invoke(null, new object[] { testRef, false });
 
                 _log?.LogInfo($"[ScenarioRunner] OP END pass={pass} fail={fail} total={total}");
