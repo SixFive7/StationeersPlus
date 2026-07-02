@@ -21,6 +21,7 @@ Faults. A power device that cannot do its job enters a visible 60-second fault l
 - Every faulted device shows the cause and a live countdown in its hover text (for example `(Shedding: Insufficient upstream supply! 42.17s)`). Toggling the device off clears the fault instantly; toggling back on re-evaluates, and the fault re-fires if the cause is still there.
 - Faults are transient: they clear on save load and recompute from the live topology on the first tick.
 - Not every dark subnet is a fault: a contributor whose input network has no power source at all simply idles, with a steady grey `(No upstream supply)` hover (no flash, no countdown, no lockout). Power its input and it delivers again immediately.
+- A healthy but idle bridge stays powered. A charger transformer whose batteries are full, or an idle dish pair, reads Powered on (hover and IC10 alike) instead of vanilla's misleading "unpowered" state. Only faulted, switched-off, or dead-input bridges read unpowered, so the Powered flag means what a player thinks it means.
 
 Transformer priority and dispatch:
 
@@ -33,7 +34,9 @@ Transformer priority and dispatch:
 Batteries, APCs, and rocket umbilicals (elastic storage):
 
 - Storage devices charge only from surplus and discharge only to fill a shortfall. When generators and transformers cover the demand, batteries rest; when several batteries share a surplus, each charges a proportional share. This kills battery ping-pong and wasted round-trips.
-- Per-prefab charge and discharge rate caps (small / large / nuclear battery, APC cell, rocket umbilical), each also capped by the connected cable's tier rating.
+- Charging works across the whole grid, not just locally: surplus is routed through transformers and linked wireless dish pairs to reach batteries behind them, using only the capacity left after every running machine is served. A charge request that cannot be met is simply trimmed; it never trips a shed or an overload. Storage behind a high-Priority transformer charges before storage behind a low-Priority one.
+- Because charge flow really crosses the grid, hover tooltips and IC10 network / throughput readings on transformers and dish pairs include it: a transformer that is only charging batteries shows that wattage as throughput instead of 0, and the numbers fall back to the idle draw once the batteries are full.
+- Per-prefab charge and discharge rate caps (small / large / nuclear battery, the rocket batteries, APC cell, rocket umbilical), each also capped by the connected cable's tier rating.
 - Four read-only logic values on every storage device: `MaxChargeSpeed` / `MaxDischargeSpeed` (the configured caps) and `ChargeSpeed` / `DischargeSpeed` (the actual allocated rate this tick). The earlier Import Quantity / Export Quantity exposure on batteries is removed.
 - Area Power Controllers no longer leak power or drain their cell while idle, and respect cable caps on both sides.
 
@@ -54,6 +57,12 @@ Emergency lights:
 
 - Wall Light (Battery) devices act as emergency backup lights: off while the grid powers them, on (from their internal cell) when grid power fails. A per-light Mode toggle opts a light out, and the prefab list is configurable for modded battery lights. If the third-party Battery Backup Light mod is installed, Power Grid Plus yields to it.
 
+Diagnostics and self-checks:
+
+- A conservation check audits the allocator every tick: per cable network, granted inflow must match granted outflow, and every transformer / dish pair / APC must bill its input exactly what it passes downstream plus its own draw. A violation logs a throttled warning with a per-component breakdown; it always indicates a mod bug worth reporting, never a problem with your base. Can be switched off under `Server - Diagnostics`.
+- Stale wireless transfer debts and credits saved into a world by earlier versions are zeroed on load, so a dish pair no longer starts with free transfer credit after loading an old save, and the vanilla billing ledger is kept in bounds every tick from then on.
+- Unrecognised two-port power devices from other mods are listed once in the log at world load and left on vanilla behaviour, so a modded bridge degrades gracefully instead of silently misbehaving.
+
 Multiplayer:
 
 - Faults are decided on the host and streamed to clients as per-tick full snapshots, so client visuals (flash + countdown) always match the host within a tick and self-heal after packet loss. A client joining mid-fault sees the correct remaining countdown immediately.
@@ -65,38 +74,44 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 
 | Section | Setting | Default | Effect |
 |---|---|---|---|
-| Cable Simulation | Normal Cable Max Watts | 5000 | Watts cap for normal cable. 0 = unlimited. Runtime-enforced, never written to the save. |
-| Cable Simulation | Heavy Cable Max Watts | 100000 | Watts cap for heavy cable (vanilla value). 0 = unlimited. |
-| Cable Simulation | Super Heavy Cable Max Watts | 0 | Watts cap for super-heavy cable. Default 0 = unlimited (the backbone never burns). |
-| Cable Costs | Super-Heavy Cable Cost Multiplier | 2.0 | Multiplies the super-heavy cable coil recipe cost. 1.0 = vanilla. |
-| Voltage Tiers | Extra Heavy-Cable Devices | (empty) | Comma-separated prefab names of extra devices allowed on heavy cable (for modded high-draw machines). |
-| Batteries | Enable Battery Limits | true | Charge/discharge-rate limit stationary batteries. |
-| Batteries | Station Battery Charge Rate | 5000 | Small battery charge cap (W). |
-| Batteries | Station Battery Discharge Rate | 10000 | Small battery discharge cap (W). |
-| Batteries | Large Station Battery Charge Rate | 25000 | Large battery charge cap (W). |
-| Batteries | Large Station Battery Discharge Rate | 50000 | Large battery discharge cap (W). |
-| Batteries | Nuclear Battery Charge Rate | 25000 | Nuclear battery charge cap (W, third-party MorePowerMod). |
-| Batteries | Nuclear Battery Discharge Rate | 50000 | Nuclear battery discharge cap (W). |
-| Batteries | Battery Charge Efficiency | 1.0 | Fraction of incoming power stored. |
-| Batteries | Enable Battery Logic Additions | true | Expose the four soft-power logic values on batteries. |
-| Batteries | Enable Battery Logic Passthrough | true | Master toggle for battery logic passthrough. |
-| Transformers | Enable Transformer Exploit Mitigation | true | Close the transformer free-power exploit. |
-| Transformers | Enable Transformer Logic Additions | true | Expose transformer throughput as Power Actual. |
-| Transformers | Enable Transformer Logic Passthrough | true | Master toggle for transformer logic passthrough. |
-| Transformers | Enable Transformer Shedding | true | Priority dispatch and shed lockouts. Off restores vanilla input-side behaviour. |
-| Transformers | Enable Transformer Overload Protection | true | Overload lockouts (including the cable-overflow trip). Off restores vanilla partial power. |
-| Area Power Control | Enable APC Power Fix | true | Stop the APC power leak and idle battery drain; apply cable caps. |
-| Area Power Control | APC Battery Charge Rate | 1000 | APC cell charge cap (W). |
-| Area Power Control | APC Battery Discharge Rate | 1000 | APC cell discharge cap (W). |
-| Area Power Control | Enable APC Logic Passthrough | true | APCs are logic-transparent. |
-| Power Transmitters | Enable Power Transmitter Logic Passthrough | true | Master toggle for transmitter / receiver logic passthrough. |
-| Rocket Umbilical | Enable Rocket Umbilical Limits | true | Rate caps + the four soft-power logic values on the umbilical pair. |
-| Rocket Umbilical | Rocket Umbilical Charge Rate | 10000 | Umbilical charge cap (W). |
-| Rocket Umbilical | Rocket Umbilical Discharge Rate | 10000 | Umbilical discharge cap (W). |
-| Emergency Lights | Enable Wall Light Battery Emergency Mode | true | Battery wall lights act as emergency backup lights. |
-| Emergency Lights | Emergency Light Prefabs | StructureWallLightBattery | Comma-separated prefab names that get the emergency behaviour. |
+| Server - Cable Simulation | Normal Cable Max Watts | 5000 | Watts cap for normal cable. 0 = unlimited. Runtime-enforced, never written to the save. |
+| Server - Cable Simulation | Heavy Cable Max Watts | 100000 | Watts cap for heavy cable (vanilla value). 0 = unlimited. |
+| Server - Cable Simulation | Super Heavy Cable Max Watts | 0 | Watts cap for super-heavy cable. Default 0 = unlimited (the backbone never burns). |
+| Server - Cable Costs | Super-Heavy Cable Cost Multiplier | 2.0 | Multiplies the super-heavy cable coil recipe cost. 1.0 = vanilla. Requires restart. |
+| Server - Voltage Tiers | Extra Heavy-Cable Devices | (empty) | Comma-separated prefab names of extra devices allowed on heavy cable (for modded high-draw machines). |
+| Server - Batteries | Enable Battery Limits | true | Charge/discharge-rate limit stationary batteries. |
+| Server - Batteries | Station Battery Charge Rate | 5000 | Small battery charge cap (W). |
+| Server - Batteries | Station Battery Discharge Rate | 10000 | Small battery discharge cap (W). |
+| Server - Batteries | Large Station Battery Charge Rate | 25000 | Large battery charge cap (W). |
+| Server - Batteries | Large Station Battery Discharge Rate | 50000 | Large battery discharge cap (W). |
+| Server - Batteries | Nuclear Battery Charge Rate | 25000 | Nuclear battery charge cap (W, third-party MorePowerMod). |
+| Server - Batteries | Nuclear Battery Discharge Rate | 50000 | Nuclear battery discharge cap (W). |
+| Server - Batteries | Rocket Battery (Medium) Charge Rate | 5000 | Rocket Battery (Medium) charge cap (W). |
+| Server - Batteries | Rocket Battery (Medium) Discharge Rate | 10000 | Rocket Battery (Medium) discharge cap (W). |
+| Server - Batteries | Auxiliary Rocket Battery Charge Rate | 2500 | Auxiliary Rocket Battery charge cap (W). |
+| Server - Batteries | Auxiliary Rocket Battery Discharge Rate | 5000 | Auxiliary Rocket Battery discharge cap (W). |
+| Server - Batteries | Battery Charge Efficiency | 1.0 | Fraction of incoming power stored. |
+| Server - Batteries | Enable Battery Logic Additions | true | Expose the four soft-power logic values on batteries. |
+| Server - Batteries | Enable Battery Logic Passthrough | true | Master toggle for battery logic passthrough. |
+| Server - Transformers | Enable Transformer Exploit Mitigation | true | Close the transformer free-power exploit (fresh, exact billing of what flows). |
+| Server - Transformers | Enable Transformer Logic Additions | true | Expose transformer throughput as Power Actual. |
+| Server - Transformers | Enable Transformer Logic Passthrough | true | Master toggle for transformer logic passthrough. |
+| Server - Transformers | Enable Transformer Shedding | true | Priority dispatch and shed lockouts. Off restores vanilla input-side behaviour. |
+| Server - Transformers | Enable Transformer Overload Protection | true | Overload lockouts (including the cable-overflow trip). Off restores vanilla partial power. |
+| Server - Area Power Control | Enable APC Power Fix | true | Stop the APC power leak and idle battery drain; apply cable caps. |
+| Server - Area Power Control | APC Battery Charge Rate | 1000 | APC cell charge cap (W). |
+| Server - Area Power Control | APC Battery Discharge Rate | 1000 | APC cell discharge cap (W). |
+| Server - Area Power Control | Enable APC Logic Passthrough | true | APCs are logic-transparent. |
+| Server - Power Transmitters | Enable Power Transmitter Logic Passthrough | true | Master toggle for transmitter / receiver logic passthrough. |
+| Server - Rocket Umbilical | Enable Rocket Umbilical Limits | true | Rate caps + the four soft-power logic values on the umbilical pair. |
+| Server - Rocket Umbilical | Rocket Umbilical Charge Rate | 10000 | Umbilical charge cap (W). |
+| Server - Rocket Umbilical | Rocket Umbilical Discharge Rate | 10000 | Umbilical discharge cap (W). |
+| Server - Rocket Umbilical | Enable Umbilical Logic Passthrough | true | Master toggle for docked umbilical-pair logic passthrough. |
+| Server - Diagnostics | Enable Conservation Check | true | Per-tick allocator self-audit; a violation logs a throttled warning and means a mod bug, not a base problem. Costs a few microseconds per tick. |
+| Server - Emergency Lights | Enable Wall Light Battery Emergency Mode | true | Battery wall lights act as emergency backup lights. |
+| Server - Emergency Lights | Emergency Light Prefabs | StructureWallLightBattery | Comma-separated prefab names that get the emergency behaviour. |
 
-Always-on behaviour with no toggle: voltage tiers, cycle faults, and producer isolation (the Variable Voltage Fault rule). These are the core of the redesigned grid.
+Always-on behaviour with no toggle: voltage tiers, cycle faults, producer isolation (the Variable Voltage Fault rule), the deterministic cable-burn rule, the powered presentation for idle healthy bridges, and the wireless ledger cleanup. These are the core of the redesigned grid.
 
 ## How it works
 
@@ -106,10 +121,10 @@ Power is pulled, not pushed. Vanilla solves each network on its own and lets a s
 
 1. **Look:** add up what every device wants and what every generator is making, on every network.
 2. **Protect:** check for trouble first, power loops and cables carrying the wrong voltage tier.
-3. **Share:** each door works out how much its far side needs and asks its near side for exactly that much, and the request flows back through the doors until it reaches the generators.
+3. **Share:** each door works out how much its far side needs and asks its near side for exactly that much, and the request flows back through the doors until it reaches the generators. Battery-charging requests ride the same flow, capped so they can never crowd out a running machine.
 4. **Deliver:** push the agreed amounts forward, generators to machines, so nothing lags a tick behind.
 
-When a network cannot cover everything asking for power, the lowest-Priority doors are switched fully off (shed) until the rest can run at full strength, so whole rooms go dark rather than every machine browning out. When a transformer is already passing its full rated throughput and the rooms behind it still want more, it trips Overloaded, a breaker telling you that door needs a bigger transformer or the load split across more of them. Batteries fill only the shortfall left after generators and transformers, and recharge only from leftover power, so they never ping-pong.
+When a network cannot cover everything asking for power, the lowest-Priority doors are switched fully off (shed) until the rest can run at full strength, so whole rooms go dark rather than every machine browning out. When a transformer is already passing its full rated throughput and the rooms behind it still want more, it trips Overloaded, a breaker telling you that door needs a bigger transformer or the load split across more of them. Batteries fill only the shortfall left after generators and transformers, and recharge only from leftover power, which reaches them through transformers and wireless links like any other flow, so they never ping-pong. A charge request that cannot be met is quietly trimmed; only real machines going short can trip a fault.
 
 The result is a grid where a machine is either fully powered or cleanly off, supply always reaches a network before it is spent, and the protections act like breakers and priorities you can reason about instead of random brownouts.
 
@@ -119,20 +134,21 @@ Under the hood this is three layers: the vanilla per-network `PowerTick` runs un
 
 The outer electricity tick is replaced by one driver (`AtomicElectricityTickPatch`) that runs five phases in order. Reading that file top to bottom is reading the whole flow; each phase hands off to one registry, detector, or patch.
 
-- **Phase 1, observe.** Initialise and calculate every network from current state, populating each network's required and potential power from this tick's device readings. Burn candidates are cleared so the tick starts clean.
+- **Phase 1, observe.** Initialise and calculate every network from current state, populating each network's required and potential power from this tick's device readings. Burn candidates are cleared so the tick starts clean. On the first tick after a world load, stale wireless billing ledgers from the save are zeroed and unrecognised modded bridge devices are inventoried, before anything can read them.
 - **Phase 1.5, faults.** Wrong-tier cable burns fire first, then cycle detection faults every device on a closed power loop, then producer isolation faults any generator wired to consumers without a transformer. If anything is newly faulted, the networks are re-observed so the next phase sees the corrected grid.
 - **Phase 2, decide.** The global allocator reads every network's required and potential power, decides which devices shed (lowest Priority first when an input runs short) and which overload (demand still unmet at full output), and records the lockouts. Per-tick fault snapshots to clients are sent here.
-- **Phase 3, enforce.** Initialise, calculate, and apply every network again. The second calculation reads the fresh lockout flags through the device patches, so locked-out devices contribute 0 and vanilla distributes power and burns overloaded cables with every decision already in effect. Decisions made this tick take effect this tick: no one-tick lag, no flicker.
+- **Phase 3, enforce.** Initialise, calculate, and apply every network again, upstream networks first. The second calculation reads the fresh lockout flags and the allocated flows through the device patches, so locked-out devices contribute 0 and vanilla distributes power and burns overloaded cables with every decision already in effect. Decisions made this tick take effect this tick: no one-tick lag, no flicker. At the end of the pass, idle healthy bridges are re-marked powered and the vanilla billing ledger is clamped into bounds.
 - **Phase 4, devices.** Every powered thing runs its per-device tick: battery charge state, generator fuel, and any other mod's device-tick patch.
 - **Phase 5, logic.** IC10 chips execute on the vanilla schedule.
 
 ### Where it lives in the source
 
 - `AtomicElectricityTickPatch` is the five-phase driver and the single entry point.
-- `PowerAllocator` is Phase 2: shedding, overload, and the integer-keyed ordering that keeps multiplayer peers in agreement.
+- `PowerAllocator` is Phase 2: the three flow classes (rigid machine demand, storage charge, storage discharge), shedding, overload, and the integer-keyed ordering that keeps multiplayer peers in agreement. `SegAdapters` describes each bridge device class (transformer, linked dish pair, APC, rocket umbilical) to the allocator through one contract, and `PowerTransmitterPlusInterop` handles the PowerTransmitterPlus tiers and the billing handshake.
 - Four registries hold the transient fault lockouts (shedding, overload, cycle, variable voltage). They are cleared on save load and recomputed from live topology on the first tick.
 - The detectors are separate from the registries: `CycleGraphBuilder` finds power loops, `VariableVoltageFaultDetector` finds unprotected producers, and `VoltageTierEnforcer` with `CableBurnWindow` handles the two kinds of cable burn (wrong-tier and generator overflow).
-- The device patches (battery, transformer, Area Power Control, rocket umbilical) are where a lockout becomes a 0-power reading, and where elastic storage and the soft-power logic values live.
+- The device patches (battery, transformer, Area Power Control, wireless pair, rocket umbilical) are where a lockout becomes a 0-power reading, where each allocated flow is advertised and billed, and where the soft-power logic values live.
+- `PoweredPresentation`, `LedgerAdoption`, `ConservationChecker`, and `UnknownBridgeCensus` are the presentation and self-check layer: the powered-state policy for idle bridges, the wireless-ledger cleanup, the per-tick conservation audit, and the modded-bridge inventory.
 
 Full algorithm specifications, invariants, and the decision log are in the repo-root [POWER.md](../../POWER.md) and the mod-local `RESEARCH.md`.
 
@@ -142,7 +158,7 @@ Full algorithm specifications, invariants, and the decision log are in the repo-
 
 All players on a server must have Power Grid Plus installed; the version is checked during the connection handshake. Dedicated servers need the same BepInEx + StationeersLaunchPad + Power Grid Plus setup.
 
-Known interaction: [Re-Volt](https://steamcommunity.com/sharedfiles/filedetails/?id=3587239682) itself swaps the power tick per network the same way this mod does, so running both is not supported and the mod refuses to load alongside it. MorePowerMod's nuclear battery is supported with its own rate-cap settings. PowerTransmitterPlus is fully compatible; linked dishes participate in dispatch as transformer-like devices using whichever distance-loss model is active.
+Known interaction: [Re-Volt](https://steamcommunity.com/sharedfiles/filedetails/?id=3587239682) itself swaps the power tick per network the same way this mod does, so running both is not supported and the mod refuses to load alongside it. MorePowerMod's nuclear battery is supported with its own rate-cap settings. PowerTransmitterPlus is fully compatible; linked dishes participate in dispatch as transformer-like devices using whichever distance-cost model is active. With PowerTransmitterPlus 1.9.0 or newer the two mods perform a billing handshake at load: Power Grid Plus takes over the wireless billing (PowerTransmitterPlus's own transfer-debt billing stands down) while the beam visuals, link handling, and capacity settings stay with PowerTransmitterPlus; the Workshop 1.8.0 build keeps working through the previous integration, and without PowerTransmitterPlus the vanilla wireless model applies. Custom two-port power devices from other mods are inventoried in the log at world load and left on vanilla behaviour.
 
 ## Reporting Issues
 
