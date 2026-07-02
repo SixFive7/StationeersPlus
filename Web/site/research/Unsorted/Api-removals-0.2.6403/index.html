@@ -5246,6 +5246,8 @@
       
         
       
+        
+      
     
     
     
@@ -6360,6 +6362,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../Patterns/StaleModReferenceJitCrash/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stale mod reference JIT crash (caller-frame attribution)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
         
   
@@ -7339,6 +7369,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gridcontrollercancontainatmos-1-arg-overload-replaced-by-2-arg-with-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GridController.CanContainAtmos: 1-arg overload replaced by 2-arg with default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7982,6 +8023,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gridcontrollercancontainatmos-1-arg-overload-replaced-by-2-arg-with-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GridController.CanContainAtmos: 1-arg overload replaced by 2-arg with default
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8099,24 +8151,30 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'whole-file greps for LoadThing / ConnectedDevices / ShowTransformArrow / UnitTest_ConstructionValidate (zero hits each); Wireframe class (line 255549), SmallGrid class (line 312025), XmlSaveLoad.Load overloads (lines 268424, 268463)'}</code></li>
             
-              <li><code>DedicatedServer/data/server.log and DedicatedServer/install/BepInEx/LogOutput.log, 2026-07-02 dedicated-server boot at game 0.2.6403.27689</code></li>
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GridController.decompiled.cs :': 'CanContainAtmos overloads (lines 959, 964); client decompile line 207165 (same shape)'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/ForceFieldDoorMod.decompiled.cs (Workshop_3328065049) and its ilspycmd -il dump :': 'the surviving 1-arg call sites'}</code></li>
+            
+              <li><code>DedicatedServer/data/server.log and DedicatedServer/install/BepInEx/LogOutput.log, 2026-07-02 dedicated-server boots at game 0.2.6403.27689</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>../Patterns/SaveLoadOrdering.md</code></li>
             
               <li><code>../Patterns/CursorAdjacencyLookup.md</code></li>
+            
+              <li><code>../Patterns/StaleModReferenceJitCrash.md</code></li>
             
               <li><code>../GameClasses/CableNetwork.md</code></li>
             
@@ -8182,6 +8240,12 @@
 <td>HarmonyX warning <code>AccessTools.DeclaredMethod: Could not find method ...</code>; an attribute-targeted patch would throw at <code>PatchAll</code></td>
 <td>This page, below</td>
 </tr>
+<tr>
+<td><code>GridController.CanContainAtmos(WorldGrid)</code> (1-arg)</td>
+<td>Signature changed: only <code>CanContainAtmos(WorldGrid, bool allowCrewModules = true)</code> and <code>CanContainAtmos(Grid3, bool allowCrewModules = true)</code> exist now; default args are compile-time, so old binaries still emit the 1-arg call</td>
+<td><code>MissingMethodException</code> at JIT of the touching method, attributed to the CALLER's vanilla frame; repeats per simulation tick and aborts GameTick's whole sim section when the touching method is an <code>OnAtmosphericTick</code> override</td>
+<td>This page, below; mechanism and fix recipe in <a href="../../Patterns/StaleModReferenceJitCrash/">StaleModReferenceJitCrash</a></td>
+</tr>
 </tbody>
 </table>
 <p>The first two rows are already curated in depth on their linked pages; this page holds the two removals with no better-fitting home plus the shared provenance. "Previously present" status: the two linked pages quote the pre-0.2.6403 members verbatim from the 0.2.6228.27061 decompile (<a href="../../Patterns/SaveLoadOrdering/">SaveLoadOrdering</a> and <a href="../../GameSystems/UnregisteredSaveDataBehavior/">UnregisteredSaveDataBehavior</a> for <code>LoadThing</code>; <a href="../../Patterns/CursorAdjacencyLookup/">CursorAdjacencyLookup</a> for the <code>Connected*</code> family). For <code>ShowTransformArrow</code> and <code>UnitTest_ConstructionValidate</code> no page quoted them before removal and the 0.2.6228 decompile cache has been deleted per the one-version rule; their prior existence is evidenced by the workshop mods below, which compiled against them and ran on 0.2.6228-era game builds.</p>
@@ -8208,9 +8272,21 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>[Warning:  HarmonyX] AccessTools.DeclaredMethod: Could not find method for type Assets.Scripts.Inventory.InventoryManager and name UnitTest_ConstructionValidate and parameters
 </span></code></pre></div>
 <p>This is the soft failure mode: some mod resolves the method via <code>AccessTools.DeclaredMethod</code>, gets null plus this HarmonyX warning, and its patch silently does not apply. A <code>[HarmonyPatch(typeof(InventoryManager), "UnitTest_ConstructionValidate")]</code> attribute target would instead throw at <code>PatchAll</code> time. The warning line does not name the owning mod (see Open questions).</p>
+<h2 id="gridcontrollercancontainatmos-1-arg-overload-replaced-by-2-arg-with-default">GridController.CanContainAtmos: 1-arg overload replaced by 2-arg with default<a class="headerlink" href="#gridcontrollercancontainatmos-1-arg-overload-replaced-by-2-arg-with-default" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>At 0.2.6403.27689 <code>Assets.Scripts.GridController</code> defines exactly two overloads, both with a defaulted second parameter (server decompile <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GridController.decompiled.cs</code> lines 959-964; client decompile line 207165 is identical in shape):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CanContainAtmos</span><span class="p">(</span><span class="n">WorldGrid</span><span class="w"> </span><span class="n">grid</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">allowCrewModules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CanContainAtmos</span><span class="p">(</span><span class="n">Grid3</span><span class="w"> </span><span class="n">grid</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">allowCrewModules</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">)</span>
+</span></code></pre></div>
+<p>A whole-IL grep of the server assembly shows every internal call site uses the 2-arg form; no 1-arg <code>CanContainAtmos(WorldGrid)</code> exists. Because C# default arguments are baked into the CALLER at compile time, any mod binary compiled before the parameter was added still carries the 1-arg MemberRef and breaks at JIT with:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>MissingMethodException: Method not found: bool Assets.Scripts.GridController.CanContainAtmos(Assets.Scripts.GridSystem.WorldGrid)
+</span></code></pre></div>
+<p>Observed offender: ForceFieldDoorMod (<code>Workshop_3328065049</code>, About version 0.2.4767.21868.1, assembly ref Assembly-CSharp 0.2.5259.23818, so last compiled against 0.2.5259 or earlier). Its <code>forcefielddoormod.ForceFieldDoor : Airlock</code> calls the 1-arg form twice inside its <code>OnAtmosphericTick()</code> override, so on any world containing <code>StructureForceFieldDoor</code> things the exception fires on EVERY simulation tick from the vanilla atmospherics dispatch lambda, aborting the entire GameTick sim section (<code>ElectricityTick</code> included) while the tick loop keeps running: the world looks alive (rising tick count, autosave attempts) but nothing simulates. The stack trace names only vanilla frames; the full attribution mechanism, diagnosis recipe, and the Mono.Cecil call-site rewrite that fixed the server's local mod copy live in <a href="../../Patterns/StaleModReferenceJitCrash/">StaleModReferenceJitCrash</a>. The client copy of the mod remains broken: the client assembly has the same 2-arg-only shape, and the client also runs the sim as host or in single-player, so any client session on a world with these doors gets the same dead simulation.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-07-02: page created during the dedicated-server boot investigation at game 0.2.6403.27689. All four absences verified by whole-file grep of <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>; surviving-class evidence and remaining-member inventories read directly from the same decompile; failure signatures quoted verbatim from <code>DedicatedServer/data/server.log</code> (lines 2350-2357, 2409-2415) and <code>DedicatedServer/install/BepInEx/LogOutput.log</code> (line 21) of the same day's boot. ModularConsoleMod breaking on the <code>LoadThing</code> removal is recorded from the boot-investigation session notes, not from these log files (its failure predates the current log rotation).</li>
+<li>2026-07-02 (later, Luna_rearch dead-sim investigation): added the <code>GridController.CanContainAtmos</code> signature-change row and section. Overload shapes read from the dedicated-server GridController decompile and confirmed by whole-IL grep (every vanilla call site 2-arg); the offending 1-arg refs quoted from the ForceFieldDoorMod IL dump; the per-tick failure (3,363+ repeats in one server.log) and the post-rewrite clean boot observed live the same day. Additive; no existing claim touched.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
