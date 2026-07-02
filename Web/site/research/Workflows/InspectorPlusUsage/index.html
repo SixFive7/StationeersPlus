@@ -3548,6 +3548,8 @@
       
         
       
+        
+      
     
     
     
@@ -4810,6 +4812,34 @@
     
   
     SimulationTickDriverHooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationAutoSave/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationAutoSave
   
 
     
@@ -7162,6 +7192,8 @@
       
         
       
+        
+      
     
     
     
@@ -7204,6 +7236,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Unsorted/Api-removals-0.2.6403/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API removals at 0.2.6403 that break mods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -8227,15 +8287,22 @@
 <li>Press F8 in-game to dump every MonoBehaviour in the scene to a snapshot file.</li>
 </ol>
 <h2 id="headless-dedicated-server-no-client">Headless dedicated server (no client)<a class="headerlink" href="#headless-dedicated-server-no-client" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <p>On a headless dedicated server with no client connected the simulation is paused, and on a headless build neither <code>MonoBehaviour.Update()</code> nor coroutines fire. The request pump runs off the simulation tick (<code>ElectricityManager.ElectricityTick</code>), so while the world is paused a dropped request file is never processed and no snapshot is written.</p>
 <p>To capture snapshots in that case without a player joining, enable the opt-in setting (default off) before starting the server, either in the in-game settings panel under <code>Server - Headless</code>, or by adding to <code>BepInEx/config/net.inspectorplus.cfg</code>:</p>
 <div class="language-ini highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[Server - Headless]</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="na">Force Unpause Without Client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">true</span>
 </span></code></pre></div>
-<p>With it on, InspectorPlus unpauses the simulation after <code>StartGame</code> on a batch-mode server, so the tick, and therefore request processing, runs. The setting is gated on <code>Application.isBatchMode</code> and never fires on a client or single-player session. Added in InspectorPlus v1.1.0.</p>
+<p>With it on, InspectorPlus keeps the simulation running on a batch-mode server with no client connected, so the tick, and therefore request processing, runs. The setting is gated on <code>Application.isBatchMode</code> and never fires on a client or single-player session. Added in InspectorPlus v1.1.0; hardened on 2026-07-02 into four cooperating pieces in <code>HeadlessUnpausePatch.cs</code>:</p>
+<ul>
+<li>The original one-shot unpause in a <code>GameManager.StartGame</code> postfix. On its own this is NOT sufficient: the dedicated-server assembly's <code>StartGame</code> ends with <code>DelayedStartupPause().Forget()</code>, a server-build-only method that re-pauses the world 5 seconds later whenever <code>NetworkBase.Clients.Count &lt;= 0</code>, ignoring <code>AutoPauseServer</code>. Because <code>StartGame</code> is <code>async UniTask</code>, the postfix fires at the method's first await, always before the delayed pause lands. Full writeup: <code>../GameSystems/SimulationTickDriverHooks.md</code> section "Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame".</li>
+<li>A guarded prefix that skips <code>GameManager.DelayedStartupPause</code> entirely (<code>Prepare()</code> disables the patch class on the client build, where the method does not exist).</li>
+<li>A 5-second UniTask watchdog loop that logs <code>GameState / IsGamePaused / GameTickPaused / RunSimulation / GameTickCount / Clients</code> to <code>LogOutput.log</code> and re-unpauses whenever the world is <code>Running</code>, parked, and clientless (it skips while <code>SaveHelper.IsSaving</code>). This also recovers from any other silent pauser (panel pause paths, console <code>pause</code>, third-party mods).</li>
+<li>Pause tracers: every actual <code>WorldManager.SetGamePause</code> transition plus every <code>PauseGameTick</code> / <code>UnpauseGameTick</code> call is logged with a stack trace, so the next silent pause names its caller in <code>LogOutput.log</code> (<code>[PauseTrace]</code> lines).</li>
+</ul>
 <p>When a client is connected (a normal playtest) the server is already running and the toggle is unnecessary; on a client or single-player, <code>Update()</code> drives the pump directly.</p>
+<p>Readiness caveat when using a probe request as the "world is ticking" signal: the first ~8 ticks run between <code>StartGame</code> and where <code>DelayedStartupPause</code> would land, so with an unhardened plugin a pre-dropped probe could be consumed once even though the sim parked seconds later. With the hardened plugin, confirm sustained ticking via the repeating <code>[TickWatchdog]</code> lines (rising <code>GameTickCount</code>) rather than a single consumed probe.</p>
 <h2 id="request-shape">Request shape<a class="headerlink" href="#request-shape" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -8295,6 +8362,7 @@
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0003 and the surrounding sections of <code>Mods/InspectorPlus/RESEARCH.md</code>.</li>
 <li>2026-05-21: corrected the request-field list (added <code>IncludePrivate</code>, <code>MaxMonoBehaviours</code>) and the output-format description (an <code>objects</code> array with <code>[x, y, z]</code> values, not an object keyed by type name with <code>(x, y, z)</code>) to match the shipped <code>ObjectWalker</code>; added the Headless dedicated server section for the InspectorPlus v1.1.0 <code>Force Unpause Without Client</code> toggle. Verified via InspectorPlus on 2026-05-21 in game version 0.2.6228.27061. Request: maxMonoBehaviours=25, maxDepth=2 on a fresh dedicated-server world.</li>
 <li>2026-07-02: rewrote the "Request shape" section to give the exact JSON key spellings. The previous revision listed the fields by their C# property names (<code>Types</code>, <code>Fields</code>, <code>MaxDepth</code>, <code>IncludePrivate</code>, <code>MaxMonoBehaviours</code>), but <code>SnapshotRequest.Parse</code> (<code>Mods/InspectorPlus/InspectorPlus/SnapshotRequest.cs:46-68</code>) matches <code>"types"</code>, <code>"fields"</code>, <code>"maxDepth"</code>, <code>"includePrivate"</code>, <code>"maxMonoBehaviours"</code> via <code>Regex</code> with no <code>IgnoreCase</code>, so capitalized keys are silently ignored and the request degrades to a full-scene dump. Added the one-line degradation warning and a minimal example request JSON. Source is the mod's own shipped code (game-version-independent); section restamped at the current game version 0.2.6403.27689 per convention.</li>
+<li>2026-07-02 (later): updated "Headless dedicated server (no client)" for the hardened force-unpause. The 2026-05-21 revision's one-shot description matched the plugin then, but the one-shot is defeated at 0.2.6403.27689 by the server-assembly-only <code>GameManager.DelayedStartupPause</code> (5-second delayed <code>SetGamePause(true)</code> when clientless); an earlier note in <code>DedicatedServer/CLAUDE.md</code> had recorded the resulting flakiness empirically at 0.2.6228.27061 without a cause. Documented the cause, the DelayedStartupPause skip patch, the 5-second watchdog, and the <code>[PauseTrace]</code> stack tracers, all live-verified on a fresh <code>-new Lunar</code> dedicated-server boot on 2026-07-02 at 0.2.6403.27689 (three-boot evidence run: unhardened = exactly 8 ticks then parked; hardened = continuous ticking, ScenarioRunner 10-tick scenario fired, probes consumed).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

@@ -3548,6 +3548,8 @@
       
         
       
+        
+      
     
     
     
@@ -4810,6 +4812,34 @@
     
   
     SimulationTickDriverHooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationAutoSave/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationAutoSave
   
 
     
@@ -7055,6 +7085,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mod-sidecar-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mod sidecar entries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7244,6 +7285,8 @@
       
         
       
+        
+      
     
     
     
@@ -7286,6 +7329,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Unsorted/Api-removals-0.2.6403/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API removals at 0.2.6403 that break mods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -7878,6 +7949,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mod-sidecar-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mod sidecar entries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7988,24 +8070,32 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
               <li><code>Plans/RepairPrototype/plan.md:58-66</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'SaveLoadConstants (lines 265202-265210), SaveHelper.Save (264972-265043)'}</code></li>
+            
+              <li><code>DedicatedServer/data/saves/Luna/Luna.save (entry listing, 2026-07-02)</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>./TerrainDat.md</code></li>
@@ -8015,6 +8105,8 @@
               <li><code>./WorldXml.md</code></li>
             
               <li><code>./AtmosphereSaveData.md</code></li>
+            
+              <li><code>../GameSystems/SaveZipExtension.md</code></li>
             
           </ul>
         </details>
@@ -8047,7 +8139,7 @@
 <h1 id="save-file-zip-structure">Save file ZIP structure<a class="headerlink" href="#save-file-zip-structure" title="Permanent link">&para;</a></h1>
 <p>Top-level file layout of a Stationeers save ZIP. The archive is a standard ZIP; each entry is plaintext XML, binary voxel data, or a PNG. Sizes in the example column are from an observed mid-sized save and are indicative, not exact.</p>
 <h2 id="file-table">File table<a class="headerlink" href="#file-table" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <table>
 <thead>
@@ -8085,11 +8177,34 @@
 </tr>
 </tbody>
 </table>
+<p>The five names are code constants (<code>SaveLoadConstants</code>, 0.2.6403.27689 decompile lines 265202-265210): <code>TerrainFileName = "terrain.dat"</code>, <code>MetaFileName = "world_meta.xml"</code>, <code>WorldFileName = "world.xml"</code>, <code>PreviewFileName = "preview.png"</code>, <code>ScreenshotFileName = "screenshot.png"</code>. The writer (<code>SaveHelper.Save</code>, line 264972) emits them in the order <code>world_meta.xml</code>, <code>world.xml</code>, <code>terrain.dat</code>, <code>preview.png</code>, <code>screenshot.png</code>, and skips the two PNGs entirely in batch mode (<code>if (!GameManager.IsBatchMode)</code>, line 265020), so a save written BY a dedicated server has only the first three members. A save that carries the PNGs was last written by a client.</p>
+<h2 id="mod-sidecar-entries">Mod sidecar entries<a class="headerlink" href="#mod-sidecar-entries" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>A save ZIP can carry additional entries beyond the five standard members: mods append their own files at save time. Observed entry listing of a real modded save (<code>DedicatedServer/data/saves/Luna/Luna.save</code>, 2026-07-02, sizes in bytes):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>       698  world_meta.xml
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  61514025  world.xml
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    456908  terrain.dat
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    149788  preview.png
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    177904  screenshot.png
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       779  equipmentplus-active-slots.xml
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>       551  equipmentplus-beam.xml
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>      3667  pwrxmplus-autoaim.xml
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>      4421  pwrgridplus-passthrough.xml
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       486  pwrgridplus-priority.xml
+</span></code></pre></div>
+<p>The last five are per-mod sidecars written by this repository's mods: <code>equipmentplus-active-slots.xml</code> and <code>equipmentplus-beam.xml</code> by EquipmentPlus (<code>ActiveSlotSideCar.SideCarEntryName</code>, <code>HelmetBeamSideCar.SideCarEntryName</code>), <code>pwrxmplus-autoaim.xml</code> by PowerTransmitterPlus (<code>AutoAimSideCar.SideCarEntryName</code>), and <code>pwrgridplus-passthrough.xml</code> / <code>pwrgridplus-priority.xml</code> by PowerGridPlus (<code>PassthroughSideCar.SideCarEntryName</code>, <code>PrioritySideCar.SideCarEntryName</code>). The mechanism, and why it works, is documented in <a href="../../GameSystems/SaveZipExtension/">../GameSystems/SaveZipExtension.md</a>: the game's LOAD path looks up known entry names and silently ignores everything else, while the game's SAVE path rebuilds the ZIP from scratch with only the known members, so a mod must re-append its sidecar on every save (Harmony patch on the private <code>SaveHelper.Save</code> worker).</p>
+<p>Consequences for offline save tooling:</p>
+<ul>
+<li>Any tool that repacks a save ZIP MUST copy through unknown entries verbatim (name, order, bytes), or it silently strips mod data. A repack that hardcodes the five standard members destroys the sidecars without any error; the mods then see missing state on next load. This bit in practice on 2026-07-02: <code>tools/save-edit/stationeers_save.py</code> <code>repack()</code> writes only the five standard members, so the save-surgery session used a one-off script that copies every entry through and edits only world.xml, precisely to keep the five sidecars alive.</li>
+<li>The sidecar names are chosen by each mod; there is no registry and no namespace rule beyond collision avoidance. Treat "entries I do not recognize" as load-bearing mod data, never as junk.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration. Source: F0220 (save file ZIP structure).</li>
+<li>2026-07-02: re-confirmed the file table against the 0.2.6403.27689 decompile (<code>SaveLoadConstants</code> names, <code>SaveHelper.Save</code> write order, batch-mode PNG skip) and added the "Mod sidecar entries" section from the observed Luna.save entry listing during the same day's save-surgery session. Mechanism cross-referenced to <code>../GameSystems/SaveZipExtension.md</code> rather than duplicated.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

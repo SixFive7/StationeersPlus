@@ -18,7 +18,7 @@
         <link rel="prev" href="../ScrollInputHandling/">
       
       
-        <link rel="next" href="../StationpediaAscendedInternals/">
+        <link rel="next" href="../StationAutoSave/">
       
       
         
@@ -3550,6 +3550,8 @@
       
         
       
+        
+      
     
     
     
@@ -4908,6 +4910,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gamemanagerupdate-manager-loop-no-per-manager-exception-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GameManager.Update manager loop: no per-manager exception isolation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gametick-loop-pause-parking-and-setgamepause-call-sites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GameTick loop, pause parking, and SetGamePause call sites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dedicated-server-assembly-only-delayedstartuppause-re-pauses-5-s-after-startgame" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4933,6 +4968,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StationAutoSave/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationAutoSave
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -7277,6 +7340,8 @@
       
         
       
+        
+      
     
     
     
@@ -7319,6 +7384,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Unsorted/Api-removals-0.2.6403/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API removals at 0.2.6403 that break mods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -7944,6 +8037,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gamemanagerupdate-manager-loop-no-per-manager-exception-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GameManager.Update manager loop: no per-manager exception isolation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gametick-loop-pause-parking-and-setgamepause-call-sites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GameTick loop, pause parking, and SetGamePause call sites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dedicated-server-assembly-only-delayedstartuppause-re-pauses-5-s-after-startgame" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8054,12 +8180,15 @@
 <p>title: Simulation tick driver hooks
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-26
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: line 254905 (ElectricityManager.ElectricityTick), 417811 (AtmosphericsManager : ThreadedManager), 187543 (GameManager.RecordGameTick), 189381 (GameManager.StartGameTick), 189076 (GameManager.GameTickPaused)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: line 205154 (GameManager.Update), 203880 (GameManager.Managers), 204387 (GameManager.GameTick), 204363 (StartGameTick), 203823 (DefaultTickSpeedMs), 60520 (WorldManager.StartWorld), 60886 (WorldManager.SetGamePause), 272091 (ElectricityManager.ElectricityTick)
+  - DedicatedServer/install/rocketstation_DedicatedServer_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.GameManager.StartGame + DelayedStartupPause (decompiled to .work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs lines 902-959)
 related:
   - ../GameClasses/PowerTick.md
+  - ../GameClasses/GameManager.md
   - ../Patterns/ThingEnumerationOffMainThread.md
 tags: [power, threading, harmony]</p>
 <hr />
@@ -8110,9 +8239,177 @@ tags: [power, threading, harmony]</p>
 <!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
 
 <p>A diagnostic plugin that wants redundancy (the ElectricityTick was blocked, so the atmospheric tick pumps instead) can register postfixes on multiple subsystem ticks and dedupe by <code>UnityEngine.Time.frameCount</code> inside the dispatcher. <code>ScenarioRunner</code>'s <code>Dispatcher.OnSimTick()</code> records <code>_lastTickFrame = Time.frameCount</code> and bails on repeated calls from the same frame, so a second pump source only adds redundancy, never extra cost or scenario double-fires.</p>
+<h2 id="gamemanagerupdate-manager-loop-no-per-manager-exception-isolation">GameManager.Update manager loop: no per-manager exception isolation<a class="headerlink" href="#gamemanagerupdate-manager-loop-no-per-manager-exception-isolation" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p><code>GameManager : Singleton&lt;GameManager&gt;</code> (0.2.6403.27689 decompile line 203733) holds the per-frame manager list as a plain instance field (line 203880):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ManagerBase</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Managers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ManagerBase</span><span class="o">&gt;</span><span class="p">();</span>
+</span></code></pre></div>
+<p>A live dedicated server at 0.2.6403.27689 reports 41 entries at boot (<code>loaded 41 systems successfully</code> in server.log; the format string is quoted below). <code>KeyManager</code> is one of them (<code>public class KeyManager : ManagerBase</code>, line 43646, with its own <code>ManagerUpdate</code> override at line 43736).</p>
+<p><code>GameManager.Update()</code> (line 205154) ends with the per-frame manager loop, and that loop has NO try/catch (lines 205213-205219):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="w">            </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ManagerBase</span><span class="w"> </span><span class="n">manager2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">Managers</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">                </span><span class="n">manager2</span><span class="p">.</span><span class="n">ManagerUpdate</span><span class="p">();</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">            </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">BatchRenderer</span><span class="p">.</span><span class="n">RenderAll</span><span class="p">();</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">            </span><span class="n">WindTurbineGenerator</span><span class="p">.</span><span class="n">UpdateWind</span><span class="p">();</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="p">}</span>
+</span></code></pre></div>
+<p>Two placement facts about <code>Update()</code>:</p>
+<ul>
+<li>The <code>ManagerUpdate</code> foreach sits OUTSIDE the <code>if (!WorldManager.IsGamePaused)</code> block that wraps the rest of the method body (lines 205160-205212), so managers get their <code>ManagerUpdate</code> every frame even while the game is paused.</li>
+<li>A second, throttled loop <code>foreach (ManagerBase manager in Managers) { manager.SlowUpdate(); }</code> (lines 205193-205196) runs inside the pause gate and inside the 100 ms throttle block. It is equally unguarded.</li>
+</ul>
+<p>Contrast with startup: <code>GameManager.Start()</code> (line 205043) wraps BOTH the <code>ManagerAwake</code> loop (lines 205051-205063) and the <code>ManagerStart</code> loop (lines 205064-205076) in a per-manager try/catch that logs and counts failures:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="w">            </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ManagerBase</span><span class="w"> </span><span class="n">manager</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">Managers</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">                </span><span class="k">try</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">                    </span><span class="n">manager</span><span class="p">.</span><span class="n">ManagerAwake</span><span class="p">();</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">                </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="w"> </span><span class="n">ex</span><span class="p">)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">                    </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Debug</span><span class="p">.</span><span class="n">LogException</span><span class="p">(</span><span class="n">ex</span><span class="p">);</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">                    </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;error in awake with &#39;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">manager</span><span class="p">.</span><span class="n">GetType</span><span class="p">().</span><span class="n">Name</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&#39; &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ex</span><span class="p">.</span><span class="n">Message</span><span class="p">);</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">                    </span><span class="n">num</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">            </span><span class="p">}</span>
+</span></code></pre></div>
+<p>(then <code>loaded {Managers.Count} systems successfully</code> or <code>loaded {Managers.Count} systems with {num} exceptions</code>, lines 205077-205084).</p>
+<p>Consequence: an exception escaping any <code>ManagerUpdate</code> override propagates out of <code>GameManager.Update</code>. Unity logs it and aborts the rest of the method for that frame, which means every manager AFTER the throwing one in <code>Managers</code> list order is skipped, plus <code>BatchRenderer.RenderAll()</code> and <code>WindTurbineGenerator.UpdateWind()</code>. If the throw repeats each frame (the typical broken-Harmony-prefix case), the tail of the manager list is starved permanently while the process keeps running. Observed live during the 2026-07-02 dedicated-server boot investigation: a broken mod's prefix on the <code>KeyManager</code> stage threw every frame and every manager after <code>KeyManager</code> never ran, with no crash and no obvious log signal beyond the repeating exception.</p>
+<p>Harmony implication: a prefix or postfix on any <code>ManagerBase.ManagerUpdate</code> override (or on anything those overrides call synchronously) inherits zero isolation. Wrap mod-side bodies in try/catch; a throwing patch does not just break its own mod, it silently disables every downstream manager. Note the contrast with the tick side: the <code>GameTick</code> worker body wraps its simulation phases in a try/catch per tick (see the next section), so the same mistake inside a tick-phase patch is logged and survived, while the same mistake inside a manager-update patch starves the manager list.</p>
+<h2 id="gametick-loop-pause-parking-and-setgamepause-call-sites">GameTick loop, pause parking, and SetGamePause call sites<a class="headerlink" href="#gametick-loop-pause-parking-and-setgamepause-call-sites" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>Line numbers in this section are from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>.</p>
+<p><strong>World start path.</strong> <code>World.Initialize(worldName, newWorld, loadingScreenMessage)</code> (static class <code>World</code>, line 324881; method at 325012) sets <code>GameManager.GameState = GameState.Joining</code> (line 325019). Both world entry points then call <code>WorldManager.StartWorld()</code>: <code>World.NewAsync</code> (line 324921, new world) at line 324956 and <code>World.OnLoadingFinished</code> (line 324961, save load) at line 324964. The client join path does the same dance: <code>ClientPreJoin</code> (line 213107) sets <code>GameState = GameState.Joining</code> (line 213109) and the join-package completion calls <code>WorldManager.StartWorld()</code> (line 213083). <code>WorldManager.StartWorld</code> (line 60520) starts the five manager singletons (<code>RoomManager</code>, <code>ElectricityManager</code>, <code>AtmosphericsManager</code>, <code>OcclusionManager</code>, <code>LightManager</code>), then:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="w">        </span><span class="n">GameManager</span><span class="p">.</span><span class="n">SetTickSpeed</span><span class="p">();</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">        </span><span class="n">GameManager</span><span class="p">.</span><span class="n">StartGameTick</span><span class="p">();</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">        </span><span class="n">WorldSetting</span><span class="p">.</span><span class="n">StartWorld</span><span class="p">();</span>
+</span></code></pre></div>
+<p><code>StartGameTick</code> (line 204363) resets <code>GameTickCount</code>, creates the cancellation source, and fires the loop: <code>GameTick(_cancelGameTickTask.Token).Forget();</code>.</p>
+<p><strong>The tick loop and its pause parking.</strong> <code>GameTick</code> (line 204387) is an <code>async UniTask</code> running for the lifetime of the world:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTask</span><span class="w"> </span><span class="nf">GameTick</span><span class="p">(</span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">cancellationToken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">(</span><span class="n">CancellationToken</span><span class="p">))</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">        </span><span class="n">Stopwatch</span><span class="w"> </span><span class="n">gameTickStopwatch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Stopwatch</span><span class="p">();</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">        </span><span class="n">gameTickStopwatch</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">cancellationToken</span><span class="p">.</span><span class="n">IsCancellationRequested</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">GameState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">None</span><span class="p">)</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">            </span><span class="n">LastTickTimeSeconds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">gameTickStopwatch</span><span class="p">.</span><span class="n">ElapsedMilliseconds</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1000f</span><span class="p">;</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">WorldManager</span><span class="p">.</span><span class="n">IsGamePaused</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">GameTickPaused</span><span class="p">)</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_gameTickPauseScheduled</span><span class="p">)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">                    </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">GameTickPauseLock</span><span class="p">)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">                    </span><span class="p">{</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">                        </span><span class="n">GameTickPaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">                    </span><span class="p">}</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">                </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="n">GameTickSpeedMs</span><span class="p">,</span><span class="w"> </span><span class="n">DelayType</span><span class="p">.</span><span class="n">UnscaledDeltaTime</span><span class="p">,</span><span class="w"> </span><span class="n">PlayerLoopTiming</span><span class="p">.</span><span class="n">Update</span><span class="p">,</span><span class="w"> </span><span class="n">cancellationToken</span><span class="p">);</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cancellationToken</span><span class="p">.</span><span class="n">IsCancellationRequested</span><span class="p">)</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">                    </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">            </span><span class="p">}</span>
+</span></code></pre></div>
+<p>The inner <code>while (WorldManager.IsGamePaused || GameTickPaused)</code> (line 204394) is the park: while either flag is up, the loop just re-polls every <code>GameTickSpeedMs</code> and no simulation phase runs. After the park, the body switches to the ThreadPool (<code>await UniTask.SwitchToThreadPool();</code>, line 204418) and runs the simulation phases inside a <code>try { ... } catch (System.Exception exception) { Profiler.EndThreadProfiling(); UnityEngine.Debug.LogException(exception); }</code> (lines 204421-204496), returns to the main thread (line 204499), and finally paces itself: <code>while (gameTickStopwatch.Elapsed.Milliseconds &lt; GameTickSpeedMs) { await UniTask.Delay(1, ...); }</code> then <code>GameTickCount++</code> (lines 204512-204520).</p>
+<p><strong>Tick speed is 500 ms.</strong> <code>private static readonly int DefaultTickSpeedMs = 500;</code> (line 203823), <code>public static int GameTickSpeedMs =&gt; DefaultTickSpeedMs;</code> (line 204007), <code>public static float GameTickSpeedSeconds =&gt; (float)GameTickSpeedMs / 1000f;</code> (line 204009). So the game tick is 2 Hz.</p>
+<p><strong>RunSimulation gates the sim phases.</strong> <code>public static bool RunSimulation =&gt; !Assets.Scripts.Networking.NetworkManager.IsClient;</code> (line 203945). Inside the <code>GameTick</code> body the simulation phases are wrapped in <code>if (RunSimulation)</code> blocks (lines 204410, 204423, 204448, 204482, 204500); the electricity tick call site is line 204466 inside one of them:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="w">                    </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Item</span><span class="p">.</span><span class="n">AllDecayingItems</span><span class="p">.</span><span class="n">ForEach</span><span class="p">(</span><span class="n">ItemDecayServerAction</span><span class="p">);</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">                    </span><span class="n">ImGuiProfiler</span><span class="p">.</span><span class="n">Update</span><span class="p">(</span><span class="s">&quot;GameTick&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ItemDecayServerAction&quot;</span><span class="p">);</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">                    </span><span class="n">ElectricityManager</span><span class="p">.</span><span class="n">ElectricityTick</span><span class="p">();</span>
+</span></code></pre></div>
+<p><code>ElectricityManager.ElectricityTick()</code> (line 272091) is additionally self-guarded:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ElectricityTick</span><span class="p">()</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="p">}</span>
+</span></code></pre></div>
+<p>So on a paused world NOTHING in the tick body runs (parked upstream), and on a client <code>RunSimulation == false</code> skips the sim phases even when the tick loop spins.</p>
+<p><strong>GameTickPaused plumbing.</strong> <code>GameTickPaused</code> (line 204022) is a lock-guarded static property. <code>PauseGameTick()</code> (line 204370) only schedules (<code>_gameTickPauseScheduled = true</code>); the flag is actually raised at the two loop checkpoints (lines 204396-204402 inside the park, lines 204505-204511 after the tick body), so a scheduled pause takes effect on a tick boundary. <code>UnpauseGameTick()</code> (line 204378) clears both. <code>StopGameTick()</code> (line 204356) cancels the loop, unpauses, and calls <code>AtmosphericsManager.ClearAll()</code>.</p>
+<p><strong>SetGamePause is silent.</strong> <code>WorldManager.SetGamePause(bool)</code> (line 60886) performs no logging of any kind:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetGamePause</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">IsGamePaused</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">            </span><span class="n">IsGamePaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">pauseGame</span><span class="p">)</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">                </span><span class="n">KeyManager</span><span class="p">.</span><span class="n">SetInputState</span><span class="p">(</span><span class="s">&quot;WorldManager&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">KeyInputState</span><span class="p">.</span><span class="n">Paused</span><span class="p">);</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">            </span><span class="k">else</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">                </span><span class="n">KeyManager</span><span class="p">.</span><span class="n">RemoveInputState</span><span class="p">(</span><span class="s">&quot;WorldManager&quot;</span><span class="p">);</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">            </span><span class="n">Time</span><span class="p">.</span><span class="n">timeScale</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">pauseGame</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mf">0f</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mf">1f</span><span class="p">);</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">            </span><span class="n">RoomManager</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">IsPaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">;</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">            </span><span class="n">OcclusionManager</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">IsPaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">;</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">            </span><span class="n">ElectricityManager</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">IsPaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">;</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">            </span><span class="n">AtmosphericsManager</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">IsPaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">;</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">            </span><span class="n">LightManager</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">IsPaused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pauseGame</span><span class="p">;</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="p">)</span>
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">                </span><span class="n">AudioManager</span><span class="p">.</span><span class="n">UpdateVolume</span><span class="p">(</span><span class="n">SettingType</span><span class="p">.</span><span class="n">SoundVolume</span><span class="p">);</span>
+</span><span id="__span-9-23"><a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-9-24"><a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">            </span><span class="n">WorldManager</span><span class="p">.</span><span class="n">OnPaused</span><span class="o">?.</span><span class="n">Invoke</span><span class="p">(</span><span class="n">pauseGame</span><span class="p">);</span>
+</span><span id="__span-9-25"><a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-9-26"><a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">    </span><span class="p">}</span>
+</span></code></pre></div>
+<p>Diagnostic consequence for headless servers: when something pauses the game via <code>SetGamePause</code> directly, the server log shows NO pause line; the only tell is that tick-driven activity stops. The log lines players associate with pausing belong to specific call sites, not to the pause itself.</p>
+<p><strong>SetGamePause(true) call-site inventory (0.2.6403.27689).</strong> The headless-relevant writers:</p>
+<ul>
+<li><code>WorldManager.EnablePause(bool showPrompt = true)</code> (line 60874). Batch mode suppresses the confirmation prompt but NOT the pause:</li>
+</ul>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="w">  </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">EnablePause</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">showPrompt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">      </span><span class="p">{</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">          </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">showPrompt</span><span class="p">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">          </span><span class="p">{</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">              </span><span class="n">PromptPanel</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">ShowPrompt</span><span class="p">(</span><span class="n">PromptPauseStrings</span><span class="p">.</span><span class="n">Title</span><span class="p">,</span><span class="w"> </span><span class="n">PromptPauseStrings</span><span class="p">.</span><span class="n">PauseBody</span><span class="p">,</span><span class="w"> </span><span class="n">PromptPauseStrings</span><span class="p">.</span><span class="n">ResumeButton</span><span class="p">,</span><span class="w"> </span><span class="n">ResumePlay</span><span class="p">,</span><span class="w"> </span><span class="n">isEscapable</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">,</span><span class="w"> </span><span class="n">hideCancelButton</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">          </span><span class="p">}</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">          </span><span class="n">SetGamePause</span><span class="p">(</span><span class="n">pauseGame</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">      </span><span class="p">}</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">  </span><span class="p">}</span>
+</span></code></pre></div>
+<p>No in-assembly caller exists; it is invoked through serialized UnityEvents (UI wiring), so grep-for-callers comes up empty by design.
+- <code>Stationpedia.PauseGameToggle(bool value)</code> (line 247054, class <code>Stationpedia : ResizableWindow, IModal</code> at 246715): <code>if (!Assets.Scripts.Networking.NetworkManager.IsClient &amp;&amp; NetworkBase.Clients.Count == 0 &amp;&amp; !InventoryManager.Instance.InGameMenuOpen) { WorldManager.SetGamePause(value); }</code>. Also UnityEvent-wired (the window's pause checkbox; no in-assembly caller). Note the guard is true on a dedicated server with zero connected clients, so a programmatically driven Stationpedia pause toggle parks the whole tick loop silently. <code>Stationpedia.SetVisible</code> itself (line 249478) does not pause; on hide it calls <code>WorldManager.OnPanelClose()</code> (line 60866), which resumes only if neither Stationpedia, <code>InputSourceCode</code>, nor <code>InGameMenu</code> is still open.
+- <code>InputSourceCode.PauseGameToggle(bool pauseGame)</code> (line 240335, class at 240201): same pattern minus the <code>InGameMenuOpen</code> check.
+- <code>NetworkBase.PauseEvent(bool pause)</code> (line 39310, class <code>NetworkBase : ManagerBase</code> at 39197): the multiplayer pause relay and the ONLY pause path that logs (<code>ConsoleWindow.Print(pause ? "Game is Paused" : "Game is resumed");</code>) before <code>SendToClients(new NetworkMessages.UpdatePauseMessage ...)</code> and <code>WorldManager.SetGamePause(pause)</code>.
+- <code>NetworkBase.AutoSaveOnLastClientLeave</code> (line 39256): dedicated-server auto-pause. Logs <code>"No clients connected. Will save and pause in 10 seconds."</code>, waits 10 s, autosaves, logs <code>"Server Paused"</code>, then <code>WorldManager.SetGamePause(pauseGame: true);</code> (line 39266).
+- The <code>pause</code> console command (line 100385, <code>CommandScope.InGame | CommandScope.HostOrSinglePlayer</code>): <code>WorldManager.SetGamePause(result);</code> (line 100400), returns "Game paused." / "Game unpaused.".
+- Load/join paths pause while streaming: <code>XmlSaveLoad.LoadWorld</code> (line 268509), <code>World.NewAsync</code> (line 324923), <code>PauseEventJoiningClient</code> (line 213160).
+- The DEDICATED SERVER assembly adds one more writer that the client assembly does not have: <code>GameManager.DelayedStartupPause</code> (next section). The inventory above was compiled from the client decompile; any headless-pause audit must also read the server binary.</p>
+<h2 id="dedicated-server-assembly-only-delayedstartuppause-re-pauses-5-s-after-startgame">Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame<a class="headerlink" href="#dedicated-server-assembly-only-delayedstartuppause-re-pauses-5-s-after-startgame" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>The dedicated server ships its own <code>Assembly-CSharp.dll</code> (<code>rocketstation_DedicatedServer_Data/Managed/</code>), and its <code>GameManager</code> is NOT identical to the client build. At 0.2.6403.27689 the server build's <code>GameManager.StartGame()</code> is the same method as the client's (quoted from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs</code> lines 902-950) except for one extra final statement:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="w">        </span><span class="n">DelayedStartupPause</span><span class="p">().</span><span class="n">Forget</span><span class="p">();</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTaskVoid</span><span class="w"> </span><span class="nf">DelayedStartupPause</span><span class="p">()</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">5000</span><span class="p">,</span><span class="w"> </span><span class="n">DelayType</span><span class="p">.</span><span class="n">UnscaledDeltaTime</span><span class="p">);</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">            </span><span class="n">WorldManager</span><span class="p">.</span><span class="n">SetGamePause</span><span class="p">(</span><span class="n">pauseGame</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">    </span><span class="p">}</span>
+</span></code></pre></div>
+<p>Neither <code>DelayedStartupPause</code> nor the call exists anywhere in the client assembly (grep of the full client decompile returns nothing). Facts that follow:</p>
+<ul>
+<li><strong>This is the mechanism that leaves a freshly started dedicated server paused with no client connected.</strong> It is unconditional apart from the client count: it does not check <code>AutoPauseServer</code> (the <code>NetworkBase.AutoSaveOnLastClientLeave</code> path above is the only auto-pause that honors that setting), it does not log, and <code>SetGamePause</code> itself is silent, so the world stops ticking ~5 s after <code>StartGame</code> with no line in any log.</li>
+<li><strong>It defeats one-shot force-unpause patches by design.</strong> <code>StartGame</code> is <code>async UniTask</code>; a Harmony postfix on it fires when the stub returns the task (at the first suspension, <code>await NetworkServer.Host()</code>), so any unpause applied in a <code>StartGame</code> postfix lands BEFORE the 5-second delay elapses and gets overwritten. Observed live on 2026-07-02: InspectorPlus's one-shot unpause ran, exactly 8 game ticks executed (~4 s at 2 Hz), then a stack-traced <code>SetGamePause(true)</code> arrived from <code>Assets.Scripts.GameManager.DelayedStartupPause()</code> via <code>Cysharp.Threading.Tasks.UniTask+DelayIgnoreTimeScalePromise.MoveNext()</code>, and the tick loop parked again.</li>
+<li><strong>Countermeasures (both implemented in <code>Mods/InspectorPlus/InspectorPlus/HeadlessUnpausePatch.cs</code>, opt-in, batch-mode only):</strong> (1) a guarded Harmony prefix that skips <code>DelayedStartupPause</code> outright; the target only exists in the server assembly, so the patch class uses <code>Prepare()</code> returning false on the client build to avoid a PatchAll failure, and skipping the stub of an <code>async UniTaskVoid</code> method is safe because the caller's <code>.Forget()</code> on the default struct is a no-op; (2) a 5-second UniTask watchdog loop that logs <code>GameState / IsGamePaused / GameTickPaused / RunSimulation / GameTickCount / Clients.Count</code> and re-unpauses when parked with zero clients (skipping while <code>SaveHelper.IsSaving</code>), which also catches any OTHER silent pauser from the inventory above. The UniTask player loop (<code>PlayerLoopTiming.Update</code>) demonstrably runs on the headless server even while the tick loop is parked; the park loop itself awaits <code>UniTask.Delay</code> there.</li>
+<li>A note for probes: because the first ~8 ticks DO run between <code>StartGame</code> and the delayed pause, an InspectorPlus request dropped before world load can be consumed during that early window even on an otherwise-parked server. A consumed early probe is NOT proof the sim stayed running; re-probe after the 5-second mark.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-26: page created. Sourced from a RuntimeProbe refactor that pulled the same hook out of PgpVerifyHelper and generalised it. Decompile cross-references at the line numbers above were re-confirmed against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> during the same session. The crash stack quoted in "Threading constraint on the postfix" is the 2026-05-25 live repro recorded in <code>Research/Patterns/ThingEnumerationOffMainThread.md</code>.</li>
+<li>2026-07-02: added "GameManager.Update manager loop: no per-manager exception isolation" and "GameTick loop, pause parking, and SetGamePause call sites", both verified line-by-line against <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> during the dedicated-server boot investigation (a broken mod prefix at the KeyManager stage threw per-frame and starved every downstream manager). The <code>loaded 41 systems successfully</code> count is from that server's 2026-07-02 server.log. Pre-existing sections keep their 0.2.6228.27061 stamps and line numbers pending the version-migration pass; no contradiction between them and the new sections was found (the GameTick ThreadPool switch and the ElectricityTick RunSimulation guard reconfirm at 0.2.6403.27689 with new line numbers 204418 and 272091).</li>
+<li>2026-07-02 (later, headless-tick investigation): added "Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame" plus the cross-reference bullet at the end of the call-site inventory. Source: ilspycmd decompile of the server binary (<code>.work/decomp/0.2.6403.27689/Assembly-CSharp.DedicatedServer.GameManager.decompiled.cs</code> lines 902-959) after a live InspectorPlus stack trace on <code>WorldManager.SetGamePause(true)</code> named <code>Assets.Scripts.GameManager.DelayedStartupPause</code> as the silent re-pauser on a fresh <code>-new Lunar</code> boot (exactly 8 ticks ran between the StartGame-postfix unpause and the re-pause). Confirmed additive against the existing inventory: the method is absent from the client decompile, so no prior claim was contradicted. Also live-verified the two countermeasures now in <code>Mods/InspectorPlus/InspectorPlus/HeadlessUnpausePatch.cs</code>: with the skip prefix plus watchdog active on the full 56-mod set, the same boot shape produced no re-pause, <code>GameTickCount</code> advanced continuously, and ScenarioRunner's 10-tick scenario fired.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
@@ -8171,13 +8468,13 @@ tags: [power, threading, harmony]</p>
         
         
           
-          <a href="../StationpediaAscendedInternals/" class="md-footer__link md-footer__link--next" aria-label="Next: StationpediaAscendedInternals">
+          <a href="../StationAutoSave/" class="md-footer__link md-footer__link--next" aria-label="Next: StationAutoSave">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                StationpediaAscendedInternals
+                StationAutoSave
               </div>
             </div>
             <div class="md-footer__button md-icon">

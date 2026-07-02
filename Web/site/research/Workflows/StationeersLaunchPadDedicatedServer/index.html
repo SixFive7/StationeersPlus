@@ -3548,6 +3548,8 @@
       
         
       
+        
+      
     
     
     
@@ -4810,6 +4812,34 @@
     
   
     SimulationTickDriverHooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/StationAutoSave/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StationAutoSave
   
 
     
@@ -7162,6 +7192,8 @@
       
         
       
+        
+      
     
     
     
@@ -7204,6 +7236,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Unsorted/Api-removals-0.2.6403/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API removals at 0.2.6403 that break mods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -7875,6 +7935,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#load-failure-and-self-update-exits-stationeerslaunchpad-040" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load-failure and self-update exits (StationeersLaunchPad 0.4.0)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -8241,6 +8312,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#load-failure-and-self-update-exits-stationeerslaunchpad-040" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load-failure and self-update exits (StationeersLaunchPad 0.4.0)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -8330,14 +8412,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-29.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)</code></li>
@@ -8345,6 +8431,8 @@
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'WorkshopMenu (decompile lines 38373-38491)'}</code></li>
             
               <li><code>StationeersLaunchPad GitHub releases (server-side asset)</code></li>
+            
+              <li><code>{'https://github.com/StationeersLaunchPad/StationeersLaunchPad at tag v0.4.0 :': 'StationeersLaunchPad/Platform.cs, StationeersLaunchPad/LaunchPadConfig.cs, StationeersLaunchPad/Configs.cs, StationeersLaunchPad/Loading/LoadStrategy.cs (fetched 2026-07-02)'}</code></li>
             
           </ul>
         </details>
@@ -8640,6 +8728,7 @@
 <li>2026-04-29: documented RakNet's wildcard-fallback hosting behaviour when the dedicated server tries to bind a port already held by another process on the same machine. Empirical test (client in-session at <code>10.20.30.200:27016</code>, server started with default <code>GamePort 27016</code>) showed the server's specific-IP bind fails, falls back to <code>0.0.0.0:27016</code> (wildcard), and reports "RakNet successfully hosted" despite the conflict. The two processes coexist but route ambiguously. Recommended workaround: pass non-default <code>GamePort</code> / <code>UpdatePort</code> settings when both run on one machine.</li>
 <li>2026-04-29: empirical confirmation of the workaround. Launcher gained <code>-GamePort</code> / <code>-UpdatePort</code> parameters with new defaults <code>28016</code> / <code>28015</code> (offset by +1000 from the Stationeers client defaults). Re-test with same client in-session (<code>10.20.30.200:27016</code>): server log shows clean "Attempting to host at 10.20.30.200:28016" -&gt; "RakNet successfully hosted with Address: 10.20.30.200:28016", no "Hosting failed. Attempting fallback behaviour" line. UDP endpoints show both processes own distinct, exclusive specific-IP binds (<code>10.20.30.200:27016</code> for the client, <code>10.20.30.200:28016</code> for the server). Clean coexistence.</li>
 <li>2026-04-29: documented why a "headless client" is not a supported automation mode. <code>Platform.CheckIsServer()</code> (line 4433) routes any <code>Application.isBatchMode</code> instance into <code>ServerPlatform</code>, which is <code>IsServer=true, IsClient=false, SteamDisabled=true</code> and has no outbound-connect path. Both batch-mode regular-client and any dedicated-server build land on the server side. Practical options A-D listed for client-side automation; recommended ranking C &gt; A &gt; B &gt; D.</li>
+<li>2026-07-02: added "Load-failure and self-update exits (StationeersLaunchPad 0.4.0)" from the StationeersLaunchPad GitHub source at tag v0.4.0 (Platform.cs, LaunchPadConfig.cs, Configs.cs, Loading/LoadStrategy.cs) plus the exit line observed on our dedicated server during the 0.2.6403.27689 boot investigation (broken mods from the 0.2.6403 API removals; see Research/Unsorted/Api-removals-0.2.6403.md). Confirms the 0.3.1-era PlatformWait decompile finding is unchanged at 0.4.0 and adds the per-platform update-config defaults and the self-update exit path. Earlier sections keep their 0.2.6228.27061 stamps.</li>
 </ul>
 <h2 id="applyconfig-matching-clean-state-matches-relative-paths-cleanly">ApplyConfig matching: clean state matches relative paths cleanly<a class="headerlink" href="#applyconfig-matching-clean-state-matches-relative-paths-cleanly" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -8691,6 +8780,56 @@
 <li>Empirical: in the first test pass (before we overlaid <code>RG.ImGui.dll</code>), StationeersLaunchPad's full stage pipeline ran successfully. The server log showed every <code>[Global]:</code> stage transition through <code>Took 0:00.005 to load mods.</code> (zero mods because the local mods folder was empty at that point), with no JIT or assembly-resolve errors.</li>
 </ul>
 <p>Practical consequence: <code>RG.ImGui.dll</code> is the safe default to ship (the official server zip does, and a future StationeersLaunchPad version might invoke ImGui from a non-UI path), but its absence does not block mod loading on a server. If a server-zip download fails during <code>-Bootstrap</code>, the server still loads mods; a warning rather than an error is appropriate.</p>
+<h2 id="load-failure-and-self-update-exits-stationeerslaunchpad-040">Load-failure and self-update exits (StationeersLaunchPad 0.4.0)<a class="headerlink" href="#load-failure-and-self-update-exits-stationeerslaunchpad-040" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>Behaviour of StationeersLaunchPad 0.4.0 on a dedicated server when a mod hard-fails during load, and what the update settings do server-side. Source: the StationeersLaunchPad GitHub repository at tag <code>v0.4.0</code> (<code>StationeersLaunchPad/Platform.cs</code>, <code>LaunchPadConfig.cs</code>, <code>Configs.cs</code>, <code>Loading/LoadStrategy.cs</code>), fetched 2026-07-02. The installed version on our dedicated server is proven by <code>BepInEx/LogOutput.log</code>: <code>[Info   :   BepInEx] Loading [StationeersLaunchPad 0.4.0]</code>.</p>
+<p><strong>A mod load failure exits the server process.</strong> The chain, with each link verbatim from the v0.4.0 source:</p>
+<ol>
+<li>Each load step (assemblies, assets, entrypoints) wraps per-mod work in try/catch; an exception routes to <code>LoadFailed</code> (<code>Loading/LoadStrategy.cs</code>), which marks the mod and raises a strategy-wide flag but lets OTHER mods keep loading:</li>
+</ol>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">LoadFailed</span><span class="p">(</span><span class="n">LoadedMod</span><span class="w"> </span><span class="n">mod</span><span class="p">,</span><span class="w"> </span><span class="n">Exception</span><span class="w"> </span><span class="n">ex</span><span class="p">)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="n">mod</span><span class="p">.</span><span class="n">Logger</span><span class="p">.</span><span class="n">LogException</span><span class="p">(</span><span class="n">ex</span><span class="p">);</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="n">mod</span><span class="p">.</span><span class="n">LoadFailed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="n">mod</span><span class="p">.</span><span class="n">LoadFinished</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="n">failed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>LoadMods()</code> returns <code>!failed</code>; subsequent steps skip mods with <code>mod.LoadFailed</code> set.
+2. <code>LaunchPadConfig.StageLoading</code>: <code>if (!await loadStrategy.LoadMods()) StopAutoLoad();</code>
+3. <code>LaunchPadConfig.StopAutoLoad()</code>: <code>AutoLoad = false; CurWait.Auto = false;</code>
+4. <code>LaunchPadConfig.StageFinal</code> builds its stage wait from that flag (<code>CurWait = new(Configs.AutoLoadWaitTime.Value, AutoLoad);</code>) and calls <code>await Platform.Wait(CurWait, CommandStage.ModsLoaded);</code>, which dispatches to the active platform's <code>PlatformWait</code> override.
+5. <code>ServerPlatform.PlatformWait</code> (<code>Platform.cs</code>):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTask</span><span class="w"> </span><span class="nf">PlatformWait</span><span class="p">(</span><span class="n">StageWait</span><span class="w"> </span><span class="n">wait</span><span class="p">,</span><span class="w"> </span><span class="n">CommandStage</span><span class="w"> </span><span class="n">stage</span><span class="p">)</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="p">{</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="c1">// don&#39;t wait on server</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wait</span><span class="p">.</span><span class="n">Auto</span><span class="p">)</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="n">Logger</span><span class="p">.</span><span class="n">Global</span><span class="p">.</span><span class="n">LogError</span><span class="p">(</span><span class="s">&quot;An error occurred during loading. Exiting&quot;</span><span class="p">);</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span><span class="n">Application</span><span class="p">.</span><span class="n">Quit</span><span class="p">();</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>ClientPlatform.PlatformWait</code>, for contrast, actually waits: <code>while (!wait.Done &amp;&amp; SLPCommand.QueuedStage &lt;= stage) await UniTask.Yield();</code>.</p>
+<p>In the server log the exit surfaces as <code>[Global]: An error occurred during loading. Exiting</code> (the <code>[Global]</code> prefix is the BepInEx source name of StationeersLaunchPad's <code>Logger.Global</code>), preceded by each failing mod's own exception from <code>LoadFailed</code>. Observed live on our dedicated server during the 2026-07-02 boot investigation at game 0.2.6403.27689: two mods threw <code>MissingFieldException</code> against an API removed at 0.2.6403 (see <code>../Unsorted/Api-removals-0.2.6403.md</code>), and the server exited with exactly that line instead of hosting.</p>
+<p><strong>There is no config override.</strong> <code>Configs.cs</code> at v0.4.0 defines <code>CheckForUpdate</code>, <code>AutoUpdateOnStart</code>, <code>AutoLoadOnStart</code>, <code>AutoLoadWaitTime</code>, <code>LoadStrategyType</code>, <code>LoadStrategyMode</code> (plus platform-fixup entries); nothing resembling continue-on-error exists, and <code>StopAutoLoad</code> forces the non-auto wait regardless of <code>AutoLoadOnStart</code>. On an unattended server the only fixes are removing or repairing the failing mod. Note the failure is per-mod isolated during loading (other mods finish loading and log normally) but process-fatal afterwards; diagnosing from the log means looking ABOVE the exit line for the first mod exception, not just at the tail.</p>
+<p><strong>Update checks are off by default on servers.</strong> Platform-specific config defaults (<code>Platform.cs</code>):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1">// ClientPlatform.PlatformConfigDefaults</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">CheckForUpdate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">AutoUpdateOnStart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="c1">// ServerPlatform.PlatformConfigDefaults</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="n">CheckForUpdate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">,</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="n">AutoUpdateOnStart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">,</span>
+</span></code></pre></div>
+<p><code>LaunchPadConfig.StageUpdating</code> early-outs on <code>if (Stage == LoadStage.Failed || !Configs.CheckForUpdate.Value) return;</code> and later on <code>if (!Configs.AutoUpdateOnStart.Value &amp;&amp; !await LaunchPadUpdater.CheckShouldUpdate(release)) return;</code>. So a stock server never contacts GitHub for a StationeersLaunchPad update; the operator has to flip both config values on to get self-update.</p>
+<p><strong>A headless self-update also exits.</strong> If a server does self-update, <code>ServerPlatform.PlatformContinueAfterUpdate</code> (<code>Platform.cs</code>) refuses to continue on the old in-memory assemblies:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">Logger</span><span class="p">.</span><span class="n">Global</span><span class="p">.</span><span class="n">LogWarning</span><span class="p">(</span><span class="s">&quot;LaunchPad has updated. Exiting&quot;</span><span class="p">);</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">Application</span><span class="p">.</span><span class="n">Quit</span><span class="p">();</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Operational takeaway for the launcher: both exit paths mean <code>rocketstation_DedicatedServer.exe</code> terminating early with a zero-drama log tail. Any supervisor script watching for "server up" must treat <code>An error occurred during loading. Exiting</code> and <code>LaunchPad has updated. Exiting</code> as terminal, not as transient startup noise. This section is the 0.4.0 confirmation and generalisation of the 0.3.1 decompile finding in "Server-only platform overrides" above (<code>ServerPlatform.PlatformWait</code>, decompile line 4709): the exit-on-error behaviour is unchanged between 0.3.1 and 0.4.0.</p>
 
 
 
