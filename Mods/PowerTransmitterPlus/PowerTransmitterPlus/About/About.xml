@@ -3,7 +3,7 @@
   <Name>Power Transmitter Plus</Name>
   <ModID>net.powertransmitterplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.8.0</Version>
+  <Version>1.9.0</Version>
   <Description>[h1]Power Transmitter Plus[/h1]
 
 Adds a visible beam, scrolling pulses, a configurable distance cost, new logic readouts, and wall and ceiling placement to the Microwave Power Transmitter.
@@ -13,7 +13,7 @@ Full multiplayer compatibility. Safe to remove from existing savegames.
 [h2]Features[/h2]
 
 [h3]Visible Laser Beam[/h3]
-A colored beam is drawn between a linked transmitter and receiver whenever the link is up, regardless of whether power is flowing. The beam is at full brightness at all times while visible, so you can see at a glance which dishes are actually connected. Power flow is shown by the pulse train (see below): when no power is flowing, the stripes freeze in place.
+A colored beam is drawn between a linked transmitter and receiver whenever the link is up, regardless of whether power is flowing, so you can see at a glance which dishes are actually connected. Power flow is shown by the pulse train (see below): when no power is flowing, the stripes freeze in place.
 
 [h3]Scrolling Pulse Train[/h3]
 Energy pulses scroll along the beam from transmitter to receiver. Stripe spacing is constant in world meters (same look on a 5m link or a 500m link). Scroll speed scales with power throughput, so a lightly-loaded link is clearly distinguishable from a heavily-loaded one at a glance.
@@ -28,6 +28,8 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 [*]5 km: 26.0
 [/list]
 By default there is no per-transmitter throughput cap, so one dish carries as much power as its cables and source allow. An optional [b]Max Transfer Capacity[/b] setting (default unlimited; see Settings) re-imposes a per-transmitter watt limit. The vanilla game limit was 5000 W per dish.
+
+If the source cannot cover the distance overhead, the link self-limits instead of running away: delivery pauses while the unpaid source-side backlog exceeds a safety ceiling and resumes once it is paid down. Links above 5 kW bill the source in full. No new settings; both bounds derive from Cost Factor and Max Transfer Capacity.
 
 [h3]Logic Types[/h3]
 Six logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10. Five are read-only readouts; the sixth, MicrowaveAutoAimTarget, is writable:
@@ -44,10 +46,10 @@ The power readouts return 0 when the link is down, the device is off, or no powe
 [h3]Auto-Aim[/h3]
 [b]MicrowaveAutoAimTarget[/b] is writable on both transmitter and receiver. Write a Thing's ReferenceId and the dish slews to point at it via the built-in servo; the base game's link raycast decides when the pairing actually forms, so obstacles in the path still take priority. Writing 0 disables. Manually adjusting Horizontal or Vertical cancels auto-aim. Cached targets persist across save/load and multiplayer join.
 
-The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting. When off, MicrowaveAutoAimTarget is not registered at all: it does not appear in the tablet dropdown, IC10 compilation does not resolve the name, and writes to it no-op. Clients whose Enable Auto-Aim value does not match the host's are rejected at join time with a clear error.
+The host can disable auto-aim entirely via the [b]Enable Auto-Aim[/b] server setting; when off, MicrowaveAutoAimTarget is not registered at all (no tablet entry, no IC10 name). Mismatched clients are rejected at join time.
 
 [h3]Wall and Ceiling Placement[/h3]
-The transmitter and receiver dishes can be built on walls and ceilings as well as on the floor. The placement cursor cycles through every face the player aims at, and rotation hotkeys cover all three axes on non-floor faces. Any combination of mount surfaces can form a link, including floor-to-wall, wall-to-ceiling, and ceiling-to-ceiling, as long as the two dishes point at each other.
+The transmitter and receiver dishes can be built on walls and ceilings as well as on the floor. The placement cursor cycles through every face the player aims at, and rotation hotkeys cover all three axes on non-floor faces. Any combination of mount surfaces can form a link as long as the two dishes point at each other.
 
 The host can revert to vanilla floor-only placement via the [b]Allow Non-Floor Placement[/b] server setting. Like Enable Auto-Aim it is restart-gated, and mismatched clients are rejected at join time.
 
@@ -55,7 +57,7 @@ The host can revert to vanilla floor-only placement via the [b]Allow Non-Floor P
 
 All features are configurable via the mod settings panel.
 
-All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Changes to the visual, distance-cost, and capacity settings broadcast live to all connected clients on connect and on every change. Enable Auto-Aim and Allow Non-Floor Placement are restart-gated toggles, not live-broadcast settings: changing either requires a full Stationeers restart to take effect, and mismatches between client and host are caught at join time. The in-game settings panel groups the ten entries under six headers:
+All settings are server-authoritative: the host's values control gameplay and visuals for everyone. Visual, distance-cost, and capacity settings broadcast live to clients on connect and on change. Enable Auto-Aim and Allow Non-Floor Placement are restart-gated; mismatched clients are rejected at join time. Ten entries under six headers:
 
 [b]Server - Features[/b]:
 [list]
@@ -99,18 +101,20 @@ All settings are server-authoritative: the host's values control gameplay and vi
 [*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
 [/list]
 
-[b]All players[/b] on a server must have Power Transmitter Plus installed. Matching mod versions are enforced during the connection handshake automatically.
+[b]All players[/b] on a server must have Power Transmitter Plus installed. Matching mod versions are enforced at connect time.
 
-[b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + PowerTransmitterPlus setup installed server-side. The distance-cost simulation runs server-authoritatively and the handshake rejects mixed installs.
+[b]Dedicated servers[/b] need the same BepInEx + StationeersLaunchPad + PowerTransmitterPlus setup installed server-side.
 
 [b]Custom logic types[/b] registered by this mod sit in a reserved range outside the vanilla enum and the range used by Stationeers Logic Extended, so collisions with those are avoided. Another mod that registers a LogicType inside this mod's reserved range would collide; the exact range is documented in the source for mod authors who need it.
 
+[b]Mod authors:[/b] a public static API (PowerTransmitterPlus.ModApi) exposes capacity, link distance, source-draw multiplier, and transfer-debt access, plus a billing-ownership handshake so a power-allocator mod can take over wireless billing while beams, links, and readouts stay active.
+
 [h2]Reporting Issues[/h2]
-If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url] and include the mod name in the title. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
 
 [h2]Credits[/h2]
 [list]
-[*][b]ThunderDuck[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467]Stationeers Logic Extended[/url], which pioneered the pattern for registering custom LogicType values. The injection approach used here (extending ProgrammableChip.AllConstants, Logicable.LogicTypes, and the enum-name lookup paths) is adapted from that work.
+[*][b]ThunderDuck[/b]: Created [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625190467]Stationeers Logic Extended[/url], which pioneered the pattern for registering custom LogicType values; the injection approach used here is adapted from that work.
 [/list]
 
 [url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/PowerTransmitterPlus]Source Code on GitHub[/url]
@@ -118,11 +122,13 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.8.0: Optional per-transmitter Max Transfer Capacity, plus multiplayer auto-aim and beam fixes
-- Added an optional Max Transfer Capacity (W) server setting (under Server - Capacity) that clamps the watts a single transmitter delivers. Default 0 = unlimited, so the vanilla 5 kW per-dish limit stays removed and one dish can carry as much power as its cables and source allow. Server-authoritative, synced to clients on connect and on change.
-- Fixed a multiplayer auto-aim desync: a client's MicrowaveAutoAimTarget no longer flickers to 0 while the host slews the dish, and a manual Horizontal or Vertical write now clears the cached target on both host and client.
-- Beam show and hide is now event-driven: the beam hides and re-shows on clients within a frame when a dish toggles on or off or slews past the aim tolerance.
-- All players on a server must be on v1.8.0 or newer; the LaunchPad version handshake rejects mixed installs.
+v1.9.0: Public mod API with billing handshake, plus bounded wireless transfer debt
+- Added a public mod API (PowerTransmitterPlus.ModApi) for other mods: effective transfer capacity, live link distance, source-draw multiplier, transfer-debt access, and a billing-ownership handshake that lets a power-allocator mod take over wireless billing while beams, links, and logic readouts stay active.
+- Wireless links no longer run away when the source cannot cover the distance overhead. A transmitter now pauses delivery while its unpaid source-side debt is above a safety ceiling (four times the per-tick worst case) and resumes once the source pays it down, so devices sharing the source network are not browned out indefinitely. A log warning naming the transmitter fires when a pause starts.
+- Links delivering more than 5 kW now bill the source correctly. Previously the receiver's wireless-side drain stayed capped at the vanilla 5 kW, so the excess accumulated as receiver debt and was never charged upstream (free energy).
+- The source-draw multiplier reported to other mods no longer uses a stale link distance after a link drops; unlinked transmitters report 1.0.
+- No new settings; the safety ceiling derives from the existing Cost Factor and Max Transfer Capacity values.
+- All players on a server must be on v1.9.0 or newer; the LaunchPad version handshake rejects mixed installs.
   </ChangeLog>
   <WorkshopHandle>3707677512</WorkshopHandle>
   <Tags>

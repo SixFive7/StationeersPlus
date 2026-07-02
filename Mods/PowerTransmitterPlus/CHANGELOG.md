@@ -2,6 +2,14 @@
 
 Full version history for Power Transmitter Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.9.0: Public mod API with billing handshake, plus bounded wireless transfer debt
+- Added a public mod API (`PowerTransmitterPlus.ModApi`) for other mods: effective transfer capacity, live link distance, source-draw multiplier, transfer-debt access, and a billing-ownership handshake that lets a power-allocator mod take over wireless billing while beams, links, and logic readouts stay active.
+- Wireless links no longer run away when the source cannot cover the distance overhead. A transmitter now pauses delivery while its unpaid source-side debt is above a safety ceiling (four times the per-tick worst case) and resumes once the source pays it down, so devices sharing the source network are not browned out indefinitely. A log warning naming the transmitter fires when a pause starts.
+- Links delivering more than 5 kW now bill the source correctly. Previously the receiver's wireless-side drain stayed capped at the vanilla 5 kW, so the excess accumulated as receiver debt and was never charged upstream (free energy).
+- The source-draw multiplier reported to other mods no longer uses a stale link distance after a link drops; unlinked transmitters report 1.0.
+- No new settings; the safety ceiling derives from the existing Cost Factor and Max Transfer Capacity values.
+- All players on a server must be on v1.9.0 or newer; the LaunchPad version handshake rejects mixed installs.
+
 ## v1.8.0: Optional per-transmitter Max Transfer Capacity, plus multiplayer auto-aim and beam fixes
 - Added an optional `Max Transfer Capacity (W)` server setting (under `Server - Capacity`) that clamps the watts a single transmitter delivers. Default 0 = unlimited, so the vanilla 5 kW per-dish limit stays removed and one dish can carry as much power as its cables and source allow. Server-authoritative, synced to clients on connect and on change.
 - Fixed a multiplayer auto-aim desync: a client's `MicrowaveAutoAimTarget` no longer flickers to 0 while the host slews the dish, and a manual Horizontal or Vertical write now clears the cached target on both host and client.
