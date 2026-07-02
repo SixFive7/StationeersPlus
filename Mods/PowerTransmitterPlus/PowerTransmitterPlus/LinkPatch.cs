@@ -34,10 +34,14 @@ namespace PowerTransmitterPlus
     //
     // Conditions 1-4 are sufficient to confirm aim and line-of-sight reachability.
     // Replacing TryContactReceiver with a forwards-only variant unblocks non-
-    // floor pairs without changing behaviour for floor-only pairs (where the
-    // right-axis check is redundant). Gated on NonFloorPlacementPatched, so
-    // when the host disables non-floor placement vanilla behaviour is preserved
-    // exactly.
+    // floor pairs without meaningfully changing behaviour for floor-only pairs
+    // (where the right-axis check is a redundant tautology and the widened
+    // sphere probe still filters to receiver dish targets). This patch is
+    // unconditionally active: it has no Prepare() gate, so the SphereCast
+    // replacement applies even when Allow Non-Floor Placement is off. That
+    // toggle gates only PlacementPatcher (the prefab AllowedRotations lift);
+    // floor-only worlds simply never produce the geometry the dropped
+    // right-axis check would have rejected.
     //
     // Implementation notes:
     //   - Thing._colliderLookup is `public static Dictionary<Collider, Thing>`

@@ -1,6 +1,6 @@
 # PowerTransmitter Plus: Research Reference
 
-PowerTransmitter Plus extends the vanilla microwave power pair (`PowerTransmitter` / `PowerReceiver` / `WirelessPower`) with a configurable distance-cost model, a visible power beam with pulse-train visualiser, on-the-fly logic readouts (source draw, destination draw, loss, efficiency, auto-aim target, linked partner), auto-aim (write a `ReferenceId` to aim the dish), IC10 named constants, and server-authoritative multiplayer sync for both gameplay and visuals. The mod is BepInEx plus StationeersLaunchPad, server-authoritative for simulation with client-side visuals. First-time readers: architecture and threading in `## Architecture`; the four interlocking distance-cost patches plus logic readout, auto-aim, and logic-system bootstrap patches in `## Harmony patches catalog`; pitfalls in `## Pitfalls / dead ends`; decompiled game internals (`PowerTransmitter` class hierarchy, `WirelessPower` base, LogicType registries, `TryContactReceiver` raycast, dish transform hierarchy, IC10 syntax-highlighting pipeline, LaunchPadBooster networking) live on the central pages pointed to from `## Relevant central pages`.
+PowerTransmitter Plus extends the vanilla microwave power pair (`PowerTransmitter` / `PowerReceiver` / `WirelessPower`) with a configurable distance-cost model, a visible power beam with pulse-train visualiser, on-the-fly logic readouts (source draw, destination draw, loss, efficiency, auto-aim target, linked partner), auto-aim (write a `ReferenceId` to aim the dish), IC10 named constants, server-authoritative multiplayer sync for both gameplay and visuals, and a public cross-mod API with a billing-ownership handshake (`ModApi`). The mod is BepInEx plus StationeersLaunchPad, server-authoritative for simulation with client-side visuals. First-time readers: architecture and threading in `## Architecture`; the cross-mod surface in `## Public API and billing ownership (ModApi)`; the five interlocking distance-cost / billing patches plus logic readout, auto-aim, and logic-system bootstrap patches in `## Harmony patches catalog`; pitfalls in `## Pitfalls / dead ends`; decompiled game internals (`PowerTransmitter` class hierarchy, `WirelessPower` base, LogicType registries, `TryContactReceiver` raycast, dish transform hierarchy, IC10 syntax-highlighting pipeline, LaunchPadBooster networking) live on the central pages pointed to from `## Relevant central pages`.
 
 ## Architecture
 
@@ -24,6 +24,7 @@ Feature pillars (server-authoritative BepInEx mod enhancing the Microwave Power 
 3. Replacement of the vanilla distance-based capacity derate with a source-draw overhead: per watt delivered, the source pulls `1 + k x distance_km` watts (server-authoritative `k`, live-broadcast on change).
 4. Six new LogicTypes on both transmitter and receiver: `MicrowaveSourceDraw` (6571), `MicrowaveDestinationDraw` (6572), `MicrowaveTransmissionLoss` (6573), `MicrowaveEfficiency` (6574), `MicrowaveAutoAimTarget` (6575, writable), `MicrowaveLinkedPartner` (6576, read-only). Readable from configuration tablet and from IC10 by name. Auto-aim writes a target Thing's `ReferenceId` and slews the dish via the vanilla servo; `TryContactReceiver` handles link establishment. `MicrowaveLinkedPartner` returns the `ReferenceId` of the currently linked partner dish (0 when unlinked).
 5. Server-authoritative visual sync: in multiplayer, the host's beam visual settings (width, color, emission intensity, stripe wavelength, scroll speed, trough brightness) are always broadcast to all clients via `BeamVisualConfigMessage`, overriding client-local config.
+6. A public cross-mod API (`ModApi`): API version level, effective transfer capacity, live link distance, source-draw multiplier, transfer-debt read/write, and a billing-ownership handshake so a power-allocator mod can take over wireless billing while the advertise, beam visuals, links, and readouts stay active. See `## Public API and billing ownership (ModApi)`.
 
 The mod preserves vanilla gameplay rules everywhere possible: the `TryContactReceiver` raycast still decides when pairs link (so "obstacle in the path" behavior is intact), the dish slew servo still animates rotations, `LinkedReceiver` / `LinkedPowerTransmitter` are never written directly.
 
@@ -61,11 +62,11 @@ See central `Patterns/MainThreadDispatcher.md` for the dispatcher pattern and `G
 
 ### Server / client roles
 
-Stationeers is **server-authoritative for simulation**. Only the server runs the power tick; clients receive synced state. The `DistanceCostPatches` (4 patches) only meaningfully execute on the server. Clients run the patches but they are no-ops because power-tick code does not run on clients.
+Stationeers is **server-authoritative for simulation**. Only the server runs the power tick; clients receive synced state. The `DistanceCostPatches` (5 patches) only meaningfully execute on the server. Clients run the patches but they are no-ops because power-tick code does not run on clients.
 
 Detection: `Assets.Scripts.Networking.NetworkManager.IsServer` (true on host or single-player) and `NetworkManager.IsActive` (true in multiplayer either side). Single-player has `IsActive = false`. Guards that check `!IsServer` must use `IsActive && !IsServer` to avoid the `NetworkRole.None` trap (central `Patterns/SinglePlayerNetworkRole.md`).
 
-Client-side display values for the readouts are computed from already-synced game state (`OutputNetwork.CurrentLoad`, `_linkedReceiverDistance`) plus the host's `k` value. The `k` value is pushed via `DistanceConfigMessage` on `PlayerConnected` and on every `SettingChanged` event.
+Client-side display values for the readouts are computed from already-synced game state (`OutputNetwork.CurrentLoad`, `_linkedReceiverDistance`) plus the host's `k` value. The `k` value reaches a joining client inside the join payload (`IJoinSuffixSerializer`, see Multiplayer sync flows) and connected clients via `DistanceConfigMessage` on every `SettingChanged` event.
 
 Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is server-authoritative; `TargetHorizontal` / `TargetVertical` writes set `NetworkUpdateFlags |= 256` which the existing delta-state serialization ships to clients.
 
@@ -73,12 +74,12 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 
 | Family | Files | Purpose |
 |---|---|---|
-| Visual on/off | `BeamVisibility.cs`, `BeamManager.cs`, `LinkVisibilityPatch.cs`, `OnOffPatches.cs`, `RotationPatches.cs`, `VisualiserPatches.cs` | Event-driven three-trigger evaluator. A single `BeamManager.ReevaluateVisibility(tx)` entry recomputes `BeamVisibility.ShouldShow(tx)` (predicate: `LinkedReceiver != null && tx.OnOff && rx.OnOff && aimValid`, where `aimValid` is forward-antiparallel within `AimToleranceDegrees = 7f` matching link establishment in `LinkPatch.cs:131`) and shows / hides accordingly. Three event sources fire it, each on every peer (server, single-player host, remote clients) and only on actual change (no per-tick polling): the `PowerTransmitter.LinkedReceiver` setter (`LinkVisibilityPatch`), the `Thing.OnInteractableUpdated` callback filtered to `Action == OnOff && WirelessPower` (`OnOffPatches`, see `Research/GameClasses/Interactable.md`), and the current-angle setters `WirelessPower.Horizontal` / `Vertical` extended to resolve both `PowerTransmitter` (self) and `PowerReceiver` (via `LinkedPowerTransmitter`) (`RotationPatches`). Pulse-train scroll speed is on a separate channel: `VisualiserPatches` postfixes `WirelessPower.VisualizerIntensity` and routes to `BeamManager.SetLineIntensity`, which never touches show / hide (stripes freeze in place at intensity 0). Diagnostic logging via `BeamDiagnosticLogging` config flag (default off): when on, every `ReevaluateVisibility` call logs `[BeamDiagnostic][<context>] tx=... shouldShow=... link=... txOnOff=... rxOnOff=... aim=...` from the trigger thread BEFORE the dispatch-to-main, so server-side log inspection on a headless dedicated server sees every evaluation even though the dispatcher's `Update()` does not pump there |
-| Power-flow simulation | `DistanceCostPatches.cs` | 4 patches replacing vanilla distance derate with source-draw multiplier |
+| Visual on/off | `BeamVisibility.cs`, `BeamManager.cs`, `LinkVisibilityPatch.cs`, `OnOffPatches.cs`, `RotationPatches.cs`, `VisualiserPatches.cs` | Event-driven three-trigger evaluator. A single `BeamManager.ReevaluateVisibility(tx)` entry recomputes `BeamVisibility.ShouldShow(tx)` (predicate: `LinkedReceiver != null && tx.OnOff && rx.OnOff && aimValid`, where `aimValid` is forward-antiparallel within `AimToleranceDegrees = 7f` matching link establishment in `LinkPatch.cs:135`) and shows / hides accordingly. Three event sources fire it, each on every peer (server, single-player host, remote clients) and only on actual change (no per-tick polling): the `PowerTransmitter.LinkedReceiver` setter (`LinkVisibilityPatch`), the `Thing.OnInteractableUpdated` callback filtered to `Action == OnOff && WirelessPower` (`OnOffPatches`, see `Research/GameClasses/Interactable.md`), and the current-angle setters `WirelessPower.Horizontal` / `Vertical` extended to resolve both `PowerTransmitter` (self) and `PowerReceiver` (via `LinkedPowerTransmitter`) (`RotationPatches`). Pulse-train scroll speed is on a separate channel: `VisualiserPatches` postfixes `WirelessPower.VisualizerIntensity` and routes to `BeamManager.SetLineIntensity`, which never touches show / hide (stripes freeze in place at intensity 0). Diagnostic logging via `BeamDiagnosticLogging` config flag (default off): when on, every `ReevaluateVisibility` call logs `[BeamDiagnostic][<context>] tx=... shouldShow=... link=... txOnOff=... rxOnOff=... aim=...` from the trigger thread BEFORE the dispatch-to-main, so server-side log inspection on a headless dedicated server sees every evaluation even though the dispatcher's `Update()` does not pump there |
+| Power-flow simulation | `DistanceCostPatches.cs`, `ModApi.cs` | 5 patches: source-draw multiplier replacing the vanilla distance derate, standalone debt ceiling, receiver drain-cap lift. The two debt-billing patches and the ceiling stand down while another mod holds billing ownership via `ModApi`; the advertise, visualizer fix, and drain-cap lift stay active regardless |
 | Logic readout (UI/IC10) | `LogicReadoutPatches.cs` | `CanLogicRead` postfix + `GetLogicValue` prefix on `WirelessPower` (base class); branches on instance type inside |
 | Auto-aim logic write | `AutoAimPatches.cs` | `SetLogicValue` prefix intercepts `MicrowaveAutoAimTarget`; for dish-to-dish targets the solver runs a joint mutual-aim fixed-point iteration over both dishes (each side's `RayTransform.forward` through the other's `DishTarget`), seeded canonically from the rotation-invariant root-to-root direction. Inner solve cap 10 iterations, outer cap 5, 1 cm convergence tolerance. Non-dish targets fall back to single-side solve. `RotatableBehaviour` target setter postfixes clear the cache on manual override. Per-dish cache via `ConditionalWeakTable` |
 | Auto-aim post-load pass | `AutoAimSaveLoadPatches.cs` | Postfix on `GameManager.UpdateThingsOnGameStart` walks `AutoAimState._tracked` once after every Thing's `OnFinishedLoad` has run. Re-solves every cached pair under the current solver and clears any cache entry whose target no longer resolves to a `Thing`. Host-side only (`!IsActive \|\| IsServer`); clients receive results via the existing per-tick deltas |
-| Link condition | `LinkPatch.cs` | Harmony Prefix on `PowerTransmitter.TryContactReceiver` that drops the vanilla right-axis antiparallel check (geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis). Replaces the narrow `Physics.Raycast` with a 0.5 m `SphereCastNonAlloc` filtered post-hit to the receiver's `DishTarget` collider; tolerates sub-degree aim residual or mid-slew jitter without false positives. Forwards-axis check (within 7 degrees) is preserved. Gated on `NonFloorPlacementPatched`; floor-only worlds run vanilla unchanged |
+| Link condition | `LinkPatch.cs` | Harmony Prefix on `PowerTransmitter.TryContactReceiver` that drops the vanilla right-axis antiparallel check (geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis). Replaces the narrow `Physics.Raycast` with a 0.5 m `SphereCastNonAlloc` filtered post-hit to the receiver's `DishTarget` collider; tolerates sub-degree aim residual or mid-slew jitter without false positives. Forwards-axis check (within 7 degrees) is preserved. Unconditionally active (no `Prepare()` gate): `Allow Non-Floor Placement` gates only `PlacementPatcher`, and floor-only pairs never produce the geometry the dropped right-axis check would have rejected |
 | Logic system bootstrap | `Ic10ConstantsPatcher.cs`, `LogicableInitializePatch.cs`, `EnumNamePatches.cs`, `StationpediaPatches.cs` | Teach the game about our `LogicType` values 6571-6576 everywhere the game looks them up by name: compiler constants, tablet arrays, enum name resolution, screen syntax highlighting, Stationpedia |
 | Multiplayer sync (k) | `DistanceConfigMessage.cs`, `DistanceConfigSync.cs` | Server-authoritative `k` push to clients via LaunchPadBooster networking |
 | Multiplayer sync (visuals) | `BeamVisualConfigMessage.cs`, `BeamVisualConfigSync.cs` | Server-authoritative beam visual config push to clients via LaunchPadBooster networking |
@@ -93,7 +94,7 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 
 `BeamManager.cs` - Static class. Holds `Dictionary<PowerTransmitter, BeamLine> Beams`, a `SharedMaterial` (lazy-created with shader-fallback chain), `BeamColor` (parsed from config hex x emission intensity), and `StripeTexture` (lazy-created 32x1 cosine grayscale, repeat-wrapped, used by the pulse train). Public surface (all enqueue to dispatcher): `ReevaluateVisibility(transmitter, context)` is the single show / hide entry; it computes `BeamVisibility.ShouldShow(transmitter)` and shows / hides accordingly, refreshing endpoints when shown. `SetLineIntensity(transmitter, intensity)` drives pulse-train scroll speed only; does NOT drive show / hide. `InvalidateAllBeams()` destroys every beam GameObject so the next `ReevaluateVisibility` rebuilds it with the current visual settings. Diagnostic logging: when `PowerTransmitterPlusPlugin.BeamDiagnosticLogging` is on, `ReevaluateVisibility` emits one `[BeamDiagnostic][<context>] ...` line per call (predicate result + sub-terms) BEFORE the dispatch-to-main-thread, so a headless dedicated server (where the dispatcher's `Update()` does not pump) still logs every evaluation against simulation state.
 
-`BeamVisibility.cs` - Pure predicate. `ShouldShow(PowerTransmitter tx)` returns true iff `tx.LinkedReceiver != null && tx.RayTransform != null && rx.RayTransform != null && tx.OnOff && rx.OnOff && aimValid`, where `aimValid = RocketMath.Approximately(Vector3.Angle(tx.RayTransform.forward, rx.RayTransform.forward), 180f, AimToleranceDegrees)` with `AimToleranceDegrees = 7f`. Same tolerance as `LinkPatch.cs:131` uses to establish a link: "beam is visible iff the link could be re-established right now." Side-effect-free, safe to call from any peer's main thread (where every visibility trigger fires). Intentionally NOT a gate: power flow / `VisualizerIntensity` (the v1.5.1 zero-power-but-linked feature stays), `Powered` brownouts, and `Error` state. Diagnostic helper `Describe(tx)` formats the predicate inputs and result for log output; tolerates nulls.
+`BeamVisibility.cs` - Pure predicate. `ShouldShow(PowerTransmitter tx)` returns true iff `tx.LinkedReceiver != null && tx.RayTransform != null && rx.RayTransform != null && tx.OnOff && rx.OnOff && aimValid`, where `aimValid = RocketMath.Approximately(Vector3.Angle(tx.RayTransform.forward, rx.RayTransform.forward), 180f, AimToleranceDegrees)` with `AimToleranceDegrees = 7f`. Same tolerance as `LinkPatch.cs:135` uses to establish a link: "beam is visible iff the link could be re-established right now." Side-effect-free, safe to call from any peer's main thread (where every visibility trigger fires). Intentionally NOT a gate: power flow / `VisualizerIntensity` (the v1.5.1 zero-power-but-linked feature stays), `Powered` brownouts, and `Error` state. Diagnostic helper `Describe(tx)` formats the predicate inputs and result for log output; tolerates nulls.
 
 `BeamLine.cs` - Per-transmitter wrapper. Owns a child `GameObject` parented to `transmitter.transform`, a `LineRenderer` with `useWorldSpace = true, positionCount = 2`, and a `BeamPulseTrain` MonoBehaviour. Beam alpha is permanently 1 when visible: the pulse train is the only power-level indicator.
 
@@ -107,13 +108,15 @@ Auto-aim rides entirely on pre-existing infrastructure: `SetLogicValue` is serve
 
 `RotationPatches.cs` - Harmony postfixes on `WirelessPower.Horizontal` and `Vertical` setters (the live current-angle setters fired every slew step by `RotatableBehaviour.DoMoveTask` on every peer that simulates the slew; see `Research/GameClasses/RotatableBehaviour.md`). Resolves both `PowerTransmitter` (self) and `PowerReceiver` (via `LinkedPowerTransmitter`) to the transmitter that owns the beam, then calls `BeamManager.ReevaluateVisibility(tx, "Slew")`. This re-runs the full predicate including the aim check: the beam drops out at the first step where the dish's forward leaves the 7-degree tolerance, and re-shows at the first step it returns within tolerance. Idle dishes do not call these setters; cost is zero when nothing is moving.
 
-`DistanceCostPatches.cs` - Four power-tick patches implementing the source-draw overhead model. See Harmony patches catalog for math. `DistanceCostShared` (static helper): `PowerProvidedField` and `LinkedDistanceField` reflections, `GetWirelessOutputNetwork(t)` via `Traverse` (field-or-property tolerant), `GetMultiplier(t)` reads distance via reflection and multiplies by `DistanceConfigSync.GetEffectiveK()`.
+`DistanceCostPatches.cs` - Five power-tick patches implementing the source-draw overhead model, the standalone debt ceiling, and the receiver drain-cap lift. See Harmony patches catalog for the math and `## Public API and billing ownership (ModApi)` for the ownership gating. `DistanceCostShared` (static helper): `PowerProvidedField` (transmitter) and `ReceiverPowerProvidedField` (receiver; the two classes each declare their own private `_powerProvided`) plus `LinkedDistanceField` reflections, `PowerProvidedFieldFor(half)` picker, `GetWirelessOutputNetwork(t)` via `Traverse` (field-or-property tolerant), `GetMultiplier(t)` reads distance via reflection and multiplies by `DistanceConfigSync.GetEffectiveK()`, and the legacy public `SourceDrawMultiplier(t)` accessor, kept for released PowerGridPlus builds that resolve it via reflection, now forwarding to `ModApi.SourceDrawMultiplier` (unlinked returns 1).
+
+`ModApi.cs` - Public cross-mod API (static class `PowerTransmitterPlus.ModApi`): version level, capacity, link distance, source-draw multiplier, transfer-debt access, billing-ownership handshake. Full surface and semantics in `## Public API and billing ownership (ModApi)`.
 
 `LogicTypeRegistry.cs` - Constants for all custom LogicType values (6571-6576). `List<CustomLogicType> All` with name / value / description per entry. `Dictionary<ushort, CustomLogicType> ByValue` index. `IsCustom(LogicType)` and `TryGetName(LogicType, out string)` helpers.
 
 `DistanceConfigMessage.cs` - `INetworkMessage` from LaunchPadBooster. Single field `float K`. `Process(long hostId)`: if NOT server, calls `DistanceConfigSync.OnHostConfigReceived(K)` (guard against self-echo).
 
-`DistanceConfigSync.cs` - Static class. Holds `_syncedHostK : float?` (null until first message arrives). `GetEffectiveK()` returns local config on host or single-player, synced value (or local fallback) on client. `OnHostConfigReceived(float k)` stores value and logs change. `HookHostBroadcast()` subscribes to `DistanceCostFactor.SettingChanged` to call `BroadcastIfHost()`. `BroadcastIfHost()` if `IsServer`, builds and `SendAll(0L)`s a `DistanceConfigMessage`. `[HarmonyPatch(typeof(NetworkManager), "PlayerConnected")]` postfix calls `BroadcastIfHost()` on every join.
+`DistanceConfigSync.cs` - Static class. Holds `_syncedHostK : float?` (null until first message arrives). `GetEffectiveK()` returns local config on host or single-player, synced value (or local fallback) on client. `OnHostConfigReceived(float k)` stores value and logs change. `HookHostBroadcast()` subscribes to `DistanceCostFactor.SettingChanged` to call `BroadcastIfHost()`. `BroadcastIfHost()` if `IsServer`, builds and `SendAll(0L)`s a `DistanceConfigMessage`. Join-time delivery to a fresh client rides the `IJoinSuffixSerializer` payload in `Plugin.cs`; the earlier `NetworkManager.PlayerConnected` rebroadcast postfix was removed in v1.7.0 because it fired before the joiner entered `NetworkBase.Clients`, so the joiner never received it (see `Research/Protocols/PlayerConnectedThingFindTiming.md`).
 
 `BeamVisualConfigMessage.cs` - `INetworkMessage` carrying six fields: `BeamWidth`, `BeamColorHex`, `EmissionIntensity`, `StripeWavelength`, `ScrollSpeed`, `StripeTroughBrightness`. Serialized via `RocketBinaryWriter/Reader`. `Process()` ignores on server; on client calls `BeamVisualConfigSync.OnHostConfigReceived()`.
 
@@ -171,7 +174,7 @@ Post-load pass (`AutoAimSaveLoadPatches.cs`, `GameManagerUpdateThingsOnGameStart
 
 Reading `MicrowaveAutoAimTarget` is handled in `LogicReadoutPatches.cs` (per-dish lookup on `__instance`).
 
-`LinkPatch.cs` - Single Harmony Prefix on `PowerTransmitter.TryContactReceiver` (gated whole-class with `Prepare()` returning `NonFloorPlacementPatched`). Replaces the vanilla narrow `Physics.Raycast` with `Physics.SphereCastNonAlloc` (radius 0.5 m, 64-slot static buffer), then walks the hit list and accepts the closest hit whose collider resolves via `Thing._colliderLookup` to a `PowerReceiver` matching `hit.transform == rx.DishTarget`. The post-hit filter is the only mechanism preventing false positives because Stationeers exposes no content-typed Physics layer (see `Research/GameClasses/Layers.md`); walls, pipes, cables, and the dish's own arm geometry all fail the filter and are silently skipped. Forwards-antiparallel check (within 7 deg) is preserved as a sanity gate. The vanilla right-axis antiparallel check is dropped (geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis). On success writes `LinkedReceiver`, `rx.LinkedPowerTransmitter`, and `_linkedReceiverDistance` (cached `AccessTools.Field` setter; the leading underscore on the field name makes Harmony's `___field` parameter convention unreliable). `_linkedReceiverDistance` uses exact `Vector3.Distance(origin, rx.DishTarget.position)` rather than `hit.distance`, which underestimates by up to the sphere radius. Returns `false` to skip the vanilla body. Floor-only worlds (toggle off) preserve vanilla behaviour exactly.
+`LinkPatch.cs` - Single Harmony Prefix on `PowerTransmitter.TryContactReceiver` (unconditionally active; no `Prepare()` gate). Replaces the vanilla narrow `Physics.Raycast` with `Physics.SphereCastNonAlloc` (radius 0.5 m, 64-slot static buffer), then walks the hit list and accepts the closest hit whose collider resolves via `Thing._colliderLookup` to a `PowerReceiver` matching `hit.transform == rx.DishTarget`. The post-hit filter is the only mechanism preventing false positives because Stationeers exposes no content-typed Physics layer (see `Research/GameClasses/Layers.md`); walls, pipes, cables, and the dish's own arm geometry all fail the filter and are silently skipped. Forwards-antiparallel check (within 7 deg) is preserved as a sanity gate. The vanilla right-axis antiparallel check is dropped (geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis). On success writes `LinkedReceiver`, `rx.LinkedPowerTransmitter`, and `_linkedReceiverDistance` (cached `AccessTools.Field` setter; the leading underscore on the field name makes Harmony's `___field` parameter convention unreliable). `_linkedReceiverDistance` uses exact `Vector3.Distance(origin, rx.DishTarget.position)` rather than `hit.distance`, which underestimates by up to the sphere radius. Returns `false` to skip the vanilla body. `Allow Non-Floor Placement` gates only `PlacementPatcher`, not this probe; floor-only pairs never produce the geometry the dropped right-axis check would have rejected, and the widened probe still filters to receiver dish targets, so their observable behaviour matches vanilla.
 
 `StationpediaPatches.cs` - Best-effort Stationpedia integration via `AccessTools.TypeByName` and `TargetMethod()`+`Prepare()`. Adds in-game wiki entries for each custom LogicType. Failure is non-fatal.
 
@@ -208,15 +211,18 @@ For 1 kW receiver demand: scale by 5x. For 15 kW: scale by 75x. Default `k=5` gi
 
 ### Multiplayer sync flows
 
-**Distance-cost k sync.** Host-authoritative. Host pushes `k` via `DistanceConfigMessage` on `PlayerConnected` postfix and on every config change. Clients store and use the host value for distance-cost math (which runs client-side for readouts).
+**Config sync, two delivery paths.** Every host-authoritative config value reaches clients the same way: a join-time snapshot inside the world-snapshot join payload (`IJoinSuffixSerializer` on `PowerTransmitterPlusPlugin`: `SerializeJoinSuffix` writes `k`, the six beam visual values, and Max Transfer Capacity; `DeserializeJoinSuffix` applies them through the same `OnHostConfigReceived` helpers the live path uses), plus a live `INetworkMessage` broadcast on every `SettingChanged` while clients are connected. Earlier versions rebroadcast on a `NetworkManager.PlayerConnected` postfix instead of the join payload; that hook fires before the joiner enters `NetworkBase.Clients`, so the joiner never received the broadcast, and it was removed in v1.7.0 (see `Research/Protocols/PlayerConnectedThingFindTiming.md`).
+
+**Distance-cost k sync.** Host-authoritative. Clients store and use the host value for distance-cost math (which runs client-side for readouts).
 
 ```
 Host:
-  On DistanceCostFactor.SettingChanged     -> DistanceConfigSync.BroadcastIfHost()
-  On NetworkManager.PlayerConnected (postfix) -> BroadcastIfHost()
+  On client join                       -> SerializeJoinSuffix writes k into the join payload
+  On DistanceCostFactor.SettingChanged -> DistanceConfigSync.BroadcastIfHost()
   BroadcastIfHost(): if IsServer, new DistanceConfigMessage{K=k}.SendAll(0L)
 
 Client:
+  DeserializeJoinSuffix -> DistanceConfigSync.OnHostConfigReceived(K)
   DistanceConfigMessage.Process(hostId):
     if !IsServer, DistanceConfigSync.OnHostConfigReceived(K)
   OnHostConfigReceived(k): _syncedHostK = k
@@ -227,16 +233,20 @@ Effective k decision:
   else (client)             -> _syncedHostK ?? local
 ```
 
-**Visual config sync.** Same pattern: `BeamVisualConfigMessage`, `BeamVisualConfigSync`. Host push on connect plus on change.
+**Max Transfer Capacity sync.** Same pattern: join-time value rides the join payload (appended last in the wire format), live updates via `MaxCapacityConfigMessage`, and `MaxCapacityConfigSync.GetEffectiveMaxCapacity()` makes the same per-side decision as the `k` flow.
+
+**Visual config sync.** Same pattern: `BeamVisualConfigMessage`, `BeamVisualConfigSync`. Join-time snapshot plus live push on change.
 
 ```
 Host:
-  On BeamWidth/BeamColorHex/EmissionIntensity/
-     StripeWavelength/ScrollSpeed.SettingChanged -> BeamVisualConfigSync.BroadcastIfHost()
-  On NetworkManager.PlayerConnected (postfix)    -> BroadcastIfHost()
+  On client join -> SerializeJoinSuffix writes the six beam visual values
+  On BeamWidth/BeamColorHex/EmissionIntensity/StripeWavelength/
+     ScrollSpeed/StripeTroughBrightness.SettingChanged
+                 -> BeamVisualConfigSync.BroadcastIfHost()
   BroadcastIfHost(): if IsServer, new BeamVisualConfigMessage{...}.SendAll(0L)
 
 Client:
+  DeserializeJoinSuffix -> BeamVisualConfigSync.OnHostConfigReceived(msg)
   BeamVisualConfigMessage.Process(hostId):
     if !IsServer, BeamVisualConfigSync.OnHostConfigReceived(msg)
   OnHostConfigReceived(msg):
@@ -253,6 +263,33 @@ Effective value decision (per GetEffective* method):
 **Why on-the-fly (not cached) computation for readouts.** Readouts compute directly from `OutputNetwork.CurrentLoad` and `_linkedReceiverDistance` in the `GetLogicValue` prefix. Both are already client-synced via cable network and wireless link state respectively. Clients have everything they need to display the same numbers as the server given matching `k`. No `PowerStatsTracker` dictionary, no per-tick stamping, no age-out. Snap-to-zero is automatic when delivered = 0.
 
 See `Protocols/PowerTransmitterPlusNetworking.md` for the full message schema and flow, and `Protocols/LaunchPadBoosterNetworking.md` for the underlying networking primitives (`INetworkMessage`, `SendAll`, `SendToHost`, handshake, `Required` flag).
+
+## Public API and billing ownership (ModApi)
+
+`ModApi.cs` (static class `PowerTransmitterPlus.ModApi`, since v1.9.0) is the public cross-mod surface. Consumers reference the assembly directly or resolve `Type.GetType("PowerTransmitterPlus.ModApi, PowerTransmitterPlus")` and call the statics via reflection. Stability contract: members are only added, never renamed, retyped, or removed; `Version` bumps on every addition so callers gate on a minimum level instead of probing members.
+
+| Member | Semantics |
+|---|---|
+| `const int Version = 1` | API level. 1 = initial surface (mod v1.9.0). |
+| `float EffectiveMaxCapacity()` | Per-transmitter delivery cap in watts; 0 = unlimited. Returns the host-synced value on clients. |
+| `bool TryGetLink(PowerTransmitter t, out float distanceMeters)` | True with the live `_linkedReceiverDistance` when `t` is linked; false and 0 when `t` is null or unlinked. Never surfaces the stale cached distance a transmitter keeps after its link drops. |
+| `float SourceDrawMultiplier(PowerTransmitter t)` | `m = 1 + k * distance_m / 1000`, or exactly 1 when `t` is null or unlinked (same stale-distance gate). |
+| `float GetTransferDebt(WirelessPower half)` / `void SetTransferDebt(WirelessPower half, float value)` | Read / write the private `_powerProvided` debt accumulator on either half. `PowerTransmitter` and `PowerReceiver` each declare their own field; the API picks the matching `FieldInfo` (`DistanceCostShared.PowerProvidedFieldFor`). Unsupported instances read 0 / write nothing. |
+| `bool ClaimBillingOwnership(string ownerId)` | Single-owner claim. True when `ownerId` holds the claim after the call (re-claiming the same id is idempotent); false when a different owner already holds it (logged as a Warning naming the holder) or `ownerId` is null or empty. Logs one Info line per actual transition. |
+| `void ReleaseBillingOwnership(string ownerId)` | Releases only when `ownerId` is the current owner; otherwise no-op. Logs one Info line. |
+| `string BillingOwner { get; }` | Current owner id, or null while this mod's own debt billing is active. |
+
+Ownership semantics, i.e. what changes while `BillingOwner != null`:
+
+- STAND DOWN: `UsePowerInflateDebtPatch` (patch 2) and `GetUsedPowerLiftCapPatch` (patch 3) early-return, and the standalone debt ceiling inside the advertise prefix (patch 1) is skipped. The owner computes and settles the source-side bill itself (typically via `SetTransferDebt`).
+- STAY ACTIVE: the advertise value in patch 1 (the capacity definition another mod clamps), the receiver drain-cap lift (patch 5), the visualizer fix (patch 4), beam visuals, link patches, auto-aim, and logic readouts.
+- Threading: `BillingOwner` is a volatile static read on the power-tick worker; claim and release serialize on a lock and are callable from any thread at any time. Plugin load order between mods is nondeterministic, so the billing patches check ownership per call; a late claim simply takes effect on the next power tick.
+
+**Standalone debt ceiling** (active only when `BillingOwner == null`): the advertise prefix reads the transmitter's debt and advertises 0 while `debt >= ceiling`, with `ceiling = (cap > 0 ? cap : MaxPowerTransmission) * max(m, 1) * 4`. One stateless rule bounds two failure modes: the insufficient-source runaway (whenever source Potential < m x delivered, the debt otherwise grows every tick while the lifted bill browns out co-located consumers) and the OnOff lump bill (debt frozen while a dish is off gets billed all at once on re-enable). A paused link self-resumes once the source pays the debt down, producing a self-limiting duty cycle instead of a hard fault. A LogWarning naming the transmitter fires once per pause episode (static `HashSet<long>` keyed by `ReferenceId`, membership dropped when the debt falls below half the ceiling).
+
+**Receiver drain-cap lift** (ALWAYS active, ownership or not): `ReceiverDrainCapLiftPatch` postfixes `PowerReceiver.GetUsedPower` on the wireless input network, lifting the vanilla `Min(MaxPowerTransmission + UsedPower, debt)` result to `Min(max(5000, cap) + UsedPower, debt)` when `cap > 5000`, and to the full debt when `cap == 0` (unlimited). Without it, any delivery above 5 kW strands as receiver-side debt that never crosses back to the transmitter, so the source is never billed for the excess (free energy). The patch mirrors the vanilla guards (Error / OnOff / wireless-net identity) and only ever lifts the vanilla result, so it is harmless under an external allocator.
+
+Back-compat: `DistanceCostShared.SourceDrawMultiplier(PowerTransmitter)` remains as the legacy reflection surface (released PowerGridPlus builds resolve it by name) and now forwards to `ModApi.SourceDrawMultiplier`, picking up the same unlinked -> 1 gate. `DistanceCostShared.GetMultiplier` keeps its raw read-the-cached-distance semantics because older external fallbacks call it directly.
 
 ## Design decisions
 
@@ -275,7 +312,10 @@ See `Protocols/PowerTransmitterPlusNetworking.md` for the full message schema an
 | Drop the vanilla right-axis antiparallel link check | Vanilla `TryContactReceiver` requires `Vector3.Angle(TX.RayTransform.right, RX.RayTransform.right) ~ 180` (within 7 deg) on top of the forwards check. For two floor-mounted dishes the rights are GEOMETRICALLY FORCED antiparallel once forwards are antiparallel (both axles spin around world up), so the check is a redundant tautology. For non-floor pairs the two root frames have different world-up axes; even when auto-aim drives forwards within 7 deg the rights end up dozens of degrees apart because H/V only control aim direction, not roll around the forward axis. Empirically on wall TX + ceiling RX: forwards angle 178.92 deg (within tolerance), rights angle 56.01 deg (124 deg outside tolerance). Patch drops condition 5; conditions 1-4 (raycast + collider lookup + DishTarget identity + forwards-antiparallel) are sufficient to confirm aim and line-of-sight reachability |
 | Don't touch `LinkedReceiver` / `LinkedPowerTransmitter` from auto-aim | The vanilla `TryContactReceiver` raycast handles link/unlink based on alignment, including the "obstacle C in the path" case. Writing link fields directly bypasses the physics check |
 | Auto-aim via servo setter writes under a `[ThreadStatic]` suppression flag | Re-uses existing servo delta-state for multiplayer sync; no new network message needed for aim |
-| Four-patch power-tick quartet treated as an atomic set | Disabling any one produces observable breakage. See Pitfalls section below. |
+| Power-tick billing patches treated as an atomic set | Disabling any one produces observable breakage; the ownership handshake stands down patches 2 and 3 together (each gates on the same `BillingOwner` check per call), never individually. See Pitfalls section below. |
+| Billing-ownership handshake instead of a config toggle | A power-allocator mod knows at runtime whether it is present and active; a per-call `BillingOwner` check makes the claim order-independent (either plugin may load first) and reversible without a restart. No player-facing setting to explain or mis-set |
+| Debt ceiling as a stateless advertise pause | Bounds the insufficient-source runaway and the OnOff lump bill with one rule and no per-tick state; a paused link self-resumes when the source pays down, giving a duty cycle instead of a hard fault |
+| Receiver drain-cap lift always active | Corrects vanilla relay accounting that only misbehaves above 5 kW delivered; under an external allocator it is harmless because it only raises how fast already-booked receiver debt may drain |
 | Multiplayer server broadcast (rather than client-side config) | Guarantees all clients see the same gameplay numbers as the host |
 | `MOD.Networking.Required = true` | LaunchPad version handshake catches clients with missing or mismatched installs |
 | Visual sync always active in multiplayer | Keeps all players on the same page visually. Simplest model: host is authoritative for visuals just like for gameplay (k). No toggle to explain, no split behavior |
@@ -285,7 +325,7 @@ See `Protocols/PowerTransmitterPlusNetworking.md` for the full message schema an
 | On-the-fly readout computation, no cache | Readouts compute from `OutputNetwork.CurrentLoad` and `_linkedReceiverDistance` in the `GetLogicValue` prefix. Both are already client-synced. No `PowerStatsTracker` dictionary, no per-tick stamping, no age-out. Snap-to-zero is automatic when delivered = 0. |
 | Beam visibility as event-driven three-trigger evaluator | A single `BeamManager.ReevaluateVisibility(tx)` entry computes `BeamVisibility.ShouldShow(tx)` from current state and shows / hides accordingly. Three event sources fire it, each on every peer and only on actual change: the `LinkedReceiver` setter (`LinkVisibilityPatch`), `Thing.OnInteractableUpdated` filtered to `Action == OnOff && WirelessPower` (`OnOffPatches`), and the current-angle setters `WirelessPower.Horizontal` / `Vertical` resolved through both `PowerTransmitter` (self) and `PowerReceiver` (`LinkedPowerTransmitter`) (`RotationPatches`). Per-tick polling rejected: idle dishes never call any of these, so steady-state cost is zero. Risk of the event-driven model (missed input-change paths) is enumerated explicitly in the visual-patches table; the canonical input set is link reference + both dishes' `OnOff` + both dishes' current orientation. |
 | Switch-only gate (predicate gates on `OnOff`, not `Powered` or `Error`) | A linked pair with zero power flow still shows the beam (with frozen pulse stripes) so the player can diagnose power-flow issues without the link visual disappearing. v1.5.1 introduced this for zero-load but left no gate at all for switched-off dishes, which then read as "linked but device off" with the beam still on. v1.7.3 adds the missing switch-state gate via `OnOffPatches`. `Powered` and `Error` are intentionally NOT in the predicate: a browned-out or self-shorted dish that is still switched on shows its (now-broken) link for the same diagnosis-friendly reason. |
-| 7-degree aim tolerance for visibility matches link establishment | `BeamVisibility.AimToleranceDegrees = 7f` matches the forward-antiparallel cone in `LinkPatch.cs:131` and `PowerTransmitter.TryContactReceiver`. Single principle: "beam is visible iff the link could be re-established right now." One tunable, one place. Auto-aim converges to well under one degree per iteration, so within-tolerance corrections during tracking do not flicker the beam. |
+| 7-degree aim tolerance for visibility matches link establishment | `BeamVisibility.AimToleranceDegrees = 7f` matches the forward-antiparallel cone in `LinkPatch.cs:135` and `PowerTransmitter.TryContactReceiver`. Single principle: "beam is visible iff the link could be re-established right now." One tunable, one place. Auto-aim converges to well under one degree per iteration, so within-tolerance corrections during tracking do not flicker the beam. |
 | `BeamDiagnosticLogging` config flag (off by default) | Optional verbose log line per `ReevaluateVisibility` call: predicate result and sub-terms. Fires on the trigger thread BEFORE the dispatch-to-main-thread, so it works on a headless dedicated server (where the dispatcher's `Update()` does not pump and the dispatched show / hide work would not run). Off in normal play to keep the log clean. Long-term debugging surface without needing a code change. |
 
 ### Reference patterns adopted from other mods
@@ -319,9 +359,9 @@ Every patch lists its target method, patch type, and a one-to-two-sentence effec
 
 **Depends on:** [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) (class hierarchy, `WirelessPower` and `PowerTransmitter` members, prefab-extraction LineRenderer/Material values).
 
-### Distance-cost quartet
+### Distance-cost billing patches
 
-All four patches on `PowerTransmitter` are a single model. See `Research/GameClasses/PowerTransmitter.md` for vanilla method bodies (`GetGeneratedPower`, `UsePower`, `GetUsedPower`, `ReceivePower`) and the `distance-cost-quartet` section for the vanilla-vs-patched flow diagram and energy-conservation argument.
+Five patches (four on `PowerTransmitter`, one on `PowerReceiver`) form a single model. See `Research/GameClasses/PowerTransmitter.md` for vanilla method bodies (`GetGeneratedPower`, `UsePower`, `GetUsedPower`, `ReceivePower`) and the `distance-cost-quartet` section for the vanilla-vs-patched flow diagram and energy-conservation argument. Ownership gating, the debt ceiling, and the receiver drain-cap lift are specified in `## Public API and billing ownership (ModApi)` above.
 
 Vanilla power tick:
 
@@ -344,31 +384,40 @@ Patched flow with multiplier `m = 1 + k x dist_m / 1000`:
 ```
 WirelessOutputNetwork tick:
   GetGeneratedPower -> MaxTransferCapacity>0 ? Min(cap, PotentialLoad) : PotentialLoad   (patch 1: drop loss + drop 5000 ceiling; cap default 0 = unlimited)
+                       (patch 1 also advertises 0 while TX debt >= (cap>0?cap:5000) x max(m,1) x 4,
+                        the standalone debt ceiling; skipped under billing ownership)
   Receiver demands D, gets D
   UsePower(WirelessOutputNetwork, D) -> _powerProvided += D
-                                       (patch 2: also += D x (m-1))
+                                       (patch 2: also += D x (m-1); no-op under billing ownership)
                                        -> _powerProvided = D x m
 
 InputNetwork tick:
   GetUsedPower(InputNetwork) -> Min(5000, _powerProvided)
-                              (patch 3: lifted to uncapped _powerProvided = D x m)
+                              (patch 3: lifted to uncapped _powerProvided = D x m;
+                               no-op under billing ownership)
   ReceivePower(InputNetwork, D x m) -> _powerProvided -= D x m  (back to 0)
                                       -> VisualizerIntensity = (D x m) / 5000
                                       (patch 4: overridden to D / 5000)
+
+Receiver wireless drain (RX side of the same link):
+  RX.GetUsedPower(WirelessNetwork) -> vanilla Min(5000 + UsedPower, rx._powerProvided)
+                                      (patch 5: lifted to Min(max(5000, cap) + UsedPower, debt),
+                                       or the full debt when cap == 0; always active)
 ```
 
 Energy conservation: `_powerProvided` net-zeros each tick.
 
 | # | Patch class | Target method | Type | What |
 |---|---|---|---|---|
-| 1 | `GeneratedPowerNoDistanceDeratePatch` | `PowerTransmitter.GetGeneratedPower` | Prefix (return false) | Replicate vanilla guards. Return `MaxTransferCapacity > 0 ? Min(MaxTransferCapacity, InputNetwork.PotentialLoad) : InputNetwork.PotentialLoad`. The delivery cap is the `Max Transfer Capacity` setting (0 = unlimited, default); no `MaxPowerTransmission`/5000 ceiling and no loss subtraction. |
-| 2 | `UsePowerInflateDebtPatch` | `PowerTransmitter.UsePower` | Postfix | Skip if `powerUsed <= 0` / Error / !OnOff / wrong network. Compute multiplier; if > 1, add `powerUsed x (multiplier - 1)` to `_powerProvided`. |
-| 3 | `GetUsedPowerLiftCapPatch` | `PowerTransmitter.GetUsedPower` | Postfix | Skip if Error / !OnOff / no InputNetwork. Read `_powerProvided`. If `debt > __result`, set `__result = debt`. |
-| 4 | `ReceivePowerVisualizerFixPatch` | `PowerTransmitter.ReceivePower` | Postfix | Skip if multiplier <= 1. Compute `delivered = powerAdded / multiplier`, set `VisualizerIntensity = delivered / MaxPowerTransmission`. |
+| 1 | `GeneratedPowerNoDistanceDeratePatch` | `PowerTransmitter.GetGeneratedPower` | Prefix (return false) | Replicate vanilla guards. Return `MaxTransferCapacity > 0 ? Min(MaxTransferCapacity, InputNetwork.PotentialLoad) : InputNetwork.PotentialLoad`. The delivery cap is the `Max Transfer Capacity` setting (0 = unlimited, default); no `MaxPowerTransmission`/5000 ceiling and no loss subtraction. Standalone debt ceiling: advertises 0 while TX debt >= `(cap > 0 ? cap : 5000) x max(m,1) x 4`, with a once-per-episode LogWarning; the ceiling (not the advertise) is skipped while `ModApi.BillingOwner != null`. |
+| 2 | `UsePowerInflateDebtPatch` | `PowerTransmitter.UsePower` | Postfix | No-op while `ModApi.BillingOwner != null`. Skip if `powerUsed <= 0` / Error / !OnOff / wrong network. Compute multiplier; if > 1, add `powerUsed x (multiplier - 1)` to `_powerProvided`. |
+| 3 | `GetUsedPowerLiftCapPatch` | `PowerTransmitter.GetUsedPower` | Postfix | No-op while `ModApi.BillingOwner != null`. Skip if Error / !OnOff / no InputNetwork. Read `_powerProvided`. If `debt > __result`, set `__result = debt`. |
+| 4 | `ReceivePowerVisualizerFixPatch` | `PowerTransmitter.ReceivePower` | Postfix | Skip if multiplier <= 1. Compute `delivered = powerAdded / multiplier`, set `VisualizerIntensity = delivered / MaxPowerTransmission`. Active regardless of ownership. |
+| 5 | `ReceiverDrainCapLiftPatch` | `PowerReceiver.GetUsedPower` | Postfix | Always active. Mirrors vanilla guards (Error / !OnOff / wireless-net identity via `WirelessInputNetwork`). Lifts the vanilla `Min(5000 + UsedPower, rx._powerProvided)` to `Min(max(5000, cap) + UsedPower, debt)` when `cap > 5000`, and to the full debt when `cap == 0`. Never lowers the vanilla result. |
 
-All four patches are required as a set. Disabling any one produces observable breakage. See Pitfalls below.
+All five patches are required as a set. Disabling any one produces observable breakage; the ownership handshake stands down 2 and 3 together, never individually. See Pitfalls below.
 
-Source comment from `DistanceCostPatches.cs:10-39`:
+Source comment from the `DistanceCostPatches.cs` header (core model portion; the ownership, debt-ceiling, and drain-cap paragraphs that follow it in the file are specified in `## Public API and billing ownership (ModApi)`):
 
 ```
 // Replaces vanilla's distance-based capacity derate on PowerTransmitter.
@@ -384,8 +433,9 @@ Source comment from `DistanceCostPatches.cs:10-39`:
 // Where k is the configurable per-km overhead factor and the delivery cap is
 // a separate server-authoritative setting (MaxCapacityConfigSync). The vanilla
 // PowerTransmitter.MaxPowerTransmission constant (5000) is no longer used as the
-// delivery ceiling; it survives only as the beam visualizer's full-brightness
-// reference in ReceivePower (4) below, so removing the cap does not dim beams.
+// delivery ceiling; it survives as the beam visualizer's full-brightness
+// reference in ReceivePower (4) below and as the debt-ceiling fallback when
+// the cap is unlimited, so removing the cap does not dim beams.
 //
 // Implementation hinges on PowerTransmitter._powerProvided, the private
 // float "debt accumulator" between the wireless-output tick and the
@@ -416,7 +466,6 @@ Source comment from `DistanceCostPatches.cs:10-39`:
 | 11 | `EnumCollectionGetNamePatch` | `EnumCollection<LogicType,ushort>.GetName` | Postfix |
 | 12 | `EnumCollectionGetNameFromValuePatch` | `EnumCollection<LogicType,ushort>.GetNameFromValue` | Postfix |
 | 13 | `StationpediaPopulateLogicVariablesPatch` | `Stationpedia.PopulateLogicVariables` (via `TargetMethod`) | Postfix (`Prepare`-gated) |
-| 14 | `PlayerConnectedSyncPatch` | `NetworkManager.PlayerConnected` | Postfix |
 
 All `WirelessPower` patches target the base class directly (not `PowerTransmitter` / `PowerReceiver`) because those subclasses inherit without re-overriding. HarmonyX's attribute-based lookup uses `AccessTools.DeclaredMethod` and does not match inherited methods. Virtual dispatch runs the postfix/prefix for any subclass instance.
 
@@ -440,9 +489,9 @@ All `WirelessPower` patches target the base class directly (not `PowerTransmitte
 
 | # | Patch class | Target | Type |
 |---|---|---|---|
-| 19 | `TryContactReceiverPatch` | `PowerTransmitter.TryContactReceiver` | Prefix (returns false; replaces vanilla body with a SphereCast + post-hit DishTarget filter). Gated on `NonFloorPlacementPatched` |
+| 19 | `TryContactReceiverPatch` | `PowerTransmitter.TryContactReceiver` | Prefix (returns false; replaces vanilla body with a SphereCast + post-hit DishTarget filter). Unconditionally active (no `Prepare()` gate) |
 
-Vanilla `TryContactReceiver` uses a narrow `Physics.Raycast` and requires both forwards-antiparallel and rights-antiparallel within 7 deg. The rights check is geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis; patch drops it. The narrow ray is replaced with `Physics.SphereCastNonAlloc` (radius 0.5 m, 64-slot static buffer) so any sub-degree aim residual or mid-slew jitter still establishes the link, with a post-hit walk that filters to `PowerReceiver` colliders matching `hit.transform == rx.DishTarget`. The forwards-antiparallel check (within 7 deg) is preserved as a sanity gate. `_linkedReceiverDistance` is set from exact `Vector3.Distance` rather than SphereCast's contact-point distance. Vanilla obstacle behaviour is intact (any collider in the path that is NOT a receiver dish target fails the filter). With `EnableNonFloorPlacement = false` the patch does not apply and vanilla runs unchanged.
+Vanilla `TryContactReceiver` uses a narrow `Physics.Raycast` and requires both forwards-antiparallel and rights-antiparallel within 7 deg. The rights check is geometrically unsatisfiable for non-floor pairs because H/V control aim direction, not roll around the forward axis; patch drops it. The narrow ray is replaced with `Physics.SphereCastNonAlloc` (radius 0.5 m, 64-slot static buffer) so any sub-degree aim residual or mid-slew jitter still establishes the link, with a post-hit walk that filters to `PowerReceiver` colliders matching `hit.transform == rx.DishTarget`. The forwards-antiparallel check (within 7 deg) is preserved as a sanity gate. `_linkedReceiverDistance` is set from exact `Vector3.Distance` rather than SphereCast's contact-point distance. Vanilla obstacle behaviour is intact (any collider in the path that is NOT a receiver dish target fails the filter). The patch is unconditionally active: it has no `Prepare()` gate, and `Allow Non-Floor Placement` gates only `PlacementPatcher`'s prefab rotation lift. Floor-only pairs never produce the geometry the dropped right-axis check would have rejected, and the widened probe still filters to receiver dish targets, so their observable behaviour matches vanilla.
 
 **Depends on:** [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) (vanilla `TryContactReceiver` body, the five link conditions, the right-axis tautology argument for floor-only pairs), [../../Research/GameClasses/Layers.md](../../Research/GameClasses/Layers.md) (no content-typed layer, so post-hit filtering is the only false-positive control mechanism).
 
@@ -458,7 +507,7 @@ Entries are linked and tagged with one-line "why this mod cares." A reader looki
 
 ### GameClasses
 
-- [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) - Vanilla class hierarchy (`Thing` -> `Device` -> `ElectricalInputOutput` -> `WirelessPower` -> `PowerTransmitter`/`PowerReceiver`), field inventory, method bodies (`GetGeneratedPower` / `UsePower` / `GetUsedPower` / `ReceivePower`), `TryContactReceiver` raycast, dish transform hierarchy, pivot-to-pivot aim geometry, constants table, prefab-extraction values for LineRenderer and `Custom_PowerTransmission` material. Every patch in the distance-cost quartet, the auto-aim patches, and the logic-readout patches depend on facts here.
+- [../../Research/GameClasses/PowerTransmitter.md](../../Research/GameClasses/PowerTransmitter.md) - Vanilla class hierarchy (`Thing` -> `Device` -> `ElectricalInputOutput` -> `WirelessPower` -> `PowerTransmitter`/`PowerReceiver`), field inventory, method bodies (`GetGeneratedPower` / `UsePower` / `GetUsedPower` / `ReceivePower`), `TryContactReceiver` raycast, dish transform hierarchy, pivot-to-pivot aim geometry, constants table, prefab-extraction values for LineRenderer and `Custom_PowerTransmission` material. Every patch in the distance-cost billing set, the auto-aim patches, and the logic-readout patches depend on facts here.
 - [../../Research/GameClasses/RotatableBehaviour.md](../../Research/GameClasses/RotatableBehaviour.md) - `TargetHorizontal` / `TargetVertical` setters and the servo delta-state (`NetworkUpdateFlags |= 256`) that Auto-aim rides for multiplayer sync without adding a new message.
 
 ### GameSystems
@@ -478,7 +527,7 @@ Entries are linked and tagged with one-line "why this mod cares." A reader looki
 - [../../Research/Patterns/HarmonyFieldOrProperty.md](../../Research/Patterns/HarmonyFieldOrProperty.md) - `Traverse.Field(...).GetValue<T>()` with a property fallback, used for `WirelessOutputNetwork` access when the field-vs-property declaration is uncertain.
 - [../../Research/Patterns/HarmonyInheritedMethods.md](../../Research/Patterns/HarmonyInheritedMethods.md) - Why our logic-readout and auto-aim patches target `WirelessPower` directly and not `PowerTransmitter` / `PowerReceiver`.
 - [../../Research/Patterns/MainThreadDispatcher.md](../../Research/Patterns/MainThreadDispatcher.md) - The `ConcurrentQueue<Action>` drain pattern we use to bridge `PowerTick` ThreadPool writes onto the Unity main thread.
-- [../../Research/Patterns/ServerAuthoritativeSimulation.md](../../Research/Patterns/ServerAuthoritativeSimulation.md) - Vanilla simulation runs on the server; our four distance-cost patches only meaningfully execute on the host.
+- [../../Research/Patterns/ServerAuthoritativeSimulation.md](../../Research/Patterns/ServerAuthoritativeSimulation.md) - Vanilla simulation runs on the server; our five distance-cost / billing patches only meaningfully execute on the host.
 - [../../Research/Patterns/SinglePlayerNetworkRole.md](../../Research/Patterns/SinglePlayerNetworkRole.md) - `NetworkRole.None` single-player trap that our guards avoid.
 - [../../Research/Patterns/StationeersNamespaces.md](../../Research/Patterns/StationeersNamespaces.md) - Namespaces that are easy to get wrong: `EnumCollection<,>` in `Assets.Scripts` (not `.Util`), `ProgrammableChip` in `Assets.Scripts.Objects.Electrical` (not `Motherboards`), `PowerTransmitterVisualiser` in the global namespace.
 - [../../Research/Patterns/UnityMaterialPerInstance.md](../../Research/Patterns/UnityMaterialPerInstance.md) - `renderer.material` versus `sharedMaterial` plus `OnDestroy` cleanup, followed in `BeamLine` and `BeamPulseTrain` to avoid material leaks.
@@ -524,14 +573,16 @@ See `Patterns/StationeersNamespaces.md` for the full reference. Summary:
 
 ### `_powerProvided` debt accounting
 
-`_powerProvided` is the debt accumulator between two networks in the vanilla flow. Our four distance-cost patches all depend on each other:
+`_powerProvided` is the debt accumulator between two networks in the vanilla flow (`PowerTransmitter` and `PowerReceiver` each declare their own field). Our five distance-cost / billing patches all depend on each other:
 
 - Patch 2 alone (add to `_powerProvided`) without patch 3 (lift cap): debt grows over time because `Min(5000, ...)` cap means source cannot pay the inflated amount.
 - Patch 3 alone: no behavior change unless debt is inflated by patch 2.
 - Patch 4 alone: visualizer wrong on long beams, gameplay unchanged.
 - Patch 1 alone: loss still applied elsewhere, breaks accounting.
+- Patch 1's lifted advertise without patch 5: any delivery above 5 kW strands as receiver-side debt that is never billed to the source (free energy). This was the pre-v1.9.0 state.
+- Patch 5 alone: no behavior change at or below 5 kW delivered; above that, nothing exceeds the vanilla advertise without patch 1 anyway.
 
-Do not disable any one without considering the others.
+Do not disable any one without considering the others. The billing-ownership handshake respects the set: while `ModApi.BillingOwner != null`, patches 2 and 3 stand down together (each gates on the same per-call `BillingOwner` check), and the advertise, visualizer fix, and drain-cap lift stay active.
 
 ### `0.202` is float16 quantization
 

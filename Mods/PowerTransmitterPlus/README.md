@@ -34,8 +34,12 @@ Vanilla Stationeers caps microwave transmission capacity based on distance and h
 
 You can transmit any distance you like, but long-range transmission is paid for in waste heat at the source.
 
+If the source network cannot cover the distance overhead (a long link asked to deliver more than the source can pay for), the link self-limits instead of running away: the transmitter tracks its unpaid source-side backlog and pauses delivery while that backlog is above a safety ceiling (four times the per-tick worst case), resuming once the source pays it down. Devices sharing the source network are no longer browned out indefinitely by an impossible link, and a log warning naming the transmitter fires when a pause starts. There are no new settings for this; the ceiling derives from the existing `Cost Factor (k)` and `Max Transfer Capacity (W)` values.
+
 ### Max Transfer Capacity
 By default a single transmitter has no throughput limit beyond what its cables and source network can supply, so one dish can carry as much power as you feed it instead of building several side by side. The host can set an optional `Max Transfer Capacity (W)` to clamp delivered power per transmitter; 0 (the default) means unlimited. The vanilla game limit was 5000 W per dish.
+
+Links delivering more than 5 kW bill the source for the full amount. Before v1.9.0 the receiver's wireless-side drain stayed capped at the vanilla 5 kW, so anything above that accumulated as receiver debt and was never charged upstream (free energy).
 
 ### Logic Types
 Six logic types are available on both the transmitter and the receiver, readable from configuration tablets and from IC10. Five are read-only readouts; the sixth, `MicrowaveAutoAimTarget`, is writable (see Auto-Aim below):
@@ -160,13 +164,15 @@ All settings are server-authoritative: the host's values control gameplay and vi
 
 **Custom logic types** registered by this mod sit in a reserved range outside the vanilla enum and the range used by Stationeers Logic Extended, so collisions with those are avoided. Another mod that registers a LogicType inside this mod's reserved range would collide; the exact range is documented in the source for mod authors who need it.
 
+**Mod authors:** a public static API (`PowerTransmitterPlus.ModApi`) exposes the effective transfer capacity, live link distance, source-draw multiplier, and transfer-debt accessors, plus a billing-ownership handshake (`ClaimBillingOwnership` / `ReleaseBillingOwnership` / `BillingOwner`). A power-management mod that allocates power itself can claim wireless billing; while the claim is held, this mod's own debt billing and safety ceiling stand down, and the capacity advertise, beams, links, and logic readouts stay active. Members are only added, never renamed or removed, and the `Version` constant bumps on every addition. `DistanceCostShared.SourceDrawMultiplier` remains as a legacy reflection surface for older integrations.
+
 ## Reporting Issues
 
 If you run into a bug or something behaves unexpectedly, please open an issue on [GitHub](https://github.com/SixFive7/StationeersPlus/issues). Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
 
 ## Changelog
 
-Version history lives in [`PowerTransmitterPlus/About/About.xml`](PowerTransmitterPlus/About/About.xml) under `<ChangeLog>` and is published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3707677512) with every release.
+The full version history lives in [`CHANGELOG.md`](CHANGELOG.md). The latest version's notes also ship in `About.xml` under `<ChangeLog>` and are published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3707677512) with every release.
 
 ## Credits
 
