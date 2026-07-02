@@ -35,7 +35,7 @@ InspectorPlus is a local-only BepInEx plugin. It runs two triggers:
 2. Press F8 in-game to dump every MonoBehaviour in the scene to a snapshot file.
 
 ## Headless dedicated server (no client)
-<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 On a headless dedicated server with no client connected the simulation is paused, and on a headless build neither `MonoBehaviour.Update()` nor coroutines fire. The request pump runs off the simulation tick (`ElectricityManager.ElectricityTick`), so while the world is paused a dropped request file is never processed and no snapshot is written.
 
@@ -46,9 +46,16 @@ To capture snapshots in that case without a player joining, enable the opt-in se
 Force Unpause Without Client = true
 ```
 
-With it on, InspectorPlus unpauses the simulation after `StartGame` on a batch-mode server, so the tick, and therefore request processing, runs. The setting is gated on `Application.isBatchMode` and never fires on a client or single-player session. Added in InspectorPlus v1.1.0.
+With it on, InspectorPlus keeps the simulation running on a batch-mode server with no client connected, so the tick, and therefore request processing, runs. The setting is gated on `Application.isBatchMode` and never fires on a client or single-player session. Added in InspectorPlus v1.1.0; hardened on 2026-07-02 into four cooperating pieces in `HeadlessUnpausePatch.cs`:
+
+- The original one-shot unpause in a `GameManager.StartGame` postfix. On its own this is NOT sufficient: the dedicated-server assembly's `StartGame` ends with `DelayedStartupPause().Forget()`, a server-build-only method that re-pauses the world 5 seconds later whenever `NetworkBase.Clients.Count <= 0`, ignoring `AutoPauseServer`. Because `StartGame` is `async UniTask`, the postfix fires at the method's first await, always before the delayed pause lands. Full writeup: `../GameSystems/SimulationTickDriverHooks.md` section "Dedicated-server assembly only: DelayedStartupPause re-pauses 5 s after StartGame".
+- A guarded prefix that skips `GameManager.DelayedStartupPause` entirely (`Prepare()` disables the patch class on the client build, where the method does not exist).
+- A 5-second UniTask watchdog loop that logs `GameState / IsGamePaused / GameTickPaused / RunSimulation / GameTickCount / Clients` to `LogOutput.log` and re-unpauses whenever the world is `Running`, parked, and clientless (it skips while `SaveHelper.IsSaving`). This also recovers from any other silent pauser (panel pause paths, console `pause`, third-party mods).
+- Pause tracers: every actual `WorldManager.SetGamePause` transition plus every `PauseGameTick` / `UnpauseGameTick` call is logged with a stack trace, so the next silent pause names its caller in `LogOutput.log` (`[PauseTrace]` lines).
 
 When a client is connected (a normal playtest) the server is already running and the toggle is unnecessary; on a client or single-player, `Update()` drives the pump directly.
+
+Readiness caveat when using a probe request as the "world is ticking" signal: the first ~8 ticks run between `StartGame` and where `DelayedStartupPause` would land, so with an unhardened plugin a pre-dropped probe could be consumed once even though the sim parked seconds later. With the hardened plugin, confirm sustained ticking via the repeating `[TickWatchdog]` lines (rising `GameTickCount`) rather than a single consumed probe.
 
 ## Request shape
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
@@ -119,6 +126,7 @@ Verified via InspectorPlus on 2026-04-20 in game version 0.2.6228.27061. Request
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0003 and the surrounding sections of `Mods/InspectorPlus/RESEARCH.md`.
 - 2026-05-21: corrected the request-field list (added `IncludePrivate`, `MaxMonoBehaviours`) and the output-format description (an `objects` array with `[x, y, z]` values, not an object keyed by type name with `(x, y, z)`) to match the shipped `ObjectWalker`; added the Headless dedicated server section for the InspectorPlus v1.1.0 `Force Unpause Without Client` toggle. Verified via InspectorPlus on 2026-05-21 in game version 0.2.6228.27061. Request: maxMonoBehaviours=25, maxDepth=2 on a fresh dedicated-server world.
 - 2026-07-02: rewrote the "Request shape" section to give the exact JSON key spellings. The previous revision listed the fields by their C# property names (`Types`, `Fields`, `MaxDepth`, `IncludePrivate`, `MaxMonoBehaviours`), but `SnapshotRequest.Parse` (`Mods/InspectorPlus/InspectorPlus/SnapshotRequest.cs:46-68`) matches `"types"`, `"fields"`, `"maxDepth"`, `"includePrivate"`, `"maxMonoBehaviours"` via `Regex` with no `IgnoreCase`, so capitalized keys are silently ignored and the request degrades to a full-scene dump. Added the one-line degradation warning and a minimal example request JSON. Source is the mod's own shipped code (game-version-independent); section restamped at the current game version 0.2.6403.27689 per convention.
+- 2026-07-02 (later): updated "Headless dedicated server (no client)" for the hardened force-unpause. The 2026-05-21 revision's one-shot description matched the plugin then, but the one-shot is defeated at 0.2.6403.27689 by the server-assembly-only `GameManager.DelayedStartupPause` (5-second delayed `SetGamePause(true)` when clientless); an earlier note in `DedicatedServer/CLAUDE.md` had recorded the resulting flakiness empirically at 0.2.6228.27061 without a cause. Documented the cause, the DelayedStartupPause skip patch, the 5-second watchdog, and the `[PauseTrace]` stack tracers, all live-verified on a fresh `-new Lunar` dedicated-server boot on 2026-07-02 at 0.2.6403.27689 (three-boot evidence run: unhardened = exactly 8 ticks then parked; hardened = continuous ticking, ScenarioRunner 10-tick scenario fired, probes consumed).
 
 ## Open questions
 

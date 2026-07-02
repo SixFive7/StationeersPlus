@@ -2,12 +2,13 @@
 title: StationeersLaunchPad on a Dedicated Server
 type: Workflows
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-04-29
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: WorkshopMenu (decompile lines 38373-38491)
   - StationeersLaunchPad GitHub releases (server-side asset)
+  - https://github.com/StationeersLaunchPad/StationeersLaunchPad at tag v0.4.0 :: StationeersLaunchPad/Platform.cs, StationeersLaunchPad/LaunchPadConfig.cs, StationeersLaunchPad/Configs.cs, StationeersLaunchPad/Loading/LoadStrategy.cs (fetched 2026-07-02)
 related:
   - GameSystems/DedicatedServerSettings.md
   - GameSystems/ModLoadSequence.md
@@ -323,6 +324,7 @@ These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Th
 - 2026-04-29: documented RakNet's wildcard-fallback hosting behaviour when the dedicated server tries to bind a port already held by another process on the same machine. Empirical test (client in-session at `10.20.30.200:27016`, server started with default `GamePort 27016`) showed the server's specific-IP bind fails, falls back to `0.0.0.0:27016` (wildcard), and reports "RakNet successfully hosted" despite the conflict. The two processes coexist but route ambiguously. Recommended workaround: pass non-default `GamePort` / `UpdatePort` settings when both run on one machine.
 - 2026-04-29: empirical confirmation of the workaround. Launcher gained `-GamePort` / `-UpdatePort` parameters with new defaults `28016` / `28015` (offset by +1000 from the Stationeers client defaults). Re-test with same client in-session (`10.20.30.200:27016`): server log shows clean "Attempting to host at 10.20.30.200:28016" -> "RakNet successfully hosted with Address: 10.20.30.200:28016", no "Hosting failed. Attempting fallback behaviour" line. UDP endpoints show both processes own distinct, exclusive specific-IP binds (`10.20.30.200:27016` for the client, `10.20.30.200:28016` for the server). Clean coexistence.
 - 2026-04-29: documented why a "headless client" is not a supported automation mode. `Platform.CheckIsServer()` (line 4433) routes any `Application.isBatchMode` instance into `ServerPlatform`, which is `IsServer=true, IsClient=false, SteamDisabled=true` and has no outbound-connect path. Both batch-mode regular-client and any dedicated-server build land on the server side. Practical options A-D listed for client-side automation; recommended ranking C > A > B > D.
+- 2026-07-02: added "Load-failure and self-update exits (StationeersLaunchPad 0.4.0)" from the StationeersLaunchPad GitHub source at tag v0.4.0 (Platform.cs, LaunchPadConfig.cs, Configs.cs, Loading/LoadStrategy.cs) plus the exit line observed on our dedicated server during the 0.2.6403.27689 boot investigation (broken mods from the 0.2.6403 API removals; see Research/Unsorted/Api-removals-0.2.6403.md). Confirms the 0.3.1-era PlatformWait decompile finding is unchanged at 0.4.0 and adds the per-platform update-config defaults and the self-update exit path. Earlier sections keep their 0.2.6228.27061 stamps.
 
 ## ApplyConfig matching: clean state matches relative paths cleanly
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -388,3 +390,70 @@ Evidence:
 - Empirical: in the first test pass (before we overlaid `RG.ImGui.dll`), StationeersLaunchPad's full stage pipeline ran successfully. The server log showed every `[Global]:` stage transition through `Took 0:00.005 to load mods.` (zero mods because the local mods folder was empty at that point), with no JIT or assembly-resolve errors.
 
 Practical consequence: `RG.ImGui.dll` is the safe default to ship (the official server zip does, and a future StationeersLaunchPad version might invoke ImGui from a non-UI path), but its absence does not block mod loading on a server. If a server-zip download fails during `-Bootstrap`, the server still loads mods; a warning rather than an error is appropriate.
+
+## Load-failure and self-update exits (StationeersLaunchPad 0.4.0)
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+Behaviour of StationeersLaunchPad 0.4.0 on a dedicated server when a mod hard-fails during load, and what the update settings do server-side. Source: the StationeersLaunchPad GitHub repository at tag `v0.4.0` (`StationeersLaunchPad/Platform.cs`, `LaunchPadConfig.cs`, `Configs.cs`, `Loading/LoadStrategy.cs`), fetched 2026-07-02. The installed version on our dedicated server is proven by `BepInEx/LogOutput.log`: `[Info   :   BepInEx] Loading [StationeersLaunchPad 0.4.0]`.
+
+**A mod load failure exits the server process.** The chain, with each link verbatim from the v0.4.0 source:
+
+1. Each load step (assemblies, assets, entrypoints) wraps per-mod work in try/catch; an exception routes to `LoadFailed` (`Loading/LoadStrategy.cs`), which marks the mod and raises a strategy-wide flag but lets OTHER mods keep loading:
+
+   ```csharp
+   public void LoadFailed(LoadedMod mod, Exception ex)
+   {
+       mod.Logger.LogException(ex);
+       mod.LoadFailed = true;
+       mod.LoadFinished = false;
+       failed = true;
+   }
+   ```
+
+   `LoadMods()` returns `!failed`; subsequent steps skip mods with `mod.LoadFailed` set.
+2. `LaunchPadConfig.StageLoading`: `if (!await loadStrategy.LoadMods()) StopAutoLoad();`
+3. `LaunchPadConfig.StopAutoLoad()`: `AutoLoad = false; CurWait.Auto = false;`
+4. `LaunchPadConfig.StageFinal` builds its stage wait from that flag (`CurWait = new(Configs.AutoLoadWaitTime.Value, AutoLoad);`) and calls `await Platform.Wait(CurWait, CommandStage.ModsLoaded);`, which dispatches to the active platform's `PlatformWait` override.
+5. `ServerPlatform.PlatformWait` (`Platform.cs`):
+
+   ```csharp
+   protected override async UniTask PlatformWait(StageWait wait, CommandStage stage)
+   {
+       // don't wait on server
+       if (wait.Auto)
+           return;
+
+       Logger.Global.LogError("An error occurred during loading. Exiting");
+       Application.Quit();
+   }
+   ```
+
+   `ClientPlatform.PlatformWait`, for contrast, actually waits: `while (!wait.Done && SLPCommand.QueuedStage <= stage) await UniTask.Yield();`.
+
+In the server log the exit surfaces as `[Global]: An error occurred during loading. Exiting` (the `[Global]` prefix is the BepInEx source name of StationeersLaunchPad's `Logger.Global`), preceded by each failing mod's own exception from `LoadFailed`. Observed live on our dedicated server during the 2026-07-02 boot investigation at game 0.2.6403.27689: two mods threw `MissingFieldException` against an API removed at 0.2.6403 (see `../Unsorted/Api-removals-0.2.6403.md`), and the server exited with exactly that line instead of hosting.
+
+**There is no config override.** `Configs.cs` at v0.4.0 defines `CheckForUpdate`, `AutoUpdateOnStart`, `AutoLoadOnStart`, `AutoLoadWaitTime`, `LoadStrategyType`, `LoadStrategyMode` (plus platform-fixup entries); nothing resembling continue-on-error exists, and `StopAutoLoad` forces the non-auto wait regardless of `AutoLoadOnStart`. On an unattended server the only fixes are removing or repairing the failing mod. Note the failure is per-mod isolated during loading (other mods finish loading and log normally) but process-fatal afterwards; diagnosing from the log means looking ABOVE the exit line for the first mod exception, not just at the tail.
+
+**Update checks are off by default on servers.** Platform-specific config defaults (`Platform.cs`):
+
+```csharp
+// ClientPlatform.PlatformConfigDefaults
+CheckForUpdate = true,
+AutoUpdateOnStart = true,
+
+// ServerPlatform.PlatformConfigDefaults
+CheckForUpdate = false,
+AutoUpdateOnStart = false,
+```
+
+`LaunchPadConfig.StageUpdating` early-outs on `if (Stage == LoadStage.Failed || !Configs.CheckForUpdate.Value) return;` and later on `if (!Configs.AutoUpdateOnStart.Value && !await LaunchPadUpdater.CheckShouldUpdate(release)) return;`. So a stock server never contacts GitHub for a StationeersLaunchPad update; the operator has to flip both config values on to get self-update.
+
+**A headless self-update also exits.** If a server does self-update, `ServerPlatform.PlatformContinueAfterUpdate` (`Platform.cs`) refuses to continue on the old in-memory assemblies:
+
+```csharp
+Logger.Global.LogWarning("LaunchPad has updated. Exiting");
+Application.Quit();
+return false;
+```
+
+Operational takeaway for the launcher: both exit paths mean `rocketstation_DedicatedServer.exe` terminating early with a zero-drama log tail. Any supervisor script watching for "server up" must treat `An error occurred during loading. Exiting` and `LaunchPad has updated. Exiting` as terminal, not as transient startup noise. This section is the 0.4.0 confirmation and generalisation of the 0.3.1 decompile finding in "Server-only platform overrides" above (`ServerPlatform.PlatformWait`, decompile line 4709): the exit-on-error behaviour is unchanged between 0.3.1 and 0.4.0.

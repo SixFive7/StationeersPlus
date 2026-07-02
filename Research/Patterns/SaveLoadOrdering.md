@@ -2,13 +2,14 @@
 title: Save-load ordering: defer restore to OnFinishedLoad
 type: Patterns
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-10
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
   - Plans/EquipmentPlus/EquipmentPlus/AdvancedTabletPatches.cs:103-108 (F0373)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:95-101 (F0374)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: XmlSaveLoad class (line 267663), Load<T> (line 268424), Load (line 268463)
 related:
   - ../GameSystems/SaveDataRegistration.md
   - ./HarmonyInheritedMethods.md
@@ -116,11 +117,69 @@ thing2.ValidateOnLoad(CurrentSaveRevision);
 
 Implication: a Harmony postfix on `OnRegistered` that initialises a field to a non-vanilla default (e.g. PowerGridPlus initialising `Transformer.Setting = OutputMaximum`) is automatically overwritten by the saved value for loaded things, while sticking for fresh constructions (which never run DeserializeSave). This gives "default for new builds, preserve saved state" semantics with no load-vs-build discrimination logic.
 
+## XmlSaveLoad.LoadThing renamed to Load at 0.2.6403
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+At game version 0.2.6403.27689, `XmlSaveLoad.LoadThing(ThingSaveData, bool)` no longer exists: a whole-decompile grep for `LoadThing` returns zero hits. The per-Thing loader is now a pair of overloads on the same class (`XmlSaveLoad : ManagerBase`, decompile line 267663):
+
+```csharp
+public static T Load<T>(ThingSaveData thingData, bool generatesTerrain = true) where T : Thing   // line 268424, uses Prefab.Find<T> + Thing.Create<T>
+public static Thing Load(ThingSaveData thingData, bool generatesTerrain = true)                   // line 268463
+```
+
+The non-generic body (lines 268463-268500) keeps the semantics the previous section relies on, in the same order:
+
+```csharp
+	public static Thing Load(ThingSaveData thingData, bool generatesTerrain = true)
+	{
+		Thing thing = Prefab.Find(thingData.PrefabName);
+		if (thing == null)
+		{
+			UnityEngine.Debug.LogWarning("Can't spawn " + thingData.PrefabName);
+			return null;
+		}
+		if (!thingData.IsValidData())
+		{
+			return null;
+		}
+		Vector3 worldPosition = thingData.WorldPosition;
+		Quaternion worldRotation = thingData.WorldRotation;
+		if (thingData is StructureSaveData structureSaveData)
+		{
+			worldPosition = structureSaveData.RegisteredWorldPosition;
+			worldRotation = structureSaveData.RegisteredWorldRotation;
+			RocketRecordData rocketRecord = structureSaveData.RocketRecord;
+			if (rocketRecord != null && rocketRecord.RocketNetworkId != 0L)
+			{
+				EngineFuselage engineFuselage = Referencable.Find<RocketNetwork>(rocketRecord.RocketNetworkId)?.Anchor;
+				if ((object)engineFuselage != null)
+				{
+					worldPosition = engineFuselage.ThingTransformPosition + rocketRecord.Offset;
+				}
+			}
+		}
+		Thing thing2 = Thing.Create<Thing>(thing, worldPosition, worldRotation, thingData.ReferenceId);
+		if (!thing2)
+		{
+			return null;
+		}
+		thing2.generateTerrain = generatesTerrain;
+		thing2.DeserializeSave(thingData);
+		thing2.ValidateOnLoad(CurrentSaveRevision);
+		return thing2;
+	}
+```
+
+`Thing.Create` -> `DeserializeSave` -> `ValidateOnLoad` is unchanged, so the ordering conclusion in "OnRegistered fires before DeserializeSave" above (verified at 0.2.6228.27061 through the old `LoadThing` name) carries over; only the method name and the added generic overload differ. The `GridController.AddGridStructure` registration leg of that section was not re-read at 0.2.6403.
+
+Mod impact: any mod that calls or reflection-resolves `XmlSaveLoad.LoadThing` by name breaks at 0.2.6403 (`MissingMethodException` on a compiled call, null from `AccessTools.Method`). The 2026-07-02 dedicated-server boot investigation records ModularConsoleMod as a casualty of exactly this removal. Retarget to `Load(ThingSaveData, bool)`; when resolving by reflection, pass explicit parameter types since the name now also has a generic overload. See `../Unsorted/Api-removals-0.2.6403.md` for the sibling API removals in the same game update.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; F0122 primary, three additional sources corroborating across two device classes.
 - 2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of `XmlSaveLoad.LoadThing` (line 251312) and `GridController.AddGridStructure` (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.
+- 2026-07-02: added the "XmlSaveLoad.LoadThing renamed to Load at 0.2.6403" section (`Load` plus a new generic `Load<T>` overload). Verified against the 0.2.6403.27689 decompile: zero grep hits for `LoadThing`, replacement overloads quoted verbatim from lines 268424 and 268463. The 0.2.6228-stamped ordering sections above were not restamped; the new section records which part of their evidence (the Create -> DeserializeSave -> ValidateOnLoad order) is re-confirmed by the new body and which part (`GridController.AddGridStructure`) was not re-read.
 
 ## Open questions
 
