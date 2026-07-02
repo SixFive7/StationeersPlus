@@ -11,7 +11,7 @@ Six cooperating pieces:
 - `ObjectWalker.cs`: the reflection-based traversal that produces the snapshot. Walks fields, properties, and Unity `Transform` positions; respects a configurable recursion depth; detects cycles to avoid infinite walks; enforces byte and nested-expansion caps and marks the result truncated when one is hit. Uses reflection against each candidate object and emits a nested JSON blob.
 - `MainThreadDispatcher.cs`: queues work produced off the main thread (file-watcher callbacks fire on a thread-pool thread) onto the Unity main thread, which is the only thread from which scene queries are safe. Implementation is a `Queue<Action>` guarded by a `lock`, drained from `Update()` on a persistent `GameObject`.
 - `RequestPollOnTickPatch.cs`: a Harmony postfix on `ElectricityManager.ElectricityTick` that pumps the request-file scan from the simulation tick. A headless dedicated server does not reliably drive `Update()` or coroutines, so this keeps request snapshots working server-side; on a client it is redundant with the `Update()` poll and the `FileSystemWatcher`.
-- `HeadlessUnpausePatch.cs`: an opt-in Harmony postfix on `GameManager.StartGame`. When the `Force Unpause Without Client` setting is on AND the process is in batch mode (a headless dedicated server), it unpauses the simulation so the request pump runs with no client connected. Default off; never fires on a client or single-player.
+- `HeadlessUnpausePatch.cs`: the opt-in headless keep-alive (the `Force Unpause Without Client` setting, default off; every piece additionally gated on `Application.isBatchMode`). Four cooperating pieces: (1) the original one-shot unpause postfix on `GameManager.StartGame`; (2) a guarded prefix that skips the dedicated-server-assembly-only `GameManager.DelayedStartupPause`, which would otherwise silently re-pause the world 5 seconds after StartGame whenever no client is connected and which defeats the one-shot (StartGame is async, so the postfix fires at its first await); (3) a 5-second UniTask watchdog loop that logs tick state and re-unpauses whenever the world is Running, parked, and clientless (skips while a save is in progress); (4) `[PauseTrace]` stack-trace tracers on `WorldManager.SetGamePause` transitions and `PauseGameTick` / `UnpauseGameTick`, so any future silent pauser names its caller in `LogOutput.log`. See `../../Research/GameSystems/SimulationTickDriverHooks.md` ("DelayedStartupPause" section) for the game-side mechanism.
 
 ### Snapshot output format
 
@@ -33,12 +33,15 @@ Two rules the walker enforces to keep output sane:
 
 ## Harmony patches catalog
 
-InspectorPlus installs two Harmony patches:
+InspectorPlus installs six Harmony patch classes:
 
 - `RequestPollOnTickPatch`, a postfix on `ElectricityManager.ElectricityTick`, pumps the request-file scan on a headless dedicated server where `MonoBehaviour.Update()` and coroutines do not fire reliably. It scans and processes request files and never mutates game state.
-- `HeadlessUnpausePatch`, a postfix on `GameManager.StartGame`, is opt-in (the `Force Unpause Without Client` setting, default off) and only acts under `Application.isBatchMode`. When both hold it unpauses the simulation so the tick, and therefore request processing, runs with no client connected. This is the one place the plugin changes game state, and only on an explicitly opted-in headless server; it never fires on a client or single-player.
+- `HeadlessUnpausePatch`, a postfix on `GameManager.StartGame`, is opt-in (the `Force Unpause Without Client` setting, default off) and only acts under `Application.isBatchMode`. When both hold it unpauses the simulation so the tick, and therefore request processing, runs with no client connected. It also starts the `HeadlessTickWatchdog` loop (not a patch; a UniTask delay loop on the player loop, which keeps running headless even while the tick is parked).
+- `DelayedStartupPauseSkipPatch`, a prefix on `GameManager.DelayedStartupPause`, same double gate. The target method exists only in the dedicated-server assembly (it re-pauses the world 5 seconds after StartGame when no client is connected, ignoring `AutoPauseServer`); `Prepare()` disables the patch class cleanly on the client build so `PatchAll` cannot fail there. Skipping the stub of an `async UniTaskVoid` is safe: the caller's `.Forget()` on the default struct is a no-op.
+- `SetGamePauseTracePatch`, a prefix on `WorldManager.SetGamePause`, same double gate. Logs every actual pause-state transition with a stack trace (`[PauseTrace]` lines); `SetGamePause` is otherwise completely silent, which is what made the DelayedStartupPause re-pause invisible.
+- `PauseGameTickTracePatch` / `UnpauseGameTickTracePatch`, prefixes on `GameManager.PauseGameTick` / `UnpauseGameTick`, same double gate, same stack-trace logging for the tick-level pause latch.
 
-State capture itself is read-only reflection in `ObjectWalker`.
+The unpause pieces are the one place the plugin changes game state, and only on an explicitly opted-in headless server; they never fire on a client or single-player. State capture itself is read-only reflection in `ObjectWalker`.
 
 ## Relevant central pages
 
