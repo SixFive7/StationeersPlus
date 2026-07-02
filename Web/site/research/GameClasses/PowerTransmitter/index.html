@@ -18,7 +18,7 @@
         <link rel="prev" href="../PowerTick/">
       
       
-        <link rel="next" href="../PowerTransmitterVisualiser/">
+        <link rel="next" href="../PowerTransmitterOmni/">
       
       
         
@@ -591,6 +591,8 @@
   
     
     
+      
+        
       
         
       
@@ -2707,6 +2709,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="TX/RX wireless link topology (network bridging)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wirelessnetwork-internals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WirelessNetwork internals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2757,6 +2776,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTransmitterOmni/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterOmni
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -8133,6 +8180,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="TX/RX wireless link topology (network bridging)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wirelessnetwork-internals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WirelessNetwork internals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8268,14 +8332,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-28.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (7)</summary>
+          <summary><strong>Sources</strong> (8)</summary>
           <ul>
             
               <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:251-271</code></li>
@@ -8292,17 +8360,21 @@
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.PowerTransmitter'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 408269-408581 (PowerTransmitter), 408065-408262 (PowerReceiver), 408582-408702 (PowerTransmitterOmni), 272453-272550 (WirelessNetwork), 394786-394812 (Electrical), 426779 (WirelessPower)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (6)</summary>
+          <summary><strong>Related pages</strong> (7)</summary>
           <ul>
             
               <li><code>./PowerReceiver.md</code></li>
             
               <li><code>./WirelessPower.md</code></li>
+            
+              <li><code>./PowerTransmitterOmni.md</code></li>
             
               <li><code>./RotatableBehaviour.md</code></li>
             
@@ -8350,32 +8422,36 @@
 <h1 id="powertransmitter">PowerTransmitter<a class="headerlink" href="#powertransmitter" title="Permanent link">&para;</a></h1>
 <p>Vanilla game class at <code>Assets.Scripts.Objects.Electrical.PowerTransmitter</code>. Transmitter half of the dish-to-dish wireless power pair. Paired at runtime with a <code>PowerReceiver</code> via raycast and drives a private <code>_powerProvided</code> debt accumulator across two cable-network ticks.</p>
 <h2 id="class-hierarchy">Class hierarchy<a class="headerlink" href="#class-hierarchy" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: F0035.</p>
+<p>Source: F0035; re-verified against the 0.2.6403.27689 decompile (class declarations at lines 394786 <code>Electrical</code>, 394813 <code>ElectricalInputOutput</code>, 426779 <code>WirelessPower</code>, 408269 <code>PowerTransmitter</code>, 408065 <code>PowerReceiver</code>, 408582 <code>PowerTransmitterOmni</code>).</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>MonoBehaviour
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  Thing
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    ...
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>      Device
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        ElectricalInputOutput     ← public CableNetwork InputNetwork; public CableNetwork OutputNetwork;
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>          WirelessPower            ← public Transform RayTransform; AxleTransform; DishTransform;
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                                     double Horizontal { get; set; }; double Vertical { get; set; };
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                                     protected PowerTransmitterVisualiser PowerTransmitterVisualiser;
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>            PowerTransmitter       ← public PowerReceiver LinkedReceiver; private PowerReceiver _linkedReceiver;
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                                     private float _linkedReceiverDistance; private float _powerProvided;
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                                     public static float MaxPowerTransmission = 5000f;
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                                     private static readonly float _MaxTransmitterDistance = 500f;
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                                     public AnimationCurve PowerLossOverDistance;
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>            PowerReceiver          ← public PowerTransmitter LinkedPowerTransmitter;
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                                     private PowerTransmitter _linkedPowerTransmitter;
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                                     public Transform DishTarget; private float _powerProvided
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            PowerTransmitterOmni   ← unrelated, omnidirectional charger
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        Electrical                ← sibling branch of ElectricalInputOutput; carries only SmartRotate
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                                     members (line 394786)
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>          PowerTransmitterOmni    ← single-network omnidirectional charger (line 408582); NOT a
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                                     WirelessPower subclass, no Horizontal/Vertical/RayTransform/
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                                     DishTransform servo machinery; see PowerTransmitterOmni.md
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        ElectricalInputOutput     ← public CableNetwork InputNetwork; public CableNetwork OutputNetwork; (394813)
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>          WirelessPower            ← public Transform RayTransform; AxleTransform; DishTransform;
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                                     double Horizontal { get; set; }; double Vertical { get; set; };
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                                     protected PowerTransmitterVisualiser PowerTransmitterVisualiser; (426779)
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>            PowerTransmitter       ← public PowerReceiver LinkedReceiver; private PowerReceiver _linkedReceiver;
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                                     private float _linkedReceiverDistance; private float _powerProvided;
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                                     public static float MaxPowerTransmission = 5000f;
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>                                     private static readonly float _MaxTransmitterDistance = 500f;
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>                                     public AnimationCurve PowerLossOverDistance; (408269)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>            PowerReceiver          ← public PowerTransmitter LinkedPowerTransmitter;
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                                     private PowerTransmitter _linkedPowerTransmitter;
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>                                     public Transform DishTarget; private float _powerProvided (408065)
 </span></code></pre></div>
 <p><code>PowerTransmitterVisualiser</code> lives in <strong>global namespace</strong> (no <code>Assets.Scripts...</code> prefix). <code>Thing.EMISSION_COLOR = Shader.PropertyToID("_EmissionColor")</code>.</p>
 <h2 id="constants">Constants<a class="headerlink" href="#constants" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: F0038. Values read from vanilla fields on <code>PowerTransmitter</code> and related electrical classes.</p>
+<p>Source: F0038. Values read from vanilla fields on <code>PowerTransmitter</code> and related electrical classes. Re-verified against the 0.2.6403.27689 decompile: <code>MaxPowerTransmission = 5000f</code> (line 408275), <code>_MaxTransmitterDistance = 500f</code> (408273), <code>PowerLossOverDistance</code> keyframes <code>(0,0)/(1,1)/(2,1)</code> (408277), APC <code>BatteryChargeRate = 1000f</code> (390586), <code>BatteryCell.PowerMaximum = 36000f</code> (340493), <code>Cable.MaxVoltage = 5000f</code> C# default (392341).</p>
 <table>
 <thead>
 <tr>
@@ -8432,9 +8508,9 @@
 </tbody>
 </table>
 <h2 id="method-semantics">Method semantics<a class="headerlink" href="#method-semantics" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: F0036. Primary source for method bodies and the <code>TryContactReceiver</code> raycast condition.</p>
+<p>Source: F0036. Primary source for method bodies and the <code>TryContactReceiver</code> raycast condition. All bodies re-verified verbatim against the 0.2.6403.27689 decompile: <code>GetGeneratedPower</code> 408472-408484, <code>UsePower</code> 408424-408430, <code>GetUsedPower</code> 408446-408469, <code>ReceivePower</code> 408432-408444, <code>TryContactReceiver</code> 408492-408508 (raycast + dual anti-parallel 7 deg checks + <code>GameManager.RunSimulation &amp;&amp; GameState == Running</code> host gate).</p>
 <p><code>PowerTransmitter.GetGeneratedPower</code>:
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGeneratedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
@@ -8484,6 +8560,7 @@
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">RocketMath</span><span class="p">.</span><span class="n">Approximately</span><span class="p">(</span><span class="n">Vector3</span><span class="p">.</span><span class="n">Angle</span><span class="p">(</span><span class="n">RayTransform</span><span class="p">.</span><span class="n">right</span><span class="p">,</span><span class="w">   </span><span class="n">rx</span><span class="p">.</span><span class="n">RayTransform</span><span class="p">.</span><span class="n">right</span><span class="p">),</span><span class="w">   </span><span class="mf">180f</span><span class="p">,</span><span class="w"> </span><span class="mf">7f</span><span class="p">)</span>
 </span></code></pre></div></p>
 <p>Link requires: raycast hit lands on the receiver's <code>DishTarget</code> collider AND both dishes' forward axes anti-parallel AND both right axes anti-parallel, within 7° on each.</p>
+<p>Unlinked-TX retry: <code>PowerTransmitter.OnPowerTick</code> (decompile 408396-408413) increments <code>_tryTargetCount</code> while <code>LinkedReceiver == null &amp;&amp; OnOff</code>; once the count passes <code>ReTargetWait = 10</code> (private static readonly int, line 408285) it resets the counter and retries the link. New at 0.2.6403.27689: the retry goes through <code>WaitTryContactReceiverMainThread()</code> (408486-408490), an <code>async UniTask</code> that does <code>await UniTask.SwitchToMainThread()</code> before calling <code>TryContactReceiver()</code>, so the <code>Physics.Raycast</code> never runs on the power-tick ThreadPool worker.</p>
 <h2 id="transforms-and-geometry">Transforms and geometry<a class="headerlink" href="#transforms-and-geometry" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8571,27 +8648,36 @@ At the poles (<code>|d_local.y| ≈ 1</code>), <code>H</code> is undefined. Keep
 </span></code></pre></div>
 <p>The contraction factor is approximately <code>k = |root-to-RayTransform offset| / link_distance</code>. For our 42 m wall + ceiling case <code>k = 1.94 / 42 = 0.046</code>, which converges to mm precision in 2-3 iterations. The contraction degrades at short range: at <code>D = |offset|</code> (~ 2 m) the iteration does not converge meaningfully, but a 1.9 m dish-to-dish placement is pathological. PowerTransmitterPlus caps at 10 iterations as a safety net and breaks early at the 1 cm tolerance, with the cache check on the public auto-aim entry preventing redundant solves on rewrites of the same target.</p>
 <h2 id="txrx-wireless-link-topology-network-bridging">TX/RX wireless link topology (network bridging)<a class="headerlink" href="#txrx-wireless-link-topology-network-bridging" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-17 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p><code>PowerTransmitter</code> (decompile line 387065) and <code>PowerReceiver</code> (line 386861) inherit from <code>WirelessPower</code>. The wireless pair is bridged through a shared <code>WirelessNetwork</code> instance:</p>
+<p><code>PowerTransmitter</code> (decompile line 408269) and <code>PowerReceiver</code> (line 408065) inherit from <code>WirelessPower</code>. The wireless pair is bridged through a shared <code>WirelessNetwork</code> instance:</p>
 <ul>
-<li><code>WirelessPower : ElectricalInputOutput, IRotatable</code> (decompile line 405441). Both <code>PowerTransmitter</code> and <code>PowerReceiver</code> inherit two <code>CableNetwork</code>-typed slots from <code>ElectricalInputOutput</code>: <code>InputNetwork</code> and <code>OutputNetwork</code>. Directional usage in vanilla:</li>
+<li><code>WirelessPower : ElectricalInputOutput, IRotatable</code> (decompile line 426779). Both <code>PowerTransmitter</code> and <code>PowerReceiver</code> inherit two <code>CableNetwork</code>-typed slots from <code>ElectricalInputOutput</code>: <code>InputNetwork</code> and <code>OutputNetwork</code>. Directional usage in vanilla:</li>
 <li>On a <code>PowerTransmitter</code>: <code>InputNetwork</code> is the physical cable network the dish is wired to (the power source); <code>OutputNetwork</code> is the <code>WirelessNetwork</code> (the dish's broadcast).</li>
 <li>On a <code>PowerReceiver</code>: <code>InputNetwork</code> is the <code>WirelessNetwork</code> (the dish's reception, assigned from <code>LinkedPowerTransmitter.OutputNetwork</code>); <code>OutputNetwork</code> is the physical cable network the dish is wired to (the power destination).</li>
-<li><code>PowerTransmitter.OutputNetwork</code> is a <code>WirelessNetwork</code> (<code>WirelessOutputNetwork =&gt; OutputNetwork as WirelessNetwork</code>). The TX's <code>LinkedReceiver</code> setter (line 387089) calls <code>WirelessOutputNetwork.RemoveDevice(_linkedReceiver)</code> then <code>WirelessOutputNetwork.AddDevice(value)</code> -- the RX is registered as a device on the TX's wireless network.</li>
-<li><code>PowerReceiver.LinkedPowerTransmitter</code> setter (line 386871) executes <code>InputNetwork = value.OutputNetwork;</code> -- the RX's <code>InputNetwork</code> is assigned the TX's <code>OutputNetwork</code> reference, sharing the same WirelessNetwork instance.</li>
+<li><code>PowerTransmitter.OutputNetwork</code> is a <code>WirelessNetwork</code> (<code>WirelessOutputNetwork =&gt; OutputNetwork as WirelessNetwork</code>). The TX's <code>LinkedReceiver</code> setter (line 408293) calls <code>WirelessOutputNetwork.RemoveDevice(_linkedReceiver)</code> (408305) then <code>WirelessOutputNetwork.AddDevice(value)</code> -- the RX is registered as a device on the TX's wireless network.</li>
+<li><code>PowerReceiver.LinkedPowerTransmitter</code> setter (line 408081) executes <code>InputNetwork = value.OutputNetwork;</code> -- the RX's <code>InputNetwork</code> is assigned the TX's <code>OutputNetwork</code> reference, sharing the same WirelessNetwork instance.</li>
 <li>The fields backing the link are <code>PowerTransmitter._linkedReceiver</code> (private <code>PowerReceiver</code>) and <code>PowerReceiver._linkedPowerTransmitter</code> (private <code>PowerTransmitter</code>).</li>
-<li>For wire-side serialization, <code>PowerTransmitter.SerializeOnJoin</code> (line 387148) writes <code>OutputNetwork.ReferenceId</code> then <code>LinkedReceiver?.ReferenceId ?? 0</code>; <code>DeserializeOnJoin</code> (line 387155) reads them in the same order and rehydrates the wireless network reference via <code>Referencable.Find&lt;WirelessNetwork&gt;</code>. The runtime link is rebuilt via <code>_savedRecieverId</code> (note vanilla typo <code>Reciever</code>).</li>
-<li><code>PowerTransmitter.OnDestroy</code> (line 387183 onward) and <code>PowerReceiver.OnDestroy</code> (line 386904) both null-out the partner side.</li>
+<li>For wire-side serialization, <code>PowerTransmitter.SerializeOnJoin</code> (line 408352) writes <code>OutputNetwork.ReferenceId</code> then <code>LinkedReceiver?.ReferenceId ?? 0</code>; <code>DeserializeOnJoin</code> (line 408359) reads them in the same order and rehydrates the wireless network reference via <code>Referencable.Find&lt;WirelessNetwork&gt;</code>. The runtime link is rebuilt via <code>_savedRecieverId</code> (note vanilla typo <code>Reciever</code>).</li>
+<li><code>PowerTransmitter.OnDestroy</code> (line 408387) and <code>PowerReceiver.OnDestroy</code> (line 408108) both null-out the partner side.</li>
+</ul>
+<h3 id="wirelessnetwork-internals">WirelessNetwork internals<a class="headerlink" href="#wirelessnetwork-internals" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p><code>WirelessNetwork : CableNetwork</code> (decompile lines 272453-272550) is the network type both dishes bridge through. Facts a mod touching the wireless side needs:</p>
+<ul>
+<li><code>GetWirelessNetwork(WirelessPower parentTransmitter)</code> (272472-272484) first scans <code>CableNetwork.AllCableNetworks</code> for an existing <code>WirelessNetwork</code> whose <code>DeviceList</code> contains the caller; if none is found it creates one ONLY when <code>GameManager.RunSimulation</code> is true (host / single-player) and returns <code>null</code> on a client. Wireless network creation is host-only.</li>
+<li><code>RefreshPowerAndDataDeviceLists()</code> override (272486-272492) clears both typed lists, then copies the WHOLE <code>DeviceList</code> into <code>_powerDeviceList</code> and leaves <code>_dataDeviceList</code> permanently empty. Every device on a wireless network is a power device; no data traversal ever crosses it.</li>
+<li><code>OnPowerTick()</code> (272506-272512) runs the base <code>CableNetwork.OnPowerTick</code> only when <code>IsNetworkValid()</code> is true, and <code>IsNetworkValid()</code> (272514-272517) is <code>DeviceList.Count &gt; 0</code> (a plain <code>CableNetwork</code> keys validity on <code>CableList.Count</code> instead; a wireless network has no cables).</li>
 </ul>
 <p>Cable-side networks are separate from the wireless network: the TX's cable port is on its own physical <code>CableNetwork</code> (the cable network ID seen as <code>OutputNetworkReferenceId</code> in <code>PowerTransmitterSaveData</code> is the cable-side network). Same for the RX. So a TX-RX pair touches four networks total: two wireless (one shared instance bridging both sides) and two physical cable networks (one wired to the TX side, one wired to the RX side). To bridge cable-side logic across a TX-RX link you traverse: caller cable network -&gt; caller's TX or RX -&gt; partner via <code>_linkedReceiver</code> / <code>_linkedPowerTransmitter</code> -&gt; partner's cable network.</p>
 <h2 id="link-establishment-is-host-authoritative-only-the-tx-side-replicates">Link establishment is host-authoritative; only the TX side replicates<a class="headerlink" href="#link-establishment-is-host-authoritative-only-the-tx-side-replicates" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p><code>PowerTransmitter.TryContactReceiver</code> (the raycast that sets <code>LinkedReceiver</code> and mirrors <code>LinkedReceiver.LinkedPowerTransmitter = this</code>) runs only on the host: its body is wrapped in <code>if (GameManager.RunSimulation &amp;&amp; GameManager.GameState == GameState.Running)</code>. Clients never establish the link locally; they receive it by replication. The two halves are asymmetric:</p>
+<p><code>PowerTransmitter.TryContactReceiver</code> (the raycast that sets <code>LinkedReceiver</code> and mirrors <code>LinkedReceiver.LinkedPowerTransmitter = this</code>) runs only on the host: its body is wrapped in <code>if (GameManager.RunSimulation &amp;&amp; GameManager.GameState == GameState.Running)</code> (decompile 408492-408508). Clients never establish the link locally; they receive it by replication. The two halves are asymmetric:</p>
 <ul>
-<li>TX side replicates. The <code>PowerTransmitter.LinkedReceiver</code> setter (line 387089) sets <code>NetworkUpdateFlags |= NetworkUpdateType.Thing.WirelessPower.Receiver</code> (line 387114) on the host. <code>PowerTransmitter.BuildUpdate</code> (line 387130) writes <code>LinkedReceiver?.ReferenceId ?? 0</code> under that flag; <code>ProcessUpdate</code> (line 387139) reads it back as <code>LinkedReceiver = Thing.Find&lt;PowerReceiver&gt;(reader.ReadInt64())</code>. <code>SerializeOnJoin</code> (387148) carries it too. So a client's <code>tx.LinkedReceiver</code> stays current.</li>
-<li>RX back-reference does NOT replicate. <code>PowerReceiver.LinkedPowerTransmitter</code>'s setter (line 386871) sets no <code>NetworkUpdateFlags</code> and is assigned only host-side, inside <code>TryContactReceiver</code>. There is no <code>BuildUpdate</code> / <code>ProcessUpdate</code> field carrying it. So on a client <code>rx.LinkedPowerTransmitter</code> stays null even while <code>tx.LinkedReceiver</code> points at that RX.</li>
+<li>TX side replicates. The <code>PowerTransmitter.LinkedReceiver</code> setter (line 408293) sets <code>NetworkUpdateFlags |= NetworkUpdateType.Thing.WirelessPower.Receiver</code> (line 408318) on the server. <code>PowerTransmitter.BuildUpdate</code> (line 408334) writes <code>LinkedReceiver?.ReferenceId ?? 0</code> under that flag; <code>ProcessUpdate</code> (line 408343) reads it back as <code>LinkedReceiver = Thing.Find&lt;PowerReceiver&gt;(reader.ReadInt64())</code>. <code>SerializeOnJoin</code> (408352) carries it too. So a client's <code>tx.LinkedReceiver</code> stays current.</li>
+<li>RX back-reference does NOT replicate. <code>PowerReceiver.LinkedPowerTransmitter</code>'s setter (line 408081) sets no <code>NetworkUpdateFlags</code> and is assigned only host-side, inside <code>TryContactReceiver</code>. There is no <code>BuildUpdate</code> / <code>ProcessUpdate</code> field carrying it. So on a client <code>rx.LinkedPowerTransmitter</code> stays null even while <code>tx.LinkedReceiver</code> points at that RX.</li>
 </ul>
 <p>Consequence for cross-link cable-side logic computed per-peer: a traversal that starts from the TX side (<code>tx.LinkedReceiver</code>) resolves on a client, but one that starts from the RX side (<code>rx.LinkedPowerTransmitter</code>) does not. A logic-passthrough merge is therefore symmetric on the host (both sides set in <code>TryContactReceiver</code>) but one-directional on a client (TX-cable side sees across the link; RX-cable side does not), unless the mod mirrors the back-reference on the client itself.</p>
 <h2 id="mod-extensions">Mod extensions<a class="headerlink" href="#mod-extensions" title="Permanent link">&para;</a></h2>
@@ -8601,9 +8687,11 @@ At the poles (<code>|d_local.y| ≈ 1</code>), <code>H</code> is undefined. Keep
 <li>PowerTransmitterPlus extends this class; see <a href="../../Mods/PowerTransmitterPlus/RESEARCH.md">../../Mods/PowerTransmitterPlus/RESEARCH.md</a> for distance-cost patches, AutoAim, and related extensions.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <ul>
+<li>2026-07-02: conflict resolution on the class-hierarchy diagram (game version 0.2.6403.27689). Contradicted claim: the diagram placed <code>PowerTransmitterOmni</code> under the <code>WirelessPower</code> subtree (as a third sibling of <code>PowerTransmitter</code> / <code>PowerReceiver</code>), implying it inherits the servo machinery. Fresh validator verdict (binding): <code>public class PowerTransmitterOmni : Electrical</code> at decompile line 408582; <code>Electrical</code> (394786) and <code>ElectricalInputOutput</code> (394813) are SIBLINGS under <code>Device</code>; the Omni does NOT inherit <code>WirelessPower</code> and has no <code>Horizontal</code> / <code>Vertical</code> / <code>RayTransform</code> / <code>DishTransform</code> members. Resulting change: moved <code>PowerTransmitterOmni</code> out of the <code>WirelessPower</code> subtree into a sibling <code>Electrical</code> branch with a pointer to the new <a href="../PowerTransmitterOmni/">PowerTransmitterOmni</a> page.</li>
+<li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged: <code>PowerTransmitter : WirelessPower</code> (408269), <code>MaxPowerTransmission = 5000f</code> (408275), <code>_MaxTransmitterDistance = 500f</code> (408273), <code>GetGeneratedPower</code> = <code>Min(5000, InputNetwork.PotentialLoad) - PowerLossOverDistance.Evaluate(clamp01(dist/500)) * 5000</code> (408472-408484), <code>GetUsedPower</code> = <code>Min(5000, _powerProvided)</code> (408446-408469), <code>UsePower</code> / <code>ReceivePower</code> ledger (408424-408444), <code>TryContactReceiver</code> raycast + dual anti-parallel 7 deg checks + host gate (408492-408508), <code>ReTargetWait = 10</code> (408285). New at this version: the unlinked-TX retry in <code>OnPowerTick</code> (408396-408413) marshals to the main thread via <code>WaitTryContactReceiverMainThread</code> (408486-408490) before the raycast; documented in Method semantics. Added the "WirelessNetwork internals" subsection (<code>WirelessNetwork : CableNetwork</code> 272453-272550; host-only <code>GetWirelessNetwork</code> creation 272472-272484; <code>RefreshPowerAndDataDeviceLists</code> override makes the power list the whole <code>DeviceList</code> and the data list permanently empty 272486-272492; <code>OnPowerTick</code> gated on <code>IsNetworkValid()</code> = <code>DeviceList.Count &gt; 0</code> 272506-272517). Updated the TX/RX topology and host-authoritative sections' line refs from the 0.2.6228 decompile to the 0.2.6403 one (setter 408293, flag 408318, BuildUpdate 408334, ProcessUpdate 408343, SerializeOnJoin 408352, OnDestroy 408387 / 408108).</li>
 <li>2026-05-28: added "Link establishment is host-authoritative; only the TX side replicates". Confirmed <code>TryContactReceiver</code> is gated on <code>GameManager.RunSimulation</code> (host-only) in both vanilla and PowerTransmitterPlus (PTP prefix-replaces the body but keeps the gate); the <code>PowerTransmitter.LinkedReceiver</code> setter (387089) flags <code>NetworkUpdateType.Thing.WirelessPower.Receiver</code> (387114) and <code>BuildUpdate</code> / <code>ProcessUpdate</code> (387130-387146) carry it by ReferenceId; <code>PowerReceiver.LinkedPowerTransmitter</code> setter (386871) sets no flag and is assigned only host-side, so the back-reference does not replicate. Driving work: PowerGridPlus dish-link passthrough refresh, where this asymmetry makes the client merge one-directional. Additive; no prior claim contradicted, no fresh validator.</li>
 <li>2026-05-17: added "TX/RX wireless link topology (network bridging)" section, sourced from decompile lines 387065-387162 (PowerTransmitter), 386861-386911 (PowerReceiver), and 405441 (<code>WirelessPower : ElectricalInputOutput</code>). Documents the shared <code>WirelessNetwork</code> between linked TX and RX (<code>RX.InputNetwork = TX.OutputNetwork</code> assignment in the <code>LinkedPowerTransmitter</code> setter), the private fields backing the link (<code>_linkedReceiver</code>, <code>_linkedPowerTransmitter</code>, <code>_savedRecieverId</code> vanilla typo), the wire format used by <code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code>, the topology fact that a TX/RX pair touches four networks total (one shared wireless + two separate cable networks on each end), and the directional <code>InputNetwork</code>/<code>OutputNetwork</code> assignment on each side (TX: <code>InputNetwork</code>=cable, <code>OutputNetwork</code>=wireless; RX: <code>InputNetwork</code>=wireless, <code>OutputNetwork</code>=cable). Driving question: how would a logic-passthrough mod bridge cable-side logic across a TX-RX wireless link. Answer: in a <code>RefreshPowerAndDataDeviceLists</code> postfix, when iterating a Cable network's DeviceList and encountering a TX, the "other side" cable network is <code>tx.LinkedReceiver?.OutputNetwork</code>; encountering an RX, the other side is <code>rx.LinkedPowerTransmitter?.InputNetwork</code>.</li>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0035, F0036, F0037, F0038, F0039, F0042, F0044, F0050, F0052, F0053, F0219z, F0300, F0301. No conflicts.</li>
@@ -8670,13 +8758,13 @@ At the poles (<code>|d_local.y| ≈ 1</code>), <code>H</code> is undefined. Keep
         
         
           
-          <a href="../PowerTransmitterVisualiser/" class="md-footer__link md-footer__link--next" aria-label="Next: PowerTransmitterVisualiser">
+          <a href="../PowerTransmitterOmni/" class="md-footer__link md-footer__link--next" aria-label="Next: PowerTransmitterOmni">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                PowerTransmitterVisualiser
+                PowerTransmitterOmni
               </div>
             </div>
             <div class="md-footer__button md-icon">

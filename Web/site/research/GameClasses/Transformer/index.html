@@ -776,6 +776,8 @@
       
         
       
+        
+      
     
     
     
@@ -2514,6 +2516,34 @@
     
   
     PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTransmitterOmni/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterOmni
   
 
     
@@ -8112,14 +8142,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-06-18.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput'}</code></li>
@@ -8127,6 +8161,8 @@
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)'}</code></li>
             
               <li><code>Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods)'}</code></li>
             
           </ul>
         </details>
@@ -8181,7 +8217,7 @@
 
 <p><code>grep</code> for <code>class Transformer</code>, <code>: Transformer</code>, <code>TransformerLarge</code>, <code>TransformerSmall</code> in the decompile returns only the single <code>Transformer</code> class at line 403300 (the string <code>"Transformer"</code> elsewhere is an audio-clip key). Vanilla historically ships more than one transformer <em>prefab</em> (a smaller one), but they are the same <code>Transformer</code> class with a different serialized <code>OutputMaximum</code> and mesh -- there is no subclass hierarchy. A mod that wants a "heavy transformer" tier would register a new prefab of this same class (different <code>OutputMaximum</code>, different input/output <code>Connection</code> configuration, different mesh) via <code>AddPrefabs</code>; it does not need a new class.</p>
 <h2 id="class-hierarchy-and-fields">Class hierarchy and fields<a class="headerlink" href="#class-hierarchy-and-fields" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <p><code>ElectricalInputOutput</code> (the base):</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ElectricalInputOutput</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Device</span><span class="p">,</span><span class="w"> </span><span class="n">ISmartRotatable</span><span class="p">,</span><span class="w"> </span><span class="n">ISubmergeable</span><span class="p">,</span><span class="w"> </span><span class="n">IPowered</span><span class="p">,</span><span class="w"> </span><span class="n">IDensePoolable</span><span class="p">,</span><span class="w"> </span><span class="n">IReferencable</span><span class="p">,</span><span class="w"> </span><span class="n">IEvaluable</span>
@@ -8221,7 +8257,7 @@
 </span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><code>OutputMaximum = 10000f</code> is the C# default; the real per-prefab value is serialized (the vanilla small transformer is lower). <code>Setting</code> is clamped to <code>[0, OutputMaximum]</code>. Logic surface: <code>LogicType.Setting</code> (read/write, write clamps to <code>[0, OutputMaximum]</code>), <code>LogicType.Maximum =&gt; OutputMaximum</code>, <code>LogicType.Ratio =&gt; Setting / OutputMaximum</code>. (Re-Volt additionally exposes <code>LogicType.PowerActual</code> = current power provided; vanilla does not.)</p>
-<p><code>GetGeneratedPower(cableNetwork)</code> returns 0 unless <code>cableNetwork == OutputNetwork &amp;&amp; Error != 1 &amp;&amp; OnOff &amp;&amp; InputNetwork != null</code>; otherwise (vanilla) <code>Mathf.Min((float)Setting, ...)</code> drawn from the input network's available potential into the output network. (Re-Volt rewrites <code>GetGeneratedPower</code> / <code>GetUsedPower</code> / <code>ReceivePower</code> to clamp output to <code>min(Setting, InputNetwork.PotentialLoad - alreadyProvided)</code> and charge the transformer's own <code>UsedPower</code> quiescent draw to the upstream network.)</p>
+<p><code>GetGeneratedPower(cableNetwork)</code> returns 0 unless <code>cableNetwork == OutputNetwork &amp;&amp; Error != 1 &amp;&amp; OnOff &amp;&amp; InputNetwork != null</code>; otherwise (vanilla) <code>Mathf.Min((float)Setting, InputNetwork.PotentialLoad)</code> drawn from the input network's available potential into the output network. Method bodies re-verified unchanged at 0.2.6403.27689 (class declaration 424598; <code>_powerProvided</code> 424621; <code>UsePower</code> 424757-424763; <code>ReceivePower</code> 424765-424771; <code>GetUsedPower</code> = <code>Min((float)Setting + UsedPower, _powerProvided)</code> 424773-424792; <code>GetGeneratedPower</code> 424794-424805; verbatim bodies quoted on <a href="../AreaPowerControl/">AreaPowerControl</a>, "Pattern presence in other ledger-based classes"). (Re-Volt rewrites <code>GetGeneratedPower</code> / <code>GetUsedPower</code> / <code>ReceivePower</code> to clamp output to <code>min(Setting, InputNetwork.PotentialLoad - alreadyProvided)</code> and charge the transformer's own <code>UsedPower</code> quiescent draw to the upstream network.)</p>
 <h2 id="relevance-to-a-voltage-tier-mod">Relevance to a "voltage tier" mod<a class="headerlink" href="#relevance-to-a-voltage-tier-mod" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
 
@@ -8355,6 +8391,7 @@
 <p>So the rocket small transformer carries a dedicated <code>Data</code> connector (3 connectors) where the station small transformer folds data onto its input power connector (2 connectors). The large station transformer has the same separate-Data-port shape as the rocket one; the small and medium are the only transformers whose data rides on an Input/Output power connector. See <a href="../Connection/">Connection</a> "Data-port discovery".</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. The power-method bodies are unchanged; restamped "Class hierarchy and fields" with the new refs (class 424598, <code>_powerProvided</code> 424621, <code>UsePower</code> / <code>ReceivePower</code> 424757-424771, <code>GetUsedPower</code> 424773-424792, <code>GetGeneratedPower</code> = <code>Min(Setting, InputNetwork.PotentialLoad)</code> 424794-424805). The Setting-sync, InteractWith, SetKnob, CheckError, and rocket-variant sections were not re-read this pass and keep their 0.2.6228.27061 stamps (their old <code>L403xxx</code> refs are 0.2.6228 decompile lines).</li>
 <li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): rocket small transformer = 3 connectors with a dedicated <code>Data</code> port, station small = 2 with <code>PowerAndData/Input</code>, large <code>StructureTransformer</code> = 3 with a dedicated <code>Data</code> port, medium = 2 with <code>PowerAndData/Output</code>. Additive; no conflict with existing content.</li>
 <li>
 <p>2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed <code>Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)</code> (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does <code>_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)</code> -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that <code>Thing.OnFinishedLoad</code> doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.</p>

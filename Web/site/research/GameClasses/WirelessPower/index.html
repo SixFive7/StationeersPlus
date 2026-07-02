@@ -776,6 +776,8 @@
       
         
       
+        
+      
     
     
     
@@ -2514,6 +2516,34 @@
     
   
     PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTransmitterOmni/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterOmni
   
 
     
@@ -8046,10 +8076,14 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-25.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
+      
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
       
       
         <details class="research-meta-sources">
@@ -8069,10 +8103,12 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>./PowerTransmitter.md</code></li>
+            
+              <li><code>./PowerTransmitterOmni.md</code></li>
             
               <li><code>./RotatableBehaviour.md</code></li>
             
@@ -8116,7 +8152,7 @@
 
 
 <h1 id="wirelesspower">WirelessPower<a class="headerlink" href="#wirelesspower" title="Permanent link">&para;</a></h1>
-<p>Vanilla abstract base class at <code>Assets.Scripts.Objects.Electrical.WirelessPower : ElectricalInputOutput</code>. The shared servo / dish-aim machinery used by <code>PowerTransmitter</code>, <code>PowerReceiver</code>, and <code>PowerTransmitterOmni</code>. Holds <code>Horizontal</code> / <code>Vertical</code> properties (servo state in normalized [0..1] units), the dish transform tree, and the network-sync hook that ships H/V to clients.</p>
+<p>Vanilla base class at <code>Assets.Scripts.Objects.Electrical.WirelessPower : ElectricalInputOutput, IRotatable</code> (decompile line 426779 in the 0.2.6403.27689 decompile). The shared servo / dish-aim machinery used by <code>PowerTransmitter</code> and <code>PowerReceiver</code>; those two are the ONLY subclasses. <code>PowerTransmitterOmni</code> does NOT derive from this class (it is <code>PowerTransmitterOmni : Electrical</code>, a sibling branch under <code>Device</code>; see <a href="../PowerTransmitterOmni/">PowerTransmitterOmni</a>). Holds <code>Horizontal</code> / <code>Vertical</code> properties (servo state in normalized [0..1] units), the dish transform tree, and the network-sync hook that ships H/V to clients.</p>
 <h2 id="servo-math">Servo math<a class="headerlink" href="#servo-math" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
 
@@ -8278,9 +8314,10 @@
 <p>When a fresh dish is placed (<code>GameState.Running</code>), H is reset to 0 and V is reset to 1 (zenith). At save-load (<code>GameState.Loading</code>) this branch is skipped so the saved H/V values persist.</p>
 <p>V=1 corresponds to "the dish points along its dish-local +Y axis" (zenith of the dish-local frame). For a floor-mounted dish that aligns with world up. For a ceiling-mounted dish, V=1 would point world-down. Mod authors enabling non-floor placement should consider either (a) leaving V=1 alone (the dish points away from the mount surface, intuitive) or (b) re-deriving the post-place default H/V from the prefab's mount surface.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <ul>
+<li>2026-07-02: conflict resolution on the subclass list (game version 0.2.6403.27689). Contradicted claim: the intro stated the servo machinery is "used by <code>PowerTransmitter</code>, <code>PowerReceiver</code>, and <code>PowerTransmitterOmni</code>". Fresh validator verdict (binding): only <code>PowerTransmitter</code> and <code>PowerReceiver</code> derive from <code>WirelessPower</code>; <code>PowerTransmitterOmni : Electrical</code> (decompile line 408582) sits on a sibling branch under <code>Device</code> and carries none of the servo members. <code>WirelessPower : ElectricalInputOutput, IRotatable</code> confirmed at decompile line 426779. Resulting change: removed <code>PowerTransmitterOmni</code> from the intro's subclass list and pointed at the new <a href="../PowerTransmitterOmni/">PowerTransmitterOmni</a> page. Section bodies below (servo math, clamping, sync, save data, OnRegistered) were not re-read this pass and keep their 0.2.6228.27061 stamps.</li>
 <li>2026-04-25: page created during a deep decompile of the placement-orientation system. Verbatim source extracts from <code>WirelessPower.cs</code>, <code>PowerTransmitter.cs</code>, <code>PowerReceiver.cs</code>, <code>WirelessPowerSaveData.cs</code>. No conflicts with <code>PowerTransmitter.md</code>; this page documents the BASE class.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>

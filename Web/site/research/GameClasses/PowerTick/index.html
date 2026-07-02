@@ -776,6 +776,8 @@
       
         
       
+        
+      
     
     
     
@@ -2568,6 +2570,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="State calculation and the break checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breakablefuses-breakablecables-are-append-only-accumulators-for-the-powertick-instance-lifetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BreakableFuses / BreakableCables are append-only accumulators for the PowerTick instance lifetime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2660,6 +2679,34 @@
     
   
     PowerTransmitter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PowerTransmitterOmni/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerTransmitterOmni
   
 
     
@@ -7933,6 +7980,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="State calculation and the break checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breakablefuses-breakablecables-are-append-only-accumulators-for-the-powertick-instance-lifetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BreakableFuses / BreakableCables are append-only accumulators for the PowerTick instance lifetime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8090,11 +8154,12 @@
 <p>title: PowerTick
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-29
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 254484-254511 (PowerProvider), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState), 350696-350724 (Device base query/settle methods)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 271698-271947 (PowerTick), 271676-271697 (PowerProvider), 270827-270840 (CableNetwork.OnPowerTick), 270617 (CableNetwork.PowerTick field), 230535-230542 (Pick extension), 371501-371534 (Device base query/settle methods)
   - Mods/PowerGridPlus/RESEARCH.md (voltage-tier research); .work/revolt-source/Assets/Scripts/RevoltTick.cs (RevoltTick : PowerTick); Mods/PowerGridPlus (PowerGridTick : PowerTick, reverse-patches CacheState + CheckForRecursiveProviders)
 related:
   - ./CableNetwork.md
@@ -8106,12 +8171,12 @@ related:
 tags: [power, threading]</p>
 <hr />
 <h1 id="powertick">PowerTick<a class="headerlink" href="#powertick" title="Permanent link">&para;</a></h1>
-<p>Per-<code>CableNetwork</code> power-tick worker. <code>Assets.Scripts.Networks.PowerTick</code>. Each <code>CableNetwork</code> holds one <code>PowerTick</code> instance in its <code>PowerTick</code> field; <code>CableNetwork.OnPowerTick()</code> calls <code>PowerTick.Initialise -&gt; CalculateState -&gt; ApplyState</code> once per tick. This is the class Re-Volt subclasses as <code>RevoltTick : PowerTick</code> and the class whose <code>Initialise</code> / <code>CalculateState</code> / <code>ApplyState</code> Re-Volt prefix-patches.</p>
+<p>Per-<code>CableNetwork</code> power-tick worker. <code>Assets.Scripts.Networks.PowerTick</code> (class at decompile line 271698 in the 0.2.6403.27689 decompile). Each <code>CableNetwork</code> holds exactly one <code>PowerTick</code> instance for its whole lifetime: <code>public readonly PowerTick PowerTick = new PowerTick();</code> (line 270617; initialized once at field level, <code>PowerTick</code> has no constructor). <code>CableNetwork.OnPowerTick()</code> calls <code>PowerTick.Initialise -&gt; CalculateState -&gt; ApplyState</code> once per tick. This is the class Re-Volt subclasses as <code>RevoltTick : PowerTick</code> and the class whose <code>Initialise</code> / <code>CalculateState</code> / <code>ApplyState</code> Re-Volt prefix-patches.</p>
 <blockquote>
-<p>Reconciliation note: <a href="../CableNetwork/">CableNetwork</a> currently describes <code>ConsumePower</code> / <code>CalculateState</code> and the "single-supplier-first" provider iteration as <code>CableNetwork</code> members. In version 0.2.6228.27061 those methods live on <code>PowerTick</code> (declared at decompile line 254512), held in <code>CableNetwork.PowerTick</code>. The line numbers and code bodies on the <code>CableNetwork</code> page are correct (that region IS <code>PowerTick</code>); only the class attribution is imprecise there. Re-Volt's <code>RevoltTick : PowerTick</code> corroborates ownership. A future pass should fix the wording on the <code>CableNetwork</code> page to point here.</p>
+<p>Reconciliation note: <a href="../CableNetwork/">CableNetwork</a> currently describes <code>ConsumePower</code> / <code>CalculateState</code> and the "single-supplier-first" provider iteration as <code>CableNetwork</code> members. Those methods live on <code>PowerTick</code>, held in <code>CableNetwork.PowerTick</code>. The code bodies on the <code>CableNetwork</code> page are correct (that region IS <code>PowerTick</code>); only the class attribution is imprecise there. Re-Volt's <code>RevoltTick : PowerTick</code> corroborates ownership. A future pass should fix the wording on the <code>CableNetwork</code> page to point here.</p>
 </blockquote>
 <h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">PowerTick</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
@@ -8143,8 +8208,9 @@ tags: [power, threading]</p>
 </span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span><span class="p">...</span>
 </span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="p">}</span>
 </span></code></pre></div>
+<p>Field declarations at 0.2.6403.27689: class 271698, <code>BreakableCables</code> 271708, <code>BreakableFuses</code> 271710, <code>_powerAvailable</code> 271718. <code>_powerAvailable</code> is a DEAD field: it is declared and never referenced anywhere else in the whole decompile (single grep hit at 271718). See "BreakableFuses / BreakableCables are append-only accumulators" below for the lifetime semantics of the two Breakable lists.</p>
 <h2 id="cablenetworkonpowertick-drives-it">CableNetwork.OnPowerTick drives it<a class="headerlink" href="#cablenetworkonpowertick-drives-it" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnPowerTick</span><span class="p">()</span><span class="w">   </span><span class="c1">// on CableNetwork</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
@@ -8163,7 +8229,7 @@ tags: [power, threading]</p>
 </span></code></pre></div>
 <p>Runs on the UniTask ThreadPool worker (see <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading</a>): managed-memory reads (<code>cable.MaxVoltage</code>, <code>cable.CableType</code>, list iteration) are safe off-thread; Unity-API calls crash. <code>Cable.Break()</code> is reached from here and self-marshals to the main thread.</p>
 <h2 id="state-calculation-and-the-break-checks">State calculation and the break checks<a class="headerlink" href="#state-calculation-and-the-break-checks" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <p><code>Initialise</code> clears and refills <code>Devices</code> / <code>Fuses</code> / <code>Cables</code> from the network's <code>PowerDeviceList</code> / <code>FuseList</code> (under <code>lock</code>) and the cable list. <code>CalculateState</code> builds the <code>Providers</code> array (reverse-walks <code>Devices</code>, summing <code>Required</code> from <code>GetUsedPower</code> and <code>Potential</code> from <code>GetGeneratedPower</code>; provider iteration order documented on <a href="../CableNetwork/">CableNetwork</a>). Then <code>ApplyState</code>:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">CacheState</span><span class="p">()</span>
@@ -8252,33 +8318,47 @@ tags: [power, threading]</p>
 </span><span id="__span-2-84"><a id="__codelineno-2-84" name="__codelineno-2-84" href="#__codelineno-2-84"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-2-85"><a id="__codelineno-2-85" name="__codelineno-2-85" href="#__codelineno-2-85"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Vanilla cable burn is <strong>instantaneous</strong> and <strong>per-cable</strong>: any cable whose <code>MaxVoltage &lt; _actual</code> (where <code>_actual = min(Potential, Required)</code>) is a burn candidate this tick; <code>BreakableCables.Pick()</code> picks one at random and <code>Break()</code>s it (after a fuse, if any fuse's <code>PowerBreak &lt; _actual</code>, blows first). Re-Volt replaces this whole class (<code>RevoltTick : PowerTick</code>) with a probabilistic, sliding-window model. A mod that wants e.g. heavy cables to never burn must intercept <code>GetBreakableCables</code> (private; <code>AccessTools.Method(typeof(PowerTick), "GetBreakableCables")</code>) or <code>BreakSingleCable</code>, or guard <code>Cable.Break()</code> -- and must account for Re-Volt having swapped the instance if both are installed.</p>
-<p><code>CalculateState</code> calls a private <code>CheckForRecursiveProviders()</code> (declared at decompile line 254613, called at line 254610) -- this is the "force-burn cables when the grid loops through multiple transformers/batteries" check that walks <code>_networkTraversalRecord</code>. <code>CacheState()</code> is private at line 254656. Both are private instance methods on <code>PowerTick</code>; a subclass-replacement tick that wants the vanilla behaviour back can reach them via Harmony reverse patches (<code>[HarmonyReversePatch, HarmonyPatch("CacheState")] static void CacheState(PowerTick _)</code>), which is what Re-Volt and Power Grid Plus do for <code>CacheState</code> (always) and <code>CheckForRecursiveProviders</code> (only when the recursive-network-limits option is on).</p>
+<p>Vanilla cable burn is <strong>instantaneous</strong> and <strong>per-cable</strong>: any cable whose <code>MaxVoltage &lt; _actual</code> (where <code>_actual = min(Potential, Required)</code>) qualifies against this tick's <code>_actual</code>, but the qualification is only the ADD criterion; the list <code>Pick()</code> draws from is cumulative across ticks (see the accumulator subsection below). <code>BreakableCables.Pick()</code> picks one entry at random and <code>Break()</code>s it (after a fuse, if <code>BreakableFuses</code> is non-empty, blows first). Re-Volt replaces this whole class (<code>RevoltTick : PowerTick</code>) with a probabilistic, sliding-window model. A mod that wants e.g. heavy cables to never burn must intercept <code>GetBreakableCables</code> (private; <code>AccessTools.Method(typeof(PowerTick), "GetBreakableCables")</code>) or <code>BreakSingleCable</code>, or guard <code>Cable.Break()</code> -- and must account for Re-Volt having swapped the instance if both are installed.</p>
+<p><code>CalculateState</code> calls a private <code>CheckForRecursiveProviders()</code> (declared at decompile line 271799, called at line 271796) -- this is the "force-burn cables when the grid loops through multiple transformers/batteries" check that walks <code>_networkTraversalRecord</code>. <code>CacheState()</code> is private at line 271842. Both are private instance methods on <code>PowerTick</code> (<code>CalculateState</code> itself is PUBLIC, line 271765, as are <code>Initialise</code> and <code>ApplyState</code>); a subclass-replacement tick that wants the vanilla behaviour back can reach the private ones via Harmony reverse patches (<code>[HarmonyReversePatch, HarmonyPatch("CacheState")] static void CacheState(PowerTick _)</code>), which is what Re-Volt and Power Grid Plus do for <code>CacheState</code> (always) and <code>CheckForRecursiveProviders</code> (only when the recursive-network-limits option is on).</p>
+<h3 id="breakablefuses-breakablecables-are-append-only-accumulators-for-the-powertick-instance-lifetime">BreakableFuses / BreakableCables are append-only accumulators for the PowerTick instance lifetime<a class="headerlink" href="#breakablefuses-breakablecables-are-append-only-accumulators-for-the-powertick-instance-lifetime" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>Fresh-validator verdict (2026-07-02, binding): the two Breakable lists are never cleared. One <code>readonly PowerTick</code> lives per <code>CableNetwork</code> for the network's whole life (<code>public readonly PowerTick PowerTick = new PowerTick();</code>, CableNetwork line 270617), and the complete reference census over the 0.2.6403.27689 decompile is:</p>
+<ul>
+<li>Declarations: <code>BreakableCables</code> 271708, <code>BreakableFuses</code> 271710. Initialized once at field level; the class has no constructor.</li>
+<li>Adds: 271809 (fuse) and 271813 (cable) in <code>CheckForRecursiveProviders</code> (a recursive-provider hit pre-adds ONE fuse from the looping device's <code>PowerCableNetwork.FuseList</code>, or that device's own <code>PowerCable</code>, before <code>ApplyState</code> even runs its threshold scans); 271864 in <code>GetBreakableFuses</code>; 271876 in <code>GetBreakableCables</code>. Neither Get method clears the list first.</li>
+<li>Reads: <code>Pick()</code> at 271883 / 271894 (null-guarded at 271884 / 271895), <code>Count</code> gates in <code>ApplyState</code> at 271907 / 271912.</li>
+<li><code>Pick&lt;T&gt;(this List&lt;T&gt;)</code> (230535-230542) returns a random element WITHOUT removing it.</li>
+<li><code>Initialise</code> (271742-271763) clears only <code>Devices</code> / <code>Fuses</code> / <code>Cables</code> and zeroes only <code>Potential</code> / <code>Required</code> / <code>Consumed</code>.</li>
+<li>There is NO <code>.Clear()</code>, <code>.Remove()</code>, or reassignment of either Breakable list anywhere.</li>
+</ul>
+<p>Consequences: entries accumulate across ticks for the life of the PowerTick instance. A cable that qualified as breakable during one overload tick stays in the pick pool on every later tick, and duplicate entries from repeated qualifying ticks skew the random pick toward chronically-overloaded elements. Once either list is non-empty, <code>ApplyState</code>'s <code>Count &gt; 0</code> gate fires EVERY tick and breaks one random entry per tick until the entries die.</p>
+<p>Caveat that shortens the stale window in practice: an actual cable <code>Break()</code> destroys the cable, and <code>Cable.OnDestroy</code> re-partitions the survivors into NEW <code>CableNetwork</code>s (see <a href="../Cable/">Cable</a>, "Network split on destruction"), each with a fresh <code>PowerTick</code> and therefore fresh empty Breakable lists. So on the cable-burn path the stale entries usually die with the old network object. Fuse breaks (the fuse blows; the network keeps its cables and its PowerTick) and non-splitting ticks accumulate without that reset. Stale entries reference destroyed objects; <code>Pick()</code> can return such an entry, in which case <code>BreakSingleCable</code> / <code>BreakSingleFuse</code>'s null guard skips the break for that tick (Unity fake-null makes a destroyed <code>Cable</code> compare equal to null) but the entry itself is never removed.</p>
 <h2 id="the-querysettle-split-getgeneratedpowergetusedpower-are-pure-reads-receivepowerusepower-are-the-mutations">The query/settle split: GetGeneratedPower/GetUsedPower are pure reads; ReceivePower/UsePower are the mutations<a class="headerlink" href="#the-querysettle-split-getgeneratedpowergetusedpower-are-pure-reads-receivepowerusepower-are-the-mutations" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <p>The four <code>Device</code> power methods divide cleanly into two reads and two writes, and the tick uses them in two distinct phases:</p>
 <ul>
 <li><strong>Queries (called by <code>CalculateState</code> AND again at the top of the <code>ApplyState</code> device loop):</strong> <code>device.GetGeneratedPower(network)</code> and <code>device.GetUsedPower(network)</code>. These must be side-effect-free with respect to the power ledger. <code>CalculateState</code> calls each once per device to build the running <code>Potential</code> / <code>Required</code> sums and the <code>Providers[]</code> array; <code>ApplyState</code> re-reads <code>GetUsedPower</code> per device to know how much to actually pull. A device returns <code>-1f</code> from either when the queried network is not its own <code>PowerCable.CableNetwork</code> (the sentinel that means "I am not on this network"; see <a href="../Device/">Device</a>). On a bridge device the query reads a debt/store field (<code>Transformer</code>/<code>PowerTransmitter</code>/<code>PowerReceiver</code>/<code>AreaPowerControl</code> read <code>_powerProvided</code>; <code>Battery</code> reads <code>PowerStored</code>), so the value already encodes prior-tick state -- the query stays a read, but the field it reads was written by last tick's settle. (A few processing machines read <code>_powerUsedDuringTick</code>, which is set during their own work loop and reset in <code>ReceivePower</code>; still a read at query time. See <a href="../Device/">Device</a>, "Two per-device draw-state fields".)</li>
-<li><strong>Settles (called only inside <code>ApplyState</code>):</strong> <code>device.ReceivePower(network, amount)</code> is the CONSUMER settle (the device just received <code>amount</code> watts), called from <code>ConsumePower</code>. <code>device.UsePower(network, amount)</code> is the PRODUCER settle (the device just supplied <code>amount</code> watts), called from <code>PowerProvider.ApplyPower</code>. These are where the mutation happens: a battery moves <code>PowerStored</code>, a transformer/transmitter moves <code>_powerProvided</code>, a processing machine resets <code>_powerUsedDuringTick</code>. The base <code>Device</code> makes both no-ops (decompile lines 350718-350724); only devices that store or bridge power override them.</li>
+<li><strong>Settles (called only inside <code>ApplyState</code>):</strong> <code>device.ReceivePower(network, amount)</code> is the CONSUMER settle (the device just received <code>amount</code> watts), called from <code>ConsumePower</code>. <code>device.UsePower(network, amount)</code> is the PRODUCER settle (the device just supplied <code>amount</code> watts), called from <code>PowerProvider.ApplyPower</code>. These are where the mutation happens: a battery moves <code>PowerStored</code>, a transformer/transmitter moves <code>_powerProvided</code>, a processing machine resets <code>_powerUsedDuringTick</code>. The base <code>Device</code> makes both no-ops (decompile lines 371523-371529 at 0.2.6403.27689); only devices that store or bridge power override them.</li>
 </ul>
 <p>So one network's <code>ApplyState</code> runs both settles: consumers via <code>ConsumePower -&gt; ReceivePower</code>, then producers via the final <code>Providers[].ApplyPower -&gt; UsePower</code> loop. The mutation a settle performs on a BRIDGE device (<code>_powerProvided</code>) is what the OTHER network's query reads on a later tick -- and which network is "later" is pool-slot order, not topology (see <a href="../ElectricityManager/">ElectricityManager</a>). This read-now / write-now / read-elsewhere-next-tick structure is the mechanism behind every cross-network one-tick lag in the vanilla model.</p>
 <h2 id="cachestate-strict-power-met-brownout-ratio-and-_actual">CacheState: strict power-met, brownout ratio, and <code>_actual</code><a class="headerlink" href="#cachestate-strict-power-met-brownout-ratio-and-_actual" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p><code>CacheState</code> (decompile lines 254656-254669, excerpted verbatim above) derives three values from the summed <code>Potential</code> and <code>Required</code>:</p>
+<p><code>CacheState</code> (decompile lines 271842-271855, excerpted verbatim above) derives three values from the summed <code>Potential</code> and <code>Required</code>:</p>
 <ul>
-<li><code>_isPowerMet = (Potential - Required) &gt; 0f</code> is <strong>strict</strong>: potential must EXCEED required, not merely equal it. A network with <code>Potential == Required</code> exactly reports <code>_isPowerMet == false</code> and runs in brownout. This matters because <code>_isPowerMet</code> is the primary gate in the <code>ApplyState</code> device loop for marking a device <code>Powered</code>: a device on a network that exactly meets its load is not flagged powered unless it is itself a provider (<code>device.IsPowerProvider &amp;&amp; _powerRatio &gt; 0f</code>). A mod computing "is this network fully supplied" must use <code>&gt;</code> to match vanilla, not <code>&gt;=</code>.</li>
-<li><code>_powerRatio = Clamp(_isPowerMet ? 1f : Potential / Required, 0f, 1f)</code> when both <code>Potential &gt; 0</code> and <code>Required &gt; 0</code>, else <code>1f</code>. This is the <strong>brownout factor</strong>. In <code>ApplyState</code> every device's draw is scaled by it: <code>usedPower *= _powerRatio</code> (line 254742) before <code>ConsumePower</code> pulls. So under-supply does not black out the network; it linearly de-rates every consumer's draw by the supply/demand ratio. A network supplying 60% of its demand runs every device at 60% draw. (Note the empty-network case <code>_powerRatio = 1f</code>: a network with no generation AND no load has ratio 1, harmless because the device loop's <code>usedPower &gt; 0f</code> guard skips it.)</li>
-<li><code>_actual = Min(Potential, Required)</code> is the figure the burn checks compare cable/fuse ratings against (<code>cable.MaxVoltage &lt; _actual</code>, <code>fuse.PowerBreak &lt; _actual</code>). It is the power that will actually flow this tick (you cannot draw more than is generated, nor more than is demanded).</li>
+<li><code>_isPowerMet = (Potential - Required) &gt; 0f</code> is <strong>strict</strong>: potential must EXCEED required, not merely equal it (<code>_netPower</code> 271844, <code>_isPowerMet</code> 271845). A network with <code>Potential == Required</code> exactly reports <code>_isPowerMet == false</code> and runs in brownout. This matters because <code>_isPowerMet</code> is the primary gate in the <code>ApplyState</code> device loop for marking a device <code>Powered</code>: a device on a network that exactly meets its load is not flagged powered unless it is itself a provider (<code>device.IsPowerProvider &amp;&amp; _powerRatio &gt; 0f</code>). A mod computing "is this network fully supplied" must use <code>&gt;</code> to match vanilla, not <code>&gt;=</code>.</li>
+<li><code>_powerRatio = Clamp(_isPowerMet ? 1f : Potential / Required, 0f, 1f)</code> when both <code>Potential &gt; 0f</code> and <code>Required &gt; 0f</code>, else <code>_powerRatio = 1f</code> (guarded assignment, lines 271846-271853). This is the <strong>brownout factor</strong>. In <code>ApplyState</code> every device's draw is scaled by it: <code>usedPower *= _powerRatio</code> (line 271928) before <code>ConsumePower</code> pulls. So under-supply does not black out the network; it linearly de-rates every consumer's draw by the supply/demand ratio. A network supplying 60% of its demand runs every device at 60% draw. Version note: at 0.2.6228.27061 the assignment was the bare <code>Clamp(...)</code> expression with no both-positive guard, so <code>Potential == 0</code> with <code>Required &gt; 0</code> produced ratio 0 and <code>0 / 0</code> produced NaN; the 0.2.6403.27689 guard yields 1f in both corners instead. The <code>Potential == 0 &amp;&amp; Required &gt; 0</code> flip from 0 to 1 is masked downstream because such a network has no <code>Providers</code>, so <code>ConsumePower</code> delivers nothing regardless; the guard's practical effect is killing the 0/0 NaN.</li>
+<li><code>_actual = Min(Potential, Required)</code> (line 271854) is the figure the burn checks compare cable/fuse ratings against (<code>cable.MaxVoltage &lt; _actual</code>, <code>fuse.PowerBreak &lt; _actual</code>). It is the power that will actually flow this tick (you cannot draw more than is generated, nor more than is demanded).</li>
 </ul>
-<p><code>CacheState</code> is called at the top of <code>ApplyState</code> and AGAIN inside <code>BreakSingleFuse</code> / <code>BreakSingleCable</code> after they set <code>Required = the broken element's rating</code> (lines 254700-254712), so the post-break <code>_powerRatio</code> / <code>_actual</code> reflect the reduced network capacity before the device loop runs.</p>
+<p><code>CacheState</code> is called at the top of <code>ApplyState</code> and AGAIN inside <code>BreakSingleFuse</code> / <code>BreakSingleCable</code> after they set <code>Required = the broken element's rating</code> (lines 271881-271901), so the post-break <code>_powerRatio</code> / <code>_actual</code> reflect the reduced network capacity before the device loop runs.</p>
 <h2 id="consumepower-and-powerproviderapplypower-the-two-settle-loops">ConsumePower and PowerProvider.ApplyPower: the two settle loops<a class="headerlink" href="#consumepower-and-powerproviderapplypower-the-two-settle-loops" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p><code>ApplyState</code>'s device loop (lines 254730-254754) drives the CONSUMER settle, and the trailing provider loop (lines 254755-254759) drives the PRODUCER settle.</p>
-<p><strong>Consumer settle</strong> -- <code>ConsumePower(device, network, powerRequired)</code> (lines 254634-254654) walks <code>Providers[]</code> from the end toward 0, pulling <code>Min(powerRequired, provider.Energy)</code> from each until demand is met (the single-supplier-first behaviour documented on <a href="../CableNetwork/">CableNetwork</a>). For each pull it does <code>provider.Energy -= num2</code>, <code>Consumed += num2</code>, and <code>device.ReceivePower(network, num2)</code>. So the consumer's <code>ReceivePower</code> is called once per provider drained, with the slice that provider supplied. The provider's <code>Energy</code> is decremented here (this is what records how much each provider gave).</p>
-<p><strong>Producer settle</strong> -- after the device loop, the trailing loop calls <code>Providers[num]?.ApplyPower()</code> backward over the whole array. <code>PowerProvider.ApplyPower</code> (decompile lines 254504-254510) is:</p>
+<p><code>ApplyState</code>'s device loop (lines 271916-271940) drives the CONSUMER settle, and the trailing provider loop (lines 271941-271945) drives the PRODUCER settle. <code>ApplyState</code> spans 271903-271946.</p>
+<p><strong>Consumer settle</strong> -- <code>ConsumePower(device, network, powerRequired)</code> (lines 271820-271840) walks <code>Providers[]</code> from the end toward 0, pulling <code>Min(powerRequired, provider.Energy)</code> from each until demand is met (the single-supplier-first behaviour documented on <a href="../CableNetwork/">CableNetwork</a>). For each pull it does <code>provider.Energy -= num2</code>, <code>Consumed += num2</code>, and <code>device.ReceivePower(network, num2)</code>. So the consumer's <code>ReceivePower</code> is called once per provider drained, with the slice that provider supplied. The provider's <code>Energy</code> is decremented here (this is what records how much each provider gave).</p>
+<p><strong>Producer settle</strong> -- after the device loop, the trailing loop calls <code>Providers[num]?.ApplyPower()</code> backward over the whole array. <code>PowerProvider.ApplyPower</code> (decompile lines 271690-271696, called once per provider and gated on <code>EnergyUsed &gt; 0f</code>) is:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ApplyPower</span><span class="p">()</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">Device</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="p">(</span><span class="n">EnergyUsed</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mf">0f</span><span class="p">))</span>
@@ -8287,15 +8367,17 @@ tags: [power, threading]</p>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>where <code>PowerProvider.EnergyUsed =&gt; _originalEnergy - Energy</code> (line 254494) and <code>_originalEnergy</code> was captured at construction as <code>device.GetGeneratedPower(cableNetwork)</code> (lines 254500-254501). So <code>EnergyUsed</code> is exactly how much of that provider's offered generation was actually drained by the consumer settle above. <code>ApplyPower</code> then calls the producer's <code>UsePower(network, EnergyUsed)</code> ONCE with that total, which is where a battery decrements <code>PowerStored</code>, a transformer increments <code>_powerProvided</code> on its output side, a transmitter increments <code>_powerProvided</code> on its wireless side, and so on.</p>
+<p>where <code>PowerProvider.EnergyUsed =&gt; _originalEnergy - Energy</code> (line 271680) and <code>_originalEnergy</code> was captured at construction: the <code>PowerProvider</code> constructor calls <code>device.GetGeneratedPower(cableNetwork)</code> a second time (after <code>CalculateState</code>'s own query) and stores it into both <code>Energy</code> and <code>_originalEnergy</code> (lines 271686-271687). So <code>EnergyUsed</code> is exactly how much of that provider's offered generation was actually drained by the consumer settle above. <code>ApplyPower</code> then calls the producer's <code>UsePower(network, EnergyUsed)</code> ONCE with that total, which is where a battery decrements <code>PowerStored</code>, a transformer increments <code>_powerProvided</code> on its output side, a transmitter increments <code>_powerProvided</code> on its wireless side, and so on.</p>
 <p>The ordering is load-bearing: consumers are settled FIRST (draining <code>provider.Energy</code> and calling <code>ReceivePower</code>), then each provider's net contribution is settled via a single <code>UsePower</code>. A producer therefore learns its total delivery for the tick only after all consumers on the network have pulled. This is why a bridge device's input-side draw (reported next tick from <code>_powerProvided</code>) lags its output-side delivery: the <code>UsePower</code> that grows <code>_powerProvided</code> runs at the END of the output network's tick, and the input network may already have been ticked earlier this same tick (pool-slot order again).</p>
 <h2 id="calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them">CalculateState accumulates into Required/Potential; only Initialise resets them<a class="headerlink" href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-17 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p><code>CalculateState</code> ADDS to the running sums (<code>Required += usedPower</code> at decompile line 254594, <code>Potential += generatedPower</code> at 254599); it never zeroes them itself. The reset lives in <code>Initialise</code> (<code>Potential = 0f; Required = 0f; Consumed = 0f;</code>, lines 254574-254576). The two are therefore a mandatory pair: every <code>CalculateState</code> must be preceded by <code>Initialise</code>, or the sums double-count.</p>
-<p>This matters for any mod that ticks a network more than once per game tick. PowerGridPlus's atomic tick splits the work into an OBSERVE pass and an ENFORCE pass, and each pass calls <code>Initialise</code> then <code>CalculateState</code>, so the second pass starts from a clean zero instead of doubling the first. <code>ApplyState</code> is different: it has real side effects (it drains <code>Providers[].Energy</code> and calls <code>Device.ReceivePower</code> via <code>ConsumePower</code>, lines 254634-254654 -- which mutates a transformer's <code>_powerProvided</code> ledger -- sets <code>Device.Powered</code>, and may <code>Break()</code> a fuse or cable), so it is run only once per game tick, in the enforce pass. Re-running <code>ApplyState</code> a second time would double-drain providers and re-trigger the break checks.</p>
+<p><code>CalculateState</code> (public, lines 271765-271797) ADDS to the running sums (<code>Required += usedPower</code> at decompile line 271780, <code>Potential += generatedPower</code> at 271785; providers whose device reports <code>IsPowerInputOutput</code> are additionally collected into <code>InputOutputDevices</code>, lines 271788-271791); it never zeroes them itself. The reset lives in <code>Initialise</code> (<code>Potential = 0f; Required = 0f; Consumed = 0f;</code>, lines 271760-271762; full body 271742-271763). The two are therefore a mandatory pair: every <code>CalculateState</code> must be preceded by <code>Initialise</code>, or the sums double-count.</p>
+<p>This matters for any mod that ticks a network more than once per game tick. PowerGridPlus's atomic tick splits the work into an OBSERVE pass and an ENFORCE pass, and each pass calls <code>Initialise</code> then <code>CalculateState</code>, so the second pass starts from a clean zero instead of doubling the first. <code>ApplyState</code> is different: it has real side effects (it drains <code>Providers[].Energy</code> and calls <code>Device.ReceivePower</code> via <code>ConsumePower</code>, lines 271820-271840 -- which mutates a transformer's <code>_powerProvided</code> ledger -- sets <code>Device.Powered</code>, and may <code>Break()</code> a fuse or cable), so it is run only once per game tick, in the enforce pass. Re-running <code>ApplyState</code> a second time would double-drain providers and re-trigger the break checks.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-02: conflict resolution on the burn-candidate wording (game version 0.2.6403.27689). Contradicted claim: "any cable whose <code>MaxVoltage &lt; _actual</code> ... is a burn candidate this tick", implying the pick pool is rebuilt per tick. Fresh validator verdict (binding): <code>BreakableFuses</code> / <code>BreakableCables</code> are append-only accumulators for the PowerTick instance lifetime. Complete census at 0.2.6403.27689: declarations 271708 / 271710 (field-initialized once; the class has no constructor; one <code>readonly PowerTick</code> per CableNetwork, decl 270617); Adds at 271809 / 271813 (<code>CheckForRecursiveProviders</code>), 271864 (<code>GetBreakableFuses</code>, no clear first), 271876 (<code>GetBreakableCables</code>, no clear first); <code>Pick</code> reads 271883 / 271894 with null guards 271884 / 271895; <code>Count</code> gates 271907 / 271912; <code>Pick&lt;T&gt;</code> (230535-230542) returns a random element WITHOUT removing; <code>Initialise</code> (271742-271763) clears only <code>Devices</code> / <code>Fuses</code> / <code>Cables</code> and zeroes only <code>Potential</code> / <code>Required</code> / <code>Consumed</code>; no <code>.Clear()</code> / <code>.Remove()</code> / reassignment of either list exists. Resulting change: rewrote the sentence (per-tick criterion, cumulative pick pool) and added the "append-only accumulators" subsection, including the caveat that a cable <code>Break()</code> usually splits the network into fresh <code>CableNetwork</code>s with fresh PowerTicks (shortening stale entries' lives on that path) while fuse breaks and non-splitting ticks accumulate.</li>
+<li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: <code>CableNetwork.OnPowerTick</code> sequence + load mirrors (270827-270840), <code>Initialise</code> verbatim (271742-271763), <code>CalculateState</code> (271765-271797; noted it is PUBLIC; <code>IsPowerInputOutput</code> -&gt; <code>InputOutputDevices</code> 271788-271791; <code>PowerProvider</code> ctor calls <code>GetGeneratedPower</code> a second time capturing <code>_originalEnergy</code> 271686-271687), <code>CheckForRecursiveProviders</code> (271799-271818), <code>ApplyState</code> (271903-271946), <code>ConsumePower</code> single-supplier-first (271820-271840), <code>PowerProvider.ApplyPower</code> once with <code>EnergyUsed &gt; 0</code> gate (271690-271696), base <code>Device</code> query/settle methods (371501-371534). CHANGED at 0.2.6403.27689: <code>CacheState</code> (271842-271855) now guards the <code>_powerRatio</code> assignment with <code>if (Potential &gt; 0f &amp;&amp; Required &gt; 0f) ... else _powerRatio = 1f</code>; at 0.2.6228.27061 the game code was the bare unguarded expression (so <code>Potential == 0 &amp;&amp; Required &gt; 0</code> gave 0 and <code>0/0</code> gave NaN). Note: this page's <code>CacheState</code> excerpt already showed the guarded form before this pass (it was ahead of the 0.2.6228 game code it was stamped against); at 0.2.6403.27689 the excerpt is now verbatim-correct, so only the semantics note, the version note, and the stamps changed. Recorded <code>_powerAvailable</code> as a dead field (declared 271718, zero other references in the decompile).</li>
 <li>2026-05-12: page created. Sourced from a voltage-tier research dive (planned mod "Power Grid Plus") into <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines 254512-254760 and 253668-253681; verbatim excerpts of the <code>PowerTick</code> field block, <code>CableNetwork.OnPowerTick</code>, <code>CacheState</code>, <code>GetBreakableFuses</code>, <code>GetBreakableCables</code>, <code>BreakSingleFuse</code>, <code>BreakSingleCable</code>, <code>ApplyState</code>. Reconciles the class-attribution imprecision on <a href="../CableNetwork/">CableNetwork</a> (those <code>ConsumePower</code>/<code>CalculateState</code> bodies are <code>PowerTick</code> members). Re-Volt mod source (<code>RevoltTick : PowerTick</code>, reverse-patches <code>PowerTick.Initialise</code>/<code>CalculateState</code>/<code>ApplyState</code>) independently corroborates ownership.</li>
 <li>2026-06-10: re-read lines 254512-254761 in full against the same 0.2.6228.27061 decompile during the PowerGridPlus single-architecture rework (the mod now runs this vanilla class unmodified in its atomic Phases 1 and 3). All sections still match verbatim; no content change.</li>
 <li>
