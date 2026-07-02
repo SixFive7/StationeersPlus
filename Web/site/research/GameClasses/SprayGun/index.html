@@ -8307,7 +8307,7 @@
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    return delayedActionInstance.Succeed();
 </span></code></pre></div>
 <p><code>OnServer.Interact</code> is the server-authoritative path and broadcasts the new state to all clients via the <code>Interactable.State</code> field + animator parameter. The state persists across save/load because <code>Interactable.State</code> is part of the Thing's normal save data.</p>
-<p>Contextual label ("On" / "Off" hint) comes from <code>Thing.GetContextualName(Interactable)</code> at decompile line 300637:</p>
+<p>Contextual label ("On" / "Off" hint) comes from <code>Thing.GetContextualName(Interactable)</code> at decompile line 300637 (re-verified unchanged at game version 0.2.6403.27689: still <code>public virtual</code>, same <code>InteractableType.OnOff</code> case body, new decompile line 319699):</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>case InteractableType.OnOff:
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    if (!OnOff) return ActionStrings.On;
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    return ActionStrings.Off;
@@ -8318,6 +8318,7 @@
 <ul>
 <li>2026-04-21: page created. Decompile findings sourced from Assembly-CSharp.dll line 334806-334812 for <code>OnUseItem</code>; declaration and interface list from the class header.</li>
 <li>2026-04-21: added "Operability gate (cursor validity)" documenting <code>SprayGun.IsOperable</code> (returns <code>!IsEmpty &amp;&amp; OnOff</code>) and its role in painting the cursor red on an empty gun via <code>Thing.AttackWith</code> (decompile line 302593) returning null; noted the red-cursor UI handler at line 269962. Added "OnOff state, toggle, label" documenting the inherited <code>Thing.OnOff</code> property (line 299160), the right-click dispatch via <code>HumanHandsBehaviour.ToggleActiveHandTool</code> (line 271917) and <code>Thing.InteractWith</code> (line 302420), the server-synced <code>Interactable.State</code> path, and the label path via <code>Thing.GetContextualName</code> (line 300637) and <code>Interactable.ContextualName</code> (line 286007). Additive only; no prior claim changed.</li>
+<li>2026-07-02: spot re-verified <code>Thing.GetContextualName(Interactable)</code> against the 0.2.6403.27689 decompile: still <code>public virtual</code>, <code>InteractableType.OnOff</code> case body identical (<code>ActionStrings.On</code> / <code>ActionStrings.Off</code>), new line 319699. Confirmation noted inline; the rest of the "OnOff state, toggle, label" section was not re-read this pass, so its 0.2.6228.27061 stamp stands. The postfix-relabel recipe (SprayPaintPlus "Add Glow" / "Remove Glow") therefore remains valid at the current game version.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>

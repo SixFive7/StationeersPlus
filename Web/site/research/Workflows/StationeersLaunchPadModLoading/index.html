@@ -7834,6 +7834,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#where-the-live-plugin-instance-lives-loadedmodentrypoints-never-chainloaderplugininfos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the live plugin instance lives: LoadedMod.Entrypoints, never Chainloader.PluginInfos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#no-current-mod-static-identity-sources" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8056,6 +8067,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#where-the-live-plugin-instance-lives-loadedmodentrypoints-never-chainloaderplugininfos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the live plugin instance lives: LoadedMod.Entrypoints, never Chainloader.PluginInfos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#no-current-mod-static-identity-sources" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8188,14 +8210,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-06-21.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'StationeersLaunchPad.Metadata.ModInfo / LoadedMod / ModLoader (decompile .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs:13287-16400)'}</code></li>
@@ -8203,6 +8229,8 @@
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'PrefabEntrypoint / ModBehaviourEntrypoint (decompile lines 16892-16935)'}</code></li>
             
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :': 'LaunchPadBooster.Mod / PrefabPatch (decompile .work/decomp/0.2.6228.27061/LaunchPadBooster.decompiled.cs:99-242)'}</code></li>
+            
+              <li><code>{'StationeersLaunchPad 0.4.0 (dedicated-server shipped DLL) :': 'ModLoader / LoadedMod / StationeersLaunchPad.Entrypoints (decompile .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs:16791, 18552, 18645-18680, 19067-19082; cache folder keyed by game version, assembly version 0.4.0 per lines 74 / 3627 / 4123)'}</code></li>
             
           </ul>
         </details>
@@ -8321,6 +8349,48 @@
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">Instance</span><span class="p">.</span><span class="n">OnLoaded</span><span class="p">(</span><span class="n">mod</span><span class="p">.</span><span class="n">ContentHandler</span><span class="p">);</span>
 </span></code></pre></div>
 <p>At the entrypoint phase, the mod's code runs and is responsible for actually registering its prefabs with the game (commonly by handing them to <code>LaunchPadBooster.Mod.AddPrefabs</code>, which defers the real registration to a <code>Prefab.LoadAll</code> prefix; see below and PrefabSourceAttribution.md).</p>
+<h2 id="where-the-live-plugin-instance-lives-loadedmodentrypoints-never-chainloaderplugininfos">Where the live plugin instance lives: LoadedMod.Entrypoints, never Chainloader.PluginInfos<a class="headerlink" href="#where-the-live-plugin-instance-lives-loadedmodentrypoints-never-chainloaderplugininfos" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>Source: StationeersLaunchPad <strong>0.4.0</strong> (the dedicated server's shipped DLL; assembly version confirmed in-decompile at lines 74 <code>AssemblyFileVersion("0.4.0")</code>, 3627 <code>VERSION = "0.4.0"</code>, 4123 <code>[BepInPlugin("stationeers.launchpad", "StationeersLaunchPad", "0.4.0")]</code>), decompiled to <code>.work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs</code> (cache folder keyed by GAME version per repo convention; the assembly is StationeersLaunchPad 0.4.0).</p>
+<p><strong>A BepInEx-style plugin loaded THROUGH StationeersLaunchPad never appears in <code>BepInEx.Bootstrap.Chainloader.PluginInfos</code>.</strong> A whole-decompile grep of StationeersLaunchPad 0.4.0 for <code>Chainloader</code> and <code>PluginInfos</code> returns zero hits: StationeersLaunchPad neither reads nor writes BepInEx's plugin registry. It instantiates a mod's <code>BaseUnityPlugin</code> type by raw <code>AddComponent</code>, bypassing the BepInEx chainloader entirely, so <code>Chainloader.PluginInfos</code> only ever contains plugins BepInEx itself loaded from <code>BepInEx/plugins</code>.</p>
+<p>Where the live instance IS held, at 0.4.0 (entrypoint classes live in the <code>StationeersLaunchPad.Entrypoints</code> namespace):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// StationeersLaunchPad.Loading.ModLoader (line 18552)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">LoadedMod</span><span class="o">&gt;</span><span class="w"> </span><span class="n">LoadedMods</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">LoadedMod</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1">// StationeersLaunchPad.Loading.LoadedMod (line 16791)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ModEntrypoint</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Entrypoints</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">ModEntrypoint</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1">// StationeersLaunchPad.Entrypoints (lines 19067-19082)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ModEntrypoint</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">{</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">DebugName</span><span class="p">();</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Instantiate</span><span class="p">(</span><span class="n">GameObject</span><span class="w"> </span><span class="n">parent</span><span class="p">);</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Initialize</span><span class="p">(</span><span class="n">LoadedMod</span><span class="w"> </span><span class="n">mod</span><span class="p">);</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="n">ConfigFile</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Configs</span><span class="p">();</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="p">}</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BehaviourEntrypoint</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">Type</span><span class="w"> </span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">ModEntrypoint</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">MonoBehaviour</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="p">{</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Type</span><span class="w"> </span><span class="n">Type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">type</span><span class="p">;</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">Instance</span><span class="p">;</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="p">}</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="c1">// StationeersLaunchPad.Entrypoints.BepInExEntrypoint (lines 18647-18677)</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BepInExEntrypoint</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">BehaviourEntrypoint</span><span class="o">&lt;</span><span class="n">BaseUnityPlugin</span><span class="o">&gt;</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="p">{</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Instantiate</span><span class="p">(</span><span class="n">GameObject</span><span class="w"> </span><span class="n">parent</span><span class="p">)</span>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="w">        </span><span class="n">Instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">BaseUnityPlugin</span><span class="p">)</span><span class="n">parent</span><span class="p">.</span><span class="n">AddComponent</span><span class="p">(</span><span class="n">Type</span><span class="p">);</span><span class="w">   </span><span class="c1">// line 18663</span>
+</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Initialize</span><span class="p">(</span><span class="n">LoadedMod</span><span class="w"> </span><span class="n">mod</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span><span class="w">           </span><span class="c1">// empty; BepInEx plugins get no OnLoaded</span>
+</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="n">ConfigFile</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Configs</span><span class="p">()</span>
+</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Instance</span><span class="p">.</span><span class="n">Config</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="k">yield</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Instance</span><span class="p">.</span><span class="n">Config</span><span class="p">;</span>
+</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>EntrypointSearch.FindBepInExEntrypoints</code> (line 18690 area) scans each mod assembly for <code>BaseUnityPlugin</code>-derived types to build these entries; <code>PrefabEntrypoint</code> (19083+) keeps the same <code>OnLoaded(ContentHandler)</code> initialize flow documented in "The three loading phases" above (the 0.4.0 restructure moved the entrypoint classes into their own namespace and introduced the <code>BehaviourEntrypoint&lt;T&gt;</code> base without changing that flow).</p>
+<p>Lookup recipe for tooling: walk <code>StationeersLaunchPad.Loading.ModLoader.LoadedMods</code>, match the mod by <code>Info.Name</code> / <code>Info.ModID</code>, then scan its <code>Entrypoints</code> for a <code>BepInExEntrypoint</code> and read <code>.Instance</code> (typed <code>BaseUnityPlugin</code>; the concrete plugin type is <code>.Type</code>). Practical consequence: tooling that needs a live plugin instance (dev probes, diagnostics, cross-mod reflection) must fall back from <code>Chainloader.PluginInfos</code> to this registry whenever the target mod is loaded through StationeersLaunchPad's <code>data/mods</code> / Workshop path rather than sitting in <code>BepInEx/plugins</code>.</p>
 <h2 id="no-current-mod-static-identity-sources">No "current mod" static; identity sources<a class="headerlink" href="#no-current-mod-static-identity-sources" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
 
@@ -8330,23 +8400,24 @@
 <li>The <code>LoadedMod &lt;&gt;4__this</code> instance captured by each async state machine (e.g. <code>LoadAssetsSingle</code>, line 14337).</li>
 <li>A runtime stack-trace lookup (lines ~16342-16365):</li>
 </ol>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">TryGetExecutingMod</span><span class="p">(</span><span class="k">out</span><span class="w"> </span><span class="n">LoadedMod</span><span class="w"> </span><span class="n">mod</span><span class="p">)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">TryGetStackTraceMod</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">StackTrace</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">mod</span><span class="p">);</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">TryGetExecutingMod</span><span class="p">(</span><span class="k">out</span><span class="w"> </span><span class="n">LoadedMod</span><span class="w"> </span><span class="n">mod</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">TryGetStackTraceMod</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">StackTrace</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">mod</span><span class="p">);</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><code>TryGetStackTraceMod</code> walks each frame's declaring assembly against <code>AssemblyToMod</code> and returns the first match. A Harmony patch on a registration method can call <code>ModLoader.TryGetExecutingMod</code> to learn which mod's code is currently on the stack, but only when the registering call is actually made from that mod's assembly (it fails for deferred registration that runs from a StationeersLaunchPad or game frame).</p>
 <h2 id="launchpadbooster-prefab-path">LaunchPadBooster prefab path<a class="headerlink" href="#launchpadbooster-prefab-path" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
 
 <p>LaunchPadBooster is the common registration route. A mod constructs a <code>LaunchPadBooster.Mod</code> and calls <code>AddPrefabs</code>, which stores the prefabs on that <code>Mod</code> instance (LaunchPadBooster.decompiled.cs:161-173). The static <code>Mod.AllMods</code> (line 103) retains the per-mod prefab lists permanently:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Mod</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AllMods</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Mod</span><span class="o">&gt;</span><span class="p">();</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">internal</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Prefabs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">();</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">ModID</span><span class="w"> </span><span class="n">ID</span><span class="p">;</span><span class="w">   </span><span class="c1">// struct ModID { string Name; string Version; }</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Mod</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AllMods</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Mod</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">internal</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Prefabs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">ModID</span><span class="w"> </span><span class="n">ID</span><span class="p">;</span><span class="w">   </span><span class="c1">// struct ModID { string Name; string Version; }</span>
 </span></code></pre></div>
 <p>A Harmony <strong>prefix on <code>Prefab.LoadAll</code></strong> (<code>PrefabPatch.PatchPrefabs</code>, lines 216-241) flushes every <code>Mod.AllMods[].Prefabs</code> into <code>WorldManager.Instance.SourcePrefabs</code> just before the game clones the source list into <code>Prefab.AllPrefabs</code>. Because <code>Mod.AllMods</code> survives, this is the reliable place to read "which mod shipped this prefab" without any extra hook. See PrefabSourceAttribution.md for the join-by-hash recipe and the full ordering.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-02: added "Where the live plugin instance lives: LoadedMod.Entrypoints, never Chainloader.PluginInfos" from the StationeersLaunchPad 0.4.0 decompile (<code>.work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs</code>; assembly version confirmed at lines 74 / 3627 / 4123). Facts: whole-decompile grep for <code>Chainloader</code> / <code>PluginInfos</code> returns zero hits, so StationeersLaunchPad-loaded plugins never register with BepInEx's chainloader; the live <code>BaseUnityPlugin</code> is held by <code>ModLoader.LoadedMods</code> (18552) -&gt; <code>LoadedMod.Entrypoints</code> (<code>public List&lt;ModEntrypoint&gt;</code>, 16791) -&gt; <code>BepInExEntrypoint : BehaviourEntrypoint&lt;BaseUnityPlugin&gt;</code> whose <code>Instantiate</code> does <code>Instance = (BaseUnityPlugin)parent.AddComponent(Type)</code> (18663); <code>BehaviourEntrypoint&lt;T&gt;</code> declares <code>public readonly Type Type</code> + <code>public T Instance</code> (19077-19082); <code>EntrypointSearch.FindBepInExEntrypoints</code> builds the entries (18690 area); <code>PrefabEntrypoint</code> (19083+) keeps the OnLoaded flow. Additive; the 0.2.6228-stamped sections were not re-read (the <code>LoadedMod</code> field list already included <code>Entrypoints</code> from the 2026-06-21 runtime dump, now pinned to a decompile line). Driving work: dedicated-server dev-probe tooling needing a live plugin instance for a mod loaded via the data/mods path.</li>
 <li>2026-06-21: page created from a read of the StationeersLaunchPad and LaunchPadBooster decompiles at game version 0.2.6228.27061. Documents ModInfo / LoadedMod / ModLoader, the three load phases, the absence of a current-mod static (identity via loop variable, state-machine <code>this</code>, or <code>TryGetExecutingMod</code> stack walk), and the LaunchPadBooster <code>Mod.AllMods</code> + <code>PrefabPatch</code> route. Reframed and reformatted from an initial sub-agent draft to comply with Research conventions (repo-relative source citations, triple-backtick fences, valid related links).</li>
 <li>2026-06-21: added <code>LoadedMod.Info</code> (the <code>ModInfo</code> carrying the mod name) to the LoadedMod section, plus the full runtime-confirmed instance field set, after a ScenarioRunner runtime reflection member dump (the <code>device-port-dump</code> LoadedMod diagnostic, game 0.2.6228.27061) showed <code>LoadedMod</code> exposes <code>Info:ModInfo</code> and has no <code>Def</code>/<code>Name</code>/<code>About</code> member of its own. This corrects the StationeersLaunchPad prefab-attribution name source: read <code>LoadedMod.Info.Name</code>, not <code>LoadedMod.Def.About.Name</code>. Additive correction; no prior stamped claim contradicted (the original LoadedMod member list was described as "the runtime collections", not exhaustive).</li>
 </ul>
