@@ -2892,6 +2892,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#targethorizontal-targetvertical-are-the-worker-thread-safe-aim-writers-the-slew-is-gated-on-isbroken-canrotate-never-on-power-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TargetHorizontal / TargetVertical are the worker-thread-safe aim writers; the slew is gated on IsBroken / CanRotate, never on power state
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8034,6 +8045,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#targethorizontal-targetvertical-are-the-worker-thread-safe-aim-writers-the-slew-is-gated-on-isbroken-canrotate-never-on-power-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TargetHorizontal / TargetVertical are the worker-thread-safe aim writers; the slew is gated on IsBroken / CanRotate, never on power state
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8144,14 +8166,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-22.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-02.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:735-736</code></li>
@@ -8160,17 +8186,21 @@
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 201818-202089 (RotatableBehaviour full class), 405441-405899 (WirelessPower IRotatable members)'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 217254-217525 (RotatableBehaviour full class), 426869-426973 (WirelessPower RotationTolerance + UpdateAnimator + Awake), 421087-421683 (SolarPanel IRotatable members)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
               <li><code>./PowerTransmitter.md</code></li>
             
               <li><code>./WirelessPower.md</code></li>
+            
+              <li><code>./SolarPanel.md</code></li>
             
           </ul>
         </details>
@@ -8193,6 +8223,13 @@
       
       
       
+        <span class="md-tag">threading</span>
+      
+    
+      
+      
+      
+      
         <span class="md-tag">transforms</span>
       
     
@@ -8203,43 +8240,59 @@
 <h1 id="rotatablebehaviour">RotatableBehaviour<a class="headerlink" href="#rotatablebehaviour" title="Permanent link">&para;</a></h1>
 <p>Vanilla game class providing the servo behavior that drives dish rotation on <code>WirelessPower</code> subclasses. Holds <code>TargetHorizontal</code> / <code>TargetVertical</code> setters and an existing networked delta-state that clients slew to.</p>
 <h2 id="servo-delta-state">Servo delta-state<a class="headerlink" href="#servo-delta-state" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: F0058.</p>
+<p>Source: F0058; re-verified against the 0.2.6403.27689 decompile (setter flag writes at lines 217283-217289 / 217307-217313).</p>
 <p><code>WirelessPower.SetLogicValue</code> is server-authoritative in vanilla. Our prefix runs on the server. The ensuing writes to <code>RotatableBehaviour.TargetHorizontal</code> / <code>TargetVertical</code> set <code>NetworkUpdateFlags |= 256</code>, which the existing delta-state serialization ships to clients. <code>WirelessPower.ProcessUpdate</code> reads the flag and writes those targets on the client; the client's local servo then slews the dish. No new <code>INetworkMessage</code>.</p>
 <h2 id="servo-state-and-slew">Servo state and slew<a class="headerlink" href="#servo-state-and-slew" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: <code>Assets/Scripts/RotatableBehaviour.cs</code> (full file).</p>
-<p><code>RotatableBehaviour</code> carries:</p>
+<p>Source: <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> lines 217254-217525 (full class).</p>
+<p><code>RotatableBehaviour</code> is a plain <code>[Serializable]</code> managed class (line 217254; NOT a MonoBehaviour) constructed by the parent's <code>Awake</code> (<code>new RotatableBehaviour(this)</code>, constructor at 217400-217403). It carries:</p>
 <ul>
-<li><code>private IRotatable _parentRotatable;</code> (line 15) - reference to the owning <code>WirelessPower</code> (or other <code>IRotatable</code>).</li>
-<li><code>public double TargetHorizontal</code> and <code>public double TargetVertical</code> setters that write <code>_targetHorizontal</code> / <code>_targetVertical</code>, call <code>SyncTargetHorizontal</code> / <code>SyncTargetVertical</code>, and set <code>NetworkUpdateFlags |= 256</code>.</li>
-<li><code>MovementSpeedHorizontal = (180.0 / MaximumHorizontal) * ParentSpeed * deltaTime</code> and similarly for vertical. The slew rate is computed in [0..1]-ratio-per-second space, so it is independent of how the parent's <code>MaximumHorizontal</code> / <code>MaximumVertical</code> map to degrees.</li>
-<li><code>DoMoveTask</code> (<code>RotatableBehaviour.cs:96-186</code>) animates <code>_parentRotatable.Horizontal</code> / <code>Vertical</code> toward <code>_targetHorizontal</code> / <code>_targetVertical</code> each tick, with modulo wrap on the horizontal channel (so <code>Horizontal</code> from 0.95 to 0.05 traverses 0.10 worth of rotation in the short direction).</li>
+<li><code>private IRotatable _parentRotatable;</code> (line 217256) - reference to the owning <code>WirelessPower</code>, <code>SolarPanel</code>, <code>RadiatorRotatable</code>, or other <code>IRotatable</code>.</li>
+<li><code>public double TargetVertical</code> (217270) and <code>public double TargetHorizontal</code> (217294) setters that discard NaN (<code>if (double.IsNaN(value)) return;</code>), call <code>SyncTargetVertical</code> / <code>SyncTargetHorizontal</code> (which store <code>_targetVertical</code> / <code>_targetHorizontal</code>, call <code>MoveToTarget()</code>, and fire <code>_parentRotatable.UpdateAnimator().Forget()</code>, lines 217413-217425), and then, only <code>if (NetworkManager.IsServer)</code>, set <code>NetworkUpdateFlags |= 256</code> on <code>_parentRotatable.GetAsThing</code> (217283-217289 / 217307-217313).</li>
+<li><code>MovementSpeedHorizontal =&gt; (float)(180.0 / _parentRotatable.MaximumHorizontal) * _parentRotatable.MovementSpeedHorizontal * Time.deltaTime</code> (line 217344) and the same shape for vertical (217346). The slew rate is computed in [0..1]-ratio-per-frame space, so it is independent of how the parent's <code>MaximumHorizontal</code> / <code>MaximumVertical</code> map to degrees.</li>
+<li><code>DoMoveTask</code> (217434-217517) animates <code>_parentRotatable.Horizontal</code> / <code>Vertical</code> toward <code>_targetHorizontal</code> / <code>_targetVertical</code> each frame, with modulo wrap on the horizontal channel (so <code>Horizontal</code> from 0.95 to 0.05 traverses 0.10 worth of rotation in the short direction).</li>
 </ul>
 <p>The slew updates the parent's <code>Horizontal</code> and <code>Vertical</code> properties; those setters are responsible for writing the actual transform <code>localRotation</code>. The slew loop never references <code>Vector3.up</code>, <code>Vector3.forward</code>, or <code>transform.parent.up</code>, so the math is parent-frame-invariant. A <code>RotatableBehaviour</code> attached to a <code>WirelessPower</code> whose root is rotated (sideways on a wall, upside-down on a ceiling) continues to slew correctly because the actual rotation writes happen on <code>AxleTransform.localRotation</code> and <code>DishTransform.localRotation</code> in the parent-relative frame.</p>
 <h2 id="current-vs-target-angle-slew-complete-detection-slew-speed">Current vs target angle, slew-complete detection, slew speed<a class="headerlink" href="#current-vs-target-angle-slew-complete-detection-slew-speed" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: <code>Assets/Scripts/RotatableBehaviour.cs</code> lines 201818-202089.</p>
+<p>Source: <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> lines 217254-217525.</p>
 <p>The TARGET angle and the CURRENT (animated) angle are stored in two different places:</p>
 <ul>
-<li>TARGET: <code>RotatableBehaviour._targetHorizontal</code> / <code>_targetVertical</code> (private doubles), exposed via the public <code>TargetHorizontal</code> / <code>TargetVertical</code> getters/setters (lines 201834, 201858). These are the slew DESTINATION and are what gets network-synced (the setter sets <code>NetworkUpdateFlags |= 256</code> on the server).</li>
+<li>TARGET: <code>RotatableBehaviour._targetHorizontal</code> / <code>_targetVertical</code> (private doubles), exposed via the public <code>TargetHorizontal</code> / <code>TargetVertical</code> getters/setters (lines 217294, 217270). These are the slew DESTINATION and are what gets network-synced (the setter sets <code>NetworkUpdateFlags |= 256</code> on the server).</li>
 <li>CURRENT: <code>_parentRotatable.Horizontal</code> / <code>Vertical</code> (the <code>IRotatable</code>'s own properties, i.e. <code>WirelessPower.Horizontal</code> / <code>Vertical</code>). These are the LIVE animated values the model actually points at. <code>RotatableBehaviour</code> does not store a copy of the current angle; it reads and writes the parent's properties directly. So to read the live aim, read <code>wirelessPower.Horizontal</code> / <code>wirelessPower.Vertical</code> (normalized [0..1] ratios), NOT <code>RotatableBehaviour.TargetHorizontal</code> / <code>TargetVertical</code>.</li>
 </ul>
-<p>Slew-complete detection (per-channel), lines 201884-201906:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsHorizontal</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="n">_parentRotatable</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="o">||</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="n">Abs</span><span class="p">(</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">Horizontal</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">TargetHorizontal</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">RotationTolerance</span><span class="p">;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsVertical</span><span class="w"> </span><span class="o">=&gt;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="n">_parentRotatable</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="o">||</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="n">Abs</span><span class="p">(</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">Vertical</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">TargetVertical</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">RotationTolerance</span><span class="p">;</span>
+<p>Slew-complete detection (per-channel), lines 217320-217342:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsHorizontal</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_parentRotatable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="n">Abs</span><span class="p">(</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">Horizontal</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">TargetHorizontal</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">RotationTolerance</span><span class="p">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">}</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsVertical</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">{</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_parentRotatable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="n">Abs</span><span class="p">(</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">Vertical</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">TargetVertical</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="n">_parentRotatable</span><span class="p">.</span><span class="n">RotationTolerance</span><span class="p">;</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>"Fully aimed" is <code>IsHorizontal &amp;&amp; IsVertical</code> (the <code>DoMoveTask</code> loop breaks on exactly that, line 202073). The epsilon is the parent's <code>RotationTolerance</code>. For <code>WirelessPower</code> that is <code>1E-07f</code> (see constants below), an extremely tight tolerance, so a dish reads as "still slewing" until its current ratio is within 1e-7 of target.</p>
-<p><code>IsMoving =&gt; _currentTask.Status == UniTaskStatus.Pending</code> (line 201912) is a coarser "is the slew task still running" flag. The task runs until both channels satisfy <code>IsHorizontal &amp;&amp; IsVertical</code> (or the parent breaks / can't rotate).</p>
-<p><code>WirelessPower</code> slew constants (the <code>IRotatable</code> members <code>RotatableBehaviour</code> reads through <code>_parentRotatable</code>), from <code>WirelessPower.cs</code> lines 405531-405557:</p>
+<p>"Fully aimed" is <code>IsHorizontal &amp;&amp; IsVertical</code> (the <code>DoMoveTask</code> loop breaks on exactly that, line 217509). The epsilon is the parent's <code>RotationTolerance</code>. For <code>WirelessPower</code> that is <code>1E-07f</code> (see constants below), an extremely tight tolerance, so a dish reads as "still slewing" until its current ratio is within 1e-7 of target.</p>
+<p><code>IsMoving =&gt; _currentTask.Status == UniTaskStatus.Pending</code> (line 217348) is a coarser "is the slew task still running" flag. The task runs until both channels satisfy <code>IsHorizontal &amp;&amp; IsVertical</code> (or the parent breaks / can't rotate).</p>
+<p><code>WirelessPower</code> slew constants (the <code>IRotatable</code> members <code>RotatableBehaviour</code> reads through <code>_parentRotatable</code>), re-verified at 0.2.6403.27689 (<code>RotationTolerance =&gt; 1E-07f</code> at line 426869):</p>
 <table>
 <thead>
 <tr>
@@ -8281,31 +8334,46 @@
 </tr>
 </tbody>
 </table>
-<p>The effective per-frame step is <code>MovementSpeedHorizontal =&gt; (180.0 / MaximumHorizontal) * _parentRotatable.MovementSpeedHorizontal * Time.deltaTime</code> (line 201908), i.e. for a transmitter <code>(180/360) * 0.05 * dt = 0.025 * dt</code> ratio/frame horizontal, and <code>(180/180) * 0.05 * dt = 0.05 * dt</code> ratio/frame vertical. Different <code>IRotatable</code> implementers use different constants (SolarPanel/RadiatorRotatable <code>RotationTolerance =&gt; 0.0001f</code>, <code>MovementSpeed =&gt; 0.05f</code> at lines 192661/175499; DaylightSensor at 396713 uses <code>0.0001f</code> / <code>0.01f</code> / <code>0.005f</code>); the WirelessPower values above are the ones that apply to the dish pair.</p>
+<p>The effective per-frame step is <code>MovementSpeedHorizontal =&gt; (float)(180.0 / _parentRotatable.MaximumHorizontal) * _parentRotatable.MovementSpeedHorizontal * Time.deltaTime</code> (line 217344; vertical twin at 217346), i.e. for a transmitter <code>(180/360) * 0.05 * dt = 0.025 * dt</code> ratio/frame horizontal, and <code>(180/180) * 0.05 * dt = 0.05 * dt</code> ratio/frame vertical. Different <code>IRotatable</code> implementers use different constants (at 0.2.6403.27689: <code>SolarPanel.RotationTolerance =&gt; 0.001f</code> at 421162 with <code>MovementSpeedHorizontal</code> / <code>MovementSpeedVertical =&gt; 0.05f</code> at 421170-421172 and <code>MaximumVertical = 165</code> / <code>MaximumHorizontal = 360</code>, so a solar panel steps <code>(180/360)*0.05*dt = 0.025*dt</code> ratio/frame horizontal and <code>(180/165)*0.05*dt ~ 0.0545*dt</code> ratio/frame vertical); the WirelessPower values above are the ones that apply to the dish pair.</p>
 <p>Note these are NOT distinct fields exposing the current angle separately as "animated angle" objects: the current angle is just the parent's <code>Horizontal</code> / <code>Vertical</code> double, and target is <code>RotatableBehaviour.Target*</code>. Both are readable independently, which is what lets a mod evaluate aim from the LIVE orientation (<code>wirelessPower.Horizontal</code> / <code>Vertical</code>) rather than the destination.</p>
 <h2 id="slew-runs-on-the-main-thread-only-while-gamestaterunning-on-every-peer">Slew runs on the main thread, only while GameState.Running, on every peer<a class="headerlink" href="#slew-runs-on-the-main-thread-only-while-gamestaterunning-on-every-peer" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-<p>Source: <code>RotatableBehaviour.cs</code> lines 201998-202081 (<code>DoMoveTask</code>), 405615-405626 (<code>WirelessPower.UpdateAnimator</code>).</p>
+<p>Source: <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> lines 217434-217517 (<code>DoMoveTask</code>), 426953-426964 (<code>WirelessPower.UpdateAnimator</code>).</p>
 <p><code>DoMoveTask</code> is an <code>async UniTask</code> that:</p>
 <ol>
-<li>Switches to the main thread if started from a worker (<code>if (ThreadedManager.IsThread) await UniTask.SwitchToMainThread();</code>, line 202000). So all transform writes happen on the Unity main thread regardless of where <code>MoveToTarget</code> was called from.</li>
-<li>Bails immediately if the parent is null / a cursor / broken / <code>!CanRotate()</code> (line 202004).</li>
-<li><strong>Snaps instantly to target without animating when <code>GameManager.GameState != GameState.Running</code></strong> (lines 202009-202014): sets <code>_parentRotatable.Horizontal = TargetHorizontal; Vertical = TargetVertical;</code> and returns. This is the load-time / non-running path: a dish restored from save jumps straight to its saved target rather than visibly slewing.</li>
-<li>While <code>GameState.Running</code>, loops <code>await UniTask.NextFrame()</code> and steps <code>Horizontal</code> / <code>Vertical</code> toward target by the movement speed each frame, with modulo-wrap on the horizontal channel (short-direction rotation), until <code>IsHorizontal &amp;&amp; IsVertical</code>.</li>
+<li>Switches to the main thread if started from a worker (<code>if (ThreadedManager.IsThread) await UniTask.SwitchToMainThread();</code>, lines 217436-217439, the method's FIRST statement). So all transform writes happen on the Unity main thread regardless of where <code>MoveToTarget</code> was called from.</li>
+<li>Bails immediately if the parent is null / a cursor / broken / <code>!CanRotate()</code> (line 217440).</li>
+<li><strong>Snaps instantly to target without animating when <code>GameManager.GameState != GameState.Running</code></strong> (lines 217445-217450): sets <code>_parentRotatable.Horizontal = TargetHorizontal; Vertical = TargetVertical;</code> and returns. This is the load-time / non-running path: a dish restored from save jumps straight to its saved target rather than visibly slewing.</li>
+<li>While <code>GameState.Running</code>, loops <code>await UniTask.NextFrame()</code> and steps <code>Horizontal</code> / <code>Vertical</code> toward target by the movement speed each frame, with modulo-wrap on the horizontal channel (short-direction rotation), until <code>IsHorizontal &amp;&amp; IsVertical</code>. The loop's break condition (217509-217515) is <code>(IsHorizontal &amp;&amp; IsVertical) || Parent.IsBroken || !_parentRotatable.CanRotate()</code>, and on break it calls <code>_parentRotatable.RunAfterAnimation()</code> (a virtual completion hook: no-op on <code>WirelessPower</code> and <code>SolarPanel</code>; <code>PowerReceiver</code> overrides it at 408179-408182 to <code>RequestRetarget()</code>).</li>
 </ol>
-<p>Trigger: <code>TargetHorizontal</code> / <code>TargetVertical</code> setters call <code>SyncTargetHorizontal</code> / <code>SyncTargetVertical</code> -&gt; <code>MoveToTarget()</code> (line 201969), which starts <code>DoMoveTask</code> only if one is not already pending. So setting a target (re)launches the slew.</p>
+<p>Trigger: <code>TargetHorizontal</code> / <code>TargetVertical</code> setters call <code>SyncTargetVertical</code> / <code>SyncTargetHorizontal</code> -&gt; <code>MoveToTarget()</code> (lines 217405-217425), which starts <code>DoMoveTask</code> only if one is not already pending. So setting a target (re)launches the slew.</p>
 <p>Server vs client / dedicated-server behavior:</p>
 <ul>
 <li>The slew animation (<code>DoMoveTask</code> stepping the current angle each frame) is <strong>driven locally on every peer that has the object in its scene</strong>, because it is keyed on <code>GameState.Running</code> and <code>Time.deltaTime</code>, NOT gated by <code>NetworkManager.IsServer</code> / <code>IsClient</code>. There is no <code>IsServer</code> / <code>IsClient</code> guard around the stepping loop. The transform genuinely rotates on whichever peer is running the task.</li>
-<li>What IS server-gated is only the SYNC of the target: <code>TargetHorizontal</code> / <code>TargetVertical</code> setters set <code>NetworkUpdateFlags |= 256</code> solely <code>if (NetworkManager.IsServer)</code> (lines 201847, 201871). Clients receive the new target via <code>WirelessPower.ProcessUpdate</code> (flag 256) and their own local <code>RotatableBehaviour</code> then slews to it. Late-join ships full-precision target doubles via <code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code>.</li>
+<li>What IS server-gated is only the SYNC of the target: <code>TargetHorizontal</code> / <code>TargetVertical</code> setters set <code>NetworkUpdateFlags |= 256</code> solely <code>if (NetworkManager.IsServer)</code> (lines 217283-217289, 217307-217313). Clients receive the new target via <code>WirelessPower.ProcessUpdate</code> (flag 256) and their own local <code>RotatableBehaviour</code> then slews to it. Late-join ships full-precision target doubles via <code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code>.</li>
 <li>On a <strong>dedicated (headless) server</strong>: <code>GameManager.GameState</code> is <code>Running</code> and the simulation ticks, so the server's <code>RotatableBehaviour</code> DOES run <code>DoMoveTask</code> and the server-side transform rotates. <code>Time.deltaTime</code> is valid in headless/batch mode. There is no rendering, but the transform math (and therefore <code>RayTransform.position</code> / <code>DishTarget.position</code>, which the link raycast in <code>PowerTransmitter.TryContactReceiver</code> consumes) is live server-side. This is why the vanilla link raycast can succeed on a dedicated server: the dish's current orientation is actually simulated there, not merely animated on clients. (<code>DoMoveTask</code> does guard <code>Parent.IsBroken</code> and audio on <code>InventoryManager.ParentHuman</code> proximity, which is null on a headless server, so the moving-sound branch is skipped, but the rotation stepping is not.)</li>
 </ul>
-<p><code>WirelessPower.UpdateAnimator()</code> (the <code>IRotatable.UpdateAnimator</code> impl, line 405615) likewise switches to the main thread and only pushes <code>TargetHorizontal</code> / <code>TargetVertical</code> into the BaseAnimator float parameters when a <code>BaseAnimator</code> exists; it does not itself move the dish.</p>
+<p><code>WirelessPower.UpdateAnimator()</code> (the <code>IRotatable.UpdateAnimator</code> impl, lines 426953-426964) likewise switches to the main thread and only pushes <code>TargetHorizontal</code> / <code>TargetVertical</code> into the BaseAnimator float parameters when a <code>BaseAnimator</code> exists; it does not itself move the dish. <code>SolarPanel.UpdateAnimator()</code> is an empty <code>async UniTaskVoid</code> (421320-421322).</p>
+<h2 id="targethorizontal-targetvertical-are-the-worker-thread-safe-aim-writers-the-slew-is-gated-on-isbroken-canrotate-never-on-power-state">TargetHorizontal / TargetVertical are the worker-thread-safe aim writers; the slew is gated on IsBroken / CanRotate, never on power state<a class="headerlink" href="#targethorizontal-targetvertical-are-the-worker-thread-safe-aim-writers-the-slew-is-gated-on-isbroken-canrotate-never-on-power-state" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>Source: <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> lines 217270-217316 (setters), 217405-217425 (<code>MoveToTarget</code> / <code>SyncTarget*</code>), 217434-217517 (<code>DoMoveTask</code>), 426953-426964 (<code>WirelessPower.UpdateAnimator</code>), 421320-421322 (<code>SolarPanel.UpdateAnimator</code>), 421136-421160 (<code>SolarPanel.Vertical</code> / <code>Horizontal</code> setters).</p>
+<p>For code that needs to aim an <code>IRotatable</code> from the power tick (or any UniTask ThreadPool worker), <code>RotatableBehaviour.TargetHorizontal</code> / <code>TargetVertical</code> are the ONLY safe write surface. Everything the setter path executes synchronously on the caller thread is managed:</p>
+<ul>
+<li><code>_targetVertical</code> / <code>_targetHorizontal</code> double stores plus the <code>double.IsNaN</code> guard (217278-217282, 217302-217306);</li>
+<li>the <code>NetworkUpdateFlags |= 256</code> bitor on <code>_parentRotatable.GetAsThing</code> (a managed field write, server-only);</li>
+<li><code>MoveToTarget()</code> reading <code>_currentTask.Status</code> and kicking <code>DoMoveTask</code>, whose FIRST statement is the conditional <code>await UniTask.SwitchToMainThread()</code> (217436-217439), so no Unity API is touched before the hop;</li>
+<li><code>_parentRotatable.UpdateAnimator().Forget()</code>, where <code>WirelessPower</code>'s implementation itself begins with the same <code>ThreadedManager.IsThread</code> main-thread switch (426955-426958) and <code>SolarPanel</code>'s is empty (421320-421322).</li>
+</ul>
+<p>(The <code>MovementSpeedHorizontal</code> / <code>MovementSpeedVertical</code> getters read <code>Time.deltaTime</code>, a main-thread-only Unity API, but they are only evaluated inside <code>DoMoveTask</code>'s loop after the main-thread switch.)</p>
+<p>By contrast, the parents' CURRENT-angle properties are main-thread-only: <code>WirelessPower.Horizontal</code> / <code>Vertical</code> setters write <code>AxleTransform</code> / <code>DishTransform.localRotation</code>, and <code>SolarPanel.Vertical</code> / <code>Horizontal</code> setters (421136-421160) call <code>SetArmPitch</code> / <code>SetArmYaw</code>, which write <code>PitchPivot</code> / <code>YawPivot.localRotation</code> on every <code>SolarPanelArm</code> (see <a href="../SolarPanel/">SolarPanel</a>). Writing those from a worker thread crashes the player.</p>
+<p>Gating: the slew task bails or breaks only on <code>Parent == null</code>, <code>Parent.IsCursor</code>, <code>Parent.IsBroken</code>, or <code>!_parentRotatable.CanRotate()</code> (217440, 217509). There is NO <code>OnOff</code>, <code>Powered</code>, or <code>Error</code> check anywhere in <code>RotatableBehaviour</code>, and <code>SolarPanel.CanRotate() =&gt; !IsBroken</code> (421225-421228) adds none. An unpowered, switched-off solar panel or dish still slews to any target written to it. Aim writes are free; only the WRITERS of targets (IC10 chips via <code>SetLogicValue</code>, <code>SolarControl</code> motherboards, wrench interactions) need power to run. This is what makes a solar-only island unrecoverable when its panels park off-sun: the servo would happily move, but the logic that would command it is dead (see <a href="../SolarPanel/">SolarPanel</a>, "Solar-only island bootstrap corollary", and <a href="../PowerTick/">PowerTick</a>).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 <ul>
+<li>2026-07-02: re-verification and extension pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061 (full class now at lines 217254-217525). Confirmed unchanged with new line refs: target/current split (setters 217270/217294, <code>IsHorizontal</code>/<code>IsVertical</code> 217320-217342, <code>IsMoving</code> 217348), slew-speed formula <code>(180/Maximum*) * MovementSpeed* * Time.deltaTime</code> (217344-217346), <code>DoMoveTask</code> main-thread switch + non-Running snap + per-frame stepping (217434-217517), server-only flag-256 sync (217283-217289 / 217307-217313), <code>WirelessPower.RotationTolerance =&gt; 1E-07f</code> (426869), <code>WirelessPower.UpdateAnimator</code> main-thread switch (426953-426964). New at this version: the target setters gained a <code>double.IsNaN</code> early-return, the flag write goes through the new <code>IRotatable.GetAsThing</code> member, the loop's break calls the new <code>IRotatable.RunAfterAnimation()</code> completion hook (no-op on WirelessPower/SolarPanel; <code>PowerReceiver</code> overrides it to <code>RequestRetarget()</code> at 408179-408182), and a client-side <code>OnClientStart</code> snap helper exists (217427-217432). Added the "TargetHorizontal / TargetVertical are the worker-thread-safe aim writers" section: the setter path is managed-only up to <code>DoMoveTask</code>'s first-statement <code>SwitchToMainThread</code>, <code>SolarPanel.UpdateAnimator</code> is empty (421320-421322), the parents' Horizontal/Vertical setters are Transform writes (main-thread-only), and the slew gates on <code>IsBroken</code> / <code>CanRotate()</code> only, never on OnOff/Powered/Error. Updated the implementer-constants comparison to the 0.2.6403 SolarPanel values (RotationTolerance 0.001 at 421162, speeds 0.05 at 421170-421172). Driving work: solar-panel auto-aim from the power tick (PowerGridPlus / PowerTransmitterPlus rearchitecture session).</li>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0058. No conflicts.</li>
 <li>2026-04-25: added "Servo state and slew" section. Additive only; no existing content changed. Source: direct decompile of <code>RotatableBehaviour.cs</code> during the placement-orientation deep-research pass. Game version 0.2.6228.27061.</li>
 <li>2026-05-22: added "Current vs target angle, slew-complete detection, slew speed" and "Slew runs on the main thread, only while GameState.Running, on every peer" sections. Additive only; no existing content changed. Driving question: a beam-rendering mod (PowerTransmitterPlus) needs to read the LIVE dish orientation vs the slew target, the exact slew tolerance/speed, how slew-complete is detected, and whether rotation is simulated on a dedicated server. Findings sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>: <code>RotatableBehaviour.IsHorizontal</code>/<code>IsVertical</code> (lines 201884-201906), <code>IsMoving</code> (201912), <code>MovementSpeedHorizontal</code>/<code>Vertical</code> derived getters (201908-201910), <code>DoMoveTask</code> main-thread switch + <code>GameState.Running</code> snap + per-frame stepping (201998-202081), <code>TargetHorizontal</code>/<code>TargetVertical</code> server-only <code>NetworkUpdateFlags |= 256</code> (201847/201871); and <code>WirelessPower.cs</code>: <code>RotationTolerance =&gt; 1E-07f</code> (405531), <code>MovementSpeedHorizontal</code>/<code>Vertical =&gt; 0.05f</code> (405537/405539), <code>CanRotate() =&gt; true</code> (405554), <code>UpdateAnimator</code> (405615). Cross-referenced WirelessPower.md (servo math, flag 256 sync) and PowerTransmitter.md (Head-child drift trap, TryContactReceiver consuming RayTransform.position).</li>

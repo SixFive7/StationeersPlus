@@ -2559,6 +2559,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="CableNetwork.OnPowerTick drives it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load-mirrors-are-written-at-the-end-of-the-tick-cross-network-advertise-is-one-tick-lagged-and-a-dead-island-cannot-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load mirrors are written at the END of the tick: cross-network advertise is one-tick lagged, and a dead island cannot bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2616,6 +2633,17 @@
     <span class="md-ellipsis">
       
         ConsumePower and PowerProvider.ApplyPower: the two settle loops
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applystate-un-powers-zero-demand-and-unfed-devices-allowsetpower-picks-the-network-allowed-to-do-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ApplyState un-powers zero-demand and unfed devices; AllowSetPower picks the network allowed to do it
       
     </span>
   </a>
@@ -8059,6 +8087,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="CableNetwork.OnPowerTick drives it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load-mirrors-are-written-at-the-end-of-the-tick-cross-network-advertise-is-one-tick-lagged-and-a-dead-island-cannot-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load mirrors are written at the END of the tick: cross-network advertise is one-tick lagged, and a dead island cannot bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8116,6 +8161,17 @@
     <span class="md-ellipsis">
       
         ConsumePower and PowerProvider.ApplyPower: the two settle loops
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applystate-un-powers-zero-demand-and-unfed-devices-allowsetpower-picks-the-network-allowed-to-do-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ApplyState un-powers zero-demand and unfed devices; AllowSetPower picks the network allowed to do it
       
     </span>
   </a>
@@ -8318,6 +8374,16 @@ tags: [power, threading]</p>
 </span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Runs on the UniTask ThreadPool worker (see <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading</a>): managed-memory reads (<code>cable.MaxVoltage</code>, <code>cable.CableType</code>, list iteration) are safe off-thread; Unity-API calls crash. <code>Cable.Break()</code> is reached from here and self-marshals to the main thread.</p>
+<h3 id="load-mirrors-are-written-at-the-end-of-the-tick-cross-network-advertise-is-one-tick-lagged-and-a-dead-island-cannot-bootstrap">Load mirrors are written at the END of the tick: cross-network advertise is one-tick lagged, and a dead island cannot bootstrap<a class="headerlink" href="#load-mirrors-are-written-at-the-end-of-the-tick-cross-network-advertise-is-one-tick-lagged-and-a-dead-island-cannot-bootstrap" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>The body above (decompile 270827-270840) writes <code>RequiredLoad</code> / <code>CurrentLoad</code> / <code>PotentialLoad</code> / <code>ShortfallLoad</code> only AFTER <code>ApplyState</code> has finished, i.e. at the very end of the network's own tick. Those four floats are the ONLY values other networks' devices can read about this network: <code>PowerReceiver.GetGeneratedPower</code> returns <code>WirelessInputNetwork.PotentialLoad</code>, <code>ElectricalInputOutput.PotentialLoad</code> / <code>CurrentLoad</code> / <code>AvailablePower</code> forward to <code>InputNetwork.PotentialLoad</code> / <code>OutputNetwork.CurrentLoad</code>, <code>Transformer.GetGeneratedPower</code> clamps against <code>InputNetwork.PotentialLoad</code>, <code>AreaPowerControl.AvailablePower</code> adds <code>InputNetwork.PotentialLoad</code> to its cell. So cross-network advertisement is one-tick lagged by construction:</p>
+<ul>
+<li>If network A ticks BEFORE network B this game tick (pool-slot order, see <a href="../ElectricityManager/">ElectricityManager</a>), B's devices read A's value from THIS game tick.</li>
+<li>If A ticks AFTER B, B's devices read A's value from the PREVIOUS game tick.</li>
+<li>Either way a device can never see a mid-tick value, and a bridge chain propagates the advertisement at one network-hop per tick at worst.</li>
+</ul>
+<p><strong>Dead-island corollary.</strong> A network (or island of bridged networks) whose every generator currently reports 0 potential can never bootstrap itself under vanilla relaxation: its <code>PotentialLoad</code> mirror is 0, every bridge reading that mirror advertises 0 onward, <code>CacheState</code> computes <code>_isPowerMet == false</code> with <code>_powerRatio == 1</code> but zero <code>Providers</code>, and the <code>ApplyState</code> device loop un-powers every device that demands anything (or nothing; see the AllowSetPower section below). There is no term in <code>Initialise</code> / <code>CalculateState</code> / <code>ApplyState</code> that can raise <code>Potential</code> above the sum of the devices' own <code>GetGeneratedPower</code> returns, so 0 stays 0 until something outside the relaxation changes device state: stored energy (a battery / APC cell), a generator whose output does not depend on being powered (solar panels once re-aimed, wind), or a bridge from a live network. The concrete solar case (panels parked off-sun powering their own tracker logic) is worked through on <a href="../SolarPanel/">SolarPanel</a>, "Efficiency recompute cadence, and the solar-only island bootstrap corollary".</p>
 <h2 id="state-calculation-and-the-break-checks">State calculation and the break checks<a class="headerlink" href="#state-calculation-and-the-break-checks" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -8459,6 +8525,53 @@ tags: [power, threading]</p>
 </span></code></pre></div>
 <p>where <code>PowerProvider.EnergyUsed =&gt; _originalEnergy - Energy</code> (line 271680) and <code>_originalEnergy</code> was captured at construction: the <code>PowerProvider</code> constructor calls <code>device.GetGeneratedPower(cableNetwork)</code> a second time (after <code>CalculateState</code>'s own query) and stores it into both <code>Energy</code> and <code>_originalEnergy</code> (lines 271686-271687). So <code>EnergyUsed</code> is exactly how much of that provider's offered generation was actually drained by the consumer settle above. <code>ApplyPower</code> then calls the producer's <code>UsePower(network, EnergyUsed)</code> ONCE with that total, which is where a battery decrements <code>PowerStored</code>, a transformer increments <code>_powerProvided</code> on its output side, a transmitter increments <code>_powerProvided</code> on its wireless side, and so on.</p>
 <p>The ordering is load-bearing: consumers are settled FIRST (draining <code>provider.Energy</code> and calling <code>ReceivePower</code>), then each provider's net contribution is settled via a single <code>UsePower</code>. A producer therefore learns its total delivery for the tick only after all consumers on the network have pulled. This is why a bridge device's input-side draw (reported next tick from <code>_powerProvided</code>) lags its output-side delivery: the <code>UsePower</code> that grows <code>_powerProvided</code> runs at the END of the output network's tick, and the input network may already have been ticked earlier this same tick (pool-slot order again).</p>
+<h2 id="applystate-un-powers-zero-demand-and-unfed-devices-allowsetpower-picks-the-network-allowed-to-do-it">ApplyState un-powers zero-demand and unfed devices; AllowSetPower picks the network allowed to do it<a class="headerlink" href="#applystate-un-powers-zero-demand-and-unfed-devices-allowsetpower-picks-the-network-allowed-to-do-it" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+<p>Re-reading the <code>ApplyState</code> device loop (decompile 271916-271940, excerpted verbatim in "State calculation and the break checks" above), the powered/unpowered decision per device per network-tick is:</p>
+<ul>
+<li><code>usedPower &lt; 0f</code> (the off-network <code>-1f</code> sentinel): <code>continue</code>. The device's power state is untouched by this network's tick.</li>
+<li><code>usedPower &gt; 0f &amp;&amp; ConsumePower(...) &amp;&amp; (_isPowerMet || (device.IsPowerProvider &amp;&amp; _powerRatio &gt; 0f))</code>: power ON (<code>SetPowerFromThread(network, true)</code> when not already <code>Powered</code>).</li>
+<li><strong>Everything else falls into <code>else if (device.AllowSetPower(CableNetwork) &amp;&amp; device.Powered) SetPowerFromThread(network, false)</code>.</strong> That "everything else" includes a device demanding exactly <strong>0 W</strong>: <code>usedPower == 0</code> fails the <code>&gt; 0f</code> test, so a zero-demand device on an otherwise healthy network is switched OFF every tick, as is a device whose demand could not be met or that lost the <code>_isPowerMet</code> gate.</li>
+</ul>
+<p><code>Device.AllowSetPower(CableNetwork)</code> is the ONLY gate standing between that else-branch and the un-power. Base implementation: <code>PowerCableNetwork == cableNetwork</code> (Device, decompile 371531-371534; see <a href="../Device/">Device</a>), i.e. only the device's own power network may flip it. The bridge classes override it to nominate ONE of their two networks as the authority (whole-decompile override census at 0.2.6403.27689):</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Override (line)</th>
+<th>Network allowed to un-power</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Transformer</code></td>
+<td>424748-424755</td>
+<td><code>InputNetwork</code></td>
+</tr>
+<tr>
+<td><code>AreaPowerControl</code></td>
+<td>390991-390998</td>
+<td><code>InputNetwork</code></td>
+</tr>
+<tr>
+<td><code>PowerTransmitter</code></td>
+<td>408415-408422</td>
+<td><code>InputNetwork</code> (its cable side)</td>
+</tr>
+<tr>
+<td><code>PowerReceiver</code></td>
+<td>408170-408177</td>
+<td><code>WirelessInputNetwork</code> (the wireless side, NOT its output cable)</td>
+</tr>
+</tbody>
+</table>
+<p>All four nominate the input side: a bridge's <code>Powered</code> state is owned by the network that FEEDS it. The output network's tick can still power a bridge ON (the if-branch has no <code>AllowSetPower</code> check; a bridge drawing on its output side as a provider passes <code>device.IsPowerProvider &amp;&amp; _powerRatio &gt; 0f</code>), but only the input-side tick may switch it OFF. Two practical consequences:</p>
+<ul>
+<li>A bridge whose input-side <code>GetUsedPower</code> reports 0 (a <code>Transformer</code> / <code>PowerTransmitter</code> with <code>_powerProvided == 0</code> because nothing drew downstream last tick) is un-powered by its input network's tick every tick until downstream demand appears. The vanilla "transmitter pair shows unpowered under zero load" symptom is this branch, not a fault.</li>
+<li><code>SetPowerFromThread</code> (Device, 371648-371652) hops to the main thread and calls <code>SetPower</code> -&gt; <code>OnServer.Interact(InteractPowered, ...)</code> gated on an actual state change and <code>GameManager.RunSimulation</code> (371640-371646), so the flip lands one main-thread frame after the worker-thread decision.</li>
+</ul>
+<p>Un-powering also happens OUTSIDE the tick on wiring/state events via the <code>CheckPower</code> family (<code>ElectricalInputOutput.CheckPower</code> and overrides); see <a href="../ElectricalInputOutput/">ElectricalInputOutput</a>, "CheckPower: event-driven un-power outside the tick".</p>
 <h2 id="calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them">CalculateState accumulates into Required/Potential; only Initialise resets them<a class="headerlink" href="#calculatestate-accumulates-into-requiredpotential-only-initialise-resets-them" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -8466,6 +8579,7 @@ tags: [power, threading]</p>
 <p>This matters for any mod that ticks a network more than once per game tick. PowerGridPlus's atomic tick splits the work into an OBSERVE pass and an ENFORCE pass, and each pass calls <code>Initialise</code> then <code>CalculateState</code>, so the second pass starts from a clean zero instead of doubling the first. <code>ApplyState</code> is different: it has real side effects (it drains <code>Providers[].Energy</code> and calls <code>Device.ReceivePower</code> via <code>ConsumePower</code>, lines 271820-271840 -- which mutates a transformer's <code>_powerProvided</code> ledger -- sets <code>Device.Powered</code>, and may <code>Break()</code> a fuse or cable), so it is run only once per game tick, in the enforce pass. Re-running <code>ApplyState</code> a second time would double-drain providers and re-trigger the break checks.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-02 (later): added two sections at game version 0.2.6403.27689, additive (no prior claim contradicted). (a) "Load mirrors are written at the END of the tick": <code>OnPowerTick</code> (270827-270840) assigns <code>RequiredLoad</code> / <code>CurrentLoad</code> / <code>PotentialLoad</code> / <code>ShortfallLoad</code> only after <code>ApplyState</code> returns, so cross-network advertisement (every <code>*.PotentialLoad</code> read by bridge devices) is one-tick lagged, with the dead-island no-bootstrap corollary (nothing in <code>Initialise</code> / <code>CalculateState</code> / <code>ApplyState</code> can raise <code>Potential</code> above the devices' own <code>GetGeneratedPower</code> sum; recovery needs stored energy, aim/state change, or a live bridge; solar case cross-linked on <a href="../SolarPanel/">SolarPanel</a>). (b) "ApplyState un-powers zero-demand and unfed devices; AllowSetPower picks the network allowed to do it": the <code>else if (device.AllowSetPower(CableNetwork) &amp;&amp; device.Powered)</code> branch (271916-271940) catches <code>usedPower == 0</code> as well as unmet demand; base <code>Device.AllowSetPower</code> = <code>PowerCableNetwork == cableNetwork</code> (371531-371534); override census: Transformer 424748-424755, AreaPowerControl 390991-390998, PowerTransmitter 408415-408422 (all <code>InputNetwork</code>), PowerReceiver 408170-408177 (<code>WirelessInputNetwork</code>); <code>SetPowerFromThread</code> main-thread hop then <code>OnServer.Interact</code> (371648-371652, 371640-371646). Cross-linked the event-driven <code>CheckPower</code> family on <a href="../ElectricalInputOutput/">ElectricalInputOutput</a>. Driving work: Powered-semantics stage of the power rearchitecture session.</li>
 <li>2026-07-02: conflict resolution on the burn-candidate wording (game version 0.2.6403.27689). Contradicted claim: "any cable whose <code>MaxVoltage &lt; _actual</code> ... is a burn candidate this tick", implying the pick pool is rebuilt per tick. Fresh validator verdict (binding): <code>BreakableFuses</code> / <code>BreakableCables</code> are append-only accumulators for the PowerTick instance lifetime. Complete census at 0.2.6403.27689: declarations 271708 / 271710 (field-initialized once; the class has no constructor; one <code>readonly PowerTick</code> per CableNetwork, decl 270617); Adds at 271809 / 271813 (<code>CheckForRecursiveProviders</code>), 271864 (<code>GetBreakableFuses</code>, no clear first), 271876 (<code>GetBreakableCables</code>, no clear first); <code>Pick</code> reads 271883 / 271894 with null guards 271884 / 271895; <code>Count</code> gates 271907 / 271912; <code>Pick&lt;T&gt;</code> (230535-230542) returns a random element WITHOUT removing; <code>Initialise</code> (271742-271763) clears only <code>Devices</code> / <code>Fuses</code> / <code>Cables</code> and zeroes only <code>Potential</code> / <code>Required</code> / <code>Consumed</code>; no <code>.Clear()</code> / <code>.Remove()</code> / reassignment of either list exists. Resulting change: rewrote the sentence (per-tick criterion, cumulative pick pool) and added the "append-only accumulators" subsection, including the caveat that a cable <code>Break()</code> usually splits the network into fresh <code>CableNetwork</code>s with fresh PowerTicks (shortening stale entries' lives on that path) while fuse breaks and non-splitting ticks accumulate.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: <code>CableNetwork.OnPowerTick</code> sequence + load mirrors (270827-270840), <code>Initialise</code> verbatim (271742-271763), <code>CalculateState</code> (271765-271797; noted it is PUBLIC; <code>IsPowerInputOutput</code> -&gt; <code>InputOutputDevices</code> 271788-271791; <code>PowerProvider</code> ctor calls <code>GetGeneratedPower</code> a second time capturing <code>_originalEnergy</code> 271686-271687), <code>CheckForRecursiveProviders</code> (271799-271818), <code>ApplyState</code> (271903-271946), <code>ConsumePower</code> single-supplier-first (271820-271840), <code>PowerProvider.ApplyPower</code> once with <code>EnergyUsed &gt; 0</code> gate (271690-271696), base <code>Device</code> query/settle methods (371501-371534). CHANGED at 0.2.6403.27689: <code>CacheState</code> (271842-271855) now guards the <code>_powerRatio</code> assignment with <code>if (Potential &gt; 0f &amp;&amp; Required &gt; 0f) ... else _powerRatio = 1f</code>; at 0.2.6228.27061 the game code was the bare unguarded expression (so <code>Potential == 0 &amp;&amp; Required &gt; 0</code> gave 0 and <code>0/0</code> gave NaN). Note: this page's <code>CacheState</code> excerpt already showed the guarded form before this pass (it was ahead of the 0.2.6228 game code it was stamped against); at 0.2.6403.27689 the excerpt is now verbatim-correct, so only the semantics note, the version note, and the stamps changed. Recorded <code>_powerAvailable</code> as a dead field (declared 271718, zero other references in the decompile).</li>
 <li>2026-05-12: page created. Sourced from a voltage-tier research dive (planned mod "Power Grid Plus") into <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines 254512-254760 and 253668-253681; verbatim excerpts of the <code>PowerTick</code> field block, <code>CableNetwork.OnPowerTick</code>, <code>CacheState</code>, <code>GetBreakableFuses</code>, <code>GetBreakableCables</code>, <code>BreakSingleFuse</code>, <code>BreakSingleCable</code>, <code>ApplyState</code>. Reconciles the class-attribution imprecision on <a href="../CableNetwork/">CableNetwork</a> (those <code>ConsumePower</code>/<code>CalculateState</code> bodies are <code>PowerTick</code> members). Re-Volt mod source (<code>RevoltTick : PowerTick</code>, reverse-patches <code>PowerTick.Initialise</code>/<code>CalculateState</code>/<code>ApplyState</code>) independently corroborates ownership.</li>
