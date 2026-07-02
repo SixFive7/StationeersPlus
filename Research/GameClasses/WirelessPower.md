@@ -2,8 +2,8 @@
 title: WirelessPower
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-04-25
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.WirelessPower
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.PowerTransmitter
@@ -11,6 +11,7 @@ sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.RotatableBehaviour
 related:
   - ./PowerTransmitter.md
+  - ./PowerTransmitterOmni.md
   - ./RotatableBehaviour.md
   - ../GameSystems/PlacementOrientation.md
   - ../GameSystems/PowerTickThreading.md
@@ -19,7 +20,7 @@ tags: [power, transforms, network]
 
 # WirelessPower
 
-Vanilla abstract base class at `Assets.Scripts.Objects.Electrical.WirelessPower : ElectricalInputOutput`. The shared servo / dish-aim machinery used by `PowerTransmitter`, `PowerReceiver`, and `PowerTransmitterOmni`. Holds `Horizontal` / `Vertical` properties (servo state in normalized [0..1] units), the dish transform tree, and the network-sync hook that ships H/V to clients.
+Vanilla base class at `Assets.Scripts.Objects.Electrical.WirelessPower : ElectricalInputOutput, IRotatable` (decompile line 426779 in the 0.2.6403.27689 decompile). The shared servo / dish-aim machinery used by `PowerTransmitter` and `PowerReceiver`; those two are the ONLY subclasses. `PowerTransmitterOmni` does NOT derive from this class (it is `PowerTransmitterOmni : Electrical`, a sibling branch under `Device`; see [PowerTransmitterOmni](./PowerTransmitterOmni.md)). Holds `Horizontal` / `Vertical` properties (servo state in normalized [0..1] units), the dish transform tree, and the network-sync hook that ships H/V to clients.
 
 ## Servo math
 <!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
@@ -201,8 +202,9 @@ When a fresh dish is placed (`GameState.Running`), H is reset to 0 and V is rese
 V=1 corresponds to "the dish points along its dish-local +Y axis" (zenith of the dish-local frame). For a floor-mounted dish that aligns with world up. For a ceiling-mounted dish, V=1 would point world-down. Mod authors enabling non-floor placement should consider either (a) leaving V=1 alone (the dish points away from the mount surface, intuitive) or (b) re-deriving the post-place default H/V from the prefab's mount surface.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
+- 2026-07-02: conflict resolution on the subclass list (game version 0.2.6403.27689). Contradicted claim: the intro stated the servo machinery is "used by `PowerTransmitter`, `PowerReceiver`, and `PowerTransmitterOmni`". Fresh validator verdict (binding): only `PowerTransmitter` and `PowerReceiver` derive from `WirelessPower`; `PowerTransmitterOmni : Electrical` (decompile line 408582) sits on a sibling branch under `Device` and carries none of the servo members. `WirelessPower : ElectricalInputOutput, IRotatable` confirmed at decompile line 426779. Resulting change: removed `PowerTransmitterOmni` from the intro's subclass list and pointed at the new [PowerTransmitterOmni](./PowerTransmitterOmni.md) page. Section bodies below (servo math, clamping, sync, save data, OnRegistered) were not re-read this pass and keep their 0.2.6228.27061 stamps.
 - 2026-04-25: page created during a deep decompile of the placement-orientation system. Verbatim source extracts from `WirelessPower.cs`, `PowerTransmitter.cs`, `PowerReceiver.cs`, `WirelessPowerSaveData.cs`. No conflicts with `PowerTransmitter.md`; this page documents the BASE class.
 
 ## Open questions

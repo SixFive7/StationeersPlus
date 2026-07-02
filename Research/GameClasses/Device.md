@@ -2,14 +2,15 @@
 title: Device
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-18
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Pipes.Device
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 345177-345193 (ArcFurnace GetUsedPower/ReceivePower, _powerUsedDuringTick impulse + reset), 350705 (Device.GetUsedPower base), 344687 (Setting/Setting2 device GetUsedPower) -- per-device draw-state fields (_powerProvided one-tick lag, _powerUsedDuringTick impulse)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct), 253820-253850 (CableNetwork.AddDevice -> ConnectedCableNetworks.Add)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 297636-299221 (Thing.OnOff/Powered/PoweredValue/Error and backing fields), 302678-302695 (Thing.CacheStates sets every Has*State flag from the Interactables list), 349675 (Device.IsOperable), 373803 (ElectricalInputOutput.IsOperable), 327392 (IPowered), 386861-386894 (PowerReceiver.LinkedPowerTransmitter)
   - Plans/PowerGridPlus/PLAN.md, Mods/PowerGridPlus/RESEARCH.md
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 370335 (Device class), 370460-370462 (DataCables/PowerCables arrays), 371501-371534 (power virtuals), 371568-371615 (FindDataCable/FindPowerCable/InitializeDataConnection), 371617-371638 (CanConstruct), 371640-371698 (SetPower/AssessPower/OnInteractableUpdated)
 related:
   - ./Cable.md
   - ./CableNetwork.md
@@ -27,11 +28,11 @@ tags: [power, prefab, network]
 Vanilla powered-structure base class. `Assets.Scripts.Objects.Pipes.Device : SmallGrid, ILogicable, IReferencable, IEvaluable, IConnected, ISlotWriteable, IWreckage, IPowered, IDensePoolable` (line 349588). The base type of every grid-mounted structure that has at least one `Connection` and that participates in a `CableNetwork` / `PipeNetwork` / `ChuteNetwork`. Vanilla electrical machines (lights, fabricators, generators, transformers, batteries, APCs, etc.) all derive from `Device` (often through `ElectricalInputOutput` for two-port devices).
 
 ## Class header, key fields, public surface
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 ```csharp
 public class Device : SmallGrid, ILogicable, IReferencable, IEvaluable, IConnected,
-                      ISlotWriteable, IWreckage, IPowered, IDensePoolable
+                      ISlotWriteable, IWreckage, IPowered, IDensePoolable      // line 370335
 {
     [Header("Device")]
     [Tooltip("How much power (in Watts) does the device used while turned on.")]
@@ -43,10 +44,10 @@ public class Device : SmallGrid, ILogicable, IReferencable, IEvaluable, IConnect
     [ReadOnly] public List<Cable>        AttachedCables         = new List<Cable>();
 
     public Cable DataCable  { get; set; }
-    public Cable PowerCable { get; private set; }       // line 349659
+    public Cable PowerCable { get; private set; }
 
-    public List<Cable> DataCables  { get; private set; } = new List<Cable>();
-    public List<Cable> PowerCables { get; private set; } = new List<Cable>();
+    public Cable[] DataCables  { get; private set; } = Array.Empty<Cable>();   // line 370460
+    public Cable[] PowerCables { get; private set; } = Array.Empty<Cable>();   // line 370462
 
     public CableNetwork DataCableNetwork  => DataCable  == null ? null : DataCable.CableNetwork;
     public CableNetwork PowerCableNetwork => PowerCable == null ? null : PowerCable.CableNetwork;
@@ -59,42 +60,49 @@ public class Device : SmallGrid, ILogicable, IReferencable, IEvaluable, IConnect
 }
 ```
 
+Version change at 0.2.6403.27689: `DataCables` / `PowerCables` are now `Cable[]` auto-properties defaulting to `Array.Empty<Cable>()` (previously `List<Cable>`), rebuilt wholesale by `FindDataCable` / `FindPowerCable`; the singular `DataCable` / `PowerCable` are set to the first array element.
+
 Subclasses of note: `Transformer : ElectricalInputOutput : Device` (two ports, `Input` / `Output` `ConnectionRole`), `PowerTransmitter : Device`, `Battery : Device`, `SolarPanel : Device : IPowerGenerator`, every furnace / fabricator / pipe valve / chute conveyor. `DeviceCableMounted : Device` is the in-cable family (`CableFuse`, `CableAnalyser`) -- it sits **inside** a cable's grid cell rather than adjacent to one, but otherwise behaves like a `Device`.
 
 ## PowerCable resolution: every assignment goes through FindPowerCable
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-`Device.PowerCable` is a property with a public getter and a private setter, so it can only be assigned from inside `Device` itself. There is exactly one place that assigns it: `Device.FindPowerCable()` (line 350778).
+`Device.PowerCable` is a property with a public getter and a private setter, so it can only be assigned from inside `Device` itself. There is exactly one place that assigns it: `Device.FindPowerCable()` (line 371588). At 0.2.6403.27689 the body is Span-based (the old `ConnectedCables(NetworkType)` API is REMOVED from the game; see [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md)):
 
 ```csharp
 private void FindPowerCable()
 {
-    PowerCables = new List<Cable>(ConnectedCables(NetworkType.Power));
-    using (List<Cable>.Enumerator enumerator = PowerCables.GetEnumerator())
+    Span<SmallCellRef> span = stackalloc SmallCellRef[32];
+    int count = 0;
+    FillConnected<Cable>(NetworkType.Power, span, ref count);
+    PowerCables = new Cable[count];
+    if (count == 0)
     {
-        if (enumerator.MoveNext())
-        {
-            Cable current = enumerator.Current;
-            PowerCable = current;
-            return;
-        }
+        PowerCable = null;
+        AssessPower(null, OnOff);
+        return;
     }
-    PowerCable = null;
-    AssessPower(null, OnOff);
+    Span<SmallCellRef> span2 = span;
+    Span<SmallCellRef> span3 = span2.Slice(0, count);
+    for (int i = 0; i < span3.Length; i++)
+    {
+        PowerCables[i] = span3[i].Get<Cable>();
+    }
+    PowerCable = PowerCables[0];
 }
 ```
 
-So `PowerCable` is *always* the first element of `ConnectedCables(NetworkType.Power)`. `ConnectedCables(NetworkType networkType)` (line 294319 on `SmallGrid`) walks the device's `OpenEnds`, projects each end's transform position through `GridController.WorldToLocalGrid`, fetches the `SmallCell` at that grid coordinate, and returns any adjacent `Cable` whose own `IsConnected(openEnd)` agrees. See [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md) for the verbatim implementation and the cursor-time validity of every step.
+So `PowerCable` is *always* the first hit of `FillConnected<Cable>(NetworkType.Power, ...)` (`SmallGrid.FillConnected<T>(NetworkType, Span<SmallCellRef>, ref int)`, line 312896), which walks the device's `OpenEnds` in declaration order, projects each end's transform position through `GridController.WorldToLocalGrid`, fetches the `SmallCell` at that grid coordinate, and records any adjacent occupant whose own `IsConnected(openEnd)` agrees, as a lazily-resolved `SmallCellRef`. Same pipeline as before, allocation-free. See [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md) for the migrated API surface and the cursor-time story.
 
-There is **no direct `PowerCable = ...` write from a cable-side trigger, a `CableNetwork.Merge` hook, or anywhere else in `Assembly-CSharp`.** `Cable.OnRegistered(Cell)` (line 371477) only runs `CableNetwork.Merge(CableNetwork.ConnectedNetworks(this)).Add(this)`; it does not push itself into adjacent devices. The wiring is always pulled from the device side.
+There is **no direct `PowerCable = ...` write from a cable-side trigger, a `CableNetwork.Merge` hook, or anywhere else in `Assembly-CSharp`.** `Cable.OnRegistered(Cell)` (line 392523) only runs `CableNetwork.Merge(CableNetwork.ConnectedNetworks(this)).Add(this)`; it does not push itself into adjacent devices. The wiring is always pulled from the device side.
 
-The decomp grep confirms it: every reference to `set_PowerCable` resolves to lines 350786 (`PowerCable = current;`) and 350790 (`PowerCable = null;`), both inside `FindPowerCable`. No other write site exists.
+The decomp grep confirms it at 0.2.6403.27689: every `PowerCable = ` assignment resolves to lines 371596 (`PowerCable = null;`) and 371606 (`PowerCable = PowerCables[0];`), both inside `FindPowerCable`. No other write site exists.
 
 ## InitializeDataConnection: the wrapper that finds both cables and refreshes network membership
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 ```csharp
-public void InitializeDataConnection()                                          // line 350794
+public void InitializeDataConnection()                                          // line 371609
 {
     FindDataCable();
     FindPowerCable();
@@ -103,7 +111,7 @@ public void InitializeDataConnection()                                          
 }
 ```
 
-`FindDataCable` (line 350763) is the data-cable twin of `FindPowerCable`, again pulling from `ConnectedCables(NetworkType.Data)` and taking the first result.
+`FindDataCable` (line 371568; note it is PUBLIC while `FindPowerCable` is private) is the data-cable twin of `FindPowerCable`, again filling from `FillConnected<Cable>(NetworkType.Data, ...)` into the `DataCables` array and taking the first result as `DataCable` (null when the array is empty).
 
 `InitializeDataConnection` is the single entry point that refreshes `(Power|Data)Cable` after the world changes shape around the device.
 
@@ -164,51 +172,58 @@ So `PowerCable` is set / refreshed on:
 `InitializeDevice` (line 350958) additionally registers the device into every adjacent cable's `CableNetwork` (`item.CableNetwork.AddDevice(item, this)`, line 350962), which in turn appends the network to `device.ConnectedCableNetworks` (line 253836 inside `CableNetwork.AddDevice`).
 
 ## OnRegistered (live world) vs CanConstruct (cursor preview)
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-`Device.CanConstruct()` (line 350802) runs on the **cursor ghost** every frame:
+`Device.CanConstruct()` (line 371617) runs on the **cursor ghost** every frame. At 0.2.6403.27689 it is `FillConnected`-based:
 
 ```csharp
 public override CanConstructInfo CanConstruct()
 {
-    List<Device> list = ConnectedDevices();
-    for (int num = list.Count - 1; num >= 0; num--)
+    Span<SmallCellRef> buf = stackalloc SmallCellRef[32];
+    int count = 0;
+    FillConnected<Device>(buf, ref count);
+    for (int num = count - 1; num >= 0; num--)
     {
-        if (list[num] is INetworkedPipe networkedPipe && !networkedPipe.ProhibitConnection(this))
-            list.RemoveAt(num);
+        if (buf[num].TryGet<INetworkedPipe>(out var found) && !found.ProhibitConnection(this))
+        {
+            count--;
+        }
     }
-    if (list.Count > 0 && list[0] != null)
-        return CanConstructInfo.InvalidPlacement(GameStrings.PlacementBlockedByAdjacentDevice.AsString(list[0].DisplayName));
-    if (list.Count > 0)
+    if (count > 0 && buf[0].TryGet<Device>(out var found2))
+    {
+        return CanConstructInfo.InvalidPlacement(GameStrings.PlacementBlockedByAdjacentDevice.AsString(found2.DisplayName));
+    }
+    if (count > 0)
+    {
         return CanConstructInfo.InvalidPlacement(GameStrings.PlacementBlockedByUnknownDevice.DisplayString);
+    }
     return base.CanConstruct();
 }
 ```
 
-This is verbatim evidence that the same `ConnectedDevices()` (and by symmetry, `ConnectedCables(NetworkType.Power)`) adjacency query that `FindPowerCable` uses **already works on the cursor ghost at preview time**: `ConnectedDevices` (line 294359) drives the same `WorldToLocalGrid` + `GetSmallCell` pipeline. So `__instance.ConnectedCables(NetworkType.Power)` is callable inside a `Device.CanConstruct` postfix and returns the cables the device would attach to if it were placed at the cursor position.
+This is verbatim evidence that the `FillConnected` adjacency pipeline (`openEnd.Transform.position` -> `WorldToLocalGrid` -> `GetSmallCell` -> occupant `IsConnected(openEnd)`) **already works on the cursor ghost at preview time**; it reads the live transform, not the cached `Connection.LocalGrid`. A mod postfix on `Device.CanConstruct` that needs the would-attach cable cannot call the removed `ConnectedCables(NetworkType.Power)` and (on net472) cannot bind the `Span`-typed `FillConnected` either; use the `Connection.GetLocalGrid()` + `SmallCell.Get<Cable>(grid, openEnd)` pattern documented on [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md).
 
 Caveats:
 
-- `PowerCable` itself is **not** set on the cursor ghost (no `FindPowerCable` runs during preview). A patch wanting the cable must call `ConnectedCables(NetworkType.Power)` directly on `__instance`.
-- `ConnectedCableNetworks` is **not** populated on the cursor ghost either; that list is only appended by `CableNetwork.AddDevice` (line 253836), which only runs on the registered device.
+- `PowerCable` itself is **not** set on the cursor ghost (no `FindPowerCable` runs during preview).
+- `ConnectedCableNetworks` is **not** populated on the cursor ghost either; that list is only appended by `CableNetwork.AddDevice`, which only runs on the registered device.
+- `Connection.GetCable()` / `GetDevice()` and the other occupant getters return null on a cursor ghost's own OpenEnds (`GetSmallGridOccupant` bails on `!_isInitialized`, and `SetGrids` never initializes cursor-parented connections); see [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md).
 - The cursor ghost has `IsCursor == true`, `tag == "Cursor"`, `IgnoreSave == true`, no colliders, no children Renderers swapped for ghost materials, and is reused across frames (one per prefab in `_constructionCursors`). It is *not* a fresh instance per placement.
 
-See [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md) for why the adjacency pipeline survives the cursor reuse (`Connection.SetGrids` rebuilds `LocalGrid` from `Transform.position` every frame for `Parent.IsCursor`).
-
 ## Power virtuals: where PowerCable gates a device
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 The default power virtuals only deliver power when the calling network matches the device's own `PowerCable.CableNetwork`:
 
 ```csharp
-public virtual float GetGeneratedPower(CableNetwork cableNetwork)   // line 350696
+public virtual float GetGeneratedPower(CableNetwork cableNetwork)   // line 371501
 {
     if (PowerCable == null || PowerCable.CableNetwork != cableNetwork)
         return -1f;
     return 0f;
 }
 
-public virtual float GetUsedPower(CableNetwork cableNetwork)        // line 350705
+public virtual float GetUsedPower(CableNetwork cableNetwork)        // line 371510
 {
     if (PowerCable == null || PowerCable.CableNetwork != cableNetwork)
         return -1f;
@@ -217,28 +232,42 @@ public virtual float GetUsedPower(CableNetwork cableNetwork)        // line 3507
     return UsedPower;
 }
 
-public virtual bool AllowSetPower(CableNetwork cableNetwork)        // line 350726
+public virtual bool AllowSetPower(CableNetwork cableNetwork)        // line 371531
 {
     return PowerCableNetwork == cableNetwork;
 }
 ```
 
-A device whose `PowerCable` is null (no adjacent power cable) silently returns `-1f` from `GetUsedPower` / `GetGeneratedPower`, which `PowerTick` reads as "not on this network". Many subclasses override these three methods; the `PowerCable == null || PowerCable.CableNetwork != cableNetwork` guard is replicated almost verbatim across vanilla power devices (lines 165086, 169955, 344689, 345179, 350698, 350707, 359403, 371227, 374356, 375228, 387488, 397078, 398880, 401392).
+A device whose `PowerCable` is null (no adjacent power cable) silently returns `-1f` from `GetUsedPower` / `GetGeneratedPower`, which `PowerTick` reads as "not on this network". Many subclasses override these three methods; the `PowerCable == null || PowerCable.CableNetwork != cableNetwork` guard is replicated almost verbatim across vanilla power devices (0.2.6228.27061 line census: 165086, 169955, 344689, 345179, 350698, 350707, 359403, 371227, 374356, 375228, 387488, 397078, 398880, 401392; e.g. `PowerTransmitterOmni.GetUsedPower` at 0.2.6403 line 408692).
+
+### Mid-tick admission: AssessPower books DuringTickLoad between power ticks
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+`Device.AssessPower(CableNetwork, bool)` (protected virtual, lines 371654-371685) is the between-tick admission check that decides whether a device switched on mid-tick lights up immediately or waits for the next power tick:
+
+- It books the device's `GetUsedPower(cableNetwork)` into `CableNetwork.DuringTickLoad` against the network's `EstimatedRemainingLoad => PotentialLoad - CurrentLoad - DuringTickLoad` (CableNetwork line 270676).
+- Within budget (`usedPower <= EstimatedRemainingLoad`): adds the full draw to `DuringTickLoad` and flips `Powered` on immediately via `SetPower` (371640-371646, `OnServer.Interact(InteractPowered, ...)` gated on `GameManager.RunSimulation`).
+- Over budget: books `Min(usedPower, EstimatedRemainingLoad)` into `DuringTickLoad` (saturating the remaining headroom) and powers the device off.
+- `cableNetwork == null || !isOn` powers off and books nothing.
+
+`DuringTickLoad` is zeroed at the top of each `CableNetwork.OnPowerTick` (line 270834), so the bookings only bridge the gap until the next real tick recomputes everything. The vanilla trigger is `Device.OnInteractableUpdated` (371692-371695): an `OnOff` interactable change while `GameState.Running && RunSimulation && HasPowerState` calls `AssessPower(PowerCable?.CableNetwork, state == 1)`. `FindPowerCable` also calls `AssessPower(null, OnOff)` when the device loses its last power cable (371597), powering it off immediately.
 
 ### Two per-device draw-state fields make GetUsedPower reflect prior-tick state
-<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 Two private float fields cause a device's `GetUsedPower` to encode work or throughput from the PREVIOUS tick rather than the live tick. Both matter to any mod that ticks a network more than once per game tick (it will read the same field in every pass, see "single-pass vs multi-pass" below).
 
-**`_powerProvided` (one-tick lag).** Exactly FOUR classes carry a `private float _powerProvided`: `Transformer` (line 403323), `AreaPowerControl` (369546), `PowerTransmitter` (387083), and `PowerReceiver` (386867). It is the accumulator of the power drawn THROUGH the device by its downstream consumers: added to in the device's `UsePower` and decremented in `ReceivePower` as input power flows in (see [PowerTick](./PowerTick.md): `ApplyState` -> `ConsumePower` -> `Device.ReceivePower`). The device's input-side draw is reported FROM this accumulator:
-- `Transformer.GetUsedPower(InputNetwork)` = `min(Setting + UsedPower, _powerProvided)` (line 403493).
-- `AreaPowerControl.GetUsedPower(InputNetwork)` = `UsedPower + _powerProvided` (+ a cell-charge term) (369991).
-- `PowerTransmitter.GetUsedPower(InputNetwork)` = `min(MaxPowerTransmission, _powerProvided)` (387265); its `_powerProvided` accrues from the WirelessNetwork output (`UsePower` gated on `cableNetwork == WirelessOutputNetwork`, 387220) and decrements on input-cable `ReceivePower` (387228).
-- `PowerReceiver.GetUsedPower(InputNetwork)` = `min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)` (387025), but a pure receiver's `InputNetwork` is null (it has `WirelessInputNetwork` + cable `OutputNetwork`), so the `cableNetwork != InputNetwork` guard returns 0 -- the receiver does not bill an input cable. `PowerReceiver.GetGeneratedPower(OutputNetwork)` = `WirelessInputNetwork.PotentialLoad` (387038), and its `_powerProvided` accrues from its OutputNetwork draws (386984).
+**`_powerProvided` (one-tick lag).** Exactly FOUR classes carry a `private float _powerProvided` (0.2.6403.27689 whole-decompile census): `AreaPowerControl` (line 390592), `PowerReceiver` (408071), `PowerTransmitter` (408287), and `Transformer` (424621). It is the accumulator of the power drawn THROUGH the device by its downstream consumers: added to in the device's `UsePower` and decremented in `ReceivePower` as input power flows in (see [PowerTick](./PowerTick.md): `ApplyState` -> `ConsumePower` -> `Device.ReceivePower`). The device's input-side draw is reported FROM this accumulator:
+- `Transformer.GetUsedPower(InputNetwork)` = `min(Setting + UsedPower, _powerProvided)` (line 424791).
+- `AreaPowerControl.GetUsedPower(InputNetwork)` = `Max(_powerProvided, UsedPower)` (+ a cell-charge term) (391028-391044).
+- `PowerTransmitter.GetUsedPower(InputNetwork)` = `min(MaxPowerTransmission, _powerProvided)` (408469); its `_powerProvided` accrues from the WirelessNetwork output (`UsePower` gated on `cableNetwork == WirelessOutputNetwork`, 408426) and decrements on input-cable `ReceivePower` (408442).
+- `PowerReceiver.GetUsedPower(InputNetwork)` = `min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)` (408229); the receiver's `InputNetwork` is the WIRELESS network (assigned from `LinkedPowerTransmitter.OutputNetwork`), so this bills the wireless side, not a cable. `PowerReceiver.GetGeneratedPower(OutputNetwork)` = `WirelessInputNetwork.PotentialLoad` (408242), and its `_powerProvided` accrues from its OutputNetwork draws (`UsePower`, 408188).
+
+`_powerProvided` is NEVER zeroed anywhere in the game: the whole-decompile census finds exactly the four declarations above and only `+=` / `-=` / read sites (APC 391004-391037, RX 408188 / 408202 / 408229, TX 408428 / 408442 / 408469, Transformer 424761 / 424769 / 424791); no plain `_powerProvided = ...` assignment exists. Residual or negative debt therefore persists across OnOff toggles, error states, and link changes for the life of the object; nothing but the object's destruction resets the ledger.
 
 Because `_powerProvided` is filled during `ApplyState` (which runs AFTER `CalculateState` has already summed `GetUsedPower`), the value a `CalculateState` reads is last tick's downstream consumption: **the input-side draw a pass-through device bills lags its output-side delivery by exactly one tick.** This is the mechanism behind the "transformer free-power / one-tick-lag" exploit family that Power Grid Plus replaces with a fresh allocator-computed throughput. `Battery` and `RocketPowerUmbilical` do NOT carry `_powerProvided` -- they are terminal storage (a `PowerStored` cell), so their charge/discharge draw is a function of live cell state, not a lagged pass-through accumulator.
 
-**`_powerUsedDuringTick` (per-tick impulse, on processing machines: ArcFurnace, Centrifuge, Recycler, Fabricators, filtration machines, robotics chargers, etc.).** This is the IMPULSE energy a machine consumes doing work in a tick (a recipe's `Energy`, `EnergyPerSmelt`, atmosphere-proportional energy, etc.). The machine's `GetUsedPower` adds it on top of the base `UsedPower`: e.g. `ArcFurnace.GetUsedPower` (line 345177) returns `UsedPower + _powerUsedDuringTick`. It is set during the machine's processing (e.g. `_powerUsedDuringTick += _currentRecipe.Energy`, `+= EnergyPerSmelt`) and RESET to 0 in `ReceivePower` (line 345193 for ArcFurnace). Because the reset happens once, inside `ApplyState`, the field holds the SAME value across every `CalculateState` read within a single game tick. So `GetUsedPower` is **idempotent within a tick** (an observe pass and an enforce pass in the same tick read the same impulse), even though the value changes tick-to-tick as the machine starts and finishes work.
+**`_powerUsedDuringTick` (per-tick impulse, on processing machines: ArcFurnace, Centrifuge, Recycler, Fabricators, filtration machines, robotics chargers, etc.).** This is the IMPULSE energy a machine consumes doing work in a tick (a recipe's `Energy`, `EnergyPerSmelt`, atmosphere-proportional energy, etc.). The machine's `GetUsedPower` adds it on top of the base `UsedPower`: e.g. `ArcFurnace.GetUsedPower` returns `UsedPower + _powerUsedDuringTick` (0.2.6228 line 345177; the same `UsedPower + _powerUsedDuringTick` return / `= 0f`-in-`ReceivePower` reset pattern is confirmed still present across the 0.2.6403.27689 decompile, e.g. lines 365558 / 365564 with `+= _currentRecipe.Energy` at 365606). It is set during the machine's processing (e.g. `_powerUsedDuringTick += _currentRecipe.Energy`, `+= EnergyPerSmelt`) and RESET to 0 in `ReceivePower`. Because the reset happens once, inside `ApplyState`, the field holds the SAME value across every `CalculateState` read within a single game tick. So `GetUsedPower` is **idempotent within a tick** (an observe pass and an enforce pass in the same tick read the same impulse), even though the value changes tick-to-tick as the machine starts and finishes work.
 
 Single-pass vs multi-pass implication: vanilla runs `Initialise -> CalculateState -> ApplyState` once, so it reads each field once and resets it once. A mod whose tick reads `GetUsedPower` in more than one pass (e.g. an OBSERVE pass and an ENFORCE pass) gets the SAME `_powerUsedDuringTick` in both (reset only happens in the single `ApplyState`), but if it tries to compute supply from one device's draw and feed it to another device, the `_powerProvided` lag means the pass-through input draw it observes is one tick stale relative to the live downstream demand. Matching freshly-computed supply against `_powerProvided`-reported demand mixes a live figure with a one-tick-old figure.
 
@@ -378,6 +407,7 @@ All three are public on `Thing`, so a mod reads them directly off any `Device` i
 
 ## Verification history
 
+- 2026-07-02: re-verification and update pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. (a) NEW fact in the draw-state subsection: `_powerProvided` is never zeroed anywhere in the game; whole-decompile census finds exactly four declarations (AreaPowerControl 390592, PowerReceiver 408071, PowerTransmitter 408287, Transformer 424621) and only `+=` / `-=` / read sites, no plain assignment, so residual or negative debt persists for the life of the object. Also corrected the APC input-draw formula in that subsection from `UsedPower + _powerProvided` to the actual `Max(_powerProvided, UsedPower)` + charge term (verified at 391028-391044; the old wording was imprecise even at 0.2.6228, see [AreaPowerControl](./AreaPowerControl.md)). (b) NEW "Mid-tick admission: AssessPower" subsection (`AssessPower` 371654-371685 books into `CableNetwork.DuringTickLoad` against `EstimatedRemainingLoad => PotentialLoad - CurrentLoad - DuringTickLoad` at 270676, flips `Powered` via `SetPower` 371640-371646, over-budget books `Min(usedPower, EstimatedRemainingLoad)` and powers off; `DuringTickLoad` zeroed each `OnPowerTick` at 270834; triggered from `OnInteractableUpdated` 371692-371695 and `FindPowerCable` 371597). (c) API-migration supersessions: `SmallGrid.ConnectedCables` / `ConnectedDevices` were removed from the game; `FindPowerCable` (371588) / `FindDataCable` (371568, now public) / `CanConstruct` (371617) are `FillConnected`-based and `DataCables` / `PowerCables` are `Cable[]` auto-properties (370460 / 370462, previously `List<Cable>`); replaced the three superseded verbatim excerpts with the 0.2.6403 bodies and re-ran the single-write-site census for `PowerCable` (only 371596 / 371606, both inside `FindPowerCable`). Updated class decl (370335), power virtuals (371501-371534), and per-class draw refs to the new decompile. Sections "When InitializeDataConnection runs" and the Thing-level operational-state sections were NOT re-read this pass and keep their 0.2.6228.27061 stamps.
 - 2026-06-18: added "Two per-device draw-state fields make GetUsedPower reflect prior-tick state" subsection. Additive; no existing content changed. Driving question: a Power Grid Plus rewrite that reports fresh allocator-computed transformer supply matched against pass-through input draws produced a one-tick mismatch (a battery main feeding two Area Power Controllers flickered: `ENFORCE Required(t) == allocator-demand(t-1)`). Root-caused to `_powerProvided` (the downstream-consumption accumulator carried by exactly four classes -- Transformer, AreaPowerControl, PowerTransmitter, PowerReceiver -- filled in `ApplyState` after `CalculateState` already summed `GetUsedPower`, so the input-side draw lags the output-side delivery by one tick; Battery and RocketPowerUmbilical are terminal storage and do NOT carry it) vs `_powerUsedDuringTick` (the processing-machine impulse, reset once in `ReceivePower`, hence idempotent across multiple `CalculateState` reads within a tick). Decompile evidence (0.2.6228.27061): `ArcFurnace.GetUsedPower` = `UsedPower + _powerUsedDuringTick` (line 345177), reset at 345193; `_powerUsedDuringTick +=` setters at 164536/168673/169933/278095/278103/345226/359308/359382/361442/363841 etc. (recipe / smelt / atmosphere / charge energies); `_powerProvided` mutation via `ApplyState` -> `ConsumePower` -> `Device.ReceivePower` documented on [PowerTick](./PowerTick.md). Live confirmation via a ScenarioRunner consumer dump on the dedicated server: each Area Power Controller's `GetUsedPower` equalled `UsedPower + _powerProvided` (the stale accumulator) while transformers on the same net reported a fresh figure.
 - 2026-06-14: conflict on "what populates the `Has*State` flags (`HasOnOffState` / `HasPowerState` / `HasErrorState`)". Previous claim (added 2026-05-22): set at prefab-init "from the animator's parameter list". New finding: assigned by `Thing.CacheStates()` (line 302678) from the `Interactables` list, one `Interactables.Exists(i => i.Action == InteractableType.X)` test per flag. Fresh validator verdict: new finding correct; the `[ReadOnly]` field attribute had been misread as evidence of an animator source, but it is only a Unity Inspector decorator, and `CacheStates` is the sole write site (no animator-sourced setter exists). The animator is the downstream consumer (the getters read it gated on the flag), never the source. Result: corrected the "Thing-level state properties" subsection with the verbatim `CacheStates` excerpt and the buttonless-device consequence (`OnOff == false` permanently when no `Action == OnOff` interactable exists); restamped that subsection to 2026-06-14 and bumped top-level `verified_at`. Driving question: whether PowerGridPlus's OFF-as-reset sweep (which clears fault lockouts on any device reporting `OnOff == false`) misfires on buttonless producers.
 - 2026-05-22: added "Operational-state surface: OnOff, Powered, PoweredValue, Error, IsOperable" section. Additive; no existing content changed. Driving question: how does a mod (PowerTransmitterPlus beam fix) know a dish device is switched on and actually powered right now. Findings sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`: `Thing.OnOff` (line 299160), `Thing.Powered`/`PoweredValue` (lines 299193/299195), `Thing.Error` (line 298838), backing fields and `Has*State` flags (lines 298075-298154), `Device.IsOperable` property (line 349675), `ElectricalInputOutput.IsOperable` override (line 373803), the `OnServer.Interact(base.InteractPowered, ...)` power-tick write pattern (lines 277774-334419 passim), `IPowered` interface (line 327392, declares only `void OnPowerTick()`), and `PowerReceiver.LinkedPowerTransmitter` setter driving `Mode` (line 386885). The `IsOperable()`-method-vs-`IsOperable`-property naming collision (DraggableThing family at lines 277715/279310/289260 vs Device property) noted to prevent a future mis-patch. Cross-checked against `Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicReadoutPatches.cs:44` which already uses `!t.OnOff || t.Error == 1`.

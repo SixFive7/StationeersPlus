@@ -2,11 +2,12 @@
 title: PowerReceiver
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-14
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.PowerReceiver
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 386861-387058 (PowerReceiver), 387065+ (PowerTransmitter)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 408065-408262 (PowerReceiver), 408269-408581 (PowerTransmitter), 394993-395006 (ElectricalInputOutput.OnRemoveCableNetwork), 271011-271027 (CableNetwork.RemoveDevice)
   - Mods/PowerGridPlus/PowerGridPlus/PowerAllocator.cs (PT/PR pair modelled as one synthetic contributor)
 related:
   - ./PowerTransmitter.md
@@ -25,7 +26,9 @@ public class PowerReceiver : WirelessPower, ITransmitable, ILogicable, IReferenc
 ```
 
 ## Fields and pairing
-<!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+Line refs at 0.2.6403.27689: class 408065, `_powerProvided` 408071, `LinkedPowerTransmitter` setter 408081-408097 (assigns `InputNetwork = value.OutputNetwork` only when `value` is non-null), `OnDestroy` 408108-408115, `CheckConnections` 408257-408261 (touches `OutputNetwork` only).
 
 ```csharp
 public Transform DishTarget;
@@ -68,7 +71,9 @@ protected override void CheckConnections()
 - Pairing is by cross-reference only (`PR._linkedPowerTransmitter` and `PT.LinkedReceiver`); there is no central registry. Enumerating pairs requires walking both instance lists (see PowerGridPlus's bipartite wireless-edge gating, POWER.md §6.5).
 
 ## Power-flow methods (verbatim)
-<!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+Re-verified verbatim at 0.2.6403.27689: `UsePower` / `ReceivePower` ledger 408184-408204, `GetUsedPower` 408206-408229, `GetGeneratedPower` 408232-408243.
 
 ```csharp
 public override void UsePower(CableNetwork cableNetwork, float powerUsed)
@@ -135,6 +140,17 @@ PT input cable --(PT.GetUsedPower)--> PT --(PT.GetGeneratedPower(wireless))--> W
 
 Delivered == drawn in vanilla: the transmitter's `GetGeneratedPower` already bakes in the distance derate (`PowerLossOverDistance`), and the receiver passes that derated potential straight to its cable network. Neither side multiplies or divides; the loss is entirely inside the transmitter's `GetGeneratedPower` number.
 
+## Unlink behavior: the stale-InputNetwork window NARROWED at 0.2.6403
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+At 0.2.6228 an unlinked receiver kept its last wireless `InputNetwork` reference indefinitely (nothing nulled it). At 0.2.6403.27689 the normal unlink path clears it:
+
+- `ElectricalInputOutput.OnRemoveCableNetwork(oldNetwork)` (394993-395006) now nulls `InputNetwork` when `oldNetwork == InputNetwork` (and `OutputNetwork` symmetrically), then re-runs `CheckConnections` / `CheckPower`.
+- `CableNetwork.RemoveDevice(Device)` invokes `device.OnRemoveCableNetwork(this)` (line 271024).
+- The TX-side `LinkedReceiver` setter removes the old RX from the `WirelessNetwork` (`WirelessOutputNetwork.RemoveDevice(_linkedReceiver)`, PowerTransmitter line 408305).
+
+So a setter-driven unlink or retarget (`TryContactReceiver` clearing / replacing `LinkedReceiver`, an OnOff toggle retarget, etc.) DOES clear `rx.InputNetwork` now: setter -> `RemoveDevice` -> `OnRemoveCableNetwork` -> `InputNetwork = null`. Paths that bypass `CableNetwork.RemoveDevice` still leave the reference stale; the known one is `PowerTransmitter.OnDestroy` (408387-408394), which only does `LinkedReceiver.LinkedPowerTransmitter = null` and never removes the RX from the wireless network before the TX (and with it the network's only ticking anchor) goes away. See Open Questions for the runtime-unverified hazard on that path.
+
 ## PowerTransmitterPlus interaction
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
@@ -142,8 +158,10 @@ Delivered == drawn in vanilla: the transmitter's `GetGeneratedPower` already bak
 
 ## Verification history
 
+- 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: `GetGeneratedPower(OutputNetwork)` = `WirelessInputNetwork.PotentialLoad` verbatim (408232-408243), `GetUsedPower` = `Min(MaxPowerTransmission + UsedPower, _powerProvided)` (408206-408229), `UsePower` / `ReceivePower` ledger (408184-408204), `LinkedPowerTransmitter` setter assigning `InputNetwork = value.OutputNetwork` only when non-null (408081-408097), `CheckConnections` touching `OutputNetwork` only (408257-408261). CHANGED at 0.2.6403.27689 (supersession, new section "Unlink behavior"): `ElectricalInputOutput.OnRemoveCableNetwork` now nulls `InputNetwork` when `oldNetwork == InputNetwork` (394993-395006), `CableNetwork.RemoveDevice` invokes it (271024), and the TX `LinkedReceiver` setter removes the old RX from the WirelessNetwork (408305), so a setter-driven unlink or retarget clears `rx.InputNetwork`; previously nothing cleared it and a formerly-linked RX kept advertising the dead wireless network's `PotentialLoad`. Bypass paths (`PowerTransmitter.OnDestroy` doing only `LinkedReceiver.LinkedPowerTransmitter = null`, 408387-408394) still leave the reference stale; that residual hazard moved to Open Questions as runtime-unverified.
 - 2026-06-14: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 386861-387058; verbatim `UsePower` / `ReceivePower` / `GetUsedPower` / `GetGeneratedPower` / `LinkedPowerTransmitter` setter / `CheckConnections` bodies. Confirms `PowerReceiver.GetGeneratedPower(OutputNetwork)` returns `WirelessInputNetwork.PotentialLoad` and `PowerReceiver.GetUsedPower(InputNetwork)` returns `Mathf.Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)`. Established while correcting the PowerGridPlus x PowerTransmitterPlus loss-model interaction (POWER.md §6.3 / §8.4.2).
 
 ## Open questions
 
 - `PowerTransmitter.MaxPowerTransmission` (5000) survives only as the `GetUsedPower` cap and the visualizer reference once PowerTransmitterPlus removes it as the delivery ceiling. Whether any other vanilla consumer still relies on the 5000 W receiver-draw cap is unverified; PowerGridPlus and PowerTransmitterPlus do not.
+- Bypass-path stale-InputNetwork hazard (runtime-unverified at 0.2.6403.27689): when a linked TX is destroyed, `PowerTransmitter.OnDestroy` (408387-408394) only nulls `LinkedPowerTransmitter` and does not remove the RX from the WirelessNetwork, so `rx.InputNetwork` should keep pointing at the dead wireless network; a still-ON formerly-linked RX would then keep advertising that network's last `PotentialLoad` through `GetGeneratedPower` until relink or destruction. Confirm with InspectorPlus (request: types=[PowerReceiver], fields=[_linkedPowerTransmitter, InputNetwork, OutputNetwork]) after destroying a linked transmitter.

@@ -2,10 +2,11 @@
 title: RocketPowerUmbilical
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-21
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Objects.Rockets.RocketPowerUmbilicalFemale (L147895-148259), Objects.Rockets.RocketPowerUmbilicalMale (L148269-148810)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 157690+ (abstract RocketPowerUmbilical base), 157952+ (RocketPowerUmbilicalFemale), 158302+ (RocketPowerUmbilicalMale)
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Objects.Rockets.RocketPowerUmbilicalMale, Objects.Rockets.RocketPowerUmbilicalFemale
   - Mods/PowerGridPlus/PowerGridPlus/Patches/RocketUmbilicalPatches.cs (mod-side rate caps + logic exposure)
 related:
@@ -28,42 +29,53 @@ The power umbilical pair that links a rocket's internal power grid to an externa
 (The exact prefab names are prefab asset data; the class is decompile-confirmed. The "Angle" socket is a second prefab of the same `RocketPowerUmbilicalFemale` class.)
 
 ## Class model
-<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-Both halves derive from `ElectricalInputOutput` (the same power base as `Battery` / `Transformer` / `AreaPowerControl`, so each has `InputNetwork` / `OutputNetwork` cable references and `InputConnection` / `OutputConnection`) and implement `IUmbilical`:
+Structure changed at 0.2.6403.27689: there is now an abstract shared base that owns the cell, the partner reference, and the sync plumbing. Both halves derive from it:
 
 ```csharp
-public class RocketPowerUmbilicalFemale : ElectricalInputOutput, IRocketInternals, IRocketComponent, IUmbilical   // L147895
-public class RocketPowerUmbilicalMale   : ElectricalInputOutput, IUmbilical, IRocketComponent                     // L148269
+public abstract class RocketPowerUmbilical : ElectricalInputOutput, IUmbilical, IRocketComponent,
+    IReferencable, IEvaluable, IRocketActionProgressableTarget                                     // line 157690
+public class RocketPowerUmbilicalFemale : RocketPowerUmbilical, IRocketInternals, IRocketComponent,
+    IRocketTransferActionProgressable, IRocketActionProgressable, IReferencable, IEvaluable        // line 157952
+public class RocketPowerUmbilicalMale : RocketPowerUmbilical                                       // line 158302
 ```
 
-The Female is the rocket-internal side: `InternalCellType => RocketInternalCellType.Umbilical` and `StrictlyInternal => true` (L148027-L148029). The Male implements `IUmbilical, IRocketComponent` only (not `IRocketInternals`), i.e. it is the external/dockable side. Pairing is by partner reference, found via `RocketUmbilicalHelper.FindAndSetOtherUmbilical`:
+(Previously each half derived from `ElectricalInputOutput` directly and carried its own copy of the fields.) Via `ElectricalInputOutput` each half still has `InputNetwork` / `OutputNetwork` cable references and `InputConnection` / `OutputConnection`. The base owns:
 
-- Female `UmbilicalType => UmbilicalType.Socket` (L147925), `PartnerType => typeof(RocketPowerUmbilicalMale)` (L148035), `IsCompatibleWith(other) => other is RocketPowerUmbilicalMale` (L148227).
-- Male `IsCompatibleWith(other) => other is RocketPowerUmbilicalFemale` (L148792); on `SetPartner` it stores `partner as RocketPowerUmbilicalFemale` and re-checks error state (L148785-L148790).
-- `OnLaunch` severs the partner (`_partnerUmbilical = null`); `OnLanded` re-runs `FindAndSetOtherUmbilical` (Female L148200-L148220, Male L148774-L148783).
+- `[Header("Battery")] public float PowerMaximum = 10000f;` (157693), the internal cell default. The 4900 J prefab override observed at 0.2.6228 is prefab-serialized, not code; re-verify at 0.2.6403 (see Open Questions). `PowerStored` is clamped to `[0, PowerMaximum]`.
+- The SINGLE private partner field `private RocketPowerUmbilical _partnerUmbilical;` (157695), exposed to subclasses as `protected RocketPowerUmbilical PartnerUmbilical` (157727-157741, setter flags `NetworkUpdateFlags |= 512` on the server). Previously each half declared its own partner field typed to the partner class.
+- `TransferProgress` (157743-157757, also sync-flagged 512) and `protected long _savedPartnerId` (157713) for save/load pairing.
+- Base `public bool CanTransfer => true;` (157719). The Male HIDES this with `public new bool CanTransfer` (158321-158331: `Powered && OnOff && Error == 0 && IsOpen && !IsBroken`). Because it is `new`, not an override, any read through a base-typed `RocketPowerUmbilical` reference (including the Female's own `PartnerValid`, which reads `base.PartnerUmbilical.CanTransfer`) statically binds to the base property and gets `true`.
 
-Each half carries its own internal battery cell. The class field default is `[Header("Battery")] public float PowerMaximum = 10000f;` (Female L147898, Male L148272), but the prefab overrides it to **4900 J** for both `StructurePowerUmbilicalMale` and `StructurePowerUmbilicalFemale` (runtime-confirmed via a `Prefab.AllPrefabs` dump, 2026-06-21), so the real in-game cell is 4.9 kJ, not 10 kJ. `PowerStored` is clamped to `[0, PowerMaximum]`; `AvailablePower => PowerStored`.
+The Female is the rocket-internal side (`IRocketInternals`; at 0.2.6228 it reported `InternalCellType => RocketInternalCellType.Umbilical`, `StrictlyInternal => true`, `UmbilicalType => UmbilicalType.Socket`, `PartnerType => typeof(RocketPowerUmbilicalMale)`; not re-located at 0.2.6403 but the interface split is unchanged); the Male is the external/dockable side (`UmbilicalType => UmbilicalType.Umbilical`, 158317). Pairing is by the base partner reference, found via `RocketUmbilicalHelper.FindAndSetOtherUmbilical`; the Male's `SetPartner` stores `partner as RocketPowerUmbilicalFemale` into the base property and re-checks error state (158691-158696), and `IsCompatibleWith` remains type-checked per half (Male: `other is RocketPowerUmbilicalFemale`, 158698+). `OnLaunch` severs the partner; `OnLanded` re-runs `FindAndSetOtherUmbilical` (Male 158680-158689).
 
 ## Partner pairing and connection state
-<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-Each half stores its partner in a private field typed to the partner class; `IUmbilical` exposes no public partner getter (interface members L140614-L140631: `AsThing`, `PartnerType`, `PartnerDistance`, `FirstPartnerSearchPosition`, `UmbilicalType`, `PartnerRemoved()`, `IsCompatibleWith(IUmbilical)`, `SetPartner(IUmbilical)`). Reading the partner from outside the class requires reflection on the field:
+The partner lives in ONE private field on the abstract base (`RocketPowerUmbilical._partnerUmbilical`, line 157695, typed to the base), exposed as `protected PartnerUmbilical` (157727-157741). `IUmbilical` still exposes no public partner getter, so reading the partner from outside the hierarchy requires reflection on the base field. (At 0.2.6228 each half declared its own field typed to the partner class; superseded by the shared base field.)
 
-- `RocketPowerUmbilicalFemale._partnerUmbilical` : `RocketPowerUmbilicalMale` (L147900).
-- `RocketPowerUmbilicalMale._partnerUmbilical` : `RocketPowerUmbilicalFemale` (L148283).
+"Connected" (docked) is exactly `_partnerUmbilical != null`. The field is assigned by `RocketUmbilicalHelper.FindAndSetOtherUmbilical` (geometry-based partner search, via `SetPartner`), nulled on launch, and restored on land. `_savedPartnerId` (protected long, base line 157713) persists the pairing across save / load.
 
-"Connected" (docked) is exactly `_partnerUmbilical != null`. The field is assigned by `RocketUmbilicalHelper.FindAndSetOtherUmbilical` (geometry-based partner search, via `SetPartner`), nulled on launch, and restored on land. The Male also persists `_savedPartnerId` (long, L148295) so the pairing survives save / load.
-
-Per-half transfer / validity gates (decompile-verified):
+Per-half transfer / validity gates (0.2.6403.27689 decompile):
 
 ```csharp
-// Female (L147929-147941)
+// Base (line 157719)
 public bool CanTransfer => true;
-private bool PartnerValid => (object)_partnerUmbilical != null && _partnerUmbilical.CanTransfer;
 
-// Male (L148309-148340)
-public bool CanTransfer
+// Female (157967-157977)
+private bool PartnerValid
+{
+    get
+    {
+        if ((object)base.PartnerUmbilical != null)
+            return base.PartnerUmbilical.CanTransfer;   // binds to the BASE property => true
+        return false;
+    }
+}
+
+// Male (158321-158331)
+public new bool CanTransfer
 {
     get
     {
@@ -71,15 +83,16 @@ public bool CanTransfer
         return false;
     }
 }
+// Male (158333-158350)
 private bool PartnerValid
 {
     get
     {
-        if ((object)_partnerUmbilical != null && _partnerUmbilical.CanTransfer)
+        if ((object)base.PartnerUmbilical != null && base.PartnerUmbilical.CanTransfer)
         {
-            if (_partnerUmbilical.RocketNetwork != null)
+            if (base.PartnerUmbilical.RocketNetwork != null)
             {
-                Rocket rocket = _partnerUmbilical.RocketNetwork.Rocket;
+                Rocket rocket = base.PartnerUmbilical.RocketNetwork.Rocket;
                 if (rocket == null) return false;
                 return rocket.RocketState == RocketState.OnLaunchMount;
             }
@@ -90,72 +103,119 @@ private bool PartnerValid
 }
 ```
 
-`IsOperable` differs per half: Male = `PartnerValid && InputNetwork != null` (L148342-148352); Female = `OutputNetwork != null && base.IsOperable` (L147962-147972). `CanTransfer` / `PartnerValid` gate the per-tick `MovePowerToUmbilical` (so power flow also requires the rocket to be on the launch mount). For "physically docked" alone, `_partnerUmbilical != null` is the correct gate: it is non-null whenever the two halves are coupled, regardless of power or launch state.
+Note the property-hiding trap: the Male's `CanTransfer` is `new` (hides the base), and `PartnerUmbilical` is typed as the base class, so both halves' `PartnerValid` checks resolve `base.PartnerUmbilical.CanTransfer` against the base `=> true`. The Female's `PartnerValid` is therefore effectively "partner is non-null"; the Male's adds the partner-rocket `OnLaunchMount` requirement. The Male's own transfer gate (`CanTransfer && PartnerValid` in its `OnPowerTick`) is where the Powered / OnOff / Open / unbroken conditions actually bite, via its own hidden `CanTransfer`. For "physically docked" alone, `_partnerUmbilical != null` remains the correct gate.
 
-## Power transfer: paired batteries, NOT a dumb wire
-<!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
+At 0.2.6228 the `IsOperable` overrides were: Male = `PartnerValid && InputNetwork != null`, Female = `OutputNetwork != null && base.IsOperable`; not re-located at 0.2.6403 (the Male's `CheckError` at 158520+ still keys off `IsOperable`).
 
-The coupling across the gap is an explicit, one-directional, per-tick transfer between the two internal cells, not a cable-network merge. The Male half drives it from `OnPowerTick` (L148573):
+## Power transfer: paired batteries, NOT a dumb wire; BOTH halves push at 0.2.6403
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+The coupling across the gap is an explicit, per-tick transfer between the two internal cells, not a cable-network merge. The Male half drives its push from `OnPowerTick` (158511-158518):
 
 ```csharp
-public override void OnPowerTick()
+public override void OnPowerTick()          // Male, 158511
 {
     base.OnPowerTick();
     if (CanTransfer && PartnerValid)
+    {
         MovePowerToUmbilical();
+    }
 }
 
-private void MovePowerToUmbilical()   // L148715
+private void MovePowerToUmbilical()         // Male, 158621-158626
 {
-    float num = Mathf.Min(Mathf.Clamp(_partnerUmbilical.PowerMaximum - _partnerUmbilical.PowerStored, 0f, PowerMaximum), PowerStored);
-    _partnerUmbilical.ReceivePower(null, num);   // null CableNetwork: not a wire
-    PowerStored -= num;
+    float num = Mathf.Min(Mathf.Clamp(base.PartnerUmbilical.PowerMaximum - base.PartnerUmbilical.PowerStored, 0f, PowerMaximum), base.PowerStored);
+    base.PartnerUmbilical.ReceivePower(null, num);   // null CableNetwork: not a wire
+    base.PowerStored -= num;
 }
 ```
 
-So the Male moves `min(partner headroom, own stored)` into the Female's cell each tick by calling `ReceivePower(null, ...)` directly on the partner object. The `null` `CableNetwork` argument is the tell: no network is involved in the coupling. There is no `MovePowerToUmbilical` on the Female; the Female is the receiving end of the coupling (it still discharges to its own `OutputNetwork` independently).
+So the Male moves `min(partner headroom clamped to own PowerMaximum, own stored)` into the Female's cell by calling `ReceivePower(null, ...)` directly on the partner object. The `null` `CableNetwork` argument is the tell: no network is involved in the coupling. Formula unchanged from 0.2.6228.
 
-The game also forbids wiring a plain cable straight onto an umbilical connector: `Cable.CanConstruct` rejects placement adjacent to an umbilical (`IsConnectingToUmbilical`), so the two halves cannot be bridged by an ordinary cable. The umbilical is its own transfer device.
+NEW at 0.2.6403.27689: the Female now has its OWN per-tick transfer (previously the Female had no `MovePowerToUmbilical` and the coupling was strictly station -> rocket):
 
-Net model: `[external grid] -> Male cell --MovePowerToUmbilical--> Female cell -> rocket-internal grid`. Each cell is a 4900 J buffer (the prefab value; the class default is 10000f, see Class model); the two cells decouple the two grids and meter flow across the gap.
+```csharp
+public override void OnPowerTick()          // Female, 158110-158118
+{
+    base.OnPowerTick();
+    if (base.TransferProgress >= 1f && PartnerValid)
+    {
+        MovePowerToUmbilical();
+        base.TransferProgress = 0f;
+    }
+}
+
+private void MovePowerToUmbilical()         // Female, 158120-158141
+{
+    float num = Mathf.Clamp(base.PartnerUmbilical.PowerMaximum - base.PartnerUmbilical.PowerStored, 0f, PowerMaximum);
+    float a = num;
+    foreach (Battery battery in base.RocketNetwork.Batteries)
+    {
+        if (!battery.IsEmpty && battery.OnOff && battery.Error != 1)
+        {
+            float num2 = Mathf.Min(num, battery.PowerStored);
+            battery.PowerStored -= num2;
+            num -= num2;
+            base.PowerStored += num2;
+            if (num <= 0f)
+            {
+                break;
+            }
+        }
+    }
+    float num3 = Mathf.Min(a, base.PowerStored);
+    base.PartnerUmbilical.ReceivePower(null, num3);
+    base.PowerStored -= num3;
+}
+```
+
+Direction and semantics of the Female path: it computes the PARTNER'S headroom (clamped to its own `PowerMaximum`), PULLS that much out of the rocket's batteries (`RocketNetwork.Batteries`, walking them in list order, skipping empty / off / errored cells) into its own cell, then PUSHES `min(original headroom, own stored)` into the partner's cell via the same direct `ReceivePower(null, ...)` call. So the umbilical pair moves power in BOTH directions at 0.2.6403: Male cell -> Female cell (station -> rocket, when the Male's `CanTransfer` gate passes) and rocket batteries -> Female cell -> Male cell (rocket -> station, gated on `TransferProgress >= 1f && PartnerValid`, with `TransferProgress` reset to 0 after each transfer, so the Female pushes one chunk per completed `TransferProgress` cycle rather than every tick; what advances `TransferProgress` toward 1 is in Open Questions). The old "one-way station -> rocket only" claim is superseded.
+
+Cross-tick note: the direct `ReceivePower(null, ...)` crossing runs in phase 2 (`IPowered.OnPowerTick`, after ALL networks have settled; see [ElectricityManager](./ElectricityManager.md)), so unlike every ledger bridge the umbilical hop is pool-slot-order-INsensitive: the energy lands in the partner's cell the same tick regardless of which side's cable network ticked first.
+
+The game also forbids wiring a plain cable straight onto an umbilical connector: `Cable.CanConstruct` rejects placement adjacent to an umbilical (`IsConnectingToUmbilical`, Cable 392625-392632), so the two halves cannot be bridged by an ordinary cable. The umbilical is its own transfer device.
+
+Net model: `[external grid] <-> Male cell <--direct ReceivePower(null, ...)--> Female cell <-> rocket-internal grid`. Each cell is a small buffer (10000f code default at base line 157693; 4900 J prefab override observed at 0.2.6228, see Open Questions); the two cells decouple the two grids and meter flow across the gap.
 
 ## Per-tick power methods (battery-like, side-keyed)
-<!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-Each half exposes the standard `Device` power-tick quartet, side-keyed exactly like `Battery` (charge on `InputNetwork`, discharge on `OutputNetwork`). Male verbatim (L148722-L148772); Female is the same shape (L148170-L148198):
+Each half exposes the standard `Device` power-tick quartet, side-keyed like `Battery` (charge on `InputNetwork`, discharge on `OutputNetwork`). Male verbatim (`UsePower` 158628-158637, `ReceivePower` 158639-158648, `GetUsedPower` 158650-158665, `GetGeneratedPower` 158667-158678):
 
 ```csharp
 public override void UsePower(CableNetwork cableNetwork, float powerUsed)        // discharge bookkeeping
 {
-    if (!OnOff) { LastPowerRemoved = 0f; return; }
-    LastPowerRemoved = powerUsed;
-    PowerStored = Mathf.Clamp(PowerStored - powerUsed, 0f, PowerMaximum);
+    if (!OnOff) { base.LastPowerRemoved = 0f; return; }
+    base.LastPowerRemoved = powerUsed;
+    base.PowerStored = Mathf.Clamp(base.PowerStored - powerUsed, 0f, PowerMaximum);
 }
 
 public override void ReceivePower(CableNetwork cableNetwork, float powerAdded)   // charge
 {
-    if (Error == 1 || !OnOff) { LastPowerAdded = 0f; return; }
-    LastPowerAdded = powerAdded;
-    PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum);
+    if (Error == 1 || !OnOff) { base.LastPowerAdded = 0f; return; }
+    base.LastPowerAdded = powerAdded;
+    base.PowerStored = Mathf.Clamp(powerAdded + base.PowerStored, 0f, PowerMaximum);
 }
 
-public override float GetUsedPower(CableNetwork cableNetwork)                    // charge demand on InputNetwork
+public override float GetUsedPower([NotNull] CableNetwork cableNetwork)          // charge demand on InputNetwork
 {
     if (InputNetwork == null || cableNetwork != InputNetwork) return 0f;
     if (Error == 1 && OnOff) return UsedPower;
     if (!OnOff) return 0f;
-    return UsedPower + Mathf.Clamp(PowerMaximum - PowerStored, 0f, PowerMaximum);
+    return UsedPower + Mathf.Clamp(PowerMaximum - base.PowerStored, 0f, PowerMaximum);   // line 158664
 }
 
 public override float GetGeneratedPower(CableNetwork cableNetwork)               // discharge supply on OutputNetwork
 {
     if (OutputNetwork == null || Error == 1 || cableNetwork != OutputNetwork) return 0f;
     if (!OnOff) return 0f;
-    return Mathf.Max(PowerStored, 0f);
+    return Mathf.Max(base.PowerStored, 0f);                                              // line 158677
 }
 ```
 
-Like a vanilla `Battery`, there is no per-tick rate cap on the umbilical's own methods: it offers full headroom (`PowerMaximum - PowerStored`) on charge and full stored energy on discharge each tick. PowerGridPlus's `RocketUmbilicalPatches` adds the rate caps and the soft-power LogicTypes; see that file. The `LastPowerAdded` / `LastPowerRemoved` accessors divide by 1000 and decay one tick after the last write (Female L147974-L148025), and `LastPowerAdded` rides `NetworkUpdateFlags |= 256` for client sync.
+The Female's quartet (158143-158175) differs in three ways: its `UsePower` (158143-158147) and `ReceivePower` (158149-158153) carry NO gates at all (no `OnOff`, no `Error`; they set `LastPowerRemoved` / `LastPowerAdded` and mutate `PowerStored` unconditionally, which is what lets the Male's direct `ReceivePower(null, ...)` push land regardless of the socket's switch state); its `GetUsedPower` (158155-158162) has no `OnOff` gate either (off-network or `Error == 1` returns 0, otherwise `UsedPower + Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)` even while switched off); and its `GetGeneratedPower` (158164-158175) additionally returns 0 when the partner is a `RocketPowerUmbilicalFemale` (158170-158173), a socket-to-socket guard. Conversely the Male's `ReceivePower` gates on `Error == 1 || !OnOff`, and the Female's `MovePowerToUmbilical` decrements its own `PowerStored` by the pushed amount unconditionally after the call (158138-158140), so when the Male is off or errored the Female-side push is silently DESTROYED (pulled out of the rocket batteries, subtracted from the Female's cell, never added to the Male). Static-analysis conclusion from the verified bodies; not yet observed in-game.
+
+Like a vanilla `Battery`, there is no per-tick rate cap on the umbilical's own methods: it offers full headroom (`PowerMaximum - PowerStored`) on charge and full stored energy on discharge each tick. PowerGridPlus's `RocketUmbilicalPatches` adds the rate caps and the soft-power LogicTypes; see that file. The `LastPowerAdded` / `LastPowerRemoved` accessors live on the abstract base now (backing fields 157705-157711) with the same divide-by-1000, one-tick decay, and 512-flag sync semantics observed at 0.2.6228 (accessor bodies not re-read line-by-line this pass).
 
 ## Connectors (confirmed) and cable type
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
@@ -177,6 +237,7 @@ The Male declares its own `CanLogicRead`; the Female inherits the `Device` base 
 
 ## Verification history
 
+- 2026-07-02: version-change pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. STRUCTURE CHANGED: there is now an abstract base `RocketPowerUmbilical : ElectricalInputOutput, IUmbilical, ...` (157690) owning `PowerMaximum` (157693), the SINGLE private `_partnerUmbilical` (157695) exposed as `protected PartnerUmbilical` (157727-157741), `_savedPartnerId` (157713), `TransferProgress` (157743-157757), and a `CanTransfer => true` (157719) that the Male HIDES with `new` (158321); `RocketPowerUmbilicalFemale : RocketPowerUmbilical` (157952) and `RocketPowerUmbilicalMale : RocketPowerUmbilical` (158302). Superseded the old per-half-field class model. TRANSFER CHANGED (supersession): the Female now has its own `OnPowerTick` transfer (158110-158118, gated `TransferProgress >= 1f && PartnerValid`) with a Female `MovePowerToUmbilical` (158120-158141) that pulls the partner's headroom out of `RocketNetwork.Batteries` into its own cell and pushes it to the partner via `ReceivePower(null, ...)`; the previous "one-way station -> rocket only" claim is superseded, and the pair now moves power in both directions. Male push path re-verified with formula unchanged (`OnPowerTick` 158511-158518, `MovePowerToUmbilical` 158621-158626). Grid-facing methods re-verified (Male `GetUsedPower` headroom at 158664, `GetGeneratedPower` at 158677; Female 158143-158175 with its no-gate `UsePower` / `ReceivePower`, no-`OnOff` `GetUsedPower`, and Female-partner `GetGeneratedPower` guard at 158170-158173). Added the pool-slot-order-INsensitivity note (the direct `ReceivePower(null, ...)` crossing runs in phase 2, unlike every ledger bridge) and the static-analysis note that a Female push into an off/errored Male is destroyed. The 4900 J prefab `PowerMaximum` figure is prefab-serialized and could not be re-verified from the decompile; moved to Open Questions for an InspectorPlus re-check.
 - 2026-06-21: corrected the umbilical cell size -- the prefab overrides `PowerMaximum` to 4900 J on both halves, not the 10000f class default; runtime-confirmed via a `Prefab.AllPrefabs` dump on the dedicated server. Restamped Class model + Power transfer.
 - 2026-06-21: added "Partner pairing and connection state" section (private `_partnerUmbilical` fields typed to the partner class, L147900 / L148283; no public `IUmbilical` partner getter; `_savedPartnerId` L148295; exact `CanTransfer` / `PartnerValid` / `IsOperable` per half). Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` while implementing the PowerGridPlus umbilical logic-passthrough feature. Additive; no conflict with existing content.
 - 2026-06-18: confirmed the connector layouts via a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): Male = 2 connectors (`Power/Input` + dedicated `Data/None`), Female and Female-Side = 1 connector (`Power/Output`). Updated the Connectors section and resolved the OpenEnds open question.
@@ -186,3 +247,6 @@ The Male declares its own `CanLogicRead`; the Female inherits the `Device` base 
 
 - Which cable tiers (normal / heavy / super-heavy coil) each umbilical connector physically accepts. The `OpenEnds` `NetworkType` layout is confirmed (see Connectors above); coil-fit is connector grid-cell / collider geometry, not measured by the connector-type dump. Observe in-game or inspect the prefab colliders.
 - Whether the umbilical's InputNetwork/OutputNetwork on the rocket side are ordinary `CableNetwork`s (rocket-internal cables) in all dock states, which determines whether `Cable`-tier rules apply to that side.
+- The 4900 J prefab `PowerMaximum` override (both halves) was runtime-confirmed at 0.2.6228.27061; the 0.2.6403.27689 code default is still 10000f (line 157693) but the prefab value is serialized asset data. Re-verify via InspectorPlus at 0.2.6403 (request: types=[RocketPowerUmbilicalMale, RocketPowerUmbilicalFemale], fields=[PowerMaximum, PowerStored]).
+- What drives `TransferProgress` toward 1 for the Female's rocket-to-station push cadence (the `IRocketTransferActionProgressable` machinery was not traced this pass).
+- Runtime confirmation of the Female-push-into-off-Male energy destruction (static-analysis conclusion, see the transfer section).

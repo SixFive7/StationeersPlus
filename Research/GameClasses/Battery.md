@@ -2,13 +2,15 @@
 title: Battery (station-mounted)
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-19
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 391662-392217 (Battery), 340551 (BatteryCell.PowerDelta)
 related:
   - ./HelmetBattery.md
   - ./ElectricalInputOutput.md
+  - ./AreaPowerControl.md
   - ./PowerTick.md
 tags: [power, prefab]
 ---
@@ -149,16 +151,28 @@ The loop self-exits when `Mode` leaves Critical or when the device is switched o
 Net effect: a battery dropping into the `(0, 10%)` band flashes red at 2 Hz; reaching 10% snaps to a steady single segment in the `VeryLow` material; and the bar fills out segment by segment up to 5 segments at `Full`.
 
 ## Class hierarchy: ElectricalInputOutput (two cable networks)
-<!-- verified: 0.2.6228.27061 @ 2026-05-17 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-Decompile line 370616: `public class Battery : ElectricalInputOutput, IRocketInternals, IRocketComponent, IChargable, IReferencable, IEvaluable, IRocketMassContributor`.
+Decompile line 391662 (0.2.6403.27689; class body ends 392217): `public class Battery : ElectricalInputOutput, IRocketInternals, IRocketComponent, IChargable, IReferencable, IEvaluable, IRocketMassContributor`.
 
 Battery inherits `ElectricalInputOutput`, the same base as `Transformer` and `AreaPowerControl`. This means Battery has both `InputNetwork` and `OutputNetwork` cable network references at runtime. The `ChargeEfficiencyControl` patch in PowerGridPlus's `StationaryBatteryPatches.cs` exercises this via `cableNetwork == __instance.InputNetwork`. Implication: a station Battery acts as a power bridge with separate cable ports for the input (charging) and output (discharging) sides. Logic-passthrough patches that work for `Transformer` (bridging device lists across the InputNetwork / OutputNetwork pair) can be applied identically to `Battery`.
 
-## PowerMaximum default and vanilla prefab variants
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+### Battery.PowerDelta is SIGN-REVERSED relative to BatteryCell.PowerDelta
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-`Battery` declares one storage-capacity field (decompile line 370629):
+The station `Battery` and the handheld `BatteryCell` both expose a `PowerDelta` property, with OPPOSITE signs:
+
+```csharp
+public float PowerDelta => PowerStored - PowerMaximum;   // Battery, line 391732: <= 0, "how far past full"
+public float PowerDelta => PowerMaximum - PowerStored;   // BatteryCell, line 340551: >= 0, remaining headroom
+```
+
+`AreaPowerControl` charges its slot cell with `Mathf.Min(Battery.PowerDelta, BatteryChargeRate, powerAdded)`, and its `Battery` property is a `BatteryCell` (`BatterySlot.Get<BatteryCell>()`, APC line 390594), so the APC math uses the POSITIVE-headroom `BatteryCell` form. Any code reaching for the station `Battery.PowerDelta` expecting "remaining headroom" gets a zero-or-negative number instead; negate it (or use `PowerMaximum - PowerStored` directly). The station Battery's own power quartet (below) never reads its `PowerDelta`; it computes headroom inline as `Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)`.
+
+## PowerMaximum default and vanilla prefab variants
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+`Battery` declares one storage-capacity field (decompile line 391675 at 0.2.6403.27689):
 
 ```csharp
 [Header("Battery")]
@@ -179,9 +193,9 @@ No vanilla `StructureBatteryNuclear` exists. The only "nuclear battery" in base 
 The `9000001` value is the literal in the en.resx string ("Able to store up to 9000001 watts of power") — the off-by-one (vs a clean 9,000,000) is the actual prefab value, not a typo in this page.
 
 ## Power-tick method bodies (vanilla rate behaviour)
-<!-- verified: 0.2.6228.27061 @ 2026-05-26 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-`Battery` overrides all four `Device` power-tick methods. Verbatim from the decompile (lines 371098-371138):
+`Battery` overrides all four `Device` power-tick methods. Verbatim from the 0.2.6403.27689 decompile (`UsePower` 392144-392150, `ReceivePower` 392152-392158, `GetUsedPower` 392160-392171, `GetGeneratedPower` 392173-392184):
 
 ```csharp
 public override void UsePower(CableNetwork cableNetwork, float powerUsed)
@@ -288,6 +302,7 @@ So the station batteries carry a pure `Data` third port; the rocket batteries ca
 
 ## Verification history
 
+- 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration `Battery : ElectricalInputOutput, ...` (391662, body ends 392217), `PowerMaximum = 3600000f` C# default (391675), and the four power-tick bodies verbatim (`UsePower` 392144-392150, `ReceivePower` 392152-392158, `GetUsedPower` full headroom 392160-392171, `GetGeneratedPower` whole store 392173-392184). ADDED the "PowerDelta is SIGN-REVERSED" subsection: station `Battery.PowerDelta => PowerStored - PowerMaximum` (391732) vs `BatteryCell.PowerDelta => PowerMaximum - PowerStored` (340551); `AreaPowerControl` uses the `BatteryCell` form (its slot `Battery` property is a `BatteryCell`, APC line 390594), so code reaching for the station property must account for the reversed sign. Sections on the charge-state ladder, display, flashing coroutine, prefab variants, and rocket-internal fields were not re-read this pass and keep their earlier stamps.
 - 2026-06-19: corrected the battery-family identification (restamped the section). The 2026-06-18 entry below wrongly said "no rocket-battery prefab exists." Per `english.xml` (`StructureBatteryMedium` = "Battery (Medium)", `StructureBatterySmall` = "Auxiliary Rocket Battery", `StructureBattery` = "Station Battery", `StructureBatteryLarge` = "Station Battery (Large)", `ItemKitRocketBattery` = "Kit (Rocket Battery)", lines 1972 / 5460 / 7423 / 7523 / 8184) and a Luna rocket save (ref 525400 = `StructureBatteryMedium` at a rocket position), `StructureBatteryMedium` + `StructureBatterySmall` are the ROCKET battery line and `StructureBattery` + `StructureBatteryLarge` are the STATION line; the prefab codenames are misleadingly generic. Connector data unchanged (rocket batteries: `PowerAndData` third port; station batteries: pure `Data` third port). Confirmed via a runtime probe on the rocket save (ref 525400 = `StructureBatteryMedium`) plus the direct `english.xml` reads.
 - 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab). Connector layouts confirmed the same day by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): Station + Large batteries have a dedicated pure-`Data` third port, Medium + Small have a `PowerAndData` third port, none fold data onto a `Power/Input`/`Power/Output` connector. (The "no rocket-battery prefab" claim in this entry was corrected 2026-06-19, above.) Additive; no conflict with existing content.
 - 2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in [PowerTickThreading.md](../GameSystems/PowerTickThreading.md). No factual change to the underlying patches.

@@ -2,11 +2,12 @@
 title: InspectorPlus Usage
 type: Workflows
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-21
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - Mods/InspectorPlus/RESEARCH.md:21-23
   - Mods/InspectorPlus/InspectorPlus/HeadlessUnpausePatch.cs
+  - Mods/InspectorPlus/InspectorPlus/SnapshotRequest.cs:46-68 (Parse regexes)
 related:
   - ../Patterns/UnityFakeNull.md
 tags: [unity, threading, harmony]
@@ -50,17 +51,31 @@ With it on, InspectorPlus unpauses the simulation after `StartGame` on a batch-m
 When a client is connected (a normal playtest) the server is already running and the toggle is unnecessary; on a client or single-player, `Update()` drives the pump directly.
 
 ## Request shape
-<!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-Requests are JSON with five fields documented in `SnapshotRequest.cs`:
+Requests are JSON with five fields. The parser (`SnapshotRequest.Parse`, `Mods/InspectorPlus/InspectorPlus/SnapshotRequest.cs:46-68`) is a hand-rolled set of `Regex.Match` calls with NO `IgnoreCase` option, so the JSON keys are case-sensitive and must be spelled exactly in lowercase camelCase. A key with any other casing (`Types`, `MaxDepth`, `IncludePrivate`, ...) is silently ignored and its field keeps the default, so a fully capitalized request degrades to an unfiltered full-scene dump without any error.
 
-- `Types`: type-name filter. Narrows the walk to instances of the listed types.
-- `Fields`: per-type field / property filter. Narrows the emitted members to the listed names.
-- `MaxDepth`: recursion cap (default 3). Controls how deep the reflection walk descends through nested object graphs.
-- `IncludePrivate`: when true, also walk non-public fields and properties (default false, public members only).
-- `MaxMonoBehaviours`: cap on how many top-level objects a snapshot serializes (default 10000).
+The exact key spellings:
 
-Narrow `Types` and `Fields` precisely. A full-scene dump is cheap to produce but noisy to read; targeted requests are the default.
+- `"types"`: type-name filter (JSON string array). Narrows the walk to instances of the listed types. Default: empty = all known game types.
+- `"fields"`: per-type field / property filter (JSON string array). Narrows the emitted members to the listed names. Default: empty = all public fields/properties.
+- `"maxDepth"`: recursion cap (integer, default 3). Controls how deep the reflection walk descends through nested object graphs.
+- `"includePrivate"`: when `true`, also walk non-public fields and properties (boolean, default `false`, public members only).
+- `"maxMonoBehaviours"`: cap on how many top-level objects a snapshot serializes (integer, default 10000).
+
+Minimal example request:
+
+```json
+{
+  "types": ["Assets.Scripts.Objects.Electrical.PowerTransmitter"],
+  "fields": ["_linkedReceiver", "_linkedReceiverDistance", "_powerProvided"],
+  "maxDepth": 2,
+  "includePrivate": true,
+  "maxMonoBehaviours": 100
+}
+```
+
+Narrow `types` and `fields` precisely. A full-scene dump is cheap to produce but noisy to read; targeted requests are the default.
 
 ## Interpreting output
 <!-- verified: 0.2.6228.27061 @ 2026-05-21 -->
@@ -99,10 +114,11 @@ Verified via InspectorPlus on 2026-04-20 in game version 0.2.6228.27061. Request
 ```
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0003 and the surrounding sections of `Mods/InspectorPlus/RESEARCH.md`.
 - 2026-05-21: corrected the request-field list (added `IncludePrivate`, `MaxMonoBehaviours`) and the output-format description (an `objects` array with `[x, y, z]` values, not an object keyed by type name with `(x, y, z)`) to match the shipped `ObjectWalker`; added the Headless dedicated server section for the InspectorPlus v1.1.0 `Force Unpause Without Client` toggle. Verified via InspectorPlus on 2026-05-21 in game version 0.2.6228.27061. Request: maxMonoBehaviours=25, maxDepth=2 on a fresh dedicated-server world.
+- 2026-07-02: rewrote the "Request shape" section to give the exact JSON key spellings. The previous revision listed the fields by their C# property names (`Types`, `Fields`, `MaxDepth`, `IncludePrivate`, `MaxMonoBehaviours`), but `SnapshotRequest.Parse` (`Mods/InspectorPlus/InspectorPlus/SnapshotRequest.cs:46-68`) matches `"types"`, `"fields"`, `"maxDepth"`, `"includePrivate"`, `"maxMonoBehaviours"` via `Regex` with no `IgnoreCase`, so capitalized keys are silently ignored and the request degrades to a full-scene dump. Added the one-line degradation warning and a minimal example request JSON. Source is the mod's own shipped code (game-version-independent); section restamped at the current game version 0.2.6403.27689 per convention.
 
 ## Open questions
 

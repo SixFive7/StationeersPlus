@@ -2,12 +2,13 @@
 title: Transformer
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-18
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)
   - Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods)
 related:
   - ./Cable.md
   - ./PowerTransmitter.md
@@ -27,7 +28,7 @@ Vanilla power transformer. `Assets.Scripts.Objects.Electrical.Transformer : Elec
 `grep` for `class Transformer`, `: Transformer`, `TransformerLarge`, `TransformerSmall` in the decompile returns only the single `Transformer` class at line 403300 (the string `"Transformer"` elsewhere is an audio-clip key). Vanilla historically ships more than one transformer *prefab* (a smaller one), but they are the same `Transformer` class with a different serialized `OutputMaximum` and mesh -- there is no subclass hierarchy. A mod that wants a "heavy transformer" tier would register a new prefab of this same class (different `OutputMaximum`, different input/output `Connection` configuration, different mesh) via `AddPrefabs`; it does not need a new class.
 
 ## Class hierarchy and fields
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 `ElectricalInputOutput` (the base):
 
@@ -75,7 +76,7 @@ public class Transformer : ElectricalInputOutput, ISetable, ILogicable, IReferen
 
 `OutputMaximum = 10000f` is the C# default; the real per-prefab value is serialized (the vanilla small transformer is lower). `Setting` is clamped to `[0, OutputMaximum]`. Logic surface: `LogicType.Setting` (read/write, write clamps to `[0, OutputMaximum]`), `LogicType.Maximum => OutputMaximum`, `LogicType.Ratio => Setting / OutputMaximum`. (Re-Volt additionally exposes `LogicType.PowerActual` = current power provided; vanilla does not.)
 
-`GetGeneratedPower(cableNetwork)` returns 0 unless `cableNetwork == OutputNetwork && Error != 1 && OnOff && InputNetwork != null`; otherwise (vanilla) `Mathf.Min((float)Setting, ...)` drawn from the input network's available potential into the output network. (Re-Volt rewrites `GetGeneratedPower` / `GetUsedPower` / `ReceivePower` to clamp output to `min(Setting, InputNetwork.PotentialLoad - alreadyProvided)` and charge the transformer's own `UsedPower` quiescent draw to the upstream network.)
+`GetGeneratedPower(cableNetwork)` returns 0 unless `cableNetwork == OutputNetwork && Error != 1 && OnOff && InputNetwork != null`; otherwise (vanilla) `Mathf.Min((float)Setting, InputNetwork.PotentialLoad)` drawn from the input network's available potential into the output network. Method bodies re-verified unchanged at 0.2.6403.27689 (class declaration 424598; `_powerProvided` 424621; `UsePower` 424757-424763; `ReceivePower` 424765-424771; `GetUsedPower` = `Min((float)Setting + UsedPower, _powerProvided)` 424773-424792; `GetGeneratedPower` 424794-424805; verbatim bodies quoted on [AreaPowerControl](./AreaPowerControl.md), "Pattern presence in other ledger-based classes"). (Re-Volt rewrites `GetGeneratedPower` / `GetUsedPower` / `ReceivePower` to clamp output to `min(Setting, InputNetwork.PotentialLoad - alreadyProvided)` and charge the transformer's own `UsedPower` quiescent draw to the upstream network.)
 
 ## Relevance to a "voltage tier" mod
 <!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
@@ -221,6 +222,7 @@ So the rocket small transformer carries a dedicated `Data` connector (3 connecto
 
 ## Verification history
 
+- 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. The power-method bodies are unchanged; restamped "Class hierarchy and fields" with the new refs (class 424598, `_powerProvided` 424621, `UsePower` / `ReceivePower` 424757-424771, `GetUsedPower` 424773-424792, `GetGeneratedPower` = `Min(Setting, InputNetwork.PotentialLoad)` 424794-424805). The Setting-sync, InteractWith, SetKnob, CheckError, and rocket-variant sections were not re-read this pass and keep their 0.2.6228.27061 stamps (their old `L403xxx` refs are 0.2.6228 decompile lines).
 - 2026-06-18: added "Rocket-internal variant" section (the `_rocketInternalCellType` / `_strictlyInternal` serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab). Connector layouts confirmed the same day by a live `Prefab.AllPrefabs` dump (ScenarioRunner `connector-dump`, 0.2.6228.27061): rocket small transformer = 3 connectors with a dedicated `Data` port, station small = 2 with `PowerAndData/Input`, large `StructureTransformer` = 3 with a dedicated `Data` port, medium = 2 with `PowerAndData/Output`. Additive; no conflict with existing content.
 - 2026-06-03: corrected SetKnob needle math section. The prior decompile excerpt incorrectly showed `Needle.transform.localRotation = Quaternion.Euler(0f, 0f, _needleRotation)` (Z axis, no base reset). Re-verified against L403587-403597: vanilla actually does `_needleTransform.localRotation = _needleBaseRotation; _needleTransform.Rotate(0f, _needleRotation, 0f, Space.Self)` -- local Y axis with mandatory base-rotation reset first. Also added the explicit note that `Thing.OnFinishedLoad` doesn't call SetKnob, so a mod overriding the rotation domain (Priority instead of Setting) must call SetKnob from an OnFinishedLoad postfix to land the right rotation on save load. Triggered by a 90-degree-sideways knob bug in PowerGridPlus's first attempt at the Priority patch.
 

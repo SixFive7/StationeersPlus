@@ -2,10 +2,11 @@
 title: CableNetwork
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-20
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.CableNetwork
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 270571-271326 (CableNetwork), 272397 (RebuildCableNetworkEvent), 392451-392538 (Cable join/register paths), 312730 (SmallGrid.IsConnected)
 related:
   - ./PowerTransmitter.md
   - ./Cable.md
@@ -19,7 +20,7 @@ tags: [power, logic, network]
 
 Vanilla cable network. Each connected island of power cables is one `CableNetwork` instance, holding the list of `Devices` attached to it, the `Providers` array of devices that generate power into this network this tick, the `Potential` (total generation), `Required` (total consumption), and the per-tick book-keeping that drives `ConsumePower`.
 
-`CableNetwork` lives in the `Assets.Scripts.Networks` namespace (decompile line 253403 opens the namespace; class declaration at line 253411). The sibling base `StructureNetwork` lives in a different namespace called just `Networks` (decompile line 175608 / 177045) -- those two namespaces share a folder convention but are distinct in the assembly. The decompile excerpts below are verbatim.
+`CableNetwork` lives in the `Assets.Scripts.Networks` namespace. At 0.2.6403.27689 the declaration is `public class CableNetwork : IReferencable, IEvaluable, ILogicable, ISyncListable, IDensePoolable, IMemoryReadable, IMemory` (decompile line 270571): the class is now `ILogicable` / `IMemoryReadable` / `IMemory`-bearing (it carries an 8-slot `_channels` double array, line 270652, and a `DisplayName`), so a network itself is a logic-readable object. The sibling base `StructureNetwork` lives in a different namespace called just `Networks` -- those two namespaces share a folder convention but are distinct in the assembly. The decompile excerpts below are verbatim (0.2.6228 excerpts are marked where not yet re-read).
 
 ## Provider iteration is single-supplier-first, not load-balanced
 <!-- verified: 0.2.6228.27061 @ 2026-05-02 -->
@@ -262,9 +263,9 @@ A mod that wants a device to appear logic-transparent (logic flows through it ev
 2. Patch `RefreshPowerAndDataDeviceLists` to, for a chosen device class, pull the other side's `DeviceList` into the local `_dataDeviceList` directly. This skips the interface dance for devices that are always bound to themselves (a transformer's input is always paired with its own output for data purposes).
 
 ## Field shape and accessor quirk
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-The backing lists are declared `protected readonly`, which is reachable from a Harmony patch via field-injection by name (`___dataDeviceList` / `___powerDeviceList`). `readonly` only fixes the list reference; `.Add` / `.Remove` are still valid mutations. Verbatim, from decompile lines 253460-253468:
+The backing lists are declared `protected readonly`, which is reachable from a Harmony patch via field-injection by name (`___dataDeviceList` / `___powerDeviceList`). `readonly` only fixes the list reference; `.Add` / `.Remove` are still valid mutations. Verbatim, from decompile lines 270619-270627 at 0.2.6403.27689:
 
 ```csharp
 public readonly List<Device> DeviceList = new List<Device>();
@@ -274,7 +275,7 @@ protected bool PowerDeviceListDirty;
 protected bool DataDeviceListDirty;
 ```
 
-The public property accessors (decompile lines 253519-253541) refresh on read:
+The public property accessors (decompile lines 270678-270700) refresh on read:
 
 ```csharp
 public List<Device> DataDeviceList
@@ -303,27 +304,23 @@ Both accessors return the underlying list reference (no copy), so mutations thro
 Note the asymmetry: `DataDeviceList.get` refreshes when `PowerDeviceListDirty` is true and ignores `DataDeviceListDirty`. `PowerDeviceList.get` checks both flags. This is almost certainly a copy-paste leftover; in practice `DirtyDataDeviceList()` (which sets only the data flag) followed by a `DataDeviceList` read will return stale data unless something else (cable add/remove, power dirty) has happened to also set the power flag. Code that needs a fresh data list after a `DirtyDataDeviceList()` call should call `RefreshPowerAndDataDeviceLists()` explicitly. See Open Questions for the unresolved "is this a bug or a deliberate optimization" question.
 
 ## Lifecycle: three constructors + pool registration + multiplayer sync
-<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-`CableNetwork` is tracked in `ConcurrentDensePool<CableNetwork> AllCableNetworks = new ConcurrentDensePool<CableNetwork>("AllCableNetworks", 4096)` (line 253430). The pool is the canonical "every network in the world" list. Instances are NOT acquired/returned from the pool via Get/Release in the call sites; the `new CableNetwork(...)` expressions seen below allocate fresh objects which then register themselves with `AllCableNetworks` via `AssignReference`. So each `new CableNetwork(...)` does go through one of three constructors, and Harmony postfixes on the constructors fire reliably.
+`CableNetwork` is tracked in `ConcurrentDensePool<CableNetwork> AllCableNetworks = new ConcurrentDensePool<CableNetwork>("AllCableNetworks", 4096)` (line 270588). The pool is the canonical "every network in the world" list. Instances are NOT acquired/returned from the pool via Get/Release in the call sites; the `new CableNetwork(...)` expressions seen below allocate fresh objects which then register themselves with `AllCableNetworks` via `AssignReference` (270854-270869, which also appends the network to the `NewToSend` SyncList when a server has clients). So each `new CableNetwork(...)` does go through one of three constructors, and Harmony postfixes on the constructors fire reliably.
 
-The three constructors (lines 253735-253764):
+The three constructors (lines 270893-270910):
 
 ```csharp
 public CableNetwork()
 {
     AssignReference(this, 0L);           // 0L = "assign a fresh ReferenceId from the global counter"
     CableNetworkType = CableNetworkType.CableNetwork;
-    if (CableNetwork.OnNetworkChanged != null)
-        CableNetwork.OnNetworkChanged();
 }
 
 public CableNetwork(long cableNetworkId)
 {
     AssignReference(this, cableNetworkId); // use the explicit id; do NOT increment the counter
     CableNetworkType = CableNetworkType.CableNetwork;
-    if (CableNetwork.OnNetworkChanged != null)
-        CableNetwork.OnNetworkChanged();
 }
 
 public CableNetwork(Cable cable)
@@ -331,41 +328,18 @@ public CableNetwork(Cable cable)
     AssignReference(this, 0L);           // fresh ReferenceId
     CableNetworkType = CableNetworkType.CableNetwork;
     Add(cable);                          // attaches the seed cable
-    if (CableNetwork.OnNetworkChanged != null)
-        CableNetwork.OnNetworkChanged();
 }
 ```
+
+REMOVED at 0.2.6403.27689: the static `CableNetwork.OnNetworkChanged` event is gone, with no replacement. The constructors above and `Add(Cable)` (271053-271088) no longer raise anything; the only `OnNetworkChanged` symbols left in the assembly are `Networks.StructureNetwork`'s protected virtual INSTANCE method (189082 and its overrides), which is unrelated to `CableNetwork`. A mod that relied on the old static event as a "network created / cable added" signal must postfix the three constructors plus `Add(Cable)` instead. (The per-Cable instance event `Cable.OnPowerNetworkChanged`, raised by the `Cable.CableNetwork` setter, still exists; see [Cable](./Cable.md).)
 
 Server vs client constructor usage:
 
-- **Server creates new networks** via `new CableNetwork()` or `new CableNetwork(cable)`. Both call `AssignReference(this, 0L)`, which generates a fresh ReferenceId from the global counter. Example call site: `Cable.OnRegistered` at line 254055 (`CableNetwork cableNetwork2 = new CableNetwork(cable);`) when a placed cable opens a new network island.
-- **Client recreates networks** via `new CableNetwork(referenceId)` from `DeserializeNew(RocketBinaryReader)` (line 254162). The factory reads a `CableNetworkType` byte and a packed `ReferenceId` from the wire, then switches on the type to construct either `new CableNetwork(referenceId)` or `new WirelessNetwork(referenceId)`. This is the `SyncList<CableNetwork> NewToSend = new SyncList<CableNetwork>(DeserializeNew)` (line 253491) factory.
-- **Both sides recreate from saved id** via the `(long)` constructor: in `Cable` (line 371386), `(Referencable.Find<CableNetwork>(cableNetworkId) ?? new CableNetwork(cableNetworkId)).Add(this)` -- if a cable carries a deserialised `cableNetworkId` and no `CableNetwork` with that id is found, one is constructed with the saved id rather than a fresh one. Used during save load and during the join-time `Add` chain.
+- **Server creates new networks** via `new CableNetwork()` or `new CableNetwork(cable)`. Both call `AssignReference(this, 0L)`, which generates a fresh ReferenceId from the global counter. Example call site: `Cable.OnRegistered` (392523-392538) when a placed cable opens a new network island.
+- **Client recreates networks** via `new CableNetwork(referenceId)` from `DeserializeNew(RocketBinaryReader)` (line 271326). The factory reads the id and type from the wire and constructs either `new CableNetwork(referenceId)` or `new WirelessNetwork(referenceId)`. This is the `SyncList<CableNetwork> NewToSend = new SyncList<CableNetwork>(DeserializeNew)` (line 270650) factory.
+- **Both sides recreate from saved id** via the `(long)` constructor: in `Cable.DeserializeSave` (392427-392434), `(Referencable.Find<CableNetwork>(cableNetworkId) ?? new CableNetwork(cableNetworkId)).Add(this)` -- if a cable carries a deserialised `cableNetworkId` and no `CableNetwork` with that id is found, one is constructed with the saved id rather than a fresh one. Used during save load and during the join-time `Add` chain.
 
-`DeserializeNew` verbatim (line 254162):
-
-```csharp
-private static void DeserializeNew(RocketBinaryReader reader)
-{
-    CableNetworkType cableNetworkType = (CableNetworkType)reader.ReadByte();
-    Network.ReadPackedId(reader, out var referenceId);
-    switch (cableNetworkType)
-    {
-        case CableNetworkType.CableNetwork:
-            new CableNetwork(referenceId);
-            break;
-        case CableNetworkType.WirelessNetwork:
-            new WirelessNetwork(referenceId);
-            break;
-        case CableNetworkType.None:
-            break;
-    }
-}
-```
-
-Note the discard pattern: `new CableNetwork(referenceId)` allocates and the result is thrown away. `AssignReference(this, referenceId)` inside the constructor adds the instance to `AllCableNetworks` keyed by `referenceId`, so subsequent `Referencable.Find<CableNetwork>(referenceId)` lookups return the instance. The constructor's only externally-visible job on the client side is "register this id".
-
-`OnNetworkChanged` is a static `Action` (no parameters) invoked at the tail of every constructor. Subscribers can react to "a network was created or recreated"; the event does not pass which network.
+The discard pattern still applies: `new CableNetwork(referenceId)` allocates and the result is thrown away; `AssignReference` inside the constructor registers the instance so subsequent `Referencable.Find<CableNetwork>(referenceId)` lookups return it. The constructor's only externally-visible job on the client side is "register this id". (There is additionally a static join-time bulk path at 0.2.6403: `CableNetwork.SerializeOnJoin` / `DeserializeOnJoin` at 271288-271326 ship every valid network's id + type in one block.)
 
 Pool / id-counter implications for mods:
 
@@ -375,9 +349,9 @@ Pool / id-counter implications for mods:
 - The counter itself is per-runtime state, not derived from any synchronised seed. Server and client do NOT share a counter; the client relies entirely on the server-supplied `referenceId` from `DeserializeNew`. An id "drift" between server and client of N means the server has created N more networks than the client has received messages for.
 
 ## Merge: `cableNetworks[0]` wins, ConnectedNetworks defines the order
-<!-- verified: 0.2.6228.27061 @ 2026-06-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-When a placed cable bridges two or more existing networks, the surviving network is determined entirely by **list order**. The static factory at line 253998:
+When a placed cable bridges two or more existing networks, the surviving network is determined entirely by **list order**. The static factory at line 271129 (shape identical at 0.2.6403.27689):
 
 ```csharp
 public static CableNetwork Merge(List<CableNetwork> cableNetworks)
@@ -391,7 +365,7 @@ public static CableNetwork Merge(List<CableNetwork> cableNetworks)
 }
 ```
 
-`cableNetworks[0]` is the survivor; every other network in the list is consumed via the instance-level `Merge`:
+`cableNetworks[0]` is the survivor; every other network in the list is consumed via the instance-level `Merge` (271110-271127):
 
 ```csharp
 public void Merge(CableNetwork oldNetwork)
@@ -410,25 +384,33 @@ public void Merge(CableNetwork oldNetwork)
 
 The instance `Merge` walks `oldNetwork.CableList` in reverse and reassigns each cable into `this` via `Add`. The old network's cable list is cleared, its `RefreshNetwork` runs to flush internal state, and both lists' dirty flags are set.
 
-`ConnectedNetworks` is where the order is established (line 254110):
+`ConnectedNetworks` is where the order is established (line 271268; at 0.2.6403.27689 it is `FillConnected`-based, superseding the removed `ConnectedCables()` version):
 
 ```csharp
 public static List<CableNetwork> ConnectedNetworks(Cable cable)
 {
-    List<Cable> list = cable.ConnectedCables();
-    List<CableNetwork> list2 = new List<CableNetwork>(list.Count);
-    foreach (Cable item in list)
+    Span<SmallCellRef> span = stackalloc SmallCellRef[32];
+    int count = 0;
+    cable.FillConnected<Cable>(span, ref count);
+    List<CableNetwork> list = new List<CableNetwork>(count);
+    Span<SmallCellRef> span2 = span;
+    Span<SmallCellRef> span3 = span2.Slice(0, count);
+    for (int i = 0; i < span3.Length; i++)
     {
-        if (!list2.Contains(item.CableNetwork))
-            list2.Add(item.CableNetwork);
+        SmallCellRef smallCellRef = span3[i];
+        Cable cable2 = smallCellRef.Get<Cable>();
+        if (!list.Contains(cable2.CableNetwork))
+        {
+            list.Add(cable2.CableNetwork);
+        }
     }
-    return list2;
+    return list;
 }
 ```
 
-So the order of networks in the merge list is the order of unique `CableNetwork` references encountered while iterating `cable.ConnectedCables()`. Two cables that belong to the same network are deduplicated; the first cable from each unique network "claims" the slot.
+So the order of networks in the merge list is the order of unique `CableNetwork` references encountered while iterating the `FillConnected<Cable>` hits, which follow the cable's `OpenEnds` declaration order (see the FillConnected walk below). Two cables that belong to the same network are deduplicated; the first cable from each unique network "claims" the slot. The list is a fresh per-call allocation and the span is stackalloc, so this path no longer touches any shared static buffer.
 
-**Multiplayer-relevance implication.** Both server and client run the merge independently on their own side. `Cable.OnRegistered` runs on both sides (cable placement replicates), but its merge call is server-only via the `GameManager.RunSimulation` gate at line 371479. The client's runtime merge happens in `Cable.DeserializeOnJoin` at line 371405:
+**Multiplayer-relevance implication.** Both server and client run the merge independently on their own side. `Cable.OnRegistered` runs on both sides (cable placement replicates), but its merge call is server-only via the `GameManager.RunSimulation` gate (392525 at 0.2.6403.27689). The client's runtime merge happens in `Cable.DeserializeOnJoin` (392451-392462):
 
 ```csharp
 public override void DeserializeOnJoin(RocketBinaryReader reader)
@@ -445,81 +427,32 @@ public override void DeserializeOnJoin(RocketBinaryReader reader)
 }
 ```
 
-`DeserializeOnJoin` here is the per-cable wire deserialise. The `!Joining` gate means: during initial join, accept the server's network id verbatim; during normal runtime, re-derive the merge survivor locally via `ConnectedNetworks`. Both sides therefore run their OWN `Merge(ConnectedNetworks(cable))` on the placed cable. If `cable.ConnectedCables()` returns adjacent cables in a different order on server vs client at the moment of merge, the chosen survivors differ. The two pre-merge ids both still resolve to live `CableNetwork` instances on the side that did NOT consume them (`Merge` only destroys the non-survivors LOCALLY on each side), producing a stable "server sees id X, client sees id Y" desync that persists indefinitely until a future merge reconciles via a different cable registration.
+`DeserializeOnJoin` here is the per-cable wire deserialise. The `!Joining` gate means: during initial join, accept the server's network id verbatim; during normal runtime, re-derive the merge survivor locally via `ConnectedNetworks`. Both sides therefore run their OWN `Merge(ConnectedNetworks(cable))` on the placed cable. If the `FillConnected<Cable>` walk returns adjacent cables in a different order on server vs client at the moment of merge, the chosen survivors differ. The two pre-merge ids both still resolve to live `CableNetwork` instances on the side that did NOT consume them (`Merge` only destroys the non-survivors LOCALLY on each side), producing a stable "server sees id X, client sees id Y" desync that persists indefinitely until a future merge reconciles via a different cable registration.
 
-**ConnectedCables iteration order (verified verbatim).** `Cable.ConnectedCables()` at decompile line 294267 (in `SmallGrid`):
+**FillConnected iteration order (0.2.6403.27689; supersedes the removed `ConnectedCables()` / `FoundCables` walk).** `SmallGrid.FillConnected<T>(Span<SmallCellRef> buf, ref int count)` (line 312804; the `NetworkType`-filtered overload at 312896 and the untyped one at 312852 share the shape) walks `OpenEnds` in declaration order; for each open end it projects `openEnd.Transform.position` through `WorldToLocalGrid`, fetches the `SmallCell`, and appends a `SmallCellRef` for EACH occupant slot (checked in the fixed order Cable, Chute, Device, Pipe, Rail, Other) that is a `T`, is not `this`, and agrees via `IsConnected(openEnd)`. Key facts:
 
-```csharp
-public List<Cable> ConnectedCables()
-{
-    FoundCables.Clear();
-    foreach (Connection openEnd in OpenEnds)
-    {
-        Grid3 localGrid = base.GridController.WorldToLocalGrid(
-            openEnd.Transform.position, SmallGridSize, SmallGridOffset);
-        SmallCell smallCell = base.GridController.GetSmallCell(localGrid);
-        if (smallCell != null && smallCell.Cable != null
-            && smallCell.Cable != this
-            && smallCell.Cable.IsConnected(openEnd))
-        {
-            FoundCables.Add(smallCell.Cable);
-        }
-    }
-    return FoundCables;
-}
-```
+- The buffers are caller-provided `stackalloc Span<SmallCellRef>` (BUFFER_SIZE = 32, `SmallCellRef` struct at 290601). There is NO shared static buffer any more; the old `FoundCables` corruption hazard is gone from the game.
+- The result order is still the `OpenEnds` iteration order (with the per-cell occupant-slot order as a secondary key when one cell holds multiple matching occupants); `OpenEnds` is prefab-serialised and identical on both sides for the same prefab orientation.
+- `SmallCellRef` stores only a `Grid3` + `SmallCellType` and re-resolves lazily via `Get<T>()` against `GridController.World.GetSmallCell`, so refs can go stale (the occupant leaves the cell) and `Get<T>()` then returns null.
 
-Key facts:
-
-- `FoundCables` is a **shared static reusable list** -- cleared at the top, populated and returned by value-share. Calling `ConnectedCables()` twice on different cables in rapid succession overwrites the previous result. Worker-thread access from outside the game thread would corrupt it.
-- The result order is the `OpenEnds` iteration order: for each OpenEnd in declaration order, the cable at the cell adjacent to that OpenEnd is appended (if any, and if it agrees via `smallCell.Cable.IsConnected(openEnd)`).
-- `OpenEnds` itself is the prefab-serialised list of connection points on the cable; identical on both sides for the same prefab orientation.
-
-So under vanilla mechanics, two consecutive runs of `cable.ConnectedCables()` on the same cable from the same logical game-state point should produce identical orderings on both server and client. Any divergence implies one of:
+So under vanilla mechanics, two consecutive runs of the walk on the same cable from the same logical game-state point should produce identical orderings on both server and client. Any divergence implies one of:
 
 - A different physical OpenEnds list (different cable prefab rotation/orientation on the two sides, which would also cause many other visible discrepancies -- unlikely without a much louder symptom).
 - A different `smallCell.Cable` at the same grid position on the two sides (e.g. one side has already updated the cell to point at the new cable, the other hasn't).
-- A different return value from `smallCell.Cable.IsConnected(openEnd)` for one of the neighbours (e.g. that neighbour's network/state hasn't been refreshed on one side).
-- `FoundCables` being overwritten by a concurrent caller between the two sides' runs (only matters if a thread other than the game thread calls `ConnectedCables` -- the host's power tick runs on a worker but the client never runs the tick).
+- A different return value from `IsConnected(openEnd)` for one of the neighbours (e.g. that neighbour's network/state hasn't been refreshed on one side).
 
-`ConnectedCables(NetworkType networkType)` at line 294319 is a separate overload that uses a fresh `new List<Cable>(4)` per call. Mods filtering by `NetworkType.Power` (e.g. our `VoltageTier.HasHigherTierNeighbour`) use this overload and cannot corrupt `FoundCables`. **Buffer-safe is not thread-safe, though:** this overload still reads `openEnd.Transform.position` at line 294326 (verbatim: `Grid3 localGrid = base.GridController.WorldToLocalGrid(openEnd.Transform.position, SmallGridSize, SmallGridOffset);`), exactly like the parameterless overload at 294272. A Unity `Transform` position getter is main-thread-only, so calling EITHER overload from the power-tick worker thread (`ThreadedManager.IsThread` true) is unsafe -- the game routes around this on the worker thread via the cached `Connection.LocalGrid` (`SmallGrid.Connected()` and `ElectricalInputOutput.OnSubmergeableTick` use `LocalGrid`; `Connection.Initialize()` early-returns the cached `_isInitialized` value without touching the Transform when `IsThread`). Power Grid Plus's `VoltageTier.HasHigherTierNeighbour` wraps its `ConnectedCables(NetworkType.Power)` call in a `try/catch` that returns `false` on throw precisely because it runs inside Phase 1.5a on that worker thread; the consequence is degraded boundary targeting (fall through to "any lowest-tier cable") rather than a crash. The same `Transform.position` coupling is why vanilla's split BFS `RebuildNetwork` (which calls `ConnectedCables()` per dequeued cable) cannot be invoked from the worker thread to make a cable burn's network split land in the same tick; see [Cable](./Cable.md), "Network split on destruction".
+**Thread-safety is unchanged in the one way that matters:** every `FillConnected` overload still reads `openEnd.Transform.position` (lines 312808 / 312856 / 312904), a main-thread-only Unity `Transform` getter, so calling it from the power-tick worker thread (`ThreadedManager.IsThread` true) remains unsafe. The game's off-thread idiom is the cached grid: `Connection.Initialize()` early-returns without touching the Transform when `IsThread` (311918-311932), and `Connection.GetLocalGrid()` (312009-312016) returns the cached `LocalGrid` once initialized. This coupling is why vanilla's split BFS `RebuildNetwork` (which runs `FillConnected` per dequeued cable) cannot be invoked from the worker thread to make a cable burn's network split land in the same tick; see [Cable](./Cable.md), "Network split on destruction". (Power Grid Plus's `VoltageTier.HasHigherTierNeighbour` try/catch note predates the API migration; the removed `ConnectedCables(NetworkType)` it wrapped no longer exists and the mod needs the replacement pattern from [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md).)
 
-**Calls inside `Add()` that could re-enter the cable graph** (decompile line 253923):
+**Calls inside `Add()` that re-enter the cable graph** (decompile lines 271053-271088): `Add(Cable)` runs its own `stackalloc` + `cable.FillConnected<Device>(span, ref count)` (271073-271075), then per found device calls `AddDevice(cable, found)` and `found.FindDataCable()` (271083-271084) before writing `cable.CableNetworkId = ReferenceId` (271087). `Device.FindDataCable()` (371568) and `FindPowerCable()` (371588) each use their own `stackalloc` span, so nested walks cannot clobber the outer caller's buffer; each nesting level owns its stack frame.
 
-```csharp
-public void Add(Cable cable)
-{
-    ...
-    foreach (Device item in cable.ConnectedDevices())   // returns static FoundDevices-equivalent
-    {
-        AddDevice(cable, item);
-        item.FindDataCable();        // -> ConnectedCables(NetworkType.Data)  -- safe overload
-    }
-    cable.CableNetworkId = ReferenceId;
-    if (CableNetwork.OnNetworkChanged != null) CableNetwork.OnNetworkChanged();
-}
-```
-
-`Device.FindDataCable()` (decompile line 350763) uses the **fresh-list** `ConnectedCables(NetworkType.Data)` overload, so it does NOT touch the static `FoundCables`:
-
-```csharp
-public void FindDataCable()
-{
-    DataCables = ConnectedCables(NetworkType.Data);   // fresh new List<Cable>(4)
-    ...
-}
-```
-
-Same for `Device.FindPowerCable()` (line 350778, uses `ConnectedCables(NetworkType.Power)`) and `Device.InitializeDataConnection()` (line 350794, which calls both Find methods then dirties both networks). So the `Add()` walk done by `Merge` cannot reentrantly clobber the outer caller's `FoundCables` -- the only path from inside `Merge` that re-touches the cable graph goes through the safe overload.
-
-`RebuildCableNetworkServer` at line 254050 (called from the destruction side of the lifecycle) is explicitly server-only by name. `RebuildNetwork` (private, line 254016) is the BFS used to re-fold cables into a target network after a split or a forced rebuild; both calls fire `OnNetworkChanged`.
+`RebuildCableNetworkServer` (line 271208, plus a `SmallCellRef` convenience overload at 271203 used by `Cable.OnDestroy`) is explicitly server-only by name. `RebuildNetwork` (private static, line 271147) is the BFS used to re-fold cables into a target network after a split or a forced rebuild; at 0.2.6403 it is `FillConnected`-based, skips cables flagged `IsBeingDestroyed` (271169), and is otherwise shape-identical to the 0.2.6228 version. Neither raises any event (the old `OnNetworkChanged` calls are gone with the event).
 
 ## Split is authoritative; merge is not. Asymmetric multiplayer sync
-<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 The split (destruction / fuse-break) and merge (placement) paths sync differently across the wire. This is the structural reason a cable-id desync can persist across many ticks.
 
-**Split path (authoritative, ids synced)** -- `RebuildCableNetworkServer` (line 254050):
+**Split path (authoritative, ids synced)** -- `RebuildCableNetworkServer` (line 271208; body shape identical at 0.2.6403.27689):
 
 ```csharp
 public static void RebuildCableNetworkServer(Cable cable)
@@ -541,9 +474,9 @@ public static void RebuildCableNetworkServer(Cable cable)
 }
 ```
 
-The server allocates `new CableNetwork(cable)` (which increments the server-only ReferenceId counter) and emits `RebuildCableNetworkEvent` carrying both the new and old ids. The client receives this event and runs `RebuildCableNetworkClient(cable, newNetwork, oldNetwork)` (line 254064) which delegates to the same `RebuildNetwork` BFS using **the server's chosen ids**. Splits cannot desync.
+The server allocates `new CableNetwork(cable)` (which increments the server-only ReferenceId counter) and emits `RebuildCableNetworkEvent` carrying both the new and old ids. The client receives this event and runs `RebuildCableNetworkClient(cable, newNetwork, oldNetwork)` (line 271222) which delegates to the same `RebuildNetwork` BFS using **the server's chosen ids**. Splits cannot desync.
 
-**Merge path (each side decides independently, no event)** -- `Cable.OnRegistered` (line 371477) on the server runs:
+**Merge path (each side decides independently, no event)** -- `Cable.OnRegistered` (line 392523) on the server runs:
 
 ```csharp
 public override void OnRegistered(Cell cell)
@@ -558,9 +491,9 @@ public override void OnRegistered(Cell cell)
 }
 ```
 
-and the client runs `Cable.DeserializeOnJoin` (line 371405), already excerpted above. No `RebuildCableNetworkEvent`-equivalent fires for merges. The server's chosen survivor is implicitly carried in the cable's `CableNetworkId` field on the wire, **but the client discards it** in `DeserializeOnJoin` whenever `GameManager.GameState != GameState.Joining` and instead recomputes `Merge(ConnectedNetworks(this))` locally. The local recomputation is what desyncs.
+and the client runs `Cable.DeserializeOnJoin` (line 392451), already excerpted above. No `RebuildCableNetworkEvent`-equivalent fires for merges. The server's chosen survivor is implicitly carried in the cable's `CableNetworkId` field on the wire, **but the client discards it** in `DeserializeOnJoin` whenever `GameManager.GameState != GameState.Joining` and instead recomputes `Merge(ConnectedNetworks(this))` locally. The local recomputation is what desyncs.
 
-**`RebuildCableNetworkEvent` wire shape and client apply path** (decompile line 255178):
+**`RebuildCableNetworkEvent` wire shape and client apply path** (decompile line 272397 at 0.2.6403.27689; the excerpt below is the 0.2.6228 body, shape re-confirmed by the declaration and the unchanged `RebuildCableNetworkClient` consumer):
 
 ```csharp
 public readonly struct RebuildCableNetworkEvent(long originNetworkedStructureReference, long newNetworkReference, long oldNetworkReference) : ISyncListable
@@ -588,7 +521,7 @@ public readonly struct RebuildCableNetworkEvent(long originNetworkedStructureRef
 }
 ```
 
-The client `Referencable.Find<CableNetwork>(referenceId2)` lookup for the NEW network depends on that network having been previously delivered via `SyncList<CableNetwork> NewToSend`. If the SyncList ordering puts the rebuild event before the network creation, `newNetwork` is null and `RebuildCableNetworkClient` exits early with `ConsoleWindow.PrintError("Cable or Network null during rebuild")` (line 254070). Same hazard applies to `cable` (must arrive via thing-sync first) and `oldNetwork` (must still be alive). The serializer at line 197579 (`RebuildCableNetworkEvent.NewEvents.Serialize(writer)`) is part of the per-tick MessageFactory packet, so all three syncs (NewToSend, thing-sync, RebuildEvent) ride the same packet -- but their per-stream order is what determines whether the client's `Referencable.Find` succeeds when the event applies.
+The client `Referencable.Find<CableNetwork>(referenceId2)` lookup for the NEW network depends on that network having been previously delivered via `SyncList<CableNetwork> NewToSend`. If the SyncList ordering puts the rebuild event before the network creation, `newNetwork` is null and `RebuildCableNetworkClient` exits early with `ConsoleWindow.PrintError("Cable or Network null during rebuild")` (line 271228). Same hazard applies to `cable` (must arrive via thing-sync first) and `oldNetwork` (must still be alive). The serializer (`RebuildCableNetworkEvent.NewEvents.Serialize(writer)`, 0.2.6228 line 197579, not re-located this pass) is part of the per-tick MessageFactory packet, so all three syncs (NewToSend, thing-sync, RebuildEvent) ride the same packet -- but their per-stream order is what determines whether the client's `Referencable.Find` succeeds when the event applies.
 
 **Vanilla survivability vs mod-driven desync.** Under vanilla mechanics the iteration is expected to match: same OpenEnds, same SmallCells (network state is deterministic), same `IsConnected` results, same `FoundCables` (the static reusable list is only the game thread's caller on vanilla since the power tick runs server-side only and even the host does not run merges on a worker). So vanilla mostly "gets lucky" with deterministic ordering -- the structural bug is latent. Once a mod perturbs anything that touches the moment-of-merge state of an adjacent cable's network reference, or causes an additional construction event whose ordering differs between server and client, the latent bug surfaces and stays stuck: each side has already picked its winner and the loser network instance is still alive on the OTHER side, so no future tick alone reconciles them.
 
@@ -628,8 +561,9 @@ public virtual bool IsConnected(Connection otherEnd)
 A neighbour is considered "connected" if **any** of its OpenEnds shares a NetworkType bit with the caller's OpenEnd AND its local grid equals the caller's facing grid. The bitwise `&` means a Data-only connection and a Power-only connection do not pass the filter; a Power+Data cable connecting to a Power+Data port does. Both overloads short-circuit on the first match; only the second returns the actual `connectedEnd`. Since the result depends solely on the neighbour cable's `OpenEnds` and the caller's `otherEnd` -- both prefab-determined transform state -- this filter is deterministic across server and client as long as cable orientation matches.
 
 ## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-15 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
+- 2026-07-02: grid-adjacency API migration + re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. SUPERSEDED: (a) `SmallGrid.ConnectedCables()` (both overloads) and the static `FoundCables` buffer are REMOVED from the game; `ConnectedNetworks` (271268) is now `FillConnected<Cable>`-based over `stackalloc Span<SmallCellRef>` (verbatim replaced), the "ConnectedCables iteration order" block is rewritten as "FillConnected iteration order" (walk 312804 / 312852 / 312896; still OpenEnds order; per-cell occupant-slot order Cable/Chute/Device/Pipe/Rail/Other as secondary; `Transform.position` main-thread coupling unchanged at 312808 / 312856 / 312904; shared-buffer corruption hazard gone), and `Add(Cable)`'s device walk (271053-271088) now uses its own stackalloc `FillConnected<Device>`. (b) the static `CableNetwork.OnNetworkChanged` event is REMOVED with no replacement: constructors (270893 / 270899 / 270905) and `Add(Cable)` (271053) no longer raise anything; remaining `OnNetworkChanged` hits in the assembly are `Networks.StructureNetwork`'s protected virtual instance method (189082 area), unrelated; mods needing the old signal must postfix the three constructors plus `Add(Cable)`. (c) the class declaration gained logic surfaces: `CableNetwork : IReferencable, IEvaluable, ILogicable, ISyncListable, IDensePoolable, IMemoryReadable, IMemory` (270571). Re-verified unchanged with new refs: static `Merge` list[0]-wins (271129), instance `Merge` (271110-271127), `RebuildNetwork` BFS (271147, now FillConnected-based and skipping `IsBeingDestroyed`, otherwise shape-identical), `RebuildCableNetworkServer` (271208, new `SmallCellRef` overload 271203), `RebuildCableNetworkClient` (271222, null-guard error at 271228), `RemoveDevice` (271011-271027, now invoking `device.OnRemoveCableNetwork(this)` at 271024, see [PowerReceiver](./PowerReceiver.md) for the consequence), field block + accessor quirk (270619-270700; the `DataDeviceList.get`-checks-`PowerDeviceListDirty` asymmetry persists), `AssignReference` / `NewToSend` (270854-270869 / 270650), constructors (270893-270910), `DeserializeNew` (271326, verbatim excerpt replaced by a summary pending a full re-read; decl and factory role confirmed), `Cable.OnRegistered` / `DeserializeOnJoin` call sites (392523 / 392451), `RebuildCableNetworkEvent` decl (272397). Sections not re-read this pass keep their 0.2.6228.27061 stamps: provider iteration / provider order (the bodies now live on [PowerTick](./PowerTick.md) and were re-verified there), data-device-list refresh internals, refresh cadence call-site census, HandleDataNetTransmissionDevice, Network Analyser consumer, and the deterministic-merge-sort resolution section (its Power Grid Plus patch context is unchanged, but note its `ConnectedCables`-related caveats are now historical; the mod-side adjacency pattern is on [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md)).
 - 2026-05-02: page created. Sourced from a long-distance auto-aim test on the Lunar save: seven TX-RX pairs at 163-222 m all linked successfully (verified via InspectorPlus DishProbe), but only one RX showed `Powered=True` and `PowerProvided > 0`. Reading `CableNetwork.ConsumePower` in Assembly-CSharp.dll (decompile lines 254579-254654) confirmed the single-supplier-first iteration, identifying the observed asymmetry as expected vanilla behaviour for parallel receivers on a shared destination network.
 - 2026-05-13: added "Data device list" and "HandleDataNetTransmissionDevice" sections, sourced from `Assembly-CSharp.dll` decompile lines 253589-253655 (refresh + relay) and 364740-365158 (interfaces and rocket-link implementers). Added `logic` and `network` tags. No conflict with the existing power-side content. Findings produced while researching whether transformers and APCs can be made logic-transparent for Power Grid Plus.
 - 2026-05-13: added "Field shape and accessor quirk" section, sourced from `Assembly-CSharp.dll` decompile lines 253460-253541. Notes the `protected readonly` declarations (Harmony-reachable by name) and the `DataDeviceList.get` asymmetry that checks `PowerDeviceListDirty` instead of `DataDeviceListDirty`.
