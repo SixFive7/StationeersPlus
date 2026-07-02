@@ -37,6 +37,10 @@ namespace PowerGridPlus.Patches
             DeviceOutputSanitizer.ClearReported();
             // The dead-input "no upstream supply" cue is recomputed every tick; clear the client mirror on load.
             DeadInputRegistry.ClearAll();
+            // Re-arm the one-shot unmodelled-bridge census so the freshly loaded world's device set
+            // is re-surveyed on its first atomic tick (fresh worlds are covered by the armed-at-load
+            // default; this hook covers hot-swapped saves).
+            UnknownBridgeCensus.Arm();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }

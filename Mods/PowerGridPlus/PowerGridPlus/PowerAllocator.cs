@@ -29,7 +29,13 @@ namespace PowerGridPlus
     ///
     ///     Per tick:
     ///       1. Gather: per-network rigid demand + generator supply; the contributor / elastic / soft
-    ///          rosters from SegmentingDeviceRegistry.
+    ///          rosters from SegmentingDeviceRegistry. Each bridge device's PHYSICAL description
+    ///          (flow kind, terminal networks, capacities, distance multiplier, quiescent draw) comes
+    ///          from its ISegAdapter (SegAdapters.cs): the Routed adapters (Transformer / linked
+    ///          wireless pair / APC) each yield one Seg, and the Buffered adapter (rocket umbilical)
+    ///          yields its cell's soft charge request + elastic discharge capacity instead of a Seg.
+    ///          GATHER attaches allocator POLICY on top of the description: priority, lockout state,
+    ///          and the shed/overload bookkeeping.
     ///       2. Order: topological (Kahn) order over conducting contributor edges, so every network is
     ///          processed after all the networks that feed it. Cycle members are already CYCLE_FAULTed by
     ///          PROTECT (cycle detection) and conduct 0, so the live graph is a DAG.
@@ -79,9 +85,6 @@ namespace PowerGridPlus
     {
         private const float Eps = 0.01f;
         private const int UnreachableDepth = int.MaxValue / 2;
-        // Finite stand-in for an "unlimited" (config-0) cap. Never float.MaxValue: the structural-
-        // overload detector sums supplier EffCaps, and a MaxValue term overflows that sum to +Infinity.
-        private const float RateSentinel = 1e9f;
 
         // Networks in shallow-first (depth ASC, ReferenceId ASC) order, recomputed by the DEPTH phase
         // every tick. AtomicElectricityTickPatch ENFORCE iterates this so each network is
@@ -237,6 +240,29 @@ namespace PowerGridPlus
                     || OverloadRegistry.IsLockedOut(refId, currentTick);
             }
 
+            // Attach allocator POLICY to an adapter's physical description (SegAdapters.cs):
+            // priority, and the lockout gate over the device's own registries plus -- for a paired
+            // bridge -- the partner half's cycle-fault state (either dish faulted locks the pair).
+            Seg MakeSeg(SegKind kind, long refId, in SegSpec spec)
+            {
+                return new Seg
+                {
+                    RefId = refId,
+                    Kind = kind,
+                    InNet = spec.InNet,
+                    OutNet = spec.OutNet,
+                    CapSetting = spec.CapacitySetting,
+                    CableCap = spec.RateLimit,
+                    EffCap = spec.EffectiveCapacity,
+                    UsedPower = spec.Quiescent,
+                    InputDrawFactor = spec.Multiplier,
+                    Priority = PriorityStore.GetPriority(refId),
+                    StepUp = spec.StepUp,
+                    Locked = IsPowerLocked(refId)
+                        || (spec.PartnerRefId != 0L && CycleFaultRegistry.IsCycleFaulted(spec.PartnerRefId, currentTick)),
+                };
+            }
+
             var segmenters = SegmentingDeviceRegistry.EnumerateSorted();
             for (int i = 0; i < segmenters.Count; i++)
             {
@@ -247,127 +273,31 @@ namespace PowerGridPlus
                 {
                     case Transformer t:
                     {
-                        if (t.Error == 1 || t.InputNetwork == null || t.OutputNetwork == null) break;
-                        if (t.InputNetwork.ReferenceId == t.OutputNetwork.ReferenceId) break;
-                        var inCable = t.InputConnection?.GetCable();
-                        var outCable = t.OutputConnection?.GetCable();
-                        float capSetting = (float)t.Setting;
-                        float cableCap = Mathf.Min(CableMax.For(inCable), CableMax.For(outCable));
-                        float effCap = Mathf.Min(capSetting, cableCap) - t.UsedPower;
-                        if (effCap < 0f) effCap = 0f;
-                        segs.Add(new Seg
-                        {
-                            RefId = t.ReferenceId,
-                            Kind = SegKind.Transformer,
-                            InNet = t.InputNetwork,
-                            OutNet = t.OutputNetwork,
-                            CapSetting = capSetting,
-                            CableCap = cableCap,
-                            EffCap = effCap,
-                            UsedPower = t.UsedPower,
-                            Priority = PriorityStore.GetPriority(t.ReferenceId),
-                            StepUp = IsStepUp(t.InputNetwork, t.OutputNetwork),
-                            Locked = IsPowerLocked(t.ReferenceId),
-                        });
+                        if (!SegAdapters.Transformer.TryDescribe(t, out var spec)) break;
+                        segs.Add(MakeSeg(SegKind.Transformer, t.ReferenceId, spec));
                         break;
                     }
                     case PowerTransmitter pt:
                     {
-                        var pr = pt.LinkedReceiver;
-                        if (pr == null || !pr.OnOff || pt.InputNetwork == null || pr.OutputNetwork == null) break;
-                        if (pt.InputNetwork.ReferenceId == pr.OutputNetwork.ReferenceId) break;
-
-                        // The PT/PR pair's cap is a STATIC link RATING, never the live
-                        // InputNetwork.PotentialLoad. Reading the live potential (as vanilla / PTP
-                        // GetGeneratedPower do) created a cross-tick zero fixed point: on a
-                        // transformer-fed source the potential reads 0 until something pulls, so the cap
-                        // collapsed to 0, the pair desired 0, nothing pulled, and a false OVERLOAD re-armed
-                        // forever. The forward supply sweep is the only throttle on actually-delivered
-                        // power; the rating only sizes a genuine OVERLOAD breach (delivered demand above
-                        // what the link itself can carry, independent of the source).
-                        float linkRate;
-                        float ptpCap = PowerTransmitterPlusInterop.EffectiveMaxCapacityOrAbsent();
-                        if (ptpCap >= 0f)
-                        {
-                            // PowerTransmitterPlus loaded: rating = the configured Max Transfer Capacity
-                            // (0 = unlimited -> a large FINITE sentinel, never float.MaxValue). PTP reprices
-                            // distance as a source-side overhead m (folded into the input-cable bound
-                            // below), not an output derate, so no distance term enters the rating here.
-                            linkRate = ptpCap > 0f ? ptpCap : RateSentinel;
-                        }
-                        else
-                        {
-                            // Vanilla (no PowerTransmitterPlus): rating = MaxPowerTransmission minus the
-                            // vanilla distance-DELIVERY loss (PowerLossOverDistance), independent of the
-                            // live source potential.
-                            float maxT = PowerTransmitter.MaxPowerTransmission;
-                            float dist = PowerTransmitterPlusInterop.LinkedReceiverDistance(pt);
-                            float loss;
-                            try { loss = pt.PowerLossOverDistance.Evaluate(Mathf.Clamp01(dist / 500f)) * maxT; }
-                            catch { loss = Mathf.Min(dist * 10f, maxT); }
-                            if (float.IsNaN(loss) || loss < 0f) loss = 0f;
-                            linkRate = Mathf.Max(0f, maxT - loss);
-                        }
-
-                        // Source-draw multiplier (POWER.md §6.3 / §8.4.2): PowerTransmitterPlus inflates the
-                        // INPUT-side draw to delivered * m (m = 1 + k * distance_km); vanilla m = 1. The
-                        // output cable carries delivered; the input cable carries delivered * m. Clamp to a
-                        // finite sentinel so an unlimited (config-0) tier cannot reach the EffCap sum as
-                        // +Infinity.
-                        float m = PowerTransmitterPlusInterop.SourceDrawMultiplier(pt);
-                        var inCable = pt.InputConnection?.GetCable();
-                        var outCable = pr.OutputConnection?.GetCable();
-                        float cableCap = Mathf.Min(Mathf.Min(CableMax.For(inCable) / m, CableMax.For(outCable)), RateSentinel);
-
-                        // staticCap <= cableCap always, so the §5.7 "CapSetting > CableCap" cable-bound
-                        // exclusion can no longer fire for a PT pair: a cable-bound breach now reads as a
-                        // genuine OVERLOAD instead of silently under-delivering with no hover.
-                        float staticCap = Mathf.Min(linkRate, cableCap);
-                        float effCap = staticCap - pt.UsedPower - pr.UsedPower;
-                        if (effCap < 0f) effCap = 0f;
-                        segs.Add(new Seg
-                        {
-                            RefId = pt.ReferenceId,
-                            Kind = SegKind.PtPair,
-                            InNet = pt.InputNetwork,
-                            OutNet = pr.OutputNetwork,
-                            CapSetting = staticCap,
-                            CableCap = cableCap,
-                            EffCap = effCap,
-                            UsedPower = pt.UsedPower + pr.UsedPower,
-                            InputDrawFactor = m,
-                            Priority = PriorityStore.GetPriority(pt.ReferenceId),
-                            StepUp = IsStepUp(pt.InputNetwork, pr.OutputNetwork),
-                            Locked = IsPowerLocked(pt.ReferenceId) || CycleFaultRegistry.IsCycleFaulted(pr.ReferenceId, currentTick),
-                        });
+                        // One seg per LINKED pair, anchored on the transmitter. The link-rating and
+                        // source-draw-multiplier physics (PowerTransmitterPlus ModApi tier, legacy
+                        // reflection tier, or the vanilla curve) live in WirelessPairAdapter; the
+                        // partner receiver's cycle-fault state locks the pair via MakeSeg.
+                        if (!SegAdapters.WirelessPair.TryDescribe(pt, out var spec)) break;
+                        segs.Add(MakeSeg(SegKind.PtPair, pt.ReferenceId, spec));
                         break;
                     }
                     case PowerReceiver _:
-                        break;   // handled via its linked PT
+                        break;   // handled via its linked PT (the pair is anchored on the transmitter)
                     case AreaPowerControl apc:
                     {
-                        if (apc.Error == 1 || apc.InputNetwork == null || apc.OutputNetwork == null) break;
-                        if (apc.InputNetwork.ReferenceId == apc.OutputNetwork.ReferenceId) break;
-                        var inCable = apc.InputConnection?.GetCable();
-                        var outCable = apc.OutputConnection?.GetCable();
-                        float cableCap = Mathf.Min(CableMax.For(inCable), CableMax.For(outCable));
-                        float effCap = cableCap - apc.UsedPower;
-                        if (effCap < 0f) effCap = 0f;
-                        bool locked = IsPowerLocked(apc.ReferenceId);
-                        segs.Add(new Seg
-                        {
-                            RefId = apc.ReferenceId,
-                            Kind = SegKind.Apc,
-                            InNet = apc.InputNetwork,
-                            OutNet = apc.OutputNetwork,
-                            CapSetting = float.MaxValue,   // no vanilla throughput rating; §8.4 hit-max does not apply
-                            CableCap = cableCap,
-                            EffCap = effCap,
-                            UsedPower = apc.UsedPower,
-                            Priority = PriorityStore.GetPriority(apc.ReferenceId),
-                            StepUp = false,                // APC is never tier-classified step-up
-                            Locked = locked,
-                        });
+                        if (!SegAdapters.Apc.TryDescribe(apc, out var spec)) break;
+                        var seg = MakeSeg(SegKind.Apc, apc.ReferenceId, spec);
+                        segs.Add(seg);
+                        // The APC's internal cell is a storage half alongside the routed seg (not
+                        // part of the adapter's description): discharge is elastic onto the output
+                        // network, charge is a soft request on the input network. Same lock state
+                        // as the seg (the APC's own registries; no partner).
                         var cell = apc.Battery;
                         if (cell != null)
                         {
@@ -378,9 +308,10 @@ namespace PowerGridPlus
                                     RefId = apc.ReferenceId,
                                     OutNet = apc.OutputNetwork,
                                     EffDischarge = Mathf.Min(
-                                        Mathf.Min(ApcDischargeRateRegistry.GetDischargeRate(apc.ReferenceId), CableMax.For(outCable)),
+                                        Mathf.Min(ApcDischargeRateRegistry.GetDischargeRate(apc.ReferenceId),
+                                            CableMax.For(apc.OutputConnection?.GetCable())),
                                         cell.PowerStored),
-                                    Locked = locked,
+                                    Locked = seg.Locked,
                                 });
                             }
                             if (!cell.IsCharged)
@@ -423,12 +354,29 @@ namespace PowerGridPlus
                         }
                         break;
                     }
-                    case RocketPowerUmbilicalMale male:
-                        AddUmbilical(male, male.PowerStored, male.PowerMaximum, elastics, softs, currentTick);
+                    case RocketPowerUmbilical umbilical:
+                    {
+                        // Buffered contract (UmbilicalAdapter, covers both halves via the shared
+                        // 0.2.6403 base class): no routed seg. The description enrolls the cell's
+                        // charge side as a Soft demander and its discharge side as an Elastic
+                        // supplier; the cell-to-cell crossing between the two halves is vanilla
+                        // phase 2, outside the allocator (see the adapter's doc).
+                        if (!SegAdapters.Umbilical.TryDescribe(umbilical, out var spec)) break;
+                        bool locked = IsPowerLocked(umbilical.ReferenceId);
+                        if (spec.HasElastic)
+                        {
+                            elastics.Add(new Elastic
+                            {
+                                RefId = umbilical.ReferenceId,
+                                OutNet = spec.OutNet,
+                                EffDischarge = spec.ElasticCapacity,
+                                Locked = locked,
+                            });
+                        }
+                        if (spec.HasSoft)
+                            softs.Add(new Soft { RefId = umbilical.ReferenceId, InNet = spec.InNet, Request = spec.SoftRequest });
                         break;
-                    case RocketPowerUmbilicalFemale female:
-                        AddUmbilical(female, female.PowerStored, female.PowerMaximum, elastics, softs, currentTick);
-                        break;
+                    }
                 }
             }
 
@@ -1158,64 +1106,6 @@ namespace PowerGridPlus
             int bw = (int)Math.Floor(b.Pull);
             if (aw != bw) return bw.CompareTo(aw);
             return a.RefId.CompareTo(b.RefId);
-        }
-
-        private static bool IsStepUp(CableNetwork inNet, CableNetwork outNet)
-        {
-            var inTier = VoltageTierEnforcer.GetTierInfo(inNet).Tier;
-            var outTier = VoltageTierEnforcer.GetTierInfo(outNet).Tier;
-            if (!inTier.HasValue || !outTier.HasValue) return false;
-            return TierRank(inTier.Value) < TierRank(outTier.Value);
-        }
-
-        private static int TierRank(Cable.Type t)
-        {
-            switch (t)
-            {
-                case Cable.Type.normal: return 1;
-                case Cable.Type.heavy: return 2;
-                case Cable.Type.superHeavy: return 3;
-                default: return 0;
-            }
-        }
-
-        private static void AddUmbilical(ElectricalInputOutput umbilical, float stored, float maximum,
-            List<Elastic> elastics, List<Soft> softs, int currentTick)
-        {
-            if (umbilical.Error == 1) return;
-            if (umbilical.InputNetwork != null && umbilical.OutputNetwork != null
-                && umbilical.InputNetwork.ReferenceId == umbilical.OutputNetwork.ReferenceId) return;
-            bool limits = Settings.EnableRocketUmbilicalLimits.Value;
-            float chargeRate = limits ? Settings.RocketUmbilicalChargeRate.Value : maximum;
-            float dischargeRate = limits ? Settings.RocketUmbilicalDischargeRate.Value : maximum;
-            bool locked = CycleFaultRegistry.IsCycleFaulted(umbilical.ReferenceId, currentTick)
-                          || BrownoutRegistry.IsLockedOut(umbilical.ReferenceId, currentTick)
-                          || OverloadRegistry.IsLockedOut(umbilical.ReferenceId, currentTick);
-            if (umbilical.OutputNetwork != null && stored > 0f)
-            {
-                var outCable = umbilical.OutputConnection?.GetCable();
-                elastics.Add(new Elastic
-                {
-                    RefId = umbilical.ReferenceId,
-                    OutNet = umbilical.OutputNetwork,
-                    EffDischarge = Mathf.Min(Mathf.Min(dischargeRate, CableMax.For(outCable)), stored),
-                    Locked = locked,
-                });
-            }
-            if (umbilical.InputNetwork != null)
-            {
-                float headroom = maximum - stored;
-                if (headroom > 0f)
-                {
-                    var inCable = umbilical.InputConnection?.GetCable();
-                    softs.Add(new Soft
-                    {
-                        RefId = umbilical.ReferenceId,
-                        InNet = umbilical.InputNetwork,
-                        Request = Mathf.Min(Mathf.Min(chargeRate, CableMax.For(inCable)), headroom),
-                    });
-                }
-            }
         }
 
         // -------------------------------------------------------------------

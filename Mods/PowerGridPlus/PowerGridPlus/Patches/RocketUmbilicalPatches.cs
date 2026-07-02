@@ -8,9 +8,16 @@ using UnityEngine;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Rocket power umbilical support (POWERTODO 0.2.7.5b). Both halves carry an internal
-    ///     10 kW-maximum cell and behave like batteries (vanilla GetUsedPower = own draw + headroom,
-    ///     GetGeneratedPower = PowerStored, verified 0.2.6228.27061 L148182-148199 / L148744-148772).
+    ///     Rocket power umbilical support (POWERTODO 0.2.7.5b). Both halves carry an internal buffer
+    ///     cell (shared abstract base RocketPowerUmbilical since game 0.2.6403) and face their grids
+    ///     like batteries: vanilla GetUsedPower = own draw + cell headroom on the input network,
+    ///     GetGeneratedPower = PowerStored on the output network (re-verified 0.2.6403.27689; see
+    ///     Research/GameClasses/RocketPowerUmbilical.md, including the Female's laxer gates). The
+    ///     cell-to-cell crossing between the halves is vanilla phase 2 and moves power BOTH ways
+    ///     since 0.2.6403 (Male push station -> rocket every tick; Female TransferProgress-gated
+    ///     pull from RocketNetwork.Batteries pushed rocket -> station). These patches only shape the
+    ///     grid-facing halves and are direction-agnostic; the allocator models each half as a
+    ///     buffered store (UmbilicalAdapter in SegAdapters.cs), never the crossing itself.
     ///
     ///     <para>Rate caps: when <c>EnableRocketUmbilicalLimits</c> is on, charge demand caps at
     ///     RocketUmbilicalChargeRate and discharge at RocketUmbilicalDischargeRate (both further

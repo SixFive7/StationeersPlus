@@ -64,6 +64,14 @@ namespace PowerGridPlus.Patches
                 ElectricityTickCounter.Advance();
                 int currentTick = ElectricityTickCounter.CurrentTick;
 
+                // One-shot unmodelled-bridge census (Stage 2b unknown-bridge lane): on the first
+                // atomic tick after a world load, log every ElectricalInputOutput subclass in the
+                // scene that no seg adapter models and the segmenter roster does not know (one line
+                // per type). Those devices stay on vanilla behaviour inside OBSERVE/ENFORCE, the
+                // conservative fallback; the census only makes the gap visible. A single flag check
+                // on every later tick.
+                UnknownBridgeCensus.RunIfPending();
+
                 // ----------------------------------------------------------------
                 // OBSERVE (SETUP/OBSERVE). Initialise + CalculateState per network
                 // with CURRENT state. Populates PowerTick.Required / .Potential /
