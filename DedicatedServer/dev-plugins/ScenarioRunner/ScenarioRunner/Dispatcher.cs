@@ -343,6 +343,10 @@ namespace ScenarioRunner
                     Scenario_PtpBeamPredicateProbe();
                     return;
 
+                case "ptp-standalone-suite":
+                    Scenario_PtpStandaloneSuite();
+                    return;
+
                 case "ptp-all":
                     Scenario_PtpAutoAimCacheProbe();
                     Scenario_PtpLongDistanceLinkProbe();
