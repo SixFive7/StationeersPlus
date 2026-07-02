@@ -104,36 +104,52 @@ Under low or zero destination demand, only one of N parallel TX+RX pairs appears
 To distribute load across several wireless links a player must split the destination side into separate cable networks (one per link) or push the consumption past one receiver's `Energy` capacity so the iteration falls through to the next provider.
 
 ## Data device list: separate from power device list, walked from the same Cable graph
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 `CableNetwork` holds two device lists, not one:
 
-- `_powerDeviceList` (exposed as `PowerDeviceList`): devices that have at least one `PowerCable` whose `CableNetwork == this`.
-- `_dataDeviceList` (exposed as `DataDeviceList`): devices that have at least one `DataCable` whose `CableNetwork == this`, plus any devices pulled in via `HandleDataNetTransmissionDevice`.
+- `_powerDeviceList` (exposed as `PowerDeviceList`): devices that have at least one entry in `Device.PowerCables` whose `CableNetwork == this`.
+- `_dataDeviceList` (exposed as `DataDeviceList`): devices that have at least one entry in `Device.DataCables` whose `CableNetwork == this`, plus any devices pulled in via `HandleDataNetTransmissionDevice`.
 
-The base `DeviceList` is the superset; the two typed lists are filtered views rebuilt by `RefreshPowerAndDataDeviceLists()` (Assembly-CSharp.dll decompile lines 253589-253628):
+The base `DeviceList` is the superset; the two typed lists are filtered views rebuilt by `RefreshPowerAndDataDeviceLists()` (0.2.6403.27689 decompile lines 270746-270787; `device.DataCables` / `device.PowerCables` are now `Cable[]` arrays, see [Device](./Device.md)):
 
 ```csharp
 protected virtual void RefreshPowerAndDataDeviceLists()
 {
-    if (DataDeviceListDirty)  { _dataDeviceList.Clear();  }
-    if (PowerDeviceListDirty) { _powerDeviceList.Clear(); }
+    if (DataDeviceListDirty)
+    {
+        _dataDeviceList.Clear();
+    }
+    if (PowerDeviceListDirty)
+    {
+        _powerDeviceList.Clear();
+    }
     for (int num = DeviceList.Count - 1; num >= 0; num--)
     {
         Device device = DeviceList[num];
         if (DataDeviceListDirty)
         {
             HandleDataNetTransmissionDevice(device);
-            foreach (Cable dataCable in device.DataCables)
+            Cable[] dataCables = device.DataCables;
+            for (int i = 0; i < dataCables.Length; i++)
             {
-                if (dataCable.CableNetwork == this) { _dataDeviceList.Add(device); break; }
+                if (dataCables[i].CableNetwork == this)
+                {
+                    _dataDeviceList.Add(device);
+                    break;
+                }
             }
         }
         if (PowerDeviceListDirty)
         {
-            foreach (Cable powerCable in device.PowerCables)
+            Cable[] dataCables = device.PowerCables;   // decompiler-reused variable name; this is the POWER array
+            for (int i = 0; i < dataCables.Length; i++)
             {
-                if (powerCable.CableNetwork == this) { _powerDeviceList.Add(device); break; }
+                if (dataCables[i].CableNetwork == this)
+                {
+                    _powerDeviceList.Add(device);
+                    break;
+                }
             }
         }
     }
@@ -145,8 +161,10 @@ protected virtual void RefreshPowerAndDataDeviceLists()
 Consequences:
 
 - A device on the network can be in `_powerDeviceList` but not `_dataDeviceList` (its cables carry power only into this network) or vice versa (a device pulled in by `HandleDataNetTransmissionDevice` from a different network, or one wired with data-only cabling). The two lists are independent filters over `DeviceList`.
-- The two lists are walked independently. The power tick uses `_powerDeviceList`; IC10 / `Logicable` traversals use `_dataDeviceList`.
-- Dirtying is split. `DirtyPowerAndDataDeviceLists()` dirties both; `DirtyDataDeviceList()` dirties only the data side.
+- The two lists are walked independently. The power tick uses `_powerDeviceList` ([PowerTick.Initialise](./PowerTick.md) fills its `Devices` from `PowerDeviceList`); IC10 / `Logicable` traversals use `_dataDeviceList`.
+- **Power-tick membership requires a power cable on THIS network** (the 270772-270783 filter): a device in `DeviceList` with no `PowerCables` entry pointing into this network is invisible to this network's `PowerTick` (it is neither summed in `CalculateState` nor visited by `ApplyState`, so this network's tick can neither power nor un-power it).
+- The one override: `WirelessNetwork.RefreshPowerAndDataDeviceLists` (272486-272492) replaces the filter entirely with `_powerDeviceList.AddRange(DeviceList)` and leaves `_dataDeviceList` permanently empty. A wireless network has no cables, so on it EVERY member of `DeviceList` (the linked TX/RX dishes) is a power device and none is a data device. See [PowerTransmitter](./PowerTransmitter.md), "WirelessNetwork internals".
+- Dirtying is split. `DirtyPowerAndDataDeviceLists()` dirties both (270816-270820); `DirtyDataDeviceList()` dirties only the data side (270822-270825).
 
 This is the architectural hook that lets a single physical cable carry both signals while letting a device participate in only one.
 
@@ -197,9 +215,9 @@ Consequences:
 - The vanilla call sites dirty only the network that directly changed (plus the explicit `HandleDataNetTransmissionDevice` receiver-push). A mod that makes one network's data list depend on a DIFFERENT network's membership (transitive logic passthrough across a chain of bridge devices) gets no automatic invalidation when the far network changes; it must propagate the dirty itself. Per the accessor quirk below, `DirtyDataDeviceList()` alone will not force a rebuild on the next `DataDeviceList` read (the getter checks `PowerDeviceListDirty`), so a reliable cross-network invalidation must call `DirtyPowerAndDataDeviceLists()`.
 
 ## HandleDataNetTransmissionDevice: data devices reach across cable networks
-<!-- verified: 0.2.6228.27061 @ 2026-05-13 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
-Logic devices can talk to other devices on a different `CableNetwork` without a shared cable run between them. The mechanism is a paired transmitter / receiver, bound by player configuration in the device UI (canonical example: station-side rocket data link configured to talk to rocket-side data link). Each side sits on its own `CableNetwork`. The link is bridged during the data-list refresh (Assembly-CSharp.dll decompile lines 253630-253655):
+Logic devices can talk to other devices on a different `CableNetwork` without a shared cable run between them. The mechanism is a paired transmitter / receiver, bound by player configuration in the device UI (canonical example: station-side rocket data link configured to talk to rocket-side data link). Each side sits on its own `CableNetwork`. The link is bridged during the data-list refresh (0.2.6403.27689 decompile lines 270789-270814, shape-identical to the 0.2.6228 body; local variable names normalized in this excerpt):
 
 ```csharp
 private void HandleDataNetTransmissionDevice(Device device)
@@ -563,6 +581,7 @@ A neighbour is considered "connected" if **any** of its OpenEnds shares a Networ
 ## Verification history
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
+- 2026-07-02 (later): re-verified and restamped the "Data device list" and "HandleDataNetTransmissionDevice" sections against the 0.2.6403.27689 decompile (`RefreshPowerAndDataDeviceLists` 270746-270787 with the `Cable[]` array iteration replacing the old `List<Cable>` foreach; `HandleDataNetTransmissionDevice` 270789-270814 shape-identical; `DirtyPowerAndDataDeviceLists` / `DirtyDataDeviceList` 270816-270825). Added two consequences to the data-device-list section: power-tick membership requires at least one `Device.PowerCables` entry pointing into this network (the 270772-270783 filter; a `DeviceList` member without one is invisible to this network's PowerTick), and the `WirelessNetwork.RefreshPowerAndDataDeviceLists` override (272486-272492) takes the whole `DeviceList` as the power list with a permanently empty data list (cross-linked to [PowerTransmitter](./PowerTransmitter.md)). Additive plus excerpt refresh; no prior claim contradicted. Driving work: Powered-semantics stage of the power rearchitecture session.
 - 2026-07-02: grid-adjacency API migration + re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. SUPERSEDED: (a) `SmallGrid.ConnectedCables()` (both overloads) and the static `FoundCables` buffer are REMOVED from the game; `ConnectedNetworks` (271268) is now `FillConnected<Cable>`-based over `stackalloc Span<SmallCellRef>` (verbatim replaced), the "ConnectedCables iteration order" block is rewritten as "FillConnected iteration order" (walk 312804 / 312852 / 312896; still OpenEnds order; per-cell occupant-slot order Cable/Chute/Device/Pipe/Rail/Other as secondary; `Transform.position` main-thread coupling unchanged at 312808 / 312856 / 312904; shared-buffer corruption hazard gone), and `Add(Cable)`'s device walk (271053-271088) now uses its own stackalloc `FillConnected<Device>`. (b) the static `CableNetwork.OnNetworkChanged` event is REMOVED with no replacement: constructors (270893 / 270899 / 270905) and `Add(Cable)` (271053) no longer raise anything; remaining `OnNetworkChanged` hits in the assembly are `Networks.StructureNetwork`'s protected virtual instance method (189082 area), unrelated; mods needing the old signal must postfix the three constructors plus `Add(Cable)`. (c) the class declaration gained logic surfaces: `CableNetwork : IReferencable, IEvaluable, ILogicable, ISyncListable, IDensePoolable, IMemoryReadable, IMemory` (270571). Re-verified unchanged with new refs: static `Merge` list[0]-wins (271129), instance `Merge` (271110-271127), `RebuildNetwork` BFS (271147, now FillConnected-based and skipping `IsBeingDestroyed`, otherwise shape-identical), `RebuildCableNetworkServer` (271208, new `SmallCellRef` overload 271203), `RebuildCableNetworkClient` (271222, null-guard error at 271228), `RemoveDevice` (271011-271027, now invoking `device.OnRemoveCableNetwork(this)` at 271024, see [PowerReceiver](./PowerReceiver.md) for the consequence), field block + accessor quirk (270619-270700; the `DataDeviceList.get`-checks-`PowerDeviceListDirty` asymmetry persists), `AssignReference` / `NewToSend` (270854-270869 / 270650), constructors (270893-270910), `DeserializeNew` (271326, verbatim excerpt replaced by a summary pending a full re-read; decl and factory role confirmed), `Cable.OnRegistered` / `DeserializeOnJoin` call sites (392523 / 392451), `RebuildCableNetworkEvent` decl (272397). Sections not re-read this pass keep their 0.2.6228.27061 stamps: provider iteration / provider order (the bodies now live on [PowerTick](./PowerTick.md) and were re-verified there), data-device-list refresh internals, refresh cadence call-site census, HandleDataNetTransmissionDevice, Network Analyser consumer, and the deterministic-merge-sort resolution section (its Power Grid Plus patch context is unchanged, but note its `ConnectedCables`-related caveats are now historical; the mod-side adjacency pattern is on [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md)).
 - 2026-05-02: page created. Sourced from a long-distance auto-aim test on the Lunar save: seven TX-RX pairs at 163-222 m all linked successfully (verified via InspectorPlus DishProbe), but only one RX showed `Powered=True` and `PowerProvided > 0`. Reading `CableNetwork.ConsumePower` in Assembly-CSharp.dll (decompile lines 254579-254654) confirmed the single-supplier-first iteration, identifying the observed asymmetry as expected vanilla behaviour for parallel receivers on a shared destination network.
 - 2026-05-13: added "Data device list" and "HandleDataNetTransmissionDevice" sections, sourced from `Assembly-CSharp.dll` decompile lines 253589-253655 (refresh + relay) and 364740-365158 (interfaces and rocket-link implementers). Added `logic` and `network` tags. No conflict with the existing power-side content. Findings produced while researching whether transformers and APCs can be made logic-transparent for Power Grid Plus.

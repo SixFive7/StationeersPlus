@@ -2,11 +2,12 @@
 title: ElectricalInputOutput
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-29
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373933 (ElectricalInputOutput class, fields, IsPowerProvider/IsPowerInputOutput, IsOperable, AvailablePower/CurrentLoad/PotentialLoad, CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork), 349623 (Device.MaxProviderRecursionIterations), 350691 (Device.IsProviderToDevice base)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 394930-395006 (CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork, OnRemoveCableNetwork), 390636-390998 (AreaPowerControl NoPower / CheckPower / AllowSetPower), 391963-391969 (Battery.CheckPower)
 related:
   - ./Device.md
   - ./Transformer.md
@@ -56,10 +57,10 @@ public class ElectricalInputOutput : Device, ISmartRotatable, ISubmergeable, IPo
 Both `IsPowerProvider` and `IsPowerInputOutput` are `true` here (the base `Device` returns `false` for both, decompile lines 349647 / 349687). These two flags drive [PowerTick.CalculateState](./PowerTick.md): a device with `IsPowerInputOutput == true` whose `GetGeneratedPower > 0` is added to the network's `InputOutputDevices[]` array (used by the recursion-cycle check below), and `IsPowerProvider == true` is one of the conditions under which `ApplyState` powers the device even when the network is in brownout (`_isPowerMet == false`).
 
 ## CheckConnections: how InputNetwork / OutputNetwork resolve
-<!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
 ```csharp
-protected override void CheckConnections()                                      // line 373872
+protected override void CheckConnections()                                      // 0.2.6403.27689 line 394930
 {
     Cable cable = InputConnection.GetCable();
     Cable cable2 = OutputConnection.GetCable();
@@ -68,7 +69,51 @@ protected override void CheckConnections()                                      
 }
 ```
 
-Each network is whatever `CableNetwork` the adjacent cable on that connection currently belongs to, or null if no cable faces that open end. `CheckConnections` is called from `InitializeDevice` (line 373847) and from `OnAddCableNetwork` (line 373928, which also calls `CheckPower`). So the input/output network pointers refresh on device init and whenever a cable network attaches. The wireless subclasses override `CheckConnections` (the receiver resolves only its `OutputConnection` cable, the transmitter only its input side; the other side is the `WirelessNetwork`, see [PowerReceiver](./PowerReceiver.md) / [PowerTransmitter](./PowerTransmitter.md)).
+Each network is whatever `CableNetwork` the adjacent cable on that connection currently belongs to, or null if no cable faces that open end. `CheckConnections` is called from `InitializeDevice` and from `OnAddCableNetwork` / `OnRemoveCableNetwork` (see the CheckPower section below). So the input/output network pointers refresh on device init and whenever a cable network attaches or detaches. NEW at 0.2.6403.27689: `OnRemoveCableNetwork(oldNetwork)` (394993-395006) first nulls `InputNetwork` / `OutputNetwork` when they match the departing network, before re-running `CheckConnections` (see [PowerReceiver](./PowerReceiver.md), "Unlink behavior", for the consequence on the wireless side). The wireless subclasses override `CheckConnections` (the receiver resolves only its `OutputConnection` cable, the transmitter only its input side; the other side is the `WirelessNetwork`, see [PowerReceiver](./PowerReceiver.md) / [PowerTransmitter](./PowerTransmitter.md)).
+
+## CheckPower: event-driven un-power outside the tick
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+[PowerTick.ApplyState](./PowerTick.md) un-powers devices once per tick, but a bridge can also lose `Powered` immediately, between ticks, through the `CheckPower` family. The base is declared here (0.2.6403.27689 lines 394945-394951):
+
+```csharp
+public virtual void CheckPower()
+{
+    if (GameManager.RunSimulation && InputNetwork == null && Powered)
+    {
+        OnServer.Interact(base.InteractPowered, 0);
+    }
+}
+```
+
+A powered bridge whose INPUT side has no network (input cable cut, input network dissolved) is flipped off on the spot, host-side. Call sites on the bridge base (both run `CheckConnections` first, so `InputNetwork` is fresh):
+
+```csharp
+public override void OnAddCableNetwork(CableNetwork newNetwork)      // 394985-394991
+{
+    base.OnAddCableNetwork(newNetwork);
+    CheckConnections();
+    CheckPower();
+}
+
+public override void OnRemoveCableNetwork(CableNetwork oldNetwork)   // 394993-395006
+{
+    base.OnRemoveCableNetwork(oldNetwork);
+    if (oldNetwork == InputNetwork)  { InputNetwork = null; }
+    if (oldNetwork == OutputNetwork) { OutputNetwork = null; }
+    CheckConnections();
+    CheckPower();
+}
+```
+
+Overrides at 0.2.6403.27689:
+
+- `AreaPowerControl.CheckPower` (390983-390989) un-powers on `NoPower && Powered`, where `NoPower` (390636-390650) is "no cell or empty cell, AND (no input network OR `InputNetwork.PotentialLoad <= 0`)": the APC counts its battery as a power source, so pulling the input cable does not un-power an APC with a charged cell. The APC also calls `CheckPower()` from its `OnOff` interaction handler and from `OnChildEnterInventory` / `OnChildExitInventory` when the battery cell is inserted or removed (call sites in the 390880-390960 region).
+- `Battery.CheckPower` (391963-391969) is a re-sync rather than an un-power: `if (RunSimulation && (InteractPowered.State == 1) != Powered) OnServer.Interact(InteractPowered, Powered ? 1 : 0)`, called from the station battery's tick when `HasPowerState`.
+
+Disambiguation: an unrelated `CheckPower` family exists on the handheld `PowerTool` side (virtual around line 353114 at 0.2.6403.27689, overridden by `SensorLenses` at 354109); that one checks the tool's battery slot and has nothing to do with cable networks.
+
+Mod consequence: a patch that manages `Powered` semantics on bridges must account for BOTH write paths: the per-tick `ApplyState` else-branch (gated by `AllowSetPower`, see [PowerTick](./PowerTick.md)) and these event-driven `CheckPower` calls that fire on wiring changes, OnOff toggles, and cell insert/remove without waiting for a tick.
 
 ## IsOperable: a bridge must join two DISTINCT networks
 <!-- verified: 0.2.6228.27061 @ 2026-06-29 -->
@@ -168,6 +213,7 @@ Key facts:
 
 ## Verification history
 
+- 2026-07-02: added "CheckPower: event-driven un-power outside the tick" and restamped "CheckConnections" against the 0.2.6403.27689 decompile. `CheckConnections` verbatim-unchanged at 394930-394936; NEW at 0.2.6403.27689: `OnRemoveCableNetwork` (394993-395006) nulls the matching `InputNetwork` / `OutputNetwork` before `CheckConnections` + `CheckPower` (the 0.2.6228 version had no such null-out; consequence documented on [PowerReceiver](./PowerReceiver.md)). CheckPower facts: base virtual at 394945-394951 (`RunSimulation && InputNetwork == null && Powered` -> `OnServer.Interact(InteractPowered, 0)`), call sites `OnAddCableNetwork` 394985-394991 / `OnRemoveCableNetwork` 394993-395006; `AreaPowerControl.CheckPower` override 390983-390989 gated on `NoPower` (390636-390650: no/empty cell AND (no input net OR `PotentialLoad <= 0`)) with extra call sites on OnOff interaction and battery-cell insert/remove; `Battery.CheckPower` override 391963-391969 re-syncs `InteractPowered.State` to the computed `Powered`; the handheld `PowerTool` `CheckPower` family (virtual ~353114, `SensorLenses` override 354109) flagged as unrelated. Additive plus one supersession-by-game-change (the OnRemoveCableNetwork null-out); no fresh validator needed. Driving work: Powered-semantics stage of the power rearchitecture session. Sections not re-read this pass (class header/fields, IsOperable, load accessors, IsProviderToDevice body, submergeable block) keep their 0.2.6228.27061 stamps; `IsProviderToDevice` was spot-checked shape-identical at 394953+.
 - 2026-06-29: page created. Consolidates the `ElectricalInputOutput` bridge base, previously documented piecemeal on [Transformer](./Transformer.md) (fields + IsOperable), [Battery](./Battery.md) (class hierarchy), and [Device](./Device.md) (IsOperable collision). Sourced verbatim from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373933: class header + fields, `IsPowerProvider => true` (373783), `IsPowerInputOutput => true` (373801), `IsOperable` self-short rule (373803-373813), `AvailablePower` / `CurrentLoad` / `PotentialLoad` load accessors (373815-373839), `CheckConnections` (373872-373878), `CheckPower` (373887-373893), `IsProviderToDevice` recursive cycle walk bounded by `MaxProviderRecursionIterations` (373895-373926, cap value 349623), `OnAddCableNetwork` (373928), and the submergeable block (373773-373870). Additive (new page); no existing verified content contradicted -- the IsOperable and field facts match what Transformer.md / Battery.md / Device.md already state, this page is the canonical home and they cross-link to it.
 
 ## Open questions
