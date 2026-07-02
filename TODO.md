@@ -40,6 +40,7 @@ Cross-mod and repo-wide tasks. Per-mod tasks live in each mod's own `TODO.md`.
 ## Research housekeeping
 
 - Research/Unsorted: classify Research/Unsorted/PowerGridPlusCrossModCompat.md (originally from Mods/PowerGridPlus/TODO.md eighth verification task, 2026-05-22). Candidate categories: a new `Compat/` category if cross-mod compat pages become a recurring pattern, or fold into `Mods/PowerGridPlus/RESEARCH.md` Appendix B as a live-test addendum.
+- Research/Unsorted: classify Research/Unsorted/Api-removals-0.2.6403.md (originally from the 2026-07-02 dedicated-server boot investigation, verified against .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs). Candidate outcomes: fold the two page-local entries (Wireframe.ShowTransformArrow, InventoryManager.UnitTest_ConstructionValidate) into per-class GameClasses pages if those get written, or promote a recurring "API breaks by game version" page under GameSystems if the next game update produces another batch.
 
 ## Long-term
 
