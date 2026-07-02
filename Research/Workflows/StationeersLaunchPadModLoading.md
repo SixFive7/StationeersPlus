@@ -2,12 +2,13 @@
 title: StationeersLaunchPad mod loading pipeline
 type: Workflows
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-21
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-02
 sources:
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: StationeersLaunchPad.Metadata.ModInfo / LoadedMod / ModLoader (decompile .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs:13287-16400)
   - BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: PrefabEntrypoint / ModBehaviourEntrypoint (decompile lines 16892-16935)
   - BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :: LaunchPadBooster.Mod / PrefabPatch (decompile .work/decomp/0.2.6228.27061/LaunchPadBooster.decompiled.cs:99-242)
+  - StationeersLaunchPad 0.4.0 (dedicated-server shipped DLL) :: ModLoader / LoadedMod / StationeersLaunchPad.Entrypoints (decompile .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs:16791, 18552, 18645-18680, 19067-19082; cache folder keyed by game version, assembly version 0.4.0 per lines 74 / 3627 / 4123)
 related:
   - ../GameSystems/PrefabSourceAttribution.md
   - ../GameSystems/ModLoadSequence.md
@@ -111,6 +112,55 @@ StationeersLaunchPad loads mods in three async phases, each stopwatch-logged (th
 
 At the entrypoint phase, the mod's code runs and is responsible for actually registering its prefabs with the game (commonly by handing them to `LaunchPadBooster.Mod.AddPrefabs`, which defers the real registration to a `Prefab.LoadAll` prefix; see below and PrefabSourceAttribution.md).
 
+## Where the live plugin instance lives: LoadedMod.Entrypoints, never Chainloader.PluginInfos
+<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+
+Source: StationeersLaunchPad **0.4.0** (the dedicated server's shipped DLL; assembly version confirmed in-decompile at lines 74 `AssemblyFileVersion("0.4.0")`, 3627 `VERSION = "0.4.0"`, 4123 `[BepInPlugin("stationeers.launchpad", "StationeersLaunchPad", "0.4.0")]`), decompiled to `.work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs` (cache folder keyed by GAME version per repo convention; the assembly is StationeersLaunchPad 0.4.0).
+
+**A BepInEx-style plugin loaded THROUGH StationeersLaunchPad never appears in `BepInEx.Bootstrap.Chainloader.PluginInfos`.** A whole-decompile grep of StationeersLaunchPad 0.4.0 for `Chainloader` and `PluginInfos` returns zero hits: StationeersLaunchPad neither reads nor writes BepInEx's plugin registry. It instantiates a mod's `BaseUnityPlugin` type by raw `AddComponent`, bypassing the BepInEx chainloader entirely, so `Chainloader.PluginInfos` only ever contains plugins BepInEx itself loaded from `BepInEx/plugins`.
+
+Where the live instance IS held, at 0.4.0 (entrypoint classes live in the `StationeersLaunchPad.Entrypoints` namespace):
+
+```csharp
+// StationeersLaunchPad.Loading.ModLoader (line 18552)
+public static readonly List<LoadedMod> LoadedMods = new List<LoadedMod>();
+
+// StationeersLaunchPad.Loading.LoadedMod (line 16791)
+public List<ModEntrypoint> Entrypoints = new List<ModEntrypoint>();
+
+// StationeersLaunchPad.Entrypoints (lines 19067-19082)
+public abstract class ModEntrypoint
+{
+    public abstract string DebugName();
+    public abstract void Instantiate(GameObject parent);
+    public abstract void Initialize(LoadedMod mod);
+    public abstract IEnumerable<ConfigFile> Configs();
+}
+public abstract class BehaviourEntrypoint<T>(Type type) : ModEntrypoint where T : MonoBehaviour
+{
+    public readonly Type Type = type;
+    public T Instance;
+}
+
+// StationeersLaunchPad.Entrypoints.BepInExEntrypoint (lines 18647-18677)
+public class BepInExEntrypoint : BehaviourEntrypoint<BaseUnityPlugin>
+{
+    public override void Instantiate(GameObject parent)
+    {
+        Instance = (BaseUnityPlugin)parent.AddComponent(Type);   // line 18663
+    }
+    public override void Initialize(LoadedMod mod) { }           // empty; BepInEx plugins get no OnLoaded
+    public override IEnumerable<ConfigFile> Configs()
+    {
+        if (Instance.Config != null) yield return Instance.Config;
+    }
+}
+```
+
+`EntrypointSearch.FindBepInExEntrypoints` (line 18690 area) scans each mod assembly for `BaseUnityPlugin`-derived types to build these entries; `PrefabEntrypoint` (19083+) keeps the same `OnLoaded(ContentHandler)` initialize flow documented in "The three loading phases" above (the 0.4.0 restructure moved the entrypoint classes into their own namespace and introduced the `BehaviourEntrypoint<T>` base without changing that flow).
+
+Lookup recipe for tooling: walk `StationeersLaunchPad.Loading.ModLoader.LoadedMods`, match the mod by `Info.Name` / `Info.ModID`, then scan its `Entrypoints` for a `BepInExEntrypoint` and read `.Instance` (typed `BaseUnityPlugin`; the concrete plugin type is `.Type`). Practical consequence: tooling that needs a live plugin instance (dev probes, diagnostics, cross-mod reflection) must fall back from `Chainloader.PluginInfos` to this registry whenever the target mod is loaded through StationeersLaunchPad's `data/mods` / Workshop path rather than sitting in `BepInEx/plugins`.
+
 ## No "current mod" static; identity sources
 <!-- verified: 0.2.6228.27061 @ 2026-06-21 -->
 
@@ -144,6 +194,7 @@ A Harmony **prefix on `Prefab.LoadAll`** (`PrefabPatch.PatchPrefabs`, lines 216-
 
 ## Verification history
 
+- 2026-07-02: added "Where the live plugin instance lives: LoadedMod.Entrypoints, never Chainloader.PluginInfos" from the StationeersLaunchPad 0.4.0 decompile (`.work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs`; assembly version confirmed at lines 74 / 3627 / 4123). Facts: whole-decompile grep for `Chainloader` / `PluginInfos` returns zero hits, so StationeersLaunchPad-loaded plugins never register with BepInEx's chainloader; the live `BaseUnityPlugin` is held by `ModLoader.LoadedMods` (18552) -> `LoadedMod.Entrypoints` (`public List<ModEntrypoint>`, 16791) -> `BepInExEntrypoint : BehaviourEntrypoint<BaseUnityPlugin>` whose `Instantiate` does `Instance = (BaseUnityPlugin)parent.AddComponent(Type)` (18663); `BehaviourEntrypoint<T>` declares `public readonly Type Type` + `public T Instance` (19077-19082); `EntrypointSearch.FindBepInExEntrypoints` builds the entries (18690 area); `PrefabEntrypoint` (19083+) keeps the OnLoaded flow. Additive; the 0.2.6228-stamped sections were not re-read (the `LoadedMod` field list already included `Entrypoints` from the 2026-06-21 runtime dump, now pinned to a decompile line). Driving work: dedicated-server dev-probe tooling needing a live plugin instance for a mod loaded via the data/mods path.
 - 2026-06-21: page created from a read of the StationeersLaunchPad and LaunchPadBooster decompiles at game version 0.2.6228.27061. Documents ModInfo / LoadedMod / ModLoader, the three load phases, the absence of a current-mod static (identity via loop variable, state-machine `this`, or `TryGetExecutingMod` stack walk), and the LaunchPadBooster `Mod.AllMods` + `PrefabPatch` route. Reframed and reformatted from an initial sub-agent draft to comply with Research conventions (repo-relative source citations, triple-backtick fences, valid related links).
 - 2026-06-21: added `LoadedMod.Info` (the `ModInfo` carrying the mod name) to the LoadedMod section, plus the full runtime-confirmed instance field set, after a ScenarioRunner runtime reflection member dump (the `device-port-dump` LoadedMod diagnostic, game 0.2.6228.27061) showed `LoadedMod` exposes `Info:ModInfo` and has no `Def`/`Name`/`About` member of its own. This corrects the StationeersLaunchPad prefab-attribution name source: read `LoadedMod.Info.Name`, not `LoadedMod.Def.About.Name`. Additive correction; no prior stamped claim contradicted (the original LoadedMod member list was described as "the runtime collections", not exhaustive).
 

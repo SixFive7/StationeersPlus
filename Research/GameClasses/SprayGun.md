@@ -102,7 +102,7 @@ case InteractableType.OnOff:
 
 `OnServer.Interact` is the server-authoritative path and broadcasts the new state to all clients via the `Interactable.State` field + animator parameter. The state persists across save/load because `Interactable.State` is part of the Thing's normal save data.
 
-Contextual label ("On" / "Off" hint) comes from `Thing.GetContextualName(Interactable)` at decompile line 300637:
+Contextual label ("On" / "Off" hint) comes from `Thing.GetContextualName(Interactable)` at decompile line 300637 (re-verified unchanged at game version 0.2.6403.27689: still `public virtual`, same `InteractableType.OnOff` case body, new decompile line 319699):
 
 ```
 case InteractableType.OnOff:
@@ -118,6 +118,7 @@ HUD display path: `Interactable.ContextualName` property at decompile line 28600
 
 - 2026-04-21: page created. Decompile findings sourced from Assembly-CSharp.dll line 334806-334812 for `OnUseItem`; declaration and interface list from the class header.
 - 2026-04-21: added "Operability gate (cursor validity)" documenting `SprayGun.IsOperable` (returns `!IsEmpty && OnOff`) and its role in painting the cursor red on an empty gun via `Thing.AttackWith` (decompile line 302593) returning null; noted the red-cursor UI handler at line 269962. Added "OnOff state, toggle, label" documenting the inherited `Thing.OnOff` property (line 299160), the right-click dispatch via `HumanHandsBehaviour.ToggleActiveHandTool` (line 271917) and `Thing.InteractWith` (line 302420), the server-synced `Interactable.State` path, and the label path via `Thing.GetContextualName` (line 300637) and `Interactable.ContextualName` (line 286007). Additive only; no prior claim changed.
+- 2026-07-02: spot re-verified `Thing.GetContextualName(Interactable)` against the 0.2.6403.27689 decompile: still `public virtual`, `InteractableType.OnOff` case body identical (`ActionStrings.On` / `ActionStrings.Off`), new line 319699. Confirmation noted inline; the rest of the "OnOff state, toggle, label" section was not re-read this pass, so its 0.2.6228.27061 stamp stands. The postfix-relabel recipe (SprayPaintPlus "Add Glow" / "Remove Glow") therefore remains valid at the current game version.
 
 ## Open questions
 
