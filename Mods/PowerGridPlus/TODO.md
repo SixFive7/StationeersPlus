@@ -6,7 +6,7 @@ Implemented changes still awaiting an in-game or dedicated-server test do not be
 
 ## Documentation
 
-- **Update the repo-root `POWER.md` for the 2026-07-02 rearchitecture.** Its section 9 still specifies the deleted surplus walk, and `GrantThrough` still appears in the cache-tail description; the spec needs the unified flow classes (soft riding the backward/forward sweep), the per-seg presentation totals, the segment adapter contract, the PowerTransmitterPlus billing-ownership handshake, the Powered presentation policy, and the ledger adoption. Until then, `RESEARCH.md` section 3 is the source of truth for the unified flow classes.
+- **Refresh stale `Settings.cs` description strings.** The `Enable Transformer Shedding` and `Enable Battery Logic Additions` descriptions still describe pre-refactor behavior (the Setting redirect, ImportQuantity/ExportQuantity); the strings surface in the in-game settings panel and the generated `.cfg` comments. Text-only change, but it forces a rebuild, so batch it with the next code change.
 
 ## Allocator follow-ups
 
@@ -26,7 +26,7 @@ Implemented changes still awaiting an in-game or dedicated-server test do not be
 ## Pointers
 
 - `RESEARCH.md` -- architecture (section 3 covers the atomic tick, the unified flow classes, the adapter contract, the interop handshake, and the Stage 3 policies), file walkthrough, patch catalog, decision log.
-- Repo-root `POWER.md` -- the power-system algorithm spec (partially stale, see the Documentation item above).
+- Repo-root `POWER.md` -- the power-system algorithm spec, revised 2026-07-03 for the unified-flow rearchitecture.
 - `Research/GameClasses/Cable.md`, `PowerTick.md`, `Transformer.md`, `AreaPowerControl.md`, `Battery.md`, `RocketPowerUmbilical.md`, `PowerTransmitterOmni.md`; `Research/GameSystems/StructurePlacementValidation.md`, `DevicePowerDraw.md`, `RecipeDataLoading.md`, `PowerTickThreading.md` -- the curated game internals this mod relies on.
 - `Mods/PowerTransmitterPlus/` -- the sibling mod that owns the wireless dish pair (billing model, ModApi, beam visuals). Wireless-dish changes go there, not here.
 - `.work/revolt-source/` -- read-only clone of Re-Volt (the upstream the device fixes derive from).

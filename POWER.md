@@ -1,16 +1,33 @@
-# Power Grid Plus — Power System Specification
+# Power Grid Plus: Power System Specification
 
 Authoritative spec for the post-refactor power simulation. Reads as a reference, not a tutorial. Defines invariants, algorithms, and behaviour rules in enough detail to implement against without consulting the conversation that produced it.
 
-## 0. Resolved decisions (2026-06-10) — these override any contradicting text below
+## 0. Resolved decisions (dated override blocks, newest first; these override any contradicting text below)
+
+Decision numbers are global across the dated blocks (source comments cite them as "decision N" / "§0.N"), so a newer block continues the numbering of the older one instead of restarting at 1.
+
+### Resolved decisions (2026-07-02): the unified-flow rearchitecture
+
+Shipped in commits e9ef3c1f (Stage 1: unified flow classes + complete segment presentation), 2a00d674 (Stage 2b: segment adapter contract + PowerTransmitterPlus ModApi handshake), and 31017f38 (Stage 3: Powered presentation + ledger adoption + diagnostics). The affected body sections (§2, §5.0.2-§5.0.3, §6.3, §6.6, §7.2-§7.6, §8.0.3-§8.0.4, §8.2-§8.4.2, §8.8, §9, §10.6-§10.7, §12, §14.2, §16, §17, §18, §19) are rewritten or extended to match; where any remaining older text contradicts these decisions, the decisions win.
+
+9. **One demand vector, two riding flow classes; the surplus walk is deleted.** Storage charge (battery, APC cell, umbilical cell) is the SOFT class riding the SAME `BackwardDesirePass` / `ForwardSupplyAndShed` sweep as rigid demand, as a (rigid, soft) demand vector: the same priority-tier-first, proportional-within-a-tier splitter, with each contributor's soft capacity capped at `EffCap - rigid desired throughput`, granted forward out of the firm residual only, quiescent draw carried exactly once (on the rigid pull when any rigid flows, else on the soft pull). The separate single-pass surplus walk, `GrantThrough`, `SoftReqTotal`, and `Net.ElasticDelivered` are deleted (§9).
+10. **Faults are rigid-only.** Shed, structural overload, supply overload, cable overflow, and the dead-input cue all evaluate the rigid component only. Unmet soft desire clamps silently: never a shed, never an overload, never a lockout, never a hover cue (§9.6).
+11. **Complete per-segment presentation totals.** The allocator publish tail writes `TransformerSupplyCache.Set(RefId, TotalThrough, TotalPull)` for EVERY routed seg kind (Transformer, wireless PT/PR pair, APC), where `TotalThrough = rigid + soft output delivery` and `TotalPull = TotalThrough * max(m, 1) + quiescent` whenever the seg conducts, so a granted soft flow always has a carrier on both terminals of its segment (§8.0.4). Network mirrors, hover tooltips, and IC10 throughput reads include storage-charge flow.
+12. **Segment adapter contract.** GATHER consults one `ISegAdapter` per modelled bridge class (`SegAdapters.cs`): Routed (Transformer, linked wireless pair, APC) versus Buffered (rocket umbilical, formalized store-and-forward; the 0.2.6403 female half transfers bidirectionally in vanilla phase 2). Unknown `ElectricalInputOutput` subclasses stay on vanilla behaviour and are reported once per type at world load (§5.0.3, §8.8).
+13. **Three-tier PowerTransmitterPlus interop with a billing-ownership handshake.** ModApi v1 preferred (`EffectiveMaxCapacity` / `TryGetLink` / `SourceDrawMultiplier` / debt accessors + `ClaimBillingOwnership("net.powergridplus")`; PowerTransmitterPlus's native wireless debt billing stands down while the claim is held), legacy 1.8.0 reflection chain second, vanilla-absent fallback third (§6.6). The PT-pair seg is sized by a STATIC link rating, never the live `InputNetwork.PotentialLoad` (§6.3).
+14. **Powered presentation policy.** A healthy routed segmenter (enrolled, unfaulted, conducting or idle on a supplied input with no unmet rigid demand) presents `Powered = True`: `AllowSetPower` postfixes block vanilla's false edge, the ENFORCE tail raises the true edge (one frame of marshal lag). Dark-input and faulted segmenters keep vanilla behaviour (§10.6).
+15. **Ledger adoption.** PowerGridPlus owns the `_powerProvided` ledgers of the routed segmenters it bills for: a world-load sweep zeroes them (both signs, NaN included), and a per-tick ENFORCE-tail settle sets Transformer := `TotalThrough` (so `PowerActual` reads true throughput), transmitter := 0, receiver := `min(debt, TotalThrough)`. The APC is exempt per tick (its positive ledger is vanilla's deferred cell discharge). Upper bound is a warn-only high-water detector at 4x the expected steady value (§10.7).
+16. **Machine-checked diagnostics.** `ConservationChecker` (per-net inflow == outflow within 0.5 W + the per-seg pull invariant, `Server - Diagnostics` / `Enable Conservation Check` default true, 600-tick warning throttle), `ShortfallDiagnostics` (per-net Served / Dry / Throttled / Deadlock classification; Deadlock is the regression signal, expected 0), and `UnknownBridgeCensus` (one-shot log of unmodelled bridge types left on vanilla) (§8.8, §17.43, §17.44).
+
+### Resolved decisions (2026-06-10)
 
 This spec was partly implemented (pass 1, 2026-06-09/10) and then reviewed with the developer, who locked the decisions below. Where the body of this document contradicts one of these (the spec has a couple of internal contradictions and one wrong vanilla value), **these decisions win**. The implementation checklist and current status live in `POWERTODO.md` ("2026-06-10 decisions and current status") and `POWER_DEVIATIONS.md` (file-by-file done/remaining). The standing instruction is to implement EVERYTHING (no deferring), building and testing after each step.
 
 1. **Single inner-tick architecture.** The SETUP / OBSERVE and ENFORCE phases run the VANILLA `PowerTick` (Initialise / CalculateState / ApplyState), not a custom `PowerGridTick` subclass. All PowerGridPlus behaviour comes from device-method postfixes and the atomic PROTECT phase. `PowerGridTick.cs` is removed; its former jobs (wrong-tier burn -> PROTECT, generator-overflow burn §5.7, the vanilla recursive belt-and-braces) are relocated.
-2. **Cable caps are non-mutating.** `Cable.MaxVoltage` (a per-instance, save-serialized field; misleadingly named — it is a Watts cap) is NOT rewritten. The configured per-tier caps come from a helper that every cap-reader consults, including vanilla's own cable-burn check (patched). Defaults: normal **5000**, heavy **100000** (true vanilla; §5.6's "50000" is wrong), super-heavy **0 = unlimited** — all three configurable. The README states caps are runtime-enforced, not baked into the save.
+2. **Cable caps are non-mutating.** `Cable.MaxVoltage` (a per-instance, save-serialized field; misleadingly named, it is a Watts cap) is NOT rewritten. The configured per-tier caps come from a helper that every cap-reader consults, including vanilla's own cable-burn check (patched). Defaults: normal **5000**, heavy **100000** (true vanilla; §5.6's "50000" is wrong), super-heavy **0 = unlimited**; all three configurable. The README states caps are runtime-enforced, not baked into the save.
 3. **Failure colour is distinct (resolves the §11 / open-questions contradiction).** SHED = orange `#ffa500`; OVERLOAD / CYCLE_FAULT / VARIABLE_VOLTAGE_FAULT = red `#ff2626`. Highest-precedence active fault picks the colour: CYCLE > VVF > OVERLOAD > SHED.
 4. **Cycle detection is a DIRECTED-SCC walk (replaces §4.2.5's undirected bipartite DFS).** Nodes = cable networks; each segmenter contributes one directed edge InputNetwork -> OutputNetwork; a cycle = a strongly-connected component of size >= 2 (Tarjan). Edges gated on OnOff + both-networks-non-null + Input != Output; wireless PT/PR via the shared `WirelessNetwork` node. The undirected model false-positives on parallel same-direction transformers/batteries (normal redundancy); the directed model does not. Only powered SCCs fault (min(Potential,Required) > 0 on a member network).
-5. **Producer-isolation (VVF) is ALWAYS-ON, fault+zero, with a cable-burn fallback for unknown producers.** Known producers (the classifier list) fault and stop generating (reversible; button-bearing ones flash red, solar/wind/RTG hover-only) — no cable burn for known producers (resolves §1.6.5's internal contradiction). A producer-LIKE device NOT in the known list (new game version / modded) falls back to the original cable-burn handling so it is still caught. No enable/disable toggle.
+5. **Producer-isolation (VVF) is ALWAYS-ON, fault+zero, with a cable-burn fallback for unknown producers.** Known producers (the classifier list) fault and stop generating (reversible; button-bearing ones flash red, solar/wind/RTG hover-only); no cable burn for known producers (resolves §1.6.5's internal contradiction). A producer-LIKE device NOT in the known list (new game version / modded) falls back to the original cable-burn handling so it is still caught. No enable/disable toggle.
 6. **Fault visuals on every faultable device.** The flash + hover-countdown attach to every segmenter (Transformer, Battery, AreaPowerControl, PowerTransmitter, PowerReceiver, RocketPowerUmbilicalMale; RocketPowerUmbilicalFemale hover-only) and every button-bearing producer; solar/wind/RTG are hover-only.
 7. **Emergency lights are a configurable prefab list.** `EnableEmergencyLights` applies to a configurable comma-separated list of light prefab names (default `StructureWallLightBattery`), not a single hardcoded prefab.
 8. **One allocator, no toggle.** PowerGridPlus has exactly one power allocator (§8). An earlier development pass carried two DECIDE-phase strategies behind a runtime toggle (`EnableSweepAllocator`); the toggle, the alternate strategy, and the second code path are all removed. The surviving allocator is the topological-order, iterated fixed-point design described in §8. Throughout this spec "the allocator" means that single implementation; there is no longer a "Sweep" / "Legacy" distinction, no `SweepAllocatorSync`, and no allocator-selection setting. The per-feature master toggles `EnableTransformerShedding` and `EnableTransformerOverloadProtection` remain (they enable or disable the shed and overload passes), but they do not select between allocators.
@@ -38,18 +55,19 @@ The mod's invariants:
 
 **Naming note (SETUP / OBSERVE).** The code performs the per-tick reset and the vanilla `PowerTick.Initialise + CalculateState` as ONE combined per-network pass (`AtomicElectricityTickPatch.cs`, a single `CableNetwork.AllCableNetworks.ForEach` that clears `BreakableCables` / `BreakableFuses`, then calls `Initialise` then `CalculateState`); the contributor / elastic / soft rosters are gathered inside the allocator's own GATHER step, not in a separate pre-pass. Splitting SETUP from OBSERVE as two distinct code phases would imply a split that does not exist. This spec therefore presents them as one combined **SETUP / OBSERVE** step that maps to vanilla `Initialise + CalculateState` plus the per-tick reset, and names the two halves only when distinguishing the per-tick reset (SETUP) from the supply/demand read (OBSERVE) clarifies a point.
 
-1. **SETUP / OBSERVE.** Advance the shared tick counter (`ElectricityTickCounter.Advance`). For each cable network: clear `BreakableCables` / `BreakableFuses` (vanilla never clears them across ticks; clearing once per tick keeps the cable-burn check grounded in the current tick and fixes the vanilla accumulation drift), then `PowerTick.Initialise(net)` then `PowerTick.CalculateState()`. This populates `PowerTick.Required` and `PowerTick.Potential` per network using the device-level `GetUsedPower` and `GetGeneratedPower` reads. Soft-demand devices' postfixes pass through with the raw values during this step (more below). `OffAsResetSweep.Run` also fires here, clearing every lockout on devices the player has switched off (§10.3), before the PROTECT detectors re-evaluate.
+1. **SETUP / OBSERVE.** Advance the shared tick counter (`ElectricityTickCounter.Advance`). Before the first network read, two one-shot load hooks fire if armed (armed at plugin load, re-armed on every world load): the unknown-bridge census (§8.8) and the world-load ledger sweep (§10.7), so a stale saved `_powerProvided` can never bill through the first tick. Then for each cable network: clear `BreakableCables` / `BreakableFuses` (vanilla never clears them across ticks; clearing once per tick keeps the cable-burn check grounded in the current tick and fixes the vanilla accumulation drift), then `PowerTick.Initialise(net)` then `PowerTick.CalculateState()`. This populates `PowerTick.Required` and `PowerTick.Potential` per network using the device-level `GetUsedPower` and `GetGeneratedPower` reads. Soft-demand devices' postfixes pass through with the raw values during this step (more below). `OffAsResetSweep.Run` also fires here, clearing every lockout on devices the player has switched off (§10.3), before the PROTECT detectors re-evaluate.
 
 2. **PROTECT.** Structural-fault detection, before allocation, so the allocator never sees a fault's inflated `Potential` / `Required`. In order: wrong-tier cable burn (`VoltageTierEnforcer.Run`, §3 / §4.3), cycle-fault detection (`CycleGraphBuilder.FindCycleFaultedSegmenters` -> `CycleFaultRegistry`, the directed-SCC walk of §4.2.5), then producer-isolation / VARIABLE_VOLTAGE_FAULT (`VariableVoltageFaultDetector.Run`, §8.5). If anything was newly cycle-faulted or VVF-faulted this tick, OBSERVE is re-run once so ALLOCATE sees the dissolved loop / silenced producer (devices faulted on a PRIOR tick already read 0 via the enforcement postfixes).
 
-3. **ALLOCATE.** `PowerAllocator.RunAtomic(currentTick)`, the allocator (§8). Reads every network's freshly populated `PowerTick.Required` / `Potential`, builds the topological order, iterates the fixed-point loop, and decides every shed, overload, elastic share, and surplus grant. Outputs:
+3. **ALLOCATE.** `PowerAllocator.RunAtomic(currentTick)`, the allocator (§8). Reads every network's freshly populated `PowerTick.Required` / `Potential`, builds the topological order, iterates the fixed-point loop, and decides every shed, overload, elastic discharge share, and storage-charge (soft) grant. Outputs:
    - Set of segmenting devices freshly entering shed lockout (written to `BrownoutRegistry`).
    - Set freshly entering overload lockout (written to `OverloadRegistry`).
    - Per-elastic-supplier discharge share (written to `SoftSupplyShareCache`) and per-soft-demand-device charge share (written to `SoftDemandShareCache`).
-   - Per-transformer / PT-pair exact in-tick throughput and input draw (`TransformerSupplyCache`); per-APC fresh passthrough draw (`ApcPassthroughCache`).
+   - Per-routed-contributor exact in-tick presentation totals, rigid + soft (`TransformerSupplyCache`, written for Transformer, wireless PT/PR pair, and APC alike, §8.0.4); per-APC fresh passthrough draw (`ApcPassthroughCache`) and cell-only discharge share (`ApcCellDischargeCache`).
+   - The presentation snapshots: the healthy-segmenter set plus enrolled-seg roster (`PoweredPresentation`, §10.6) and the per-net shortfall classification (`ShortfallDiagnostics`, §8.8), each swapped in by volatile reference.
    - Per-tick full fault-registry snapshots broadcast to clients (one `FaultRegistrySnapshotMessage` per kind: shed / overload / cycle / variable-voltage / dead-input, §13), via `PowerAllocator.SyncFaultSnapshots`.
 
-4. **ENFORCE.** For each cable network, in the shallow-first order the allocator published (`ShallowFirstNetworks`, §8): `Initialise + CalculateState + ApplyState`. The re-`CalculateState` reads the freshly set shed/overload flags via our `GetGeneratedPower` / `GetUsedPower` patches, returning 0 for locked-out devices, reads each pass-through device's exact in-tick draw from `TransformerSupplyCache` / `ApcPassthroughCache`, and reads soft-demand / elastic allocations via the `SoftDemandShareCache` / `SoftSupplyShareCache` postfixes. Vanilla `ApplyState` then runs unmodified. Trailing field copies mirror vanilla `CableNetwork.OnPowerTick`: `RequiredLoad`, `CurrentLoad`, `PotentialLoad`, `ShortfallLoad`. Iterating upstream-first (topological order) is what lets each network's `CalculateState` run after its feeders' `PotentialLoad` was refreshed this tick (§8); a trailing sweep covers any network the allocator roster did not include.
+4. **ENFORCE.** For each cable network, in the shallow-first order the allocator published (`ShallowFirstNetworks`, §8): `Initialise + CalculateState + ApplyState`. The re-`CalculateState` reads the freshly set shed/overload flags via our `GetGeneratedPower` / `GetUsedPower` patches, returning 0 for locked-out devices, reads each pass-through device's exact in-tick draw from `TransformerSupplyCache` / `ApcPassthroughCache`, and reads soft-demand / elastic allocations via the `SoftDemandShareCache` / `SoftSupplyShareCache` postfixes. Vanilla `ApplyState` then runs unmodified. Trailing field copies mirror vanilla `CableNetwork.OnPowerTick`: `RequiredLoad`, `CurrentLoad`, `PotentialLoad`, `ShortfallLoad`. Iterating upstream-first (topological order) is what lets each network's `CalculateState` run after its feeders' `PotentialLoad` was refreshed this tick (§8); a trailing sweep covers any network the allocator roster did not include. After the last network's `ApplyState`, the ENFORCE TAIL runs, still on the power worker: `PoweredPresentation.ReconcileEnforceTail` re-asserts `Powered = True` on idle healthy segmenters (§10.6), then `LedgerAdoption.SettleEnforceTail` settles every enrolled segmenter's `_powerProvided` ledger (§10.7), so the DEVICE TICK and LOGIC TICK below read reconciled state.
 
 5. **DEVICE TICK.** `ElectricityManager.AllPoweredThings.ForEach(p => p?.OnPowerTick())`. Vanilla copy. Every `IPowered.OnPowerTick` patch from other mods (BatteryLight, HaulerMod, ScriptedScreens) fires here as in vanilla.
 
@@ -206,13 +224,35 @@ PowerGridPlus treatment: ignore `PowerConnection` entirely. Do NOT add to produc
 
 POWER.md §5.0 lists 7 segmenting device classes (Transformer, Battery, AreaPowerControl, PowerTransmitter, PowerReceiver, RocketPowerUmbilicalMale, RocketPowerUmbilicalFemale). PowerConnection is NOT one of them.
 
-### 5.0.2 Cascade and surplus walk apply uniformly to (1)–(7)
+### 5.0.2 Cascade and storage-charge flow apply uniformly to (1)-(7)
 
-The cascade (§8.0) and surplus walk (§9) treat all of (1) through (7) uniformly. PowerConnection plays no role.
+The cascade (§8.0) and the storage-charge flow (§9) treat all of (1) through (7) uniformly. PowerConnection plays no role.
 
 Visual feedback varies by class: `RocketPowerUmbilicalFemale` has NO visual indicator on the device itself; fault state is communicated ONLY by hover text on the device. The Female side has no clickable `InteractableType.OnOff` interactable to host a material-swap flash, so it reuses the hover-only path defined for non-flash producers in §8.5 (a `GetPassiveTooltip` postfix appends the fault line + countdown to `__result.Extended`). See §11.4 for the full per-class flash / hover coverage.
 
 Idle hover behaviour on `RocketPowerUmbilicalFemale`: when the device is NOT in a fault state, PGP does NOT touch the hover text at all. The vanilla `GetPassiveTooltip` output (which may be blank or show vanilla pre-built status text) is what the player sees. The PGP postfix early-returns if `BrownoutRegistry`, `OverloadRegistry`, `CycleFaultRegistry`, and `ProducerFaultRegistry` all report "not locked" for this `ReferenceId`. PGP injects content only when a fault is active.
+
+### 5.0.3 The segment adapter contract (ISegAdapter / SegSpec)
+
+GATHER (§8.0.0.1) does not open-code each bridge class; it consults one `ISegAdapter` per modelled class (`SegAdapters.cs`). An adapter answers `Describes(device)` (pure type membership, state-independent) and `TryDescribe(device, out SegSpec)` (the device's per-tick PHYSICAL description: flow kind, terminal networks, capacities, distance multiplier `m`, quiescent draw, pair partner; false when the device presents no flow surface right now). GATHER attaches allocator POLICY on top of the description: priority, lockout state, shed / overload bookkeeping. Two flow models:
+
+- **Routed**: power crosses the device within the tick it is granted; the device becomes one allocator `Seg` (a pull-through contributor). The output side delivers `TotalThrough`; the input side bills `TotalThrough * max(m, 1) + quiescent` in the same tick (§8.0.4).
+- **Buffered**: power stops in an internal cell; nothing crosses within the tick. The device contributes storage roster entries instead of a `Seg` (cell charge = Soft demander, cell discharge = Elastic supplier); the physical crossing to the far side happens outside the allocator.
+
+The four adapters (`SegAdapters.cs`):
+
+| Adapter | Device class | Kind | Capacity | m |
+|---|---|---|---|---|
+| `TransformerAdapter` | `Transformer` | Routed | `EffCap = min(Setting, min(input cable cap, output cable cap)) - UsedPower`, clamped to >= 0 | 1 |
+| `WirelessPairAdapter` | linked `PowerTransmitter` + `PowerReceiver`, ONE seg anchored on the transmitter (§6.2) | Routed | static link rating (§6.3) bounded by `min(input cable cap / m, output cable cap)`, minus BOTH halves' quiescent draws | interop `m >= 1` (§6.6) |
+| `ApcAdapter` | `AreaPowerControl` | Routed | cable caps only (`CapacitySetting = float.MaxValue`: the §8.4 hit-max rule never applies); the internal cell is NOT part of the routed description | 1 |
+| `UmbilicalAdapter` | `RocketPowerUmbilical` (Male + Female via the shared abstract base, game 0.2.6403+) | Buffered | soft = `min(charge rate, input cable cap, cell headroom)`; elastic = `min(discharge rate, output cable cap, cell store)` | n/a |
+
+`Battery` and `PowerReceiver` carry no adapter of their own: the battery is pure storage enrolled directly by GATHER (§8.0.0.1), and the receiver is described through its linked transmitter (a cycle-faulted partner locks the pair). An unlimited (config-0) cap maps to a finite sentinel of 1e9 W, never `float.MaxValue`: the structural-overload detector sums supplier EffCaps, and a MaxValue term would overflow the sum to +Infinity.
+
+The umbilical's Buffered classification formalizes the store-and-forward model the allocator applies to it: grid to near cell this tick (Soft), cell to partner cell in vanilla phase 2 (the DEVICE TICK, outside the allocator), partner cell to far grid on a later tick (Elastic). Since game 0.2.6403 the phase-2 crossing is BIDIRECTIONAL: the Male pushes station-to-rocket, and the Female runs its own TransferProgress-gated rocket-to-station transfer. The allocator never models the crossing itself; it only sees each cell's level change between ticks (see `Research/GameClasses/RocketPowerUmbilical.md`).
+
+Any `ElectricalInputOutput` subclass that no adapter describes and the segmenter roster does not know is an unknown bridge: it keeps its vanilla power methods, GATHER sums its `GetUsedPower` / `GetGeneratedPower` as plain rigid demand / generation on each side (the conservative fallback, §8.0.0.2), and the one-shot census reports it at world load (§8.8).
 
 ### 5.1 Direction classification
 
@@ -351,7 +391,7 @@ All formulas in §5.5 and elsewhere are generic across tiers: the per-tier numer
 
 ## 6. Power transmitter model
 
-Power transmitter / receiver pairs are first-class transformers at the allocator layer. The synthetic transformer is a MODEL the allocator builds in ALLOCATE by reading existing fields. The actual energy bookkeeping runs through vanilla `PowerTick.Initialise / CalculateState / ApplyState` in OBSERVE and ENFORCE, calling `GetGeneratedPower`, `GetUsedPower`, `UsePower`, `ReceivePower`. PowerGridPlus's only per-device touches on `PowerTransmitter` / `PowerReceiver` are the lockout postfix (returns 0 when the pair is locked out, §6.4) and the input-draw report (`PowerTransmitterDrawPatches`, which bills the pair's exact in-tick input draw from `TransformerSupplyCache`, §6.3 / §8 cache tail).
+Power transmitter / receiver pairs are first-class transformers at the allocator layer. The synthetic transformer is a MODEL the allocator builds in ALLOCATE by reading existing fields. The actual energy bookkeeping runs through vanilla `PowerTick.Initialise / CalculateState / ApplyState` in OBSERVE and ENFORCE, calling `GetGeneratedPower`, `GetUsedPower`, `UsePower`, `ReceivePower`. PowerGridPlus's per-device touches on `PowerTransmitter` / `PowerReceiver` are the lockout postfix (returns 0 when the pair is locked out, §6.4), the fresh input-draw bill and the delivery gate (`PowerTransmitterDrawPatches`: the transmitter bills the pair's exact in-tick `TotalPull` from `TransformerSupplyCache`, and a last-priority postfix clamps the advertised wireless delivery to the granted `TotalThrough`, §8.0.4), the `AllowSetPower` postfixes of the Powered presentation policy (§10.6), and the ENFORCE-tail ledger settle (§10.7).
 
 ### 6.1 Pairing and topology
 
@@ -381,19 +421,20 @@ Vanilla has no `TransmissionEfficiency` field on PowerTransmitter. Two distance-
 
 So the two models differ in WHERE distance bites: vanilla lowers the deliverable, PowerTransmitterPlus raises the source draw. PowerGridPlus accounts for both.
 
-`PT.GetGeneratedPower(WirelessOutputNetwork)`, read during OBSERVE, returns the link's **deliverable** cap (what the receiver side can be handed this tick): under vanilla the distance-derated number, under PowerTransmitterPlus the un-derated `min(MaxTransferCapacity, InputNetwork.PotentialLoad)`. It is the OUTPUT-side cap in both models and does NOT include the PowerTransmitterPlus source-draw multiplier.
-
-The synthetic transformer's `effective_cap` (§5.5 form) is:
+The allocator sizes the pair from a **STATIC link rating**, never from the live `PT.GetGeneratedPower(WirelessOutputNetwork)` or `InputNetwork.PotentialLoad`. Reading the live potential (as the vanilla and PowerTransmitterPlus `GetGeneratedPower` do) created a cross-tick zero fixed point: on a transformer-fed source the potential reads 0 until something pulls, so the cap collapsed to 0, the pair desired 0, nothing ever pulled, and a false OVERLOAD re-armed forever. The forward supply sweep (§8.0.3) is the only throttle on actually delivered power; the rating only sizes a genuine OVERLOAD breach (delivered demand above what the link itself can carry, independent of the source). Per `WirelessPairAdapter` (`SegAdapters.cs`):
 
 ```
-PT_effective_cap = min(
-    PT.GetGeneratedPower(WirelessOutputNetwork),       // deliverable cap (output side)
-    PT.InputConnection.GetCable().MaxVoltage / m,       // input cable carries delivered * m
-    PR.OutputConnection.GetCable().MaxVoltage           // output cable carries delivered
-  ) - PT.UsedPower - PR.UsedPower                       // both dish quiescent draws
+link_rating = PowerTransmitterPlus loaded
+                ? (EffectiveMaxCapacity > 0 ? EffectiveMaxCapacity : 1e9 sentinel)   // 0 = unlimited
+                : max(0, MaxPowerTransmission - PowerLossOverDistance(distance / 500) * MaxPowerTransmission)
+
+cable_cap   = min(input cable cap / m, output cable cap, 1e9 sentinel)
+static_cap  = min(link_rating, cable_cap)                 // the pair's CapSetting (§8.4 threshold)
+
+PT_effective_cap = static_cap - PT.UsedPower - PR.UsedPower   // both dish quiescent draws, clamped >= 0
 ```
 
-Here `m` is the PowerTransmitterPlus source-draw multiplier (1 under vanilla or when PowerTransmitterPlus is absent). The input-cable bound is divided by `m` because a long link draws `delivered * m` through its input cable, and the pair's demand on its INPUT network is `throughput * m`, not `throughput` (§8.4.2). The allocator reads `m` via `PowerTransmitterPlusInterop.SourceDrawMultiplier` (reflection; returns 1 when PowerTransmitterPlus is absent).
+Here `m` is the PowerTransmitterPlus source-draw multiplier (1 under vanilla or when PowerTransmitterPlus is absent, and exactly 1 for an unlinked transmitter). The input-cable bound is divided by `m` because a long link draws `delivered * m` through its input cable, and the pair's demand on its INPUT network is `throughput * m`, not `throughput` (§8.4.2). The allocator reads `m` and the capacity through `PowerTransmitterPlusInterop` (the three-tier bridge, §6.6). Because `static_cap <= cable_cap` by construction, the §8.0.3 structural-overload rule's cable-limited exclusion (`CapSetting > CableCap`) can never fire for a PT pair: a cable-bound breach reads as a genuine OVERLOAD instead of silently under-delivering with no hover.
 
 PT/PR pairs are shed-eligible (§5.2) when the pair's Direction classifies as StepDown or SameTier.
 
@@ -416,15 +457,23 @@ Pair enumeration: walking only `PowerTransmitter` instances and dereferencing `L
 
 ### 6.6 PowerTransmitterPlus compatibility
 
-PowerTransmitterPlus and PowerGridPlus coexist with one small, optional coordination point. The atomic Prefix-return-false on `ElectricityManager.ElectricityTick` replaces only the outer scheduler. Per-device methods (`PowerTransmitter.GetGeneratedPower`, `UsePower`, `GetUsedPower`, `ReceivePower`) still run inside Phases 1 and 3 via `PowerTick.Initialise / CalculateState / ApplyState`. PowerTransmitterPlus's distance-cost quartet, auto-aim patches, link-visibility patches, save side-cars, and IC10 readouts all survive unchanged.
+PowerTransmitterPlus and PowerGridPlus coexist through a resolved-once interop bridge (`PowerTransmitterPlusInterop.cs`; probed at first use, everything cached, no per-tick reflection; PowerGridPlus never hard-references PowerTransmitterPlus, so it stays an optional dependency). The atomic Prefix-return-false on `ElectricityManager.ElectricityTick` replaces only the outer scheduler; per-device methods still run inside OBSERVE and ENFORCE, and PowerTransmitterPlus's auto-aim patches, link-visibility patches, save side-cars, and IC10 readouts survive unchanged under every tier. Three resolution tiers, degrading in order:
 
-The one coordination point: PowerGridPlus reads PowerTransmitterPlus's `DistanceCostShared.SourceDrawMultiplier(PowerTransmitter)` by reflection to model the pair's `delivered * m` source-side draw (§6.3 / §8.4.2). It is a soft dependency (PowerGridPlus never hard-references PowerTransmitterPlus and degrades to `m = 1` when PowerTransmitterPlus is absent), so the two mods still load and run independently. Without it the allocator under-counts a long link's source-network draw and the no-partial-power invariant fails on the transmitter's input network.
+1. **ModApi tier** (PowerTransmitterPlus 1.9.0+, preferred). The public, versioned cross-mod surface `PowerTransmitterPlus.ModApi` (requires `Version >= 1`; members are only ever added, never renamed or removed). PowerGridPlus binds `EffectiveMaxCapacity()` (the configured delivery cap in Watts, 0 = unlimited), `TryGetLink(transmitter, out distanceMeters)` (false when unlinked, so a dropped link's stale cached distance never surfaces), `SourceDrawMultiplier(transmitter)` (the factor `m`), and, bound leniently, the `GetTransferDebt` / `SetTransferDebt` ledger accessors that the ledger adoption uses (§10.7). It then calls `ClaimBillingOwnership("net.powergridplus")` exactly once.
+2. **Legacy tier** (the shipped Workshop 1.8.0 line). `DistanceCostShared.SourceDrawMultiplier` (public wrapper, added after the 1.8.0 tag) or the internal `GetMultiplier` (the identical computation; the shipped Workshop build has only this), plus `MaxCapacityConfigSync.GetEffectiveMaxCapacity` and the vanilla `_linkedReceiverDistance` field. No ownership handshake exists at this tier; PowerGridPlus's delivery gate + fresh-pull billing (§8.0.4) keep the ledgers bounded instead.
+3. **Absent.** `m = 1` and the vanilla link model (`MaxPowerTransmission` minus the `PowerLossOverDistance` delivery loss, §6.3).
 
-The only PowerGridPlus additions touching PT/PR per-device methods are:
-- A late-priority postfix on `PowerTransmitter.GetGeneratedPower` to return 0 when locked out.
-- (Optional) a hover-text postfix on the PT button when locked out.
+The tiers agree by construction (the ModApi forwards to the same internals the legacy tier binds), so switching tiers never changes the allocator's numbers for the same world state. Exactly one Info line states the resolved tier and, on the ModApi tier, the claim outcome. Without the multiplier the allocator would under-count a long link's source-network draw by a factor of `m` and the no-partial-power invariant would fail on the transmitter's input network (§8.4.2).
 
-Neither conflicts with anything PowerTransmitterPlus does.
+**The billing-ownership handshake.** While the `"net.powergridplus"` claim is held, PowerTransmitterPlus's native wireless debt billing stands down: its `UsePower` debt inflation, its `GetUsedPower` source-side cap lift, and its standalone debt ceiling all no-op, and PowerGridPlus's allocator is the single billing authority for wireless links. The capacity advertise (the link-rating definition PowerGridPlus's delivery gate clamps), the receiver drain-cap lift, the beam visuals, and the link handling stay active on the PowerTransmitterPlus side. Each PowerTransmitterPlus billing patch checks `ModApi.BillingOwner` per call, so a late claim is safe regardless of plugin load order. Re-claiming the same id is idempotent; a claim while a different owner holds it is rejected (PowerGridPlus then logs the rejection and relies on the delivery-gate / fresh-pull containment, exactly as at the legacy tier). `ReleaseBillingOwnership` restores native billing.
+
+**PowerTransmitterPlus standalone rules (for reference).** These define the behaviour the handshake stands down and the always-on parts of the environment the allocator runs in (`DistanceCostPatches.cs`):
+
+- **Bounded debt ceiling** (standalone only, no billing owner): the advertise prefix pauses delivery (advertises 0) while the transmitter's unpaid `_powerProvided` debt is at or above `ceiling = effectiveCap * max(m, 1) * 4`, where `effectiveCap` is the configured Max Transfer Capacity, or the vanilla `MaxPowerTransmission` (5000 W) when the cap is unlimited (0). Delivery resumes as the source pays the debt down (one warning per pause episode; the episode ends once the debt falls below half the ceiling). This bounds the native debt runaway on an insufficient source and keeps the lump bill after an OnOff cycle finite.
+- **Receiver drain-cap lift** (ALWAYS active, including under the handshake): vanilla `PowerReceiver.GetUsedPower(wireless)` bills `min(MaxPowerTransmission + UsedPower, debt)`, so a link delivering above 5 kW would strand the excess as receiver debt the source is never billed for (free energy). The lift raises the bound to `min(cap + UsedPower, debt)` for a configured cap above 5000, and to the full debt when the cap is unlimited (0); it never lowers the vanilla result. Flows above 5 kW are therefore billable end to end.
+- **Unlinked multiplier is exactly 1.0**: `ModApi.SourceDrawMultiplier` returns 1 for a null or unlinked transmitter (and `TryGetLink` returns false), so the stale cached `_linkedReceiverDistance` a dropped link leaves behind never inflates a bill. For a linked transmitter, `m = 1 + k * distance_m / 1000` (k host-synced, default 5; `k <= 0` gives `m = 1`; never below 1).
+
+Beyond the interop, the PowerGridPlus-side touches on PT/PR per-device methods are the ones listed in the §6 intro and §6.4: the lockout zero, the fresh input-draw bill plus the delivery gate (§8.0.4), the `AllowSetPower` presentation postfixes (§10.6), and the ENFORCE-tail ledger settle (§10.7). None conflicts with anything PowerTransmitterPlus does under any tier.
 
 ## 7. Battery and APC anatomy, rigid vs soft demand
 
@@ -457,17 +506,21 @@ Each device's `GetUsedPower(net)` declares a demand. The shed pass cares about w
 
 Rigid:
 - Lights, machines, IC10 chips, sensors, doors, hydroponics, every "vanilla operates or fails" device.
-- APC passthrough portion (downstream consumers behind the APC, summed into APC's reported `GetUsedPower` on its INPUT net). Transparent to the shed math; split out at allocator time per §7.5.
+- APC passthrough portion (downstream consumers behind the APC). Modelled structurally: the APC is a routed contributor (§5.0.3), so its passthrough rides the seg's pull through the demand vector rather than being summed into the input network's rigid demand; see §7.5.
 
 Soft demand on Input network only:
 - Stationary batteries (charge cap headroom).
 - Large stationary batteries.
 - Nuclear batteries (MorePowerMod, detected at runtime via type name).
 - APC's internal cell charge demand.
+- Rocket umbilical cells (both halves, Buffered per §5.0.3).
 
 Elastic supply on Output network only:
 - Stationary batteries when they have stored energy and downstream rigid demand exceeds upstream rigid supply.
 - APC's internal cell on the same condition (subject to the in-tick interlock above).
+- Rocket umbilical cells with stored energy.
+
+Rigid and soft ride ONE demand vector through the same backward/forward sweep (§8.0.3): rigid alone drives every fault decision, soft is granted out of the firm residual only, and unmet soft clamps silently (§9).
 
 Note: Power Transmitters are NEITHER rigid nor soft. They are transformers, treated by §6.
 
@@ -483,13 +536,14 @@ effective_discharge_i = min(DischargeRateCap_i, PowerStored_i)
 
 A battery with charge 19 W-tick stored cannot deliver 200 W this tick even if its rate cap allows; the effective cap is 19 for that battery.
 
-**Algorithm per Output network N with rigid demand `D_N` and generator supply `G_N`:**
+**Algorithm per Output network N (the elastic-share pass, `PowerAllocator.RunAtomic` step 4, run after DECIDE converges):**
 
-1. If `G_N >= D_N`: every battery and APC on N discharges 0. Done.
-2. Else: shortfall `S_N = D_N - G_N`. For each battery/APC on N, compute `effective_discharge_i = min(DischargeRateCap_i, PowerStored_i)`.
-3. Compute `effective_total = sum(effective_discharge_i)`.
-4. If `S_N >= effective_total`: every battery delivers its full `effective_discharge_i`. Residue `S_N - effective_total` is rigid demand still unmet (which the joint allocator §8 then treats as triggering shed/overload on suppliers).
-5. If `S_N < effective_total`: proportional share, each battery delivers `share_i = effective_discharge_i × (S_N / effective_total)`. By construction `share_i <= effective_discharge_i`, so no saturation occurs.
+1. Compute the residual rigid shortfall `S_N = RigidDemand_N + PullsGranted_N - GenSupply_N - InflowCommitted_N`, floored at 0. `PullsGranted_N` is the rigid input draw granted to contributors consuming FROM N, and `InflowCommitted_N` is the contributor throughput arriving ON N, both from the converged forward sweep (§8.0.3), so storage backfills only what generators plus upstream contributors left unmet.
+2. If `S_N <= 0`: every battery and APC cell on N discharges 0 (share 0). Done. Locked or overload-tripped elastics always get share 0.
+3. Else for each non-locked, non-overloaded battery / APC cell / umbilical on N, compute `effective_discharge_i` (= min(rate cap, cable cap, stored), §8.0.0.1).
+4. Compute `effective_total = sum(effective_discharge_i)`.
+5. If `S_N >= effective_total`: every supplier delivers its full `effective_discharge_i`. Residue `S_N - effective_total` is rigid demand still unmet (which the joint allocator §8 then treats as triggering shed/overload on suppliers).
+6. If `S_N < effective_total`: proportional share, each supplier delivers `share_i = effective_discharge_i * (S_N / effective_total)`. By construction `share_i <= effective_discharge_i`, so no saturation occurs.
 
 Worked example: 2 batteries on the same output network, both with discharge rate 200 W. Battery A is full (stored >> 200). Battery B has only 19 stored. Shortfall 300 W on the network.
 
@@ -537,24 +591,30 @@ The symmetric case for APCs has the in-tick interlock caveat (§7.1): if the APC
 
 ### 7.4 Battery as elastic demand on the Input network
 
-A battery's `GetUsedPower(InputNetwork)` reports `PowerMaximum - PowerStored` (full headroom). PowerGridPlus's allocator treats this as soft demand: the battery charges up to its `EffectiveChargeCap` with whatever surplus arrives on its Input network, scaled by available headroom (§9 surplus distribution). A battery is simultaneously a soft demander on its Input network AND an elastic supplier on its Output network. Per §7.1 the two roles run independently in the same tick when the two networks are distinct.
+A battery's `GetUsedPower(InputNetwork)` reports `PowerMaximum - PowerStored` (full headroom) in vanilla. PowerGridPlus treats the charge request as SOFT demand: GATHER enrolls each battery with `Request = min(EffectiveChargeCap, PowerMaximum - PowerStored)` (§7.6), the request propagates leaf-to-source through the same `BackwardDesirePass` as rigid demand, and the forward sweep grants it out of the firm residual only (§9). The granted share lands in `SoftDemandShareCache`, and the `Battery.GetUsedPower` postfix min-clamps the reported charge demand to it, so each battery charges exactly its grant. A battery is simultaneously a soft demander on its Input network AND an elastic supplier on its Output network. Per §7.1 the two roles run independently in the same tick when the two networks are distinct.
 
 ### 7.5 Splitting APC demand
 
-`AreaPowerControl.GetUsedPower(InputNetwork)` returns passthrough + internal-charge bundled. PowerGridPlus splits these two at allocator time:
+`AreaPowerControl.GetUsedPower(InputNetwork)` returns passthrough + internal-charge bundled in vanilla. PowerGridPlus splits the two STRUCTURALLY at GATHER time (§8.0.0.1):
 
-- Passthrough = APC's output network's rigid demand. Read via OBSERVE's populated `PowerTick.Required` on `APC.OutputNetwork` minus any soft demand on that net.
-- Internal-charge = APC's reported `GetUsedPower(InputNetwork)` − passthrough. Floor at 0 if the math goes transiently negative.
+- **Passthrough** is the APC's routed seg (§5.0.3): its share of the output network's demand rides the (rigid, soft) demand vector like any other contributor, so the passthrough portion is never summed into the input network's rigid demand directly, and it needs no subtraction heuristics.
+- **Internal-charge** is a separate Soft request on the input network: `Request = min(ComputeChargeCap(apc), cell.PowerDelta)`, where `ComputeChargeCap` is the configured `ApcBatteryChargeRate` bounded by the input cable's remaining headroom after the APC's own passthrough (`AreaPowerControlPatches.ComputeChargeCap`) and `PowerDelta` is the inserted cell's remaining headroom.
 
-The internal-charge portion enters the soft-demand request flow (§9). The passthrough portion stays in rigid demand.
+At ENFORCE the `AreaPowerControl.GetUsedPower` prefix rebuilds the input-side bill from fresh allocator figures: the quiescent `UsedPower`, plus the fresh total passthrough from `ApcPassthroughCache` (rigid + soft-charge flow crossing the APC, §8.0.4), plus the charge portion `min(ComputeChargeCap, cell.PowerDelta, SoftDemandShareCache share)`. The internal-charge portion is storage-charge flow (§9); the passthrough portion is rigid.
 
 ### 7.6 Soft-demand request value
 
-Each soft-demand device declares a `RequestedShare` = its `EffectiveChargeCap`, further capped by the battery's remaining headroom (`PowerMaximum - PowerStored`). The dynamic "scale charge by network headroom" math already living on APC is extracted into a shared helper `SoftDemandHeadroomCalculator` and called from the patch on every soft-demand device's `GetUsedPower`.
+Each soft-demand store declares a per-tick `Request`, capped three ways (charge rate cap, cable cap, remaining headroom), computed at GATHER per class:
+
+- Stationary battery: `Request = min(EffectiveChargeCap, PowerMaximum - PowerStored)`, where `EffectiveChargeCap = min(per-prefab configured charge rate, input cable tier cap)` (`StationaryBatteryPatches.EffectiveChargeCap`). With `EnableBatteryLimits` off, the rate-cap term is unlimited and only the headroom binds.
+- APC internal cell: `Request = min(ComputeChargeCap(apc), cell.PowerDelta)` (§7.5).
+- Rocket umbilical cell: `Request = min(configured charge rate, input cable tier cap, PowerMaximum - PowerStored)` (`UmbilicalAdapter`, §5.0.3).
+
+The request is a first-class SOFT demand on the store's input network: it aggregates into `Net.SoftRequestLocal`, rides the same backward/forward sweep as rigid demand (§8.0.3 / §9), and the granted share is published to `SoftDemandShareCache`, which the per-class `GetUsedPower` patches min-clamp against. There is no separate request pipeline and no shared headroom helper; the request computation lives in GATHER and the adapters as above.
 
 ## 8. The allocator
 
-PowerGridPlus has exactly one power allocator (decision §0.8). It runs in the ALLOCATE phase (`PowerAllocator.RunAtomic`) and decides every shed, every overload, every elastic discharge share, and every surplus charge grant for the whole grid in one deterministic pass, against the fresh per-network `Required` / `Potential` that OBSERVE populated. There is no second strategy and no toggle: "the allocator" throughout this spec is the single implementation described here.
+PowerGridPlus has exactly one power allocator (decision §0.8). It runs in the ALLOCATE phase (`PowerAllocator.RunAtomic`) and decides every shed, every overload, every elastic discharge share, and every storage-charge (soft) grant for the whole grid in one deterministic pass, against the fresh per-network `Required` / `Potential` that OBSERVE populated. There is no second strategy and no toggle: "the allocator" throughout this spec is the single implementation described here.
 
 ### 8.0 What the allocator does (overview)
 
@@ -563,7 +623,7 @@ PowerGridPlus has exactly one power allocator (decision §0.8). It runs in the A
 1. **GATHER** (§8.0.0.1): build the per-network rigid-demand and generator-supply numbers and the contributor / elastic / soft rosters from `SegmentingDeviceRegistry`.
 2. **ORDER** (§8.0.2): a true topological (Kahn) order over the live contributor edges, replacing the deleted minimum-depth BFS. Publishes `ShallowFirstNetworks` for ENFORCE.
 3. **DECIDE** (§8.0.3): an iterated fixed-point loop (`RunAllocationLoop`) that settles shed and overload and computes each contributor's exact in-tick throughput.
-4. **Shared tail** (§8.0.4): dead-input cue, lockout commit (with the elastic-overload network retry), elastic-share pass (§7.3), surplus walk (§9), and the cache-write tail that publishes the fresh in-tick figures for ENFORCE.
+4. **Shared tail** (§8.0.4): dead-input cue, lockout commit (with the elastic-overload network retry), elastic-share pass (§7.3), and the publish tail that writes the share caches, the per-contributor presentation totals for every routed seg kind, the Powered-presentation and shortfall snapshots, and runs the conservation check (§8.8). Storage-charge grants are decided inside DECIDE's forward sweep (§9); the tail only publishes them.
 
 Shed, overload, and cycle-fault interact non-trivially inside a single tick, which is why DECIDE iterates rather than running a single sweep:
 
@@ -590,9 +650,9 @@ Together these realize the fault precedence **CYCLE > VVF > OVERLOAD > SHED** (d
 GATHER walks `CableNetwork.AllCableNetworks` for the rigid numbers and `SegmentingDeviceRegistry.EnumerateSorted()` (sorted `ReferenceId ASC`, §8.0.5) for the structural rosters.
 
 - **Per-network rigid demand + generator supply.** For every device on a network that is NOT a segmenter (segmenters are modelled structurally), `GetUsedPower > 0` adds to `RigidDemand` and `GetGeneratedPower > 0` adds to `GenSupply`. VVF-faulted producers already read 0 here (their enforcement postfix), so a silenced producer contributes no supply.
-- **Contributors (`Seg`)**: `Transformer`, linked `PowerTransmitter` / `PowerReceiver` pairs (one `Seg` anchored on the PT, §6.2), and `AreaPowerControl`. Each carries its effective cap (`min(Setting / live deliverable cap / +inf for APC, cable caps) - quiescent draw`), its `Priority`, its step-up flag (§5.2), and a `Locked` flag (true if cycle-faulted or in a prior-tick shed / overload window: it conducts 0 and is not re-decided).
+- **Contributors (`Seg`)**: `Transformer`, linked `PowerTransmitter` / `PowerReceiver` pairs (one `Seg` anchored on the PT, §6.2), and `AreaPowerControl`. Each carries the physical description its adapter produced (§5.0.3): its effective cap (`min(CapSetting, cable caps) - quiescent draw`, where `CapSetting` is `Transformer.Setting`, the pair's static link rating, or +inf for the APC), the input-draw factor `m`, plus the policy GATHER attaches: its `Priority`, its step-up flag (§5.2), and a `Locked` flag (true if cycle-faulted, in a prior-tick shed / overload window, or paired with a cycle-faulted partner half: it conducts 0 and is not re-decided).
 - **Elastic suppliers (`Elastic`)**: a `Battery`, `AreaPowerControl` cell, or `RocketPowerUmbilical*` with stored energy, discharging onto its output network only to fill rigid shortfall. Effective discharge = `min(rate cap, cable cap, stored)`.
-- **Soft demanders (`Soft`)**: a `Battery`, APC cell, or umbilical charging from its input network out of surplus only. Request = `min(charge rate cap, cable cap, headroom)`.
+- **Soft demanders (`Soft`)**: a `Battery`, APC cell, or umbilical charging from its input network out of the firm residual only. Request = `min(charge rate cap, cable cap, headroom)` (§7.6).
 
 The §5.0 segmenter list is exhaustive; any unhandled segmenting class is a hole through which `_powerRatio < 1` leaks on rigid downstream loads (§8.0.0.2 keeps vanilla scaling as the net under that hole). Battery / APC / umbilical are modelled as elastic suppliers and soft demanders rather than pull-through contributors; only Transformer, the PT/PR pair, and APC's passthrough are pull-through `Seg`s.
 
@@ -622,11 +682,11 @@ ORDER publishes `ShallowFirstNetworks` (the topo order, source -> leaf) for ENFO
 
 Each round runs four passes in this fixed order:
 
-1. **`BackwardDesirePass`** (leaf -> source, over the reversed topo order). Each contributor's `DesiredThroughput` is its share of its output network's demand (priority tier DESC, proportional by `EffCap` within a tier, capped at `EffCap`, §8.3.2); `DesiredPull` is the matching input-side draw (`throughput * max(InputDrawFactor, 1) + UsedPower`). Eligibility here is `DesireActive(s) = !s.Locked && !s.Overloaded`: shed is deliberately IGNORED so a previously-shed contributor still presents its desired pull and can be reconsidered. Generators are subtracted first; elastic storage is the documented last resort (§7.3) and is not modelled in this pass (it absorbs the per-net shortfall in the forward sweep / elastic-share pass, matching the gen -> transformer -> battery supply order).
+1. **`BackwardDesirePass`** (leaf -> source, over the reversed topo order), carrying BOTH flow classes in one walk as a (rigid, soft) demand vector. RIGID: each contributor's `DesiredThroughput` is its share of its output network's residual rigid need (`RigidDemand + consumer pulls - GenSupply`, floored at 0; priority tier DESC, proportional by `EffCap` within a tier, capped at `EffCap`, §8.3.2); `DesiredPull` is the matching input-side draw (`throughput * max(InputDrawFactor, 1) + UsedPower`). SOFT: the network's soft desire (`SoftRequestLocal + active consumers' SoftDesiredPull`) splits over the SAME suppliers with the same tier-first proportional splitter, but each contributor's soft capacity is its residual headroom `EffCap - DesiredThroughput`, so soft never displaces rigid capacity; `SoftDesiredPull = SoftDesiredThroughput * max(InputDrawFactor, 1)` plus the quiescent draw ONLY when the contributor carries no rigid pull (the quiescent is carried exactly once, on the rigid pull when any rigid flows, else on the soft pull). The soft split runs independently of the rigid residual: a net with zero rigid residual still routes charge. Eligibility differs by class: rigid desires gate on `DesireActive(s) = !s.Locked && !s.Overloaded` (shed is deliberately IGNORED so a previously-shed contributor still presents its desired pull and can be reconsidered), while soft desires gate on the stricter `IsActive` (also not shed): soft never drives a shed decision, so a shed contributor's charge desire must not size its suppliers, or the delivered soft would strand on its input net billed-but-unconsumed; an un-shed next round restores the desire one round later. Generators are subtracted first; elastic storage is the documented last resort (§7.3) and is not modelled in this pass (it absorbs the per-net shortfall in the forward sweep / elastic-share pass, matching the gen -> transformer -> battery supply order).
 
 2. **`DetectStructuralOverload`** (desire-based, evaluated BEFORE shed). A network whose post-shed demand exceeds `GenSupply + AvailableElastic + sum of its non-shed suppliers' EffCap` overloads its `Setting`-limited suppliers (input-limited PT pairs included, taken offline). Suppliers are summed at `EffCap` even when already overloaded, so the condition keeps re-detecting them rather than oscillating (an overloaded supplier contributes 0, which would otherwise make the network look relieved). Cable-limited suppliers (`CapSetting > CableCap`) and APCs (no rating) are excluded; cable overflow is rule 3 below. This pass is desire-based and has no forward dependency, so it is safe to run before the forward pass; running it before shed is what gives a structurally-overcommitted transformer the OVERLOAD diagnosis instead of a SHED mislabel (§8.0.1, precedence).
 
-3. **`ForwardSupplyAndShed`** (source -> leaf, over the topo order, so every supplier's `Throughput` is already final). For each network it computes the supply actually arriving (`firmIn = GenSupply + active suppliers' Throughput`, plus `AvailableElastic`) and `budget = avail - RigidDemand`. Shed is RE-DECIDED: `seg.Shed` is cleared for every seg at the top of the pass (when not settle-only), then if the active consumers' desired pulls exceed the budget the lowest-priority victims shed whole (never partial) in `ShedVictimOrder` (§8.3) until the rest fit; step-up segments never shed (§5.2); a network with no supply at all (`avail <= Eps`) sheds nothing (dead-input idle, §8.3.1). Survivors are then granted highest-priority-first, and each contributor's exact `Throughput`, `Pull`, and the per-net `InflowCommitted` / `PullsGranted` / `ElasticDelivered` / `Unmet` are written.
+3. **`ForwardSupplyAndShed`** (source -> leaf, over the topo order, so every supplier's `Throughput` is already final). For each network it computes the supply actually arriving (`firmIn = GenSupply + active suppliers' Throughput`, plus `AvailableElastic`) and `budget = avail - RigidDemand`. Shed is RE-DECIDED against the RIGID claims only: `seg.Shed` is cleared for every seg at the top of the pass (when not settle-only), then if the active consumers' desired rigid pulls exceed the budget the lowest-priority victims shed whole (never partial) in `ShedVictimOrder` (§8.3) until the rest fit; step-up segments never shed (§5.2); a network with no supply at all (`avail <= Eps`) sheds nothing (dead-input idle, §8.3.1). Survivors are then granted highest-priority-first, and each contributor's exact `Throughput`, `Pull`, and the per-net `InflowCommitted` / `PullsGranted` / `RigidServed` / `Unmet` are written. AFTER the rigid grants, SOFT (storage charge) is granted per network out of the FIRM residual only: the pool is `firmIn - RigidDemand - granted rigid pulls` floored at 0 (never elastic: a battery must not discharge to charge another store), plus the soft inflow arriving through the net's active suppliers (granted when THEIR input nets were processed earlier in topo order), capped by the weakest cable's remaining headroom (`CableMax.WeakestCapOnNetwork - (RigidServed + granted rigid pulls)`). One ratio `softRatio = min(1, softAvail / softDemand)` scales every local charge request and every active consumer's soft pull on the net; a consumer's granted soft throughput is further capped at its remaining headroom `EffCap - Throughput`, and a shed / locked / overloaded consumer gets zero soft. The per-net `SoftGrantedLocal` / `SoftPullsGranted` and per-seg `SoftThrough` / `SoftPull` are written. Shed decisions, budgets, and `Unmet` never see the soft class; unmet soft desire is silently clamped (§9.6).
 
 4. **`DetectSupplyOverload`** (after the forward pass, because both rules read the forward pass's `Unmet` / `PullsGranted`). Two rules: the elastic hit-max (a network still `Unmet` after gen + inflow + full elastic discharge trips its live elastics, §8.4.1, so a storage-fed subnet goes dark cleanly), and the §5.7 cable overflow (flow above the weakest cable cap with generators alone under it trips every supplier + elastic on the network instead of burning the cable).
 
@@ -634,25 +694,29 @@ The **structural-overload-before-shed-before-supply-overload** ordering is load-
 
 **Convergence.** After the four passes, the `(shed, overload, elastic-overload)` RefId sets are collected. If they equal the previous round's sets, the loop has converged. If they equal the round-before-previous sets, the loop is in a 2-cycle between two states: the intermediate state's flags are OR-ed in (a safe superset, never under-protective), then one `BackwardDesirePass` + `ForwardSupplyAndShed(settleOnly: true)` settles throughputs without re-deciding, and the loop exits. The round cap is `2 * segs.Count + 4`; exhausting it logs a `LogWarning` and keeps the last settled state (internally consistent and safe, possibly not minimal). Only shed can oscillate (overload is monotonic), so the 2-cycle guard plus the union fallback is sufficient.
 
-### 8.0.4 The shared tail (commit, shares, surplus, cache write)
+### 8.0.4 The shared tail (commit, shares, publish, snapshots)
 
-After DECIDE converges, `RunAtomic` runs a single shared tail against the converged per-net fields:
+After DECIDE converges, `RunAtomic` runs a single shared tail against the converged per-net / per-seg fields:
 
 1. **Dead-input cue** (§8.3.1): a contributor whose input network has no effective supply at all idles instead of shedding; if it is actively trying to pass power downstream it is flagged in `DeadInputRegistry` for a steady "no upstream supply" hover (no lockout, instant recovery).
 2. **Commit lockouts.** For each non-`Locked` contributor not on a split-pending network (Option C, §4.3 step ALLOCATE), a `Shed` flag stamps `BrownoutRegistry` and an `Overloaded` flag stamps `OverloadRegistry`. Prior-tick lockouts (already `Locked`) carry unchanged.
 3. **Elastic-overload network retry, then reset** (§8.4.1): a network with a newly overloaded elastic is a candidate. Before locking its overload cohort, the allocator retries at the network level: if the cohort's combined discharge would cover the residual demand the locks are cleared (recovered, no timer reset), otherwise one shared fresh expiry is stamped across the cohort (arms the 60 s lockout and keeps the cohort phase-synced). Transformers keep their per-device §8.4 timer; this retry is the elastic-specific, network-property branch.
-4. **Elastic shares** (§7.3) -> `SoftSupplyShareCache`: per output network, batteries / APC cells / umbilicals cover only the rigid shortfall left after generators + contributor inflow, proportional against effective caps.
-5. **Surplus walk** (§9) -> `SoftDemandShareCache`: soft charge requests aggregate bottom-up through non-shed contributors (capped by remaining contributor headroom), surplus allocates top-down pure-proportionally, single pass, capped by the weakest cable's remaining headroom at each granting network.
-6. **Cache-write tail (exact in-tick throughput, no headroom).** The allocator publishes each pass-through contributor's exact converged figures so its `GetGeneratedPower` / `GetUsedPower` report the real in-tick flow (no headroom):
-   - `Transformer` and PT pair -> `TransformerSupplyCache.Set(RefId, Throughput, Pull)`. `Throughput` is the output-side delivery; `Pull` is the input-side draw (`throughput * distance factor + quiescent`). An inactive contributor (shed / overloaded / cycle-faulted) caches `(0, 0)`.
-   - `AreaPowerControl` -> `ApcPassthroughCache.Set(RefId, Throughput + GrantThrough)`: the fresh rigid passthrough plus any soft-charge grant flowing through.
+4. **Elastic shares** (§7.3) -> `SoftSupplyShareCache`: per output network, batteries / APC cells / umbilicals cover only the residual rigid shortfall (`RigidDemand + PullsGranted - GenSupply - InflowCommitted`, floored at 0), proportional against effective caps.
+5. **Storage-charge shares** -> `SoftDemandShareCache`: the per-device soft grants the forward sweep already computed (§8.0.3 pass 3 / §9). There is no separate distribution pass; the former surplus walk is deleted.
+6. **Presentation totals for EVERY routed seg kind.** For each contributor the tail computes `TotalThrough = Throughput + SoftThrough` (output-side delivery, rigid + storage-charge flow) and `TotalPull = Pull + SoftPull` (input-side bill), which whenever the seg conducts equals `TotalThrough * max(m, 1) + quiescent` exactly, and writes `TransformerSupplyCache.Set(RefId, TotalThrough, TotalPull)` for `Transformer`, wireless PT/PR pair, AND `AreaPowerControl` alike. An inactive contributor (shed / overloaded / cycle-faulted) caches all-zero totals. Publishing totals for every kind is what guarantees a granted soft flow has a carrier on BOTH terminals of its segment: a battery charging behind a transformer or wireless pair sees the charge advertised downstream AND billed upstream in the same tick (the pre-rearchitecture rigid-only cache writes were the deadlock that left chargers idling at 0 W forever with no fault anywhere). The APC additionally publishes:
+   - `ApcPassthroughCache.Set(RefId, TotalThrough)`: the fresh input-side passthrough bill, rigid + soft-charge flow crossing the APC (there is no `GrantThrough` field any more; `SoftThrough` subsumed it).
+   - `ApcCellDischargeCache.SetShare(RefId, cellShare)`: the cell-only elastic share, so `DischargeSpeed` means the cell rate consistently across storage classes (deviation P9).
+   - `SoftSupplyShareCache.SetShare(RefId, TotalThrough + cellShare)`: the bundled supply cap, because vanilla `AreaPowerControl.GetGeneratedPower` bundles passthrough with the cell (`AvailablePower`).
+7. **Powered-presentation snapshot** (§10.6): the healthy-segmenter set (`healthy = IsActive && (conducting || idle on a supplied input with no unmet rigid demand)`; a pair publishes under both halves' ReferenceIds) plus the enrolled-seg roster carrying each seg's `TotalThrough` / `TotalPull` and its ledger-settle eligibility, swapped into `PoweredPresentation` by volatile reference like the share caches.
+8. **Shortfall classification snapshot** (§8.8): every allocator net's end-of-tick RIGID state (Served / Dry / Throttled / Deadlock) into `ShortfallDiagnostics`, same volatile-swap publication.
+9. **Conservation check** (§8.8, config-gated): per net, granted inflow must equal granted outflow within 0.5 W; per seg, `TotalPull == TotalThrough * max(m, 1) + quiescent`.
 
-The reason these caches exist is the vanilla `_powerProvided` accumulator, which is filled during the PREVIOUS tick's `ApplyState` and so lags the output-side delivery by one tick (see `Research/GameClasses/Device.md`). The allocator sizes upstream supply to each contributor's CURRENT pull, so billing a stale `_powerProvided` on the input would leave the input network short by the one-tick demand change. Each pass-through class is therefore reported from the fresh cache, unconditionally (no allocator-selection gate; decision §0.8):
-- `TransformerExploitPatches.GetGeneratedPowerPatch` reports `TransformerSupplyCache` output (exact delivery); `GetUsedPowerPatch` reports `TransformerSupplyCache` input draw instead of `min(Setting + UsedPower, _powerProvided)`. Conservation holds (input == output + conversion loss), so the free-power exploit stays closed.
-- `AreaPowerControlPatches.GetUsedPowerPatch` adds `ApcPassthroughCache` passthrough (input == output, no lag) for the pass-through term; the cell charge term still caps to the surplus-walk share.
-- `PowerTransmitterDrawPatches.GetUsedPower` reports `TransformerSupplyCache` input draw for the PT/PR pair (the transmitter bills the pair's input cable; the receiver's `InputNetwork` is null so it already returns 0).
+The reason the presentation caches exist is the vanilla `_powerProvided` accumulator, which is filled during the PREVIOUS tick's `ApplyState` and so lags the output-side delivery by one tick (see `Research/GameClasses/Device.md`). The allocator sizes upstream supply to each contributor's CURRENT pull, so billing a stale `_powerProvided` on the input would leave the input network short by the one-tick demand change. Each routed class is therefore reported from the fresh cache, unconditionally (no allocator-selection gate; decision §0.8):
+- The `TransformerExploitPatches` prefixes: `Transformer.GetGeneratedPower` reports the `TransformerSupplyCache` output (`TotalThrough`, exact delivery); `Transformer.GetUsedPower` reports the cached input draw (`TotalPull`) instead of `min(Setting + UsedPower, _powerProvided)`. Conservation holds (input == output + conversion loss), so the free-power exploit stays closed.
+- `AreaPowerControlPatches.GetUsedPowerPatch` bills quiescent + the `ApcPassthroughCache` passthrough (input == output, no lag) + the cell-charge portion capped to its `SoftDemandShareCache` share (§7.5).
+- `PowerTransmitterDrawPatches.GetUsedPowerPatch` reports the cached input draw (`TotalPull`) for the PT/PR pair (the transmitter bills the pair's input cable; the receiver's `InputNetwork` is null so it already returns 0), and its last-priority `DeliveryGatePatch` postfix on `PowerTransmitter.GetGeneratedPower` clamps the advertised wireless delivery to the granted `TotalThrough`, so delivery follows the grant and a transfer debt cannot be seeded by ungated delivery during a startup or shed transient.
 
-**Battery and Umbilical are terminal storage, not pass-through, and need no in-tick throughput cache.** Their discharge onto an output network is gated to the elastic-share pass (`SoftSupplyShareCache`, §7.3) and their charge draw to the surplus walk (`SoftDemandShareCache`, §9), both computed fresh in-tick from the same supply-accurate `seg.Throughput` and already current. PT pairs still advertise their vanilla deliverable cap on the wireless OUTPUT side (harmless headroom there); only their input-side draw is overridden.
+**Battery and Umbilical are terminal storage, not pass-through, and need no in-tick throughput cache.** Their discharge onto an output network is gated to the elastic-share pass (`SoftSupplyShareCache`, §7.3) and their charge draw to the storage-charge grant (`SoftDemandShareCache`, §9), both computed fresh in-tick from the same supply-accurate converged sweep and already current. A PT pair's advertise is NOT left as headroom: the delivery gate clamps it to the granted `TotalThrough`, so both terminals of the pair carry the exact granted figures.
 
 Both `TransformerSupplyCache` and `ApcPassthroughCache` are tick-stamped, in-memory, self-cleaning per-`ReferenceId` stores (same shape as `SoftSupplyShareCache`): a read older than one tick falls back to "no fresh value", so the reporting patch reports 0 (or its vanilla formula) until the allocator roster includes the device again. The allocator writes in ALLOCATE; ENFORCE (same tick) reads the current value; OBSERVE (before ALLOCATE) reads last tick's, both inside the one-tick window, and OBSERVE's transformer output does not feed the allocator's own model.
 
@@ -779,7 +843,7 @@ Decide which contributors (transformers, PT/PR pairs, APCs) enter shed or overlo
 
 The shed decision reads the GATHER numbers (§8.0.0.1) and the converged backward-pass demand:
 
-1. **Rigid demand** per network: the sum of `GetUsedPower` for rigid (non-segmenter) devices; soft-demand devices are excluded (they enter the surplus walk, §9), and an APC's input draw is split so only the passthrough portion is rigid (§7.5). Stored as `Net.RigidDemand`.
+1. **Rigid demand** per network: the sum of `GetUsedPower` for rigid (non-segmenter) devices; soft-demand stores are excluded (their charge requests ride the soft class of the same sweep, §9), and an APC's input draw is split structurally so only the passthrough portion is rigid (§7.5). Stored as `Net.RigidDemand`.
 2. **Generator supply** per network: the sum of direct generators' `GetGeneratedPower` (`Net.GenSupply`). Elastic suppliers are tracked separately (`AvailableElastic`, §7.3) and added as the documented last resort.
 3. **Presented pull** per contributor: its `DesiredPull` from the backward desire pass (§8.0.3), the input-side draw it would need to serve its share of its output network's demand. This is the claim the shed decision weighs against the input network's budget.
 
@@ -813,6 +877,8 @@ The shed victim order (§8.3) and the §8.4 overload trigger settle which suppli
 
 Interaction with §8.4: a tier delivering its full combined cap has every member at `EffCap` (all overload-eligible if demand is still unmet); a tier delivering less than its cap has every member at the same sub-cap fraction (none overload). So within a tier, overload is all-or-nothing, and across tiers the fully-engaged higher tiers are the ones that can trip. Determinism: the tier ORDER is integer-keyed (priority DESC, RefId ASC, §8.0.5); the within-tier proportional division is float but bit-identical across peers on the shared mono runtime, so the §8.4 discriminator probes still behave identically on every peer.
 
+The SAME splitter carries the soft class (§9): a network's soft desire divides over the same priority tiers with the same proportional rule, except each supplier's within-tier weight is its residual headroom `EffCap - DesiredThroughput` instead of `EffCap`, so soft never displaces rigid and a rigid-saturated supplier takes no charge flow. Because soft rides the same priority tiers, a high-priority contributor's downstream storage charges before a low-priority one's; this is a deliberate behaviour change from the deleted priority-blind surplus pass (§9).
+
 ### 8.4 Overload: per-transformer hit-max trigger
 
 An overload trips a transformer that is delivering at its active `Setting` cap while the output network still has unmet rigid demand. The trigger is per-transformer, not per-network. Note: a player who reduced Setting below OutputMaximum via IC10 will see overload fire at the lower threshold; this is intentional (they explicitly asked the transformer to throttle below its rated max).
@@ -832,9 +898,9 @@ Examples (assuming Setting = OutputMaximum at default):
 
 Rationale for the per-transformer trigger: the player-facing diagnostic is "this transformer is being asked to push past its rated throughput." A throttled-by-upstream transformer is not the cause and should not be punished. The hit-max transformer is the visible culprit and the one the player needs to upgrade or split.
 
-For PT/PR pairs the overload threshold is the pair's live deliverable cap (`PT.GetGeneratedPower(WirelessOutputNetwork)`, §6.3) as the equivalent of `Setting`. The same hit-the-cap-with-unmet-demand condition applies on the OUTPUT side. The pair's INPUT-side draw is a separate matter (`delivered * m` under PowerTransmitterPlus, §8.4.2). PT/PR Priority follows the same rules as wired transformers (the knob writes Priority; the pair has no writable Setting of its own).
+For PT/PR pairs the overload threshold is the pair's static link rating bounded by its cables (`CapSetting = static_cap`, §6.3) as the equivalent of `Setting`. The same hit-the-cap-with-unmet-demand condition applies on the OUTPUT side. The pair's INPUT-side draw is a separate matter (`delivered * m` under PowerTransmitterPlus, §8.4.2). PT/PR Priority follows the same rules as wired transformers (the knob writes Priority; the pair has no writable Setting of its own).
 
-**Input-limited pairs SHED, not OVERLOAD (deviation P6).** The deliverable cap collapses two different bottlenecks into one number: the link's own rated transfer cap, and the input network's available power (`GetGeneratedPower = min(rated cap, InputNetwork.PotentialLoad)`). When the deliverable is held down by the input (`liveCap >= InputNetwork.PotentialLoad - Eps`, the `Seg.InputLimited` flag), the SOURCE, not the link, is the bottleneck, so a downstream shortfall is routed to SHED ("insufficient upstream supply", pointing the player at the transmitter's input network) rather than OVERLOAD ("the link cannot carry the demand"). Only when the deliverable is bound by the link's own rated cap (input richer than the rating) does it OVERLOAD. Both take the pair offline (no-partial-power); only the diagnosis and the registry (`BrownoutRegistry` vs `OverloadRegistry`) differ. PowerTransmitterPlus applies no output-side loss, so `liveCap == PotentialLoad` exactly when input-limited; under an unlimited PowerTransmitterPlus cap every shortfall is therefore a SHED (the link is never the rating bottleneck). A long vanilla link whose distance loss pulls `liveCap` below `PotentialLoad` reads as link-limited (OVERLOAD), which is truthful, the loss is the link's own.
+**Input-limited pairs (historical deviation P6, superseded by the static rating).** An earlier build sized the pair from the live deliverable (`min(rated cap, InputNetwork.PotentialLoad)`) and needed an input-limited carve-out (`Seg.InputLimited`) that routed source-bottleneck shortfalls to SHED instead of OVERLOAD. The 2026-07-02 rearchitecture replaced the live read with the static link rating (§6.3), so the pair's cap no longer tracks the source potential and the carve-out is gone (`InputLimited` no longer exists). An undersupplied source now surfaces through the normal channels: the forward sweep sheds the pair when its input network cannot fund its `delivered * m` pull (§8.3), or idles it without a lockout on a dead input (§8.3.1). The structural-overload rule treats the pair as Setting-limited (its `CapSetting <= CableCap` by construction, §6.3), so only downstream rigid demand genuinely exceeding the rating-bounded `EffCap` trips OVERLOAD; input-limited pairs caught by that rule are taken offline with it. Either way the pair goes offline whole (no-partial-power); the diagnosis matches the actual bottleneck.
 
 The `OverloadRegistry` is keyed by `ReferenceId` (per-device, consistent with `BrownoutRegistry`). No NetworkId-keyed variant is needed; the elastic re-arm sync in §8.4.1 is commit-time phase alignment of per-device entries, not a separate network-keyed store.
 
@@ -855,7 +921,7 @@ The §8.4 overload check is an OUTPUT-side test (the pair delivering its full de
 
 The allocator therefore models a PT/PR pair's demand on its INPUT network as `throughput * m + quiescent`, not `throughput + quiescent`, and bounds the input cable at `input_cable_cap / m`. It reads `m` from PowerTransmitterPlus by reflection (`PowerTransmitterPlusInterop.SourceDrawMultiplier`, a soft dependency returning 1 when PowerTransmitterPlus is not loaded). Without this, a long link feeding off a constrained source network is under-counted by a factor of `m`: the allocator believes the input is covered, sheds nothing, and ENFORCE then computes `_powerRatio < 1` on the input network and brown-outs every rigid device on it, the exact no-partial-power violation the design exists to prevent. With it, the source network's true `delivered * m` draw enters the shed decision, so an unaffordable link sheds cleanly (its input subnet goes dark, not partial) and the input cable is protected against the inflated current.
 
-This is the PowerGridPlus-side half; PowerTransmitterPlus charging the source for distance is by design. The deliverable cap itself (the §8.4 threshold) is unchanged by this section: a pair delivering its full output-side cap with downstream demand unmet is still the trigger. Whether that fires OVERLOAD or SHED is the §8.4 input-limited carve-out (deviation P6): if the deliverable is bound by the input's `PotentialLoad` rather than the link's rating, it SHEDS.
+This is the PowerGridPlus-side half; PowerTransmitterPlus charging the source for distance is by design. The static link rating (the §8.4 threshold) is unchanged by this section: downstream rigid demand exceeding the pair's rating-bounded cap is the OVERLOAD trigger, while a source that cannot fund the pair's `delivered * m` pull sheds it through the normal §8.3 budget math (the former live-cap input-limited carve-out, deviation P6, is superseded; see §8.4).
 
 ### 8.3.3 Shed victim order example
 
@@ -865,57 +931,59 @@ Three sheddable siblings T_a, T_b, T_c on the same input network, all priority 1
 
 Shedding T_a or T_b first would still leave a residual deficit; shedding the largest claim first converges in the fewest whole-device sheds (no partial shedding, §5.5).
 
+### 8.8 Self-diagnostics: conservation check, shortfall classification, unknown-bridge census
+
+Three diagnostic surfaces watch the allocator. None of them feeds back into any decision: allocation math, ordering, and cache contents are untouched by all three.
+
+**Conservation check** (`ConservationChecker.cs`, gated by `Server - Diagnostics` / `Enable Conservation Check`, default true). Audits the converged grants at the end of ALLOCATE, so a violation is by definition a PowerGridPlus bug, never a player problem. Two invariants:
+
+- **Per network: granted inflow == granted outflow within 0.5 W.** Outflow = rigid demand served + local storage charge granted + rigid pulls granted + soft pulls granted. Inflow = supplier rigid throughput + supplier soft throughput + granted elastic discharge + the generator power the grants imply, derived as the residual `outflow - non-generator inflow` clamped to `[0, GenSupply]` so both failure directions surface: a residual above `GenSupply` means power was granted out of nothing, a negative residual means a contributor was granted throughput nobody consumes (billed upstream, wasted). Unused generator capacity is curtailment, not a violation.
+- **Per contributor seg: `TotalPull == TotalThrough * max(m, 1) + quiescent` whenever the seg conducts** (`TotalThrough > 0.01`). A non-conducting seg is checked one-sided (`TotalPull <= quiescent + tolerance`): a grant below the quiescent draw carries zero throughput and may bill any partial amount up to the quiescent. Any drift is a code bug (a double-billed quiescent, a lost distance factor, a class granted on one terminal only).
+
+Warnings are throttled to once per network / per seg per 600 ticks (about 5 minutes at the 2 Hz power tick) and carry a per-component breakdown.
+
+**Shortfall classification** (`ShortfallDiagnostics.cs`). ALLOCATE labels every allocator net's end-of-tick RIGID state and publishes one immutable snapshot per tick by volatile reference swap. The byte values are a cross-assembly contract with the ScenarioRunner census (renumbering breaks its buckets):
+
+- **Served** (0): no unmet rigid demand.
+- **Dry** (1): unmet, with every remaining feed genuinely exhausted: each active supplier is saturated or draws from an input net that retained no undelivered supply. Source-side shortage (dead-input chains, unaimed solar islands); honest darkness.
+- **Throttled** (2): unmet, with some feed valve deliberately closed: a locked / shed / overloaded supplier, a zero-effective-capacity supplier (a `Setting = 0` "firewall", or rate-limited to zero), or a locked / overloaded elastic on the net. Honest darkness (the player or a fault closed the valve).
+- **Deadlock** (3): unmet while the allocator's own accounting says supply existed: an ACTIVE supplier had headroom above 0.5 W AND its input network retained undelivered supply. On a correct allocator this is impossible (an unmet net's suppliers either sit at their caps or drained their inputs); it is the invisible-deadlock regression shape and must be zero on a healthy build (invariant §17.44). Checked BEFORE the throttle rung so a genuine routing failure is never masked by an unrelated closed valve on the same net.
+
+Diagnostics only: nothing in the mod reads it back; the `pgp-rearch-suite` census (§18) joins the snapshot via reflection. A net absent from the snapshot was outside allocator scope this tick.
+
+**Unknown-bridge census** (`UnknownBridgeCensus.cs`). On the first atomic tick after a world load (armed at plugin load, re-armed on every world load), every scene device that is an `ElectricalInputOutput` subclass but neither in `SegmentingDeviceRegistry`'s known set nor described by any adapter (§5.0.3) is reported, one Info line per TYPE. Reporting is the ONLY handling: an unknown bridge keeps its vanilla power methods unpatched and GATHER sums it as plain rigid demand / generation on each side (the conservative fallback, §8.0.0.2). The census makes the gap visible instead of silent when a third-party mod ships its own two-port power device.
+
 ### 8.9 Status
 
 The allocator described in §8.0 is the sole power path: there is one allocator, no toggle, and no alternate strategy (decision §0.8). In-game validation on the dedicated server is tracked separately (see `PLAYTEST.md`); this spec does not carry dated dedi results.
 
-## 9. The surplus distribution pass
+## 9. Storage-charge flow (the Soft class)
+
+> Supersedes the former "surplus distribution pass" design of this section (2026-07-02, decision §0.9): the separate priority-blind surplus walk is deleted; storage charge is the SOFT flow class riding the same backward/forward sweep as rigid demand (§8.0.3).
 
 ### 9.1 Goal
 
-After the shed decision settles which subnets stay alive, distribute leftover supply (= total rigid supply − total surviving rigid demand) to soft-demand devices. The distribution is priority-blind: it cares only about topology (where the surplus can flow) and proportional fairness.
+Charge every storage cell (stationary battery, APC cell, rocket umbilical cell) out of supply that rigid demand does not need, across any number of intermediate contributors, without ever displacing rigid load, tripping a fault, or double-counting a request. There is no second accounting system: soft is the second component of the one (rigid, soft) demand vector the allocator sweeps.
 
-### 9.2 Where surplus exists
+### 9.2 Where charge power comes from
 
-A network N has SURPLUS = `rigidSupplyByNet[N] − rigidDemandByNet[N]` if the cascade is complete and all siblings on N are satisfied. The surplus is what's available for soft-demand devices on N or downstream of N.
+Soft is funded per network by the FIRM residual only: `GenSupply + active suppliers' rigid Throughput - RigidDemand - granted rigid pulls`, floored at 0, plus the soft inflow arriving through the net's active suppliers. Elastic discharge NEVER funds charging: a battery must not discharge to charge another store. The pool is additionally capped by the weakest cable's remaining headroom on the network (`CableMax.WeakestCapOnNetwork - (RigidServed + granted rigid pulls)`), so a charge grant cannot push a network past its tier rating. A consequence of the funding rule: a soft grant on a network implies every rigid pull there was granted whole (a partially granted rigid pull leaves a firm residual of exactly zero).
 
-### 9.3 Request flow upstream
+### 9.3 Request flow upstream (the backward half)
 
-Every soft-demand device on network N raises a `RequestedShare` (§7.2). Requests are aggregated:
+Every storage cell raises a `Request` (§7.6) on its input network, summed into `Net.SoftRequestLocal`. The `BackwardDesirePass` (§8.0.3 pass 1) carries the soft class leaf-to-source in the SAME walk as rigid: `net.SoftDesire = SoftRequestLocal + sum of active consumer segs' SoftDesiredPull`, split over the net's suppliers by the same priority-tier-first, proportional-within-a-tier splitter (§8.3.2), with each contributor capped at its residual headroom `EffCap - DesiredThroughput` (soft never displaces rigid capacity), and `SoftDesiredPull = SoftDesiredThroughput * max(m, 1)` plus the quiescent draw only when the contributor carries no rigid pull (the quiescent is carried exactly once). The proportional split is what kills the deleted surplus walk's double-count by construction: parallel contributors DIVIDE a downstream request instead of each propagating it whole. A locked / shed / overloaded contributor propagates zero soft desire.
 
-- Per-network: sum of soft requests directly attached to N.
-- Per-downstream-transformer: each non-shed transformer T whose input is N propagates the sum of its output network's requests upstream, scaled if T has a `TransmissionEfficiency` factor (PT/PR pairs only).
+### 9.4 Grant flow downstream (the forward half)
 
-The aggregation walks from leaves upward. Each non-shed transformer becomes a propagating node: `T.propagatedRequest = sum of (downstream requests through T.output, scaled by efficiency if PT/PR, capped by T.Setting × efficiency)`.
+`ForwardSupplyAndShed` (§8.0.3 pass 3) grants soft per network AFTER the rigid grants, out of the §9.2 pool: one ratio `softRatio = min(1, softAvail / softDemand)` scales every local charge request and every active consumer's soft pull on the network, and a consumer's granted soft throughput is further capped at its remaining headroom `EffCap - Throughput`. Because networks are processed in topological order, the soft inflow a network receives through its suppliers was granted when THEIR input networks were processed, so a charge flow crosses any chain of contributors within the single tick, with no propagation lag and no iteration beyond the DECIDE loop it already rides.
 
-Shed transformers propagate 0 requests upstream.
+### 9.5 Storage, enforcement, and presentation
 
-### 9.4 Allocation walk downstream
+The final per-device charge share is written to `SoftDemandShareCache[ReferenceId]`; the `Battery.GetUsedPower` postfix, the `AreaPowerControl.GetUsedPower` prefix (charge portion only, §7.5), and the rocket umbilical patches min-clamp the reported charge demand to it, so each store charges exactly its grant. The charge flow crossing each contributor is part of that contributor's published `TotalThrough` / `TotalPull` (§8.0.4), so the flow is PRESENTED: it has a carrier on both terminals of every segment it crosses, and network `PotentialLoad` / `RequiredLoad` mirrors, hover tooltips, and IC10 reads of transformer / wireless throughput include storage-charge flow, not just running machines. (The pre-rearchitecture design granted charge in a side walk that published only APC figures; a granted-but-unpresented charge flow behind a transformer or wireless pair was a permanent fault-free deadlock, chargers idling at 0 W forever.) During ENFORCE's re-`CalculateState` the postfixes return the allocated values, `Required <= Potential` holds on every network by construction, vanilla `_powerRatio` stays 1, and nothing flickers.
 
-After requests are aggregated, allocate downstream from each supply source:
+### 9.6 Faults never fire for soft
 
-1. At each network N, compute `availableSurplus`: rigid supply minus rigid demand minus any surplus already allocated to higher-up requests on this same wire (relevant for super-trunks).
-2. Sum the requests pointed at N: direct soft devices on N + propagated requests from non-shed downstream transformers.
-3. If `sum(requests) ≤ availableSurplus`: each request granted in full. Record allocated shares.
-4. If `sum(requests) > availableSurplus`: each request gets `requested_share × (availableSurplus / sum(requests))`. Pure proportional. Priorities are NOT consulted at this step — requests compete on size alone.
-5. Each non-shed downstream transformer that received an allocation passes its share down to the next level, where the same proportional split applies among that level's soft devices and further-downstream non-shed transformers.
-6. Each allocated transformer respects its own throughput cap (`Setting`, scaled by `TransmissionEfficiency` if PT/PR). If an upstream allocation exceeds the transformer's pass-through capacity, it caps at capacity — the excess simply doesn't flow further, no error.
-7. Each cable's `MaxVoltage` is also a cap. Allocation respects wire capacity at every hop.
-
-### 9.5 Storage and enforcement
-
-The final per-device share is written to `SoftDemandShareCache[ReferenceId]`. The `Battery.GetUsedPower`, `NuclearBattery.GetUsedPower`, `AreaPowerControl.GetUsedPower` (charge portion only), and `PowerTransmitter.GetUsedPower` postfixes read from this cache and clamp `__result` accordingly.
-
-During ENFORCE's re-`CalculateState`, the postfixes return the allocated value, vanilla `_powerRatio = 1` on every network (because Required ≤ Potential is now an invariant of the distribution), no scaling cascades upward, no `_powerProvided` drift, no flicker.
-
-### 9.6 Why single-pass works
-
-The proportional rule plus headroom cap at every hop means:
-- No allocation exceeds physical capacity (wire, transformer, etc.).
-- Total allocated ≤ total surplus at every level (by construction of the proportional split).
-- Therefore vanilla's `_powerRatio` stays at 1 on every network.
-
-Iterating to redistribute "wasted" surplus would only matter if a fraction got allocated below physical max somewhere AND another branch was starved. The proportional rule already balances this within a single pass; the residual is bounded by the deepest tree level and is not worth iterating for.
+Every fault decision (shed §8.3, structural overload §8.0.3, elastic supply overload §8.4.1, cable overflow §5.7, and the dead-input cue §8.3.1) evaluates the RIGID component only. Excess soft desire is CLAMPED, never a fault: a 5 kW transformer asked for 50 kW of battery charge passes 5 kW of charge with no overload, no shed, no lockout, and no hover cue; unmet charge simply waits for headroom. Charge never displaces rigid: the backward split caps soft at each contributor's post-rigid headroom (§9.3) and the forward grant funds it from the post-rigid firm residual (§9.2). Because soft rides the same priority tiers as rigid (§8.3.2), a high-priority contributor's downstream storage charges before a low-priority one's; this is a deliberate behaviour change from the deleted priority-blind surplus walk.
 
 ## 10. Protection state machine
 
@@ -976,6 +1044,30 @@ This is the unified rule across CYCLE_FAULT, VARIABLE_VOLTAGE_FAULT, OVERLOAD, a
 **No grace period on save load.** The first post-load tick runs the full allocator pass. Any violation that is still present in the loaded topology re-fires its fault with the full 60 s `_lockoutUntilTick = currentTick + 120` lockout. There is no shorter "warm-up" timer, no grace tick, and no half-elapsed countdown carried over. A player who saved with a cycle, an overload, or a producer-isolation violation present loads into the same world, sees the full red countdown the moment the first electricity tick runs, and accepts that the save was made with a violation in place. The OFF-as-reset (§10.3) remains available immediately after load if the player wants to retry without waiting.
 
 The `BurnReasonSideCar` (§11.6) is the only fault-related state that DOES persist across save / load. It records per-instance hover reasons on already-broken `CableRuptured` wreckage, which is durable game state, not a transient lockout countdown.
+
+### 10.6 Powered presentation policy (healthy routed segmenters)
+
+Vanilla `PowerTick.ApplyState` derives a device's Powered flag from what it consumed this tick, and its only un-power path is gated on `Device.AllowSetPower(net)` (ApplyState is the flag's sole writer in the game). Under fresh-pull billing (§8.0.4) a HEALTHY routed segmenter that idles at zero throughput (a charger transformer whose batteries are full, an idle dish pair) bills a fresh pull of 0, so vanilla flips it to Powered=False and players read "device broken" on a device the allocator is routing normally. Policy: a routed segmenter the allocator considers healthy presents `Powered = True` even when idle (`PoweredPresentation.cs`).
+
+**Healthy** (published per tick by the ALLOCATE tail, §8.0.4): enrolled in this tick's contributor roster, carrying no fault (not cycle-faulted, not shed, not overloaded, this tick or from a prior-tick lockout), and either conducting (`TotalThrough > 0`) or idle on an input network that has effective supply and no unmet rigid demand. A wireless pair publishes health under BOTH halves' ReferenceIds so transmitter and receiver present the same verdict. An idle segmenter on a DARK input (a night-time solar feed) is deliberately NOT healthy: vanilla un-powers it, matching the dead-input hover cue (§8.3.1). Faulted, dead-input, switched-off, and unenrolled devices keep exact vanilla Powered behaviour.
+
+Mechanics, two halves around vanilla's own writer:
+
+- **Block the False edge.** `AllowSetPower` postfixes on `Transformer` / `AreaPowerControl` / `PowerTransmitter` / `PowerReceiver` (`Patches/PoweredPresentationPatches.cs`) flip the gate to false for any device in the healthy set, so ApplyState can never un-power a healthy segmenter (and no False/True double transition, with its replication churn, ever happens).
+- **Raise the True edge.** The ENFORCE tail (`PoweredPresentation.ReconcileEnforceTail`, §2) calls the vanilla `SetPowerFromThread(net, true)` for each healthy segmenter still reading Powered=False. The write self-marshals to the main thread, so the rising edge lands with one frame of marshal lag (an idle healthy charger can read Powered=False for the single tick spanning the marshal, e.g. right after world load); it fires only on a real False -> True transition, so a steadily healthy segmenter causes zero per-tick traffic.
+
+Server-authoritative by construction: ApplyState and the ENFORCE tail run only inside the host's atomic tick, and `SetPower` routes through the normal interactable replication, so clients mirror the host's flag. On a client peer the published healthy set stays empty and the postfixes no-op. Between world load and the first atomic tick the set is also empty, so everything reads unhealthy and vanilla behaviour applies (the safe default).
+
+### 10.7 Ledger adoption (`_powerProvided`)
+
+The private per-class `_powerProvided` ledger on `Transformer` / `AreaPowerControl` / `PowerTransmitter` / `PowerReceiver` is vanilla's deferred billing handshake (`UsePower` charges it output-side, `GetUsedPower` bills it, `ReceivePower` repays it). The game never zeroes it, and it persists into saves. Under fresh-pull billing (§8.0.4) vanilla's restoring force is gone: vanilla bills `min(cap, ledger)` so residue self-drains through later bills, while a fresh-pull bill never drains it, so the ledger degenerates into a residue accumulator nobody owns. Concretely: a conducting transmitter drifts `-((m - 1) * TotalThrough + quiescent)` per tick under the billing handshake (the free-energy credit class; a real save carried a stranded -176,226 W credit, a dormant free-power source the moment vanilla billing reads the ledger again), and a multi-provider transformer input leaks a slow positive plateau (the input repayment is chunked per provider while the quiescent is subtracted per chunk). PowerGridPlus owns billing for these devices, so it also owns their ledgers (`LedgerAdoption.cs`), both lanes host-only inside the atomic tick:
+
+- **World-load sweep** (`RunSweepIfPending`, §2 step 1): on the first atomic tick after a load (armed at plugin load, re-armed on every world load), zero the ledger on every modelled segmenter, both signs, NaN included, BEFORE the first OBSERVE can serve a stale value through the vanilla `GetUsedPower` fallback. One Info line per zeroed device plus a summary.
+- **Per-tick ENFORCE-tail settle** (`SettleEnforceTail`, §2 step 4): after all ApplyState mutations, each enrolled, settle-eligible segmenter's ledger is SET to its vanilla-equivalent standing value: `Transformer := TotalThrough` (one tick's output drain awaiting billing, which also makes the `LogicType.PowerActual` read equal the documented "current throughput", §12); `PowerTransmitter := 0` (its fresh bill was already paid in full this tick); `PowerReceiver := min(debt, TotalThrough)` (preserves the load-bearing relay cycle, whose lifted `GetUsedPower` drains the transmitter's advertise on the wireless network and drives both halves' beam visuals, shearing only the stuck overshoot above one tick's throughput; negative or non-finite standing values clamp to 0). Writes are skipped inside a 0.01 W tolerance. Per-tick negatives therefore never survive a tick; each is counted silently as the free-energy metric.
+- **APC exempt from the per-tick settle** (swept at load only): vanilla `AreaPowerControl.UsePower` drains the internal cell against a POSITIVE ledger one tick after the cell covers an output shortfall (the ledger is the cell-discharge carrier), and its `GetUsedPower` takes `Max(ledger, quiescent)` so a negative never discounts a bill; settling it per tick would hand the cell free energy. The `Transformer` is settled only while `EnableTransformerExploitMitigation` is on (mitigation off leaves vanilla owning the transformer ledger).
+- **Warn-only high-water detector**: a pre-settle value at or above `4 x max(TotalPull, 250 W)`, or non-finite, counts as a high-water event. ONE globally throttled warning per 600 ticks carries the running totals and the worst offender since the last warning. With the settle in place a healthy device's pre-settle value is bounded by roughly 2.5x its one-tick bill (one standing value plus one ramp tick), so the 4x threshold sits above everything a healthy grid produces and zero warnings are expected; a recurring warning means something upstream is accumulating into a ledger PowerGridPlus owns. There is no corrective upper clamp; the detector only reports.
+
+Field access: wireless halves route through the PowerTransmitterPlus ModApi debt accessors (`GetTransferDebt` / `SetTransferDebt`) when the ModApi tier resolved (§6.6), else through cached `FieldInfo` on the vanilla field (which exists with or without PowerTransmitterPlus); `Transformer` / `AreaPowerControl` use cached `FieldInfo` directly. Saves now carry at most one tick's standing value per ledger.
 
 ## 11. Visual feedback
 
@@ -1143,6 +1235,8 @@ The prior PGP repurpose of vanilla `LogicType.ImportQuantity` (29) and `ExportQu
 
 `Setting` keeps its vanilla read/write semantics for IC10 access (clamped `[0, OutputMaximum]`). PowerGridPlus initialises `Setting = OutputMaximum` at world load. The in-world knob and Labeller tool redirect writes to `Priority`. See §5.3.
 
+Transformer `PowerActual` (the PGP-added read, §19.3) reads the `_powerProvided` ledger AFTER the ENFORCE-tail settle (§10.7), so it reports the transformer's ACTUAL current throughput this tick, storage-charge flow included; before the 2026-07-02 rearchitecture the read reported the ledger's drifting billed plateau instead. More generally, every throughput reading on transformers and wireless pairs (device reads and the network `PowerPotential` / `PowerActual` mirrors) includes storage-charge flow, not just running machines (§9.5).
+
 The `Ic10ConstantsPatcher` injects these names into the IC10 syntax highlighter at prefab-load time.
 
 The full per-device-type LogicType inventory (vanilla and PowerGridPlus-added, with location references) lives at the end of this document in §19 "IC10 logic field inventory."
@@ -1161,7 +1255,7 @@ The full per-device-type LogicType inventory (vanilla and PowerGridPlus-added, w
 
 **Clock skew acceptable.** The countdown `{n}s` is wall-clock-interpolated per peer using `Time.realtimeSinceStartup` (§11.2). Host and client display values can drift by ~50-200 ms over a 60 s lockout depending on render-rate skew and network latency; this is purely cosmetic and never affects the authoritative fault-clear decision (which is tick-based on the host). See §11.2.
 
-Soft-demand shares are derived; they are not synchronised explicitly. Each peer computes them locally from the synced `Required`/`Potential` and the shed state.
+Soft-demand and elastic shares are not synchronised explicitly: the allocator runs host-only (the atomic tick is gated on `GameManager.RunSimulation`), so the share caches exist only on the host, and clients simply mirror the resulting device and network state through the game's normal replication.
 
 ## 14. Settings
 
@@ -1195,7 +1289,7 @@ Reference inventory verified against the 0.2.6228.27061 decompile. Per-prefab va
 | Field | Type | Default | Purpose |
 |---|---|---|---|
 | `OutputMaximum` | float | 10000 | Max throughput watts (per-prefab) |
-| `Setting` | double (synced) | 0 | Knob value (PGP repurposes as Priority) |
+| `Setting` | double (synced) | 0 | Throughput cap, vanilla semantics kept; the in-world knob and Labeller writes redirect to Priority instead (section 5.3) |
 | `_powerProvided` | float | 0 | Per-tick downstream draw accumulator |
 | `UsedPower` | float (inherited) | 10 | Own quiescent draw |
 
@@ -1207,19 +1301,31 @@ Reference inventory verified against the 0.2.6228.27061 decompile. Per-prefab va
 | `PowerStored` | float (clamped property) | 0 | Current stored |
 | (no rate fields) | -- | -- | Rate imposed externally by whatever charges/discharges |
 
-Stationeers does NOT have separate C# classes for StationaryBatteryLarge / NuclearBattery — all stationary batteries share the `Battery` class with prefab-overridden `PowerMaximum`. PowerGridPlus's per-prefab rate caps in `StationaryBatteryPatches.GetChargeCap` switch on `PrefabName` to apply the right cap.
+Stationeers does NOT have separate C# classes for StationaryBatteryLarge / NuclearBattery; all stationary batteries share the `Battery` class with prefab-overridden `PowerMaximum`. PowerGridPlus's per-prefab rate caps in `StationaryBatteryPatches.GetChargeCap` switch on `PrefabName` to apply the right cap.
 
 ### 14.2 PowerGridPlus settings
 
-Verified against `Mods/PowerGridPlus/PowerGridPlus/Settings.cs`. All are server-authoritative (Section starts with `Server -`).
+Verified complete against `Mods/PowerGridPlus/PowerGridPlus/Settings.cs` (every bound group and entry is listed). All are server-authoritative (every Section starts with `Server -`). Maintenance: regenerate this table against `Settings.cs` whenever a setting is added, renamed, or re-defaulted.
 
 **Cable Simulation:**
 
 | Setting | Default | Order | Purpose |
 |---|---|---|---|
 | `CableNormalMaxWatts` | 5000 | 20 | NEW. Normal cable Watts cap. `0` = unlimited. |
-| `CableHeavyMaxWatts` | 50000 | 30 | NEW. Heavy cable Watts cap. `0` = unlimited. |
+| `CableHeavyMaxWatts` | 100000 | 30 | NEW. Heavy cable Watts cap; default 100000 matches vanilla (decision 2). `0` = unlimited. |
 | `CableSuperHeavyMaxWatts` | 0 | 40 | NEW. Super-heavy cable cap. Default 0 (unlimited) mirrors historical behaviour. |
+
+**Cable Costs:**
+
+| Setting | Default | Order | Purpose |
+|---|---|---|---|
+| `SuperHeavyCableCostMultiplier` | 2.0 | 10 | Section `Server - Cable Costs`, key `Super-Heavy Cable Cost Multiplier`. Multiplies the ingredient cost of crafting a super-heavy cable coil (2.0 doubles it; 1.0 = vanilla). Applied to the crafting recipe at load time (tagged RequireRestart); existing coils in the world are unaffected. |
+
+**Voltage Tiers:**
+
+| Setting | Default | Order | Purpose |
+|---|---|---|---|
+| `ExtraHeavyCableDevices` | (empty) | 10 | Section `Server - Voltage Tiers`, key `Extra Heavy-Cable Devices`. Comma-separated extra device prefab names allowed on heavy cable, on top of the built-in high-draw machine list (§3); matched against the device's `PrefabName`. For modded high-draw machines. The tiers themselves are always on (no toggle, §14.3). |
 
 **Batteries:**
 
@@ -1232,6 +1338,10 @@ Verified against `Mods/PowerGridPlus/PowerGridPlus/Settings.cs`. All are server-
 | `LargeBatteryDischargeRate` | 50000 | 50 | Large battery discharge cap (W) |
 | `NuclearBatteryChargeRate` | 25000 | 60 | Nuclear battery charge cap (W, MorePowerMod) |
 | `NuclearBatteryDischargeRate` | 50000 | 70 | Nuclear battery discharge cap (W) |
+| `RocketBatteryMediumChargeRate` | 5000 | 72 | Key `Rocket Battery (Medium) Charge Rate`. Charge cap (W) for the rocket Battery (Medium) (StructureBatteryMedium); per device, capped further by the input cable. |
+| `RocketBatteryMediumDischargeRate` | 10000 | 74 | Key `Rocket Battery (Medium) Discharge Rate`. Discharge cap (W) for StructureBatteryMedium; capped further by the output cable. |
+| `RocketBatterySmallChargeRate` | 2500 | 76 | Key `Auxiliary Rocket Battery Charge Rate`. Charge cap (W) for the Auxiliary Rocket Battery (StructureBatterySmall); capped further by the input cable. |
+| `RocketBatterySmallDischargeRate` | 5000 | 78 | Key `Auxiliary Rocket Battery Discharge Rate`. Discharge cap (W) for StructureBatterySmall; capped further by the output cable. |
 | `BatteryChargeEfficiency` | 1.0 | 80 | Fraction of incoming power actually stored |
 | `EnableBatteryLogicAdditions` | true | 90 | Expose Import/Export Quantity IC10 reads |
 | `EnableBatteryLogicPassthrough` | true | 100 | Master toggle for battery logic passthrough |
@@ -1262,6 +1372,7 @@ Verified against `Mods/PowerGridPlus/PowerGridPlus/Settings.cs`. All are server-
 | `EnableRocketUmbilicalLimits` | true | 10 | Master toggle for RocketUmbilical rate caps + the four soft-power LogicTypes (MaxChargeSpeed / MaxDischargeSpeed / ChargeSpeed / DischargeSpeed) on Male and Female. If false, RocketUmbilical falls back to vanilla rate behaviour (`PowerMaximum` per tick implicit cap). |
 | `RocketUmbilicalChargeRate` | 10000 | 20 | Per-pair charge rate cap (W). Default matches vanilla `PowerMaximum`. Applies to both Male and Female halves of every linked pair. |
 | `RocketUmbilicalDischargeRate` | 10000 | 30 | Per-pair discharge rate cap (W). |
+| `EnableUmbilicalLogicPassthrough` | true | 40 | Key `Enable Umbilical Logic Passthrough`. Master kill-switch for umbilical logic passthrough: a docked Male + Socket pair is logic-transparent; each half honours its per-device `LogicPassthroughMode` (writing one half mirrors the value to its docked partner), both default to mode 1, persisted across save / load. An undocked umbilical bridges nothing. |
 
 **Power transmitter:**
 
@@ -1269,11 +1380,18 @@ Verified against `Mods/PowerGridPlus/PowerGridPlus/Settings.cs`. All are server-
 |---|---|---|
 | `EnablePowerTransmitterLogicPassthrough` | true | Master toggle for PT/PR logic passthrough |
 
+**Diagnostics:**
+
+| Setting | Default | Order | Purpose |
+|---|---|---|---|
+| `EnableConservationCheck` | true | 10 | NEW. Section `Server - Diagnostics`, key `Enable Conservation Check`. Per-tick allocator self-audit (§8.8): per-network granted inflow must equal granted outflow within 0.5 W, and every routed contributor must bill its input exactly `TotalThrough * max(m, 1) + quiescent`. Violations log a warning with a per-component breakdown, throttled to once per network / per seg per 600 ticks. Costs a few microseconds per tick; leave on unless chasing maximum performance. |
+
 **Emergency lights:**
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `EnableEmergencyLights` | true | Replace lights' fail material with emergency override on power loss |
+| `EnableEmergencyLights` | true | Key `Enable Wall Light Battery Emergency Mode` (Order 10). Wall Light Battery devices behave as emergency backup lights: lamp off while grid-powered, on (from the internal cell) when grid power is lost. Per-light opt-out via Mode 1. |
+| `EmergencyLightPrefabs` | StructureWallLightBattery | Key `Emergency Light Prefabs` (Order 20). Comma-separated light prefab names that get the emergency-backup behaviour while the master toggle is on; entries must be battery-backed wall lights (the `WallLightBattery` device class); matched against the device's `PrefabName`. |
 
 ### 14.3 Removed (with dead code)
 
@@ -1286,7 +1404,7 @@ BepInEx keys `(Section, Key)` identify entries. Renaming either orphans the save
 
 ### 14.5 APC field handling at runtime
 
-PowerGridPlus rewrites `AreaPowerControl.BatteryChargeRate` directly at mod load (and re-applies on each settings change) so that any vanilla code path or third-party mod reading the field sees the configured value. The discharge cap has no parallel vanilla field; PowerGridPlus maintains a static `Dictionary<long, float>` keyed by APC `ReferenceId`, defaulting to `Settings.ApcBatteryDischargeRate.Value`. The dictionary is queried by the elastic supply allocator (§7.3); it does not need to back any vanilla code path because no vanilla code reads a discharge cap on APC.
+PowerGridPlus never mutates `AreaPowerControl.BatteryChargeRate` (decision §0.2 non-mutating, deviation P14). The charge cap is read at compute time: `AreaPowerControlPatches.ComputeChargeCap` reads `Settings.ApcBatteryChargeRate.Value` live and bounds it by the input cable's remaining headroom after the APC's own passthrough (§7.5); with `Enable APC Power Fix` off, vanilla's own field value runs untouched. A third-party mod reading the vanilla field therefore sees the unmodified vanilla value, not the configured cap. The discharge cap has no parallel vanilla field; PowerGridPlus tracks it in `ApcDischargeRateRegistry` (per-APC, session-only, defaulting to `Settings.ApcBatteryDischargeRate.Value` when no override exists). The registry is queried by the elastic-supply allocator (§7.3) and the `MaxDischargeSpeed` logic read; it does not need to back any vanilla code path because no vanilla code reads a discharge cap on APC.
 
 ## 15. Compatibility
 
@@ -1306,18 +1424,18 @@ Rationale: settings cannot be changed mid-game (the StationeersLaunchPad setting
 Per tick on a Lunar save with ~200 cable networks, ~120 transformers, ~30 soft-demand devices:
 
 - SETUP / OBSERVE: 1× device-walk per network. ≈ 400 device-method calls.
-- ALLOCATE: O(N) Kahn topological order + the fixed-point loop (bounded 2N+4 rounds, typically 1-2) + O(N) surplus walk, where N = contributor count. ≈ 1000 method calls, ≈ 100 µs.
-- ENFORCE: another 1× device walk per network. ≈ 400 calls.
+- ALLOCATE: O(N) Kahn topological order + the fixed-point loop (bounded 2N+4 rounds, typically 1-2; each round carries both flow classes, so there is no separate charge-distribution walk) + the publish tail, where N = contributor count. ≈ 1000 method calls, ≈ 100 µs.
+- ENFORCE: another 1× device walk per network, plus the ENFORCE tail (Powered reconcile + ledger settle over the enrolled roster, §10.6 / §10.7). ≈ 400 calls.
 - DEVICE TICK + LOGIC TICK: vanilla copy, no overhead.
 
-Aggregate cost is well under 1 ms per tick at 2 Hz — rounding error against the broader simulation.
+Aggregate cost is well under 1 ms per tick at 2 Hz: rounding error against the broader simulation.
 
 ## 17. Invariants the implementation must preserve
 
 1. Tick atomicity: every decision at tick N takes effect at tick N. No latency. No oscillation.
 2. Priority comparisons are local to a single input network.
 3. Shed cascade is bottom-up; the smallest possible subnet sheds first.
-4. Surplus distribution is priority-blind and pure-proportional within each hop's headroom.
+4. Storage charge (the Soft class) rides the same priority-tiered backward/forward sweep as rigid demand (§9): funded per network from the firm residual only (never from elastic discharge), split tier-first and proportional-to-residual-headroom within a tier, capped by cable headroom at every hop, and it never displaces rigid capacity and never triggers a fault.
 5. Soft demand never causes rigid devices to flicker; soft devices scale with available headroom but never below 0.
 6. Voltage tiers are enforced regardless of any toggle.
 7. Cycles are faulted regardless of any toggle. PowerGridPlus's PROTECT-phase detection covers cycles through `ElectricalInputOutput` device chains AND cycles through PT/PR wireless links; both produce CYCLE_FAULT, not a cable burn. Vanilla's recursive-provider detector runs as belt-and-braces (§17.25).
@@ -1328,8 +1446,8 @@ Aggregate cost is well under 1 ms per tick at 2 Hz — rounding error against th
 12. APCs are dual-terminal but their internal `_powerProvided` couples both sides per tick; charge and discharge of the inserted cell are in-tick exclusive.
 13. A battery or APC with `InputNetwork == OutputNetwork` is short-circuited via vanilla `ElectricalInputOutput.IsOperable`. All four power methods return 0 / no-op. Hover shows "Device Short Circuited". PowerGridPlus relies on the vanilla gate and does not implement parallel detection.
 14. A single transformer can never burn a cable by overdraw: its `effective_cap` is bounded by `min(OutputMaximum, InputCable.MaxVoltage, OutputCable.MaxVoltage)`. Cable burning from overdraw requires MULTIPLE transformers feeding one network past the cable cap collectively (standard vanilla cable burn).
-15. Cable `MaxVoltage` per tier is server-authoritative via settings; `0` means unlimited and is normalised internally to `float.MaxValue`. Mod-load patches the per-prefab `MaxVoltage` so vanilla cable-burn and PowerGridPlus headroom formula read the same value.
-16. PT/PR effective throughput is read at runtime via `PT.GetGeneratedPower(WirelessOutputNetwork)`, so whichever distance-loss model is active (vanilla `PowerLossOverDistance` curve or PowerTransmitterPlus's `MicrowaveEfficiency` formula) is automatically reflected. PowerGridPlus does not hardcode either model.
+15. Cable caps per tier are server-authoritative via settings and NON-MUTATING (decision §0.2): `Cable.MaxVoltage` is never written. Every cap reader (battery / APC headroom, the allocator's effective-cap formula, the generator-overflow burn check) consults the `CableMax` helper, which reads the configured per-tier value live at use time, and vanilla's own cable-burn check is patched to consult the same helper, so both read the same number. `0` means unlimited and is normalised internally to `float.MaxValue` (clamped to a finite 1e9 sentinel where it enters the allocator's capacity sums, §5.0.3).
+16. The PT/PR pair's cap is a STATIC link rating computed per tick from whichever distance model is active (§6.3): PowerTransmitterPlus's configured Max Transfer Capacity (0 = unlimited, mapped to a finite 1e9 sentinel) with distance repriced as the source-draw multiplier `m`, or the vanilla `MaxPowerTransmission` minus the `PowerLossOverDistance` delivery loss when PowerTransmitterPlus is absent. It is never the live `InputNetwork.PotentialLoad` (the live read collapses to a cross-tick zero fixed point on transformer-fed sources). PowerGridPlus does not hardcode either model.
 17. All power simulation values are Watts. There are no amps or volts in the simulation; the misleadingly named `Cable.MaxVoltage` is a Watts cap compared directly against accumulated Watts in `PowerTick.GetBreakableCables`.
 18. Every segmenting device (Transformer, Battery, AreaPowerControl, PowerTransmitter, PowerReceiver, RocketPowerUmbilicalFemale, RocketPowerUmbilicalMale) is a level boundary in the §8.0 cascade. The list is exhaustive against the 0.2.6228.27061 decompile. PowerConnection is excluded per §5.0.1.
 19. Transformer operational state is binary per tick: ON (working) or LOCKED-OUT (shed XOR overload). There is no "throttled" intermediate state. A transformer either gets its full required input or sheds; a transformer either delivers within `OutputMaximum` or overloads.
@@ -1363,6 +1481,8 @@ Aggregate cost is well under 1 ms per tick at 2 Hz — rounding error against th
 40. Fault-state transience across save / load (§10.5). All four fault registries (`BrownoutRegistry`, `OverloadRegistry`, `CycleFaultRegistry`, `ProducerFaultRegistry`) clear on world load and recompute on the first post-load tick. The `_lockoutUntilTick` countdowns are in-memory only; never serialised. The first post-load tick applies the full 60 s lockout to any rediscovered violation with no grace period (§10.5). `BurnReasonSideCar` is the sole exception and records durable per-instance hover state on already-broken cable wreckage, not transient fault timers.
 41. Cycle-detection topology-change skip. PGP tracks `lastTopologyChangeTick` per `CableNetwork`. The PROTECT-phase cycle-detection DFS is skipped on a network whose `lastTopologyChangeTick < lastCheckedTick` (no structural change since the previous walk). Topology-change events that bump the counter: cable place / destroy / burn (wrong-tier burns count), segmenter place / destroy. The skip applies per network; a single network's change does not invalidate the cached result on disjoint networks. On a stable grid (the common case), the cycle detector is a near-zero-cost no-op every tick.
 42. Settings are immutable during a game session. The StationeersLaunchPad in-game mod settings GUI is main-menu only; the game does not expose a runtime "open mod settings" panel. Every `Settings.*.Value` read during play returns the same value, so PGP code can treat settings as frozen for the duration of the session. This justifies lazy / no-cache patterns (Stationpedia footers in §15.1) and removes the need for a settings-change event bus.
+43. Conservation is MACHINE-CHECKED every tick (§8.8). With `Enable Conservation Check` on (default), the allocator audits its own converged grants at the end of ALLOCATE: per network, granted inflow equals granted outflow within 0.5 W; per routed contributor, `TotalPull == TotalThrough * max(m, 1) + quiescent` whenever it conducts (one-sided against the quiescent when it does not). A violation is an allocator bug by definition and logs a throttled warning with a per-component breakdown; a healthy build logs zero violations.
+44. The shortfall census reads ZERO Deadlock networks on a healthy build (§8.8): no network may end a tick with unmet rigid demand while an active supplier retains headroom above 0.5 W AND that supplier's input network retains undelivered supply. Deadlock > 0 is the invisible-deadlock regression signal (the shape of the pre-rearchitecture charge deadlock) and fails the `pgp-rearch-suite` census.
 
 ## 18. Test plan summary
 
@@ -1372,7 +1492,7 @@ Per major behaviour, a probe scenario must exist:
 - Overload: OP probe.
 - Shed cascade with bottom-up propagation: new probe.
 - Per-input-network priority comparison: new probe.
-- Surplus distribution proportional: new probe.
+- Storage-charge flow (soft riding the sweep, charging across intermediate segments): covered by the `pgp-rearch-suite` charge leg below.
 - PT/PR as transformer: new probe.
 - Soft-demand cap (no `_powerProvided` runaway): new probe with 60-tick state evolution.
 - OFF-as-reset: new probe.
@@ -1383,7 +1503,11 @@ Per major behaviour, a probe scenario must exist:
 - Labeller: existing LP probe.
 - Save/load: existing SLP probe.
 
-All probes run via the `pgp-atomic-all` aggregator. Pass/fail counts logged per-probe; final tally compared against a baseline of 100% pass.
+Three dedicated-server ScenarioRunner suites carry the plan (each implemented as a single phased scenario, one scenario per server run):
+
+- **`pgp-rearch-suite`**: the unified-flow regression suite. Charge regression (a known nuclear-battery pair charging across a 7-link wireless farm; `PowerStored` trajectory must rise to full), the shortfall census over the `ShortfallDiagnostics` snapshot (§8.8; the Deadlock bucket is the regression signal and must be 0, invariant §17.44), the Powered-presentation check (idle healthy chargers read Powered=True, with a >= 3-consecutive-tick debounce for the one-frame marshal lag of the rising edge, §10.6), and the ledger check (no negative `_powerProvided` on any wireless half after the sweep, settle silent, §10.7), with the conservation checker expected at zero violations throughout (§17.43). Emits one `VERDICT charge=... shortfalls=... powered=... ledger=...` line.
+- **`ptp-standalone-suite`**: PowerTransmitterPlus WITHOUT PowerGridPlus loaded (the §6.6 standalone rules). Steady links conserve; transmitter debt stays bounded by the ceiling plus one burst bill (`debt(t) <= ceiling + delivered(t) * m`); flows above 5 kW are billed to the source (the receiver drain-cap lift, `flow5k` leg); an OnOff cycle leaves the debt bounded and resumes clean. Emits `VERDICT api=... pairs=... debt=... flow5k=... toggle=...`.
+- **`pgp-atomic-all`**: the composite aggregator running every legacy probe family above (atomic tick AP, overload OP, knob KBP, flash FP, hover HP, labeller LP, multiplayer MP, save/load SLP). Pass/fail counts logged per probe; the final tally is compared against a baseline of 100% pass.
 
 ## 19. IC10 logic field inventory
 
@@ -1406,7 +1530,7 @@ For correction-by-number convenience. The "Where used" column lists the device c
 | 11 | Maximum | 23 | vanilla | R | Battery (PowerMaximum), Transformer (OutputMaximum), APC, SolarPanel | "maximum capacity" semantic |
 | 12 | Ratio | 24 | vanilla | R | Battery, Transformer, APC, SolarPanel | "current / maximum" 0..1 |
 | 13 | PowerPotential | 25 | vanilla | R | Battery, Transformer (inherited), APC, WirelessPower | `InputNetwork.PotentialLoad` |
-| 14 | PowerActual | 26 | vanilla on Battery/APC/WirelessPower; PGP-added on Transformer | R | Battery, APC, WirelessPower, Transformer (PGP) | `OutputNetwork.CurrentLoad` (or `_powerProvided` on Transformer per PGP) |
+| 14 | PowerActual | 26 | vanilla on Battery/APC/WirelessPower; PGP-added on Transformer | R | Battery, APC, WirelessPower, Transformer (PGP) | `OutputNetwork.CurrentLoad`. On Transformer, PGP reads the `_powerProvided` ledger AFTER the ENFORCE-tail settle (§10.7), so it equals the ACTUAL current throughput this tick, storage-charge flow included |
 | 15 | On | 28 | vanilla | R/W | every IPowered device | `OnOff` |
 | 16 | ImportQuantity | 29 | vanilla on import devices; PGP repurpose REMOVED | R | import devices only | vanilla: slot count. Previous PGP exposure on Battery is removed; use `MaxChargeSpeed` (#38) instead. |
 | 17 | ExportQuantity | 31 | vanilla on export devices; PGP repurpose REMOVED | R | export devices only | vanilla: slot count. Previous PGP exposure on Battery is removed; use `MaxDischargeSpeed` (#39) instead. |
@@ -1427,7 +1551,7 @@ For correction-by-number convenience. The "Where used" column lists the device c
 | 32 | LogicPassthroughMode | 6577 | PGP | R/W | Transformer, Battery, APC, PT, PR | 0 = vanilla opaque, 1 = logic-transparent bridge |
 | 33 | Priority | 6578 | PGP | R/W | Transformer, PT (anchor of PT/PR pair) | dispatch priority `int >= 0`, default 100 |
 | 34 | Shedding | 6579 | PGP | R | Transformer, PT | 1 = SHED lockout active (insufficient upstream supply) |
-| 35 | Overloaded | 6580 | PGP | R | Transformer, PT | 1 = OVERLOAD lockout active (downstream demand exceeds OutputMaximum) |
+| 35 | Overloaded | 6580 | PGP | R | Transformer, PT | 1 = OVERLOAD lockout active (downstream demand exceeds the transformer's active `Setting` cap, or the wireless pair's static link rating, §8.4) |
 | 36 | CycleFault | 6581 | PGP | R | every segmenting device | 1 = CYCLE_FAULT lockout active (device is part of a closed loop) |
 | 37 | VariableVoltageFault | 6582 | PGP | R | every classifier producer WITH a logic surface (Solar, Wind, Large Wind, Gas, Solid-fuel/Coal, Stirling, small Turbine); NOT PowerConnector or RTG (no logic surface) | 1 = VVF lockout active (producer wired to anything other than producers or transformers) |
 | 38 | MaxChargeSpeed | 6583 | PGP | R | Battery, APC, RocketPowerUmbilicalMale, RocketPowerUmbilicalFemale | configured per-prefab charge rate cap in W |
@@ -1484,7 +1608,7 @@ Class `Transformer : ElectricalInputOutput` at decompile L403300.
 20. **LogicType.Maximum** (23, vanilla, read-only) - `OutputMaximum`. `Transformer.GetLogicValue:403532`.
 21. **LogicType.Ratio** (24, vanilla, read-only) - vanilla `Setting / OutputMaximum`. **PGP override**: returns 1.0 when shedding effective (Setting is hardcoded at OutputMaximum). `TransformerPriorityLogicPatches.cs`.
 22. **LogicType.PowerPotential** (25, vanilla, read-only) - `InputNetwork.PotentialLoad`. Inherited.
-23. **LogicType.PowerActual** (26, **PGP-added** read slot, read-only) - vanilla does NOT expose this on Transformer; PGP returns `_powerProvided` (downstream consumption accumulator). `TransformerLogicPatches.cs`. Gated by `EnableTransformerLogicAdditions`.
+23. **LogicType.PowerActual** (26, **PGP-added** read slot, read-only) - vanilla does NOT expose this on Transformer; PGP returns `_powerProvided`, which the ENFORCE-tail ledger settle (§10.7) sets to the allocator's `TotalThrough` every tick before the LOGIC phase runs, so the read equals the transformer's ACTUAL current throughput (rigid + storage-charge flow), not the drifting billed-ledger plateau the pre-settle ledger carried. `TransformerLogicPatches.cs`. Gated by `EnableTransformerLogicAdditions`.
 24. **LogicType.LogicPassthroughMode** (6577, PGP-added, read+write) - per-Transformer override. Default 1 on small transformers, 0 elsewhere.
 25. **LogicType.Priority** (6578, PGP-added, read+write) - dispatch priority int >= 0, default 100. Backing `PriorityStore`. Replicated via `PriorityMessage`.
 26. **LogicType.Shedding** (6579, PGP-added, read-only) - 1 when in shed lockout. Server-derived from `BrownoutRegistry`. Replicated via `FaultRegistrySnapshotMessage` (KindShed).
@@ -1560,7 +1684,7 @@ Class `WirelessPower : ElectricalInputOutput` at L405441. Both `PowerTransmitter
 51. **LogicType.VerticalRatio** (35, vanilla, read+write) - raw 0..1.
 52. **LogicType.Charge** (11, vanilla, read-only) - `AvailablePower` = `PotentialLoad` from input network.
 53. **LogicType.PowerPotential** (25, vanilla, read-only) - `InputNetwork.PotentialLoad`.
-54. **LogicType.PowerActual** (26, vanilla, read-only) - `OutputNetwork.CurrentLoad`.
+54. **LogicType.PowerActual** (26, vanilla, read-only) - `OutputNetwork.CurrentLoad` (includes any storage-charge flow crossing the pair, §9.5).
 55. **LogicType.PositionX** (76, vanilla, read-only) - `RayPosition.x`.
 56. **LogicType.PositionY** (77, vanilla, read-only) - `RayPosition.y`.
 57. **LogicType.PositionZ** (78, vanilla, read-only) - `RayPosition.z`.
@@ -1627,7 +1751,7 @@ For quick reference, the LogicTypes that appear on many power devices:
 ### 19.18 Lockout-related LogicTypes summary
 
 - **Shedding** (6579, PGP, read-only): upstream supply insufficient. Reset by 60s timer or OFF-toggle.
-- **Overloaded** (6580, PGP, read-only): downstream demand exceeds OutputMaximum. Reset by 60s timer or OFF-toggle.
+- **Overloaded** (6580, PGP, read-only): downstream demand exceeds the transformer's active `Setting` cap (the static link rating on a PT/PR pair, §8.4). Reset by 60s timer or OFF-toggle.
 - **CycleFault** (6581, PGP, read-only): device is part of a closed loop. Reset by 60s timer or OFF-toggle. NEW.
 
 All three exposed on Transformer and (for the PT/PR pair) on PowerTransmitter. Both Shedding and Overloaded and CycleFault read independently; multiple can be 1 simultaneously.
