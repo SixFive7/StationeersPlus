@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Marky's Suit Drink System Fix</Name>
+  <ModID>net.markyssuitdrinksystemfix</ModID>
+  <Author>SixFive7</Author>
+  <Version>1.0.0</Version>
+  <Description>[h1]Marky's Suit Drink System Fix[/h1]
+
+A temporary compatibility patch that restores Marky's Suit Drink System to working order on the current build of Stationeers.
+
+Full multiplayer compatibility. Safe to add or remove at any time; it only patches Marky's Suit Drink System while that mod is installed, and does nothing on its own.
+
+[b]This is an add-on for [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3644610659]Marky's Suit Drink System[/url] by Marky. You need that mod installed as well. This patch does not replace it.[/b]
+
+[h2]What it fixes[/h2]
+
+The Sanitation update changed a hydration method in the game (Entity.Hydrate now takes a gas mole quantity instead of a plain number), which Marky's Suit Drink System still calls the old way. This patch corrects it at runtime, without modifying the original mod:
+
+[list]
+[*][b]Log spam and broken drinking[/b]: interacting with a suit that has the Water Tank slot threw a MissingMethodException on Entity.Hydrate every frame the suit inventory was open, flooding the log, and the Drink action no longer hydrated you. Drinking water from the suit's water tank works again, and the spam is gone.
+[/list]
+
+[h2]Temporary by design[/h2]
+
+This patch exists only until Marky updates Marky's Suit Drink System at the source. Once an updated version ships, remove this mod; it will no longer be needed. It does not clone, replace, or redistribute Marky's Suit Drink System, it only applies a runtime fix on top of the installed copy, and quietly does nothing if that mod is absent.
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3644610659]Marky's Suit Drink System[/url] by Marky
+[/list]
+
+[b]All players[/b] on a server must have the same mods installed. [b]Dedicated servers[/b] need BepInEx, StationeersLaunchPad, Marky's Suit Drink System, and this fix installed server-side.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url] with "Marky's Suit Drink System Fix" in the title. Steam comment notifications are unreliable, so GitHub is the dependable way to be heard. Bugs in Marky's Suit Drink System's own features belong on that mod's page, not here.
+
+[h2]Credits[/h2]
+[list]
+[*][b]Marky[/b]: author of [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3644610659]Marky's Suit Drink System[/url], the mod this patch supports. All credit for the suit drink system itself goes to Marky.
+[/list]
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/MarkysSuitDrinkSystemFix]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v1.0.0: Initial release
+- FIX: In-suit drinking no longer throws a MissingMethodException on Entity.Hydrate on the Sanitation update; the exception previously spammed the log every frame the suit inventory was open and left the Drink action doing nothing. Drinking water from the suit's water tank works again.
+- Removes Marky's Suit Drink System's outdated Suit.InteractWith prefix at runtime (by its Harmony ID) and replaces it with one built against the current game; his other patches are untouched. Does not modify or redistribute the original mod, and does nothing if it is not installed.
+- REQUIRES: BepInEx, StationeersLaunchPad, and Marky's Suit Drink System by Marky. All players on a server need the same setup.
+  </ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <OrderAfter WorkshopHandle="3644610659" />
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Marky's Suit Drink System Fix</color></size>
+<line-height=40%>A temporary compatibility patch that restores Marky's Suit Drink System to working order on the current build of Stationeers.
+Add-on for Marky's Suit Drink System by Marky. You need that mod installed too; this does nothing on its own.
+<b>Fixes:</b>
+- Drinking from the suit no longer throws a MissingMethodException (Entity.Hydrate) that spammed the log and broke the Drink action.
+<b>Temporary:</b> remove this once Marky updates the mod. It does not clone or replace it, only patches the installed copy.
+<b>Requires:</b> BepInEx + StationeersLaunchPad + Marky's Suit Drink System. All players and dedicated servers need the same setup.
+</line-height>
+]]></InGameDescription>
+</ModMetadata>

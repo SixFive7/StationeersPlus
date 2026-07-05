@@ -1,0 +1,16 @@
+# Marky's Suit Drink System Fix Playtests
+
+Implemented changes awaiting in-game confirmation. An agent records a playtest here, not in `TODO.md`, when it has changed code whose behavior can only be confirmed by running the game: single-player, a hosted multiplayer session, or the dedicated server under `DedicatedServer/`. This keeps `TODO.md` a list of work still to do, and gives one place to check whether a change already has a pending test before adding another.
+
+Rules:
+- Add an entry when code is implemented but its in-game behavior is unconfirmed. Write down everything a tester needs: what changed (commit if there is one), single-player vs multiplayer / dedicated-server, the save or world to set up, the exact in-game steps, what to watch (InspectorPlus request files, specific log lines, on-screen behavior, IC10 reads), and the expected result. Point at any staged `.work/<date>-<slug>/` request files or playbook.
+- Check first. Before adding, scan the entries below so a change already covered by a pending test is not duplicated; extend the existing entry instead.
+- Remove an entry when one of these happens: a run confirms it works; a run shows it broken (then add a fresh `TODO.md` item for the fix, or keep working on it now); or the player says the playtest is done. Entries are plain bullets, not checkboxes: like `TODO.md`, finished items are removed, not ticked off. Outcomes live in git history.
+
+- v1.0.0 initial release: confirm the Sanitation-update fix in-game (single-player first, then dedicated server).
+  - Setup: enable Marky's Suit Drink System (Workshop 3644610659) AND this fix. Because this fix also exists as a local build, disable the Workshop copy of THIS mod if subscribed (see DEV.md "disable Workshop before testing a local build"). Load a save with a suit that has the Water Tank slot, and put a water-filled gas canister in that slot (or fill the tank in-world).
+  - Watch the log at load: expect `MarkysSuitDrinkSystemFix v1.0.0 loaded; fix deferred...` then, after all mods load, `Marky's Suit Drink System Fix active: replaced the broken Suit.InteractWith drink prefix...`. If Marky's prefix is not found it logs "inactive (the mod is absent or already updated)" instead, which would mean load order or his mod id changed.
+  - Repro the old bug is gone: open the suit's inventory window so the Drink interactable is shown, and leave it open. Before the fix this spammed `MissingMethodException: Method not found: void Assets.Scripts.Objects.Entity.Hydrate(single)` every frame. Expect zero occurrences now (grep LogOutput.log).
+  - Drink: with the water tank holding water and the player below full hydration, trigger the Drink action. Expect hydration to rise and the tank's water moles to drop; no exception.
+  - InspectorPlus verification (prepared request files staged under `.work/` at test time): capture `before_drink.json` and `after_drink.json` for types `[Human]` fields `[Hydration]` and the suit's `GasCanister` water content. Diff: Hydration up, canister water down, by the expected ~5 hydration per litre consumed.
+  - Dedicated server: repeat on `DedicatedServer/` with a connected client. Confirm no exception spam server-side and that drinking hydrates the client's character. All parties need the same mod set.
