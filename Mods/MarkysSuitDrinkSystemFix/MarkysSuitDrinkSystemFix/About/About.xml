@@ -53,7 +53,7 @@ v1.0.0: Initial release
 - Removes Marky's Suit Drink System's outdated Suit.InteractWith prefix at runtime (by its Harmony ID) and replaces it with one built against the current game; his other patches are untouched. Does not modify or redistribute the original mod, and does nothing if it is not installed.
 - REQUIRES: BepInEx, StationeersLaunchPad, and Marky's Suit Drink System by Marky. All players on a server need the same setup.
   </ChangeLog>
-  <WorkshopHandle>0</WorkshopHandle>
+  <WorkshopHandle>3759105192</WorkshopHandle>
   <Tags>
     <Tag>BepInEx</Tag>
     <Tag>StationeersLaunchPad</Tag>
