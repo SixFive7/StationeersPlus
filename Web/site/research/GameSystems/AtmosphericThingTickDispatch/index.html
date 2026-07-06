@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/DamageState/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/AtmosphericThingTickDispatch/">
       
       
-        <link rel="prev" href="../CreativeModeAndDifficulty/">
+        <link rel="prev" href="../../GameClasses/WirelessPower/">
       
       
-        <link rel="next" href="../DedicatedServerSettings/">
+        <link rel="next" href="../BreathingAndOxygenation/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>DamageState - StationeersPlus</title>
+        <title>Atmospheric thing tick dispatch (Thing.OnAtmosphericTick) - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#damagestate" class="md-skip">
+        <a href="#atmospheric-thing-tick-dispatch-thingonatmospherictick" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              DamageState
+              Atmospheric thing tick dispatch (Thing.OnAtmosphericTick)
             
           </span>
         </div>
@@ -3603,10 +3603,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../AtmosphericThingTickDispatch/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atmospheric thing tick dispatch (Thing.OnAtmosphericTick)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3622,6 +3649,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-registration-pool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The registration pool
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-single-dispatch-site" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The single dispatch site
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-override-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The override chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#intercepting-a-specific-things-atmospheric-tick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercepting a specific thing's atmospheric tick
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3799,37 +3912,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    DamageState
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../DamageState/" class="md-nav__link">
         
   
   
@@ -3845,114 +3931,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#damage-channels-total-isbroken" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Damage channels + Total + IsBroken
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#class-hierarchy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Class hierarchy
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#healall-methods-at-each-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HealAll methods at each layer
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#writable-float-fields" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Writable float fields
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#damagestate-vs-atmosphere-vs-vital-stat-disambiguation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DamageState vs Atmosphere vs vital stat disambiguation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#typical-observed-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical observed values
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -8072,10 +8050,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#damage-channels-total-isbroken" class="md-nav__link">
+  <a href="#the-registration-pool" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Damage channels + Total + IsBroken
+        The registration pool
       
     </span>
   </a>
@@ -8083,10 +8061,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#class-hierarchy" class="md-nav__link">
+  <a href="#the-single-dispatch-site" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Class hierarchy
+        The single dispatch site
       
     </span>
   </a>
@@ -8094,10 +8072,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#healall-methods-at-each-layer" class="md-nav__link">
+  <a href="#the-override-chain" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HealAll methods at each layer
+        The override chain
       
     </span>
   </a>
@@ -8105,32 +8083,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#writable-float-fields" class="md-nav__link">
+  <a href="#intercepting-a-specific-things-atmospheric-tick" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Writable float fields
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#damagestate-vs-atmosphere-vs-vital-stat-disambiguation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DamageState vs Atmosphere vs vital stat disambiguation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#typical-observed-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical observed values
+        Intercepting a specific thing's atmospheric tick
       
     </span>
   </a>
@@ -8220,7 +8176,7 @@
     
     
       <li class="md-path__item">
-        <a href="../AtmosphericThingTickDispatch/" class="md-path__link">
+        <a href="./" class="md-path__link">
           
   <span class="md-ellipsis">
     GameSystems
@@ -8248,43 +8204,37 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-06.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (6)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
-              <li><code>Plans/LLM/RESEARCH.md:339-353</code></li>
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Atmospherics.AtmosphericsManager (class line 439550; MAX_ATMOS_THINGS line 439559; AtmosphericThings line 439561; ThingAtmosphereTickAction line 439615; ThingAtmosphereTick line 439955; Register line 440030; Deregister line 440039); GameTick dispatch line 204458; Thing.OnAtmosphericTick line 321543; Device.OnAtmosphericTick line 371821'}</code></li>
             
-              <li><code>Plans/LLM/RESEARCH.md:358-369</code></li>
-            
-              <li><code>Plans/LLM/RESEARCH.md:371-374</code></li>
-            
-              <li><code>Plans/RepairPrototype/plan.md:93-135</code></li>
-            
-              <li><code>Plans/RepairPrototype/plan.md:142-156</code></li>
-            
-              <li><code>Plans/RepairPrototype/plan.md:168-181</code></li>
+              <li><code>Mods/ForceFieldDoorModFix/RESEARCH.md (the interception documented here is used there)</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
-              <li><code>./StunStateMachine.md</code></li>
+              <li><code>../Patterns/StaleModReferenceJitCrash.md</code></li>
             
-              <li><code>./RepairMechanics.md</code></li>
+              <li><code>../Unsorted/Api-removals-0.2.6403.md</code></li>
             
-              <li><code>../GameClasses/Thing.md</code></li>
+              <li><code>./SimulationTickDriverHooks.md</code></li>
             
-              <li><code>../Workflows/HealAllDamagedThings.md</code></li>
+              <li><code>./PowerTickThreading.md</code></li>
+            
+              <li><code>./DevicePowerDraw.md</code></li>
             
           </ul>
         </details>
@@ -8300,228 +8250,85 @@
       
       
       
-        <span class="md-tag">damage</span>
+        <span class="md-tag">harmony</span>
       
     
       
       
       
       
-        <span class="md-tag">save-edit</span>
-      
-    
-      
-      
-      
-      
-        <span class="md-tag">save-format</span>
+        <span class="md-tag">threading</span>
       
     
   </nav>
 
 
 
-<h1 id="damagestate">DamageState<a class="headerlink" href="#damagestate" title="Permanent link">&para;</a></h1>
-<p>Every <code>Thing</code> carries a <code>DamageState</code> with up to nine channels (Burn, Brute, Oxygen, Hydration, Radiation, Starvation, Toxic, Stun, Decay). This page catalogs the channels, the class hierarchy (<code>IndestructableDamageState</code> -&gt; <code>ThingDamageState</code> -&gt; <code>OrganicDamageState</code> -&gt; <code>EntityDamageState</code>), the <code>HealAll</code> behavior at each layer, the writable float fields, the save-edit disambiguation gotcha (same tag names appear inside <code>&lt;DamageState&gt;</code>, <code>&lt;AtmosphereSaveData&gt;</code>, and on player vital stats), and a real-save observed damage distribution.</p>
-<h2 id="damage-channels-total-isbroken">Damage channels + Total + IsBroken<a class="headerlink" href="#damage-channels-total-isbroken" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h1 id="atmospheric-thing-tick-dispatch-thingonatmospherictick">Atmospheric thing tick dispatch (Thing.OnAtmosphericTick)<a class="headerlink" href="#atmospheric-thing-tick-dispatch-thingonatmospherictick" title="Permanent link">&para;</a></h1>
+<p>How the game calls <code>Thing.OnAtmosphericTick()</code> on every registered thing each simulation tick, where the single dispatch site is, and how to intercept or filter it for one thing type. This is the mechanism a stale <code>OnAtmosphericTick</code> override crashes from (see <a href="../../Unsorted/Api-removals-0.2.6403/">Api-removals-0.2.6403</a> and <a href="../../Patterns/StaleModReferenceJitCrash/">StaleModReferenceJitCrash</a>), and the hook point Force Field Door Mod Fix uses to take over a broken door's tick.</p>
+<h2 id="the-registration-pool">The registration pool<a class="headerlink" href="#the-registration-pool" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
-<p>Each <code>Thing</code> has a <code>DamageState</code> with up to 9 damage channels stored as <code>ThingDamageValue</code> fields (float clamped to [0, MaxDamage], default MaxDamage = 200):</p>
-<table>
-<thead>
-<tr>
-<th>Channel</th>
-<th>Flag</th>
-<th>Used by</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Burn</td>
-<td>0x02</td>
-<td>All things (ThingDamageState)</td>
-</tr>
-<tr>
-<td>Brute</td>
-<td>0x04</td>
-<td>All things (ThingDamageState)</td>
-</tr>
-<tr>
-<td>Oxygen</td>
-<td>0x08</td>
-<td>Items, organs (OrganicDamageState)</td>
-</tr>
-<tr>
-<td>Hydration</td>
-<td>0x10</td>
-<td>Items, organs</td>
-</tr>
-<tr>
-<td>Radiation</td>
-<td>0x20</td>
-<td>Items, organs</td>
-</tr>
-<tr>
-<td>Starvation</td>
-<td>0x40</td>
-<td>Entities (EntityDamageState)</td>
-</tr>
-<tr>
-<td>Toxic</td>
-<td>0x80</td>
-<td>Items, organs</td>
-</tr>
-<tr>
-<td>Stun</td>
-<td>0x100</td>
-<td>Entities (brain)</td>
-</tr>
-<tr>
-<td>Decay</td>
-<td>0x200</td>
-<td>Items, organs</td>
-</tr>
-</tbody>
-</table>
-<p><code>DamageState.Total</code> = sum of all channels except Stun, clamped to [0, MaxDamage]. When Total &gt;= MaxDamage, the thing is destroyed (<code>IsBroken = true</code>).</p>
-<h2 id="class-hierarchy">Class hierarchy<a class="headerlink" href="#class-hierarchy" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>IndestructableDamageState          (base: all 9 channels, Damage() gated by RunSimulation)
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  ThingDamageState                 (destructible: Heal/HealAll for Burn+Brute, destroy logic)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    OrganicDamageState             (adds Oxygen/Toxic/Radiation/Hydration/Stun/Decay)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>      EntityDamageState            (adds Starvation, routes Stun/Oxygen to Brain organ)
+<p><code>Assets.Scripts.Atmospherics.AtmosphericsManager : ThreadedManager</code> (class line 439550) holds the set of things that receive atmospheric ticks in a dense pool:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">private</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">MAX_ATMOS_THINGS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32768</span><span class="p">;</span><span class="w">                                                                    </span><span class="c1">// line 439559</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">DensePool</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AtmosphericThings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">DensePool</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;AtmosphericThings&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">32768</span><span class="p">);</span><span class="w">  </span><span class="c1">// line 439561</span>
 </span></code></pre></div>
-<p>Runtime types:
-- <code>Thing</code> base: creates <code>ThingDamageState</code> (Burn + Brute only)
-- <code>Item</code> override: creates <code>OrganicDamageState</code> (all channels)
-- <code>Entity</code>/<code>Human</code>: creates <code>EntityDamageState</code></p>
-<h2 id="healall-methods-at-each-layer">HealAll methods at each layer<a class="headerlink" href="#healall-methods-at-each-layer" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p><code>ThingDamageState.HealAll(float minDamageRemaining = 0f)</code>: sets Burn and Brute to 0, clears <code>_isDestroyed</code> flag. <code>OrganicDamageState.HealAll</code> adds: Oxygen, Toxic, Radiation, Hydration, Stun, Decay all set to 0. <code>EntityDamageState.HealAll</code> adds Starvation.</p>
-<p>Calls <code>Damage(ChangeDamageType.Set, ...)</code> internally, so it goes through <code>GameManager.RunSimulation</code> gate. Server/host only.</p>
-<h2 id="writable-float-fields">Writable float fields<a class="headerlink" href="#writable-float-fields" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>Every <code>Thing</code> in Stationeers has a <code>DamageState</code> property with these writable float fields:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Brute</code></td>
-<td>float</td>
-<td>Physical/structural damage (impact, overpressure)</td>
-</tr>
-<tr>
-<td><code>Burn</code></td>
-<td>float</td>
-<td>Thermal/electrical damage (cable overloads, fires)</td>
-</tr>
-<tr>
-<td><code>Oxygen</code></td>
-<td>float</td>
-<td>Oxygen-related damage</td>
-</tr>
-<tr>
-<td><code>Hydration</code></td>
-<td>float</td>
-<td>Hydration-related damage</td>
-</tr>
-<tr>
-<td><code>Starvation</code></td>
-<td>float</td>
-<td>Starvation damage</td>
-</tr>
-<tr>
-<td><code>Toxic</code></td>
-<td>float</td>
-<td>Toxic damage (pollutants)</td>
-</tr>
-<tr>
-<td><code>Radiation</code></td>
-<td>float</td>
-<td>Radiation damage</td>
-</tr>
-<tr>
-<td><code>Stun</code></td>
-<td>float</td>
-<td>Stun damage (incapacitation)</td>
-</tr>
-<tr>
-<td><code>Decay</code></td>
-<td>float</td>
-<td>Decay/rot damage</td>
-</tr>
-<tr>
-<td><code>MaxDamage</code></td>
-<td>float</td>
-<td>Maximum damage threshold</td>
-</tr>
-</tbody>
-</table>
-<h2 id="damagestate-vs-atmosphere-vs-vital-stat-disambiguation">DamageState vs Atmosphere vs vital stat disambiguation<a class="headerlink" href="#damagestate-vs-atmosphere-vs-vital-stat-disambiguation" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>The XML contains <code>&lt;Oxygen&gt;</code>, <code>&lt;Hydration&gt;</code>, etc. in TWO completely different contexts:</p>
-<ol>
-<li>
-<p><strong>Inside <code>&lt;DamageState&gt;</code> blocks</strong> (on Things) -- these ARE damage values, safe to zero out:
-   <div class="language-xml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">&lt;DamageState&gt;</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&lt;Brute&gt;</span>20.70604<span class="nt">&lt;/Brute&gt;</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&lt;Burn&gt;</span>0<span class="nt">&lt;/Burn&gt;</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&lt;Oxygen&gt;</span>0<span class="nt">&lt;/Oxygen&gt;</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">&lt;Hydration&gt;</span>0<span class="nt">&lt;/Hydration&gt;</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">&lt;Starvation&gt;</span>0<span class="nt">&lt;/Starvation&gt;</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">&lt;Toxic&gt;</span>0<span class="nt">&lt;/Toxic&gt;</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">&lt;Radiation&gt;</span>0<span class="nt">&lt;/Radiation&gt;</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">&lt;Stun&gt;</span>0<span class="nt">&lt;/Stun&gt;</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">&lt;Decay&gt;</span>0<span class="nt">&lt;/Decay&gt;</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nt">&lt;/DamageState&gt;</span>
-</span></code></pre></div></p>
-</li>
-<li>
-<p><strong>Inside <code>&lt;AtmosphereSaveData&gt;</code> blocks</strong> -- these are GAS AMOUNTS in rooms, NOT damage:
-   <div class="language-xml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">&lt;AtmosphereSaveData&gt;</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">&lt;Oxygen&gt;</span>318.45480094784614<span class="nt">&lt;/Oxygen&gt;</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">&lt;Nitrogen&gt;</span>0<span class="nt">&lt;/Nitrogen&gt;</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">&lt;CarbonDioxide&gt;</span>197.48193765921076<span class="nt">&lt;/CarbonDioxide&gt;</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>...
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">&lt;/AtmosphereSaveData&gt;</span>
-</span></code></pre></div></p>
-</li>
-<li>
-<p><strong>On Player entities</strong> -- <code>&lt;Hydration&gt;5.65211868&lt;/Hydration&gt;</code> is a VITAL STAT (how thirsty), not damage.</p>
-</li>
-</ol>
-<p><strong>A naive regex that zeroes all <code>&lt;Oxygen&gt;</code> tags will remove breathable air from rooms and kill players.</strong> The correct approach uses a context-aware parser (e.g., Python regex with <code>re.DOTALL</code> matching inside <code>&lt;DamageState&gt;...&lt;/DamageState&gt;</code> blocks only):</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">zero_damage</span><span class="p">(</span><span class="n">match</span><span class="p">):</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">block</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">block</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>        <span class="sa">r</span><span class="s1">&#39;&lt;(Brute|Burn|Oxygen|Hydration|Starvation|Toxic|Radiation|Stun|Decay)&gt;[^&lt;]+&lt;/\1&gt;&#39;</span><span class="p">,</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>        <span class="sa">r</span><span class="s1">&#39;&lt;\1&gt;0&lt;/\1&gt;&#39;</span><span class="p">,</span> <span class="n">block</span><span class="p">)</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="k">return</span> <span class="n">block</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;&lt;DamageState&gt;.*?&lt;/DamageState&gt;&#39;</span><span class="p">,</span> <span class="n">zero_damage</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
+<p>A thing enters the pool only through <code>Register</code> and leaves through <code>Deregister</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Register</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span><span class="w">          </span><span class="c1">// line 440030</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">Structure</span><span class="w"> </span><span class="n">structure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Structure</span><span class="p">;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">structure</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">structure</span><span class="p">.</span><span class="n">IsCursor</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="n">AtmosphericThings</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">thing</span><span class="p">);</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">}</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Deregister</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span><span class="w">        </span><span class="c1">// line 440039</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">{</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">AtmosphericThings</span><span class="p">.</span><span class="n">Remove</span><span class="p">(</span><span class="n">thing</span><span class="p">);</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
 </span></code></pre></div>
-<h2 id="typical-observed-values">Typical observed values<a class="headerlink" href="#typical-observed-values" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p><code>Register</code> skips cursor-preview structures (a <code>Structure</code> whose <code>IsCursor</code> is true). A <code>Thing</code> is in <code>AtmosphericThings</code> only because something called <code>AtmosphericsManager.Instance.Register(this)</code> on it. A subclass that overrides <code>OnAtmosphericTick</code> but never registers is never ticked; a mod door that wants per-tick atmospheric logic registers itself in its own lifecycle (for example in <code>OnRegistered</code>).</p>
+<h2 id="the-single-dispatch-site">The single dispatch site<a class="headerlink" href="#the-single-dispatch-site" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
-<p>Distribution of non-zero damage in a real save (118 values): <code>StructureWallIron</code> Brute ~25 (10-27 range), <code>StructureCompositeWindowIron</code> Brute ~15 (11-22), cable corners/straights/junctions Burn ~6 (5-9), pipe corner/straight Brute 2 (37-58), <code>OrganLungs</code> Burn 1 (20.6), player entities Stun 2 (100, unconscious), player entities Burn 1 (13.8). Establishes realistic scale of minor-damage cleanup scenario.</p>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<p>Per-thing dispatch goes through one static delegate and one driver method:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Action</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ThingAtmosphereTickAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delegate</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span><span class="w">   </span><span class="c1">// line 439615</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">object</span><span class="p">)</span><span class="n">thing</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">thing</span><span class="p">.</span><span class="n">IsBeingDestroyed</span><span class="p">)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="n">thing</span><span class="p">.</span><span class="n">OnAtmosphericTick</span><span class="p">();</span><span class="w">     </span><span class="c1">// line 439619</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">};</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ThingAtmosphereTick</span><span class="p">()</span><span class="w">   </span><span class="c1">// line 439955</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">{</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="n">AtmosphericThings</span><span class="p">.</span><span class="n">ForEach</span><span class="p">(</span><span class="n">ThingAtmosphereTickAction</span><span class="p">);</span><span class="w">   </span><span class="c1">// line 439957</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>thing.OnAtmosphericTick()</code> at line 439619 is the only external dispatch of the no-argument <code>Thing.OnAtmosphericTick()</code> virtual in the assembly; a whole-file grep of <code>OnAtmosphericTick</code> shows every other occurrence is either an <code>override</code> definition or a <code>base.OnAtmosphericTick()</code> chain call inside an override. <code>ThingAtmosphereTickAction</code> is the compiler-generated lambda (<code>AtmosphericsManager+&lt;&gt;c.&lt;.cctor&gt;b__NNN_M</code>, the number drifts between builds) that appears as the caller frame in a stale-override crash stack, which is why such a crash names only vanilla frames.</p>
+<p><code>ThingAtmosphereTick()</code> is called once per simulation tick from <code>GameTick</code> (line 204458), between <code>AtmosphericsController.World.RunInternalReactionsJobs()</code> (line 204454) and <code>AtmosphericsManager.LifeTicksTick()</code> (line 204460) / <code>AtmosphericsManager.AtmosphericsNetworksTick()</code> (line 204462). The <code>GameTick</code> body runs on a thread-pool thread, not the Unity main thread (see <a href="../PowerTickThreading/">PowerTickThreading</a> and <a href="../SimulationTickDriverHooks/">SimulationTickDriverHooks</a>), so <code>OnAtmosphericTick</code> overrides, and anything hooked here, run off the main thread.</p>
+<h2 id="the-override-chain">The override chain<a class="headerlink" href="#the-override-chain" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
+<p><code>Thing.OnAtmosphericTick()</code> is an empty root virtual (line 321543: <code>public virtual void OnAtmosphericTick() { }</code>). The base that does the real work for powered devices is <code>Device.OnAtmosphericTick()</code> (line 371821), which injects heat into the local atmosphere when the device is on, powered, cabled, has a non-zero <code>EnergyToHeatRatio</code>, and is above Armstrong pressure. <code>Airlock</code> and <code>Door</code> do not override it, so a door mod that overrides <code>OnAtmosphericTick</code> and calls <code>base.OnAtmosphericTick()</code> binds <code>base</code> to <code>Device.OnAtmosphericTick</code>.</p>
+<h2 id="intercepting-a-specific-things-atmospheric-tick">Intercepting a specific thing's atmospheric tick<a class="headerlink" href="#intercepting-a-specific-things-atmospheric-tick" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p>Three levers, all on vanilla members, so none of them trips a stale reference that lives inside a broken mod's own override:</p>
 <ul>
-<li>2026-04-20: page created from the Research migration; verbatim content lifted from F0082, F0083, F0084, F0221, F0222, and F0229a.</li>
+<li><strong>Filter at dispatch.</strong> Resolve the delegate through the named static field and Harmony-prefix its <code>Method</code>: <code>AccessTools.Field(typeof(AtmosphericsManager), "ThingAtmosphereTickAction")</code>, read the delegate, patch <code>del.Method</code>. A prefix <code>bool (Thing __0)</code> that returns <code>false</code> for the target type skips <code>thing.OnAtmosphericTick()</code> for that thing while leaving every other thing's dispatch intact. Resolve via the field, never by the mangled <code>b__NNN</code> name.</li>
+<li><strong>Block admission.</strong> Harmony-prefix <code>AtmosphericsManager.Register(Thing)</code> (line 440030) to return <code>false</code> for the target type, so it never enters the pool. Sweep already-registered instances with the pool's <code>RemoveWhere</code> predicate or <code>AtmosphericsManager.Instance.Deregister(thing)</code>.</li>
+<li><strong>Drive it yourself.</strong> After blocking, Harmony-postfix <code>AtmosphericsManager.ThingAtmosphereTick()</code> (line 439955) and iterate your own list at the same 1:1 per-tick cadence.</li>
+</ul>
+<p>Force Field Door Mod Fix uses the first lever to replace a broken <code>forcefielddoormod.ForceFieldDoor.OnAtmosphericTick</code> with a corrected reimplementation without ever letting the broken method be called (and therefore JIT-compiled, which is what throws). See <code>Mods/ForceFieldDoorModFix/RESEARCH.md</code>.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-07-06: page created at game 0.2.6403.27689 during the Force Field Door Mod Fix build. All line numbers and code excerpts read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>. The "single dispatch site" claim confirmed by a whole-file grep of <code>OnAtmosphericTick</code> (only line 439619 is an external call of the no-argument virtual; all others are definitions or <code>base.</code> chain calls). Behaviour confirmed live on the dedicated server (Luna save, 15 force field doors): a stale override crashes from the <code>ThingAtmosphereTickAction</code> frame on every tick, and a Harmony prefix on that delegate suppresses the call cleanly while the simulation keeps ticking.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>None.</li>
+</ul>
 
 
 
@@ -8561,7 +8368,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../CreativeModeAndDifficulty/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Creative Mode and Difficulty">
+          <a href="../../GameClasses/WirelessPower/" class="md-footer__link md-footer__link--prev" aria-label="Previous: WirelessPower">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8571,20 +8378,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Creative Mode and Difficulty
+                WirelessPower
               </div>
             </div>
           </a>
         
         
           
-          <a href="../DedicatedServerSettings/" class="md-footer__link md-footer__link--next" aria-label="Next: Dedicated Server Settings">
+          <a href="../BreathingAndOxygenation/" class="md-footer__link md-footer__link--next" aria-label="Next: Breathing and Oxygenation">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Dedicated Server Settings
+                Breathing and Oxygenation
               </div>
             </div>
             <div class="md-footer__button md-icon">
