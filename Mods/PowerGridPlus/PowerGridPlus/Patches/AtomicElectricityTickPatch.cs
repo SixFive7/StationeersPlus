@@ -75,8 +75,19 @@ namespace PowerGridPlus.Patches
                 // One-shot world-load ledger sweep (Stage 3 ledger adoption): zero every modeled
                 // segmenter's saved _powerProvided before the first OBSERVE ever reads it, so a
                 // stale credit from the save (the -176k class) can never bill as free energy and a
-                // stale debt never lump-bills. Same armed-at-load lifecycle as the census.
+                // stale debt never lump-bills. Same armed-at-load lifecycle as the census. A fired
+                // sweep also clears the ledger-audit tracking map, which is why the boundary check
+                // below MUST come after this call.
                 LedgerAdoption.RunSweepIfPending();
+
+                // Ledger-audit tick boundary (Stage 3 exact audit, layer B): every ledger settled
+                // at last tick's ENFORCE tail must still hold its recorded value EXACTLY (nothing
+                // legitimate writes _powerProvided between the settle and this point; the only
+                // vanilla writers run inside ApplyState). Any deviation is an out-of-band writer.
+                // Also re-baselines the per-device shadow sums the LedgerAuditPatches wrappers
+                // accumulate during ENFORCE. Always-on, like the census and the conservation
+                // audit's exact counterparts; a healthy grid pays a handful of field reads here.
+                LedgerAdoption.AuditTickBoundary(currentTick);
 
                 // ----------------------------------------------------------------
                 // OBSERVE (SETUP/OBSERVE). Initialise + CalculateState per network
@@ -238,10 +249,15 @@ namespace PowerGridPlus.Patches
                 //     owns the billing for these devices, so the vestigial
                 //     vanilla ledger never strands residue into the save again
                 //     (negative = the free-energy credit class; positive = the
-                //     ramp-lag plateaus). A warn-only, globally throttled
-                //     high-water detector keeps genuine leaks visible. The IC10
-                //     LOGIC phase below reads the settled value
-                //     (LogicType.PowerActual = current throughput).
+                //     ramp-lag plateaus). The settle also closes the exact
+                //     ledger audit for the tick: pre-settle, each owned field
+                //     must equal boundary + observed shadow sum (the
+                //     LedgerAuditPatches wrappers), with a NaN/Infinity
+                //     backstop the settle repairs; post-settle, the resulting
+                //     value is recorded for the next tick's boundary check.
+                //     Counts are exact; the warning line is globally
+                //     throttled. The IC10 LOGIC phase below reads the settled
+                //     value (LogicType.PowerActual = current throughput).
                 // ----------------------------------------------------------------
                 PoweredPresentation.ReconcileEnforceTail();
                 LedgerAdoption.SettleEnforceTail(currentTick);

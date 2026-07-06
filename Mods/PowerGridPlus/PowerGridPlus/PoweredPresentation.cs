@@ -67,7 +67,7 @@ namespace PowerGridPlus
             public CableNetwork OutNet;
             public bool Healthy;                     // presentation policy verdict for this tick
             public float TotalThrough;               // rigid + soft output-side delivery (ledger settle standing value)
-            public float TotalPull;                  // rigid + soft input-side draw (the one-tick bill; high-water threshold basis)
+            public float TotalPull;                  // rigid + soft input-side draw (the one-tick bill)
             public bool SettleLedger;                // false for the APC (its ledger is load-bearing, see PowerAllocator publish tail)
         }
 

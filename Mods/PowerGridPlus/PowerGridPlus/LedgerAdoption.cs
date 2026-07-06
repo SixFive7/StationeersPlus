@@ -10,12 +10,15 @@ namespace PowerGridPlus
     /// <summary>
     ///     Vanilla <c>_powerProvided</c> ledger adoption (Stage 3). The per-class private ledger on
     ///     Transformer / AreaPowerControl / PowerTransmitter / PowerReceiver is vanilla's deferred
-    ///     billing handshake, it is NEVER zeroed by the game, and it persists into saves. Under
-    ///     this mod the routed segmenters bill their FRESH allocator pull instead of the ledger,
-    ///     which removes vanilla's restoring force: vanilla bills <c>min(cap, ledger)</c>, so any
-    ///     residue self-drains through the next bills, while a fresh-pull bill never drains it.
-    ///     The ledger therefore degenerates into a residue accumulator nobody owns, and whatever
-    ///     lands in it stays forever, including into the save. PowerGridPlus owns billing for
+    ///     billing handshake and is NEVER zeroed by the game. At 0.2.6403 it is not serialized
+    ///     into saves (no SaveData member carries it; see the write-site census in
+    ///     Patches/LedgerAuditPatches.cs), so a nonzero value is runtime accumulation within the
+    ///     session, an older-version save, or an external writer. Under this mod the routed
+    ///     segmenters bill their FRESH allocator pull instead of the ledger, which removes
+    ///     vanilla's restoring force: vanilla bills <c>min(cap, ledger)</c>, so any residue
+    ///     self-drains through the next bills, while a fresh-pull bill never drains it. The
+    ///     ledger therefore degenerates into a residue accumulator nobody owns, and whatever
+    ///     lands in it stays for the rest of the session. PowerGridPlus owns billing for
     ///     these devices, so it settles their ledgers at a well-defined point in the tick instead
     ///     of leaving vanilla to accumulate into them.
     ///
@@ -71,7 +74,9 @@ namespace PowerGridPlus
     ///       every modeled segmenter class, both signs, BEFORE the first OBSERVE so a stale saved
     ///       credit (observed: -176,226 on transmitter 464520 in the Luna save) can never bill as
     ///       free energy and a stale debt never lump-bills. One Info line per zeroed device plus a
-    ///       summary line.</item>
+    ///       summary line. The sweep also clears the ledger-audit tracking map, so the boundary
+    ///       check below never compares across a world load or against a value the sweep just
+    ///       zeroed.</item>
     ///       <item><b>Per-tick ENFORCE-tail settle</b> (<see cref="SettleEnforceTail"/>): after
     ///       all ApplyState passes (this tick's chunked mutations are complete), each enrolled
     ///       segmenter's ledger is SET to its vanilla-equivalent standing value: Transformer := T
@@ -84,34 +89,96 @@ namespace PowerGridPlus
     ///       value is already within tolerance of its standing value.</item>
     ///     </list>
     ///
-    ///     <para><b>Diagnostics</b>: the settle never warns for routine work. A pre-settle value
-    ///     below -0.5 W increments a silent negative counter (the free-energy metric); a
-    ///     pre-settle value at or above the high-water threshold, 4 x max(TotalPull, 250 W), or a
-    ///     non-finite value, counts as a high-water event. With the per-tick settle in place a
-    ///     healthy device's pre-settle value is bounded by one standing value plus one tick's
-    ///     flow (about 2.5x the bill in the worst observed ramp tick), so 4x sits above
-    ///     everything a healthy grid produces and zero warnings are expected on a healthy save.
-    ///     High-water events log ONE GLOBALLY throttled warning per 600 ticks carrying the
-    ///     running totals and the worst offender since the last warning, so a genuine leak stays
-    ///     visible without a per-device line flood at every world event.</para>
+    ///     <para><b>Diagnostics: exact ledger audit</b> (always-on, no config entry; replaces the
+    ///     former approximate 4x high-water detector). The settle makes the ledger's lifecycle
+    ///     fully deterministic, so ownership violations are detected EXACTLY rather than by
+    ///     threshold, in four anomaly classes:</para>
+    ///
+    ///     <list type="bullet">
+    ///       <item><b>Boundary</b> (layer B, <see cref="AuditTickBoundary"/>): the settle records
+    ///       each owned ledger's post-settle value; nothing legitimate writes the field between
+    ///       that write and the next tick's power section (the only vanilla writers live inside
+    ///       ApplyState, see the LedgerAuditPatches census). At the start of the next atomic tick
+    ///       the field must equal the recorded value EXACTLY (float identity; we wrote it, and
+    ///       both write routes store the exact float). Any deviation is an out-of-band writer.
+    ///       Checked only for devices settled last tick and only when no world load intervened
+    ///       (the sweep clears the map).</item>
+    ///       <item><b>Bracket discontinuity</b> (layer A+, <see cref="NoteMutation"/>): the
+    ///       LedgerAuditPatches wrappers bracket every legitimate mutation with Priority.First /
+    ///       Priority.Last captures; each mutation's BEFORE must equal the last recorded AFTER
+    ///       (or the boundary value for the first mutation of the tick). A discontinuity is a
+    ///       foreign write BETWEEN two known operations; the jump is folded into the shadow sum
+    ///       so it is counted exactly once and does not also trip the settle-tail check.</item>
+    ///       <item><b>Unobserved path</b> (layer A+ tail, inside <see cref="SettleEnforceTail"/>):
+    ///       observed deltas accumulate into a per-device double shadow sum; at the ENFORCE tail,
+    ///       before the settle, the field must equal boundary + shadow within 0.01 W. A miss is a
+    ///       foreign write that did not pass between two observed operations (e.g. after the last
+    ///       mutation, or on a device with no mutations this tick).</item>
+    ///       <item><b>Non-finite</b>: a NaN / Infinity pre-settle value; the settle repairs it to
+    ///       the standing value on the spot.</item>
+    ///     </list>
+    ///
+    ///     <para>Counts are exact and never throttled; only the log line is throttled: the tick
+    ///     boundary emits ONE aggregated warning, at most once per 600 ticks, whenever new
+    ///     anomalies were recorded since the last line, carrying the totals since load per class
+    ///     and the worst offender since the last warning (so a short burst is still fully
+    ///     reported once the window reopens). Zero anomalies produce zero log lines. Devices
+    ///     leaving the enrolled set are dropped from tracking at the settle tail; devices
+    ///     entering it are audited from their first settled tick onward.</para>
     ///
     ///     <para>Field access: wireless halves route through
     ///     <see cref="PowerTransmitterPlusInterop"/> (PowerTransmitterPlus ModApi
     ///     GetTransferDebt / SetTransferDebt when the 1.9.0+ surface resolved, cached FieldInfo on
     ///     the vanilla field otherwise); Transformer / AreaPowerControl use cached FieldInfo here.
-    ///     Nothing reflects per tick beyond Get/SetValue on the cached handles.</para>
+    ///     Nothing reflects per tick beyond Get/SetValue on the cached handles. The audit wrappers
+    ///     read the fields via Harmony injection (no reflection at runtime).</para>
     ///
-    ///     <para>Threading: both entry points run on the power worker inside
-    ///     AtomicElectricityTickPatch; managed state only. IC10 reads of the transformer ledger
-    ///     (LogicType.PowerActual via TransformerLogicPatches) happen in the LOGIC phase after the
-    ///     settle, so scripts see the standing throughput.</para>
+    ///     <para>Threading: all entry points (boundary check, mutation notes, settle) run on the
+    ///     power worker inside AtomicElectricityTickPatch and vanilla ApplyState; the tracking map
+    ///     and counters are touched only from that worker and cleared by the world-load sweep.
+    ///     IC10 reads of the transformer ledger (LogicType.PowerActual via TransformerLogicPatches)
+    ///     happen in the LOGIC phase after the settle, so scripts see the standing throughput.</para>
     /// </summary>
     internal static class LedgerAdoption
     {
         private const float Tolerance = 0.5f;          // Watts; matches ConservationChecker
-        private const int WarnCooldownTicks = 600;     // one GLOBAL high-water warning per ~5 minutes at 2 Hz
-        private const float HighWaterFactor = 4f;      // threshold = 4 x max(TotalPull, floor)
-        private const float HighWaterFloorW = 250f;    // keeps idle / tiny segs off zero thresholds
+        private const int WarnCooldownTicks = 600;     // one GLOBAL audit warning per ~5 minutes at 2 Hz
+        private const float TailToleranceW = 0.01f;    // |field - (boundary + shadow)| beyond this = unobserved write
+
+        /// <summary>Observed ledger operations, the bracket-window endpoints for audit reporting.</summary>
+        internal enum Site : byte
+        {
+            Boundary,                  // the tick-start identity check re-baseline
+            TransformerUsePower,
+            TransformerReceivePower,
+            TransmitterUsePower,
+            TransmitterReceivePower,
+            ReceiverUsePower,
+            ReceiverReceivePower,
+            Settle,                    // the ENFORCE-tail settle write
+        }
+
+        private enum AuditKind : byte { Transformer, PowerTransmitter, PowerReceiver }
+
+        private enum AnomalyClass : byte { None, Boundary, UnobservedPath, BracketDiscontinuity, NonFinite }
+
+        /// <summary>
+        ///     Per-device audit state, keyed by ReferenceId. Entries are created at the first
+        ///     settle that records the device and reused every tick after (no steady-state
+        ///     allocation); a device that leaves the enrolled set is purged at the settle tail.
+        /// </summary>
+        private sealed class AuditEntry
+        {
+            public object Device;      // Transformer or WirelessPower; the boundary-read route
+            public AuditKind Kind;
+            public float Settled;      // post-settle field value (layer B reference)
+            public float Baseline;     // field value observed at this tick's boundary
+            public double Shadow;      // sum of observed in-tick deltas since the boundary
+            public float LastAfter;    // field value after the last observed operation
+            public Site LastSite;      // last observed operation (bracket-window reporting)
+            public int SettleStamp;    // tick of the settle that last recorded this entry (purge)
+            public bool Armed;         // boundary ran since the last settle: in-tick checks active
+        }
 
         private static readonly FieldInfo TransformerLedgerField =
             typeof(Transformer).GetField("_powerProvided", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -120,35 +187,54 @@ namespace PowerGridPlus
 
         private static bool _sweepPending = true;      // armed at plugin load; re-armed on world load
 
-        // Running totals since load (reported in the global high-water warning).
-        private static long _negativeSettles;          // pre-settle value < -0.5 W (free-energy hole squashed)
-        private static long _highWaterEvents;          // pre-settle value >= threshold, or non-finite
+        // Audit tracking map + purge scratch (power worker only; cleared by the sweep).
+        private static readonly Dictionary<long, AuditEntry> _audit = new Dictionary<long, AuditEntry>();
+        private static readonly List<long> _purgeScratch = new List<long>();
 
-        // Global throttle + worst-offender tracking for the high-water detector.
-        private static int _lastGlobalWarnTick = int.MinValue;
-        private static float _worstValue;
-        private static float _worstThreshold;
-        private static string _worstKind;
+        // Exact running totals since load. Never throttled; reported in the aggregated warning.
+        private static long _negativeSettles;          // pre-settle value < -0.5 W (free-energy hole squashed)
+        private static long _boundaryAnomalies;        // field != recorded settled value at tick start
+        private static long _unobservedAnomalies;      // pre-settle field != boundary + shadow
+        private static long _bracketAnomalies;         // mutation BEFORE != last recorded AFTER
+        private static long _nonFiniteAnomalies;       // NaN / Infinity pre-settle value
+
+        // Global log throttle + worst-offender capture since the last warning. Raw numbers only;
+        // the line is formatted at warn time, so the anomaly path allocates nothing. The line is
+        // emitted from the tick-boundary check (one flag comparison per tick), which guarantees a
+        // burst of anomalies is reported even if it stops before the throttle window reopens.
+        private static long _totalAtLastWarn;
+        private static int _lastGlobalWarnTick = -WarnCooldownTicks;
+        private static AnomalyClass _worstClass = AnomalyClass.None;
+        private static float _worstMagnitude;
+        private static AuditKind _worstKind;
         private static long _worstRefId;
+        private static float _worstA;                  // boundary: settled; unobserved: baseline; bracket: last AFTER
+        private static float _worstB;                  // boundary/unobserved: found; bracket: found BEFORE; non-finite: the value
+        private static double _worstShadow;            // unobserved: the shadow sum
+        private static Site _worstSiteFrom;
+        private static Site _worstSiteTo;
 
         /// <summary>Arm the world-load sweep to run on the next atomic tick.</summary>
         internal static void Arm() => _sweepPending = true;
 
         /// <summary>
         ///     Run the world-load ledger sweep once if armed; otherwise a single flag check. Called
-        ///     at the top of the atomic tick, before OBSERVE.
+        ///     at the top of the atomic tick, before OBSERVE and before <see cref="AuditTickBoundary"/>,
+        ///     so a fired sweep always clears the audit map before any boundary comparison.
         /// </summary>
         internal static void RunSweepIfPending()
         {
             if (!_sweepPending) return;
             _sweepPending = false;
             _negativeSettles = 0;
-            _highWaterEvents = 0;
-            _lastGlobalWarnTick = int.MinValue;
-            _worstValue = 0f;
-            _worstThreshold = 0f;
-            _worstKind = null;
-            _worstRefId = 0L;
+            _boundaryAnomalies = 0;
+            _unobservedAnomalies = 0;
+            _bracketAnomalies = 0;
+            _nonFiniteAnomalies = 0;
+            _totalAtLastWarn = 0;
+            _lastGlobalWarnTick = -WarnCooldownTicks;
+            ResetWorst();
+            _audit.Clear();
             try
             {
                 Sweep();
@@ -219,11 +305,84 @@ namespace PowerGridPlus
                 + " (_powerProvided was " + value.ToString("F2", CultureInfo.InvariantCulture) + ").");
         }
 
+        // ------------------------------------------------------------------
+        // Layer B: tick-boundary identity check.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        ///     Verify every ledger settled last tick still holds its recorded value EXACTLY, then
+        ///     re-baseline the per-device shadow accounting for this tick. Called at the top of the
+        ///     atomic tick, immediately after <see cref="RunSweepIfPending"/> (a fired sweep leaves
+        ///     the map empty, so a fresh world or hot-swapped save is never compared) and before
+        ///     the first OBSERVE (no mutation can precede the check; the only vanilla writers run
+        ///     inside ApplyState). A deviation is an out-of-band writer between last tick's settle
+        ///     and now. Re-baselining to the FOUND value makes one foreign write count exactly
+        ///     once (here), not again in the bracket or settle-tail checks.
+        /// </summary>
+        internal static void AuditTickBoundary(int currentTick)
+        {
+            foreach (var kv in _audit)
+            {
+                var e = kv.Value;
+                if (!TryReadLedger(e, out float current))
+                {
+                    e.Armed = false;   // unreadable this tick: skip the in-tick checks too
+                    continue;
+                }
+                // Exact float identity: both settle routes store the exact float we recorded, and
+                // nothing legitimate writes between the settle and this point. A NaN also lands
+                // here (NaN != anything), which is correct: the settle never records a non-finite
+                // value, so a non-finite at the boundary IS a foreign write.
+                if (!(current == e.Settled))
+                {
+                    _boundaryAnomalies++;
+                    NoteWorst(AnomalyClass.Boundary, e.Kind, kv.Key, Magnitude(current - e.Settled),
+                        e.Settled, current, 0.0, Site.Settle, Site.Boundary);
+                }
+                e.Baseline = current;
+                e.Shadow = 0.0;
+                e.LastAfter = current;
+                e.LastSite = Site.Boundary;
+                e.Armed = true;
+            }
+            EmitWarningIfDue(currentTick);
+        }
+
+        // ------------------------------------------------------------------
+        // Layer A+: observed shadow sum with bracket continuity.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        ///     Record one observed ledger mutation (called by the LedgerAuditPatches postfixes with
+        ///     the Priority.First BEFORE and Priority.Last AFTER captures). Untracked devices (not
+        ///     settled last tick: the APC, unenrolled segmenters, everything on a client peer) fall
+        ///     out on the dictionary miss. Cost on the hot path: one lookup plus two double adds.
+        /// </summary>
+        internal static void NoteMutation(long refId, Site site, float before, float after)
+        {
+            if (!_audit.TryGetValue(refId, out var e) || !e.Armed) return;
+            if (!(before == e.LastAfter))
+            {
+                _bracketAnomalies++;
+                NoteWorst(AnomalyClass.BracketDiscontinuity, e.Kind, refId, Magnitude(before - e.LastAfter),
+                    e.LastAfter, before, 0.0, e.LastSite, site);
+                // Fold the foreign jump into the shadow so the settle-tail check stays exact for
+                // any REMAINING unobserved writes; this discontinuity is already counted here.
+                e.Shadow += (double)before - e.LastAfter;
+            }
+            e.Shadow += (double)after - before;
+            e.LastAfter = after;
+            e.LastSite = site;
+        }
+
         /// <summary>
         ///     ENFORCE tail: settle every enrolled, settle-eligible segmenter's ledger to its
         ///     vanilla-equivalent standing value for this tick (see the class doc for the per-kind
-        ///     derivation). Samples the pre-settle value first for the silent negative counter and
-        ///     the warn-only high-water detector; never warns for routine settling.
+        ///     derivation). Before each write the pre-settle value feeds the exact audit: the
+        ///     non-finite backstop, the silent negative counter, and the unobserved-path check
+        ///     (field == boundary + shadow within 0.01 W). After the settle the resulting value is
+        ///     recorded for the next tick's boundary check; devices no longer enrolled are dropped
+        ///     from tracking.
         /// </summary>
         internal static void SettleEnforceTail(int currentTick)
         {
@@ -238,13 +397,12 @@ namespace PowerGridPlus
                         // Standing value = this tick's output drain awaiting billing (vanilla
                         // semantics), which is exactly the granted TotalThrough; also the value
                         // LogicType.PowerActual is documented to mean.
-                        SettleField(t, TransformerLedgerField, "Transformer", e.RefId,
-                            e.TotalThrough, e.TotalPull, currentTick);
+                        SettleTransformer(t, e.RefId, e.TotalThrough, currentTick);
                         break;
                     case PowerTransmitter pt:
                         // The fresh pull was billed and paid on the input network this tick;
                         // nothing remains owed. 0 also squashes the structural negative drift.
-                        SettleWireless(pt, "PowerTransmitter", e.RefId, 0f, e.TotalPull, currentTick);
+                        SettleWireless(pt, AuditKind.PowerTransmitter, e.RefId, 0f, currentTick);
                         if (e.Partner is PowerReceiver pr)
                         {
                             // Preserve the live relay cycle (the receiver's debt drives the
@@ -255,36 +413,50 @@ namespace PowerGridPlus
                                 float standing = rxDebt < e.TotalThrough ? rxDebt : e.TotalThrough;
                                 if (standing < 0f || float.IsNaN(standing) || float.IsInfinity(standing))
                                     standing = 0f;
-                                SettleWireless(pr, "PowerReceiver", pr.ReferenceId, standing,
-                                    e.TotalPull, currentTick);
+                                SettleWireless(pr, AuditKind.PowerReceiver, pr.ReferenceId, standing,
+                                    currentTick);
                             }
                         }
                         break;
                 }
             }
+            PurgeStale(currentTick);
         }
 
-        private static void SettleField(object instance, FieldInfo field, string kind, long refId,
-            float standing, float totalPull, int currentTick)
+        private static void SettleTransformer(Transformer t, long refId, float standing, int currentTick)
         {
+            var field = TransformerLedgerField;
             if (field == null) return;
             float v;
-            try { v = field.GetValue(instance) is float f ? f : float.NaN; }
+            try { v = field.GetValue(t) is float f ? f : float.NaN; }
             catch { return; }
-            Observe(kind, refId, v, totalPull, currentTick);
-            if (!NeedsWrite(v, standing)) return;
-            try { field.SetValue(instance, standing); }
-            catch { }
+            AuditPreSettle(AuditKind.Transformer, refId, v);
+            if (NeedsWrite(v, standing))
+            {
+                try { field.SetValue(t, standing); }
+                catch { return; }   // value now unknown: leave the device untracked this tick
+                // Re-read so layer B compares against what the field actually holds, not what we
+                // asked for (defensive; SetValue stores the exact float today).
+                try { v = field.GetValue(t) is float f ? f : float.NaN; }
+                catch { return; }
+            }
+            RecordSettled(t, AuditKind.Transformer, refId, v, currentTick);
         }
 
-        private static void SettleWireless(WirelessPower half, string kind, long refId,
-            float standing, float totalPull, int currentTick)
+        private static void SettleWireless(WirelessPower half, AuditKind kind, long refId,
+            float standing, int currentTick)
         {
             if (half == null) return;
             if (!PowerTransmitterPlusInterop.TryGetWirelessDebt(half, out float v)) return;
-            Observe(kind, refId, v, totalPull, currentTick);
-            if (!NeedsWrite(v, standing)) return;
-            PowerTransmitterPlusInterop.TrySetWirelessDebt(half, standing);
+            AuditPreSettle(kind, refId, v);
+            if (NeedsWrite(v, standing))
+            {
+                if (!PowerTransmitterPlusInterop.TrySetWirelessDebt(half, standing)) return;
+                // Re-read through the same route so layer B holds the exact stored value even if a
+                // future PowerTransmitterPlus ModApi build clamps or transforms the write.
+                if (!PowerTransmitterPlusInterop.TryGetWirelessDebt(half, out v)) return;
+            }
+            RecordSettled(half, kind, refId, v, currentTick);
         }
 
         private static bool NeedsWrite(float value, float standing)
@@ -294,56 +466,194 @@ namespace PowerGridPlus
             return diff > 0.01f || diff < -0.01f;
         }
 
-        // Pre-settle diagnostics: count negatives silently, feed the warn-only high-water
-        // detector. The detector is globally throttled; the only per-event state kept is the
-        // worst offender since the last warning.
-        private static void Observe(string kind, long refId, float value, float totalPull, int currentTick)
+        // Pre-settle audit: the non-finite backstop, the silent negative counter (the free-energy
+        // metric), and the layer A+ settle-tail identity (field == boundary + shadow).
+        private static void AuditPreSettle(AuditKind kind, long refId, float value)
         {
             if (float.IsNaN(value) || float.IsInfinity(value))
             {
-                NoteHighWater(kind, refId, value, 0f, currentTick);
-                return;
+                _nonFiniteAnomalies++;
+                NoteWorst(AnomalyClass.NonFinite, kind, refId, float.PositiveInfinity,
+                    0f, value, 0.0, Site.Boundary, Site.Settle);
+                return;   // the settle repairs it (NeedsWrite is true for non-finite)
             }
-            if (value < -Tolerance)
+            if (value < -Tolerance) _negativeSettles++;
+            if (_audit.TryGetValue(refId, out var e) && e.Armed)
             {
-                _negativeSettles++;
-                return;
+                double expected = e.Baseline + e.Shadow;
+                double diff = value - expected;
+                if (diff > TailToleranceW || diff < -TailToleranceW)
+                {
+                    _unobservedAnomalies++;
+                    NoteWorst(AnomalyClass.UnobservedPath, kind, refId, Magnitude((float)diff),
+                        e.Baseline, value, e.Shadow, e.LastSite, Site.Settle);
+                }
             }
-            float threshold = HighWaterFactor * (totalPull > HighWaterFloorW ? totalPull : HighWaterFloorW);
-            if (value >= threshold)
-                NoteHighWater(kind, refId, value, threshold, currentTick);
         }
 
-        private static void NoteHighWater(string kind, long refId, float value, float threshold, int currentTick)
+        private static void RecordSettled(object device, AuditKind kind, long refId,
+            float settledValue, int currentTick)
         {
-            _highWaterEvents++;
-            // Rank offenders by how far the value exceeds its own threshold; a non-finite value
-            // (threshold 0) ranks worst.
-            float worstExcess = _worstKind == null ? float.MinValue
-                : (_worstThreshold > 0f ? _worstValue - _worstThreshold : float.MaxValue);
-            float excess = threshold > 0f ? value - threshold : float.MaxValue;
-            if (excess >= worstExcess)
+            if (!_audit.TryGetValue(refId, out var e))
             {
-                _worstValue = value;
-                _worstThreshold = threshold;
+                e = new AuditEntry();
+                _audit[refId] = e;
+            }
+            e.Device = device;
+            e.Kind = kind;
+            e.Settled = settledValue;
+            e.SettleStamp = currentTick;
+            e.Armed = false;           // armed again by the next tick's boundary check
+            e.LastSite = Site.Settle;
+        }
+
+        // Drop tracking for every device the settle did not touch this tick (left the enrolled
+        // set, lost settle eligibility, or its field became unreachable). Scratch list reused.
+        private static void PurgeStale(int currentTick)
+        {
+            _purgeScratch.Clear();
+            foreach (var kv in _audit)
+            {
+                if (kv.Value.SettleStamp != currentTick)
+                    _purgeScratch.Add(kv.Key);
+            }
+            for (int i = 0; i < _purgeScratch.Count; i++)
+                _audit.Remove(_purgeScratch[i]);
+            _purgeScratch.Clear();
+        }
+
+        private static bool TryReadLedger(AuditEntry e, out float value)
+        {
+            value = 0f;
+            if (e.Kind == AuditKind.Transformer)
+            {
+                var field = TransformerLedgerField;
+                if (field == null || !(e.Device is Transformer t)) return false;
+                try
+                {
+                    if (field.GetValue(t) is float f) { value = f; return true; }
+                }
+                catch { }
+                return false;
+            }
+            return e.Device is WirelessPower half
+                   && PowerTransmitterPlusInterop.TryGetWirelessDebt(half, out value);
+        }
+
+        // ------------------------------------------------------------------
+        // Anomaly capture + throttled aggregated warning.
+        // ------------------------------------------------------------------
+
+        // Rank key for the worst-offender capture: non-finite deviations rank above everything.
+        private static float Magnitude(float diff)
+        {
+            if (float.IsNaN(diff) || float.IsInfinity(diff)) return float.PositiveInfinity;
+            return diff < 0f ? -diff : diff;
+        }
+
+        private static void NoteWorst(AnomalyClass cls, AuditKind kind, long refId, float magnitude,
+            float a, float b, double shadow, Site siteFrom, Site siteTo)
+        {
+            if (_worstClass == AnomalyClass.None || magnitude >= _worstMagnitude)
+            {
+                _worstClass = cls;
+                _worstMagnitude = magnitude;
                 _worstKind = kind;
                 _worstRefId = refId;
+                _worstA = a;
+                _worstB = b;
+                _worstShadow = shadow;
+                _worstSiteFrom = siteFrom;
+                _worstSiteTo = siteTo;
             }
+        }
+
+        // Called once per tick from the boundary check: emit the aggregated warning when new
+        // anomalies were recorded since the last line and the throttle window has passed. Healthy
+        // grids pay one long-compare per tick and log nothing, ever.
+        private static void EmitWarningIfDue(int currentTick)
+        {
+            long total = _boundaryAnomalies + _unobservedAnomalies + _bracketAnomalies + _nonFiniteAnomalies;
+            if (total == _totalAtLastWarn) return;
             if (currentTick - _lastGlobalWarnTick < WarnCooldownTicks) return;
             _lastGlobalWarnTick = currentTick;
+            _totalAtLastWarn = total;
             Plugin.Log?.LogWarning(
-                "[PowerGridPlus] Ledger high-water: " + _highWaterEvents.ToString(CultureInfo.InvariantCulture)
-                + " event(s) since load (worst: " + _worstKind + " "
-                + _worstRefId.ToString(CultureInfo.InvariantCulture)
-                + " at " + _worstValue.ToString("F2", CultureInfo.InvariantCulture)
-                + " W vs threshold " + _worstThreshold.ToString("F2", CultureInfo.InvariantCulture)
-                + " W). A recurring high-water means something upstream is accumulating into a"
-                + " ledger PowerGridPlus owns. Negative settles since load: "
-                + _negativeSettles.ToString(CultureInfo.InvariantCulture) + ".");
-            _worstKind = null;
-            _worstValue = 0f;
-            _worstThreshold = 0f;
+                "[PowerGridPlus] Ledger audit: " + total.ToString(CultureInfo.InvariantCulture)
+                + " anomaly(ies) since load (boundary " + _boundaryAnomalies.ToString(CultureInfo.InvariantCulture)
+                + ", unobserved-path " + _unobservedAnomalies.ToString(CultureInfo.InvariantCulture)
+                + ", bracket " + _bracketAnomalies.ToString(CultureInfo.InvariantCulture)
+                + ", non-finite " + _nonFiniteAnomalies.ToString(CultureInfo.InvariantCulture)
+                + "; worst: " + FormatWorst()
+                + "). An anomaly means something outside PowerGridPlus wrote a ledger it owns."
+                + " Negative settles since load: " + _negativeSettles.ToString(CultureInfo.InvariantCulture) + ".");
+            ResetWorst();
+        }
+
+        private static string FormatWorst()
+        {
+            if (_worstClass == AnomalyClass.None) return "none";
+            string where = KindName(_worstKind) + " " + _worstRefId.ToString(CultureInfo.InvariantCulture);
+            switch (_worstClass)
+            {
+                case AnomalyClass.Boundary:
+                    return "tick-boundary write on " + where
+                           + " (settled " + _worstA.ToString("F2", CultureInfo.InvariantCulture)
+                           + " W, found " + _worstB.ToString("F2", CultureInfo.InvariantCulture) + " W)";
+                case AnomalyClass.UnobservedPath:
+                    return "unobserved write on " + where
+                           + " (expected " + (_worstA + _worstShadow).ToString("F2", CultureInfo.InvariantCulture)
+                           + " W = boundary " + _worstA.ToString("F2", CultureInfo.InvariantCulture)
+                           + " + shadow " + _worstShadow.ToString("F2", CultureInfo.InvariantCulture)
+                           + ", found " + _worstB.ToString("F2", CultureInfo.InvariantCulture)
+                           + " W; last observed op " + SiteName(_worstSiteFrom) + ")";
+                case AnomalyClass.BracketDiscontinuity:
+                    return "foreign write between " + SiteName(_worstSiteFrom) + " and " + SiteName(_worstSiteTo)
+                           + " on " + where
+                           + " (" + _worstA.ToString("F2", CultureInfo.InvariantCulture)
+                           + " W -> " + _worstB.ToString("F2", CultureInfo.InvariantCulture) + " W)";
+                default:
+                    return "non-finite pre-settle value (" + _worstB.ToString(CultureInfo.InvariantCulture)
+                           + ") on " + where;
+            }
+        }
+
+        private static void ResetWorst()
+        {
+            _worstClass = AnomalyClass.None;
+            _worstMagnitude = 0f;
+            _worstKind = AuditKind.Transformer;
             _worstRefId = 0L;
+            _worstA = 0f;
+            _worstB = 0f;
+            _worstShadow = 0.0;
+            _worstSiteFrom = Site.Boundary;
+            _worstSiteTo = Site.Boundary;
+        }
+
+        private static string KindName(AuditKind kind)
+        {
+            switch (kind)
+            {
+                case AuditKind.Transformer: return "Transformer";
+                case AuditKind.PowerTransmitter: return "PowerTransmitter";
+                default: return "PowerReceiver";
+            }
+        }
+
+        private static string SiteName(Site site)
+        {
+            switch (site)
+            {
+                case Site.Boundary: return "tick-boundary";
+                case Site.TransformerUsePower: return "Transformer.UsePower";
+                case Site.TransformerReceivePower: return "Transformer.ReceivePower";
+                case Site.TransmitterUsePower: return "PowerTransmitter.UsePower";
+                case Site.TransmitterReceivePower: return "PowerTransmitter.ReceivePower";
+                case Site.ReceiverUsePower: return "PowerReceiver.UsePower";
+                case Site.ReceiverReceivePower: return "PowerReceiver.ReceivePower";
+                default: return "settle";
+            }
         }
     }
 }
