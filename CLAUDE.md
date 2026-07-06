@@ -369,7 +369,7 @@ The launcher reads `<StationeersPath>` from `Directory.Build.props` and `STEAMCM
 
 ## Tool: InspectorPlus for live runtime state
 
-`InspectorPlus` is a local-only BepInEx plugin in this repository that dumps live game state to JSON on demand while the game is running. Use it to read actual field and property values of scene objects at a specific moment instead of guessing or adding one-off logging.
+`InspectorPlus` is a BepInEx plugin in this repository that dumps live game state to JSON on demand while the game is running. It started as local-only tooling and is now also published on the Steam Workshop (its release workflow is the standard one in `Mods/Template/RELEASE.md`), but its role in this repo is unchanged: use it to read actual field and property values of scene objects at a specific moment instead of guessing or adding one-off logging.
 
 Two triggers:
 
