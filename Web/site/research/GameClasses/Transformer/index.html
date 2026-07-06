@@ -3393,6 +3393,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Setting setter, sync flag, save round-trip">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_powerprovided-is-runtime-only-not-in-transformersavedata-not-on-the-wire" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _powerProvided is runtime-only: not in TransformerSaveData, not on the wire
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5467,6 +5484,8 @@
       
         
       
+        
+      
     
     
     
@@ -6001,6 +6020,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8135,6 +8182,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Setting setter, sync flag, save round-trip">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_powerprovided-is-runtime-only-not-in-transformersavedata-not-on-the-wire" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _powerProvided is runtime-only: not in TransformerSaveData, not on the wire
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8293,7 +8357,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-06.
         </p>
       
       
@@ -8424,6 +8488,10 @@
 </span></code></pre></div>
 <p><code>SerializeSave()</code> (L403547-403552) creates a <code>TransformerSaveData</code>, calls <code>InitialiseSaveData(ref savedData)</code>; the override at L403554-403561 calls <code>base.InitialiseSaveData</code>, then assigns <code>transformerSaveData.OutputSetting = (float)Setting</code>. <code>DeserializeSave</code> (L403563-403571) calls <code>base.DeserializeSave</code>, then <code>Setting = transformerSaveData.OutputSetting; SetKnob();</code>. Only <code>Setting</code> is persisted at the Transformer level. <code>OutputMaximum</code> comes from the prefab on load, not the save; <code>Error</code>, <code>OnOff</code>, <code>Powered</code> ride the inherited <code>Thing</code> / <code>Device</code> animator-state save path.</p>
 <p>Implication for a "rewire <code>Setting</code> to be a different field" mod: even if read returns something else and writes redirect elsewhere, the underlying <code>_outputSetting</code> field still ticks the 256 sync flag on every write. Either leave <code>_outputSetting</code> at its default (0) so the sync is harmless, or rewire the field too; both are valid. The save schema is one float; touching the schema would require a corresponding override and a side-car (see PowerGridPlus's <code>PrioritySideCar.cs</code> for the parallel pattern).</p>
+<h3 id="_powerprovided-is-runtime-only-not-in-transformersavedata-not-on-the-wire"><code>_powerProvided</code> is runtime-only: not in TransformerSaveData, not on the wire<a class="headerlink" href="#_powerprovided-is-runtime-only-not-in-transformersavedata-not-on-the-wire" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p>Re-verified at 0.2.6403.27689: <code>TransformerSaveData</code> (424593-424597) is unchanged, <code>[XmlElement] public float OutputSetting;</code> is still its only member, so "only <code>Setting</code> is persisted at the Transformer level" holds at this version too. The <code>_powerProvided</code> ledger (424621) has no save field and no join or delta-sync field: the whole-decompile reference census shows it touched only by <code>UsePower</code> (424761), <code>ReceivePower</code> (424769), and <code>GetUsedPower</code> (424791). It restarts at 0 on save load and on client join; residual debt survives only within a session. Cross-class census and consequences on <a href="../Device/">Device</a>, "Two per-device draw-state fields", and <a href="../AreaPowerControl/">AreaPowerControl</a>, "The ledger is not serialized".</p>
 <h2 id="interactwith-button-model-and-delayedactioninstance-state-messages">InteractWith button model and DelayedActionInstance state messages<a class="headerlink" href="#interactwith-button-model-and-delayedactioninstance-state-messages" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
 
@@ -8541,6 +8609,7 @@
 <p>So the rocket small transformer carries a dedicated <code>Data</code> connector (3 connectors) where the station small transformer folds data onto its input power connector (2 connectors). The large station transformer has the same separate-Data-port shape as the rocket one; the small and medium are the only transformers whose data rides on an Input/Output power connector. See <a href="../Connection/">Connection</a> "Data-port discovery".</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-06: added the "<code>_powerProvided</code> is runtime-only" subsection under the save round-trip section (game version 0.2.6403.27689). Re-read <code>TransformerSaveData</code> (424593-424597, still only <code>OutputSetting</code>) and re-ran the whole-decompile <code>_powerProvided</code> census (Transformer sites: declaration 424621, <code>UsePower</code> 424761, <code>ReceivePower</code> 424769, <code>GetUsedPower</code> 424791; no serialization member anywhere). Additive: confirms and sharpens the existing "Only <code>Setting</code> is persisted at the Transformer level" claim, which was already consistent; no fresh validator needed. The parent section's other content (Setting setter, sync flags, 0.2.6228 line refs) was not re-read and keeps its stamp.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. The power-method bodies are unchanged; restamped "Class hierarchy and fields" with the new refs (class 424598, <code>_powerProvided</code> 424621, <code>UsePower</code> / <code>ReceivePower</code> 424757-424771, <code>GetUsedPower</code> 424773-424792, <code>GetGeneratedPower</code> = <code>Min(Setting, InputNetwork.PotentialLoad)</code> 424794-424805). The Setting-sync, InteractWith, SetKnob, CheckError, and rocket-variant sections were not re-read this pass and keep their 0.2.6228.27061 stamps (their old <code>L403xxx</code> refs are 0.2.6228 decompile lines).</li>
 <li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): rocket small transformer = 3 connectors with a dedicated <code>Data</code> port, station small = 2 with <code>PowerAndData/Input</code>, large <code>StructureTransformer</code> = 3 with a dedicated <code>Data</code> port, medium = 2 with <code>PowerAndData/Output</code>. Additive; no conflict with existing content.</li>
 <li>

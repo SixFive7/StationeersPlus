@@ -2531,6 +2531,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Power-flow methods (verbatim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_powerprovided-is-runtime-only-not-saved-not-synced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _powerProvided is runtime-only: not saved, not synced
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5434,6 +5451,8 @@
       
         
       
+        
+      
     
     
     
@@ -5968,6 +5987,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8080,6 +8127,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Power-flow methods (verbatim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_powerprovided-is-runtime-only-not-saved-not-synced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _powerProvided is runtime-only: not saved, not synced
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8227,7 +8291,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-06.
         </p>
       
       
@@ -8392,6 +8456,10 @@
 <li><strong><code>GetUsedPower(InputNetwork)</code> = <code>Mathf.Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)</code>.</strong> The receiver's draw on the wireless network is its accumulated debt, capped at <code>MaxPowerTransmission + UsedPower</code> (= 5000 + the dish's own quiescent draw). <code>_powerProvided</code> rises in <code>UsePower</code> (when the grid pulls power from the receiver's output cable) and falls in <code>ReceivePower</code> (when the receiver is fed on the wireless side), so it tracks net outstanding throughput.</li>
 <li><code>MaxPowerTransmission</code> is the static 5000 W constant on <code>PowerTransmitter</code>; it appears here on the receiver as the <code>GetUsedPower</code> cap and the visualizer's full-brightness reference.</li>
 </ul>
+<h3 id="_powerprovided-is-runtime-only-not-saved-not-synced"><code>_powerProvided</code> is runtime-only: not saved, not synced<a class="headerlink" href="#_powerprovided-is-runtime-only-not-saved-not-synced" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p>The debt accumulator (declaration 408071) has no persistence path at 0.2.6403.27689. <code>PowerReceiverSaveData : WirelessPowerSaveData</code> (408062-408064) has an EMPTY body; the base record (426765-426778) carries only the four dish-rotation doubles, so nothing at the receiver level saves the ledger, and the whole-decompile census shows the field touched exclusively by <code>UsePower</code> (408188), <code>ReceivePower</code> (408202), and <code>GetUsedPower</code> (408229); no <code>SerializeOnJoin</code> / <code>BuildUpdate</code> / <code>ProcessUpdate</code> member reads it. It restarts at 0 on save load and on client join: a loaded or late-joining receiver reports zero wireless-side draw until its output cable network pulls power again. Cross-class census and consequences on <a href="../Device/">Device</a>, "Two per-device draw-state fields".</p>
 <h2 id="the-deliverable-path">The deliverable path<a class="headerlink" href="#the-deliverable-path" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
@@ -8416,6 +8484,7 @@
 <p><code>PowerReceiver</code>'s own methods are NOT patched by PowerTransmitterPlus; the distance model lives entirely on the transmitter side. PowerTransmitterPlus (a) drops the 5000 W delivery ceiling on <code>PowerTransmitter.GetGeneratedPower</code> (so the wireless <code>PotentialLoad</code>, and hence <code>PR.GetGeneratedPower</code>, can exceed 5000 W) and (b) inflates the TRANSMITTER's source-side draw to <code>delivered * (1 + k * distance_km)</code>. The receiver still reports <code>WirelessInputNetwork.PotentialLoad</code> as its generation and its debt-capped draw as its use; it is a faithful pass-through. See <a href="../PowerTransmitter/">PowerTransmitter</a> and <a href="../../Unsorted/PowerGridPlusCrossModCompat/">PowerGridPlus cross-mod compatibility</a> for the transmitter-side model and the PowerGridPlus allocator's handling of the inflated source draw.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-06: added the "<code>_powerProvided</code> is runtime-only" subsection (game version 0.2.6403.27689). Evidence: <code>PowerReceiverSaveData</code> empty body (408062-408064), <code>WirelessPowerSaveData</code> body (426765-426778), whole-decompile <code>_powerProvided</code> census (RX sites: declaration 408071, 408188 / 408202 / 408229 only; no serialization member). Additive; no prior claim on this page addressed save behavior of the ledger, no fresh validator.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: <code>GetGeneratedPower(OutputNetwork)</code> = <code>WirelessInputNetwork.PotentialLoad</code> verbatim (408232-408243), <code>GetUsedPower</code> = <code>Min(MaxPowerTransmission + UsedPower, _powerProvided)</code> (408206-408229), <code>UsePower</code> / <code>ReceivePower</code> ledger (408184-408204), <code>LinkedPowerTransmitter</code> setter assigning <code>InputNetwork = value.OutputNetwork</code> only when non-null (408081-408097), <code>CheckConnections</code> touching <code>OutputNetwork</code> only (408257-408261). CHANGED at 0.2.6403.27689 (supersession, new section "Unlink behavior"): <code>ElectricalInputOutput.OnRemoveCableNetwork</code> now nulls <code>InputNetwork</code> when <code>oldNetwork == InputNetwork</code> (394993-395006), <code>CableNetwork.RemoveDevice</code> invokes it (271024), and the TX <code>LinkedReceiver</code> setter removes the old RX from the WirelessNetwork (408305), so a setter-driven unlink or retarget clears <code>rx.InputNetwork</code>; previously nothing cleared it and a formerly-linked RX kept advertising the dead wireless network's <code>PotentialLoad</code>. Bypass paths (<code>PowerTransmitter.OnDestroy</code> doing only <code>LinkedReceiver.LinkedPowerTransmitter = null</code>, 408387-408394) still leave the reference stale; that residual hazard moved to Open Questions as runtime-unverified.</li>
 <li>2026-06-14: page created. Sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines 386861-387058; verbatim <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> / <code>GetGeneratedPower</code> / <code>LinkedPowerTransmitter</code> setter / <code>CheckConnections</code> bodies. Confirms <code>PowerReceiver.GetGeneratedPower(OutputNetwork)</code> returns <code>WirelessInputNetwork.PotentialLoad</code> and <code>PowerReceiver.GetUsedPower(InputNetwork)</code> returns <code>Mathf.Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)</code>. Established while correcting the PowerGridPlus x PowerTransmitterPlus loss-model interaction (POWER.md §6.3 / §8.4.2).</li>
 </ul>

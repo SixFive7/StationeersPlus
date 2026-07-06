@@ -5434,6 +5434,8 @@
       
         
       
+        
+      
     
     
     
@@ -5968,6 +5970,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8227,7 +8257,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-06.
         </p>
       
       
@@ -8424,7 +8454,7 @@
 </ul>
 <p>Late-join (<code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code>) ships full-precision <code>double</code> values for both targets so a joining client picks up an exact slew destination.</p>
 <h2 id="save-data">Save data<a class="headerlink" href="#save-data" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">WirelessPowerSaveData</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">StructureSaveData</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
@@ -8434,7 +8464,8 @@
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="na">[XmlElement]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">TargetVertical</span><span class="p">;</span>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">}</span>
 </span></code></pre></div>
-<p><code>PowerTransmitterSaveData : WirelessPowerSaveData</code> adds <code>OutputNetworkReferenceId</code>. <code>PowerReceiverSaveData : WirelessPowerSaveData</code> adds nothing. Both H/V live values and slew targets persist across save/load.</p>
+<p><code>PowerTransmitterSaveData : WirelessPowerSaveData</code> adds <code>OutputNetworkReferenceId</code>. <code>PowerReceiverSaveData : WirelessPowerSaveData</code> adds nothing. Both H/V live values and slew targets persist across save/load. Re-verified verbatim at 0.2.6403.27689 (<code>WirelessPowerSaveData</code> decompile lines 426765-426778, <code>PowerTransmitterSaveData</code> 408264-408268, <code>PowerReceiverSaveData</code> 408062-408064).</p>
+<p>The four rotation doubles (plus the TX's network reference id) are ALL the wireless-power state that saves. In particular the subclasses' private <code>_powerProvided</code> debt accumulators (<code>PowerTransmitter</code> 408287, <code>PowerReceiver</code> 408071) have no save field and no join-stream field; they restart at 0 on save load and client join. See <a href="../Device/">Device</a>, "Two per-device draw-state fields", for the full non-serialization census.</p>
 <h2 id="onregistered-hv-reset-to-upright">OnRegistered: H/V reset to upright<a class="headerlink" href="#onregistered-hv-reset-to-upright" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
 
@@ -8464,9 +8495,10 @@
 <p>When a fresh dish is placed (<code>GameState.Running</code>), H is reset to 0 and V is reset to 1 (zenith). At save-load (<code>GameState.Loading</code>) this branch is skipped so the saved H/V values persist.</p>
 <p>V=1 corresponds to "the dish points along its dish-local +Y axis" (zenith of the dish-local frame). For a floor-mounted dish that aligns with world up. For a ceiling-mounted dish, V=1 would point world-down. Mod authors enabling non-floor placement should consider either (a) leaving V=1 alone (the dish points away from the mount surface, intuitive) or (b) re-deriving the post-place default H/V from the prefab's mount surface.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
 <ul>
+<li>2026-07-06: re-verified the "Save data" section against the 0.2.6403.27689 decompile (<code>WirelessPowerSaveData</code> 426765-426778 unchanged; <code>PowerTransmitterSaveData</code> 408264-408268 still adds only <code>OutputNetworkReferenceId</code>; <code>PowerReceiverSaveData</code> 408062-408064 still empty) and restamped it. Added the explicit scoping note that the rotation doubles are the only wireless-power state that saves and that the subclasses' <code>_powerProvided</code> ledgers are runtime-only (no save field, no join field; whole-decompile census on <a href="../Device/">Device</a>). Additive; the section's existing claims were confirmed, not changed.</li>
 <li>2026-07-02: conflict resolution on the subclass list (game version 0.2.6403.27689). Contradicted claim: the intro stated the servo machinery is "used by <code>PowerTransmitter</code>, <code>PowerReceiver</code>, and <code>PowerTransmitterOmni</code>". Fresh validator verdict (binding): only <code>PowerTransmitter</code> and <code>PowerReceiver</code> derive from <code>WirelessPower</code>; <code>PowerTransmitterOmni : Electrical</code> (decompile line 408582) sits on a sibling branch under <code>Device</code> and carries none of the servo members. <code>WirelessPower : ElectricalInputOutput, IRotatable</code> confirmed at decompile line 426779. Resulting change: removed <code>PowerTransmitterOmni</code> from the intro's subclass list and pointed at the new <a href="../PowerTransmitterOmni/">PowerTransmitterOmni</a> page. Section bodies below (servo math, clamping, sync, save data, OnRegistered) were not re-read this pass and keep their 0.2.6228.27061 stamps.</li>
 <li>2026-04-25: page created during a deep decompile of the placement-orientation system. Verbatim source extracts from <code>WirelessPower.cs</code>, <code>PowerTransmitter.cs</code>, <code>PowerReceiver.cs</code>, <code>WirelessPowerSaveData.cs</code>. No conflicts with <code>PowerTransmitter.md</code>; this page documents the BASE class.</li>
 </ul>

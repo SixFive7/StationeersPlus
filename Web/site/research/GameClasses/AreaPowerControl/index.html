@@ -1029,6 +1029,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Pattern presence in other ledger-based classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-ledger-is-not-serialized-no-save-field-no-join-field-026403-census" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ledger is not serialized: no save field, no join field (0.2.6403 census)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5467,6 +5484,8 @@
       
         
       
+        
+      
     
     
     
@@ -6001,6 +6020,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8179,6 +8226,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Pattern presence in other ledger-based classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-ledger-is-not-serialized-no-save-field-no-join-field-026403-census" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ledger is not serialized: no save field, no join field (0.2.6403 census)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8293,7 +8357,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-06.
         </p>
       
       
@@ -8739,10 +8803,17 @@
 <p>Station-mounted <code>Battery</code> (documented in <a href="../Battery/">Battery.md</a>) is the other class with internal energy storage, but it does NOT carry a <code>_powerProvided</code> field. Its vanilla <code>UsePower</code> / <code>ReceivePower</code> write directly into <code>PowerStored</code> without a ledger (decompile lines 392144-392158). PGP's <code>StationaryBatteryPatches.cs</code> adds per-tick caps on <code>GetUsedPower</code> (charge headroom) and <code>GetGeneratedPower</code> (discharge availability) and rewrites <code>ReceivePower</code> to apply <code>BatteryChargeEfficiency</code>, but does NOT touch <code>UsePower</code>. There is no <code>_powerProvided &gt; 0</code> gate to remove and no equivalent immediate-vs-deferred settlement issue.</p>
 <p>The station <code>Battery</code> does carry an intentional asymmetry of its own under PowerGridPlus defaults (<code>MaxBatteryChargeRate = 0.002</code>, <code>MaxBatteryDischargeRate = 0.007</code> -- discharge cap is 3.5x the charge cap), so a Battery whose continuous downstream draw equals its discharge cap will slowly net-drain rather than hold equilibrium. That is a design choice (batteries are a reserve, not a generator) and is exposed as a tunable in the BepInEx config; it is not a bug surface comparable to the APC ceiling, where the asymmetry is fixed at the literal <code>BatteryChargeRate = 1000f</code> field and the player has no config to retune it.</p>
 <p>Net conclusion: the net-charge ceiling is localised to <code>AreaPowerControl</code>. The proximate cause -- PGP's <code>UsePower</code> patch removing vanilla's <code>_powerProvided &gt; 0</code> drain gate -- does not appear in any other PGP-patched class. The other <code>_powerProvided</code> users either have no <code>UsePower</code> patch (Transformer, by Re-Volt design) or are unpatched entirely (PowerReceiver, PowerTransmitter), and the only other storage-bearing electrical class (<code>Battery</code>) uses a different mechanism without a ledger.</p>
+<h3 id="the-ledger-is-not-serialized-no-save-field-no-join-field-026403-census">The ledger is not serialized: no save field, no join field (0.2.6403 census)<a class="headerlink" href="#the-ledger-is-not-serialized-no-save-field-no-join-field-026403-census" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p>None of the four <code>_powerProvided</code> carriers persists the ledger at 0.2.6403.27689. The save-data records: <code>TransformerSaveData</code> (424593-424597) holds only <code>[XmlElement] public float OutputSetting;</code>; <code>WirelessPowerSaveData</code> (426765-426778) holds only the four dish-rotation doubles; <code>PowerTransmitterSaveData</code> (408264-408268) adds only <code>long OutputNetworkReferenceId</code>; <code>PowerReceiverSaveData</code> (408062-408064) adds nothing. <code>AreaPowerControl</code> itself defines NO save-data record and NO serialization member of any kind: its class body (390555-391146; the next type declaration is <code>AtmosphericSeat</code> at 391147) contains no <code>SerializeSave</code> / <code>InitialiseSaveData</code> / <code>DeserializeSave</code> / <code>SerializeOnJoin</code> / <code>DeserializeOnJoin</code> / <code>BuildUpdate</code> / <code>ProcessUpdate</code> override, so the APC saves purely through its inherited structure save path.</p>
+<p>The whole-decompile <code>_powerProvided</code> reference census (declarations 390592 / 408071 / 408287 / 424621 plus only the <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> sites quoted on this page) also proves no join-stream or delta-sync member touches the field. In-game, the only paths that write it are the two dispatch sites inside <code>PowerTick.ApplyState</code> on the power worker: <code>PowerProvider.ApplyPower</code> (271690-271696) -&gt; <code>UsePower</code>, and <code>PowerTick.ConsumePower</code> (271820-271840) -&gt; <code>ReceivePower</code>.</p>
+<p>Consequence: the ledger is runtime accumulation within a session. On save load and on client join every <code>_powerProvided</code> restarts at the C# default 0; the "residual debt persists for the life of the object" rule on <a href="../Device/">Device</a> ("Two per-device draw-state fields") is bounded by the session, and a mod auditing or reconstructing the ledger never has to consider saved state. Scope: verified at 0.2.6403.27689; older game versions unverified.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
 <ul>
+<li>2026-07-06: added "The ledger is not serialized" subsection under the pattern-presence section (game version 0.2.6403.27689). Evidence read directly from the decompile: the four SaveData record bodies (<code>TransformerSaveData</code> 424593-424597, <code>WirelessPowerSaveData</code> 426765-426778, <code>PowerTransmitterSaveData</code> 408264-408268, <code>PowerReceiverSaveData</code> 408062-408064), the absence of any serialization member in the <code>AreaPowerControl</code> class body (390555-391146, next type at 391147), the whole-decompile <code>_powerProvided</code> reference census, and the <code>.UsePower(</code> / <code>.ReceivePower(</code> caller census isolating <code>PowerProvider.ApplyPower</code> (271690-271696) and <code>PowerTick.ConsumePower</code> (271820-271840) as the only dispatch sites reaching the four ledger classes. Checked first for existing verified content claiming the ledger persists into saves (fresh-validator trigger): none found on this or any other central page, so the addition is additive; no validator spawned.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration (390555), <code>BatteryChargeRate = 1000f</code> (390586), the slot <code>Battery</code> property is a <code>BatteryCell</code> (390594), <code>UsePower</code> drain-gated on <code>_powerProvided &gt; 0</code> (391000-391012), <code>ReceivePower</code> charges the cell only when <code>_powerProvided &lt; 0</code> (391014-391026), <code>GetUsedPower</code> = <code>Max(_powerProvided, UsedPower)</code> + <code>Min(BatteryChargeRate, Battery.PowerDelta)</code> (391028-391044), <code>GetGeneratedPower</code> = <code>AvailablePower</code> = <code>InputNetwork.PotentialLoad + Battery.PowerStored</code> uncapped (391046-391057, <code>AvailablePower</code> 390652-390663). Also refreshed the Transformer method citations carried by this page (<code>UsePower</code> / <code>ReceivePower</code> 424757-424771, <code>GetUsedPower</code> 424773-424792, <code>GetGeneratedPower</code> = <code>Min(Setting, InputNetwork.PotentialLoad)</code> 424794-424805), the four <code>_powerProvided</code> declaration lines in the pattern-presence table (390592 / 424621 / 408071 / 408287), the RX/TX method ranges (408184-408229 / 408424-408469), and the station-Battery <code>UsePower</code> / <code>ReceivePower</code> range (392144-392158). Corrected the PowerTick-driver section's attribution of the ratio math: <code>CalculateState</code> is public at 0.2.6403 and the ratio lives in the private <code>CacheState</code> with the both-positive guard (see <a href="../PowerTick/">PowerTick</a>). PGP-behaviour sections (post-b3baffb, historical ceiling, Re-Volt attribution) were not re-tested this pass and keep their stamps.</li>
 <li>2026-05-28 (later): added "PGP post-b3baffb (2026-05-28): cable-headroom and cable-tier output cap" section reflecting commit <code>b3baffb</code> and reframed the prior "Net-charge ceiling" section as historical (the <code>UsePowerPatch</code> that produced the ceiling is removed; vanilla <code>UsePower</code> now runs unmodified). The earlier analysis is preserved verbatim under a HISTORICAL heading because it explains why the bug existed and what the rewrite addressed. Verified headlessly via <code>pgp-rate-cap-probe</code> ScenarioRunner scenario: 8/8 wired APCs on <code>APC-Luna.save</code> pass <code>ComputeChargeCap</code> (per-device, cable-bounded) and <code>GetGeneratedPower</code> (output cable MaxVoltage cap) checks across normal and heavy cable tiers.</li>
 <li>2026-05-28: added "Pattern presence in other ledger-based classes" section. Sweeps the four vanilla classes that carry a <code>_powerProvided</code> field (decompile lines 369546, 403323, 386867, 387083) and confirms that the APC's net-charge ceiling bug pattern is structurally impossible in <code>Transformer</code>, <code>PowerReceiver</code>, <code>PowerTransmitter</code>, and the station-mounted <code>Battery</code>: the other three <code>_powerProvided</code> users have no internal energy storage to mis-drain (vanilla <code>Transformer.UsePower</code> only increments the ledger; lines 403459-403465), and the only other storage-bearing electrical class (<code>Battery</code>) has no <code>_powerProvided</code> ledger and is not patched on <code>UsePower</code> by PowerGridPlus. Documents PGP's TransformerExploitPatches verbatim and confirms it does not patch <code>UsePower</code>. Notes the station <code>Battery</code>'s intentional charge/discharge asymmetry under PGP defaults (<code>0.002</code> / <code>0.007</code>) is a separate, configurable design choice and not the same bug shape. Additive content; does not contradict prior sections.</li>

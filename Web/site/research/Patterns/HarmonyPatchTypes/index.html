@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/HarmonyPatchTypes/">
       
       
-        <link rel="prev" href="../HarmonyLogicableInheritedMethodTrap/">
+        <link rel="prev" href="../HarmonyPatchOrdering/">
       
       
         <link rel="next" href="../HarmonyPrefixReturnBool/">
@@ -5310,6 +5310,8 @@
       
         
       
+        
+      
     
     
     
@@ -5844,6 +5846,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8277,12 +8307,14 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (3)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
               <li><code>./HarmonyPrefixReturnBool.md</code></li>
             
               <li><code>./HarmonyInheritedMethods.md</code></li>
+            
+              <li><code>./HarmonyPatchOrdering.md</code></li>
             
               <li><code>./AccessToolsRecipes.md</code></li>
             
@@ -8308,7 +8340,7 @@
 
 
 <h1 id="harmony-patch-types-prefix-postfix-transpiler-reverse-patch">Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)<a class="headerlink" href="#harmony-patch-types-prefix-postfix-transpiler-reverse-patch" title="Permanent link">&para;</a></h1>
-<p>Quick reference for the four Harmony patch kinds, their intended use, and the implicit parameters Harmony provides. Split out from the RepairPrototype plugin template (see also <code>../Workflows/ModProjectSetup.md</code> for the BepInEx scaffold).</p>
+<p>Quick reference for the four Harmony patch kinds, their intended use, and the implicit parameters Harmony provides. Split out from the RepairPrototype plugin template (see also <code>../Workflows/ModProjectSetup.md</code> for the BepInEx scaffold). How MULTIPLE patches on one method interleave (priority sort, skip-original semantics, <code>__state</code> sharing) is on <a href="../HarmonyPatchOrdering/">HarmonyPatchOrdering</a>.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8352,6 +8384,7 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <ul>
+<li>2026-07-06: added a cross-link to the new <a href="../HarmonyPatchOrdering/">HarmonyPatchOrdering</a> page (multi-patch priority sort, skip semantics, <code>__state</code> sharing). Navigational only; no factual claim on this page changed.</li>
 <li>2026-04-20: page created from the Research migration; single source (F0229l).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
@@ -8395,7 +8428,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../HarmonyLogicableInheritedMethodTrap/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Harmony patching trap -- inherited Logicable methods on subclasses that don&#39;t override">
+          <a href="../HarmonyPatchOrdering/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Harmony patch ordering and pipeline semantics (HarmonyX)">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8405,7 +8438,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+                Harmony patch ordering and pipeline semantics (HarmonyX)
               </div>
             </div>
           </a>

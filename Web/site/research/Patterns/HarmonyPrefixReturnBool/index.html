@@ -5310,6 +5310,8 @@
       
         
       
+        
+      
     
     
     
@@ -5844,6 +5846,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8176,6 +8206,15 @@
         </details>
       
       
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (1)</summary>
+          <ul>
+            
+              <li><code>./HarmonyPatchOrdering.md</code></li>
+            
+          </ul>
+        </details>
+      
     </aside>
   
   
@@ -8196,6 +8235,7 @@
 
 <h1 id="harmony-prefix-must-return-bool-to-block-the-original">Harmony Prefix must return bool to block the original<a class="headerlink" href="#harmony-prefix-must-return-bool-to-block-the-original" title="Permanent link">&para;</a></h1>
 <p>A Harmony <code>[HarmonyPrefix]</code> method returning <code>void</code> cannot block the original method. If the prefix advances mod-owned state while the vanilla method also runs, the two states desync. The fix: declare the prefix as <code>bool</code>-returning, and <code>return false</code> when the mod wants vanilla skipped.</p>
+<p>Scope of the block: <code>return false</code> skips only the original method body. Every other prefix on the method still runs, and all postfixes still run even when the original was skipped; see <a href="../HarmonyPatchOrdering/">HarmonyPatchOrdering</a> for the verified HarmonyX pipeline semantics.</p>
 <h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8222,6 +8262,7 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <ul>
+<li>2026-07-06: added the blocking-scope note to the intro (<code>return false</code> skips only the original body; other prefixes and all postfixes still run) with a pointer to the new <a href="../HarmonyPatchOrdering/">HarmonyPatchOrdering</a> page, where the claim is verified against the HarmonyX 2.9.0 decompile. Additive; consistent with the page's existing content.</li>
 <li>2026-04-20: page created from the Research migration; single source (F0124) with concrete desync narrative.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>

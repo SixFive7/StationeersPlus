@@ -2598,6 +2598,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Method semantics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_powerprovided-is-runtime-only-not-saved-not-synced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _powerProvided is runtime-only: not saved, not synced
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5562,6 +5579,8 @@
       
         
       
+        
+      
     
     
     
@@ -6096,6 +6115,34 @@
     
   
     Harmony patching trap -- inherited Logicable methods on subclasses that don't override
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
   
 
     
@@ -8219,6 +8266,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Method semantics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_powerprovided-is-runtime-only-not-saved-not-synced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _powerProvided is runtime-only: not saved, not synced
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8483,7 +8547,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-06.
         </p>
       
       
@@ -8711,6 +8775,10 @@
 </span></code></pre></div></p>
 <p>Link requires: raycast hit lands on the receiver's <code>DishTarget</code> collider AND both dishes' forward axes anti-parallel AND both right axes anti-parallel, within 7° on each.</p>
 <p>Unlinked-TX retry: <code>PowerTransmitter.OnPowerTick</code> (decompile 408396-408413) increments <code>_tryTargetCount</code> while <code>LinkedReceiver == null &amp;&amp; OnOff</code>; once the count passes <code>ReTargetWait = 10</code> (private static readonly int, line 408285) it resets the counter and retries the link. New at 0.2.6403.27689: the retry goes through <code>WaitTryContactReceiverMainThread()</code> (408486-408490), an <code>async UniTask</code> that does <code>await UniTask.SwitchToMainThread()</code> before calling <code>TryContactReceiver()</code>, so the <code>Physics.Raycast</code> never runs on the power-tick ThreadPool worker.</p>
+<h3 id="_powerprovided-is-runtime-only-not-saved-not-synced"><code>_powerProvided</code> is runtime-only: not saved, not synced<a class="headerlink" href="#_powerprovided-is-runtime-only-not-saved-not-synced" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p>The debt accumulator (declaration 408287) has no persistence path at 0.2.6403.27689. <code>PowerTransmitterSaveData : WirelessPowerSaveData</code> (408264-408268) adds only <code>long OutputNetworkReferenceId</code> to the base record's four dish-rotation doubles (426765-426778); the TX join stream (<code>SerializeOnJoin</code> 408352) carries only <code>OutputNetwork.ReferenceId</code> and the linked receiver id, and the flag-driven <code>BuildUpdate</code> / <code>ProcessUpdate</code> carry only the receiver link. The whole-decompile census confirms the field is touched exclusively by <code>UsePower</code> (408428), <code>ReceivePower</code> (408442), and <code>GetUsedPower</code> (408469). It restarts at 0 on save load and on client join, so a loaded or late-joining dish always begins with an empty ledger; the one-tick input-side draw lag rebuilds from zero. Cross-class census and consequences on <a href="../Device/">Device</a>, "Two per-device draw-state fields".</p>
 <h2 id="transforms-and-geometry">Transforms and geometry<a class="headerlink" href="#transforms-and-geometry" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8837,9 +8905,10 @@ At the poles (<code>|d_local.y| ≈ 1</code>), <code>H</code> is undefined. Keep
 <li>PowerTransmitterPlus extends this class; see <a href="../../Mods/PowerTransmitterPlus/RESEARCH.md">../../Mods/PowerTransmitterPlus/RESEARCH.md</a> for distance-cost patches, AutoAim, and related extensions.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
 <ul>
+<li>2026-07-06: added the "<code>_powerProvided</code> is runtime-only" subsection to Method semantics (game version 0.2.6403.27689). Evidence: <code>PowerTransmitterSaveData</code> body (408264-408268, only <code>OutputNetworkReferenceId</code>), <code>WirelessPowerSaveData</code> body (426765-426778, only H/V + slew targets), and the whole-decompile <code>_powerProvided</code> census (TX sites: declaration 408287, 408428 / 408442 / 408469 only; no serialization member). Additive; the existing serialization notes on this page (SerializeOnJoin carrying network + receiver ids) already implied it, no conflict, no fresh validator.</li>
 <li>2026-07-02: conflict resolution on the class-hierarchy diagram (game version 0.2.6403.27689). Contradicted claim: the diagram placed <code>PowerTransmitterOmni</code> under the <code>WirelessPower</code> subtree (as a third sibling of <code>PowerTransmitter</code> / <code>PowerReceiver</code>), implying it inherits the servo machinery. Fresh validator verdict (binding): <code>public class PowerTransmitterOmni : Electrical</code> at decompile line 408582; <code>Electrical</code> (394786) and <code>ElectricalInputOutput</code> (394813) are SIBLINGS under <code>Device</code>; the Omni does NOT inherit <code>WirelessPower</code> and has no <code>Horizontal</code> / <code>Vertical</code> / <code>RayTransform</code> / <code>DishTransform</code> members. Resulting change: moved <code>PowerTransmitterOmni</code> out of the <code>WirelessPower</code> subtree into a sibling <code>Electrical</code> branch with a pointer to the new <a href="../PowerTransmitterOmni/">PowerTransmitterOmni</a> page.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged: <code>PowerTransmitter : WirelessPower</code> (408269), <code>MaxPowerTransmission = 5000f</code> (408275), <code>_MaxTransmitterDistance = 500f</code> (408273), <code>GetGeneratedPower</code> = <code>Min(5000, InputNetwork.PotentialLoad) - PowerLossOverDistance.Evaluate(clamp01(dist/500)) * 5000</code> (408472-408484), <code>GetUsedPower</code> = <code>Min(5000, _powerProvided)</code> (408446-408469), <code>UsePower</code> / <code>ReceivePower</code> ledger (408424-408444), <code>TryContactReceiver</code> raycast + dual anti-parallel 7 deg checks + host gate (408492-408508), <code>ReTargetWait = 10</code> (408285). New at this version: the unlinked-TX retry in <code>OnPowerTick</code> (408396-408413) marshals to the main thread via <code>WaitTryContactReceiverMainThread</code> (408486-408490) before the raycast; documented in Method semantics. Added the "WirelessNetwork internals" subsection (<code>WirelessNetwork : CableNetwork</code> 272453-272550; host-only <code>GetWirelessNetwork</code> creation 272472-272484; <code>RefreshPowerAndDataDeviceLists</code> override makes the power list the whole <code>DeviceList</code> and the data list permanently empty 272486-272492; <code>OnPowerTick</code> gated on <code>IsNetworkValid()</code> = <code>DeviceList.Count &gt; 0</code> 272506-272517). Updated the TX/RX topology and host-authoritative sections' line refs from the 0.2.6228 decompile to the 0.2.6403 one (setter 408293, flag 408318, BuildUpdate 408334, ProcessUpdate 408343, SerializeOnJoin 408352, OnDestroy 408387 / 408108).</li>
 <li>2026-05-28: added "Link establishment is host-authoritative; only the TX side replicates". Confirmed <code>TryContactReceiver</code> is gated on <code>GameManager.RunSimulation</code> (host-only) in both vanilla and PowerTransmitterPlus (PTP prefix-replaces the body but keeps the gate); the <code>PowerTransmitter.LinkedReceiver</code> setter (387089) flags <code>NetworkUpdateType.Thing.WirelessPower.Receiver</code> (387114) and <code>BuildUpdate</code> / <code>ProcessUpdate</code> (387130-387146) carry it by ReferenceId; <code>PowerReceiver.LinkedPowerTransmitter</code> setter (386871) sets no flag and is assigned only host-side, so the back-reference does not replicate. Driving work: PowerGridPlus dish-link passthrough refresh, where this asymmetry makes the client merge one-directional. Additive; no prior claim contradicted, no fresh validator.</li>

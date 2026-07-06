@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/StaleModReferenceJitCrash/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/HarmonyPatchOrdering/">
       
       
-        <link rel="prev" href="../SlotTypeIconLookup/">
+        <link rel="prev" href="../HarmonyLogicableInheritedMethodTrap/">
       
       
-        <link rel="next" href="../StationeersLaunchPadSettingsGrouping/">
+        <link rel="next" href="../HarmonyPatchTypes/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Stale mod reference JIT crash (caller-frame attribution) - StationeersPlus</title>
+        <title>Harmony patch ordering and pipeline semantics (HarmonyX) - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#stale-mod-reference-jit-crash-caller-frame-attribution" class="md-skip">
+        <a href="#harmony-patch-ordering-and-pipeline-semantics-harmonyx" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Stale mod reference JIT crash (caller-frame attribution)
+              Harmony patch ordering and pipeline semantics (HarmonyX)
             
           </span>
         </div>
@@ -5863,10 +5863,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../HarmonyPatchOrdering/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony patch ordering and pipeline semantics (HarmonyX)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -5882,6 +5909,125 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#assembly-identity-and-version-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assembly identity and version scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#priority-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Priority values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sort-order-priority-descending-ties-by-insertion-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sort order: priority descending, ties by insertion order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#every-prefix-runs-skipping-is-one-branch-after-the-prefix-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Every prefix runs; skipping is one branch AFTER the prefix block
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postfixes-always-run-even-when-a-prefix-skipped-the-original" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Postfixes always run, even when a prefix skipped the original
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#__state-one-shared-local-per-declaring-patch-class-per-patched-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __state: one shared local per declaring patch class per patched method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequence-a-firstlast-pair-brackets-the-whole-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequence: a First/Last pair brackets the whole pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -6451,37 +6597,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Stale mod reference JIT crash (caller-frame attribution)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../StaleModReferenceJitCrash/" class="md-nav__link">
         
   
   
@@ -6497,81 +6616,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-deceptive-failure-shape" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The deceptive failure shape
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#diagnosis-recipe" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Diagnosis recipe
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mitigation-calculus" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mitigation calculus
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -8069,10 +8113,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-deceptive-failure-shape" class="md-nav__link">
+  <a href="#assembly-identity-and-version-scope" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The deceptive failure shape
+        Assembly identity and version scope
       
     </span>
   </a>
@@ -8080,10 +8124,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#diagnosis-recipe" class="md-nav__link">
+  <a href="#priority-values" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Diagnosis recipe
+        Priority values
       
     </span>
   </a>
@@ -8091,10 +8135,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mitigation-calculus" class="md-nav__link">
+  <a href="#sort-order-priority-descending-ties-by-insertion-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mitigation calculus
+        Sort order: priority descending, ties by insertion order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#every-prefix-runs-skipping-is-one-branch-after-the-prefix-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Every prefix runs; skipping is one branch AFTER the prefix block
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postfixes-always-run-even-when-a-prefix-skipped-the-original" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Postfixes always run, even when a prefix skipped the original
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#__state-one-shared-local-per-declaring-patch-class-per-patched-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __state: one shared local per declaring patch class per patched method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequence-a-firstlast-pair-brackets-the-whole-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequence: a First/Last pair brackets the whole pipeline
       
     </span>
   </a>
@@ -8213,32 +8301,34 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-06.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
-              <li><code>DedicatedServer/data/server.log, 2026-07-02 Luna_rearch boot at game 0.2.6403.27689 (3,363+ repeats of the quoted exception)</code></li>
+              <li><code>{'.work/decomp/0.2.6403.27689/0Harmony.decompiled.cs :': 'HarmonyLib.Priority (4648-4676), PatchInfoSerialization.PriorityComparer (3465-3475), Patch constructors (3721-3792, -1 to 400 normalization 3729/3753/3779), HarmonyMethod.priority default (3004), PatchSorter (1236+), PatchFunctions.GetSortedPatchMethods (861-864), MethodPatcher WritePrefixes (9816-9882), MakeReturnLabel (9944-9959), WriteImpl state locals (9993-10000), WritePostfixes (10206-10214 head)'}</code></li>
             
-              <li><code>.work/decomp/0.2.6403.27689/ForceFieldDoorMod.decompiled.cs (Workshop_3328065049, mod About version 0.2.4767.21868.1, assembly ref Assembly-CSharp 0.2.5259.23818)</code></li>
-            
-              <li><code>ilspycmd -il dumps of the server Assembly-CSharp (AtmosphericsManager <>c lambda) and of ForceFieldDoorMod.dll, 2026-07-02</code></li>
+              <li><code>$(StationeersPath)\BepInEx\core\0Harmony.dll (assembly identity read from the decompile header and the DLL's VersionInfo)</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
-              <li><code>../Unsorted/Api-removals-0.2.6403.md</code></li>
+              <li><code>./HarmonyPatchTypes.md</code></li>
             
-              <li><code>../GameSystems/SimulationTickDriverHooks.md</code></li>
+              <li><code>./HarmonyPrefixReturnBool.md</code></li>
+            
+              <li><code>./ILRepackPerModCopy.md</code></li>
+            
+              <li><code>../GameSystems/ThirdPartyModIdentities.md</code></li>
             
           </ul>
         </details>
@@ -8261,59 +8351,190 @@
 
 
 
-<h1 id="stale-mod-reference-jit-crash-caller-frame-attribution">Stale mod reference JIT crash (caller-frame attribution)<a class="headerlink" href="#stale-mod-reference-jit-crash-caller-frame-attribution" title="Permanent link">&para;</a></h1>
-<p>A mod compiled against an old game version can carry a member reference (MemberRef) to a method whose signature no longer exists. Mono resolves member refs lazily, at JIT time of the method containing them, so the mod loads fine and the world loads fine; the crash comes later, when something first CALLS the stale method, and the resulting stack trace points at VANILLA code. This page is the diagnosis and mitigation recipe, with the ForceFieldDoorMod case as the worked example.</p>
-<h2 id="the-deceptive-failure-shape">The deceptive failure shape<a class="headerlink" href="#the-deceptive-failure-shape" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<h1 id="harmony-patch-ordering-and-pipeline-semantics-harmonyx">Harmony patch ordering and pipeline semantics (HarmonyX)<a class="headerlink" href="#harmony-patch-ordering-and-pipeline-semantics-harmonyx" title="Permanent link">&para;</a></h1>
+<p>How HarmonyX orders multiple patches on one method and what "skip the original" actually skips. The load-bearing facts: patches sort by priority descending with ties broken by insertion order; every prefix runs even when an earlier prefix voted to skip; postfixes run even when the original was skipped; <code>__state</code> is one shared local per declaring patch class. Together these make a <code>Priority.First</code> prefix + <code>Priority.Last</code> postfix pair from one patch class a reliable bracket around the entire remaining patch pipeline on a method.</p>
+<h2 id="assembly-identity-and-version-scope">Assembly identity and version scope<a class="headerlink" href="#assembly-identity-and-version-scope" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
-<p>Observed on the dedicated server, repeating every simulation tick of the loaded save Luna_rearch (3,363+ occurrences in one server.log):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>MissingMethodException: Method not found: bool Assets.Scripts.GridController.CanContainAtmos(Assets.Scripts.GridSystem.WorldGrid)
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  at Assets.Scripts.Atmospherics.AtmosphericsManager+&lt;&gt;c.&lt;.cctor&gt;b__118_1 (Assets.Scripts.Objects.Thing thing) [0x0000c] in &lt;34ec4ca08b584312830de78906df3608&gt;:0 
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  at Assets.Scripts.Util.DensePool`1[T].ForEach (System.Action`1[T] action) [0x00027] in &lt;34ec4ca08b584312830de78906df3608&gt;:0 
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  at Assets.Scripts.GameManager.GameTick (System.Threading.CancellationToken cancellationToken) [0x0030c] in &lt;34ec4ca08b584312830de78906df3608&gt;:0 
+<p>Everything on this page was read from <code>.work/decomp/0.2.6403.27689/0Harmony.decompiled.cs</code>, the decompile of the <code>0Harmony.dll</code> in the Stationeers BepInEx install. That DLL is NOT pardeike Harmony: it is <strong>HarmonyX</strong>, the BepInEx fork. Assembly attributes in the decompile (lines 44-53):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="na">[assembly: AssemblyCompany(&quot;BepInEx&quot;)]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="na">[assembly: AssemblyFileVersion(&quot;2.9.0.0&quot;)]</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="na">[assembly: AssemblyInformationalVersion(&quot;2.9.0&quot;)]</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="na">[assembly: AssemblyProduct(&quot;HarmonyX&quot;)]</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="na">[assembly: AssemblyTitle(&quot;0Harmony&quot;)]</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="na">[assembly: AssemblyVersion(&quot;2.9.0.0&quot;)]</span>
 </span></code></pre></div>
-<p>Every frame is vanilla, every frame carries the game module's MVID (<code>34ec4ca0...</code> is the running Assembly-CSharp; the same MVID appears on unrelated healthy frames in the same log), and the named lambda's own IL is clean. The IL at the failing offset of <code>b__118_1</code> is:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>IL_000c: ldarg.1
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>IL_000d: callvirt instance void Assets.Scripts.Objects.Thing::OnAtmosphericTick()
+<p>Cross-checked against the live install: <code>$(StationeersPath)\BepInEx\core\0Harmony.dll</code> reports ProductName <code>HarmonyX</code>, ProductVersion <code>2.9.0</code>, alongside <code>BepInEx.dll</code> FileVersion <code>5.4.23.5</code>. So the semantics here are keyed to <strong>HarmonyX 2.9.0 (shipped with BepInEx 5.4.23.5)</strong>, not to the game version; the game version in the frontmatter and stamps records which decompile snapshot was read. HarmonyX rewrites the original method body in place via MonoMod ILHook manipulation (there is no separate "replacement method" as in classic Harmony docs); re-verify this page when the BepInEx/HarmonyX pairing changes, not when the game updates.</p>
+<h2 id="priority-values">Priority values<a class="headerlink" href="#priority-values" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p><code>HarmonyLib.Priority</code> (lines 4648-4676, XML doc comments elided):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Priority</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Last</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">VeryLow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Low</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">200</span><span class="p">;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">LowerThanNormal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">300</span><span class="p">;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">Normal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">400</span><span class="p">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">HigherThanNormal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">500</span><span class="p">;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">High</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">600</span><span class="p">;</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">VeryHigh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">700</span><span class="p">;</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">First</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">800</span><span class="p">;</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>The exception is thrown while JIT-compiling the virtual-dispatch TARGET of that <code>callvirt</code>: a mod subclass's <code>OnAtmosphericTick()</code> override whose body contains the stale ref. The callee never gets a stack frame because it never finished compiling; Mono attributes the throw to the caller's frame at the callvirt offset. Nothing in the trace names the mod.</p>
-<p>Two corollaries:</p>
+<p>A patch that sets no priority does not sort as -1: <code>HarmonyMethod.priority</code> defaults to <code>-1</code> (line 3004) and every <code>Patch</code> constructor normalizes it, <code>this.priority = ((priority == -1) ? 400 : priority);</code> (lines 3729 / 3753 / 3779). An attribute-less patch therefore runs at <code>Priority.Normal</code> (400).</p>
+<h2 id="sort-order-priority-descending-ties-by-insertion-order">Sort order: priority descending, ties by insertion order<a class="headerlink" href="#sort-order-priority-descending-ties-by-insertion-order" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p><code>PatchInfoSerialization.PriorityComparer</code> (lines 3465-3475) is the comparison every sort path funnels into:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">PriorityComparer</span><span class="p">(</span><span class="kt">object</span><span class="w"> </span><span class="n">obj</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">priority</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">Traverse</span><span class="w"> </span><span class="n">traverse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Traverse</span><span class="p">.</span><span class="n">Create</span><span class="p">(</span><span class="n">obj</span><span class="p">);</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="k">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">traverse</span><span class="p">.</span><span class="n">Field</span><span class="p">(</span><span class="s">&quot;priority&quot;</span><span class="p">).</span><span class="n">GetValue</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">value2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">traverse</span><span class="p">.</span><span class="n">Field</span><span class="p">(</span><span class="s">&quot;index&quot;</span><span class="p">).</span><span class="n">GetValue</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">priority</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">value</span><span class="p">)</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="n">priority</span><span class="p">.</span><span class="n">CompareTo</span><span class="p">(</span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">index</span><span class="p">.</span><span class="n">CompareTo</span><span class="p">(</span><span class="n">value2</span><span class="p">);</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The negated priority comparison sorts HIGHER priority values EARLIER (<code>First</code> = 800 before <code>Normal</code> = 400 before <code>Last</code> = 0). Equal priorities fall through to <code>index</code>, the registration counter, ascending: whoever patched first runs first among equals. Since each BepInEx plugin's <code>PatchAll</code> runs at plugin load, insertion order across mods is mod load order.</p>
+<p>The comparer is consumed through <code>PatchFunctions.GetSortedPatchMethods</code> (861-864) -&gt; <code>new PatchSorter(patches, debug).Sort(original)</code>. <code>PatchSorter.PatchSortingWrapper.CompareTo</code> (1260-1263) delegates to <code>PriorityComparer</code>, and the wrapper additionally carries <code>before</code> / <code>after</code> <code>HashSet</code>s populated from <code>[HarmonyBefore("owner")]</code> / <code>[HarmonyAfter("owner")]</code> (via <code>AddBeforeDependency</code> / <code>AddAfterDependency</code>), so explicit owner-id dependencies can override the pure priority order between specific mods. The sorted list is what the method patcher iterates (<code>GetSortedPatchMethodsAsPatches</code> consumed at line 10315). Prefixes, postfixes, transpilers, and finalizers are each sorted independently by the same rule.</p>
+<h2 id="every-prefix-runs-skipping-is-one-branch-after-the-prefix-block">Every prefix runs; skipping is one branch AFTER the prefix block<a class="headerlink" href="#every-prefix-runs-skipping-is-one-branch-after-the-prefix-block" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p><code>MethodPatcher.WritePrefixes(ILEmitter.Label returnLabel)</code> (lines 9816-9882), trimmed to the load-bearing lines (<code>// ...</code> marks elision):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">WritePrefixes</span><span class="p">(</span><span class="n">ILEmitter</span><span class="p">.</span><span class="n">Label</span><span class="w"> </span><span class="n">returnLabel</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">prefixes</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="c1">// ...</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">emitBefore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w">          </span><span class="c1">// prefix block goes to the TOP of the body</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="c1">// ... (__result local declared if the original returns a value; null for void)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prefixes</span><span class="p">.</span><span class="n">Any</span><span class="p">((</span><span class="n">PatchContext</span><span class="w"> </span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">method</span><span class="p">.</span><span class="n">ReturnType</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">method</span><span class="p">.</span><span class="n">GetParameters</span><span class="p">().</span><span class="n">Any</span><span class="p">((</span><span class="n">ParameterInfo</span><span class="w"> </span><span class="n">pp</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">            </span><span class="n">pp</span><span class="p">.</span><span class="n">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">RunOriginalParam</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">pp</span><span class="p">.</span><span class="n">ParameterType</span><span class="p">.</span><span class="n">OpenRefType</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)));</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="n">variableDefinition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">variables</span><span class="p">[</span><span class="n">RunOriginalParam</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">DeclareVariable</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)));</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="n">VariableDefinition</span><span class="w"> </span><span class="n">varDef</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">variableDefinition</span><span class="p">;</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Ldc_I4_1</span><span class="p">);</span><span class="w">            </span><span class="c1">// __runOriginal starts true</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Stloc</span><span class="p">,</span><span class="w"> </span><span class="n">varDef</span><span class="p">);</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">ILEmitter</span><span class="p">.</span><span class="n">Label</span><span class="w"> </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="k">value</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">DeclareLabel</span><span class="p">()</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">returnLabel</span><span class="p">);</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">PatchContext</span><span class="w"> </span><span class="n">prefix</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">prefixes</span><span class="p">)</span><span class="w">            </span><span class="c1">// sorted order; NO branch inside the loop</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">        </span><span class="n">MethodInfo</span><span class="w"> </span><span class="n">method</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prefix</span><span class="p">.</span><span class="n">method</span><span class="p">;</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">        </span><span class="c1">// ...</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">        </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Call</span><span class="p">,</span><span class="w"> </span><span class="n">method</span><span class="p">);</span><span class="w">    </span><span class="c1">// every prefix is invoked unconditionally</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">        </span><span class="c1">// ...</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">AccessTools</span><span class="p">.</span><span class="n">IsVoid</span><span class="p">(</span><span class="n">method</span><span class="p">.</span><span class="n">ReturnType</span><span class="p">))</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">            </span><span class="c1">// ... (non-bool return type throws InvalidHarmonyPatchArgumentException)</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">                </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Ldloc</span><span class="p">,</span><span class="w"> </span><span class="n">varDef</span><span class="p">);</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">                </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">And</span><span class="p">);</span><span class="w">     </span><span class="c1">// __runOriginal &amp;= &lt;this prefix&#39;s bool&gt;</span>
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">                </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Stloc</span><span class="p">,</span><span class="w"> </span><span class="n">varDef</span><span class="p">);</span>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="w">        </span><span class="c1">// ...</span>
+</span><span id="__span-3-35"><a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-36"><a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-3-37"><a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-38"><a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-3-39"><a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-40"><a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Ldloc</span><span class="p">,</span><span class="w"> </span><span class="n">varDef</span><span class="p">);</span><span class="w">       </span><span class="c1">// the ONLY skip branch,</span>
+</span><span id="__span-3-41"><a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Brfalse</span><span class="p">,</span><span class="w"> </span><span class="n">label</span><span class="p">);</span><span class="w">      </span><span class="c1">// emitted AFTER all prefixes</span>
+</span><span id="__span-3-42"><a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-3-43"><a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-44"><a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">                                     </span><span class="c1">// void original: skip target IS returnLabel</span>
+</span><span id="__span-3-45"><a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-46"><a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">emitBefore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">[</span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span>
+</span><span id="__span-3-47"><a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">MarkLabel</span><span class="p">(</span><span class="n">label</span><span class="p">);</span><span class="w">                                 </span><span class="c1">// non-void: skip lands here,</span>
+</span><span id="__span-3-48"><a id="__codelineno-3-48" name="__codelineno-3-48" href="#__codelineno-3-48"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Ldloc</span><span class="p">,</span><span class="w"> </span><span class="k">value</span><span class="p">);</span><span class="w">        </span><span class="c1">// loads __result, falls into the postfix block</span>
+</span><span id="__span-3-49"><a id="__codelineno-3-49" name="__codelineno-3-49" href="#__codelineno-3-49"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-3-50"><a id="__codelineno-3-50" name="__codelineno-3-50" href="#__codelineno-3-50"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Consequences:</p>
 <ul>
-<li>A fresh world does not reproduce the crash even with the mod loaded: JIT is lazy, so the broken override only compiles when a Thing of that mod type is first dispatched. Only saves containing the mod's Things break (Luna_rearch has 15 <code>StructureForceFieldDoor</code>).</li>
-<li>The repeat is per-call-attempt: Mono re-attempts the JIT on every dispatch, and <code>GameTick</code>'s per-tick try/catch (see <a href="../../GameSystems/SimulationTickDriverHooks/">SimulationTickDriverHooks</a>) logs the exception and moves on, so the whole simulation section (everything in the try, <code>ElectricityManager.ElectricityTick</code> included) is aborted EVERY tick while the tick loop itself keeps running. The world looks alive (tick count rises, autosaves fire) but no simulation phase completes.</li>
+<li>A <code>bool</code> prefix returning <code>false</code> does NOT stop later prefixes. Its return value is only ANDed into the shared <code>__runOriginal</code> local; the loop emits a plain <code>Call</code> per prefix with no intervening branch. All prefixes from all mods run every call, in sorted order.</li>
+<li>The original-body skip is decided ONCE, by the single <code>Brfalse</code> after the whole prefix block, on the AND of every bool prefix's vote. One <code>false</code> from any prefix skips the original regardless of what the others returned (matches the cross-mod conflict analysis on <a href="../../Unsorted/PowerGridPlusCrossModCompat/">PowerGridPlusCrossModCompat</a>: "both prefixes WILL run regardless of return value").</li>
+<li>A later prefix can observe the accumulated vote by declaring a <code>bool __runOriginal</code> parameter (that is the second half of the <code>flag</code> predicate), but it cannot prevent earlier prefixes from having run.</li>
 </ul>
-<h2 id="diagnosis-recipe">Diagnosis recipe<a class="headerlink" href="#diagnosis-recipe" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<h2 id="postfixes-always-run-even-when-a-prefix-skipped-the-original">Postfixes always run, even when a prefix skipped the original<a class="headerlink" href="#postfixes-always-run-even-when-a-prefix-skipped-the-original" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
-<ol>
-<li>IL-dump the module of the innermost stack frame (<code>ilspycmd -il &lt;dll&gt; -o &lt;dir&gt;</code> on the on-disk assembly whose MVID matches) and read the caller's IL at the reported offset. If it is a <code>callvirt</code> to a virtual method, the broken code is an OVERRIDE of that method on the concrete type being visited, not the method in the trace.</li>
-<li>Find who defines such an override with the missing member: metadata strings are plain ASCII inside the DLL, so a byte-level grep for the missing member name across candidate DLLs works without decompiling anything. On 2026-07-02, scanning <code>install/rocketstation_DedicatedServer_Data/Managed/*.dll</code>, <code>install/BepInEx/**/*.dll</code>, and <code>data/mods/**/*.dll</code> for <code>CanContainAtmos</code> returned exactly two files: the game assembly (defines it) and <code>data/mods/Workshop_3328065049/ForceFieldDoorMod.dll</code> (references it).</li>
-<li>IL-dump the suspect mod and compare its exact ref signature against the current game IL. The worked example: ForceFieldDoorMod's <code>forcefielddoormod.ForceFieldDoor : Airlock</code> override <code>OnAtmosphericTick()</code> contains, twice,
-   <code>callvirt instance bool ['Assembly-CSharp']Assets.Scripts.GridController::CanContainAtmos(valuetype ['Assembly-CSharp']Assets.Scripts.GridSystem.WorldGrid)</code>
-   while the 0.2.6403.27689 game defines only <code>CanContainAtmos(WorldGrid, bool)</code> and <code>CanContainAtmos(Grid3, bool)</code> (both with <code>allowCrewModules = true</code> default; default arguments are compile-time, so old binaries keep the 1-arg call). Details of the API change: <a href="../../Unsorted/Api-removals-0.2.6403/">Api-removals-0.2.6403</a>.</li>
-<li>Before fixing one member, sweep the mod's other externally-referenced members in code paths that will run (other overrides), or the fix just moves the crash. In the worked example every other <code>['Assembly-CSharp']</code> ref in <code>OnAtmosphericTick</code>, <code>get_CanAirPass</code>, <code>PoweredChanged</code>, and <code>OnInteractableUpdated</code> resolved against the current game IL (including the private <code>AtmosphereHelper::_random</code> field: Unity's Mono does not enforce member visibility at JIT, which is also why publicized-assembly mods run at all).</li>
-</ol>
-<h2 id="mitigation-calculus">Mitigation calculus<a class="headerlink" href="#mitigation-calculus" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
-
-<ul>
-<li>Removing the mod also removes its Things from the loaded save (unregistered save data), changing world content; wrong when the save matters.</li>
-<li>A Harmony patch ON the broken method was not attempted and is expected to fail: HarmonyX builds its replacement by copying the original body through MonoMod's DynamicMethodDefinition, which resolves every operand token; the stale MemberRef should throw the same MissingMethodException at patch time (see Open questions). The same reasoning applies to MonoMod detours and <code>RuntimeHelpers.PrepareMethod</code>, both of which force compilation of the broken body.</li>
-<li>A caller-side Harmony filter (prefix on the clean vanilla dispatch site skipping the mod's Things) works but must cover every dispatch site of the virtual and silently disables the mod objects' behavior.</li>
-<li>The chosen fix: rewrite the stale call sites in the mod DLL with Mono.Cecil (ships with BepInEx at <code>BepInEx/core/Mono.Cecil.dll</code>). For a parameter-added signature change this is two instructions per site: insert <code>ldc.i4.1</code> (the new parameter's default value) before the call and retarget the operand to the current overload. Cecil branch targets are <code>Instruction</code> object references, so inserting before a non-branch-target instruction needs no fixups, and <code>AssemblyDefinition.Write</code> needs a <code>DefaultAssemblyResolver</code> with the game's Managed directory on its search path (without it, Write fails with <code>Failed to resolve assembly: 'Assembly-CSharp, Version=&lt;mod's compile-time version&gt;'</code>). Verified result IL:</li>
-</ul>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>IL_002c: ldc.i4.1
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>IL_002d: callvirt instance bool [&#39;Assembly-CSharp&#39;]Assets.Scripts.GridController::CanContainAtmos(valuetype [&#39;Assembly-CSharp&#39;]Assets.Scripts.GridSystem.WorldGrid, bool)
+<p>Two pieces combine. First, <code>MakeReturnLabel</code> (lines 9944-9959, verbatim) rewrites every <code>ret</code> in the (possibly transpiled) original body into a branch to one shared label and appends the real <code>ret</code> at the end:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">private</span><span class="w"> </span><span class="n">ILEmitter</span><span class="p">.</span><span class="n">Label</span><span class="w"> </span><span class="n">MakeReturnLabel</span><span class="p">()</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ctx</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="n">il</span><span class="p">.</span><span class="n">Emit</span><span class="p">(</span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Nop</span><span class="p">);</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="n">ILEmitter</span><span class="p">.</span><span class="n">Label</span><span class="w"> </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">DeclareLabel</span><span class="p">();</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="n">label</span><span class="p">.</span><span class="n">emitted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Instruction</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">.</span><span class="n">Where</span><span class="p">((</span><span class="n">Instruction</span><span class="w"> </span><span class="n">ins</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">ins</span><span class="p">.</span><span class="n">MatchRet</span><span class="p">()))</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">        </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">        </span><span class="n">item</span><span class="p">.</span><span class="n">OpCode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Br</span><span class="p">;</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">        </span><span class="n">item</span><span class="p">.</span><span class="n">Operand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">label</span><span class="p">.</span><span class="n">instruction</span><span class="p">;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">        </span><span class="n">label</span><span class="p">.</span><span class="n">targets</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">item</span><span class="p">);</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="n">label</span><span class="p">.</span><span class="n">instruction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Instruction</span><span class="p">.</span><span class="n">Create</span><span class="p">(</span><span class="n">flag</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Ret</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Mono</span><span class="p">.</span><span class="n">Cecil</span><span class="p">.</span><span class="n">Cil</span><span class="p">.</span><span class="n">OpCodes</span><span class="p">.</span><span class="n">Nop</span><span class="p">);</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Append</span><span class="p">(</span><span class="n">label</span><span class="p">.</span><span class="n">instruction</span><span class="p">);</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">label</span><span class="p">;</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>After swapping the rewritten DLL into <code>data/mods/Workshop_3328065049/</code> (server stopped first; the running server holds the file), the same Luna_rearch boot produced zero MissingMethodException over sustained ticking and the full simulation section ran (ScenarioRunner scenario fired). The rewrite is to the dedicated server's LOCAL mod copy only; the client's Workshop copy stays broken, and a <code>-SyncMods</code> re-mirror clobbers the fix. Original DLL preserved next to the fix note in the session stash.</p>
+<p>Second, <code>WritePostfixes</code> re-anchors that same label at the START of the postfix block (head of the method, lines 10206-10214; <code>// ...</code> marks elision):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">WritePostfixes</span><span class="p">(</span><span class="n">ILEmitter</span><span class="p">.</span><span class="n">Label</span><span class="w"> </span><span class="n">returnLabel</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">postfixes</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="c1">// ...</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">emitBefore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">[</span><span class="n">il</span><span class="p">.</span><span class="n">IL</span><span class="p">.</span><span class="n">Body</span><span class="p">.</span><span class="n">Instructions</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w">   </span><span class="c1">// L10213</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="n">il</span><span class="p">.</span><span class="n">MarkLabel</span><span class="p">(</span><span class="n">returnLabel</span><span class="p">);</span><span class="w">                                                     </span><span class="c1">// L10214</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="c1">// ... (stores the in-flight return value into __result for a non-void original,</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="c1">//      then calls every void postfix in sorted order, then chains the</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="c1">//      passthrough postfixes whose return type equals their first parameter)</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So every path that "returns from the original" lands at the start of the postfix block: each rewritten original <code>ret</code> branches there, and the prefix skip branch reaches it too (for a void original the skip target IS <code>returnLabel</code>, per the <code>(value != null) ? il.DeclareLabel() : returnLabel</code> line in <code>WritePrefixes</code>; for a non-void original the skip lands on the <code>Ldloc __result</code> emitted at the same end-of-body position and falls through into the postfix block, which stores that value back into <code>__result</code>). <strong>Skipping the original never skips the postfixes.</strong> A postfix that must distinguish "original ran" from "original skipped" declares a <code>bool __runOriginal</code> parameter; nothing else in the pipeline tells it.</p>
+<p>Exception paths are the one thing that can break through: an unhandled exception thrown by the original or by a patch unwinds past the postfix block (finalizers, written by <code>WriteFinalizers</code>, are the layer that intercepts that; out of scope here).</p>
+<h2 id="__state-one-shared-local-per-declaring-patch-class-per-patched-method">__state: one shared local per declaring patch class per patched method<a class="headerlink" href="#__state-one-shared-local-per-declaring-patch-class-per-patched-method" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p><code>WriteImpl</code> declares the <code>__state</code> locals up front, keyed by the patch method's DECLARING TYPE full name (lines 9993-10000 within the 9982+ loop over <code>prefixes.Union(postfixes).Union(finalizers)</code>):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">method</span><span class="p">.</span><span class="n">DeclaringType</span><span class="o">?.</span><span class="n">FullName</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">variables</span><span class="p">.</span><span class="n">ContainsKey</span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">method</span><span class="p">.</span><span class="n">DeclaringType</span><span class="p">.</span><span class="n">FullName</span><span class="p">))</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">ParameterInfo</span><span class="w"> </span><span class="n">item2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">parameters</span><span class="p">.</span><span class="n">Where</span><span class="p">((</span><span class="n">ParameterInfo</span><span class="w"> </span><span class="n">patchParam</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">patchParam</span><span class="p">.</span><span class="n">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">StateVar</span><span class="p">))</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">{</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">variables</span><span class="p">[</span><span class="n">item</span><span class="p">.</span><span class="n">method</span><span class="p">.</span><span class="n">DeclaringType</span><span class="p">.</span><span class="n">FullName</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">il</span><span class="p">.</span><span class="n">DeclareVariable</span><span class="p">(</span><span class="n">item2</span><span class="p">.</span><span class="n">ParameterType</span><span class="p">.</span><span class="n">OpenRefType</span><span class="p">());</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>One IL local per patch class per patched method, typed from the first <code>__state</code> parameter found for that class. A prefix <code>out T __state</code> and a postfix <code>T __state</code> in the SAME class share the local (that is the designed handoff); patches in DIFFERENT classes get independent locals and can never see each other's <code>__state</code>; the local is scoped to the patched method's body, so two different patched methods never share state through it.</p>
+<h2 id="consequence-a-firstlast-pair-brackets-the-whole-pipeline">Consequence: a First/Last pair brackets the whole pipeline<a class="headerlink" href="#consequence-a-firstlast-pair-brackets-the-whole-pipeline" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+<p>Combining the four facts: a <code>[HarmonyPriority(Priority.First)]</code> prefix runs before every other prefix (800 sorts first), a <code>[HarmonyPriority(Priority.Last)]</code> postfix runs after every other postfix (0 sorts last among postfixes), all prefixes always execute, and postfixes execute even when the original is skipped. So a single patch class contributing that pair observes the method call strictly before AND strictly after everything else patched onto it, including skip-original (<code>return false</code>) prefixes from other patch classes, with <code>__state</code> carrying data between the two ends privately. PowerGridPlus's ledger audit brackets the vanilla power-settle methods exactly this way to measure what the rest of the patch pipeline did to <code>_powerProvided</code>.</p>
+<p>Limits of the bracket:</p>
+<ul>
+<li>Another patch at the same priority registered EARLIER wins the tie (insertion order): <code>First</code> beats everything below 800, not another <code>First</code> from a mod that loaded first.</li>
+<li><code>[HarmonyBefore]</code> / <code>[HarmonyAfter]</code> dependency edges in the <code>PatchSorter</code> can reorder specific owners past a pure priority comparison.</li>
+<li>An unhandled exception anywhere in the pipeline bypasses the closing postfix (see the exception note above).</li>
+<li>Transpilers rewrite the original body itself; the rewritten body still sits between the prefix and postfix blocks, so it stays inside the bracket.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-07-02: page created during the Luna_rearch dead-sim investigation at game 0.2.6403.27689. Exception block quoted verbatim from <code>DedicatedServer/data/server.log</code>; caller IL and mod IL quoted from same-day <code>ilspycmd -il</code> dumps; the two-file binary-grep result, the 15-door save census (<code>world.xml</code> PrefabName scan), and the post-fix clean boot are from the same session.</li>
+<li>2026-07-06: page created. All excerpts read directly from <code>.work/decomp/0.2.6403.27689/0Harmony.decompiled.cs</code> (HarmonyX 2.9.0 per assembly attributes at lines 44-53; DLL identity cross-checked against <code>$(StationeersPath)\BepInEx\core\0Harmony.dll</code> VersionInfo, ProductName HarmonyX 2.9.0, next to BepInEx.dll 5.4.23.5): <code>Priority</code> constants (4648-4676), <code>HarmonyMethod.priority</code> default -1 (3004) with <code>Patch</code> constructor normalization to 400 (3729/3753/3779), <code>PriorityComparer</code> descending-priority insertion-order-tie sort (3465-3475) consumed via <code>PatchSorter</code> (1236+, CompareTo at 1260-1263) and <code>GetSortedPatchMethods</code> (861-864), <code>WritePrefixes</code> unconditional-call loop + single trailing <code>Brfalse</code> + void-original skip target = returnLabel (9816-9882), <code>MakeReturnLabel</code> ret-rewriting (9944-9959), <code>WritePostfixes</code> re-anchoring the return label at the postfix block start (10206-10214), and the <code>__state</code> per-declaring-class local declaration (9993-10000). No prior central page covered patch ordering; the partial statements on <a href="../ILRepackPerModCopy/">ILRepackPerModCopy</a> ("multiple postfixes run in sequence") and <a href="../../Unsorted/PowerGridPlusCrossModCompat/">PowerGridPlusCrossModCompat</a> ("both prefixes WILL run regardless of return value") are consistent with and now grounded by this page.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Whether HarmonyX/MonoMod actually throws when patching a method whose body contains an unresolvable MemberRef (asserted here from MonoMod token-resolution behavior, not tested; testing it costs a boot with a throwaway patch). If someone verifies it either way, restamp the Mitigation calculus section.</li>
-</ul>
+<p>None at creation.</p>
 
 
 
@@ -8353,7 +8574,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../SlotTypeIconLookup/" class="md-footer__link md-footer__link--prev" aria-label="Previous: SlotTypeIcon lookup injection">
+          <a href="../HarmonyLogicableInheritedMethodTrap/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Harmony patching trap -- inherited Logicable methods on subclasses that don&#39;t override">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8363,20 +8584,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                SlotTypeIcon lookup injection
+                Harmony patching trap -- inherited Logicable methods on subclasses that don't override
               </div>
             </div>
           </a>
         
         
           
-          <a href="../StationeersLaunchPadSettingsGrouping/" class="md-footer__link md-footer__link--next" aria-label="Next: StationeersLaunchPadSettingsGrouping">
+          <a href="../HarmonyPatchTypes/" class="md-footer__link md-footer__link--next" aria-label="Next: Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                StationeersLaunchPadSettingsGrouping
+                Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)
               </div>
             </div>
             <div class="md-footer__button md-icon">
