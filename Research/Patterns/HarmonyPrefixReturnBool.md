@@ -6,13 +6,16 @@ verified_in: 0.2.6228.27061
 verified_at: 2026-04-20
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:259-260 (F0124)
-related: []
+related:
+  - ./HarmonyPatchOrdering.md
 tags: [harmony]
 ---
 
 # Harmony Prefix must return bool to block the original
 
 A Harmony `[HarmonyPrefix]` method returning `void` cannot block the original method. If the prefix advances mod-owned state while the vanilla method also runs, the two states desync. The fix: declare the prefix as `bool`-returning, and `return false` when the mod wants vanilla skipped.
+
+Scope of the block: `return false` skips only the original method body. Every other prefix on the method still runs, and all postfixes still run even when the original was skipped; see [HarmonyPatchOrdering](./HarmonyPatchOrdering.md) for the verified HarmonyX pipeline semantics.
 
 ## Problem
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -46,6 +49,7 @@ Rule of thumb: if a mod's state advances in units that do NOT match vanilla's st
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
+- 2026-07-06: added the blocking-scope note to the intro (`return false` skips only the original body; other prefixes and all postfixes still run) with a pointer to the new [HarmonyPatchOrdering](./HarmonyPatchOrdering.md) page, where the claim is verified against the HarmonyX 2.9.0 decompile. Additive; consistent with the page's existing content.
 - 2026-04-20: page created from the Research migration; single source (F0124) with concrete desync narrative.
 
 ## Open questions

@@ -9,13 +9,14 @@ sources:
 related:
   - ./HarmonyPrefixReturnBool.md
   - ./HarmonyInheritedMethods.md
+  - ./HarmonyPatchOrdering.md
   - ./AccessToolsRecipes.md
 tags: [harmony]
 ---
 
 # Harmony patch types (Prefix / Postfix / Transpiler / Reverse Patch)
 
-Quick reference for the four Harmony patch kinds, their intended use, and the implicit parameters Harmony provides. Split out from the RepairPrototype plugin template (see also `../Workflows/ModProjectSetup.md` for the BepInEx scaffold).
+Quick reference for the four Harmony patch kinds, their intended use, and the implicit parameters Harmony provides. Split out from the RepairPrototype plugin template (see also `../Workflows/ModProjectSetup.md` for the BepInEx scaffold). How MULTIPLE patches on one method interleave (priority sort, skip-original semantics, `__state` sharing) is on [HarmonyPatchOrdering](./HarmonyPatchOrdering.md).
 
 ## Reference
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -68,6 +69,7 @@ Use when the mod needs to call a private/internal vanilla method hot-path freque
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
+- 2026-07-06: added a cross-link to the new [HarmonyPatchOrdering](./HarmonyPatchOrdering.md) page (multi-patch priority sort, skip semantics, `__state` sharing). Navigational only; no factual claim on this page changed.
 - 2026-04-20: page created from the Research migration; single source (F0229l).
 
 ## Open questions
