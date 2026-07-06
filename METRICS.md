@@ -33,6 +33,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-06-01 | 421 | 1111 | 44 | 40 | 16 | insufficient ratings | 1.8.0 (Workshop updated 2026-05-21) |
 | 2026-06-20 | 463 | 1210 | 45 | 47 | 16 | insufficient ratings | 1.9.0 (Workshop updated 2026-06-20) |
 | 2026-06-20 | 466 | 1216 | 45 | 48 | 16 | insufficient ratings | 1.10.0 (Workshop updated 2026-06-20) |
+| 2026-07-06 | 513 | 1327 | 46 | 60 | 16 | insufficient ratings | 1.10.0 (Workshop updated 2026-06-20) |
 
 ## Power Transmitter Plus
 
@@ -47,6 +48,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-31 | 206 | 774 | 29 | 21 | 4 | insufficient ratings | 1.7.2 (Workshop updated 2026-05-06) |
 | 2026-06-01 | 213 | 794 | 29 | 22 | 6 | insufficient ratings | 1.8.0 (Workshop updated 2026-06-01) |
 | 2026-06-20 | 252 | 956 | 35 | 28 | 6 | insufficient ratings | 1.8.0 (Workshop updated 2026-06-01) |
+| 2026-07-06 | 268 | 1050 | 36 | 40 | 10 | insufficient ratings | 1.8.0 (Workshop updated 2026-06-01) |
 
 ## Network Purist Plus
 
@@ -61,6 +63,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-31 | 32 | 447 | 3 | 0 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
 | 2026-06-01 | 35 | 542 | 4 | 0 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
 | 2026-06-20 | 54 | 802 | 6 | 2 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
+| 2026-07-06 | 65 | 967 | 8 | 5 | 2 | insufficient ratings | 1.1.3 (Workshop updated 2026-05-31) |
 
 ## Inspector Plus
 
@@ -73,6 +76,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-05-31 | 6 | 71 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-06-01 | 6 | 112 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-06-20 | 9 | 204 | 2 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
+| 2026-07-06 | 9 | 256 | 3 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 
 ## KeypadMod Fix
 
@@ -83,6 +87,25 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 |---|---|---|---|---|---|---|---|
 | 2026-06-01 | 2 | 3 | 0 | 0 | 0 | insufficient ratings | 1.0.0 (Workshop updated 2026-06-01) |
 | 2026-06-20 | 103 | 382 | 5 | 13 | 0 | insufficient ratings | 1.0.0 (Workshop updated 2026-06-01) |
+| 2026-07-06 | 163 | 470 | 7 | 31 | 0 | insufficient ratings | 1.0.0 (Workshop updated 2026-06-01) |
+
+## Marky's Suit Drink System Fix
+
+- Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3759105192
+- Published: 2026-07-06
+
+| Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
+|---|---|---|---|---|---|---|---|
+| 2026-07-06 | 1 | 10 | 0 | 0 | 0 | insufficient ratings | 1.0.1 (Workshop updated 2026-07-06) |
+
+## Force Field Door Mod Fix
+
+- Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3759105090
+- Published: 2026-07-06
+
+| Date | Subscribers | Visitors | Favorites | Collections | Comments | Rating | Latest version |
+|---|---|---|---|---|---|---|---|
+| 2026-07-06 | 0 | 9 | 0 | 0 | 0 | insufficient ratings | 1.0.1 (Workshop updated 2026-07-06) |
 
 ## Not yet published
 
