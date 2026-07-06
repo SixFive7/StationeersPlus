@@ -20,6 +20,7 @@ namespace InspectorPlus
         internal static ManualLogSource Log;
         internal static ConfigEntry<KeyboardShortcut> SnapshotKey;
         internal static ConfigEntry<bool> ForceUnpauseWhenHeadless;
+        internal static ConfigEntry<bool> EnablePauseTraceLogging;
 
         internal static string _watchDir;
         internal static string _outputDir;
@@ -42,6 +43,13 @@ namespace InspectorPlus
                     "(Server-authoritative) Headless dedicated servers only: force the simulation to run with no client connected, so request-file snapshots can be captured by automated tooling without a player joining. Off by default. No effect on a client or single-player.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
+
+            EnablePauseTraceLogging = Config.Bind(
+                "Server - Headless", "Enable Pause Trace Logging", false,
+                new ConfigDescription(
+                    "(Server-authoritative) Headless dedicated servers only: dump a stack trace to the log for every pause and unpause call site ([PauseTrace] lines) to diagnose what re-paused a headless world. Diagnostic for mod developers; noisy around autosaves. Off by default. No effect on a client or single-player.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
 
             _watchDir = Path.Combine(Paths.BepInExRootPath, "inspector", "requests");
             _outputDir = Path.Combine(Paths.BepInExRootPath, "inspector", "snapshots");

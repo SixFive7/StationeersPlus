@@ -30,6 +30,19 @@ Press F8 in-game to dump every MonoBehaviour in the current scene to the same sn
 ### Field, Property, and Unity Position Capture
 Dumps private and public fields, computed properties, and Unity Transform positions. Walks nested objects to a configurable depth, with cycle detection.
 
+### Headless Server Operation
+Opt-in: the Force Unpause Without Client setting keeps a headless dedicated server simulating with no client connected, so automated tooling can drop request files and read snapshots without a player joining. The game schedules its own pause a few seconds after world start when no client is connected; while the setting is on that startup pause is skipped, and a watchdog re-asserts the unpause and logs tick state every few seconds. Never affects a client or single-player.
+
+## Settings
+
+Settings appear in the StationeersLaunchPad in-game mod settings panel.
+
+| Section | Setting | Default | Effect |
+|---|---|---|---|
+| Client - Snapshots | Snapshot Key | F8 | Key that writes a full scene snapshot to `BepInEx/inspector/snapshots/`. |
+| Server - Headless | Force Unpause Without Client | false | Headless dedicated servers only: keep the simulation running with no client connected so request-file snapshots can be captured by automated tooling. Skips the game's startup pause and re-asserts the unpause via a watchdog. |
+| Server - Headless | Enable Pause Trace Logging | false | Dump pause and unpause call-site stack traces to the log to diagnose what re-paused a headless world. Diagnostic for mod developers; noisy around autosaves. |
+
 ## Compatibility
 
 **Requires:** BepInEx + StationeersLaunchPad

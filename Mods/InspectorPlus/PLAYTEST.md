@@ -7,4 +7,7 @@ Rules:
 - Check first. Before adding, scan the entries below so a change already covered by a pending test is not duplicated; extend the existing entry instead.
 - Remove an entry when one of these happens: a run confirms it works; a run shows it broken (then add a fresh `TODO.md` item for the fix, or keep working on it now); or the player says the playtest is done. Entries are plain bullets, not checkboxes: like `TODO.md`, finished items are removed, not ticked off. Outcomes live in git history.
 
-No pending playtests.
+- v1.2.0 headless force-unpause release: client-side smoke test. The dedicated-server half is covered by the coordinator's headless verification boot (with Force Unpause Without Client on and Enable Pause Trace Logging at its default off: world ticks with no client connected, `[TickWatchdog]` state lines every 5 seconds, no `[PauseTrace]` lines), so what remains is confirming a normal client is untouched. Single-player, any save or a fresh world, both settings left at their defaults (off).
+  - Steps: launch the game with InspectorPlus 1.2.0, open the StationeersLaunchPad mod settings panel and check the Inspector Plus entries, then load a world and play for a minute or two including an Esc pause and an F8 snapshot.
+  - Watch: the settings panel shows the Server - Headless group with Force Unpause Without Client above Enable Pause Trace Logging (plus Client - Snapshots with Snapshot Key); `BepInEx/LogOutput.log` contains no `[TickWatchdog]` and no `[PauseTrace]` lines; Esc pause still pauses; F8 still writes a snapshot to `BepInEx/inspector/snapshots/`.
+  - Expected: zero behavior change on a normal client; the two headless entries appear under the right group in the stated order.

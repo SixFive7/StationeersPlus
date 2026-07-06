@@ -28,9 +28,10 @@ namespace InspectorPlus
     // panel pause paths (e.g. Stationpedia.PauseGameToggle, gated on
     // Clients.Count == 0, which is exactly the headless no-client state) have no
     // code callers to patch reliably. HeadlessTickWatchdog below therefore
-    // re-checks every few seconds and re-unpauses, and the trace patches at the
-    // bottom log a stack trace for every pause-state transition so the re-pauser
-    // is identifiable from LogOutput.log.
+    // re-checks every few seconds and re-unpauses, and the [PauseTrace] patches
+    // at the bottom (behind their own Enable Pause Trace Logging toggle, default
+    // off) log a stack trace for every pause-state transition so a re-pauser is
+    // identifiable from LogOutput.log.
     //
     // Gated twice so a normal player is never affected: the config toggle defaults
     // to false, and the unpause only runs under Application.isBatchMode. A client
@@ -196,13 +197,18 @@ namespace InspectorPlus
     // Evidence tracer: WorldManager.SetGamePause logs nothing in vanilla, so a
     // silent re-pause is invisible in LogOutput.log. Log every actual transition
     // (the method self-no-ops when the value does not change) with a stack trace
-    // naming the caller. Batch-mode + config gated like everything else here.
+    // naming the caller. Batch-mode gated like everything else here, but on its
+    // own Enable Pause Trace Logging toggle (default off) instead of the
+    // force-unpause toggle: the traces are a developer diagnostic and get noisy
+    // around autosaves (every save parks and resumes the tick), so the
+    // force-unpause can run quietly and this flips on only while hunting a
+    // re-pauser.
     [HarmonyPatch(typeof(global::WorldManager), nameof(global::WorldManager.SetGamePause))]
     public static class SetGamePauseTracePatch
     {
         public static void Prefix(bool pauseGame)
         {
-            if (!InspectorPlusPlugin.ForceUnpauseWhenHeadless.Value) return;
+            if (!InspectorPlusPlugin.EnablePauseTraceLogging.Value) return;
             if (!Application.isBatchMode) return;
             if (global::WorldManager.IsGamePaused == pauseGame) return;
             var trace = new StackTrace(1, false).ToString();
@@ -217,15 +223,16 @@ namespace InspectorPlus
         }
     }
 
-    // Same tracer for the tick-level pause latch. PauseGameTick only schedules
-    // the pause (the GameTick loop latches it at the next pass), but the caller
-    // is what matters for evidence. These calls are rare, so log every one.
+    // Same tracer, same Enable Pause Trace Logging + batch-mode gate, for the
+    // tick-level pause latch. PauseGameTick only schedules the pause (the
+    // GameTick loop latches it at the next pass), but the caller is what
+    // matters for evidence, so log every call.
     [HarmonyPatch(typeof(GameManager), nameof(GameManager.PauseGameTick))]
     public static class PauseGameTickTracePatch
     {
         public static void Prefix()
         {
-            if (!InspectorPlusPlugin.ForceUnpauseWhenHeadless.Value) return;
+            if (!InspectorPlusPlugin.EnablePauseTraceLogging.Value) return;
             if (!Application.isBatchMode) return;
             InspectorPlusPlugin.Log.LogWarning($"[PauseTrace] PauseGameTick() from:\n{new StackTrace(1, false)}");
         }
@@ -236,7 +243,7 @@ namespace InspectorPlus
     {
         public static void Prefix()
         {
-            if (!InspectorPlusPlugin.ForceUnpauseWhenHeadless.Value) return;
+            if (!InspectorPlusPlugin.EnablePauseTraceLogging.Value) return;
             if (!Application.isBatchMode) return;
             InspectorPlusPlugin.Log.LogInfo($"[PauseTrace] UnpauseGameTick() from:\n{new StackTrace(1, false)}");
         }
