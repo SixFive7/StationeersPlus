@@ -3,7 +3,7 @@
   <Name>Inspector Plus</Name>
   <ModID>net.inspectorplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.1.0</Version>
+  <Version>1.2.0</Version>
   <Description>[h1]Inspector Plus[/h1]
 
 Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
@@ -23,6 +23,19 @@ Press F8 in-game to dump every MonoBehaviour in the current scene to the same sn
 [h3]Field, Property, and Unity Position Capture[/h3]
 Dumps private and public fields, computed properties, and Unity Transform positions. Walks nested objects to a configurable depth, with cycle detection.
 
+[h3]Headless Server Operation[/h3]
+Opt-in: the Force Unpause Without Client setting keeps a headless dedicated server simulating with no client connected, so automated tooling can drop request files and read snapshots without a player joining. The game schedules its own pause a few seconds after world start when no client is connected; while the setting is on that startup pause is skipped, and a watchdog re-asserts the unpause and logs tick state every few seconds. Never affects a client or single-player.
+
+[h2]Settings[/h2]
+
+Settings appear in the StationeersLaunchPad in-game mod settings panel.
+
+[list]
+[*][b]Snapshot Key[/b] (Client - Snapshots, default F8): key that writes a full scene snapshot to [b]BepInEx/inspector/snapshots/[/b].
+[*][b]Force Unpause Without Client[/b] (Server - Headless, default off): headless dedicated servers only; keep the simulation running with no client connected so request-file snapshots can be captured by automated tooling. Skips the game's startup pause and re-asserts the unpause via a watchdog.
+[*][b]Enable Pause Trace Logging[/b] (Server - Headless, default off): dump pause and unpause call-site stack traces to the log to diagnose what re-paused a headless world. Diagnostic for mod developers; noisy around autosaves.
+[/list]
+
 [h2]Compatibility[/h2]
 
 [b]Requires:[/b]
@@ -41,28 +54,10 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.1.0: Headless server snapshot toggle
-- New optional Force Unpause Without Client setting (Server - Headless, off by default). On a headless dedicated server it runs the simulation with no client connected so request-file snapshots can be captured by automated tooling; no effect on a client or single-player.
-
-v1.0.0: First public release
-- On-demand JSON snapshots of live scene objects: drop a request file in BepInEx/inspector/requests/ and read the result from BepInEx/inspector/snapshots/.
-- F8 dumps every MonoBehaviour in the current scene in one pass.
-- Captures private and public fields, computed properties, and Unity Transform positions, walking nested objects to a configurable depth with cycle detection.
-- Hard caps on snapshot size with a visible truncation marker so a dump never runs away.
-
-v0.2.0: Generic walker fixes for any Unity game
-- Inline-expand plain serializable classes instead of stringifying them as (TypeName); shared with the UnityEngine.Object path so the same filter, private-include, and skip rules apply.
-- Null-guard FindObjectsOfType and fall back to a reflection scan over live MonoBehaviours and static members so non-UnityEngine.Object types are still reachable.
-- Cycle detection via reference-equality set; emit (cycle) when a reference recurs on the same chain.
-- Hard caps on total serialized bytes, top-level objects, and nested expansions; emit a visible _truncated marker when a cap is hit.
-- Wrap name, gameObject, activeInHierarchy, transform.position, and other Unity reads in try-catch so destroyed Unity wrappers never throw out of the walker.
-- Top-level try-catch surfaces unexpected walker errors as an error key in the snapshot JSON.
-- New maxMonoBehaviours request field (default 10000) lets callers raise or lower the top-level cap.
-
-v0.1.0: Initial release
-- On-demand snapshots via request JSON dropped in BepInEx/inspector/requests/.
-- F8 full-scene MonoBehaviour dump.
-- Field, property, and Unity position capture with configurable recursion depth and cycle detection.
+v1.2.0: Headless force-unpause now holds
+- Force Unpause Without Client now keeps the simulation running on current game builds: the dedicated server schedules its own pause 5 seconds after world start when no client is connected, which defeated the v1.1.0 one-shot unpause; that startup pause is now skipped while the setting is on.
+- While the setting is on, a watchdog re-asserts the unpause and logs tick state every few seconds, so any other silent pause is caught and undone.
+- New Enable Pause Trace Logging setting (Server - Headless, off by default) dumps pause and unpause call-site stack traces to the log for diagnosing what re-paused a headless world. Diagnostic for mod developers; noisy around autosaves.
   </ChangeLog>
   <WorkshopHandle>3730349036</WorkshopHandle>
   <Tags>
@@ -74,6 +69,7 @@ v0.1.0: Initial release
 <line-height=40%>Developer tool that dumps live Stationeers runtime state to JSON on demand for mod development.
 Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Usage:</b> Press F8 in-game for a full MonoBehaviour dump, or drop a request JSON into BepInEx/inspector/requests/ for a targeted snapshot. Output lands in BepInEx/inspector/snapshots/.
+<b>Headless:</b> optional Server - Headless settings keep a dedicated server simulating with no client connected, for automated snapshot tooling.
 <b>Not intended for end-user gameplay.</b> For modders only.
 </line-height>
 ]]></InGameDescription>

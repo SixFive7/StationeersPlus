@@ -2,6 +2,11 @@
 
 Full version history for Inspector Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.2.0: Headless force-unpause now holds
+- Force Unpause Without Client now keeps the simulation running on current game builds: the dedicated server schedules its own pause 5 seconds after world start when no client is connected, which defeated the v1.1.0 one-shot unpause; that startup pause is now skipped while the setting is on.
+- While the setting is on, a watchdog re-asserts the unpause and logs tick state every few seconds, so any other silent pause is caught and undone.
+- New Enable Pause Trace Logging setting (Server - Headless, off by default) dumps pause and unpause call-site stack traces to the log for diagnosing what re-paused a headless world. Diagnostic for mod developers; noisy around autosaves.
+
 ## v1.1.0: Headless server snapshot toggle
 - New optional Force Unpause Without Client setting (Server - Headless, off by default). On a headless dedicated server it runs the simulation with no client connected so request-file snapshots can be captured by automated tooling; no effect on a client or single-player.
 
