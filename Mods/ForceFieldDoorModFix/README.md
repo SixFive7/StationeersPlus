@@ -1,5 +1,9 @@
 # Force Field Door Mod Fix
 
+> ## No longer needed
+>
+> **The original ForceFieldDoorMod was fixed by its author on 6 July 2026 and now works on its own, so this compatibility fix is no longer required.** You can safely unsubscribe. It is also safe to leave it enabled: it detects that ForceFieldDoorMod is fixed and does nothing.
+
 ![Force Field Door Mod Fix](ForceFieldDoorModFix/About/Preview.png)
 
 A temporary compatibility fix that keeps ForceFieldDoorMod working on current Stationeers builds until its author updates it.
