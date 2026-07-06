@@ -3,7 +3,7 @@
   <Name>Force Field Door Mod Fix</Name>
   <ModID>net.forcefielddoormodfix</ModID>
   <Author>SixFive7</Author>
-  <Version>0.1.0</Version>
+  <Version>1.0.0</Version>
   <Description>[h1]Force Field Door Mod Fix[/h1]
 
 A temporary compatibility fix that keeps ForceFieldDoorMod working on current Stationeers builds until its author updates it.
@@ -46,7 +46,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v0.1.0: Initial release
+v1.0.0: Initial release
 - Keeps ForceFieldDoorMod (Steam Workshop 3328065049) working on Stationeers 0.2.6403 and later, where the removed one-argument GridController.CanContainAtmos(WorldGrid) call in its force field door crashed the simulation every atmospheric tick.
 - Takes over the force field door's atmospheric tick and runs a corrected version using the current two-argument CanContainAtmos overload, preserving the door's variable power draw.
 - Never edits ForceFieldDoorMod on disk. Does nothing if the mod is absent or has already been updated.
