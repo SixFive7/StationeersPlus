@@ -32,6 +32,10 @@ Required setup:
 - `.csproj` HintPaths use `$(StationeersPath)\rocketstation_Data\Managed\...` (game DLLs such as `Assembly-CSharp`, `UnityEngine.*`) and `$(StationeersPath)\BepInEx\...` (BepInEx core and plugins such as LaunchPadBooster).
 - The `EnsureStationeersPath` target, which fails the build with a clear message if `$(StationeersPath)` is unset or does not contain `rocketstation_Data\Managed\Assembly-CSharp.dll`, lives in `Directory.Build.props.template` (and therefore in the filled-in `Directory.Build.props`), not per-csproj. MSBuild's `Directory.Build.props` inheritance walks up the tree, so every mod's build picks up the check automatically.
 
+## Build: embed debug symbols
+
+Every project's `.csproj` sets `<DebugType>embedded</DebugType>` unconditionally (both Debug and Release) so the shipped DLL carries its own symbols; `<Optimize>` stays `Release`-only.
+
 ## Content: mod naming
 
 Every mod has two distinct name forms that are both canonical, used in different places:
