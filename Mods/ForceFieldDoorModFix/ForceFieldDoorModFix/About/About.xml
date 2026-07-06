@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>Force Field Door Mod Fix</Name>
+  <ModID>net.forcefielddoormodfix</ModID>
+  <Author>SixFive7</Author>
+  <Version>0.1.0</Version>
+  <Description>[h1]Force Field Door Mod Fix[/h1]
+
+A temporary compatibility fix that keeps ForceFieldDoorMod working on current Stationeers builds until its author updates it.
+
+Full multiplayer compatibility. Safe to add to and remove from existing savegames.
+
+[h2]What this fixes[/h2]
+
+ForceFieldDoorMod (by WIKUS and BoNes) was built against an older Stationeers build. On 0.2.6403 and later the game removed the one-argument GridController.CanContainAtmos method the mod's door calls every atmospheric tick. On any world that contains a force field door the game then throws a MissingMethodException every simulation tick and the whole simulation stops. This mod restores the door's behaviour without editing ForceFieldDoorMod's files.
+
+[h2]How it works[/h2]
+
+At load it checks whether ForceFieldDoorMod is present and still affected. If so, it takes over the force field door's atmospheric tick and runs a corrected version that calls the current two-argument CanContainAtmos overload, so the door keeps its variable power draw and the simulation keeps running. It never modifies ForceFieldDoorMod on disk.
+
+[h2]This is a temporary shim[/h2]
+
+It exists only until ForceFieldDoorMod itself is updated. Once the original ships a fix, this mod detects it and stands down on its own, and you can safely unsubscribe. If ForceFieldDoorMod is not installed, this mod does nothing.
+
+[h2]Compatibility[/h2]
+
+[b]Requires:[/b]
+[list]
+[*][url=https://docs.bepinex.dev/]BepInEx[/url]
+[*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3328065049]ForceFieldDoorMod[/url] (the mod this fix keeps working)
+[/list]
+
+[b]All players[/b] on a server should run the same setup. Dedicated servers need it installed server-side too. There are no settings.
+
+[h2]Reporting Issues[/h2]
+If you run into a bug or something behaves unexpectedly, please open an issue on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url]. Please include the mod name in the title so reports can be triaged. Steam comment notifications don't always come through, so GitHub is the reliable way to make sure a report is seen.
+
+[h2]Credits[/h2]
+[list]
+[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3328065049]ForceFieldDoorMod[/url] by WIKUS and BoNes: the original mod this fix keeps working. All credit for the force field door itself belongs to them.
+[/list]
+
+[url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/ForceFieldDoorModFix]Source Code on GitHub[/url]
+
+[h2]License[/h2]
+Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
+  <ChangeLog>
+v0.1.0: Initial release
+- Keeps ForceFieldDoorMod (Steam Workshop 3328065049) working on Stationeers 0.2.6403 and later, where the removed one-argument GridController.CanContainAtmos(WorldGrid) call in its force field door crashed the simulation every atmospheric tick.
+- Takes over the force field door's atmospheric tick and runs a corrected version using the current two-argument CanContainAtmos overload, preserving the door's variable power draw.
+- Never edits ForceFieldDoorMod on disk. Does nothing if the mod is absent or has already been updated.
+  </ChangeLog>
+  <WorkshopHandle>0</WorkshopHandle>
+  <Tags>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>Force Field Door Mod Fix</color></size>
+<line-height=40%>A temporary compatibility fix that keeps ForceFieldDoorMod working on current Stationeers builds until its author updates it.
+Full multiplayer compatibility. Safe to add to and remove from existing savegames.
+<b>What it does:</b>
+- ForceFieldDoorMod crashes the simulation every tick on 0.2.6403+ (a removed CanContainAtmos overload).
+- This shim takes over the door's atmospheric tick with a corrected version, so the sim keeps running.
+- Stands down automatically once ForceFieldDoorMod is updated; does nothing if it is absent.
+<b>Requires:</b> BepInEx + StationeersLaunchPad + ForceFieldDoorMod. No settings.
+<b>Credits:</b> ForceFieldDoorMod by WIKUS and BoNes (Workshop 3328065049).
+</line-height>
+]]></InGameDescription>
+</ModMetadata>

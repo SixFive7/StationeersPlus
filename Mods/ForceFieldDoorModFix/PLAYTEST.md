@@ -1,0 +1,10 @@
+# Force Field Door Mod Fix Playtests
+
+Implemented changes awaiting in-game confirmation. An agent records a playtest here, not in `TODO.md`, when it has changed code whose behavior can only be confirmed by running the game: single-player, a hosted multiplayer session, or the dedicated server under `DedicatedServer/`. This keeps `TODO.md` a list of work still to do, and gives one place to check whether a change already has a pending test before adding another.
+
+Rules:
+- Add an entry when code is implemented but its in-game behavior is unconfirmed. Write down everything a tester needs: what changed (commit if there is one), single-player vs multiplayer / dedicated-server, the save or world to set up, the exact in-game steps, what to watch, and the expected result.
+- Check first. Before adding, scan the entries below so a change already covered by a pending test is not duplicated; extend the existing entry instead.
+- Remove an entry when one of these happens: a run confirms it works; a run shows it broken (then add a fresh `TODO.md` item for the fix, or keep working on it now); or the player says the playtest is done. Entries are plain bullets, not checkboxes.
+
+- Single-player client behaviour (v0.1.0). The dedicated-server run confirmed the crash is gone, the simulation stays alive, and the reimplemented tick sets the door's `UsedPower`. Not yet confirmed with a graphical client: that a force field door still opens and closes, renders correctly, and shows a sensible power draw in the tooltip during real play. Setup: a single-player save that contains at least one force field door (or place one), with BepInEx + StationeersLaunchPad + ForceFieldDoorMod + Force Field Door Mod Fix installed. Steps: load the save, stand next to a force field door, watch the log for `Force Field Door Mod Fix active` at load and `first ForceFieldDoor atmospheric tick handled` shortly after the world starts ticking, then open/close the door and pressurise one side. Expected: no `MissingMethodException` in the log, the door operates normally, and its power draw rises with the pressure differential across it (100 W at equal pressure, scaling up to 100 kW).
