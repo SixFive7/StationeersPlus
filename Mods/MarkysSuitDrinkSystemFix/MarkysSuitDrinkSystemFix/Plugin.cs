@@ -31,7 +31,7 @@ namespace MarkysSuitDrinkSystemFix
     {
         public const string PluginGuid = "net.markyssuitdrinksystemfix";
         public const string PluginName = "MarkysSuitDrinkSystemFix";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
 
         internal static ManualLogSource Log;
 

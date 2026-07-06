@@ -3,7 +3,7 @@
   <Name>Marky's Suit Drink System Fix</Name>
   <ModID>net.markyssuitdrinksystemfix</ModID>
   <Author>SixFive7</Author>
-  <Version>1.0.0</Version>
+  <Version>1.0.1</Version>
   <Description>[h1]Marky's Suit Drink System Fix[/h1]
 
 A temporary compatibility patch that restores Marky's Suit Drink System to working order on the current build of Stationeers.
@@ -48,10 +48,8 @@ If you run into a bug, please open an issue on [url=https://github.com/SixFive7/
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.0.0: Initial release
-- FIX: In-suit drinking no longer throws a MissingMethodException on Entity.Hydrate on the Sanitation update; the exception previously spammed the log every frame the suit inventory was open and left the Drink action doing nothing. Drinking water from the suit's water tank works again.
-- Removes Marky's Suit Drink System's outdated Suit.InteractWith prefix at runtime (by its Harmony ID) and replaces it with one built against the current game; his other patches are untouched. Does not modify or redistribute the original mod, and does nothing if it is not installed.
-- REQUIRES: BepInEx, StationeersLaunchPad, and Marky's Suit Drink System by Marky. All players on a server need the same setup.
+v1.0.1: Label the preview art as temporary
+- Preview image now reads "Temporary compatibility patch" so the Workshop art states the mod is a temporary patch. The patch behavior is unchanged.
   </ChangeLog>
   <WorkshopHandle>3759105192</WorkshopHandle>
   <Tags>
