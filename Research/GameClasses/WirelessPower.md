@@ -3,7 +3,7 @@ title: WirelessPower
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-06
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.WirelessPower
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.PowerTransmitter
@@ -154,7 +154,7 @@ Two flags:
 Late-join (`SerializeOnJoin` / `DeserializeOnJoin`) ships full-precision `double` values for both targets so a joining client picks up an exact slew destination.
 
 ## Save data
-<!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
 ```csharp
 public class WirelessPowerSaveData : StructureSaveData
@@ -166,7 +166,9 @@ public class WirelessPowerSaveData : StructureSaveData
 }
 ```
 
-`PowerTransmitterSaveData : WirelessPowerSaveData` adds `OutputNetworkReferenceId`. `PowerReceiverSaveData : WirelessPowerSaveData` adds nothing. Both H/V live values and slew targets persist across save/load.
+`PowerTransmitterSaveData : WirelessPowerSaveData` adds `OutputNetworkReferenceId`. `PowerReceiverSaveData : WirelessPowerSaveData` adds nothing. Both H/V live values and slew targets persist across save/load. Re-verified verbatim at 0.2.6403.27689 (`WirelessPowerSaveData` decompile lines 426765-426778, `PowerTransmitterSaveData` 408264-408268, `PowerReceiverSaveData` 408062-408064).
+
+The four rotation doubles (plus the TX's network reference id) are ALL the wireless-power state that saves. In particular the subclasses' private `_powerProvided` debt accumulators (`PowerTransmitter` 408287, `PowerReceiver` 408071) have no save field and no join-stream field; they restart at 0 on save load and client join. See [Device](./Device.md), "Two per-device draw-state fields", for the full non-serialization census.
 
 ## OnRegistered: H/V reset to upright
 <!-- verified: 0.2.6228.27061 @ 2026-04-25 -->
@@ -202,8 +204,9 @@ When a fresh dish is placed (`GameState.Running`), H is reset to 0 and V is rese
 V=1 corresponds to "the dish points along its dish-local +Y axis" (zenith of the dish-local frame). For a floor-mounted dish that aligns with world up. For a ceiling-mounted dish, V=1 would point world-down. Mod authors enabling non-floor placement should consider either (a) leaving V=1 alone (the dish points away from the mount surface, intuitive) or (b) re-deriving the post-place default H/V from the prefab's mount surface.
 
 ## Verification history
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
+- 2026-07-06: re-verified the "Save data" section against the 0.2.6403.27689 decompile (`WirelessPowerSaveData` 426765-426778 unchanged; `PowerTransmitterSaveData` 408264-408268 still adds only `OutputNetworkReferenceId`; `PowerReceiverSaveData` 408062-408064 still empty) and restamped it. Added the explicit scoping note that the rotation doubles are the only wireless-power state that saves and that the subclasses' `_powerProvided` ledgers are runtime-only (no save field, no join field; whole-decompile census on [Device](./Device.md)). Additive; the section's existing claims were confirmed, not changed.
 - 2026-07-02: conflict resolution on the subclass list (game version 0.2.6403.27689). Contradicted claim: the intro stated the servo machinery is "used by `PowerTransmitter`, `PowerReceiver`, and `PowerTransmitterOmni`". Fresh validator verdict (binding): only `PowerTransmitter` and `PowerReceiver` derive from `WirelessPower`; `PowerTransmitterOmni : Electrical` (decompile line 408582) sits on a sibling branch under `Device` and carries none of the servo members. `WirelessPower : ElectricalInputOutput, IRotatable` confirmed at decompile line 426779. Resulting change: removed `PowerTransmitterOmni` from the intro's subclass list and pointed at the new [PowerTransmitterOmni](./PowerTransmitterOmni.md) page. Section bodies below (servo math, clamping, sync, save data, OnRegistered) were not re-read this pass and keep their 0.2.6228.27061 stamps.
 - 2026-04-25: page created during a deep decompile of the placement-orientation system. Verbatim source extracts from `WirelessPower.cs`, `PowerTransmitter.cs`, `PowerReceiver.cs`, `WirelessPowerSaveData.cs`. No conflicts with `PowerTransmitter.md`; this page documents the BASE class.
 

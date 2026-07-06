@@ -3,7 +3,7 @@ title: PowerTransmitter
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-06
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:251-271
   - Mods/PowerTransmitterPlus/RESEARCH.md:273-333
@@ -139,6 +139,11 @@ Physics.Raycast(RayTransform.position, RayTransform.TransformDirection(Vector3.f
 Link requires: raycast hit lands on the receiver's `DishTarget` collider AND both dishes' forward axes anti-parallel AND both right axes anti-parallel, within 7° on each.
 
 Unlinked-TX retry: `PowerTransmitter.OnPowerTick` (decompile 408396-408413) increments `_tryTargetCount` while `LinkedReceiver == null && OnOff`; once the count passes `ReTargetWait = 10` (private static readonly int, line 408285) it resets the counter and retries the link. New at 0.2.6403.27689: the retry goes through `WaitTryContactReceiverMainThread()` (408486-408490), an `async UniTask` that does `await UniTask.SwitchToMainThread()` before calling `TryContactReceiver()`, so the `Physics.Raycast` never runs on the power-tick ThreadPool worker.
+
+### `_powerProvided` is runtime-only: not saved, not synced
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+The debt accumulator (declaration 408287) has no persistence path at 0.2.6403.27689. `PowerTransmitterSaveData : WirelessPowerSaveData` (408264-408268) adds only `long OutputNetworkReferenceId` to the base record's four dish-rotation doubles (426765-426778); the TX join stream (`SerializeOnJoin` 408352) carries only `OutputNetwork.ReferenceId` and the linked receiver id, and the flag-driven `BuildUpdate` / `ProcessUpdate` carry only the receiver link. The whole-decompile census confirms the field is touched exclusively by `UsePower` (408428), `ReceivePower` (408442), and `GetUsedPower` (408469). It restarts at 0 on save load and on client join, so a loaded or late-joining dish always begins with an empty ledger; the one-tick input-side draw lag rebuilds from zero. Cross-class census and consequences on [Device](./Device.md), "Two per-device draw-state fields".
 
 ## Transforms and geometry
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
@@ -295,8 +300,9 @@ Consequence for cross-link cable-side logic computed per-peer: a traversal that 
 - PowerTransmitterPlus extends this class; see [../../Mods/PowerTransmitterPlus/RESEARCH.md](../../Mods/PowerTransmitterPlus/RESEARCH.md) for distance-cost patches, AutoAim, and related extensions.
 
 ## Verification history
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
+- 2026-07-06: added the "`_powerProvided` is runtime-only" subsection to Method semantics (game version 0.2.6403.27689). Evidence: `PowerTransmitterSaveData` body (408264-408268, only `OutputNetworkReferenceId`), `WirelessPowerSaveData` body (426765-426778, only H/V + slew targets), and the whole-decompile `_powerProvided` census (TX sites: declaration 408287, 408428 / 408442 / 408469 only; no serialization member). Additive; the existing serialization notes on this page (SerializeOnJoin carrying network + receiver ids) already implied it, no conflict, no fresh validator.
 - 2026-07-02: conflict resolution on the class-hierarchy diagram (game version 0.2.6403.27689). Contradicted claim: the diagram placed `PowerTransmitterOmni` under the `WirelessPower` subtree (as a third sibling of `PowerTransmitter` / `PowerReceiver`), implying it inherits the servo machinery. Fresh validator verdict (binding): `public class PowerTransmitterOmni : Electrical` at decompile line 408582; `Electrical` (394786) and `ElectricalInputOutput` (394813) are SIBLINGS under `Device`; the Omni does NOT inherit `WirelessPower` and has no `Horizontal` / `Vertical` / `RayTransform` / `DishTransform` members. Resulting change: moved `PowerTransmitterOmni` out of the `WirelessPower` subtree into a sibling `Electrical` branch with a pointer to the new [PowerTransmitterOmni](./PowerTransmitterOmni.md) page.
 - 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged: `PowerTransmitter : WirelessPower` (408269), `MaxPowerTransmission = 5000f` (408275), `_MaxTransmitterDistance = 500f` (408273), `GetGeneratedPower` = `Min(5000, InputNetwork.PotentialLoad) - PowerLossOverDistance.Evaluate(clamp01(dist/500)) * 5000` (408472-408484), `GetUsedPower` = `Min(5000, _powerProvided)` (408446-408469), `UsePower` / `ReceivePower` ledger (408424-408444), `TryContactReceiver` raycast + dual anti-parallel 7 deg checks + host gate (408492-408508), `ReTargetWait = 10` (408285). New at this version: the unlinked-TX retry in `OnPowerTick` (408396-408413) marshals to the main thread via `WaitTryContactReceiverMainThread` (408486-408490) before the raycast; documented in Method semantics. Added the "WirelessNetwork internals" subsection (`WirelessNetwork : CableNetwork` 272453-272550; host-only `GetWirelessNetwork` creation 272472-272484; `RefreshPowerAndDataDeviceLists` override makes the power list the whole `DeviceList` and the data list permanently empty 272486-272492; `OnPowerTick` gated on `IsNetworkValid()` = `DeviceList.Count > 0` 272506-272517). Updated the TX/RX topology and host-authoritative sections' line refs from the 0.2.6228 decompile to the 0.2.6403 one (setter 408293, flag 408318, BuildUpdate 408334, ProcessUpdate 408343, SerializeOnJoin 408352, OnDestroy 408387 / 408108).
 - 2026-05-28: added "Link establishment is host-authoritative; only the TX side replicates". Confirmed `TryContactReceiver` is gated on `GameManager.RunSimulation` (host-only) in both vanilla and PowerTransmitterPlus (PTP prefix-replaces the body but keeps the gate); the `PowerTransmitter.LinkedReceiver` setter (387089) flags `NetworkUpdateType.Thing.WirelessPower.Receiver` (387114) and `BuildUpdate` / `ProcessUpdate` (387130-387146) carry it by ReferenceId; `PowerReceiver.LinkedPowerTransmitter` setter (386871) sets no flag and is assigned only host-side, so the back-reference does not replicate. Driving work: PowerGridPlus dish-link passthrough refresh, where this asymmetry makes the client merge one-directional. Additive; no prior claim contradicted, no fresh validator.

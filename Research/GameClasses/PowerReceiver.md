@@ -3,7 +3,7 @@ title: PowerReceiver
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-06
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.PowerReceiver
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 386861-387058 (PowerReceiver), 387065+ (PowerTransmitter)
@@ -128,6 +128,11 @@ Reading them as a pair:
 - **`GetUsedPower(InputNetwork)` = `Mathf.Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)`.** The receiver's draw on the wireless network is its accumulated debt, capped at `MaxPowerTransmission + UsedPower` (= 5000 + the dish's own quiescent draw). `_powerProvided` rises in `UsePower` (when the grid pulls power from the receiver's output cable) and falls in `ReceivePower` (when the receiver is fed on the wireless side), so it tracks net outstanding throughput.
 - `MaxPowerTransmission` is the static 5000 W constant on `PowerTransmitter`; it appears here on the receiver as the `GetUsedPower` cap and the visualizer's full-brightness reference.
 
+### `_powerProvided` is runtime-only: not saved, not synced
+<!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
+
+The debt accumulator (declaration 408071) has no persistence path at 0.2.6403.27689. `PowerReceiverSaveData : WirelessPowerSaveData` (408062-408064) has an EMPTY body; the base record (426765-426778) carries only the four dish-rotation doubles, so nothing at the receiver level saves the ledger, and the whole-decompile census shows the field touched exclusively by `UsePower` (408188), `ReceivePower` (408202), and `GetUsedPower` (408229); no `SerializeOnJoin` / `BuildUpdate` / `ProcessUpdate` member reads it. It restarts at 0 on save load and on client join: a loaded or late-joining receiver reports zero wireless-side draw until its output cable network pulls power again. Cross-class census and consequences on [Device](./Device.md), "Two per-device draw-state fields".
+
 ## The deliverable path
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
@@ -158,6 +163,7 @@ So a setter-driven unlink or retarget (`TryContactReceiver` clearing / replacing
 
 ## Verification history
 
+- 2026-07-06: added the "`_powerProvided` is runtime-only" subsection (game version 0.2.6403.27689). Evidence: `PowerReceiverSaveData` empty body (408062-408064), `WirelessPowerSaveData` body (426765-426778), whole-decompile `_powerProvided` census (RX sites: declaration 408071, 408188 / 408202 / 408229 only; no serialization member). Additive; no prior claim on this page addressed save behavior of the ledger, no fresh validator.
 - 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: `GetGeneratedPower(OutputNetwork)` = `WirelessInputNetwork.PotentialLoad` verbatim (408232-408243), `GetUsedPower` = `Min(MaxPowerTransmission + UsedPower, _powerProvided)` (408206-408229), `UsePower` / `ReceivePower` ledger (408184-408204), `LinkedPowerTransmitter` setter assigning `InputNetwork = value.OutputNetwork` only when non-null (408081-408097), `CheckConnections` touching `OutputNetwork` only (408257-408261). CHANGED at 0.2.6403.27689 (supersession, new section "Unlink behavior"): `ElectricalInputOutput.OnRemoveCableNetwork` now nulls `InputNetwork` when `oldNetwork == InputNetwork` (394993-395006), `CableNetwork.RemoveDevice` invokes it (271024), and the TX `LinkedReceiver` setter removes the old RX from the WirelessNetwork (408305), so a setter-driven unlink or retarget clears `rx.InputNetwork`; previously nothing cleared it and a formerly-linked RX kept advertising the dead wireless network's `PotentialLoad`. Bypass paths (`PowerTransmitter.OnDestroy` doing only `LinkedReceiver.LinkedPowerTransmitter = null`, 408387-408394) still leave the reference stale; that residual hazard moved to Open Questions as runtime-unverified.
 - 2026-06-14: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 386861-387058; verbatim `UsePower` / `ReceivePower` / `GetUsedPower` / `GetGeneratedPower` / `LinkedPowerTransmitter` setter / `CheckConnections` bodies. Confirms `PowerReceiver.GetGeneratedPower(OutputNetwork)` returns `WirelessInputNetwork.PotentialLoad` and `PowerReceiver.GetUsedPower(InputNetwork)` returns `Mathf.Min(PowerTransmitter.MaxPowerTransmission + UsedPower, _powerProvided)`. Established while correcting the PowerGridPlus x PowerTransmitterPlus loss-model interaction (POWER.md §6.3 / §8.4.2).
 
