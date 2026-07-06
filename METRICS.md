@@ -77,6 +77,7 @@ When a mod from `Mods/` or `Plans/` goes live on the Workshop, add a new `##` se
 | 2026-06-01 | 6 | 112 | 0 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-06-20 | 9 | 204 | 2 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
 | 2026-07-06 | 9 | 256 | 3 | 0 | 0 | insufficient ratings | 1.1.0 (Workshop updated 2026-05-21) |
+| 2026-07-06 | 9 | 257 | 3 | 0 | 0 | insufficient ratings | 1.2.0 (Workshop updated 2026-07-06) |
 
 ## KeypadMod Fix
 
