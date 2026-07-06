@@ -60,7 +60,7 @@ Unrenamed `network.har` files are considered disposable.
 
 **Debugging a failed session.** `saveSession: true` is on for all four modes. The most recent `<mode>/output/.../session-{timestamp}/session.md` contains the full tool-call trace (each call as a `### Tool call:` heading with `Args` and `Result` JSON-fenced blocks). For tracing mode, `<mode>/output/network.har` has the corresponding network activity including WebSocket frames.
 
-**Upgrading `@playwright/mcp`.** `npx` pulls `@latest` on every server start, so upgrades are automatic. After a major upstream upgrade, run `npx @playwright/mcp@latest --help` and diff against the [Settings](#settings) table — new flags or config keys need a new row.
+**Upgrading `@playwright/mcp`.** `npx` pulls `@latest` on every server start, so upgrades are automatic. After a major upstream upgrade, run `npx @playwright/mcp@latest --help` and diff against the [Settings](#settings) table — new flags or config keys need a new row. If the upgrade bumps the pinned playwright-core revision, refresh headless mode's bundled browser with `npx -y @playwright/mcp@latest install-browser chromium` — headless runs the bundled chromium-headless-shell, not system Chrome (row #2), and fails with "Executable doesn't exist" until the matching revision is installed.
 
 ## Location legend
 
@@ -85,7 +85,7 @@ Values that differ across modes are written as `headless / interactive / tracing
 |--:|---|:-:|---|---|---|
 | | **▸ Browser engine & profile** | | | | |
 | 1 | `browser.browserName` | json | Browser engine family | `chromium` (all) | Chromium required for full CDP access (WebSocket frames, network bodies, performance traces). Default: `chromium`. |
-| 2 | `browser.launchOptions.channel` | json | Chrome channel within the Chromium engine | `chrome` (all) | System Chrome — matches daily browser, stays current via Windows Update. Default: bundled chromium. |
+| 2 | `browser.launchOptions.channel` | json (3 modes) | Chrome channel within the Chromium engine | headless: —; others: `chrome` | Headed modes use system Chrome — matches daily browser, stays current via Windows Update. Headless deliberately sets no channel: Playwright then runs its bundled chromium-headless-shell, which has no window code path — system Chrome's modern headless can surface a blank window on Windows. Install the bundled browser once per playwright-core revision: `npx -y @playwright/mcp@latest install-browser chromium`. Default: bundled chromium. |
 | 3 | `browser.userDataDir` | json (persistent only) | Persistent browser profile on disk | persistent: `playwright/persistent/profile`; others: — | Only `persistent` uses a real userDataDir. The other three modes use `isolated` (mutually exclusive). Default: temp dir per session. |
 | 4 | `browser.isolated` | json (3 modes) | In-memory profile (mutually exclusive with #3) | headless/interactive/tracing: `true`; persistent: — | The three ephemeral modes use `isolated` so parallel sessions never collide on profile state. `persistent` uses `userDataDir` for state continuity. Default: `false`. |
 | 5 | `browser.launchOptions.executablePath` | default | Explicit path to browser binary | — | Auto-detection finds system Chrome reliably. Default: auto. |
@@ -187,5 +187,5 @@ Additional Playwright-level variables (`PWDEBUG`, `DEBUG`, `PLAYWRIGHT_BROWSERS_
 ## Hidden / undocumented flags
 
 - `--vision` — deprecated alias for `capabilities: ["vision"]`. Hidden via `.hideHelp()`. Do not use.
-- `install-browser <name>` — subcommand absent from `--help`. Delegates to Playwright's installer. Prefer `npx playwright install <browser>`.
+- `install-browser <name>` — subcommand absent from `--help`. Delegates to Playwright's installer. Use this (not `npx playwright install <browser>`) to install headless mode's bundled browser: standalone `playwright@latest` can resolve to a different playwright-core than `@playwright/mcp`'s pin and install a mismatched browser revision (observed 2026-07-06: rev 1228 installed vs rev 1229 required).
 - `browser.launchOptions.assistantMode` — forced `true` internally; not configurable.

@@ -12,7 +12,7 @@ MCP tool prefix: `mcp__playwright-headless__browser_*`.
 
 ## What's in this folder
 
-- `config.json` - Playwright MCP configuration. `isolated: true` (in-memory tmp profile), `headless: true`. See [../README.md](../README.md) for the full settings table.
+- `config.json` - Playwright MCP configuration. `isolated: true` (in-memory tmp profile), `headless: true`, and deliberately **no `channel`** — headless runs Playwright's bundled chromium-headless-shell rather than system Chrome, because Chrome's modern headless can surface a blank window on Windows. The other three (headed) modes keep `channel: "chrome"`. See [../README.md](../README.md) for the full settings table.
 - `output/` - per-session subdirectories created by the launcher, named `{yyyy-MM-dd-HH-mm-ss}-{4-char-suffix}/`. Gitignored. Each parallel session writes only into its own subdir, so collisions are impossible.
 - `profile/` - intentionally empty placeholder for visual symmetry with the other modes. See [profile/README.md](profile/README.md). The isolated tmp profile lives in Playwright's tmpdir, not here.
 
