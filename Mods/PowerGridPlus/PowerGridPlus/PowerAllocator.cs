@@ -51,8 +51,9 @@ namespace PowerGridPlus
     ///             Setting-like cap with unmet downstream rigid demand -- RIGID ONLY), so a structurally-
     ///             overloaded device surfaces as OVERLOAD, not shed (CYCLE > VVF > OVERLOAD > SHED);
     ///          c. forward supply + re-decided shed per input network: when consumer RIGID claims exceed
-    ///             the input budget, victims shed in (priority ASC, ReferenceId ASC) order
-    ///             (ShedVictimOrder; see its comment for why there is no claim-size tiebreak);
+    ///             the input budget, victims shed WHOLE by tier-major best-fit-decreasing selection
+    ///             (SelectShedVictims: lowest priority tier first; within a tier the smallest single
+    ///             claim that covers the remaining deficit, else largest-first; ties by ReferenceId);
     ///             step-up transformers never shed (§5.2); a dead input (no supply at all) defers
     ///             instead of cycling 60-second lockouts. After the rigid grants, soft is granted from the
     ///             net's firm residual (plus soft inflow arriving through its suppliers), proportionally
@@ -1045,11 +1046,18 @@ namespace PowerGridPlus
         // actual throughput is already finalized), compute the supply actually reaching it and distribute
         // to its consumers highest-priority-first. When deciding (settleOnly == false) shedding is RE-
         // DECIDED here: if the active consumers' desired RIGID pulls exceed the budget the network can
-        // pass, the lowest-priority victims shed (whole, never partial) until the rest fit; a network with
+        // pass, victims shed (whole, never partial) per the tier-major best-fit rule in
+        // SelectShedVictims until the rest fit; a network with
         // no supply at all (avail <= Eps) sheds nothing (dead-input idle). settleOnly == true keeps the
         // current shed/overload flags and only recomputes throughputs + per-net fields (used to settle a
         // 2-cycle). After the rigid grants, SOFT (storage charge) is granted per net from the firm
         // residual: shed decisions, budgets, and Unmet never see the soft class.
+
+        // Caller-side scratch for the shed selector's candidate tuples. Power-worker only; the
+        // selector itself keeps no state, so its purity / re-entrancy is unaffected by this buffer.
+        private static readonly List<(long refId, int priority, float claim, bool stepUp)> _shedCandidateBuffer
+            = new List<(long refId, int priority, float claim, bool stepUp)>();
+
         private static void ForwardSupplyAndShed(List<Net> topo, List<Seg> segs, bool shedOn, bool settleOnly)
         {
             foreach (var seg in segs)
@@ -1078,17 +1086,26 @@ namespace PowerGridPlus
                     float claims = 0f;
                     foreach (var c in n.Consumers)
                         if (!c.Locked && !c.Overloaded && !c.Shed) claims += c.DesiredPull;
-                    while (claims > budget + Eps)
+                    if (claims > budget + Eps)
                     {
-                        Seg victim = null;
+                        // Victim CHOICE is delegated to the pure selector (tier-major best-fit,
+                        // POWER.md 8.3 / 8.3.3); this block only feeds it the live candidates and
+                        // marks the returned set whole. Locked / overloaded / already-shed segs
+                        // never enter (live per-round gates); the step-up and tiny-claim gates are
+                        // policy and live inside SelectShedVictims. If the selector runs out of
+                        // sheddable candidates the residual deficit is accepted as-is, exactly as
+                        // the old walk's null-victim break did.
+                        _shedCandidateBuffer.Clear();
                         foreach (var c in n.Consumers)
+                            if (!c.Locked && !c.Overloaded && !c.Shed)
+                                _shedCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp));
+                        var victims = SelectShedVictims(_shedCandidateBuffer, claims - budget);
+                        for (int vi = 0; vi < victims.Count; vi++)
                         {
-                            if (c.Locked || c.Overloaded || c.Shed || c.StepUp || c.DesiredPull <= Eps) continue;
-                            if (victim == null || ShedVictimOrder(c, victim) < 0) victim = c;
+                            long refId = victims[vi];
+                            foreach (var c in n.Consumers)
+                                if (c.RefId == refId) { c.Shed = true; break; }
                         }
-                        if (victim == null) break;   // only step-up / non-sheddable left: accept
-                        victim.Shed = true;
-                        claims -= victim.DesiredPull;
                     }
                 }
 
@@ -1330,21 +1347,93 @@ namespace PowerGridPlus
             return a.RefId.CompareTo(b.RefId);
         }
 
-        // Shed victim selection: (priority ASC, ReferenceId ASC). Returns < 0 when a should shed
-        // before b. Deliberately NO claim-size tiebreak. The shipped selection has always been
-        // (priority, ReferenceId): the historical claim comparison read Pull, which is zeroed at
-        // forward-pass entry and still zero during victim selection, so it never ordered anything.
-        // Switching it to the live claim (DesiredPull DESC) changes which device a player sees
-        // shed (largest-claim-first can lock one large feed over a small transient deficit where
-        // the shipped order spreads across small victims), and a controlled A/B showed the boot
-        // shed races draw different victims per run, so no cross-boot trajectory comparison can
-        // validate a selection change. Keeping the shipped order preserves behaviour; a
-        // deliberate victim policy (for example smallest-claim-first above the deficit) is a
-        // POWER.md §8.3 design decision to take separately, not a drive-by fix.
-        private static int ShedVictimOrder(Seg a, Seg b)
+        // Shed victim selection (POWER.md §8.3 / §8.3.3): tier-major best-fit-decreasing, the
+        // deliberate policy that replaced the flat (priority ASC, ReferenceId ASC) walk. In order:
+        //
+        //   1. Tiers go priority ASC: the lowest tier sheds first, and selection moves to the next
+        //      tier only when the current tier is exhausted with deficit remaining.
+        //   2. Within the tier, against the remaining deficit D (whole Watts):
+        //      a. if any candidate's quantised claim covers D alone, shed the SMALLEST such claim
+        //         (tie: lowest ReferenceId) and stop: the deficit is covered;
+        //      b. else shed the LARGEST claim (tie: lowest ReferenceId), subtract it from D, and
+        //         repeat within the tier.
+        //   3. Step-up contributors are never candidates (§5.2), and a claim at or below Eps has
+        //      nothing worth reclaiming. Locked / overloaded / already-shed segs are the CALLER's
+        //      gates (live per-round state, not policy), as is the dead-input carveout (§8.3.1).
+        //
+        // Worked §8.3.3 example: same-tier claims 500 / 1000 / 2000, deficit 1000 -> exactly the
+        // 1000 W device sheds (the old walk shed the 500 then the 1000: two victims where one
+        // sufficed).
+        //
+        // Quantisation (§8.0.1 / §8.0.5 determinism): float claims floor to whole Watts
+        // ((int)Math.Floor); the float deficit rounds UP after the allocator's Eps tolerance
+        // ((int)Math.Ceiling(deficit - Eps)). Floor-claims plus ceil-deficit guarantees the
+        // selected set restores claims <= budget + Eps in float terms (an under-shed here would
+        // leave Unmet > Eps and spuriously trip the elastic hit-max, §8.4 rule 2); the cost is at
+        // most one extra small victim when sub-Watt fractions straddle a whole-Watt boundary.
+        // Every comparison is integer / ReferenceId only, so the result is a pure deterministic
+        // function of (candidates, deficit): input order is irrelevant (sorted internally), no
+        // live-net or Unity state, no statics, re-entrant. ScenarioRunner's
+        // pgp-shed-victim-fixture scenario reflection-invokes this exact method with synthetic
+        // candidate sets; keep the name and signature stable.
+        internal static List<long> SelectShedVictims(
+            IReadOnlyList<(long refId, int priority, float claim, bool stepUp)> candidates,
+            float deficit)
         {
-            if (a.Priority != b.Priority) return a.Priority.CompareTo(b.Priority);
-            return a.RefId.CompareTo(b.RefId);
+            var victims = new List<long>();
+            if (candidates == null || candidates.Count == 0) return victims;
+
+            int need = deficit - Eps >= int.MaxValue ? int.MaxValue : (int)Math.Ceiling(deficit - Eps);
+            if (need <= 0) return victims;
+
+            var pool = new List<(int priority, int claim, long refId)>(candidates.Count);
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                var c = candidates[i];
+                if (c.stepUp) continue;        // never sheds (§5.2)
+                if (c.claim <= Eps) continue;  // nothing to reclaim
+                int claim = c.claim >= int.MaxValue ? int.MaxValue : (int)Math.Floor(c.claim);
+                pool.Add((c.priority, claim, c.refId));
+            }
+            if (pool.Count == 0) return victims;
+
+            // (priority ASC, claim DESC, ReferenceId ASC): tier-major, largest-first in a tier.
+            pool.Sort((a, b) =>
+            {
+                if (a.priority != b.priority) return a.priority.CompareTo(b.priority);
+                if (a.claim != b.claim) return b.claim.CompareTo(a.claim);
+                return a.refId.CompareTo(b.refId);
+            });
+
+            int lo = 0;
+            while (lo < pool.Count && need > 0)
+            {
+                int hi = lo;   // current tier slice [lo..hi] shares pool[lo].priority
+                while (hi + 1 < pool.Count && pool[hi + 1].priority == pool[lo].priority) hi++;
+
+                while (lo <= hi && need > 0)
+                {
+                    if (pool[lo].claim >= need)
+                    {
+                        // Rule 2a. Claims are DESC, so the entries covering D alone form the
+                        // slice's prefix; the last covering claim value is the smallest cover,
+                        // and the first entry holding that value is its lowest ReferenceId.
+                        int last = lo;
+                        while (last + 1 <= hi && pool[last + 1].claim >= need) last++;
+                        int first = last;
+                        while (first - 1 >= lo && pool[first - 1].claim == pool[last].claim) first--;
+                        victims.Add(pool[first].refId);
+                        return victims;   // deficit covered: selection for this net ends
+                    }
+                    // Rule 2b: largest remaining claim in the tier. claim < need keeps need > 0,
+                    // so a cover only ever happens through rule 2a or candidate exhaustion.
+                    victims.Add(pool[lo].refId);
+                    need -= pool[lo].claim;
+                    lo++;
+                }
+                // Tier exhausted with deficit remaining: lo == hi + 1 is the next tier's start.
+            }
+            return victims;
         }
 
         // -------------------------------------------------------------------

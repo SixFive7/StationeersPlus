@@ -278,6 +278,10 @@ namespace ScenarioRunner
                     Scenario_Pgp2CycleFreeze();
                     return;
 
+                case "pgp-shed-victim-fixture":
+                    Scenario_PgpShedVictimFixture();
+                    return;
+
                 case "pgp-rearch-suite":
                     Scenario_PgpRearchSuite();
                     return;
