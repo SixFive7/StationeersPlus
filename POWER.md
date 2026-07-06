@@ -694,6 +694,8 @@ The **structural-overload-before-shed-before-supply-overload** ordering is load-
 
 **Convergence.** After the four passes, the `(shed, overload, elastic-overload)` RefId sets are collected. If they equal the previous round's sets, the loop has converged. If they equal the round-before-previous sets, the loop is in a 2-cycle between two states: the intermediate state's flags are OR-ed in (a safe superset, never under-protective), then one `BackwardDesirePass` + `ForwardSupplyAndShed(settleOnly: true)` settles throughputs without re-deciding, and the loop exits. The round cap is `2 * segs.Count + 4`; exhausting it logs a `LogWarning` and keeps the last settled state (internally consistent and safe, possibly not minimal). Only shed can oscillate (overload is monotonic), so the 2-cycle guard plus the union fallback is sufficient.
 
+**The stranded-inflow clawback.** The fixed point deliberately keeps shed contributors visible to the backward desire pass (shed is re-decided every round, so a shed seg must keep presenting its claim to be reconsidered). The converged state can therefore carry inflow granted to fund a claim the same forward pass then shed: committed and billed upstream, taken by nobody. After the loop, the lockout commits, the dead-input rebuild, and the shortfall census (all of which read the deciding state), any tick that shed at least one contributor runs a clawback in `RunAtomic`: walking leaf to source, every network whose total committed inflow (rigid plus soft) exceeds its total consumption (served demand, granted pulls, charge, and soft pulls; soft counts because the soft stage funds charge from the rigid firm residual) takes the surplus back from its active suppliers in reverse grant order, shrinking each seg's published throughput and pull together and landing the pull reduction on the supplier's input network before that network is visited. There is no re-split and no re-grant (a full settle re-pass was tried and re-granted the freed budget to other branches, reshaping real allocation on trip ticks), so every seg off the stranded chains keeps its deciding-pass numbers to the bit and the only real-world change is that nothing is billed upstream for power nobody consumes. No decision is re-opened.
+
 ### 8.0.4 The shared tail (commit, shares, publish, snapshots)
 
 After DECIDE converges, `RunAtomic` runs a single shared tail against the converged per-net / per-seg fields:
@@ -726,7 +728,7 @@ Every ordering decision in the allocator uses integer keys only. Floats are excl
 
 - **Topological order**: `ReferenceId ASC` tiebreak on ready-node pops (§8.0.2).
 - **Supplier dispatch order** (`SupplierOrder`): `(priority DESC, ReferenceId ASC)`. Higher-priority contributors dispatch first.
-- **Shed victim order** (`ShedVictimOrder`, §8.3): `(priority ASC, claim DESC, ReferenceId ASC)`, where `claim` is the contributor's pull quantised to whole Watts via `(int)Math.Floor`. Lowest priority sheds first; among equal priority the larger claim sheds first; ties break by `ReferenceId`.
+- **Shed victim order** (`ShedVictimOrder`, §8.3): `(priority ASC, ReferenceId ASC)`. Lowest priority sheds first; ties break by `ReferenceId`. There is deliberately no claim-size tiebreak: the historical claim comparison read the granted `Pull`, which is still zero during victim selection, so shipped behavior has always been (priority, ReferenceId); switching to the live claim (`DesiredPull` DESC) is a player-visible change in which device sheds (largest-claim-first can lock one large feed over a small transient deficit where the shipped order spreads across small victims), and a controlled A/B showed the boot shed races draw different victims per run, so no cross-boot trajectory comparison can validate a selection change. A deliberate victim policy (for example smallest-claim-first above the deficit) is an open §8.3 design decision.
 
 Quantising the claim to whole Watts erases any ulp-level float divergence between peers (Watts are O(10^3-10^5), well clear of float precision boundaries); the cast is at the comparator only, the underlying float drives physics. The within-tier proportional demand split (§8.3.2) is float, but is bit-identical across peers on the shared mono runtime, so it never makes a divergent ordering decision. `MergeDeterminismPatches` enforces deterministic network-id ordering on cable merges, so the keys stay stable across peers.
 
@@ -925,11 +927,11 @@ This is the PowerGridPlus-side half; PowerTransmitterPlus charging the source fo
 
 ### 8.3.3 Shed victim order example
 
-Three sheddable siblings T_a, T_b, T_c on the same input network, all priority 100. Their presented pulls (`DesiredPull`, rounded to whole Watts) are 500, 1000, 2000 respectively. The input budget the network can pass is 2500 W.
+Three sheddable siblings T_a, T_b, T_c on the same input network, all priority 100, ReferenceIds ascending in that order. Their presented pulls (`DesiredPull`, rounded to whole Watts) are 500, 1000, 2000 respectively. The input budget the network can pass is 2500 W.
 
-`ShedVictimOrder` is (priority ASC, claim DESC, ReferenceId ASC): with priority tied, the largest claim sheds first, so T_c (2000) is the first victim. After T_c sheds, the remaining claim is 1500 <= 2500, so the shed pass stops. T_a and T_b survive.
+`ShedVictimOrder` is (priority ASC, ReferenceId ASC): with priority tied, T_a (500) sheds first. The remaining claim is 3000 > 2500, so T_b (1000) sheds next; the remaining claim is 2000 <= 2500 and the shed pass stops. T_c survives; two devices shed where one would have sufficed.
 
-Shedding T_a or T_b first would still leave a residual deficit; shedding the largest claim first converges in the fewest whole-device sheds (no partial shedding, §5.5).
+This example is exactly the over-shedding cost of the missing claim tiebreak, and it is accepted deliberately for now: claim-aware ordering is a player-visible change in which device sheds (largest-claim-first can lock one large feed over a small transient deficit), and boot shed races draw different victims per run, so validating a selection change needs purpose-built evidence rather than cross-boot trajectory comparison (§8.0.5). Claim-aware victim selection that still avoids artery lockouts (for example smallest-claim-first that covers the deficit) is an open design decision tracked in the mod's TODO.
 
 ### 8.8 Self-diagnostics: conservation check, shortfall classification, unknown-bridge census
 

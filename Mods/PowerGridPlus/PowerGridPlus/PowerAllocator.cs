@@ -51,8 +51,9 @@ namespace PowerGridPlus
     ///             Setting-like cap with unmet downstream rigid demand -- RIGID ONLY), so a structurally-
     ///             overloaded device surfaces as OVERLOAD, not shed (CYCLE > VVF > OVERLOAD > SHED);
     ///          c. forward supply + re-decided shed per input network: when consumer RIGID claims exceed
-    ///             the input budget, victims shed in (priority ASC, claim DESC, ReferenceId ASC) order
-    ///             (§8.3); step-up transformers never shed (§5.2); a dead input (no supply at all) defers
+    ///             the input budget, victims shed in (priority ASC, ReferenceId ASC) order
+    ///             (ShedVictimOrder; see its comment for why there is no claim-size tiebreak);
+    ///             step-up transformers never shed (§5.2); a dead input (no supply at all) defers
     ///             instead of cycling 60-second lockouts. After the rigid grants, soft is granted from the
     ///             net's firm residual (plus soft inflow arriving through its suppliers), proportionally
     ///             over local charge requests and consumer soft pulls, capped by the weakest cable's
@@ -62,6 +63,20 @@ namespace PowerGridPlus
     ///             unmet) and the §5.7 cable-overflow rule (rigid flow above the weakest cable's cap with
     ///             generators alone under it trips every supplier of that network instead of burning the
     ///             cable).
+    ///          After the loop, the lockout commits, the dead-input rebuild, and the shortfall
+    ///          census (all of which read the deciding state), a STRANDED-INFLOW CLAWBACK runs on
+    ///          ticks that shed anything. The deciding rounds keep shed contributors' desires
+    ///          visible so shedding stays re-decidable, which can leave inflow committed for a
+    ///          consumer the same forward pass shed (billed upstream, consumed by nobody). The
+    ///          clawback walks leaf to source and, on every network whose total committed inflow
+    ///          (rigid plus soft) exceeds its total consumption (served demand, granted pulls,
+    ///          charge, soft pulls; soft counts because the soft stage funds charge from the
+    ///          rigid firm residual), takes exactly that surplus back from the network's active
+    ///          suppliers' rigid throughput in reverse grant order, propagating the pull
+    ///          reduction upstream in the same walk. No re-split and no re-grant: every seg off the stranded
+    ///          chains keeps its deciding-pass numbers to the bit, so the elastic shares, the
+    ///          publish tail, and the conservation check see balanced flow while real-world
+    ///          allocation changes by the stranded component only. No decision is re-opened.
     ///       4. Elastic shares (§7.3): per output network, batteries cover only the RIGID shortfall
     ///          left after generators + transformer inflow; proportional split against effective caps
     ///          (min(rate cap, stored)); written to SoftSupplyShareCache for the GetGeneratedPower
@@ -449,8 +464,10 @@ namespace PowerGridPlus
             //    structurally cannot serve its downstream surfaces as OVERLOAD, not shed. Throughputs are
             //    exact (no headroom). Convergence is bounded (2N+4 rounds);
             //    the per-net field values it leaves (Unmet / InflowCommitted / PullsGranted / RigidServed /
-            //    SoftGrantedLocal / SoftPullsGranted / Throughput / SoftThrough) feed the shared
-            //    dead-input / commit / elastic-share / publish tail below.
+            //    SoftGrantedLocal / SoftPullsGranted / Throughput / SoftThrough) feed the dead-input
+            //    cue, the lockout commits, and the shortfall census below; the stranded-inflow
+            //    clawback then removes shed-orphaned surplus before the elastic-share / publish /
+            //    conservation tail reads them.
             // ----------------------------------------------------------------
             RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList, shedOn, overloadOn);
 
@@ -524,6 +541,98 @@ namespace PowerGridPlus
                     if (!(e.Overloaded || OverloadRegistry.IsOverloaded(e.RefId, currentTick))) continue;
                     if (recover) OverloadRegistry.ClearLockout(e.RefId);          // recovered: no reset, rejoin next tick
                     else OverloadRegistry.NoteOverload(e.RefId, currentTick);     // still short: arm + phase-sync
+                }
+            }
+
+            // Shortfall classification snapshot (diagnostics): label every allocator net's
+            // end-of-tick RIGID state for the regression census (ShortfallDiagnostics: Served /
+            // Dry / Throttled / Deadlock, ClassifyNetShortfall below). Pure read-over of the
+            // DECIDING per-net / per-seg fields, deliberately taken BEFORE the stranded-inflow
+            // clawback below, so the census describes exactly the state the shed / overload
+            // decisions were taken against (and stays tick-for-tick comparable across builds).
+            // Swapped by volatile reference exactly like the Powered-presentation snapshots; a
+            // net absent from the map was outside allocator scope this tick (the census reads
+            // absence as off-scope).
+            var shortfallClasses = new Dictionary<long, byte>(netList.Count);
+            foreach (var n in netList)
+                shortfallClasses[n.Id] = ClassifyNetShortfall(n, nets);
+            ShortfallDiagnostics.Publish(shortfallClasses);
+
+            // ----------------------------------------------------------------
+            // STRANDED-INFLOW CLAWBACK. The deciding rounds keep shed contributors' desires
+            // visible (DesireActive ignores Shed) so shedding stays re-decidable. The converged
+            // state can therefore carry inflow committed for a consumer the same forward pass
+            // shed: billed upstream, consumed by nobody (the net-487688 conservation bug). Undo
+            // exactly that surplus and nothing else: walk leaf -> source; on every network whose
+            // total committed inflow exceeds its total consumption, take the surplus back from
+            // its active suppliers in reverse grant order (the tail of the sequential grant loop
+            // is what funded the shed claims), shrinking each seg's published throughput and
+            // pull consistently; the pull reduction lands on the supplier's input network before
+            // that network is visited, so the surplus propagates upstream in one pass. No
+            // re-split and no re-grant (a full settle re-pass was tried and re-granted the freed
+            // budget to other branches, changing real allocation on trip ticks): every seg off
+            // the stranded chains keeps its deciding-pass numbers to the bit. Decisions are
+            // untouched: flags, registries, the dead-input cue, and the shortfall census above
+            // all read the deciding state; the elastic shares, publish tail, and conservation
+            // check below read the clawed state.
+            //
+            // The strand is measured over the FULL pool the conservation checker audits, never
+            // the rigid slice alone: the deciding soft stage funds charge grants out of the
+            // rigid firm residual (softLocal = firmIn - RigidDemand - survivorPull), so rigid
+            // inflow left over after rigid consumption is NOT stranded when soft grants consumed
+            // it (a rigid-only strand formula clawed exactly that funded residual on a chargers'
+            // input net and pushed the soft ledger negative by the clawed amount, the net-625036
+            // finding). Soft fields are still never clawed: at any exit this gate sees, soft
+            // outflow covers soft inflow (the grant loop distributes min(softDemand, softAvail)
+            // and the inflow is desire-sized), so the surplus is always coverable by rigid
+            // throughput alone. Generator power is drawn on demand (never strands) and elastic
+            // shares are sized later from the final shortfall (zero on any surplus net), so
+            // neither enters the strand.
+            // ----------------------------------------------------------------
+            bool anyShed = false;
+            foreach (var seg in segs)
+                if (seg.Shed) { anyShed = true; break; }
+            if (anyShed)
+            {
+                foreach (var n in netsDeepFirst)
+                {
+                    float softIn = 0f;
+                    foreach (var s in n.Suppliers)
+                        if (IsActive(s)) softIn += s.SoftThrough;
+                    float strand = n.InflowCommitted + softIn
+                                   - n.RigidServed - n.PullsGranted
+                                   - n.SoftGrantedLocal - n.SoftPullsGranted;
+                    if (strand <= Eps) continue;
+                    for (int i = n.Suppliers.Count - 1; i >= 0 && strand > Eps; i--)
+                    {
+                        var s = n.Suppliers[i];
+                        if (!IsActive(s) || s.Throughput <= 0f) continue;
+                        float take = s.Throughput < strand ? s.Throughput : strand;
+                        float newThr = s.Throughput - take;
+                        float oldPull = s.Pull;
+                        float m = Mathf.Max(s.InputDrawFactor, 1f);
+                        float newPull;
+                        if (newThr > Eps)
+                        {
+                            newPull = newThr * m + s.UsedPower;
+                        }
+                        else
+                        {
+                            take = s.Throughput;   // absorb the sub-Eps remainder exactly
+                            newThr = 0f;
+                            // The quiescent stays on the rigid pull while the seg still carries
+                            // soft flow (its soft pull deliberately carries no quiescent when the
+                            // rigid side did); a fully idle seg bills nothing, matching the idle
+                            // desire model and the checker's one-sided not-conducting case.
+                            newPull = s.SoftThrough > Eps ? s.UsedPower : 0f;
+                        }
+                        s.Throughput = newThr;
+                        s.Pull = newPull;
+                        n.InflowCommitted -= take;
+                        strand -= take;
+                        if (s.InNet != null && nets.TryGetValue(s.InNet.ReferenceId, out var up))
+                            up.PullsGranted -= oldPull - newPull;
+                    }
                 }
             }
 
@@ -657,18 +766,6 @@ namespace PowerGridPlus
             }
             PoweredPresentation.Publish(healthySet, presentationRoster);
 
-            // Shortfall classification snapshot (diagnostics): label every allocator net's
-            // end-of-tick RIGID state for the regression census (ShortfallDiagnostics: Served /
-            // Dry / Throttled / Deadlock, ClassifyNetShortfall below). Pure read-over of the
-            // converged per-net / per-seg fields the passes above already computed; allocation
-            // math, orders, and cache contents are untouched. Swapped by volatile reference
-            // exactly like the Powered-presentation snapshots; a net absent from the map was
-            // outside allocator scope this tick (the census reads absence as off-scope).
-            var shortfallClasses = new Dictionary<long, byte>(netList.Count);
-            foreach (var n in netList)
-                shortfallClasses[n.Id] = ClassifyNetShortfall(n, nets);
-            ShortfallDiagnostics.Publish(shortfallClasses);
-
             // ----------------------------------------------------------------
             // 6. CONSERVATION CHECK (config-gated): audit the converged grants. Per net, granted
             //    inflow == granted outflow within tolerance; per seg, TotalPull == TotalThrough *
@@ -712,6 +809,8 @@ namespace PowerGridPlus
         // A contributor is eligible to DESIRE power (backward pass) when it is not locked and not
         // overloaded. Shed is deliberately IGNORED here: the forward pass re-decides shedding every
         // round, so a previously-shed contributor must still present its desired pull to be reconsidered.
+        // The inflow this can leave committed toward a still-shed consumer at the final state is
+        // removed after the loop by the stranded-inflow clawback in RunAtomic, not by changing this gate.
         private static bool DesireActive(Seg s) => !s.Locked && !s.Overloaded;
 
         // Kahn topological order over the live contributor edges InNet -> OutNet. Cycle-faulted segs are
@@ -1231,14 +1330,20 @@ namespace PowerGridPlus
             return a.RefId.CompareTo(b.RefId);
         }
 
-        // Shed victim selection (§8.3): (priority ASC, claim DESC quantised to whole Watts,
-        // ReferenceId ASC). Returns < 0 when a should shed before b.
+        // Shed victim selection: (priority ASC, ReferenceId ASC). Returns < 0 when a should shed
+        // before b. Deliberately NO claim-size tiebreak. The shipped selection has always been
+        // (priority, ReferenceId): the historical claim comparison read Pull, which is zeroed at
+        // forward-pass entry and still zero during victim selection, so it never ordered anything.
+        // Switching it to the live claim (DesiredPull DESC) changes which device a player sees
+        // shed (largest-claim-first can lock one large feed over a small transient deficit where
+        // the shipped order spreads across small victims), and a controlled A/B showed the boot
+        // shed races draw different victims per run, so no cross-boot trajectory comparison can
+        // validate a selection change. Keeping the shipped order preserves behaviour; a
+        // deliberate victim policy (for example smallest-claim-first above the deficit) is a
+        // POWER.md §8.3 design decision to take separately, not a drive-by fix.
         private static int ShedVictimOrder(Seg a, Seg b)
         {
             if (a.Priority != b.Priority) return a.Priority.CompareTo(b.Priority);
-            int aw = (int)Math.Floor(a.Pull);
-            int bw = (int)Math.Floor(b.Pull);
-            if (aw != bw) return bw.CompareTo(aw);
             return a.RefId.CompareTo(b.RefId);
         }
 
