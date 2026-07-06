@@ -56,7 +56,6 @@ namespace ForceFieldDoorModFix
         private static FieldInfo _rearField;
         private static MethodInfo _isBeingDestroyedGetter;
         private static Action<Device> _deviceBaseTick;
-        private static bool _firstTickLogged;
         private static bool _setupDone;
         private static readonly object _setupLock = new object();
 
@@ -219,14 +218,6 @@ namespace ForceFieldDoorModFix
             power = Mathf.Max(power, PowerUsageBase);
             power = Mathf.Min(power, PowerUsageMax);
             device.UsedPower = power;
-
-            if (!_firstTickLogged)
-            {
-                _firstTickLogged = true;
-                Plugin.Log.LogInfo(
-                    "Force Field Door Mod Fix: first ForceFieldDoor atmospheric tick handled (UsedPower set to " +
-                    power + " W). ForceFieldDoorMod is running without crashing.");
-            }
         }
 
         // Builds a delegate that calls Device.OnAtmosphericTick NON-virtually on a given instance, so it
