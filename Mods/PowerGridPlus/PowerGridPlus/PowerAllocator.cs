@@ -183,6 +183,10 @@ namespace PowerGridPlus
             public long Id;
             public float RigidDemand;
             public float GenSupply;
+            // GATHER saw at least one non-segmenter power device on this net. Combined with the
+            // per-tick Softs roster it decides the partial-power sentinel's ratio-contract
+            // scope (published to ShortfallDiagnostics alongside the classification snapshot).
+            public bool HasNonSegmenterDevice;
             public int Depth = UnreachableDepth;
             public readonly List<Seg> Suppliers = new List<Seg>();
             public readonly List<Seg> Consumers = new List<Seg>();
@@ -245,6 +249,11 @@ namespace PowerGridPlus
                     var device = snapshot[i];
                     if (device == null) continue;
                     if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio)) continue;
+                    // A plain (non-segmenter) power device is ratio-deprivable: vanilla
+                    // ApplyState scales its delivery and drives its Powered state, neither
+                    // cache-governed. Feeds the partial-power sentinel's scope set (device-
+                    // based, not draw-based, so the flag is stable while the device idles).
+                    n.HasNonSegmenterDevice = true;
                     try
                     {
                         float used = device.GetUsedPower(network);
@@ -555,9 +564,25 @@ namespace PowerGridPlus
             // net absent from the map was outside allocator scope this tick (the census reads
             // absence as off-scope).
             var shortfallClasses = new Dictionary<long, byte>(netList.Count);
+            // Ratio-contract scope for the partial-power sentinel (POWER.md §8.8): a net is
+            // ratio-deprivable iff vanilla ApplyState's `usedPower *= _powerRatio` can shrink
+            // something the allocator granted: a plain (non-segmenter) power device's delivery
+            // and Powered state, or a charging store's delivered chunks (Battery.ReceivePower
+            // adds the scaled stream to PowerStored). A net whose power members are all routed
+            // segmenters is inert (bills and advertises cache-governed; Powered reconciled at
+            // the ENFORCE tail); notably every wireless carrier net, whose vanilla mirrors are
+            // structurally asymmetric under the billing handshake (unclamped receiver drain vs
+            // delivery-gated advertise), so ratio < 1 is its normal conducting state, not a
+            // contract breach.
+            var ratioScope = new HashSet<long>();
             foreach (var n in netList)
+            {
                 shortfallClasses[n.Id] = ClassifyNetShortfall(n, nets);
+                if (n.HasNonSegmenterDevice || n.Softs.Count > 0)
+                    ratioScope.Add(n.Id);
+            }
             ShortfallDiagnostics.Publish(shortfallClasses);
+            ShortfallDiagnostics.PublishRatioScope(ratioScope);
 
             // ----------------------------------------------------------------
             // STRANDED-INFLOW CLAWBACK. The deciding rounds keep shed contributors' desires

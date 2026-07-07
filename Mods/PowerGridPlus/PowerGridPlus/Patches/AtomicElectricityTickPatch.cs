@@ -261,6 +261,12 @@ namespace PowerGridPlus.Patches
                 // ----------------------------------------------------------------
                 PoweredPresentation.ReconcileEnforceTail();
                 LedgerAdoption.SettleEnforceTail(currentTick);
+                // Partial-power sentinel: on every network the allocator marked SERVED this
+                // tick, the vanilla ratio the device loop just scaled with must be exactly 1
+                // (the no-partial-power contract). Reads each PowerTick's settled _powerRatio,
+                // so it must run after every ApplyState; always-on exact counters, one
+                // aggregated warning per 600 ticks while new violations arrive.
+                PartialPowerSentinel.RunEnforceTail(currentTick);
 
                 // ----------------------------------------------------------------
                 // DEVICE TICK: per-device IPowered.OnPowerTick. Vanilla copy.

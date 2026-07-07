@@ -54,6 +54,16 @@ namespace PowerGridPlus
             _byNet = classificationByNetId;
         }
 
+        // Ratio-contract scope for the partial-power sentinel, published in the same ALLOCATE
+        // tail as the classification snapshot: the net ids where vanilla ApplyState's ratio
+        // scaling can deprive a member of granted power (at least one non-segmenter power
+        // device, or a storage charge request this tick). Bridge-only nets (every power member
+        // a routed segmenter: wireless carrier nets, tower-top hop nets) are absent, because
+        // their bills and advertises are cache-governed and their Powered state is reconciled
+        // at the ENFORCE tail, so a sub-1 ratio there is inert. Full derivation in
+        // PartialPowerSentinel's class doc. Same swap / clear lifecycle as the snapshot.
+        private static volatile HashSet<long> _ratioScope = new HashSet<long>();
+
         /// <summary>
         ///     This tick's classification for a cable network (keyed by
         ///     <c>CableNetwork.ReferenceId</c>, the allocator's net key). False when the net was
@@ -66,10 +76,28 @@ namespace PowerGridPlus
             return snapshot.TryGetValue(cableNetworkId, out cls);
         }
 
-        /// <summary>World-load reset: drop the previous world's snapshot.</summary>
+        /// <summary>Swap in this tick's ratio-contract scope set (end of ALLOCATE, allocator
+        /// worker). The set is immutable after publish.</summary>
+        internal static void PublishRatioScope(HashSet<long> ratioDeprivableNetIds)
+        {
+            _ratioScope = ratioDeprivableNetIds;
+        }
+
+        /// <summary>
+        ///     True when the network can be DEPRIVED by vanilla ratio scaling this tick (the
+        ///     partial-power sentinel's membership gate). Consumed via reflection by the
+        ///     ScenarioRunner injection scenario's target hunt.
+        /// </summary>
+        internal static bool InRatioScope(long cableNetworkId)
+        {
+            return _ratioScope.Contains(cableNetworkId);
+        }
+
+        /// <summary>World-load reset: drop the previous world's snapshot and scope set.</summary>
         internal static void Clear()
         {
             _byNet = new Dictionary<long, byte>();
+            _ratioScope = new HashSet<long>();
         }
     }
 }

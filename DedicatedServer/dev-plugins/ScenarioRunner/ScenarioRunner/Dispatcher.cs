@@ -282,6 +282,10 @@ namespace ScenarioRunner
                     Scenario_PgpShedVictimFixture();
                     return;
 
+                case "pgp-partial-power-injection":
+                    Scenario_PgpPartialPowerInjection();
+                    return;
+
                 case "pgp-rearch-suite":
                     Scenario_PgpRearchSuite();
                     return;

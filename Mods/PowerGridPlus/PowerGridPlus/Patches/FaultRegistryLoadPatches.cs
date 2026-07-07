@@ -51,6 +51,8 @@ namespace PowerGridPlus.Patches
             // The per-net shortfall classification snapshot is per-world diagnostics; drop it so
             // the census never joins a stale world's net ids. The first atomic tick republishes.
             ShortfallDiagnostics.Clear();
+            // The partial-power sentinel's counters and throttle are per-world diagnostics too.
+            PartialPowerSentinel.Clear();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }
