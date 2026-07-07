@@ -128,6 +128,7 @@ namespace PowerGridPlus
             public float CableCap;         // min(input cable cap, output cable cap)
             public float EffCap;           // min(CapSetting, cable caps) - own quiescent draw(s)
             public float UsedPower;
+            public bool QuiescentAlwaysOn; // APC: vanilla bills the quiescent whenever ON, so an idle seg still presents (and is granted) a quiescent-only pull
             public float InputDrawFactor;  // input-side draw per unit Throughput (PT-pair distance overhead m, §8.4.2); 0 treated as 1
             public int Priority;
             public int Depth;
@@ -295,6 +296,7 @@ namespace PowerGridPlus
                     CableCap = spec.RateLimit,
                     EffCap = spec.EffectiveCapacity,
                     UsedPower = spec.Quiescent,
+                    QuiescentAlwaysOn = spec.QuiescentAlwaysOn,
                     InputDrawFactor = spec.Multiplier,
                     Priority = PriorityStore.GetPriority(refId),
                     StepUp = spec.StepUp,
@@ -648,9 +650,11 @@ namespace PowerGridPlus
                             newThr = 0f;
                             // The quiescent stays on the rigid pull while the seg still carries
                             // soft flow (its soft pull deliberately carries no quiescent when the
-                            // rigid side did); a fully idle seg bills nothing, matching the idle
-                            // desire model and the checker's one-sided not-conducting case.
-                            newPull = s.SoftThrough > Eps ? s.UsedPower : 0f;
+                            // rigid side did) or when the seg is always-on-quiescent (APC: vanilla
+                            // bills the idle draw whenever ON, so the clawback must not strip the
+                            // funded quiescent); any other fully idle seg bills nothing, matching
+                            // the idle desire model and the checker's one-sided not-conducting case.
+                            newPull = s.SoftThrough > Eps || s.QuiescentAlwaysOn ? s.UsedPower : 0f;
                         }
                         s.Throughput = newThr;
                         s.Pull = newPull;
@@ -982,9 +986,15 @@ namespace PowerGridPlus
                 float softPulls = 0f;
                 foreach (var c in n.Consumers)
                 {
+                    // A contributor with rigid desire presents throughput * m + quiescent. An
+                    // idle always-on-quiescent contributor (APC) still presents its bare
+                    // quiescent: vanilla bills that draw whenever the device is ON, so leaving
+                    // it out of the demand model starves the net by exactly one quiescent while
+                    // the allocator calls it served (the persistent 160/150 partial-power
+                    // finding). Every other seg kind keeps the idle-bills-nothing model.
                     c.DesiredPull = (DesireActive(c) && c.DesiredThroughput > 0f)
                         ? c.DesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f) + c.UsedPower
-                        : 0f;
+                        : (DesireActive(c) && c.QuiescentAlwaysOn ? c.UsedPower : 0f);
                     pulls += c.DesiredPull;
                     // Soft gates on IsActive, NOT DesireActive: rigid must keep a shed contributor's
                     // claim visible so the forward pass can re-decide the shed, but soft never drives
@@ -1200,9 +1210,15 @@ namespace PowerGridPlus
                     if (!IsActive(c) || c.SoftDesiredPull <= 0f) { c.SoftThrough = 0f; c.SoftPull = 0f; continue; }
                     float grant = c.SoftDesiredPull * softRatio;
                     float m = Mathf.Max(c.InputDrawFactor, 1f);
-                    // Quiescent rides the soft pull only when the rigid side carries none (the
-                    // backward pass made the same choice when it sized SoftDesiredPull).
-                    float q = c.DesiredPull > 0f ? 0f : c.UsedPower;
+                    // Quiescent rides the soft pull only for the part the rigid pull does not
+                    // already carry: zero when the rigid grant covers the quiescent (conducting,
+                    // or a fully granted always-on idle pull), the full quiescent when the rigid
+                    // side carries none, and the remainder when a quiescent-bearing rigid pull
+                    // was granted only partially on a short net. Deriving from the GRANTED pull
+                    // keeps the seg invariant (TotalPull == TotalThrough * m + quiescent) exact
+                    // in every branch; the old desire-based choice under-carried the quiescent
+                    // on a partial rigid grant that also carried soft.
+                    float q = Mathf.Max(0f, c.UsedPower - c.Pull);
                     float outThr = (grant - q) / m;
                     if (outThr < 0f) outThr = 0f;
                     float headroom = c.EffCap - c.Throughput;

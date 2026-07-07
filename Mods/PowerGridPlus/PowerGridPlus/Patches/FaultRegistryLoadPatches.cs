@@ -53,6 +53,10 @@ namespace PowerGridPlus.Patches
             ShortfallDiagnostics.Clear();
             // The partial-power sentinel's counters and throttle are per-world diagnostics too.
             PartialPowerSentinel.Clear();
+            // The per-tick solar first-read latch and the deferred emergency-light toggles hold
+            // the previous world's ReferenceIds / Thing references; drop both on a hot-swap.
+            SolarOutputLatchPatches.Clear();
+            EmergencyLightToggleQueue.Clear();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }

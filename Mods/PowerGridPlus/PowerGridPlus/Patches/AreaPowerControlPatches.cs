@@ -119,10 +119,16 @@ namespace PowerGridPlus.Patches
             float usedPower = 0.0f;
             if (__instance.OnOff)
             {
-                usedPower += __instance.UsedPower;
-
                 if (__instance.OutputNetwork != null)
                 {
+                    // Quiescent idle draw, gated exactly like vanilla (OnOff && OutputNetwork
+                    // != null, 0.2.6403 decompile 391035): an output-less APC bills no idle
+                    // draw. The allocator funds this bill through the always-on quiescent pull
+                    // (PowerAllocator, Seg.QuiescentAlwaysOn), so an idle APC no longer leaves
+                    // a served network one quiescent short of its vanilla Required (the
+                    // persistent 160/150 partial-power finding).
+                    usedPower += __instance.UsedPower;
+
                     // Passthrough draw on the input network. Vanilla bills it from _powerProvided, the
                     // accumulator filled during the PREVIOUS tick's ApplyState, so it lags one tick. The
                     // allocator sizes upstream supply to the APC's CURRENT passthrough, so we bill the
@@ -140,9 +146,15 @@ namespace PowerGridPlus.Patches
                     float chargePortion = Mathf.Min(chargeCap, __instance.Battery.PowerDelta);
                     // Soft charge (POWER.md §7.5): the allocator grants the APC's internal-cell charge
                     // a per-tick share; only the CHARGE portion caps to it, the passthrough stays as
-                    // billed above.
-                    if (chargePortion > 0f && SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var share))
-                        chargePortion = Mathf.Min(chargePortion, share);
+                    // billed above. No fresh share means the APC is outside this tick's allocator
+                    // roster (errored, short-circuited, missing a terminal, or the first tick after
+                    // load), and its cell got no soft grant either, so bill 0 charge instead of an
+                    // uncapped unmodelled draw: symmetric with the transformer / wireless
+                    // "not in the roster -> report 0" convention.
+                    if (chargePortion > 0f)
+                        chargePortion = SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var share)
+                            ? Mathf.Min(chargePortion, share)
+                            : 0f;
                     usedPower += chargePortion;
                 }
             }

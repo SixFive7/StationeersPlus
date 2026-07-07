@@ -179,8 +179,16 @@ namespace PowerGridPlus.Patches
     /// <summary>
     ///     Per-tick emergency-light toggle. Runs as a postfix after vanilla WallLightBattery.OnPowerTick
     ///     so the vanilla CheckPowerState re-assert is preserved and a cell-powered emergency light
-    ///     stays stably lit. The Mode 0 / shortfall-latch / OnServer.Interact(InteractOnOff,...) logic
-    ///     matches the upstream Battery Backup Light behaviour, minus the flicker.
+    ///     stays stably lit. The Mode 0 / shortfall-latch logic matches the upstream Battery Backup
+    ///     Light behaviour, minus the flicker.
+    ///
+    ///     <para>The decision is computed here (device tick) but the OnOff write is QUEUED and issued
+    ///     at the start of the NEXT atomic tick, pre-OBSERVE (see
+    ///     <see cref="EmergencyLightToggleQueue"/>): an interact fired mid-tick from the worker lands
+    ///     on the main thread at an arbitrary later frame, which can flip the light's draw between
+    ///     ALLOCATE's read and ENFORCE's re-read of the same tick and desync vanilla's Required from
+    ///     the allocator's grants (a transition-clustered partial-power dip). Only the WHEN of the
+    ///     write moves; the latch semantics are unchanged.</para>
     /// </summary>
     [HarmonyPatch(typeof(WallLightBattery), "OnPowerTick")]
     public static class WallLightBatteryEmergencyTickPatch
@@ -209,17 +217,64 @@ namespace PowerGridPlus.Patches
             {
                 // Grid is feeding the light and has been short-free for three consecutive ticks. Park
                 // the backup light off; vanilla power flow charges its internal cell.
-                OnServer.Interact(__instance.InteractOnOff, 0, true);
+                EmergencyLightToggleQueue.Enqueue(__instance, 0);
             }
             else if (!__instance.OnOff && !gridFeedingNow && (shortfall || prevShortfall || prevPrevShortfall || !hasCable))
             {
                 // Cable stopped feeding the light AND the network is short (now or in the last two
                 // ticks) or the cable is gone entirely. Turn the backup light on; the cell powers
                 // the lamp until grid comes back or the cell empties.
-                OnServer.Interact(__instance.InteractOnOff, 1, true);
+                EmergencyLightToggleQueue.Enqueue(__instance, 1);
             }
 
             EmergencyLightSupport.ShortfallLatch[refId] = (shortfall, prevShortfall);
+        }
+    }
+
+    /// <summary>
+    ///     Deferred OnOff writes for the emergency-light toggle: decisions enqueue during the device
+    ///     tick and drain at the start of the NEXT atomic tick, pre-OBSERVE
+    ///     (AtomicElectricityTickPatch), so the flip is issued at a fixed tick-boundary phase instead
+    ///     of mid-tick. One pending entry per light (last decision wins), keyed by ReferenceId.
+    ///
+    ///     <para>Threading: enqueue (device tick) and drain (next tick's prefix) both run on the
+    ///     power worker, serialized by the tick; a ConcurrentDictionary keeps the map safe across
+    ///     pool-thread handoffs, matching <see cref="EmergencyLightSupport.ShortfallLatch"/>. The
+    ///     drain still goes through <c>OnServer.Interact</c>, which from a worker thread enqueues
+    ///     into vanilla's <c>Interactable.QueuedInteractions</c> for the main thread's next
+    ///     <c>GameManager.Update</c> (0.2.6403 decompile 39696-39703, 205169), so the state write
+    ///     itself lands within one main-thread frame of the tick boundary; the one-tick deferral
+    ///     plus fixed-phase issue is what keeps it out of the deciding tick entirely.</para>
+    /// </summary>
+    internal static class EmergencyLightToggleQueue
+    {
+        private static readonly ConcurrentDictionary<long, (WallLightBattery light, int state)> _pending =
+            new ConcurrentDictionary<long, (WallLightBattery, int)>();
+
+        internal static void Enqueue(WallLightBattery light, int state)
+        {
+            if (light == null) return;
+            _pending[((Thing)light).ReferenceId] = (light, state);
+        }
+
+        /// <summary>Issue all pending toggles. Called pre-OBSERVE by the atomic tick prefix.</summary>
+        internal static void Drain()
+        {
+            if (_pending.IsEmpty) return;
+            foreach (var pair in _pending)
+            {
+                var (light, state) = pair.Value;
+                if (light == null || light.IsBeingDestroyed || light.InteractOnOff == null) continue;
+                if (light.OnOff == (state == 1)) continue;   // self-resolved since the decision; nothing to write
+                OnServer.Interact(light.InteractOnOff, state, true);
+            }
+            _pending.Clear();
+        }
+
+        /// <summary>World-load reset: drop pending toggles that reference the previous world's lights.</summary>
+        internal static void Clear()
+        {
+            _pending.Clear();
         }
     }
 }

@@ -89,6 +89,12 @@ namespace PowerGridPlus.Patches
                 // audit's exact counterparts; a healthy grid pays a handful of field reads here.
                 LedgerAdoption.AuditTickBoundary(currentTick);
 
+                // Deferred emergency-light OnOff toggles from LAST tick's device tick are issued
+                // here, at the tick boundary before OBSERVE reads any device state, so a flip is
+                // never initiated mid-tick between ALLOCATE's read and ENFORCE's re-read (the
+                // transition-clustered partial-power dips). See EmergencyLightToggleQueue.
+                EmergencyLightToggleQueue.Drain();
+
                 // ----------------------------------------------------------------
                 // OBSERVE (SETUP/OBSERVE). Initialise + CalculateState per network
                 // with CURRENT state. Populates PowerTick.Required / .Potential /

@@ -54,6 +54,7 @@ namespace PowerGridPlus
         public float EffectiveCapacity;        // min(CapacitySetting, RateLimit) - Quiescent, clamped to >= 0
         public float Multiplier;               // input-side draw per unit delivered (PT-pair distance overhead m); 0 = no overhead (treated as 1)
         public float Quiescent;                // the device's (pair's) own idle draw, billed once per tick when it conducts
+        public bool QuiescentAlwaysOn;         // vanilla bills the quiescent whenever the device is ON (APC), not only when it conducts
         public long PartnerRefId;              // second half of a pair whose own fault state also locks the seg (0 = none)
         public bool StepUp;                    // steps a lower tier up to a higher one: never sheds (§5.2)
 
@@ -309,6 +310,13 @@ namespace PowerGridPlus
                 EffectiveCapacity = effCap,
                 Multiplier = 0f,
                 Quiescent = apc.UsedPower,
+                // Vanilla bills an ON APC's idle draw whenever it has an output network
+                // (Max(_powerProvided, UsedPower), 0.2.6403 decompile 391035), conducting or
+                // not, so the allocator must fund a quiescent-only pull for an idle APC or
+                // the vanilla Required sits one quiescent above Potential on a served net
+                // (the persistent 160/150 partial-power finding). Transformer and wireless
+                // billing is cache-driven and bills 0 idle, so only the APC carries this.
+                QuiescentAlwaysOn = true,
                 StepUp = false,                     // APC is never tier-classified step-up
             };
             return true;
