@@ -2,10 +2,11 @@
 title: Interactable
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-22
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-07
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 285691-285832 (InteractableType enum), 285833-286051 (Interactable class header, fields, State getter/setter), 286328-286361 (Interact / WaitThenInteract / InteractWhenReady)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 39664-39723 (OnServer.Interact overloads incl. worker enqueue), 205154-205170 (GameManager.Update drain gate), 304374 (QueuedInteractions), 304777-304785 (DoQueuedInteractions), 304799 (InteractionInstance struct)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 39322-39360 (OnServer.Interact), 198342-198353 (NetworkClient.Interact)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 277765-277782 (Battery OnAtmosphericTick power-tick gate), 279285-279308 (combustion power-tick gate), 299160-299191 (Thing.OnOff getter/setter), 300436-300449 (Thing.OnInteractableStateChanged / OnInteractableUpdated)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 302253-302261 (DeserializeSave JoinInProgressSync loop), 303112-303129 (SetInteractableStateOnJoin / DeserializeInteractableOnJoin), 303291-303379 (BuildInteractableUpdate / ProcessUpdate / ProcessInteractableUpdate)
@@ -248,6 +249,57 @@ public static void Interact(Interactable interactable, int state)
 ```
 
 It sends a `RequestInteractionToServer` message and does not write `State` locally. The server applies the change via its own `OnServer.Interact`, then the result ships back through the interactable-update delta (next section).
+
+### Queue drain timing: GameManager.Update on the main thread, one frame later, not the issuing tick
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
+
+Re-verified at 0.2.6403.27689: the `OnServer.Interact(Interactable, int, bool)` body excerpted above is verbatim-unchanged (new refs 39690-39723; the worker-thread enqueue branch is 39696-39703). The queue side, verbatim:
+
+```csharp
+public static Queue<InteractionInstance> QueuedInteractions = new Queue<InteractionInstance>();   // Interactable, L304374
+
+public static void DoQueuedInteractions()          // Interactable, L304777-304785
+{
+    lock (QueuedInteractions)
+    {
+        while (QueuedInteractions.Count > 0)
+        {
+            OnServer.Interact(QueuedInteractions.Dequeue());
+        }
+    }
+}
+
+public readonly struct InteractionInstance(Thing thing, InteractableType action, int state, bool skipAnimation)   // L304799
+```
+
+The drain driver is `GameManager.Update()` on the Unity main thread (L205154-205170), gated three ways before the queue is touched:
+
+```csharp
+public void Update()
+{
+    if (!IsInitialized)
+    {
+        return;
+    }
+    if (!WorldManager.IsGamePaused)
+    {
+        // ...
+        if (RunSimulation)
+        {
+            Interactable.DoQueuedInteractions();   // L205169
+        }
+        // ...
+    }
+}
+```
+
+Mechanics:
+
+- The queued item stores `interactable.Parent` (the Thing) plus `interactable.Action` (the `InteractableType`), NOT the `Interactable` reference. The drain re-enters `OnServer.Interact(InteractionInstance)` (39685-39688) -> `Interact(Thing, InteractableType, int, bool)` (39664-39683), which re-resolves the interactable by scanning `thing.Interactables` for the first entry whose `Action` matches, then re-enters the main-thread path above (re-checking `RunSimulation` and `GameState == Running`).
+- A worker-thread call enqueues under the `RunSimulation` gate only; the `GameState != Running` drop and the `AllowInteraction` / `InteractWhenReady` branching happen at drain time.
+- The drain is skipped while the game is paused, before `GameManager.IsInitialized`, or when `RunSimulation` is false, so queued items survive a pause and land on unpause.
+
+Consequence: an `OnServer.Interact` issued from a worker thread (a power-tick or atmos-tick patch) lands within one main-thread FRAME, NOT within the issuing tick. Anything that must be tick-atomic (state visible before the next power tick reads it, or a batch applied all-or-nothing at a tick boundary) cannot ride this queue; the mod needs its own queue drained at a tick boundary it controls. PowerGridPlus's emergency-light toggle queue is the in-repo example: it collects worker-side toggle decisions and applies them itself at the tick edge instead of letting each land a frame apart mid-tick.
 
 ## Caller-side change gating: why power ticks do not churn the callback
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
@@ -563,6 +615,7 @@ Practical use: to drive `Transformer.InteractWith` headlessly from a probe (e.g.
 
 ## Verification history
 
+- 2026-07-07: added "Queue drain timing" subsection under the OnServer.Interact section (game version 0.2.6403.27689). Re-verified the `OnServer.Interact(Interactable, int, bool)` excerpt verbatim-unchanged at the new refs (39690-39723; worker enqueue 39696-39703) and read the full drain chain directly: `QueuedInteractions` declaration (304374), `DoQueuedInteractions` (304777-304785), `InteractionInstance` readonly struct (304799), the re-entry overloads `Interact(InteractionInstance)` (39685-39688) -> `Interact(Thing, InteractableType, int, bool)` (39664-39683, re-resolves the Interactable by `Action` scan), and the drain driver `GameManager.Update` (205154-205170) gated on `IsInitialized && !WorldManager.IsGamePaused && RunSimulation`. New durable consequence: worker-issued interactions land within one main-thread frame, not within the issuing tick, so tick-atomic state changes need a mod-owned queue drained at a tick boundary (PowerGridPlus emergency-light toggle queue). Occasion: PowerGridPlus partial-power forensics. Additive; the existing 0.2.6228 description of the enqueue/drain pair (which did not name the drain driver) was confirmed, not changed. Bumped frontmatter verified_in / verified_at.
 - 2026-06-03: added `Interaction` readonly struct documentation (line 286395), distinguishing it from `InteractableType` enum (the discriminator), `Interactable` class (the per-Thing state slot), and `InteractionInstance` struct (the queued state-write request, line 286385). Finding produced while building ScenarioRunner headless probes for PowerGridPlus knob behaviour; needed the exact constructor signature to synthesize an `Interaction` for `Transformer.InteractWith`.
 - 2026-05-22: page created. Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. Driving question: how does a state change (specifically a dish on/off switch) propagate and fire `Thing.OnInteractableUpdated` on every peer, so a PowerTransmitterPlus beam fix can hook it once per change and never per tick. Verbatim extracts: `InteractableType` enum (lines 285691-285832), `Interactable` fields `Action` (285902) and `OnOffState` hash (285866), the `State` getter/setter (286009-286051, setter body 286027-286050, server flag block 286045-286049, no `new != old` guard confirmed), `Interact` (286328-286336) / `InteractWhenReady` (286358-286361), `OnServer.Interact` (39327-39360, `RunSimulation` gate at 39329, `skipAnimation && State != state` short-circuit at 39345), `NetworkClient.Interact` (198342-198353, request-only), the battery (277770-277782) and combustion (279289-279307) caller-side power-tick gates, base `Thing.OnInteractableUpdated` (300444-300449) and `OnInteractableStateChanged` (300436-300442), the override chain `Device.OnInteractableUpdated` (350870-350881) / `PowerReceiver` (386946-386964) / `PowerTransmitter` (387163-387181) with `WirelessPower` and `ElectricalInputOutput` confirmed not overriding, hierarchy headers (`PowerReceiver` 386861, `PowerTransmitter` 387065, `WirelessPower` 405441, `ElectricalInputOutput` 373755), the client apply path `BuildInteractableUpdate` (303291-303314, clears `IsDirty` at 303305) / `ProcessUpdate` (303329-303364) / `ProcessInteractableUpdate` (303366-303379, `Interact(state, skipAnimation: false)` at 303376), the join paths `DeserializeSave` loop (302253-302261) and `DeserializeInteractableOnJoin` (303118-303129) / `SetInteractableStateOnJoin` (303112-303116), and `Thing.set_OnOff` (299176-299190) for the rejected-alternative note. Cross-checked the hierarchy and override claims against the existing `Device.md` and `WirelessPower.md` pages; consistent (both already note `OnServer.Interact(base.InteractPowered, ...)` as the power-state write pattern).
 

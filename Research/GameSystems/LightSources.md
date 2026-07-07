@@ -2,9 +2,10 @@
 title: Light Sources (built-in light emitters)
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-11
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-07
 sources:
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 327936-328000 (WallLightBattery: class, BatteryChargeRate 200f, GetUsedPower, ReceivePower, OnPowerTick gate)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.ILight
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.ThingLight
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.WallLight / WallLightBattery / FlashingLight / GrowLight
@@ -227,14 +228,14 @@ So a wall light with a base Animator drives its light through the animator inste
 
 ## F. `WallLightBattery`: battery backup
 
-<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
 
-`WallLightBattery : WallLight, IBatteryPowered`. Adds a battery slot (`BatterySlot => Slots[0]`, `Battery => BatterySlot.Get<BatteryCell>()`) and a hardcoded `public float BatteryChargeRate = 200f;` ("How many watts are used to charge the battery?").
+`WallLightBattery : WallLight, IBatteryPowered` (0.2.6403.27689: class declaration 327936; the `BatteryChargeRate` field 327938-327940, whose header attribute carries a vanilla typo verbatim: `[Header("Wall Ligh tBattery")]`). Adds a battery slot (`BatterySlot => Slots[0]`, `Battery => BatterySlot.Get<BatteryCell>()`, 327946-327949) and a hardcoded `public float BatteryChargeRate = 200f;` ("How many watts are used to charge the battery?").
 
-- `GetUsedPower(cableNetwork)`: `(OnOff ? UsedPower : 0f)` + (if a cell is present and not charged) `Mathf.Min(BatteryChargeRate, occupant.PowerDelta)` — i.e. it draws its running wattage off the grid plus up to 200 W to top up its cell.
-- `ReceivePower`: if the grid delivered less than `UsedPower`, it makes up the shortfall from the cell (`occupant.PowerStored -= min(stored, shortfall)`); if it got more than `UsedPower`, the surplus recharges the cell (`Recharge(powerAdded - UsedPower)`); a `_lastPoweredByCableOnTick` timestamp records grid power.
-- `OnPowerTick`: when running and `!WasPoweredByCableLastTick`, drains the cell by `UsedPower` (`occupant.PowerStored -= UsedPower`). So off-grid, the light runs purely off its cell at `UsedPower` joules/tick.
-- `CheckPowerState`: forces the device's `Powered` flag on/off depending on whether it `HasPower()` (grid this tick, or a non-empty cell). Re-checked on every interaction and on child-slot changes.
+- `GetUsedPower(cableNetwork)` (327979-327992): `(OnOff ? UsedPower : 0f)` + (if a cell is present and not charged) `Mathf.Min(BatteryChargeRate, occupant.PowerDelta)`: it draws its running wattage off the grid plus up to 200 W to top up its cell. The charge term is NOT OnOff-gated (only the `UsedPower` term is), so a switched-OFF wall light with a non-charged cell still draws up to 200 W from the grid; the same gate asymmetry as `AreaPowerControl.GetUsedPower` (see [AreaPowerControl](../GameClasses/AreaPowerControl.md), "Gate shape").
+- `ReceivePower` (327955-327977): if the grid delivered less than `UsedPower`, it makes up the shortfall from the cell (`occupant.PowerStored -= min(stored, shortfall)`); if it got more than `UsedPower`, the surplus recharges the cell (`Recharge(powerAdded - UsedPower)`); a `_lastPoweredByCableOnTick` timestamp records grid power.
+- `OnPowerTick` (gate re-verified at 0.2.6403: `GameManager.RunSimulation && OnOff && !IsCursor && GameState == GameState.Running`, 327994-328000): when running and `!WasPoweredByCableLastTick`, drains the cell by `UsedPower` (`occupant.PowerStored -= UsedPower`; drain line 0.2.6228 basis). So off-grid, the light runs purely off its cell at `UsedPower` joules/tick.
+- `CheckPowerState`: forces the device's `Powered` flag on/off depending on whether it `HasPower()` (grid this tick, or a non-empty cell). Re-checked on every interaction and on child-slot changes. (Not re-read at 0.2.6403; 0.2.6228 basis.)
 
 The `UsedPower` figure (inherited `Device.UsedPower`, default 10 W) is prefab data.
 
@@ -363,6 +364,7 @@ The hard, code-confirmed numbers are: `WallLightBattery.BatteryChargeRate = 200f
 
 ## Verification history
 
+- 2026-07-07: re-verified section F (`WallLightBattery`) against the 0.2.6403.27689 decompile and restamped it: class declaration and `BatteryChargeRate = 200f` field verbatim (327936-327940, including the vanilla `[Header("Wall Ligh tBattery")]` typo), slot accessors (327946-327949), `GetUsedPower` (327979-327992), `ReceivePower` (327955-327977), and the `OnPowerTick` gate (327994-328000); the `OnPowerTick` cell-drain line and the `CheckPowerState` bullet were not re-read and keep their 0.2.6228 basis (marked inline). Added the gate-asymmetry note: the 200 W charge term is not OnOff-gated, matching `AreaPowerControl.GetUsedPower` (cross-linked). Occasion: PowerGridPlus partial-power forensics (emergency-light work touches WallLightBattery). Other sections keep their 0.2.6228.27061 stamps.
 - 2026-05-11: page created from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. All sections verified against the decompile at game version 0.2.6228.27061. Per-prefab `UnityEngine.Light` component values were not inspected (asset-bundle data); flagged in section K and the table.
 
 ## Open questions

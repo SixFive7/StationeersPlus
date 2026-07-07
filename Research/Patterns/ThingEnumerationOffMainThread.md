@@ -84,6 +84,7 @@ int cableNetCount = CableNetwork.AllCableNetworks.ActiveCount;
 Most reads on a `Thing` after it has been fully registered are managed-memory accesses with no engine round-trip, so they are safe from the worker:
 
 - `thing.ReferenceId`, `thing.PrefabName`, `thing.OnOff`, `thing.Mode`, `thing.Powered`
+- `thing.IsBeingDestroyed` (`public bool IsBeingDestroyed => BeingDestroyed;`, Thing line 318452, re-verified at 0.2.6403.27689): a plain managed bool read, and the liveness guard vanilla itself pairs with the null check inside pooled `ForEach` callbacks (see [AtmosphericThingTickDispatch](../GameSystems/AtmosphericThingTickDispatch.md)); filter `AllThings` entries with `t == null || t.IsBeingDestroyed` before touching them
 - `Battery.PowerStored`, `Battery.PowerMaximum`, `Battery.PowerDelta`
 - `Transformer.Setting`, `Transformer.UsedPower`, `Transformer._powerProvided` (private field, reflect or use `___` prefix in Harmony)
 - `Transformer.InputNetwork.CurrentLoad`, `OutputNetwork.CurrentLoad` (CableNetwork properties)
@@ -107,6 +108,7 @@ The reason the FIRST run happened to work but the second crashed is undetermined
 
 ## Verification history
 
+- 2026-07-07: added `thing.IsBeingDestroyed` to the safe-off-thread reads list (game version 0.2.6403.27689: `public bool IsBeingDestroyed => BeingDestroyed;` on Thing, decompile line 318452). Occasion: PowerGridPlus partial-power forensics. Single-bullet addition with its own inline version note; the section stamp and the other entries keep their 0.2.6228.27061 basis.
 - 2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (`DedicatedServer/data/server.log` after the 2026-05-25 transformer-conservation run) plus the `Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs` fix. Decompile reference for the static pools verified in place at `OcclusionManager.AllThings` (line 199822), `CableNetwork.AllCableNetworks` (line 253430), `AtmosphericsManager.AllAtmospheres` (line 417824).
 
 ## Open questions

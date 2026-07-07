@@ -3,13 +3,14 @@ title: Device
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-06
+verified_at: 2026-07-07
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Pipes.Device
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 345177-345193 (ArcFurnace GetUsedPower/ReceivePower, _powerUsedDuringTick impulse + reset), 350705 (Device.GetUsedPower base), 344687 (Setting/Setting2 device GetUsedPower) -- per-device draw-state fields (_powerProvided one-tick lag, _powerUsedDuringTick impulse)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 349588-351055 (Device class header, fields, properties, FindPowerCable, InitializeDataConnection, OnRegistered, OnNeighborPlaced, OnNeighborRemoved, CanConstruct), 253820-253850 (CableNetwork.AddDevice -> ConnectedCableNetworks.Add)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 297636-299221 (Thing.OnOff/Powered/PoweredValue/Error and backing fields), 302678-302695 (Thing.CacheStates sets every Has*State flag from the Interactables list), 349675 (Device.IsOperable), 373803 (ElectricalInputOutput.IsOperable), 327392 (IPowered), 386861-386894 (PowerReceiver.LinkedPowerTransmitter)
   - Plans/PowerGridPlus/PLAN.md, Mods/PowerGridPlus/RESEARCH.md
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 317927-317957 (Thing.Error property), 319497-319503 (Thing.SetIntegerSafe), Error write-path census (257 InteractError interact sites; CheckError bodies 424944-424957 / 391986-391999 / 427072; direct writes 389414/389424/374288/432580/42534/42544)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 370335 (Device class), 370460-370462 (DataCables/PowerCables arrays), 371501-371534 (power virtuals), 371568-371615 (FindDataCable/FindPowerCable/InitializeDataConnection), 371617-371638 (CanConstruct), 371640-371698 (SetPower/AssessPower/OnInteractableUpdated)
 related:
   - ./Cable.md
@@ -278,6 +279,66 @@ Single-pass vs multi-pass implication: vanilla runs `Initialise -> CalculateStat
 
 The "is this device switched on, and does it actually have power right now" question is answered by a set of animator-state-backed properties declared on `Thing` (the universal base), refined by `IsOperable` overrides further down the hierarchy. None of these live on `Device` itself; they are inherited.
 
+### Error is animator display state; writers are event-driven (0.2.6403 write-path census)
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
+
+`Thing.Error` at 0.2.6403.27689 (property 317927-317957, verbatim):
+
+```csharp
+public virtual int Error
+{
+    get
+    {
+        if (HasErrorState && !HasBaseAnimator)
+        {
+            return InteractError.State;
+        }
+        if (ThreadedManager.IsThread || _frameErrorUpdated == Time.frameCount)
+        {
+            return _error;
+        }
+        _frameErrorUpdated = Time.frameCount;
+        _error = (((bool)BaseAnimator && HasErrorState) ? BaseAnimator.GetInteger(Interactable.ErrorState) : 0);
+        return _error;
+    }
+    set
+    {
+        if (HasErrorState)
+        {
+            if ((bool)BaseAnimator)
+            {
+                SetIntegerSafe(Interactable.ErrorState, value);
+            }
+            else
+            {
+                InteractError.State = value;
+            }
+            _error = value;
+        }
+    }
+}
+```
+
+So `Error` is DISPLAY state: it is stored in the animator integer `Interactable.ErrorState` (or the `InteractError.State` slot when the prefab has no base animator), read through a per-frame cache (`_frameErrorUpdated` / `_error`; worker threads always get the cached value), and the setter is local-only (it touches the animator and the cache, sets no network flag, and sends nothing). The animator write guard every `Thing` state setter funnels through is `SetIntegerSafe` (319497-319503, verbatim):
+
+```csharp
+private void SetIntegerSafe(int stateId, int value)
+{
+    if ((object)BaseAnimator != null && BaseAnimator.HasParameter(stateId))
+    {
+        BaseAnimator.SetInteger(stateId, value);
+    }
+}
+```
+
+An animator without the named integer parameter silently swallows the write (no exception, no visible state). All the Thing state-property setters (Button/Error/Lock/Mode/Activate/Import/Export/OnOff/Powered/Open/Color/Access, call sites 317850-318339), the bulk animator-state refresh (319343-319399), and the generic interactable path (319513) go through it.
+
+Write-path census over the whole 0.2.6403.27689 decompile (a text census of the two mechanisms that can change `Error`: `OnServer.Interact(*.InteractError, ...)` calls, which route through the `Interactable.State` funnel and replicate, and direct `Error = <expr>` property writes, which are local display only):
+
+- 257 `OnServer.Interact(*.InteractError, ...)` call sites. The dominant shape is a per-class private `CheckError()` that compares `IsOperable` against the current `Error` and flips it 0/1 under `GameManager.RunSimulation`; `Transformer` (424944-424957) and `Battery` (391986-391999) carry byte-identical bodies of this shape, and `WirelessPower` has a protected variant (427072) that the dish pair invokes on link changes (408096, 408320).
+- A handful of direct `Error = <expr>` property writes: `RocketMiner` mining-head presence checks (389414 / 389424), `DeviceInputOutput` reset to 0 (374288), `Appliance` reset to 0 (432580), and a scanning-head device's checks (42534 / 42544; declaring class not resolved this pass).
+- Every writer found is event-driven: cable-network attach/detach, interactable updates, link changes, head-presence checks, state-machine transitions. For the power-bridge classes specifically, the only writer is their `CheckError`, and its callers are topology or toggle events (Transformer: `OnAddCableNetwork` / `OnRemoveCableNetwork` / next-frame recheck from `OnInteractableUpdated`, 424959-424984; Battery: `OnAddCableNetwork` / `OnRemoveCableNetwork`, 392013-392023, plus the next-frame-deferred `WaitCheckState` recheck, 392038-392050). Nothing calls `CheckError` from the power tick, so overload or shortfall during steady-state operation never raises `Error = 1` on these classes. A partial-power forensics pass (the PowerGridPlus occasion for this census) must not expect vanilla `Error` to flag brownouts; `Error == 1` on a bridge means a topology/operability fault was detected at an event boundary, nothing else.
+
 ### Thing-level state properties (declared on `Thing`, line 297636)
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->
 
@@ -409,6 +470,7 @@ All three are public on `Thing`, so a mod reads them directly off any `Device` i
 
 ## Verification history
 
+- 2026-07-07: added "Error is animator display state; writers are event-driven" subsection to the operational-state section (game version 0.2.6403.27689). Verbatim `Thing.Error` property (317927-317957: animator-integer display state with per-frame cache, worker threads read the cache, setter local-only via `SetIntegerSafe` / `InteractError.State`) and `Thing.SetIntegerSafe` (319497-319503: writes only when the animator has the named parameter). Whole-decompile write-path census: 257 `OnServer.Interact(*.InteractError, ...)` sites (dominant shape: per-class `CheckError()` flipping 0/1 on `IsOperable` under `RunSimulation`; Transformer 424944-424957 and Battery 391986-391999 byte-identical, WirelessPower protected variant 427072 called at 408096 / 408320) plus the direct `Error =` writes (RocketMiner 389414/389424, DeviceInputOutput 374288, Appliance 432580, unresolved scanner 42534/42544). All writers event-driven; no power-tick caller for the bridge classes. Occasion: PowerGridPlus partial-power forensics floated the claim "no vanilla Error writer for Transformer"; the census rejects the literal claim (CheckError exists and writes) while confirming the operative half (no steady-state/per-tick writer, so brownouts never raise Error). Additive here; the corresponding Transformer.md section was re-verified the same pass.
 - 2026-07-06: added the non-serialization census to the `_powerProvided` half of "Two per-device draw-state fields" (game version 0.2.6403.27689). Before writing, checked every central page mentioning `_powerProvided` for a claim that the ledger persists into saves: none exists (this page's "for the life of the object" wording was the closest and already implies reset on recreation), so the addition is additive scoping and no fresh validator was required. Evidence, all re-read from the 0.2.6403.27689 decompile this pass: whole-decompile `_powerProvided` census re-run (four declarations, only the known `+=` / `-=` / read sites); `TransformerSaveData` 424593-424597 (only `OutputSetting`); `WirelessPowerSaveData` 426765-426778 (only H/V + slew targets); `PowerTransmitterSaveData` 408264-408268 (adds only `OutputNetworkReferenceId`); `PowerReceiverSaveData` 408062-408064 (empty); `AreaPowerControl` class body 390555-391146 contains no `SerializeSave` / `InitialiseSaveData` / `DeserializeSave` / `SerializeOnJoin` / `DeserializeOnJoin` / `BuildUpdate` / `ProcessUpdate` member (next type `AtmosphericSeat` at 391147); caller census for `.UsePower(` / `.ReceivePower(` confirms `PowerProvider.ApplyPower` (271690-271696) and `PowerTick.ConsumePower` (271820-271840) are the only dispatch sites that can reach the four ledger classes (the umbilical crossing at 158139 / 158624 targets `RocketPowerUmbilical` partners; the single-argument `appliance.ReceivePower(float)` at 287 / 325489 is a different overload on the appliance hierarchy). Restamped the subsection.
 - 2026-07-02: re-verification and update pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. (a) NEW fact in the draw-state subsection: `_powerProvided` is never zeroed anywhere in the game; whole-decompile census finds exactly four declarations (AreaPowerControl 390592, PowerReceiver 408071, PowerTransmitter 408287, Transformer 424621) and only `+=` / `-=` / read sites, no plain assignment, so residual or negative debt persists for the life of the object. Also corrected the APC input-draw formula in that subsection from `UsedPower + _powerProvided` to the actual `Max(_powerProvided, UsedPower)` + charge term (verified at 391028-391044; the old wording was imprecise even at 0.2.6228, see [AreaPowerControl](./AreaPowerControl.md)). (b) NEW "Mid-tick admission: AssessPower" subsection (`AssessPower` 371654-371685 books into `CableNetwork.DuringTickLoad` against `EstimatedRemainingLoad => PotentialLoad - CurrentLoad - DuringTickLoad` at 270676, flips `Powered` via `SetPower` 371640-371646, over-budget books `Min(usedPower, EstimatedRemainingLoad)` and powers off; `DuringTickLoad` zeroed each `OnPowerTick` at 270834; triggered from `OnInteractableUpdated` 371692-371695 and `FindPowerCable` 371597). (c) API-migration supersessions: `SmallGrid.ConnectedCables` / `ConnectedDevices` were removed from the game; `FindPowerCable` (371588) / `FindDataCable` (371568, now public) / `CanConstruct` (371617) are `FillConnected`-based and `DataCables` / `PowerCables` are `Cable[]` auto-properties (370460 / 370462, previously `List<Cable>`); replaced the three superseded verbatim excerpts with the 0.2.6403 bodies and re-ran the single-write-site census for `PowerCable` (only 371596 / 371606, both inside `FindPowerCable`). Updated class decl (370335), power virtuals (371501-371534), and per-class draw refs to the new decompile. Sections "When InitializeDataConnection runs" and the Thing-level operational-state sections were NOT re-read this pass and keep their 0.2.6228.27061 stamps.
 - 2026-06-18: added "Two per-device draw-state fields make GetUsedPower reflect prior-tick state" subsection. Additive; no existing content changed. Driving question: a Power Grid Plus rewrite that reports fresh allocator-computed transformer supply matched against pass-through input draws produced a one-tick mismatch (a battery main feeding two Area Power Controllers flickered: `ENFORCE Required(t) == allocator-demand(t-1)`). Root-caused to `_powerProvided` (the downstream-consumption accumulator carried by exactly four classes -- Transformer, AreaPowerControl, PowerTransmitter, PowerReceiver -- filled in `ApplyState` after `CalculateState` already summed `GetUsedPower`, so the input-side draw lags the output-side delivery by one tick; Battery and RocketPowerUmbilical are terminal storage and do NOT carry it) vs `_powerUsedDuringTick` (the processing-machine impulse, reset once in `ReceivePower`, hence idempotent across multiple `CalculateState` reads within a tick). Decompile evidence (0.2.6228.27061): `ArcFurnace.GetUsedPower` = `UsedPower + _powerUsedDuringTick` (line 345177), reset at 345193; `_powerUsedDuringTick +=` setters at 164536/168673/169933/278095/278103/345226/359308/359382/361442/363841 etc. (recipe / smelt / atmosphere / charge energies); `_powerProvided` mutation via `ApplyState` -> `ConsumePower` -> `Device.ReceivePower` documented on [PowerTick](./PowerTick.md). Live confirmation via a ScenarioRunner consumer dump on the dedicated server: each Area Power Controller's `GetUsedPower` equalled `UsedPower + _powerProvided` (the stale accumulator) while transformers on the same net reported a fresh figure.

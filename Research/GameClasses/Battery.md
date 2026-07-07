@@ -3,7 +3,7 @@ title: Battery (station-mounted)
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-07
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Battery
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 391662-392217 (Battery), 340551 (BatteryCell.PowerDelta)
@@ -262,6 +262,52 @@ These numbers are how the game labels them in Stationpedia / device tooltips (th
 
 The `BatteryChargeEfficiency` patch on `ReceivePower` (lines 31-43 of `StationaryBatteryPatches.cs`) is a separate concern: it multiplies stored energy by `Settings.BatteryChargeEfficiency.Value` (default 1.0 = lossless) before clamping, with a 500 W trickle-charge bypass.
 
+## Self-drain in OnAtmosphericTick: never billed to the network
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
+
+`Battery` declares two private loss constants (391695 / 391697):
+
+```csharp
+private const float LOSS_NORMAL = 10f;
+private const float LOSS_IN_COLD = 50f;
+```
+
+The decompiler inlines `const` references, so the consuming body shows the literals `10f` / `50f` rather than the names. The drain lives in `OnAtmosphericTick`, verbatim (392186-392207):
+
+```csharp
+public override void OnAtmosphericTick()
+{
+    base.OnAtmosphericTick();
+    if (_rocketInternalCellType != RocketInternalCellType.None || PowerStored <= float.Epsilon)
+    {
+        return;
+    }
+    Atmosphere atmosphere = base.AtmosphericsController.CloneGlobalAtmosphere(base.WorldGrid, 0L);
+    if (!atmosphere.IsAboveArmstrong())
+    {
+        PowerStored -= 50f;
+        return;
+    }
+    float num = 10f;
+    if (atmosphere.Temperature < Chemistry.Temperature.ZeroDegrees)
+    {
+        num = Mathf.Max(50f * (TemperatureKelvin.One - atmosphere.Temperature / Chemistry.Temperature.ZeroDegrees).ToFloat() * atmosphere.HeatExchangeRatio(), num);
+    }
+    PowerStored -= num;
+    atmosphere.GasMixture.AddEnergy(new MoleEnergy(num));
+}
+```
+
+Reading the branches:
+
+- Rocket-internal battery prefabs (`_rocketInternalCellType != None`) and empty stores (`PowerStored <= float.Epsilon`) do not self-drain at all.
+- Below-Armstrong ambient pressure (near-vacuum): flat 50 J per atmospheric tick, and the early return skips the `AddEnergy` line, so nothing is emitted as heat.
+- Atmosphere at or above `Chemistry.Temperature.ZeroDegrees` (freezing): 10 J per atmospheric tick.
+- Atmosphere below freezing: `Max(50 * (1 - T / ZeroDegrees) * atmosphere.HeatExchangeRatio(), 10)` J, scaling with how far below freezing the gas is and how conductive it is.
+- In the atmosphere branches the drained joules are added to the surrounding gas as heat (`GasMixture.AddEnergy(new MoleEnergy(num))`), so a battery bank measurably warms its room.
+
+None of this passes through the power tick. The loss is written straight into `PowerStored` on the ATMOSPHERIC tick path; it never appears in any network's `Required` (only `GetUsedPower` feeds `Required`, and its return is the charge headroom, not a loss term; bodies above). Practical reading: on a grid-connected charging battery the self-drain shows up only indirectly (the headroom `PowerMaximum - PowerStored` is slightly larger next tick); on a full, off, or disconnected battery it is a pure drain that no wattage display, ledger, or network figure accounts for. During the PowerGridPlus partial-power forensics this is a known vanilla sink to subtract before attributing missing joules to the mod's allocator.
+
 ## Subclassing notes for mods
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
@@ -302,6 +348,7 @@ So the station batteries carry a pure `Data` third port; the rocket batteries ca
 
 ## Verification history
 
+- 2026-07-07 (later): added "Self-drain in OnAtmosphericTick: never billed to the network" section (game version 0.2.6403.27689). Verbatim body read at 392186-392207; `LOSS_NORMAL = 10f` / `LOSS_IN_COLD = 50f` declarations at 391695 / 391697 (const-inlined by the decompiler, hence the literals in the body). Documents the four branches (rocket-internal and empty stores exempt; vacuum flat 50 J with no heat emission; warm atmosphere 10 J; below-freezing scaled by `50 * (1 - T/ZeroDegrees) * HeatExchangeRatio` floored at 10 J with the joules added to the gas as heat) and the billing consequence (the drain is written straight into `PowerStored` on the atmospheric tick; it never enters any network's `Required`). Occasion: PowerGridPlus partial-power forensics (a known vanilla sink to subtract before blaming the allocator). Additive; no prior claim on this page addressed self-drain.
 - 2026-07-07: re-confirmed `ReceivePower` (392152-392158, `PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)` on the incoming chunk) byte-identical against the 0.2.6403.27689 decompile. Occasion: the PowerGridPlus partial-power sentinel scope derivation; this body is the proof that a charging store is ratio-deprivable (vanilla ApplyState scales the chunk stream before it reaches `ReceivePower`, so delivered charge = grant times the network ratio), which keeps storage-charging networks inside the sentinel's contract scope. No content change.
 - 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration `Battery : ElectricalInputOutput, ...` (391662, body ends 392217), `PowerMaximum = 3600000f` C# default (391675), and the four power-tick bodies verbatim (`UsePower` 392144-392150, `ReceivePower` 392152-392158, `GetUsedPower` full headroom 392160-392171, `GetGeneratedPower` whole store 392173-392184). ADDED the "PowerDelta is SIGN-REVERSED" subsection: station `Battery.PowerDelta => PowerStored - PowerMaximum` (391732) vs `BatteryCell.PowerDelta => PowerMaximum - PowerStored` (340551); `AreaPowerControl` uses the `BatteryCell` form (its slot `Battery` property is a `BatteryCell`, APC line 390594), so code reaching for the station property must account for the reversed sign. Sections on the charge-state ladder, display, flashing coroutine, prefab variants, and rocket-internal fields were not re-read this pass and keep their earlier stamps.
 - 2026-06-19: corrected the battery-family identification (restamped the section). The 2026-06-18 entry below wrongly said "no rocket-battery prefab exists." Per `english.xml` (`StructureBatteryMedium` = "Battery (Medium)", `StructureBatterySmall` = "Auxiliary Rocket Battery", `StructureBattery` = "Station Battery", `StructureBatteryLarge` = "Station Battery (Large)", `ItemKitRocketBattery` = "Kit (Rocket Battery)", lines 1972 / 5460 / 7423 / 7523 / 8184) and a Luna rocket save (ref 525400 = `StructureBatteryMedium` at a rocket position), `StructureBatteryMedium` + `StructureBatterySmall` are the ROCKET battery line and `StructureBattery` + `StructureBatteryLarge` are the STATION line; the prefab codenames are misleadingly generic. Connector data unchanged (rocket batteries: `PowerAndData` third port; station batteries: pure `Data` third port). Confirmed via a runtime probe on the rocket save (ref 525400 = `StructureBatteryMedium`) plus the direct `english.xml` reads.

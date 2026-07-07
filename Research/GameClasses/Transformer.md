@@ -3,12 +3,12 @@ title: Transformer
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-06
+verified_at: 2026-07-07
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)
   - Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)
-  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods), 424944-424984 (CheckError + event callers)
 related:
   - ./Cable.md
   - ./PowerTransmitter.md
@@ -174,9 +174,9 @@ Called from: `Setting` setter (L403348), `DeserializeSave` (L403570), and any mo
 Loading: `Thing.OnFinishedLoad` does NOT call `SetKnob` for Transformers, so the visual knob is stuck at the prefab default until the player interacts. A mod that overrides the rotation domain (e.g. PowerGridPlus's Priority) needs to explicitly call `SetKnob` from a `Thing.OnFinishedLoad` postfix to land the right rotation immediately on save load.
 
 ## CheckError and Error write path
-<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
 
-`Transformer.Error` is the inherited `Thing.Error` (`int`, 0 / 1; backed by the animator integer `Interactable.ErrorState` plus a cached `_error` field). On Transformer it is written exclusively by `CheckError()` (decompile L403646-403659):
+`Transformer.Error` is the inherited `Thing.Error` (`int`, 0 / 1; backed by the animator integer `Interactable.ErrorState` plus a cached `_error` field; property mechanics and the whole-game write census on [Device](./Device.md), "Error is animator display state"). On Transformer it is written exclusively by `CheckError()` (verbatim-unchanged at 0.2.6403.27689, decompile 424944-424957; 0.2.6228 ref L403646-403659):
 
 ```csharp
 private void CheckError()
@@ -193,11 +193,11 @@ private void CheckError()
 
 `CheckError` is invoked from three places:
 
-- `OnAddCableNetwork` (L403661): when a cable network attaches.
-- `OnRemoveCableNetwork` (L403667): when a cable network detaches.
-- `CheckStateNextFrame()` (L403673), itself scheduled from `OnInteractableUpdated` (L403679-403686) when the on / off `Interactable` fires `State == 1` for `InteractableType.OnOff`.
+- `OnAddCableNetwork` (424959-424963; 0.2.6228 L403661): when a cable network attaches.
+- `OnRemoveCableNetwork` (424965-424969; 0.2.6228 L403667): when a cable network detaches.
+- `CheckStateNextFrame()` (424971-424975; 0.2.6228 L403673), itself scheduled from `OnInteractableUpdated` (424977-424984; 0.2.6228 L403679-403686) when, under `GameManager.RunSimulation`, the on / off `Interactable` fires `State == 1` for `InteractableType.OnOff`.
 
-`!IsOperable` (the trigger for `Error = 1`) means: `InputNetwork == OutputNetwork` (self-shorted; the `ElectricalInputOutput.IsOperable` rule at L373803-373813) OR `base.IsOperable` is false (Device-level: `!IsStructureCompleted` or `IsBroken`). There is no per-tick `CheckError` call: a transient overload during steady-state operation is NOT mapped to `Error` by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on `CheckError` to fire.
+`!IsOperable` (the trigger for `Error = 1`) means: `InputNetwork == OutputNetwork` (self-shorted; the `ElectricalInputOutput.IsOperable` rule at 0.2.6228 L373803-373813, not re-read at 0.2.6403) OR `base.IsOperable` is false (Device-level: `!IsStructureCompleted` or `IsBroken`). There is no per-tick `CheckError` call: a transient overload during steady-state operation is NOT mapped to `Error` by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on `CheckError` to fire.
 
 Vanilla never writes `Error` to values other than 0 or 1. The field is `int` so higher codes survive the round-trip, but vanilla animator states for `Interactable.ErrorState` are only bound for 0 / 1; unmapped integer values silently produce no animation transition.
 
@@ -226,6 +226,8 @@ A reported "extra data port" on the rocket transformer is a property of that pre
 So the rocket small transformer carries a dedicated `Data` connector (3 connectors) where the station small transformer folds data onto its input power connector (2 connectors). The large station transformer has the same separate-Data-port shape as the rocket one; the small and medium are the only transformers whose data rides on an Input/Output power connector. See [Connection](./Connection.md) "Data-port discovery".
 
 ## Verification history
+
+- 2026-07-07: re-verified "CheckError and Error write path" against the 0.2.6403.27689 decompile and restamped it. `CheckError` (424944-424957) and its three event callers (`OnAddCableNetwork` 424959-424963, `OnRemoveCableNetwork` 424965-424969, `CheckStateNextFrame` 424971-424975 scheduled from `OnInteractableUpdated` 424977-424984) are verbatim-unchanged from 0.2.6228; added the `GameManager.RunSimulation` gate detail on `OnInteractableUpdated` and updated line refs (the `ElectricalInputOutput.IsOperable` sub-claim keeps its 0.2.6228 ref, not re-read). Occasion: the PowerGridPlus partial-power forensics floated the claim that "the whole-decompile census shows no vanilla Error writer for Transformer"; the re-read REJECTS that literal claim (CheckError exists and writes 0/1 via `OnServer.Interact(InteractError, ...)`) while confirming the section's standing operative claim: all writers are event-driven, there is no per-tick call, and steady-state overload never raises `Error`. Existing verified content confirmed, not changed, so no fresh validator was required; the whole-game write census lives on [Device](./Device.md).
 
 - 2026-07-06: added the "`_powerProvided` is runtime-only" subsection under the save round-trip section (game version 0.2.6403.27689). Re-read `TransformerSaveData` (424593-424597, still only `OutputSetting`) and re-ran the whole-decompile `_powerProvided` census (Transformer sites: declaration 424621, `UsePower` 424761, `ReceivePower` 424769, `GetUsedPower` 424791; no serialization member anywhere). Additive: confirms and sharpens the existing "Only `Setting` is persisted at the Transformer level" claim, which was already consistent; no fresh validator needed. The parent section's other content (Setting setter, sync flags, 0.2.6228 line refs) was not re-read and keeps its stamp.
 - 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. The power-method bodies are unchanged; restamped "Class hierarchy and fields" with the new refs (class 424598, `_powerProvided` 424621, `UsePower` / `ReceivePower` 424757-424771, `GetUsedPower` 424773-424792, `GetGeneratedPower` = `Min(Setting, InputNetwork.PotentialLoad)` 424794-424805). The Setting-sync, InteractWith, SetKnob, CheckError, and rocket-variant sections were not re-read this pass and keep their 0.2.6228.27061 stamps (their old `L403xxx` refs are 0.2.6228 decompile lines).
