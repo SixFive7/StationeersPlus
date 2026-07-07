@@ -4347,7 +4347,7 @@
   <span class="md-ellipsis">
     
   
-    Light Sources (built-in light emitters)
+    LightSources
   
 
     
@@ -8357,7 +8357,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-06.
+           on 2026-07-07.
         </p>
       
       
@@ -8376,7 +8376,7 @@
             
               <li><code>Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)</code></li>
             
-              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods)'}</code></li>
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods), 424944-424984 (CheckError + event callers)'}</code></li>
             
           </ul>
         </details>
@@ -8545,9 +8545,9 @@
 <p>Called from: <code>Setting</code> setter (L403348), <code>DeserializeSave</code> (L403570), and any modder-side write through reflection. A mod that hardcodes <code>Setting</code> to a different domain (e.g. <code>_outputSetting</code> is now "priority", and <code>OutputMaximum</code> is now the literal throughput) gets a needle pinned to <code>OutputMaximum</code>'s 1 / OutputMaximum fraction unless <code>SetKnob</code> is also patched to lerp against the new domain (e.g. <code>priority / NeedleFullScale</code>). The mod patch MUST mirror BOTH the base-rotation reset AND the Y axis, or follow vanilla's <code>Rotate(0, x, 0, Space.Self)</code> pattern -- the prior version of this page incorrectly showed the rotation as Z and skipped the base-reset, which led to a 90-degree-sideways knob bug in PowerGridPlus's first attempt at this patch.</p>
 <p>Loading: <code>Thing.OnFinishedLoad</code> does NOT call <code>SetKnob</code> for Transformers, so the visual knob is stuck at the prefab default until the player interacts. A mod that overrides the rotation domain (e.g. PowerGridPlus's Priority) needs to explicitly call <code>SetKnob</code> from a <code>Thing.OnFinishedLoad</code> postfix to land the right rotation immediately on save load.</p>
 <h2 id="checkerror-and-error-write-path">CheckError and Error write path<a class="headerlink" href="#checkerror-and-error-write-path" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
 
-<p><code>Transformer.Error</code> is the inherited <code>Thing.Error</code> (<code>int</code>, 0 / 1; backed by the animator integer <code>Interactable.ErrorState</code> plus a cached <code>_error</code> field). On Transformer it is written exclusively by <code>CheckError()</code> (decompile L403646-403659):</p>
+<p><code>Transformer.Error</code> is the inherited <code>Thing.Error</code> (<code>int</code>, 0 / 1; backed by the animator integer <code>Interactable.ErrorState</code> plus a cached <code>_error</code> field; property mechanics and the whole-game write census on <a href="../Device/">Device</a>, "Error is animator display state"). On Transformer it is written exclusively by <code>CheckError()</code> (verbatim-unchanged at 0.2.6403.27689, decompile 424944-424957; 0.2.6228 ref L403646-403659):</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">CheckError</span><span class="p">()</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
@@ -8561,11 +8561,11 @@
 </span></code></pre></div>
 <p><code>CheckError</code> is invoked from three places:</p>
 <ul>
-<li><code>OnAddCableNetwork</code> (L403661): when a cable network attaches.</li>
-<li><code>OnRemoveCableNetwork</code> (L403667): when a cable network detaches.</li>
-<li><code>CheckStateNextFrame()</code> (L403673), itself scheduled from <code>OnInteractableUpdated</code> (L403679-403686) when the on / off <code>Interactable</code> fires <code>State == 1</code> for <code>InteractableType.OnOff</code>.</li>
+<li><code>OnAddCableNetwork</code> (424959-424963; 0.2.6228 L403661): when a cable network attaches.</li>
+<li><code>OnRemoveCableNetwork</code> (424965-424969; 0.2.6228 L403667): when a cable network detaches.</li>
+<li><code>CheckStateNextFrame()</code> (424971-424975; 0.2.6228 L403673), itself scheduled from <code>OnInteractableUpdated</code> (424977-424984; 0.2.6228 L403679-403686) when, under <code>GameManager.RunSimulation</code>, the on / off <code>Interactable</code> fires <code>State == 1</code> for <code>InteractableType.OnOff</code>.</li>
 </ul>
-<p><code>!IsOperable</code> (the trigger for <code>Error = 1</code>) means: <code>InputNetwork == OutputNetwork</code> (self-shorted; the <code>ElectricalInputOutput.IsOperable</code> rule at L373803-373813) OR <code>base.IsOperable</code> is false (Device-level: <code>!IsStructureCompleted</code> or <code>IsBroken</code>). There is no per-tick <code>CheckError</code> call: a transient overload during steady-state operation is NOT mapped to <code>Error</code> by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on <code>CheckError</code> to fire.</p>
+<p><code>!IsOperable</code> (the trigger for <code>Error = 1</code>) means: <code>InputNetwork == OutputNetwork</code> (self-shorted; the <code>ElectricalInputOutput.IsOperable</code> rule at 0.2.6228 L373803-373813, not re-read at 0.2.6403) OR <code>base.IsOperable</code> is false (Device-level: <code>!IsStructureCompleted</code> or <code>IsBroken</code>). There is no per-tick <code>CheckError</code> call: a transient overload during steady-state operation is NOT mapped to <code>Error</code> by vanilla. A mod that wants Error-driven UX during steady-state operation (e.g. brownout shedding) needs its own write path and must not rely on <code>CheckError</code> to fire.</p>
 <p>Vanilla never writes <code>Error</code> to values other than 0 or 1. The field is <code>int</code> so higher codes survive the round-trip, but vanilla animator states for <code>Interactable.ErrorState</code> are only bound for 0 / 1; unmapped integer values silently produce no animation transition.</p>
 <h2 id="rocket-internal-variant-same-class-prefab-distinguished">Rocket-internal variant (same class, prefab-distinguished)<a class="headerlink" href="#rocket-internal-variant-same-class-prefab-distinguished" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
@@ -8609,7 +8609,12 @@
 <p>So the rocket small transformer carries a dedicated <code>Data</code> connector (3 connectors) where the station small transformer folds data onto its input power connector (2 connectors). The large station transformer has the same separate-Data-port shape as the rocket one; the small and medium are the only transformers whose data rides on an Input/Output power connector. See <a href="../Connection/">Connection</a> "Data-port discovery".</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-07-06: added the "<code>_powerProvided</code> is runtime-only" subsection under the save round-trip section (game version 0.2.6403.27689). Re-read <code>TransformerSaveData</code> (424593-424597, still only <code>OutputSetting</code>) and re-ran the whole-decompile <code>_powerProvided</code> census (Transformer sites: declaration 424621, <code>UsePower</code> 424761, <code>ReceivePower</code> 424769, <code>GetUsedPower</code> 424791; no serialization member anywhere). Additive: confirms and sharpens the existing "Only <code>Setting</code> is persisted at the Transformer level" claim, which was already consistent; no fresh validator needed. The parent section's other content (Setting setter, sync flags, 0.2.6228 line refs) was not re-read and keeps its stamp.</li>
+<li>
+<p>2026-07-07: re-verified "CheckError and Error write path" against the 0.2.6403.27689 decompile and restamped it. <code>CheckError</code> (424944-424957) and its three event callers (<code>OnAddCableNetwork</code> 424959-424963, <code>OnRemoveCableNetwork</code> 424965-424969, <code>CheckStateNextFrame</code> 424971-424975 scheduled from <code>OnInteractableUpdated</code> 424977-424984) are verbatim-unchanged from 0.2.6228; added the <code>GameManager.RunSimulation</code> gate detail on <code>OnInteractableUpdated</code> and updated line refs (the <code>ElectricalInputOutput.IsOperable</code> sub-claim keeps its 0.2.6228 ref, not re-read). Occasion: the PowerGridPlus partial-power forensics floated the claim that "the whole-decompile census shows no vanilla Error writer for Transformer"; the re-read REJECTS that literal claim (CheckError exists and writes 0/1 via <code>OnServer.Interact(InteractError, ...)</code>) while confirming the section's standing operative claim: all writers are event-driven, there is no per-tick call, and steady-state overload never raises <code>Error</code>. Existing verified content confirmed, not changed, so no fresh validator was required; the whole-game write census lives on <a href="../Device/">Device</a>.</p>
+</li>
+<li>
+<p>2026-07-06: added the "<code>_powerProvided</code> is runtime-only" subsection under the save round-trip section (game version 0.2.6403.27689). Re-read <code>TransformerSaveData</code> (424593-424597, still only <code>OutputSetting</code>) and re-ran the whole-decompile <code>_powerProvided</code> census (Transformer sites: declaration 424621, <code>UsePower</code> 424761, <code>ReceivePower</code> 424769, <code>GetUsedPower</code> 424791; no serialization member anywhere). Additive: confirms and sharpens the existing "Only <code>Setting</code> is persisted at the Transformer level" claim, which was already consistent; no fresh validator needed. The parent section's other content (Setting setter, sync flags, 0.2.6228 line refs) was not re-read and keeps its stamp.</p>
+</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. The power-method bodies are unchanged; restamped "Class hierarchy and fields" with the new refs (class 424598, <code>_powerProvided</code> 424621, <code>UsePower</code> / <code>ReceivePower</code> 424757-424771, <code>GetUsedPower</code> 424773-424792, <code>GetGeneratedPower</code> = <code>Min(Setting, InputNetwork.PotentialLoad)</code> 424794-424805). The Setting-sync, InteractWith, SetKnob, CheckError, and rocket-variant sections were not re-read this pass and keep their 0.2.6228.27061 stamps (their old <code>L403xxx</code> refs are 0.2.6228 decompile lines).</li>
 <li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L403327-L403331; rocket and station transformers are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): rocket small transformer = 3 connectors with a dedicated <code>Data</code> port, station small = 2 with <code>PowerAndData/Input</code>, large <code>StructureTransformer</code> = 3 with a dedicated <code>Data</code> port, medium = 2 with <code>PowerAndData/Output</code>. Additive; no conflict with existing content.</li>
 <li>

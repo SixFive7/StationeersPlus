@@ -29,7 +29,7 @@
     
     
       
-        <title>Light Sources (built-in light emitters) - StationeersPlus</title>
+        <title>LightSources - StationeersPlus</title>
       
     
     
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Light Sources (built-in light emitters)
+              LightSources
             
           </span>
         </div>
@@ -4182,7 +4182,7 @@
   <span class="md-ellipsis">
     
   
-    Light Sources (built-in light emitters)
+    LightSources
   
 
     
@@ -4200,7 +4200,7 @@
   <span class="md-ellipsis">
     
   
-    Light Sources (built-in light emitters)
+    LightSources
   
 
     
@@ -8379,90 +8379,33 @@
               <article class="md-content__inner md-typeset">
                 
   
-    <aside class="research-meta" markdown>
-      
-        <p class="research-meta-type">
-          <strong>Category:</strong> GameSystems
-        </p>
-      
-      
-        <p class="research-meta-verified">
-          <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-11.
-        </p>
-      
-      
-      
-        <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (6)</summary>
-          <ul>
-            
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.ILight'}</code></li>
-            
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.ThingLight'}</code></li>
-            
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.WallLight / WallLightBattery / FlashingLight / GrowLight'}</code></li>
-            
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.Items.StackableLight / ChemLight / RoadFlare'}</code></li>
-            
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.Objects.Items.PowerTool / PortableLight / Flashlight / Headlamp / Helmet / GasMask'}</code></li>
-            
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'Assets.Scripts.LightChanger / LightManager / OcclusionManager'}</code></li>
-            
-          </ul>
-        </details>
-      
-      
-        <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (5)</summary>
-          <ul>
-            
-              <li><code>./RenderingPipelineAndGlow.md</code></li>
-            
-              <li><code>./PowerTickThreading.md</code></li>
-            
-              <li><code>./Occlusion.md</code></li>
-            
-              <li><code>../GameClasses/ColorSwatch.md</code></li>
-            
-              <li><code>../GameClasses/SolarPanel.md</code></li>
-            
-          </ul>
-        </details>
-      
-    </aside>
-  
   
                   
 
-  <nav class="md-tags" >
-    
-      
-      
-      
-      
-        <span class="md-tag">power</span>
-      
-    
-      
-      
-      
-      
-        <span class="md-tag">prefab</span>
-      
-    
-      
-      
-      
-      
-        <span class="md-tag">unity</span>
-      
-    
-  </nav>
 
 
-
+<hr />
+<p>title: Light Sources (built-in light emitters)
+type: GameSystems
+created_in: 0.2.6228.27061
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-07
+sources:
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 327936-328000 (WallLightBattery: class, BatteryChargeRate 200f, GetUsedPower, ReceivePower, OnPowerTick gate)
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.ILight
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.ThingLight
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.WallLight / WallLightBattery / FlashingLight / GrowLight
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.Items.StackableLight / ChemLight / RoadFlare
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.Objects.Items.PowerTool / PortableLight / Flashlight / Headlamp / Helmet / GasMask
+  - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Assets.Scripts.LightChanger / LightManager / OcclusionManager
+related:
+  - ./RenderingPipelineAndGlow.md
+  - ./PowerTickThreading.md
+  - ./Occlusion.md
+  - ../GameClasses/ColorSwatch.md
+  - ../GameClasses/SolarPanel.md
+tags: [power, unity, prefab]</p>
+<hr />
 <h1 id="light-sources-built-in-light-emitters">Light Sources (built-in light emitters)<a class="headerlink" href="#light-sources-built-in-light-emitters" title="Permanent link">&para;</a></h1>
 <p>This page catalogs every code-recognised light-emitting Thing in vanilla Stationeers (v0.2.6228.27061): how each one is powered, how it is enabled/disabled, and what the decompile does and does not tell you about its light <em>spread</em> (range, spot angle, point vs spot, intensity, color). Per-prefab <code>UnityEngine.Light</code> component values (the actual range/angle/intensity/color of each shipped prefab variant) live in <code>sharedassets0.assets</code>, not in the C# assembly; the limits of the decompile are spelled out in the last section.</p>
 <p>For the related emissive-material / bloom glow path (ChemLight and RoadFlare also set <code>SetCustomColor(emissive: true)</code> on their <em>mesh</em> renderers, separate from their <code>Light</code> component) see <code>./RenderingPipelineAndGlow.md</code> and <code>../GameClasses/ColorSwatch.md</code>. For the sunlight-occlusion side (<code>ILightActivated</code>, <code>LightManager.HasSunlight</code>, the daylight sensor) see <code>../GameClasses/SolarPanel.md</code>.</p>
@@ -8737,14 +8680,14 @@
 <p><strong>Smart-rotate.</strong> <code>WallLight</code> implements <code>ISmartRotatable</code> with <code>ConnectionType ConnectionType = SmartRotate.ConnectionType.Exhaustive</code> and an <code>OpenEndsPermutation</code> int[6]; <code>GetConnectionType</code>/<code>SetConnectionType</code>/<code>GetOpenEndsPermutation</code>/<code>SetOpenEndsPermutation</code> are the contract. As noted above, <code>light.enabled</code> is only set when <code>GetOpenEndsPermutation()</code> is non-null.</p>
 <p><code>OnFinishedLoad</code> re-applies <code>SetCustomColor(OnOff &amp;&amp; Powered)</code> and schedules an initial <code>ShadowChange</code>.</p>
 <h2 id="f-walllightbattery-battery-backup">F. <code>WallLightBattery</code>: battery backup<a class="headerlink" href="#f-walllightbattery-battery-backup" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-11 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
 
-<p><code>WallLightBattery : WallLight, IBatteryPowered</code>. Adds a battery slot (<code>BatterySlot =&gt; Slots[0]</code>, <code>Battery =&gt; BatterySlot.Get&lt;BatteryCell&gt;()</code>) and a hardcoded <code>public float BatteryChargeRate = 200f;</code> ("How many watts are used to charge the battery?").</p>
+<p><code>WallLightBattery : WallLight, IBatteryPowered</code> (0.2.6403.27689: class declaration 327936; the <code>BatteryChargeRate</code> field 327938-327940, whose header attribute carries a vanilla typo verbatim: <code>[Header("Wall Ligh tBattery")]</code>). Adds a battery slot (<code>BatterySlot =&gt; Slots[0]</code>, <code>Battery =&gt; BatterySlot.Get&lt;BatteryCell&gt;()</code>, 327946-327949) and a hardcoded <code>public float BatteryChargeRate = 200f;</code> ("How many watts are used to charge the battery?").</p>
 <ul>
-<li><code>GetUsedPower(cableNetwork)</code>: <code>(OnOff ? UsedPower : 0f)</code> + (if a cell is present and not charged) <code>Mathf.Min(BatteryChargeRate, occupant.PowerDelta)</code> — i.e. it draws its running wattage off the grid plus up to 200 W to top up its cell.</li>
-<li><code>ReceivePower</code>: if the grid delivered less than <code>UsedPower</code>, it makes up the shortfall from the cell (<code>occupant.PowerStored -= min(stored, shortfall)</code>); if it got more than <code>UsedPower</code>, the surplus recharges the cell (<code>Recharge(powerAdded - UsedPower)</code>); a <code>_lastPoweredByCableOnTick</code> timestamp records grid power.</li>
-<li><code>OnPowerTick</code>: when running and <code>!WasPoweredByCableLastTick</code>, drains the cell by <code>UsedPower</code> (<code>occupant.PowerStored -= UsedPower</code>). So off-grid, the light runs purely off its cell at <code>UsedPower</code> joules/tick.</li>
-<li><code>CheckPowerState</code>: forces the device's <code>Powered</code> flag on/off depending on whether it <code>HasPower()</code> (grid this tick, or a non-empty cell). Re-checked on every interaction and on child-slot changes.</li>
+<li><code>GetUsedPower(cableNetwork)</code> (327979-327992): <code>(OnOff ? UsedPower : 0f)</code> + (if a cell is present and not charged) <code>Mathf.Min(BatteryChargeRate, occupant.PowerDelta)</code>: it draws its running wattage off the grid plus up to 200 W to top up its cell. The charge term is NOT OnOff-gated (only the <code>UsedPower</code> term is), so a switched-OFF wall light with a non-charged cell still draws up to 200 W from the grid; the same gate asymmetry as <code>AreaPowerControl.GetUsedPower</code> (see <a href="../../GameClasses/AreaPowerControl/">AreaPowerControl</a>, "Gate shape").</li>
+<li><code>ReceivePower</code> (327955-327977): if the grid delivered less than <code>UsedPower</code>, it makes up the shortfall from the cell (<code>occupant.PowerStored -= min(stored, shortfall)</code>); if it got more than <code>UsedPower</code>, the surplus recharges the cell (<code>Recharge(powerAdded - UsedPower)</code>); a <code>_lastPoweredByCableOnTick</code> timestamp records grid power.</li>
+<li><code>OnPowerTick</code> (gate re-verified at 0.2.6403: <code>GameManager.RunSimulation &amp;&amp; OnOff &amp;&amp; !IsCursor &amp;&amp; GameState == GameState.Running</code>, 327994-328000): when running and <code>!WasPoweredByCableLastTick</code>, drains the cell by <code>UsedPower</code> (<code>occupant.PowerStored -= UsedPower</code>; drain line 0.2.6228 basis). So off-grid, the light runs purely off its cell at <code>UsedPower</code> joules/tick.</li>
+<li><code>CheckPowerState</code>: forces the device's <code>Powered</code> flag on/off depending on whether it <code>HasPower()</code> (grid this tick, or a non-empty cell). Re-checked on every interaction and on child-slot changes. (Not re-read at 0.2.6403; 0.2.6228 basis.)</li>
 </ul>
 <p>The <code>UsedPower</code> figure (inherited <code>Device.UsedPower</code>, default 10 W) is prefab data.</p>
 <h2 id="g-flashinglight-and-growlight">G. <code>FlashingLight</code> and <code>GrowLight</code><a class="headerlink" href="#g-flashinglight-and-growlight" title="Permanent link">&para;</a></h2>
@@ -8852,6 +8795,7 @@
 <p>The hard, code-confirmed numbers are: <code>WallLightBattery.BatteryChargeRate = 200f</code> W; <code>Helmet</code> light drain <code>5f</code>/tick (~10 W); <code>GasMask</code> light drain <code>_lightPowerUsage = 50f</code>/atmospheric-tick; <code>StackableLight.LIFETIME = 180f</code> s (+0..5 s random); <code>RoadFlare.FlareLight.range</code> = <code>10f</code> normal / <code>25f</code> parachute, intensity <code>Random.Range(num, num+0.8f)</code> with <code>num = Lerp(0.5f, 3f, ActualLifetime/180f)</code>, <code>ENERGY_RELEASED_PER_TICK = 1000f</code>, <code>FuseTimeMs = 1200</code>; <code>FlashingLight</code> rotator <code>720f</code> deg/s; <code>Device.UsedPower</code> default <code>10f</code>; <code>PowerTool.BASEPOWERUSAGE = 1000</code>; <code>WallLight</code> render distance <code>40f</code>, shadow distance via <code>OcclusionManager.LightShadowDistanceSq</code> (default <code>900</code> = 30 m²); helmet/headlamp shadow distance via <code>HelmetLightShadowDistanceSq()</code> = <code>(LightShadowDistance/2)^2</code> (default <code>225</code>).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-07: re-verified section F (<code>WallLightBattery</code>) against the 0.2.6403.27689 decompile and restamped it: class declaration and <code>BatteryChargeRate = 200f</code> field verbatim (327936-327940, including the vanilla <code>[Header("Wall Ligh tBattery")]</code> typo), slot accessors (327946-327949), <code>GetUsedPower</code> (327979-327992), <code>ReceivePower</code> (327955-327977), and the <code>OnPowerTick</code> gate (327994-328000); the <code>OnPowerTick</code> cell-drain line and the <code>CheckPowerState</code> bullet were not re-read and keep their 0.2.6228 basis (marked inline). Added the gate-asymmetry note: the 200 W charge term is not OnOff-gated, matching <code>AreaPowerControl.GetUsedPower</code> (cross-linked). Occasion: PowerGridPlus partial-power forensics (emergency-light work touches WallLightBattery). Other sections keep their 0.2.6228.27061 stamps.</li>
 <li>2026-05-11: page created from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>. All sections verified against the decompile at game version 0.2.6228.27061. Per-prefab <code>UnityEngine.Light</code> component values were not inspected (asset-bundle data); flagged in section K and the table.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
@@ -8867,9 +8811,6 @@
 
 
 
-
-  
-  
 
 
 

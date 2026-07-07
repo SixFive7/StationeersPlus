@@ -952,6 +952,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Three power-tick methods, two sides">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gate-shape-the-cell-charge-draw-is-not-gated-on-onoff-error-or-outputnetwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gate shape: the cell-charge draw is not gated on OnOff, Error, or OutputNetwork
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4347,7 +4364,7 @@
   <span class="md-ellipsis">
     
   
-    Light Sources (built-in light emitters)
+    LightSources
   
 
     
@@ -8149,6 +8166,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Three power-tick methods, two sides">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gate-shape-the-cell-charge-draw-is-not-gated-on-onoff-error-or-outputnetwork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gate shape: the cell-charge draw is not gated on OnOff, Error, or OutputNetwork
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8357,7 +8391,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-06.
+           on 2026-07-07.
         </p>
       
       
@@ -8525,6 +8559,33 @@
 <li>The battery participates on BOTH sides: it absorbs upstream surplus inside <code>ReceivePower</code> (when <code>_powerProvided &lt; 0</code>, i.e., upstream over-supplied), and discharges into downstream demand inside <code>UsePower</code> (when <code>_powerProvided &gt; 0</code>, i.e., last tick the output side asked for more than the input side ultimately delivered).</li>
 <li>The "drain only when <code>_powerProvided &gt; 0</code>" gate inside <code>UsePower</code> is the vanilla deferred-settlement model: the battery covers the previous tick's shortfall before this tick's <code>powerUsed</code> is added to the next ledger.</li>
 </ul>
+<h3 id="gate-shape-the-cell-charge-draw-is-not-gated-on-onoff-error-or-outputnetwork">Gate shape: the cell-charge draw is not gated on OnOff, Error, or OutputNetwork<a class="headerlink" href="#gate-shape-the-cell-charge-draw-is-not-gated-on-onoff-error-or-outputnetwork" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
+
+<p>Re-read from the verbatim bodies above (<code>GetUsedPower</code> 391028-391044, <code>GetGeneratedPower</code> 391046-391057): the two <code>GetUsedPower</code> terms carry different gates, and neither term carries an <code>Error</code> gate.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quiescent + ledger: <code>Max(_powerProvided, UsedPower)</code></td>
+<td><code>OnOff &amp;&amp; OutputNetwork != null</code></td>
+</tr>
+<tr>
+<td>Cell charge: <code>Min(BatteryChargeRate, Battery.PowerDelta)</code></td>
+<td><code>(bool)Battery &amp;&amp; !Battery.IsCharged</code> only</td>
+</tr>
+<tr>
+<td><code>GetGeneratedPower</code> (downstream supply advertisement)</td>
+<td><code>OutputNetwork != null &amp;&amp; Error != 1 &amp;&amp; OnOff</code></td>
+</tr>
+</tbody>
+</table>
+<p>Consequence: an APC that is switched OFF, errored (<code>Error == 1</code>), or has no output cable still adds its cell-charge demand to the INPUT network every tick while a non-charged cell sits in the slot, while <code>GetGeneratedPower</code> (which IS Error- and OnOff-gated) advertises nothing downstream. A vanilla APC therefore charge-draws in states a player reads as "off" or "faulted"; during the PowerGridPlus partial-power forensics this input-side draw from apparently idle APCs is expected vanilla behavior, not a mod-introduced load. The same asymmetry exists on <code>WallLightBattery.GetUsedPower</code> (<code>(OnOff ? UsedPower : 0f)</code> plus a charge term gated only on cell-present-and-not-charged, decompile 327979-327992; see <a href="../../GameSystems/LightSources/">LightSources</a>, "F. WallLightBattery: battery backup").</p>
 <h2 id="how-the-vanilla-powertick-drives-these-methods">How the vanilla <code>PowerTick</code> drives these methods<a class="headerlink" href="#how-the-vanilla-powertick-drives-these-methods" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -8813,6 +8874,7 @@
 <!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
 <ul>
+<li>2026-07-07: added "Gate shape" subsection under the four-methods section (game version 0.2.6403.27689). Re-read <code>GetUsedPower</code> (391028-391044) and <code>GetGeneratedPower</code> (391046-391057): the quiescent + ledger term is gated on <code>OnOff &amp;&amp; OutputNetwork != null</code>, the cell-charge term on <code>(bool)Battery &amp;&amp; !Battery.IsCharged</code> ONLY (no OnOff, no Error, no OutputNetwork), and <code>GetGeneratedPower</code> on <code>OutputNetwork != null &amp;&amp; Error != 1 &amp;&amp; OnOff</code>. Note: the incoming claim from the PowerGridPlus partial-power forensics said the charge term was "gated on OnOff only"; the decompile shows it is not OnOff-gated either, so the documented consequence is wider (OFF, errored, and output-less APCs all still charge-draw). Cross-referenced the same asymmetry on <code>WallLightBattery.GetUsedPower</code> (327979-327992). Additive; the verbatim bodies already on this page were confirmed unchanged.</li>
 <li>2026-07-06: added "The ledger is not serialized" subsection under the pattern-presence section (game version 0.2.6403.27689). Evidence read directly from the decompile: the four SaveData record bodies (<code>TransformerSaveData</code> 424593-424597, <code>WirelessPowerSaveData</code> 426765-426778, <code>PowerTransmitterSaveData</code> 408264-408268, <code>PowerReceiverSaveData</code> 408062-408064), the absence of any serialization member in the <code>AreaPowerControl</code> class body (390555-391146, next type at 391147), the whole-decompile <code>_powerProvided</code> reference census, and the <code>.UsePower(</code> / <code>.ReceivePower(</code> caller census isolating <code>PowerProvider.ApplyPower</code> (271690-271696) and <code>PowerTick.ConsumePower</code> (271820-271840) as the only dispatch sites reaching the four ledger classes. Checked first for existing verified content claiming the ledger persists into saves (fresh-validator trigger): none found on this or any other central page, so the addition is additive; no validator spawned.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration (390555), <code>BatteryChargeRate = 1000f</code> (390586), the slot <code>Battery</code> property is a <code>BatteryCell</code> (390594), <code>UsePower</code> drain-gated on <code>_powerProvided &gt; 0</code> (391000-391012), <code>ReceivePower</code> charges the cell only when <code>_powerProvided &lt; 0</code> (391014-391026), <code>GetUsedPower</code> = <code>Max(_powerProvided, UsedPower)</code> + <code>Min(BatteryChargeRate, Battery.PowerDelta)</code> (391028-391044), <code>GetGeneratedPower</code> = <code>AvailablePower</code> = <code>InputNetwork.PotentialLoad + Battery.PowerStored</code> uncapped (391046-391057, <code>AvailablePower</code> 390652-390663). Also refreshed the Transformer method citations carried by this page (<code>UsePower</code> / <code>ReceivePower</code> 424757-424771, <code>GetUsedPower</code> 424773-424792, <code>GetGeneratedPower</code> = <code>Min(Setting, InputNetwork.PotentialLoad)</code> 424794-424805), the four <code>_powerProvided</code> declaration lines in the pattern-presence table (390592 / 424621 / 408071 / 408287), the RX/TX method ranges (408184-408229 / 408424-408469), and the station-Battery <code>UsePower</code> / <code>ReceivePower</code> range (392144-392158). Corrected the PowerTick-driver section's attribution of the ratio math: <code>CalculateState</code> is public at 0.2.6403 and the ratio lives in the private <code>CacheState</code> with the both-positive guard (see <a href="../PowerTick/">PowerTick</a>). PGP-behaviour sections (post-b3baffb, historical ceiling, Re-Volt attribution) were not re-tested this pass and keep their stamps.</li>
 <li>2026-05-28 (later): added "PGP post-b3baffb (2026-05-28): cable-headroom and cable-tier output cap" section reflecting commit <code>b3baffb</code> and reframed the prior "Net-charge ceiling" section as historical (the <code>UsePowerPatch</code> that produced the ceiling is removed; vanilla <code>UsePower</code> now runs unmodified). The earlier analysis is preserved verbatim under a HISTORICAL heading because it explains why the bug existed and what the rewrite addressed. Verified headlessly via <code>pgp-rate-cap-probe</code> ScenarioRunner scenario: 8/8 wired APCs on <code>APC-Luna.save</code> pass <code>ComputeChargeCap</code> (per-device, cable-bounded) and <code>GetGeneratedPower</code> (output cable MaxVoltage cap) checks across normal and heavy cable tiers.</li>

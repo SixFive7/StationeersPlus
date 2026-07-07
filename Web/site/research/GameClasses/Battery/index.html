@@ -1083,6 +1083,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#self-drain-in-onatmospherictick-never-billed-to-the-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Self-drain in OnAtmosphericTick: never billed to the network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subclassing-notes-for-mods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4347,7 +4358,7 @@
   <span class="md-ellipsis">
     
   
-    Light Sources (built-in light emitters)
+    LightSources
   
 
     
@@ -8224,6 +8235,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#self-drain-in-onatmospherictick-never-billed-to-the-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Self-drain in OnAtmosphericTick: never billed to the network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subclassing-notes-for-mods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8357,7 +8379,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-07.
         </p>
       
       
@@ -8735,6 +8757,45 @@
 </table>
 <p>These numbers are how the game labels them in Stationpedia / device tooltips (the field value is shown as "W"). The actual wall-clock wattage is the field value divided by the 0.5 s tick interval, i.e. exactly double these numbers (so a 7,200 J/tick charge cap is physically 14,400 W of energy flow over real time). The doubling does NOT appear in the in-game UI and does NOT change which devices a Battery can run on a given tick; reason in the game's units when comparing against a player's observed numbers. See <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a> "Tick interval and the watts-vs-joules-per-tick labelling convention" for the convention.</p>
 <p>The <code>BatteryChargeEfficiency</code> patch on <code>ReceivePower</code> (lines 31-43 of <code>StationaryBatteryPatches.cs</code>) is a separate concern: it multiplies stored energy by <code>Settings.BatteryChargeEfficiency.Value</code> (default 1.0 = lossless) before clamping, with a 500 W trickle-charge bypass.</p>
+<h2 id="self-drain-in-onatmospherictick-never-billed-to-the-network">Self-drain in OnAtmosphericTick: never billed to the network<a class="headerlink" href="#self-drain-in-onatmospherictick-never-billed-to-the-network" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
+
+<p><code>Battery</code> declares two private loss constants (391695 / 391697):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">private</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">LOSS_NORMAL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10f</span><span class="p">;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">private</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">LOSS_IN_COLD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">50f</span><span class="p">;</span>
+</span></code></pre></div>
+<p>The decompiler inlines <code>const</code> references, so the consuming body shows the literals <code>10f</code> / <code>50f</code> rather than the names. The drain lives in <code>OnAtmosphericTick</code>, verbatim (392186-392207):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnAtmosphericTick</span><span class="p">()</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnAtmosphericTick</span><span class="p">();</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_rocketInternalCellType</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="p">.</span><span class="n">None</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="kt">float</span><span class="p">.</span><span class="n">Epsilon</span><span class="p">)</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="n">Atmosphere</span><span class="w"> </span><span class="n">atmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">AtmosphericsController</span><span class="p">.</span><span class="n">CloneGlobalAtmosphere</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">,</span><span class="w"> </span><span class="mi">0L</span><span class="p">);</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">atmosphere</span><span class="p">.</span><span class="n">IsAboveArmstrong</span><span class="p">())</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">        </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mf">50f</span><span class="p">;</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10f</span><span class="p">;</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">atmosphere</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">Temperature</span><span class="p">.</span><span class="n">ZeroDegrees</span><span class="p">)</span>
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">        </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Max</span><span class="p">(</span><span class="mf">50f</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">TemperatureKelvin</span><span class="p">.</span><span class="n">One</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">atmosphere</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">Temperature</span><span class="p">.</span><span class="n">ZeroDegrees</span><span class="p">).</span><span class="n">ToFloat</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">atmosphere</span><span class="p">.</span><span class="n">HeatExchangeRatio</span><span class="p">(),</span><span class="w"> </span><span class="n">num</span><span class="p">);</span>
+</span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">    </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
+</span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">    </span><span class="n">atmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">AddEnergy</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">MoleEnergy</span><span class="p">(</span><span class="n">num</span><span class="p">));</span>
+</span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Reading the branches:</p>
+<ul>
+<li>Rocket-internal battery prefabs (<code>_rocketInternalCellType != None</code>) and empty stores (<code>PowerStored &lt;= float.Epsilon</code>) do not self-drain at all.</li>
+<li>Below-Armstrong ambient pressure (near-vacuum): flat 50 J per atmospheric tick, and the early return skips the <code>AddEnergy</code> line, so nothing is emitted as heat.</li>
+<li>Atmosphere at or above <code>Chemistry.Temperature.ZeroDegrees</code> (freezing): 10 J per atmospheric tick.</li>
+<li>Atmosphere below freezing: <code>Max(50 * (1 - T / ZeroDegrees) * atmosphere.HeatExchangeRatio(), 10)</code> J, scaling with how far below freezing the gas is and how conductive it is.</li>
+<li>In the atmosphere branches the drained joules are added to the surrounding gas as heat (<code>GasMixture.AddEnergy(new MoleEnergy(num))</code>), so a battery bank measurably warms its room.</li>
+</ul>
+<p>None of this passes through the power tick. The loss is written straight into <code>PowerStored</code> on the ATMOSPHERIC tick path; it never appears in any network's <code>Required</code> (only <code>GetUsedPower</code> feeds <code>Required</code>, and its return is the charge headroom, not a loss term; bodies above). Practical reading: on a grid-connected charging battery the self-drain shows up only indirectly (the headroom <code>PowerMaximum - PowerStored</code> is slightly larger next tick); on a full, off, or disconnected battery it is a pure drain that no wattage display, ledger, or network figure accounts for. During the PowerGridPlus partial-power forensics this is a known vanilla sink to subtract before attributing missing joules to the mod's allocator.</p>
 <h2 id="subclassing-notes-for-mods">Subclassing notes for mods<a class="headerlink" href="#subclassing-notes-for-mods" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
 
@@ -8747,8 +8808,8 @@
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 <p><code>Battery</code> implements <code>IRocketInternals, IRocketComponent, IRocketMassContributor</code> (class header L370616) and carries the same two <code>[SerializeField]</code> rocket fields as <code>Transformer</code> (decompile L370633-L370637):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="w"> </span><span class="n">_rocketInternalCellType</span><span class="p">;</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="w"> </span><span class="n">_rocketInternalCellType</span><span class="p">;</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
 </span></code></pre></div>
 <p>"Rocket Battery Medium" and the station wall battery are the SAME <code>Battery</code> class; the rocket variant is a separate prefab (<code>_strictlyInternal = true</code>, a non-<code>None</code> <code>_rocketInternalCellType</code>, its own <code>OpenEnds</code>). No <code>RocketBattery</code> subclass exists. A Harmony patch on <code>typeof(Battery)</code> catches both. <code>IRocketMassContributor.MassContribution</code> adds the stored charge to rocket mass (<code>Transformer</code> does not implement this interface).</p>
 <p>The <code>Battery</code>-class prefabs split into TWO families by display name + build kit, despite generic prefab codenames. From <code>english.xml</code> (<code>StreamingAssets/Language</code>) and a Luna rocket save (<code>PrefabName</code> of ref 525400):</p>
@@ -8810,6 +8871,7 @@
 <p>So the station batteries carry a pure <code>Data</code> third port; the rocket batteries carry a <code>PowerAndData</code> third port. No vanilla battery folds data onto its <code>Power/Input</code> or <code>Power/Output</code> connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its <code>NetworkType</code> (cable type lives on <code>Cable</code>, see <a href="../Cable/">Cable</a>; <code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> + grid coincidence only).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-07 (later): added "Self-drain in OnAtmosphericTick: never billed to the network" section (game version 0.2.6403.27689). Verbatim body read at 392186-392207; <code>LOSS_NORMAL = 10f</code> / <code>LOSS_IN_COLD = 50f</code> declarations at 391695 / 391697 (const-inlined by the decompiler, hence the literals in the body). Documents the four branches (rocket-internal and empty stores exempt; vacuum flat 50 J with no heat emission; warm atmosphere 10 J; below-freezing scaled by <code>50 * (1 - T/ZeroDegrees) * HeatExchangeRatio</code> floored at 10 J with the joules added to the gas as heat) and the billing consequence (the drain is written straight into <code>PowerStored</code> on the atmospheric tick; it never enters any network's <code>Required</code>). Occasion: PowerGridPlus partial-power forensics (a known vanilla sink to subtract before blaming the allocator). Additive; no prior claim on this page addressed self-drain.</li>
 <li>2026-07-07: re-confirmed <code>ReceivePower</code> (392152-392158, <code>PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)</code> on the incoming chunk) byte-identical against the 0.2.6403.27689 decompile. Occasion: the PowerGridPlus partial-power sentinel scope derivation; this body is the proof that a charging store is ratio-deprivable (vanilla ApplyState scales the chunk stream before it reaches <code>ReceivePower</code>, so delivered charge = grant times the network ratio), which keeps storage-charging networks inside the sentinel's contract scope. No content change.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration <code>Battery : ElectricalInputOutput, ...</code> (391662, body ends 392217), <code>PowerMaximum = 3600000f</code> C# default (391675), and the four power-tick bodies verbatim (<code>UsePower</code> 392144-392150, <code>ReceivePower</code> 392152-392158, <code>GetUsedPower</code> full headroom 392160-392171, <code>GetGeneratedPower</code> whole store 392173-392184). ADDED the "PowerDelta is SIGN-REVERSED" subsection: station <code>Battery.PowerDelta =&gt; PowerStored - PowerMaximum</code> (391732) vs <code>BatteryCell.PowerDelta =&gt; PowerMaximum - PowerStored</code> (340551); <code>AreaPowerControl</code> uses the <code>BatteryCell</code> form (its slot <code>Battery</code> property is a <code>BatteryCell</code>, APC line 390594), so code reaching for the station property must account for the reversed sign. Sections on the charge-state ladder, display, flashing coroutine, prefab variants, and rocket-internal fields were not re-read this pass and keep their earlier stamps.</li>
 <li>2026-06-19: corrected the battery-family identification (restamped the section). The 2026-06-18 entry below wrongly said "no rocket-battery prefab exists." Per <code>english.xml</code> (<code>StructureBatteryMedium</code> = "Battery (Medium)", <code>StructureBatterySmall</code> = "Auxiliary Rocket Battery", <code>StructureBattery</code> = "Station Battery", <code>StructureBatteryLarge</code> = "Station Battery (Large)", <code>ItemKitRocketBattery</code> = "Kit (Rocket Battery)", lines 1972 / 5460 / 7423 / 7523 / 8184) and a Luna rocket save (ref 525400 = <code>StructureBatteryMedium</code> at a rocket position), <code>StructureBatteryMedium</code> + <code>StructureBatterySmall</code> are the ROCKET battery line and <code>StructureBattery</code> + <code>StructureBatteryLarge</code> are the STATION line; the prefab codenames are misleadingly generic. Connector data unchanged (rocket batteries: <code>PowerAndData</code> third port; station batteries: pure <code>Data</code> third port). Confirmed via a runtime probe on the rocket save (ref 525400 = <code>StructureBatteryMedium</code>) plus the direct <code>english.xml</code> reads.</li>

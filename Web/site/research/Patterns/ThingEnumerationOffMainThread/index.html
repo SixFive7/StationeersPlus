@@ -4171,7 +4171,7 @@
   <span class="md-ellipsis">
     
   
-    Light Sources (built-in light emitters)
+    LightSources
   
 
     
@@ -8360,6 +8360,7 @@
 <p>Most reads on a <code>Thing</code> after it has been fully registered are managed-memory accesses with no engine round-trip, so they are safe from the worker:</p>
 <ul>
 <li><code>thing.ReferenceId</code>, <code>thing.PrefabName</code>, <code>thing.OnOff</code>, <code>thing.Mode</code>, <code>thing.Powered</code></li>
+<li><code>thing.IsBeingDestroyed</code> (<code>public bool IsBeingDestroyed =&gt; BeingDestroyed;</code>, Thing line 318452, re-verified at 0.2.6403.27689): a plain managed bool read, and the liveness guard vanilla itself pairs with the null check inside pooled <code>ForEach</code> callbacks (see <a href="../../GameSystems/AtmosphericThingTickDispatch/">AtmosphericThingTickDispatch</a>); filter <code>AllThings</code> entries with <code>t == null || t.IsBeingDestroyed</code> before touching them</li>
 <li><code>Battery.PowerStored</code>, <code>Battery.PowerMaximum</code>, <code>Battery.PowerDelta</code></li>
 <li><code>Transformer.Setting</code>, <code>Transformer.UsedPower</code>, <code>Transformer._powerProvided</code> (private field, reflect or use <code>___</code> prefix in Harmony)</li>
 <li><code>Transformer.InputNetwork.CurrentLoad</code>, <code>OutputNetwork.CurrentLoad</code> (CableNetwork properties)</li>
@@ -8380,6 +8381,7 @@
 <p>The reason the FIRST run happened to work but the second crashed is undetermined: most likely a race window where Unity's scene-graph mutex was free for the first call and held for the second. Either way, do not rely on FindObjectsOfType from any ElectricityTick-driven postfix; the OcclusionManager.AllThings path is correct.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-07: added <code>thing.IsBeingDestroyed</code> to the safe-off-thread reads list (game version 0.2.6403.27689: <code>public bool IsBeingDestroyed =&gt; BeingDestroyed;</code> on Thing, decompile line 318452). Occasion: PowerGridPlus partial-power forensics. Single-bullet addition with its own inline version note; the section stamp and the other entries keep their 0.2.6228.27061 basis.</li>
 <li>2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (<code>DedicatedServer/data/server.log</code> after the 2026-05-25 transformer-conservation run) plus the <code>Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs</code> fix. Decompile reference for the static pools verified in place at <code>OcclusionManager.AllThings</code> (line 199822), <code>CableNetwork.AllCableNetworks</code> (line 253430), <code>AtmosphericsManager.AllAtmospheres</code> (line 417824).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
