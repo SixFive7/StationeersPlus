@@ -176,8 +176,10 @@ namespace PowerGridPlus
                      "in full regardless, to avoid a battery never topping off.)", 80));
 
             EnableBatteryLogicAdditions = config.Bind("Server - Batteries", "Enable Battery Logic Additions", true,
-                Desc("(Server-authoritative) When true, stationary batteries expose their max charge rate (Import Quantity) " +
-                     "and max discharge rate (Export Quantity) as logic values.", 90));
+                Desc("(Server-authoritative) When true, stationary batteries expose four read-only logic values, in " +
+                     "watts: Max Charge Speed and Max Discharge Speed (the configured per-prefab rate caps, bounded by " +
+                     "the connected cable's tier cap) and Charge Speed and Discharge Speed (the actual per-tick rates " +
+                     "the power allocator granted this tick). When false, none of the four values is readable.", 90));
 
             EnableBatteryLogicPassthrough = config.Bind("Server - Batteries", "Enable Battery Logic Passthrough", true,
                 Desc("(Server-authoritative) Master kill-switch for stationary-battery logic-passthrough. When true, batteries " +
@@ -205,18 +207,17 @@ namespace PowerGridPlus
 
             EnableTransformerShedding = config.Bind("Server - Transformers", "Enable Transformer Shedding", true,
                 Desc("(Server-authoritative) Master toggle for the transformer Priority + Shedding feature (upstream-side " +
-                     "protection). When true, every transformer's throughput is hardcoded at its OutputMaximum rating, the " +
-                     "in-world dial controls a new Priority value instead (non-negative int, default 100, step 1 per click or " +
-                     "10 with Alt), and the input cable network's supply is allocated strictly by Priority: the highest-" +
-                     "priority transformer gets first dibs; the leftover goes to the next priority. A transformer that cannot " +
-                     "get its share of the input sheds for 60 seconds (flashes its on / off button orange, surfaces a hover " +
-                     "error, contributes 0 to the output network), then re-engages automatically. Shed fires instantly on " +
-                     "detection -- the atomic power-tick architecture decides with fresh in-tick data, so there is no need " +
-                     "for a shortfall-tolerance counter. The IC10 LogicType.Setting read returns OutputMaximum (hardcoded); " +
-                     "writes to Setting redirect to Priority for backward compatibility with existing scripts. A new read-" +
-                     "only LogicType.Shedding returns 1 while a transformer is in shed lockout, 0 otherwise. When this " +
-                     "master is false, transformers behave vanilla (Setting is a writable throughput cap, no shedding, no " +
-                     "flashing).", 40));
+                     "protection). When true, the in-world dial sets a per-transformer Priority (non-negative int, default " +
+                     "100, step 10 per click or 1 with Alt), and the power allocator divides each input cable network's " +
+                     "supply by priority tier: higher-priority transformers fill first, equal-priority transformers share " +
+                     "in proportion to capacity. When supply falls short, the lowest-priority claims shed first, whole " +
+                     "(never partial): a shed transformer flashes its on / off button orange, surfaces a hover error, " +
+                     "contributes 0 to its output network for 60 seconds, then re-engages automatically. Shed fires " +
+                     "instantly on detection; the atomic power tick decides with fresh in-tick data, so no tolerance " +
+                     "counter is needed. LogicType.Setting stays pure vanilla (a writable throughput cap, clamped to " +
+                     "[0, OutputMaximum]); Priority is its own writable logic value, and the read-only " +
+                     "LogicType.Shedding returns 1 while a transformer is in shed lockout, 0 otherwise. When this master " +
+                     "is false, transformers behave vanilla (no priority allocation, no shedding, no flashing).", 40));
 
             EnableTransformerOverloadProtection = config.Bind("Server - Transformers", "Enable Transformer Overload Protection", true,
                 Desc("(Server-authoritative) Master toggle for downstream-side overload protection. When true, a transformer " +

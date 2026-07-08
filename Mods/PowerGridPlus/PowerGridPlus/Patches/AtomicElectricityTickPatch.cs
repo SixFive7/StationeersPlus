@@ -58,6 +58,11 @@ namespace PowerGridPlus.Patches
             if (!GameManager.RunSimulation) return false;
             try
             {
+                // Tick-duration watchdog span (whole atomic tick). Stopwatch timestamps only;
+                // zero allocation on this path (TickDurationWatchdog doc has the derivation).
+                long tickStartTs = System.Diagnostics.Stopwatch.GetTimestamp();
+                long allocMicros = 0;
+
                 // Tick counter: shared with BrownoutRegistry / OverloadRegistry
                 // lockout-expiry math. Advance once per tick, at the very
                 // start, so every read inside this flow sees the same value.
@@ -88,6 +93,16 @@ namespace PowerGridPlus.Patches
                 // accumulate during ENFORCE. Always-on, like the census and the conservation
                 // audit's exact counterparts; a healthy grid pays a handful of field reads here.
                 LedgerAdoption.AuditTickBoundary(currentTick);
+
+                // Save/load one-shot self-check: with the load hooks above done and before this
+                // tick's detectors write anything, verify the load path's contract shape (fault
+                // registries empty, priority sidecar fully restored, ledger sweep ran). One Info
+                // line per load; a warning names any failed clause.
+                SaveLoadSelfCheck.RunIfPending(currentTick);
+
+                // Registry hygiene: every 600 ticks, prune expired and destroyed-device entries
+                // from the four fault registries (a single comparison on every other tick).
+                RegistryHygiene.MaybeRun(currentTick);
 
                 // Deferred emergency-light OnOff toggles from LAST tick's device tick are issued
                 // here, at the tick boundary before OBSERVE reads any device state, so a flip is
@@ -179,7 +194,10 @@ namespace PowerGridPlus.Patches
                 // and which overload (downstream demand > capacity), and writes
                 // the lockout flags to BrownoutRegistry / OverloadRegistry.
                 // ----------------------------------------------------------------
+                long allocStartTs = System.Diagnostics.Stopwatch.GetTimestamp();
                 PowerAllocator.RunAtomic(currentTick);
+                allocMicros = TickDurationWatchdog.TimestampDeltaToMicros(
+                    allocStartTs, System.Diagnostics.Stopwatch.GetTimestamp());
                 // Per-tick full fault-registry snapshots to clients (all four registries,
                 // POWER.md §13 heartbeat model).
                 PowerAllocator.SyncFaultSnapshots(currentTick);
@@ -267,6 +285,11 @@ namespace PowerGridPlus.Patches
                 // ----------------------------------------------------------------
                 PoweredPresentation.ReconcileEnforceTail();
                 LedgerAdoption.SettleEnforceTail(currentTick);
+                // Powered-set conformance: every healthy roster member must read Powered=true
+                // past the one-tick marshal grace (the reconcile above writes via a main-thread
+                // marshal, so a fresh transition legitimately lands next frame). Runs right
+                // after the reconcile against the same published roster.
+                PoweredSetConformance.RunEnforceTail(currentTick);
                 // Partial-power sentinel: on every network the allocator marked SERVED this
                 // tick, the vanilla ratio the device loop just scaled with must be exactly 1
                 // (the no-partial-power contract). Reads each PowerTick's settled _powerRatio,
@@ -280,6 +303,12 @@ namespace PowerGridPlus.Patches
                 // umbilical phase-2 crossing runs later in the device tick but never enters
                 // the sums (null-network calls are filtered at the bracket).
                 ChargeDeliveryAudit.RunEnforceTail(currentTick);
+                // Discharge-delivery audit: the second delivery direction. Every battery /
+                // umbilical elastic's drained sum (observation brackets around the store-draining
+                // UsePower overrides) must equal its granted share (rigid share + soft top-up),
+                // gated on the discharge-side net being Served. The APC cell is out of scope by
+                // design (vanilla deferred ledger settlement; see the audit's class doc).
+                DischargeDeliveryAudit.RunEnforceTail(currentTick);
 
                 // ----------------------------------------------------------------
                 // DEVICE TICK: per-device IPowered.OnPowerTick. Vanilla copy.
@@ -294,6 +323,14 @@ namespace PowerGridPlus.Patches
                 // chips on the standard schedule.
                 // ----------------------------------------------------------------
                 CircuitHolders.Execute();
+
+                // Close the tick-duration watchdog span: the whole atomic tick body, DEVICE and
+                // LOGIC phases included, judged against the derived threshold (rolling-median
+                // multiple with a floor and an unconditional ceiling; see TickDurationWatchdog).
+                TickDurationWatchdog.RecordTick(currentTick,
+                    TickDurationWatchdog.TimestampDeltaToMicros(
+                        tickStartTs, System.Diagnostics.Stopwatch.GetTimestamp()),
+                    allocMicros);
             }
             catch (Exception ex)
             {

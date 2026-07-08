@@ -134,6 +134,27 @@ namespace PowerGridPlus
 
         internal static int LockoutCount => _lockoutUntilTick.Count;
 
+        // Registry hygiene (RegistryHygiene sweep): remove host entries whose lockout expired
+        // (IsLockedOut self-cleans on read, but an entry nobody reads again leaks) or whose device
+        // no longer exists (Thing.Find is a plain dictionary lookup, worker-safe; the null test is
+        // a reference test, never the Unity lifetime operator). Returns counts via out params.
+        internal static void PruneStale(int currentTick, out int expired, out int destroyed)
+        {
+            expired = 0;
+            destroyed = 0;
+            foreach (var pair in _lockoutUntilTick)
+            {
+                if (pair.Value <= currentTick)
+                {
+                    if (_lockoutUntilTick.TryRemove(pair.Key, out _)) expired++;
+                }
+                else if (Assets.Scripts.Objects.Thing.Find(pair.Key) is null)
+                {
+                    if (_lockoutUntilTick.TryRemove(pair.Key, out _)) destroyed++;
+                }
+            }
+        }
+
         // Defensive escape-hatch for tests / world load. Drops every entry.
         internal static void ClearAll()
         {

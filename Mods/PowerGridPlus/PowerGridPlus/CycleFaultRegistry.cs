@@ -127,6 +127,25 @@ namespace PowerGridPlus
             _clientExpiryMs.Clear();
         }
 
+        // Registry hygiene (RegistryHygiene sweep): remove host entries whose lockout expired or
+        // whose device no longer exists. Same shape and safety notes as BrownoutRegistry.PruneStale.
+        internal static void PruneStale(int currentTick, out int expired, out int destroyed)
+        {
+            expired = 0;
+            destroyed = 0;
+            foreach (var pair in _lockoutUntilTick)
+            {
+                if (pair.Value <= currentTick)
+                {
+                    if (_lockoutUntilTick.TryRemove(pair.Key, out _)) expired++;
+                }
+                else if (Assets.Scripts.Objects.Thing.Find(pair.Key) is null)
+                {
+                    if (_lockoutUntilTick.TryRemove(pair.Key, out _)) destroyed++;
+                }
+            }
+        }
+
         internal static int LockoutCount => _lockoutUntilTick.Count;
     }
 }

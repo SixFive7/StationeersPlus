@@ -96,6 +96,8 @@ namespace PowerGridPlus.Patches
             if (!cache.TryGetValue(transformer.ReferenceId, out var savedPriority)) return;
 
             PriorityStore.RestoreFromSideCar(transformer.ReferenceId, savedPriority);
+            // Save/load self-check clause 2: every loaded sidecar entry must land in a restore.
+            SaveLoadSelfCheck.NotePriorityRestored();
         }
     }
 }

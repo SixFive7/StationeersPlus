@@ -22,10 +22,13 @@ namespace PowerGridPlus
     ///         fault decision (shed, structural overload, supply overload).
     ///       - SOFT: storage charge (battery / APC cell / umbilical). Propagates leaf-to-source through
     ///         the same splitter as rigid but capped at each contributor's headroom left after rigid
-    ///         (soft never displaces rigid capacity), and is granted forward out of the firm residual
-    ///         only (generators + contributor inflow after rigid is served; elastic discharge never
-    ///         funds charging). Unmet soft desire is silently clamped: never a shed, never an overload,
-    ///         never a lockout, never a dead-input cue.
+    ///         (soft never displaces rigid capacity), and is granted forward per net from a three-rung
+    ///         funding ladder consumed in order (POWER.md 9.2): the firm residual (generators +
+    ///         contributor inflow after rigid is served), the soft inflow arriving through suppliers,
+    ///         and LAST the net's elastic leftover (eligible discharge capacity the rigid settlement
+    ///         did not consume), which is what makes battery-to-battery transfer possible. Unmet soft
+    ///         desire is silently clamped: never a shed, never an overload, never a lockout, never a
+    ///         dead-input cue.
     ///
     ///     Per tick:
     ///       1. Gather: per-network rigid demand + generator supply; the contributor / elastic / soft
@@ -81,10 +84,13 @@ namespace PowerGridPlus
     ///          chains keeps its deciding-pass numbers to the bit, so the elastic shares, the
     ///          publish tail, and the conservation check see balanced flow while real-world
     ///          allocation changes by the stranded component only. No decision is re-opened.
-    ///       4. Elastic shares (§7.3): per output network, batteries cover only the RIGID shortfall
-    ///          left after generators + transformer inflow; proportional split against effective caps
-    ///          (min(rate cap, stored)); written to SoftSupplyShareCache for the GetGeneratedPower
-    ///          postfixes. Elastic stays net-local; it never propagates across contributors.
+    ///       4. Elastic shares (§7.3 + §9.2): per output network, each elastic's share is its RIGID
+    ///          component (the rigid shortfall left after generators + transformer inflow,
+    ///          full-or-proportional against effective caps, min(rate cap, stored)) plus its SOFT
+    ///          TOP-UP (its slice of the net's elastic-funded soft quantum, full-or-proportional to
+    ///          leftover); written to SoftSupplyShareCache for the GetGeneratedPower postfixes.
+    ///          The elastic CAPACITY stays net-local (it never propagates across contributors);
+    ///          the soft flow it funds rides the normal soft class and can cross contributors.
     ///       5. Publish: per-device charge shares to SoftDemandShareCache; per-contributor presentation
     ///          totals (TotalThrough = rigid + soft throughput, TotalPull = TotalThrough * max(m,1) +
     ///          quiescent) to TransformerSupplyCache for EVERY routed seg kind, plus the APC bundle
@@ -161,7 +167,8 @@ namespace PowerGridPlus
             public float SoftPull;                // forward: granted input-side soft draw
         }
 
-        // An elastic supplier: discharges a store onto OutNet only to fill rigid shortfall (§7.3).
+        // An elastic supplier: discharges a store onto OutNet to fill rigid shortfall first (§7.3),
+        // then donates its per-net leftover to the net's soft pool (§9.2, the lowest funding rung).
         private sealed class Elastic
         {
             public long RefId;
@@ -169,7 +176,8 @@ namespace PowerGridPlus
             public float EffDischarge;     // min(rate cap, cable cap, stored)
             public bool Locked;
             public bool Overloaded;        // per-round (elastic hit-max analog)
-            public float Share;            // final delivered share
+            public float Share;            // final delivered share (rigid share + soft top-up)
+            public byte Kind;              // store kind (ChargeDeliveryAudit.Kind*) for the discharge-delivery audit
         }
 
         // A soft demander: charges a store from InNet out of the firm residual only (§7.4).
@@ -221,6 +229,11 @@ namespace PowerGridPlus
             // Forward soft grants (for the conservation check): local charge granted + soft pulls granted.
             public float SoftGrantedLocal;
             public float SoftPullsGranted;
+            // The elastic-funded soft quantum (§9.2): the part of this net's granted soft flow the
+            // firm pool (local firm residual + soft inflow) could not cover, funded from the net's
+            // elastic leftover. Written by the forward pass each round; consumed by the elastic
+            // share pass (soft top-up sizing) after the loop converges.
+            public float ElasticFundedSoft;
         }
 
         internal static void RunAtomic(int currentTick)
@@ -390,6 +403,7 @@ namespace PowerGridPlus
                                             CableMax.For(apc.OutputConnection?.GetCable())),
                                         cell.PowerStored),
                                     Locked = seg.Locked,
+                                    Kind = ChargeDeliveryAudit.KindApcCell,
                                 });
                             }
                             // A registry-locked APC's vanilla bill is zeroed at ENFORCE
@@ -440,6 +454,7 @@ namespace PowerGridPlus
                                 OutNet = battery.OutputNetwork,
                                 EffDischarge = Mathf.Min(rateCap, battery.PowerStored),
                                 Locked = locked,
+                                Kind = ChargeDeliveryAudit.KindBattery,
                             });
                         }
                         // A registry-locked battery's vanilla bill is zeroed at ENFORCE
@@ -484,6 +499,7 @@ namespace PowerGridPlus
                                 OutNet = spec.OutNet,
                                 EffDischarge = spec.ElasticCapacity,
                                 Locked = locked,
+                                Kind = ChargeDeliveryAudit.KindUmbilical,
                             });
                         }
                         // Same billability rule as the APC cell and the battery: a registry-
@@ -740,7 +756,12 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
-            // 4. ELASTIC SHARES (§7.3) -> SoftSupplyShareCache.
+            // 4. ELASTIC SHARES (§7.3 + §9.2) -> SoftSupplyShareCache. Two components per
+            //    elastic: the RIGID share (the residual rigid shortfall, full-or-proportional
+            //    against effective discharge caps, exactly as before) plus the SOFT TOP-UP
+            //    (the net's elastic-funded soft quantum from the converged forward pass,
+            //    distributed full-or-proportional to each elastic's leftover). Total per
+            //    elastic never exceeds EffDischarge by construction.
             // ----------------------------------------------------------------
             foreach (var n in netList)
             {
@@ -756,6 +777,39 @@ namespace PowerGridPlus
                     e.Share = shortfall >= effTotal
                         ? e.EffDischarge
                         : e.EffDischarge * (shortfall / effTotal);
+                }
+
+                // Soft top-up (§9.2): the forward pass funded ElasticFundedSoft watts of this
+                // net's soft grants from the elastic leftover; hand each eligible elastic its
+                // full-or-proportional slice of that quantum so the donated discharge is
+                // advertised (and drained) on the donor. By construction topUpTotal <=
+                // leftoverTotal: the forward pass capped the elastic-funded quantum at
+                // (elasticCap - rigid draw) computed from the SAME converged per-net fields this
+                // pass reads, the eligibility sets are identical (settled flags), and on any net
+                // the clawback touched (a strand net) the elastic-funded quantum is provably 0
+                // (a positive strand forces softFirm to cover every granted soft watt). The
+                // clamp below is therefore defensive only; if it ever bound it would tighten
+                // (donate less than granted), which the conservation check would surface as a
+                // power-from-nothing residual rather than silently over-discharging a store.
+                float topUpTotal = n.ElasticFundedSoft;
+                if (topUpTotal > 0f && effTotal > 0f)
+                {
+                    float leftoverTotal = 0f;
+                    foreach (var e in n.Elastics)
+                        if (!e.Locked && !e.Overloaded) leftoverTotal += e.EffDischarge - e.Share;
+                    if (leftoverTotal > 0f)
+                    {
+                        if (topUpTotal > leftoverTotal) topUpTotal = leftoverTotal;
+                        foreach (var e in n.Elastics)
+                        {
+                            if (e.Locked || e.Overloaded) continue;
+                            float leftover = e.EffDischarge - e.Share;
+                            if (leftover <= 0f) continue;
+                            e.Share += topUpTotal >= leftoverTotal
+                                ? leftover
+                                : leftover * (topUpTotal / leftoverTotal);
+                        }
+                    }
                 }
             }
 
@@ -791,6 +845,29 @@ namespace PowerGridPlus
                 };
             }
             ChargeDeliveryAudit.PublishGrants(chargeGrants);
+
+            // Discharge-grant snapshot for the discharge-delivery audit (the charge audit's
+            // second direction): every rostered battery / umbilical elastic's granted discharge
+            // this tick (rigid share + soft top-up), with the discharge-side net (the audit's
+            // Served gate) and store kind. The APC cell is deliberately NOT published: vanilla
+            // drains it by deferred ledger settlement (UsePower drains min(stored, _powerProvided)
+            // from the PREVIOUS tick's shortfall, a load-bearing mechanism this mod keeps), so a
+            // same-tick granted-vs-drained comparison is structurally lag-prone there; see the
+            // DischargeDeliveryAudit class doc. Published even when empty so a stale tick's
+            // grants never linger into the comparison.
+            var dischargeGrants = new Dictionary<long, DischargeDeliveryAudit.Grant>(elastics.Count);
+            foreach (var e in elastics)
+            {
+                if (e.OutNet == null) continue;
+                if (e.Kind == ChargeDeliveryAudit.KindApcCell) continue;
+                dischargeGrants[e.RefId] = new DischargeDeliveryAudit.Grant
+                {
+                    Granted = e.Share,
+                    NetId = e.OutNet.ReferenceId,
+                    Kind = e.Kind,
+                };
+            }
+            DischargeDeliveryAudit.PublishGrants(dischargeGrants);
 
             // Publish each routed contributor's exact converged PRESENTATION TOTALS so its
             // GetGeneratedPower / GetUsedPower report the real in-tick flow (no headroom), soft
@@ -1257,22 +1334,40 @@ namespace PowerGridPlus
                 float unmet = activeWant - avail;
                 n.Unmet = unmet > 0f ? unmet : 0f;
 
-                // ---- Soft grants (storage charge), funded by the FIRM residual only ----
-                // Pool: local firm supply left after rigid loads and granted rigid pulls (never
-                // elastic: a battery must not discharge to charge another store), plus the soft
+                // ---- Soft grants (storage charge), funding ladder per POWER.md §9.2 ----
+                // Pool, consumed in this order: (1) the local firm residual (generators + rigid
+                // contributor inflow left after rigid loads and granted rigid pulls), (2) the soft
                 // inflow arriving through this net's suppliers (granted when their input nets were
-                // processed earlier in topo order). Capped by the weakest cable's remaining headroom
+                // processed earlier in topo order), (3) the net's ELASTIC LEFTOVER: eligible
+                // discharge capacity the rigid settlement above did not consume (the lowest rung,
+                // battery-to-battery transfer). Capped by the weakest cable's remaining headroom
                 // so a charge grant cannot push a network past its tier rating. Granted
                 // proportionally over local charge requests and active consumers' soft pulls; a
                 // shed / locked / overloaded consumer gets zero soft. Note: if any rigid pull on
                 // this net was only partially granted, the firm residual is necessarily zero, so a
-                // soft grant here implies every rigid pull was granted whole.
+                // firm-funded soft grant here implies every rigid pull was granted whole.
+                //
+                // Fixed-point safety: soft never enters budgets, shed victim selection, overload
+                // detection, or the dead-input cue (all rigid-only, §9.6), so funding soft from
+                // elastic leftover cannot create a new decision-oscillation mode. The leftover is a
+                // pure function of this round's rigid settlement (RigidDemand, survivorPull,
+                // firmIn, elasticCap), and none of those inputs is touched by the soft stage; the
+                // loop's convergence test stays the (shed, overload, elastic-overload) sets.
                 float softLocal = firmIn - n.RigidDemand - survivorPull;
                 if (softLocal < 0f) softLocal = 0f;
                 float softInflow = 0f;
                 foreach (var s in n.Suppliers)
                     if (IsActive(s)) softInflow += s.SoftThrough;
-                float softAvail = softLocal + softInflow;
+                // Elastic leftover: eligible discharge capacity minus what the rigid settlement
+                // consumed. The rigid draw on elastic is max(0, RigidDemand + survivorPull -
+                // firmIn), the same formula the final elastic-share pass sizes rigid shares with,
+                // so leftover here and (EffDischarge - rigid Share) there agree at the fixed point.
+                float rigidElasticDraw = n.RigidDemand + survivorPull - firmIn;
+                if (rigidElasticDraw < 0f) rigidElasticDraw = 0f;
+                float elasticLeftover = elasticCap - rigidElasticDraw;
+                if (elasticLeftover < 0f) elasticLeftover = 0f;
+                float softFirm = softLocal + softInflow;
+                float softAvail = softFirm + elasticLeftover;
                 if (softAvail > 0f)
                 {
                     float cableHeadroom = CableMax.WeakestCapOnNetwork(n.Network) - (n.RigidServed + survivorPull);
@@ -1328,6 +1423,14 @@ namespace PowerGridPlus
                 }
                 n.SoftGrantedLocal = softGrantedLocal;
                 n.SoftPullsGranted = softPullsGranted;
+                // Elastic-funded soft quantum: the firm pool (softFirm) is consumed FIRST, so
+                // elastic funds only the granted soft the firm could not cover. Measured against
+                // the ACTUAL granted totals (per-consumer headroom caps can grant below
+                // ratio * demand), so the elastic share pass tops up exactly what the elastics
+                // fund and conservation balances by construction. When the cable-headroom clamp
+                // binds below softFirm, the whole grant is firm-funded and this reads 0.
+                float elasticFunded = softGrantedLocal + softPullsGranted - softFirm;
+                n.ElasticFundedSoft = elasticFunded > 0f ? elasticFunded : 0f;
             }
         }
 

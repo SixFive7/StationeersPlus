@@ -217,6 +217,10 @@ namespace PowerGridPlus
         /// <summary>Arm the world-load sweep to run on the next atomic tick.</summary>
         internal static void Arm() => _sweepPending = true;
 
+        /// <summary>True once the world-load sweep has fired for the current world (the save/load
+        /// self-check's third clause; read right after RunSweepIfPending on the same tick).</summary>
+        internal static bool SweepHasRun => !_sweepPending;
+
         /// <summary>
         ///     Run the world-load ledger sweep once if armed; otherwise a single flag check. Called
         ///     at the top of the atomic tick, before OBSERVE and before <see cref="AuditTickBoundary"/>,

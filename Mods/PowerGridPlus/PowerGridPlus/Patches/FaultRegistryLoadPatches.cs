@@ -53,14 +53,24 @@ namespace PowerGridPlus.Patches
             ShortfallDiagnostics.Clear();
             // The partial-power sentinel's counters and throttle are per-world diagnostics too.
             PartialPowerSentinel.Clear();
-            // The per-tick solar first-read latch and the deferred emergency-light toggles hold
-            // the previous world's ReferenceIds / Thing references; drop both on a hot-swap.
+            // The per-tick solar / wind first-read latches and the deferred emergency-light
+            // toggles hold the previous world's ReferenceIds / Thing references; drop them on a
+            // hot-swap.
             SolarOutputLatchPatches.Clear();
+            WindTurbineOutputLatchPatches.Clear();
             EmergencyLightToggleQueue.Clear();
-            // The charge-delivery audit's grants / credits / counters and the per-tick
-            // delivery-shaping allowances are per-world state too.
+            // The charge / discharge delivery audits' grants / credits / drains / counters and
+            // the per-tick delivery-shaping allowances are per-world state too.
             ChargeDeliveryAudit.Clear();
+            DischargeDeliveryAudit.Clear();
             DeliveryTickLedger.Clear();
+            // The tick-duration watchdog re-warms its median ring against the new world; the
+            // Powered-set conformance tracking and the registry hygiene cadence restart; the
+            // save/load self-check re-arms for its one-shot on the first atomic tick.
+            TickDurationWatchdog.Clear();
+            PoweredSetConformance.Clear();
+            RegistryHygiene.Clear();
+            SaveLoadSelfCheck.Arm();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }

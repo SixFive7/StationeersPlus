@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.Objects.Pipes;
 
 namespace ScenarioRunner
 {
@@ -76,6 +77,7 @@ namespace ScenarioRunner
     //   C (t >= 130):  one-shot verdict:
     //                    [RearchSuite] VERDICT charge=<PASS|FAIL|SKIP> shortfalls=<max deadlock seen>
     //                      powered=<PASS|FAIL|SKIP> ledger=<PASS|FAIL|SKIP> delivery=<PASS|FAIL|SKIP>
+    //                      audits=<PASS|FAIL>
     //                  preceded by a shortfall detail line carrying the window max of every census
     //                  bucket (maxDeadlock / maxDry / maxThrottled / maxFaulted / maxOffscope /
     //                  maxServed). shortfalls= carries max deadlockCount ONLY: the regression
@@ -88,6 +90,15 @@ namespace ScenarioRunner
     //                  (ViolationStoreTicks unchanged; SKIP when the auditor is unreachable). The
     //                  line still matches the Stage 1 greps ('RearchSuite] VERDICT' and
     //                  'charge='); the new fields are appended.
+    //                  audits= is the auditor-round combined verdict (RearchSuite_PhaseAAudits):
+    //                  PASS iff every RSD D<n> discharge fixture and TDW T<n> watchdog-threshold
+    //                  fixture is green, the DischargeDeliveryAudit / TickDurationWatchdog /
+    //                  PoweredSetConformance live counters did not move across the window, the
+    //                  save/load self-check ran and passed, and every reflection surface resolved
+    //                  (this suite ships with the mod, so unreachable is FAIL, not SKIP).
+    //                  Phases A/B also log a transfer-visibility line every 10 ticks (the
+    //                  elastic-to-soft redistribution: reference-battery ratios + min/max/mean
+    //                  charge ratio across all rostered stores; observation only, no assertion).
     //
     // Threading: PowerStored / RequiredLoad / PotentialLoad / Powered are managed state, the
     // _powerProvided reads are cached-FieldInfo reflection, PowerDeviceList is read under its lock,
@@ -175,6 +186,34 @@ namespace ScenarioRunner
         private static long _rsDeliveryBaseline;      // ChargeDeliveryAudit.ViolationStoreTicks at Phase A
         private static System.Reflection.MethodInfo _rsDeliveryPredicate;
         private static System.Reflection.PropertyInfo _rsDeliveryCounter;
+
+        // ---- Auditor-round state (the combined audits= verdict field): pure-predicate fixtures
+        // where predicates exist (DischargeDeliveryAudit.IsViolation, logged as RSD D<n>;
+        // TickDurationWatchdog.ComputeThresholdMicros, logged as TDW T<n>), Phase A baselines +
+        // one-shot Phase C reflection reads for the stateful auditors (discharge / watchdog /
+        // Powered-set conformance live counters, the save/load self-check one-shot flags, and
+        // RegistryHygiene reachability). audits=PASS iff every fixture is green, no live counter
+        // moved across the window, the self-check ran and passed, and every surface resolved
+        // (this suite ships with the mod, so unreachable reads FAIL, not SKIP). ----
+        private static int _rsAuditFixturePass;
+        private static int _rsAuditFixtureFail;
+        private static bool _rsAuditReadable;               // every auditor surface resolved + baselined
+        private static long _rsDischargeBaseline;            // DischargeDeliveryAudit.ViolationStoreTicks at Phase A
+        private static long _rsWatchdogBaseline;              // TickDurationWatchdog.ViolationTicks at Phase A
+        private static long _rsConformanceBaseline;           // PoweredSetConformance.ViolationDeviceTicks at Phase A
+        private static System.Reflection.MethodInfo _rsDischargePredicate;
+        private static System.Reflection.PropertyInfo _rsDischargeCounter;
+        private static System.Reflection.MethodInfo _rsWatchdogThresholdFn;
+        private static System.Reflection.PropertyInfo _rsWatchdogCounter;
+        private static System.Reflection.PropertyInfo _rsConformanceCounter;
+        private static System.Reflection.PropertyInfo _rsSelfCheckRan;
+        private static System.Reflection.PropertyInfo _rsSelfCheckPassed;
+        private static bool _rsHygieneReachable;
+
+        // Transfer visibility (elastic-to-soft redistribution, observation only) is sampled by
+        // RearchSuite_LogTransferVisibility below: the two reference batteries plus min/max/mean
+        // charge ratio across every store the allocator rosters. No assertion; the soak judges
+        // settling.
 
         private static void Scenario_PgpRearchSuite()
         {
@@ -293,6 +332,203 @@ namespace ScenarioRunner
 
             RearchSuite_PhaseAStage3();
             RearchSuite_PhaseADelivery();
+            RearchSuite_PhaseAAudits();
+            RearchSuite_LogTransferVisibility(0);
+        }
+
+        // ---- Auditor-round fixtures + baselines (Phase A) for the combined audits= verdict ----
+        //
+        // Pure-predicate fixtures where predicates exist: four synthetic cases against
+        // PowerGridPlus.DischargeDeliveryAudit.IsViolation(float granted, float drained), logged
+        // as "[ScenarioRunner] RSD D<n> PASS|FAIL" (the discharge mirror of the RSD P<n> charge
+        // cases; no efficiency floor, discharge carries no configured loss), plus three synthetic
+        // medians against TickDurationWatchdog.ComputeThresholdMicros(long), logged as
+        // "[ScenarioRunner] TDW T<n> PASS|FAIL" (floor binds / adaptive band / ceiling binds).
+        // Stateful auditors get Phase A baselines and one-shot Phase C reads: the discharge
+        // audit's ViolationStoreTicks, the watchdog's ViolationTicks, the Powered-set
+        // conformance ViolationDeviceTicks, the save/load self-check's Ran/Passed one-shots, and
+        // RegistryHygiene reachability (its 600-tick sweep will not fire inside the window; the
+        // suite only proves the surface exists).
+        private static void RearchSuite_PhaseAAudits()
+        {
+            try
+            {
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                const System.Reflection.BindingFlags flags =
+                    System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic;
+
+                var discharge = asm?.GetType("PowerGridPlus.DischargeDeliveryAudit");
+                _rsDischargePredicate = discharge?.GetMethod("IsViolation", flags);
+                _rsDischargeCounter = discharge?.GetProperty("ViolationStoreTicks", flags);
+
+                var watchdog = asm?.GetType("PowerGridPlus.TickDurationWatchdog");
+                _rsWatchdogThresholdFn = watchdog?.GetMethod("ComputeThresholdMicros", flags);
+                _rsWatchdogCounter = watchdog?.GetProperty("ViolationTicks", flags);
+
+                var conformance = asm?.GetType("PowerGridPlus.PoweredSetConformance");
+                _rsConformanceCounter = conformance?.GetProperty("ViolationDeviceTicks", flags);
+
+                var selfCheck = asm?.GetType("PowerGridPlus.SaveLoadSelfCheck");
+                _rsSelfCheckRan = selfCheck?.GetProperty("Ran", flags);
+                _rsSelfCheckPassed = selfCheck?.GetProperty("Passed", flags);
+
+                _rsHygieneReachable = asm?.GetType("PowerGridPlus.RegistryHygiene") != null;
+
+                if (_rsDischargePredicate == null || _rsDischargeCounter == null
+                    || _rsWatchdogThresholdFn == null || _rsWatchdogCounter == null
+                    || _rsConformanceCounter == null || _rsSelfCheckRan == null
+                    || _rsSelfCheckPassed == null || !_rsHygieneReachable)
+                {
+                    _log?.LogWarning("[ScenarioRunner] [RearchSuite] auditor surfaces unreachable " +
+                                     $"(discharge={_rsDischargePredicate != null}/{_rsDischargeCounter != null} " +
+                                     $"watchdog={_rsWatchdogThresholdFn != null}/{_rsWatchdogCounter != null} " +
+                                     $"conformance={_rsConformanceCounter != null} " +
+                                     $"selfCheck={_rsSelfCheckRan != null}/{_rsSelfCheckPassed != null} " +
+                                     $"hygiene={_rsHygieneReachable}); audits verdict will be FAIL.");
+                    _rsAuditReadable = false;
+                    return;
+                }
+
+                RearchSuite_DischargeCase("D1", "exact match passes", 100f, 100f, false);
+                RearchSuite_DischargeCase("D2", "under-drain fires", 100f, 80f, true);
+                RearchSuite_DischargeCase("D3", "over-drain fires", 100f, 130f, true);
+                RearchSuite_DischargeCase("D4", "zero grant zero drain passes", 0f, 0f, false);
+
+                RearchSuite_WatchdogCase("T1", "floor binds at 50 ms", 1000L, 50000L);
+                RearchSuite_WatchdogCase("T2", "adaptive 8x median", 10000L, 80000L);
+                RearchSuite_WatchdogCase("T3", "ceiling binds at 400 ms", 100000L, 400000L);
+
+                _rsDischargeBaseline = _rsDischargeCounter.GetValue(null) is long db ? db : -1L;
+                _rsWatchdogBaseline = _rsWatchdogCounter.GetValue(null) is long wb ? wb : -1L;
+                _rsConformanceBaseline = _rsConformanceCounter.GetValue(null) is long cb ? cb : -1L;
+                _rsAuditReadable = _rsDischargeBaseline >= 0L && _rsWatchdogBaseline >= 0L
+                                   && _rsConformanceBaseline >= 0L;
+                _log?.LogInfo(
+                    "[ScenarioRunner] [RearchSuite] audits baseline " +
+                    $"dischargeViolationStoreTicks={_rsDischargeBaseline} " +
+                    $"watchdogViolationTicks={_rsWatchdogBaseline} " +
+                    $"conformanceViolationDeviceTicks={_rsConformanceBaseline} " +
+                    $"fixtures pass={_rsAuditFixturePass} fail={_rsAuditFixtureFail}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] [RearchSuite] audits fixture setup threw: {e.Message}; " +
+                                 "audits verdict will be FAIL.");
+                _rsAuditReadable = false;
+            }
+        }
+
+        private static void RearchSuite_DischargeCase(string caseId, string label,
+            float granted, float drained, bool expectViolation)
+        {
+            bool actual;
+            try
+            {
+                actual = _rsDischargePredicate.Invoke(null, new object[] { granted, drained }) is bool b && b;
+            }
+            catch (Exception e)
+            {
+                _rsAuditFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] RSD {caseId} FAIL: {label}: invoke threw {e.Message}");
+                return;
+            }
+            if (actual == expectViolation)
+            {
+                _rsAuditFixturePass++;
+                _log?.LogInfo($"[ScenarioRunner] RSD {caseId} PASS: {label}: granted={granted} " +
+                              $"drained={drained} violation={actual}");
+            }
+            else
+            {
+                _rsAuditFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] RSD {caseId} FAIL: {label}: granted={granted} " +
+                               $"drained={drained} violation={actual}, expected {expectViolation}");
+            }
+        }
+
+        private static void RearchSuite_WatchdogCase(string caseId, string label,
+            long medianMicros, long expectedMicros)
+        {
+            long actual;
+            try
+            {
+                actual = _rsWatchdogThresholdFn.Invoke(null, new object[] { medianMicros }) is long v ? v : -1L;
+            }
+            catch (Exception e)
+            {
+                _rsAuditFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] TDW {caseId} FAIL: {label}: invoke threw {e.Message}");
+                return;
+            }
+            if (actual == expectedMicros)
+            {
+                _rsAuditFixturePass++;
+                _log?.LogInfo($"[ScenarioRunner] TDW {caseId} PASS: {label}: median={medianMicros} " +
+                              $"threshold={actual}");
+            }
+            else
+            {
+                _rsAuditFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] TDW {caseId} FAIL: {label}: median={medianMicros} " +
+                               $"threshold={actual}, expected {expectedMicros}");
+            }
+        }
+
+        // ---- Transfer visibility (Phases A/B, observation only, no assertion) ----
+        //
+        // The elastic-to-soft transfer rung redistributes stored energy across the save's
+        // storage; make that visible in suite output: the two reference batteries' charge
+        // ratios plus min/max/mean ratio across every store the allocator rosters (Battery
+        // instances, APC cells, umbilical halves). The 4-hour soak judges settling; the suite
+        // only logs.
+        private static void RearchSuite_LogTransferVisibility(long t)
+        {
+            try
+            {
+                int stores = 0;
+                float min = float.MaxValue, max = float.MinValue;
+                double sum = 0.0;
+                void Sample(float storedValue, float maximumValue)
+                {
+                    if (maximumValue <= 0f) return;
+                    float ratio = storedValue / maximumValue;
+                    stores++;
+                    sum += ratio;
+                    if (ratio < min) min = ratio;
+                    if (ratio > max) max = ratio;
+                }
+                OcclusionManager.AllThings.ForEach(thing =>
+                {
+                    switch (thing)
+                    {
+                        case Battery b:
+                            Sample(b.PowerStored, b.PowerMaximum);
+                            break;
+                        case AreaPowerControl apc:
+                            var cell = apc.Battery;
+                            if (cell != null) Sample(cell.PowerStored, cell.PowerMaximum);
+                            break;
+                        case Objects.Rockets.RocketPowerUmbilical umb:
+                            Sample(umb.PowerStored, umb.PowerMaximum);
+                            break;
+                    }
+                });
+                string batA = _rsBatA != null && _rsBatA.PowerMaximum > 0f
+                    ? (_rsBatA.PowerStored / _rsBatA.PowerMaximum).ToString("F4") : "n/a";
+                string batB = _rsBatB != null && _rsBatB.PowerMaximum > 0f
+                    ? (_rsBatB.PowerStored / _rsBatB.PowerMaximum).ToString("F4") : "n/a";
+                _log?.LogInfo(
+                    $"[ScenarioRunner] [RearchSuite] t={t} xfer bat{RS_BAT_A}={batA} bat{RS_BAT_B}={batB} " +
+                    $"stores={stores} minRatio={(stores > 0 ? min.ToString("F4") : "n/a")} " +
+                    $"maxRatio={(stores > 0 ? max.ToString("F4") : "n/a")} " +
+                    $"meanRatio={(stores > 0 ? (sum / stores).ToString("F4") : "n/a")}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] [RearchSuite] transfer-visibility sample threw: {e.Message}");
+            }
         }
 
         // ---- Delivery-audit fixtures (Phase A) + counter baseline for the Phase C window ----
@@ -469,6 +705,7 @@ namespace ScenarioRunner
                 $"(dry={dry} throttled={throttled} faulted={faulted} offscope={offscope} served={served})");
 
             RearchSuite_PhaseBStage3(t);
+            if (t % RS_LOG_EVERY == 0) RearchSuite_LogTransferVisibility(t);
         }
 
         // Stage 3 per-tick tracking. poweredHealthyViolations, DEBOUNCED: a tick counts as a
@@ -701,6 +938,40 @@ namespace ScenarioRunner
                     "(need all fixtures green and zero live violations)");
             }
 
+            // Combined auditor-round verdict: PASS iff every RSD D<n> / TDW T<n> fixture is green,
+            // none of the three live counters (discharge audit, tick watchdog, Powered-set
+            // conformance) moved across the window, the save/load self-check ran and passed, and
+            // every reflection surface resolved. This suite ships with the mod, so an unreachable
+            // surface is FAIL, not SKIP.
+            string audits;
+            if (!_rsAuditReadable)
+            {
+                audits = "FAIL";
+                _log?.LogInfo("[ScenarioRunner] [RearchSuite] audits detail: auditor surfaces unreachable or " +
+                              "baselines unreadable (see the Phase A warning).");
+            }
+            else
+            {
+                long dischargeEnd = _rsDischargeCounter.GetValue(null) is long de ? de : -1L;
+                long watchdogEnd = _rsWatchdogCounter.GetValue(null) is long we ? we : -1L;
+                long conformEnd = _rsConformanceCounter.GetValue(null) is long ce ? ce : -1L;
+                long dischargeLive = dischargeEnd >= 0L ? dischargeEnd - _rsDischargeBaseline : -1L;
+                long watchdogLive = watchdogEnd >= 0L ? watchdogEnd - _rsWatchdogBaseline : -1L;
+                long conformLive = conformEnd >= 0L ? conformEnd - _rsConformanceBaseline : -1L;
+                bool selfRan = _rsSelfCheckRan.GetValue(null) is bool r && r;
+                bool selfPassed = _rsSelfCheckPassed.GetValue(null) is bool p && p;
+                bool pass = _rsAuditFixtureFail == 0 && _rsAuditFixturePass > 0
+                            && dischargeLive == 0L && watchdogLive == 0L && conformLive == 0L
+                            && selfRan && selfPassed;
+                audits = pass ? "PASS" : "FAIL";
+                _log?.LogInfo(
+                    $"[ScenarioRunner] [RearchSuite] audits detail: fixtures pass={_rsAuditFixturePass} " +
+                    $"fail={_rsAuditFixtureFail}, live over window: discharge={dischargeLive} " +
+                    $"watchdog={watchdogLive} conformance={conformLive}, " +
+                    $"selfCheck ran={selfRan} passed={selfPassed}, hygieneReachable={_rsHygieneReachable} " +
+                    "(need all fixtures green, zero live counter growth, self-check passed)");
+            }
+
             // Census v2 detail: the window max of every shortfall bucket. shortfalls= on the
             // VERDICT line carries maxDeadlock only (the regression signal); the other buckets
             // are honest darkness (or, for served, a vanilla-presentation disagreement) and are
@@ -712,7 +983,7 @@ namespace ScenarioRunner
 
             _log?.LogInfo(
                 $"[ScenarioRunner] [RearchSuite] VERDICT charge={charge} shortfalls={_rsMaxShortfalls} " +
-                $"powered={powered} ledger={ledger} delivery={delivery}");
+                $"powered={powered} ledger={ledger} delivery={delivery} audits={audits}");
         }
     }
 }
