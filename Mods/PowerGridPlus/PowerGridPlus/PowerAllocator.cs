@@ -58,7 +58,10 @@ namespace PowerGridPlus
     ///             instead of cycling 60-second lockouts. After the rigid grants, soft is granted from the
     ///             net's firm residual (plus soft inflow arriving through its suppliers), proportionally
     ///             over local charge requests and consumer soft pulls, capped by the weakest cable's
-    ///             remaining headroom; a shed / locked / overloaded contributor gets zero soft;
+    ///             remaining headroom; a shed / locked / overloaded contributor gets zero soft, and a
+    ///             store owned by an unbillable contributor raises no charge desire and gets no grant
+    ///             (SoftOwnerBillable: the lockout enforcement zeroes the owner's vanilla bill, so a
+    ///             grant could never be billed or delivered; the 464386 finding);
     ///          d. supply overload after the forward pass (RIGID ONLY): the elastic analog (a battery /
     ///             APC cell / umbilical delivering its full effective discharge with rigid demand still
     ///             unmet) and the §5.7 cable-overflow rule (rigid flow above the weakest cable's cap with
@@ -176,6 +179,15 @@ namespace PowerGridPlus
             public CableNetwork InNet;
             public float Request;          // min(charge rate cap, cable cap, headroom)
             public float Share;
+            public byte Kind;              // ChargeDeliveryAudit store kind (battery / APC cell / umbilical)
+            // Billability links (the 464386 finding): CycleFaultEnforcementPatches zeroes a
+            // locked / shed / overloaded owner's vanilla bill at Priority.Last, so a share
+            // granted to a store whose owner cannot bill can never be billed or delivered and
+            // strands as granted-but-uncredited. GATHER never enrolls a store whose owner is
+            // registry-locked; these references let the per-round SoftOwnerBillable gate cover
+            // the owner that sheds / overloads INSIDE the deciding loop.
+            public Seg OwnerSeg;           // the APC's routed seg (null for battery / umbilical stores)
+            public Elastic OwnerElastic;   // the store's own discharge half this tick (null when absent)
         }
 
         private sealed class Net
@@ -193,8 +205,9 @@ namespace PowerGridPlus
             public readonly List<Seg> Consumers = new List<Seg>();
             public readonly List<Elastic> Elastics = new List<Elastic>();
             public readonly List<Soft> Softs = new List<Soft>();
-            // Static per tick: total local storage charge requests (sum of Softs' Request).
-            public float SoftRequestLocal;
+            // The local charge desire is recomputed per round from billable owners only
+            // (BillableSoftRequestLocal); no static per-tick sum is kept, so a store whose owner
+            // sheds / overloads inside the deciding loop stops sizing upstream soft inflow.
             // per-round:
             public float Unmet;
             public float PullsGranted;
@@ -249,7 +262,26 @@ namespace PowerGridPlus
                 {
                     var device = snapshot[i];
                     if (device == null) continue;
-                    if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio)) continue;
+                    if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio))
+                    {
+                        // The rocket umbilical halves bill their own idle draw on the input
+                        // network under vanilla gates the Buffered adapter cannot carry (no
+                        // routed seg exists to hold a quiescent pull): the Male whenever ON
+                        // (Error included), the Female whenever wired and not errored (her
+                        // GetUsedPower has no OnOff gate). Fund that draw as plain rigid
+                        // demand so the vanilla bill is never a phantom no advertise covers
+                        // (the idle-APC 160/150 partial-power shape, umbilical edition). The
+                        // charge component stays a share-capped Soft, and the delivery-side
+                        // burn (RocketUmbilicalPatches) keeps the credited charge equal to
+                        // the share. Deliberately does NOT set HasNonSegmenterDevice: the
+                        // umbilical is still a segmenter for the sentinel's scope gate.
+                        if (device is RocketPowerUmbilical umbilical && network == umbilical.InputNetwork)
+                        {
+                            float quiescent = Patches.RocketUmbilicalPatches.QuiescentBill(umbilical);
+                            if (quiescent > 0f) n.RigidDemand += quiescent;
+                        }
+                        continue;
+                    }
                     // A plain (non-segmenter) power device is ratio-deprivable: vanilla
                     // ApplyState scales its delivery and drives its Powered state, neither
                     // cache-governed. Feeds the partial-power sentinel's scope set (device-
@@ -346,9 +378,10 @@ namespace PowerGridPlus
                         var cell = apc.Battery;
                         if (cell != null)
                         {
+                            Elastic cellElastic = null;
                             if (cell.PowerStored > 0f)
                             {
-                                elastics.Add(new Elastic
+                                elastics.Add(cellElastic = new Elastic
                                 {
                                     RefId = apc.ReferenceId,
                                     OutNet = apc.OutputNetwork,
@@ -359,11 +392,26 @@ namespace PowerGridPlus
                                     Locked = seg.Locked,
                                 });
                             }
-                            if (!cell.IsCharged)
+                            // A registry-locked APC's vanilla bill is zeroed at ENFORCE
+                            // (CycleFaultEnforcementPatches, Priority.Last), so its cell must not
+                            // raise a charge request: a granted share could never be billed or
+                            // delivered and would strand as granted-but-uncredited for the whole
+                            // lockout window (the 464386 finding: exactly 120 zero-credit ticks
+                            // under a dawn lockout). Same-tick shed / overload decided inside the
+                            // loop is covered by the SoftOwnerBillable gate via the owner links.
+                            if (!cell.IsCharged && !seg.Locked)
                             {
                                 float req = Mathf.Min(Patches.AreaPowerControlPatches.ComputeChargeCap(apc), cell.PowerDelta);
                                 if (req > 0f)
-                                    softs.Add(new Soft { RefId = apc.ReferenceId, InNet = apc.InputNetwork, Request = req });
+                                    softs.Add(new Soft
+                                    {
+                                        RefId = apc.ReferenceId,
+                                        InNet = apc.InputNetwork,
+                                        Request = req,
+                                        Kind = ChargeDeliveryAudit.KindApcCell,
+                                        OwnerSeg = seg,
+                                        OwnerElastic = cellElastic,
+                                    });
                             }
                         }
                         break;
@@ -371,15 +419,22 @@ namespace PowerGridPlus
                     case Battery battery:
                     {
                         if (battery.Error == 1) break;
+                        // Vanilla gates every battery power surface on IsOperable (an incomplete
+                        // or broken battery bills, advertises, and credits nothing), so an
+                        // inoperable battery is not enrolled either: a charge share granted to a
+                        // store vanilla will never bill for would strand as granted-but-
+                        // undeliverable and the charge-delivery audit would rightly flag it.
+                        if (!Patches.StationaryBatteryPatches.GetIsOperable(battery)) break;
                         if (battery.InputNetwork != null && battery.OutputNetwork != null
                             && battery.InputNetwork.ReferenceId == battery.OutputNetwork.ReferenceId) break;   // short-circuit gate
                         bool locked = IsPowerLocked(battery.ReferenceId);
+                        Elastic ownElastic = null;
                         if (battery.OutputNetwork != null && battery.PowerStored > 0f)
                         {
                             float rateCap = Settings.EnableBatteryLimits.Value
                                 ? Patches.StationaryBatteryPatches.EffectiveDischargeCap(battery)
                                 : float.MaxValue;
-                            elastics.Add(new Elastic
+                            elastics.Add(ownElastic = new Elastic
                             {
                                 RefId = battery.ReferenceId,
                                 OutNet = battery.OutputNetwork,
@@ -387,7 +442,12 @@ namespace PowerGridPlus
                                 Locked = locked,
                             });
                         }
-                        if (battery.InputNetwork != null)
+                        // A registry-locked battery's vanilla bill is zeroed at ENFORCE
+                        // (CycleFaultEnforcementPatches), so it raises no charge request while
+                        // locked: a granted share would strand as granted-but-uncredited (the
+                        // 464386 shape on a battery). The same-tick elastic-overload trip is
+                        // covered by the OwnerElastic link and the SoftOwnerBillable gate.
+                        if (battery.InputNetwork != null && !locked)
                         {
                             float headroom = battery.PowerMaximum - battery.PowerStored;
                             float rateCap = Settings.EnableBatteryLimits.Value
@@ -395,7 +455,14 @@ namespace PowerGridPlus
                                 : float.MaxValue;
                             float req = Mathf.Min(rateCap, headroom);
                             if (req > 0f)
-                                softs.Add(new Soft { RefId = battery.ReferenceId, InNet = battery.InputNetwork, Request = req });
+                                softs.Add(new Soft
+                                {
+                                    RefId = battery.ReferenceId,
+                                    InNet = battery.InputNetwork,
+                                    Request = req,
+                                    Kind = ChargeDeliveryAudit.KindBattery,
+                                    OwnerElastic = ownElastic,
+                                });
                         }
                         break;
                     }
@@ -408,9 +475,10 @@ namespace PowerGridPlus
                         // phase 2, outside the allocator (see the adapter's doc).
                         if (!SegAdapters.Umbilical.TryDescribe(umbilical, out var spec)) break;
                         bool locked = IsPowerLocked(umbilical.ReferenceId);
+                        Elastic umbElastic = null;
                         if (spec.HasElastic)
                         {
-                            elastics.Add(new Elastic
+                            elastics.Add(umbElastic = new Elastic
                             {
                                 RefId = umbilical.ReferenceId,
                                 OutNet = spec.OutNet,
@@ -418,8 +486,18 @@ namespace PowerGridPlus
                                 Locked = locked,
                             });
                         }
-                        if (spec.HasSoft)
-                            softs.Add(new Soft { RefId = umbilical.ReferenceId, InNet = spec.InNet, Request = spec.SoftRequest });
+                        // Same billability rule as the APC cell and the battery: a registry-
+                        // locked half's bill is zeroed at ENFORCE, so it raises no charge
+                        // request; the same-tick elastic trip rides the OwnerElastic link.
+                        if (spec.HasSoft && !locked)
+                            softs.Add(new Soft
+                            {
+                                RefId = umbilical.ReferenceId,
+                                InNet = spec.InNet,
+                                Request = spec.SoftRequest,
+                                Kind = ChargeDeliveryAudit.KindUmbilical,
+                                OwnerElastic = umbElastic,
+                            });
                         break;
                     }
                 }
@@ -436,12 +514,7 @@ namespace PowerGridPlus
             }
             foreach (var e in elastics) GetNet(e.OutNet)?.Elastics.Add(e);
             foreach (var s in softs)
-            {
-                var n = GetNet(s.InNet);
-                if (n == null) continue;
-                n.Softs.Add(s);
-                n.SoftRequestLocal += s.Request;
-            }
+                GetNet(s.InNet)?.Softs.Add(s);
 
             // ----------------------------------------------------------------
             // 2. ORDER. TRUE topological order over the live contributor edges (every network after ALL
@@ -701,6 +774,23 @@ namespace PowerGridPlus
             // exactly what the allocator granted.
             foreach (var s in softs)
                 SoftDemandShareCache.SetShare(s.RefId, s.Share);
+
+            // Charge-grant snapshot for the charge-delivery audit (§8.8 fifth surface): every
+            // store's granted charge this tick, with the charge-side net (the audit's Served gate)
+            // and the store kind (efficiency-band / master-toggle handling). Published even when
+            // empty so a stale tick's grants never linger into the comparison.
+            var chargeGrants = new Dictionary<long, ChargeDeliveryAudit.Grant>(softs.Count);
+            foreach (var s in softs)
+            {
+                if (s.InNet == null) continue;
+                chargeGrants[s.RefId] = new ChargeDeliveryAudit.Grant
+                {
+                    Granted = s.Share,
+                    NetId = s.InNet.ReferenceId,
+                    Kind = s.Kind,
+                };
+            }
+            ChargeDeliveryAudit.PublishGrants(chargeGrants);
 
             // Publish each routed contributor's exact converged PRESENTATION TOTALS so its
             // GetGeneratedPower / GetUsedPower report the real in-tick flow (no headroom), soft
@@ -1008,7 +1098,7 @@ namespace PowerGridPlus
                     softPulls += c.SoftDesiredPull;
                 }
                 n.DesiredDemand = n.RigidDemand + pulls;
-                n.SoftDesire = n.SoftRequestLocal + softPulls;
+                n.SoftDesire = BillableSoftRequestLocal(n) + softPulls;
 
                 float residual = n.DesiredDemand - n.GenSupply;
                 if (residual < 0f) residual = 0f;
@@ -1190,7 +1280,7 @@ namespace PowerGridPlus
                     if (softAvail > cableHeadroom) softAvail = cableHeadroom;
                 }
 
-                float softDemand = n.SoftRequestLocal;
+                float softDemand = BillableSoftRequestLocal(n);
                 foreach (var c in n.Consumers)
                     if (IsActive(c) && c.SoftDesiredPull > 0f) softDemand += c.SoftDesiredPull;
 
@@ -1201,7 +1291,15 @@ namespace PowerGridPlus
                 float softGrantedLocal = 0f;
                 foreach (var s in n.Softs)
                 {
-                    s.Share = s.Request * softRatio;
+                    // A store owned by an unbillable contributor gets no grant this round: the
+                    // lockout enforcement postfix (CycleFaultEnforcementPatches) zeroes the
+                    // owner's vanilla bill at ENFORCE, so a share granted here could never be
+                    // billed or delivered and would strand as granted-but-uncredited (the
+                    // 464386 finding). GATHER already refuses registry-locked owners; this gate
+                    // covers the owner that sheds / overloads inside the deciding loop, and the
+                    // billable-desire sums above stop upstream soft inflow from being sized for
+                    // it, so nothing strands billed-but-unconsumed either.
+                    s.Share = SoftOwnerBillable(s) ? s.Request * softRatio : 0f;
                     softGrantedLocal += s.Share;
                 }
                 float softPullsGranted = 0f;
@@ -1327,6 +1425,27 @@ namespace PowerGridPlus
         }
 
         private static bool IsActive(Seg seg) => !seg.Locked && !seg.Shed && !seg.Overloaded;
+
+        // A local store's charge grant is billable only while its OWNER can bill this round:
+        // the APC's routed seg active (not locked / shed / overloaded), and the store's own
+        // discharge half not elastic-overloaded (the cohort commit stamps the registry in the
+        // same tick, which zeroes the owner's vanilla bill via CycleFaultEnforcementPatches).
+        // GATHER never enrolls registry-locked owners, so this gate exists for the in-loop
+        // decisions only; flags settle at the fixed point, so the converged state carries no
+        // desire, no inflow, and no grant for an unbillable store (the 464386 finding).
+        private static bool SoftOwnerBillable(Soft s)
+            => (s.OwnerSeg == null || IsActive(s.OwnerSeg))
+               && (s.OwnerElastic == null || !s.OwnerElastic.Overloaded);
+
+        // The net's local charge desire from billable owners only, recomputed per round so the
+        // backward pass never sizes upstream soft inflow for a store that cannot receive it.
+        private static float BillableSoftRequestLocal(Net n)
+        {
+            float sum = 0f;
+            foreach (var s in n.Softs)
+                if (SoftOwnerBillable(s)) sum += s.Request;
+            return sum;
+        }
 
         // Diagnostic tolerance for the shortfall classifier's supply comparisons. kW-scale float
         // sums carry more rounding noise than the allocator's own Eps (0.01 W), and the census's

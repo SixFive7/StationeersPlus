@@ -79,6 +79,39 @@ namespace PowerGridPlus.Patches
             _lastPassthrough[__instance.ReferenceId] = powerUsed;
         }
 
+        /// <summary>
+        ///     The APC's funded quiescent this tick: its idle UsedPower when the vanilla bill gate
+        ///     holds (OnOff and an output network, decompile 391035) AND the allocator's published
+        ///     totals fund it (a positive TransformerSupplyCache pull: idle healthy publishes
+        ///     (0, quiescent), conducting publishes throughput + quiescent, inactive publishes
+        ///     all-zero, roster-absent misses). Single source of truth for the GetUsedPower bill
+        ///     and the ReceivePower delivery burn, so what is billed is exactly what is burned.
+        /// </summary>
+        internal static float FundedQuiescent(AreaPowerControl apc)
+        {
+            if (!apc.OnOff || apc.OutputNetwork == null) return 0f;
+            return TransformerSupplyCache.TryGetInputDraw(apc.ReferenceId, out var fundedPull) && fundedPull > 0f
+                ? apc.UsedPower
+                : 0f;
+        }
+
+        // Delivery-side alignment (the charge-delivery audit's contract: credit == grant on a
+        // served network). Vanilla ApplyState delivers a device's bill in one ReceivePower call
+        // PER CONTRIBUTING PROVIDER (PowerTick.ConsumePower), so every per-call adjustment here
+        // rides a per-tick allowance (DeliveryTickLedger) instead of applying per chunk:
+        //   1. The device's own quiescent is BURNED out of the stream first, at most once per
+        //      tick and only up to the FUNDED amount (the same FundedQuiescent the bill used).
+        //      The old unconditional per-chunk `powerAdded -= UsedPower` over-subtracted once per
+        //      provider and kept subtracting for shed / roster-absent APCs whose bill carried no
+        //      quiescent, under-crediting the cell by up to one quiescent per tick.
+        //   2. The cell credit comes straight out of the delivered stream, cumulatively capped at
+        //      the allocator's granted charge share for the tick (plus the physical PowerDelta /
+        //      ComputeChargeCap caps). The old negative-ledger gate shuttled passthrough watts
+        //      through the cell on conducting APCs (credited beyond the share, re-drained by
+        //      UsePower a tick later) and starved the credit entirely on passthrough down-ramps.
+        //   3. Only the remainder (the passthrough component) reduces the vanilla _powerProvided
+        //      ledger, which keeps the vanilla cell-cover feature intact: UsePower still drains
+        //      the cell when the downstream draw outruns what the input repaid.
         [HarmonyPrefix, HarmonyPatch(nameof(AreaPowerControl.ReceivePower))]
         public static bool ReceivePowerPatch(CableNetwork cableNetwork, float powerAdded, AreaPowerControl __instance, ref float ____powerProvided)
         {
@@ -88,20 +121,40 @@ namespace PowerGridPlus.Patches
             if (__instance.InputNetwork == null || cableNetwork != __instance.InputNetwork)
                 return false;
 
-            powerAdded -= __instance.UsedPower;
+            long refId = __instance.ReferenceId;
+            powerAdded -= DeliveryTickLedger.TakeQuiescentBurn(refId, FundedQuiescent(__instance), powerAdded);
             if (powerAdded <= 0.0f)
                 return false;
 
-            ____powerProvided -= powerAdded;
+            var cell = __instance.Battery;
+            if ((bool)cell && !cell.IsCharged)
+            {
+                float grantedShare = SoftDemandShareCache.TryGetShare(refId, out var share) ? share : 0f;
+                float credit = DeliveryTickLedger.TakeShareCredit(refId, grantedShare,
+                    Mathf.Min(powerAdded, Mathf.Min(cell.PowerDelta, ComputeChargeCap(__instance))));
+                if (credit > 0f)
+                {
+                    cell.PowerStored += credit;
+                    powerAdded -= credit;
+                    // Record the exact credited amount at the source (argument-derived by
+                    // construction): the APC needs no observation bracket, and the cell's own
+                    // float storage rounding never enters the audit.
+                    ChargeDeliveryAudit.RecordCredit(refId, ChargeDeliveryAudit.KindApcCell, credit);
+                }
+            }
+            else if (SoftDemandShareCache.TryGetShare(refId, out var mootShare) && mootShare > 0f)
+            {
+                // A charge share exists but the cell can take none (reads full, or was pulled):
+                // the cell crossed its Mode-based IsCharged between the ALLOCATE grant and this
+                // delivery (Mode updates through a main-thread interact, so the flip can land
+                // inside the tick). The grant is moot this tick; tell the audit so the
+                // legitimate fill-edge (granted > 0, credited 0) is recognized instead of
+                // flagged (the farm-APC tick-868 finding).
+                ChargeDeliveryAudit.MarkChargeGateClosed(refId);
+            }
 
-            if (____powerProvided >= 0.0f || !(bool)__instance.Battery || __instance.Battery.IsCharged)
-                return false;
-
-            float chargeCap = ComputeChargeCap(__instance);
-            float num = Mathf.Min(__instance.Battery.PowerDelta, chargeCap, powerAdded);
-            if (num <= 0f) return false;
-            __instance.Battery.PowerStored += num;
-            ____powerProvided += num;
+            if (powerAdded > 0.0f)
+                ____powerProvided -= powerAdded;
             return false;
         }
 
@@ -121,13 +174,23 @@ namespace PowerGridPlus.Patches
             {
                 if (__instance.OutputNetwork != null)
                 {
-                    // Quiescent idle draw, gated exactly like vanilla (OnOff && OutputNetwork
-                    // != null, 0.2.6403 decompile 391035): an output-less APC bills no idle
-                    // draw. The allocator funds this bill through the always-on quiescent pull
-                    // (PowerAllocator, Seg.QuiescentAlwaysOn), so an idle APC no longer leaves
-                    // a served network one quiescent short of its vanilla Required (the
-                    // persistent 160/150 partial-power finding).
-                    usedPower += __instance.UsedPower;
+                    // Quiescent idle draw. The OUTER gate is exactly vanilla's (OnOff &&
+                    // OutputNetwork != null, 0.2.6403 decompile 391035): an output-less APC
+                    // bills no idle draw. WITHIN it the quiescent follows the allocator's
+                    // PUBLISHED totals rather than being billed unconditionally (FundedQuiescent:
+                    // an enrolled APC publishes TotalPull >= quiescent whenever it was granted
+                    // anything, idle healthy = (0, quiescent), conducting = throughput +
+                    // quiescent), so a positive published pull means an upstream advertise funds
+                    // the draw. All-zero totals are the inactive-contributor contract (shed /
+                    // overloaded / cycle-locked): bill 0 like the transformer does, instead of a
+                    // vanilla quiescent nobody funds (the shed-APC residual of the 160/150
+                    // finding). A cache MISS (roster-absent: errored, short-circuited, just
+                    // placed) also bills 0; vanilla would bill the quiescent there, a deliberate
+                    // deviation consistent with the errored-transformer 0-bill. On an unmet net
+                    // a partially funded quiescent-only pull still bills the full quiescent
+                    // (vanilla-faithful honest darkness; such a net is never classified Served).
+                    // The ReceivePower burn uses the same helper, so billed == burned.
+                    usedPower += FundedQuiescent(__instance);
 
                     // Passthrough draw on the input network. Vanilla bills it from _powerProvided, the
                     // accumulator filled during the PREVIOUS tick's ApplyState, so it lags one tick. The
@@ -156,6 +219,15 @@ namespace PowerGridPlus.Patches
                             ? Mathf.Min(chargePortion, share)
                             : 0f;
                     usedPower += chargePortion;
+                }
+                else if (SoftDemandShareCache.TryGetShare(__instance.ReferenceId, out var mootShare)
+                         && mootShare > 0f)
+                {
+                    // Fresh charge share, but the cell can take no charge: it crossed the
+                    // Mode-based IsCharged (or was pulled) between the ALLOCATE grant and this
+                    // bill. The bill correctly carries no charge; mark the grant moot for the
+                    // charge-delivery audit so the legitimate fill-edge is not flagged.
+                    ChargeDeliveryAudit.MarkChargeGateClosed(__instance.ReferenceId);
                 }
             }
 

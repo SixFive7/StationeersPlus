@@ -69,9 +69,13 @@ namespace ScenarioRunner
     //                  postfix pump, i.e. after PowerGridPlus's ENFORCE-tail ledger settle). A
     //                  third 10-tick log line reports both:
     //                    [RearchSuite] t=<n> chargersPowered=<k>/<n> violations=<v> minLedger=<W>
+    //                  Delivery-audit addition (Phase A): one-shot pure-function fixture checks of
+    //                  PowerGridPlus.ChargeDeliveryAudit.IsViolation (six synthetic cases, logged
+    //                  as "[ScenarioRunner] RSD P<n> PASS|FAIL: <label>") plus a baseline of the
+    //                  auditor's live ViolationStoreTicks counter for the Phase C window.
     //   C (t >= 130):  one-shot verdict:
     //                    [RearchSuite] VERDICT charge=<PASS|FAIL|SKIP> shortfalls=<max deadlock seen>
-    //                      powered=<PASS|FAIL|SKIP> ledger=<PASS|FAIL|SKIP>
+    //                      powered=<PASS|FAIL|SKIP> ledger=<PASS|FAIL|SKIP> delivery=<PASS|FAIL|SKIP>
     //                  preceded by a shortfall detail line carrying the window max of every census
     //                  bucket (maxDeadlock / maxDry / maxThrottled / maxFaulted / maxOffscope /
     //                  maxServed). shortfalls= carries max deadlockCount ONLY: the regression
@@ -79,8 +83,11 @@ namespace ScenarioRunner
     //                  BOTH batteries and the combined rise exceeds 100 kJ over the window.
     //                  powered PASS = zero poweredHealthyViolations (SKIP when no charger
     //                  resolved). ledger PASS = minLedger >= -0.5 W across the window (SKIP when
-    //                  no wireless half was readable). The line still matches the Stage 1 greps
-    //                  ('RearchSuite] VERDICT' and 'charge='); the two fields are appended.
+    //                  no wireless half was readable). delivery PASS = every Phase A fixture case
+    //                  green AND zero live charge-delivery-audit violations across the window
+    //                  (ViolationStoreTicks unchanged; SKIP when the auditor is unreachable). The
+    //                  line still matches the Stage 1 greps ('RearchSuite] VERDICT' and
+    //                  'charge='); the new fields are appended.
     //
     // Threading: PowerStored / RequiredLoad / PotentialLoad / Powered are managed state, the
     // _powerProvided reads are cached-FieldInfo reflection, PowerDeviceList is read under its lock,
@@ -160,6 +167,14 @@ namespace ScenarioRunner
             ("cycle", "PowerGridPlus.CycleFaultRegistry"),
             ("vvf", "PowerGridPlus.VariableVoltageFaultRegistry"),
         };
+
+        // ---- Delivery-audit state: Phase A fixture results + the live counter window ----
+        private static int _rsDeliveryFixturePass;
+        private static int _rsDeliveryFixtureFail;
+        private static bool _rsDeliveryReadable;      // predicate resolved AND counter baselined
+        private static long _rsDeliveryBaseline;      // ChargeDeliveryAudit.ViolationStoreTicks at Phase A
+        private static System.Reflection.MethodInfo _rsDeliveryPredicate;
+        private static System.Reflection.PropertyInfo _rsDeliveryCounter;
 
         private static void Scenario_PgpRearchSuite()
         {
@@ -277,6 +292,90 @@ namespace ScenarioRunner
             }
 
             RearchSuite_PhaseAStage3();
+            RearchSuite_PhaseADelivery();
+        }
+
+        // ---- Delivery-audit fixtures (Phase A) + counter baseline for the Phase C window ----
+        //
+        // One-shot pure-function checks of PowerGridPlus.ChargeDeliveryAudit.IsViolation(float
+        // granted, float credited, float efficiencyFloor), the charge-delivery audit's comparison
+        // predicate, logged per case as "[ScenarioRunner] RSD P<n> PASS|FAIL: <label>". Also
+        // baselines the auditor's live ViolationStoreTicks counter so Phase C can judge the
+        // observation window. The VERDICT line gains " delivery=PASS|FAIL|SKIP": PASS = every
+        // fixture case green AND zero live auditor violations across the window; SKIP = auditor
+        // unreachable (older PowerGridPlus build). P5/P6 cover the configured-efficiency
+        // disambiguation band: a battery's configured charge loss is legitimate (not a delivery
+        // fault) down to the configured floor; a loss beyond it fires.
+        private static void RearchSuite_PhaseADelivery()
+        {
+            try
+            {
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                var audit = asm?.GetType("PowerGridPlus.ChargeDeliveryAudit");
+                _rsDeliveryPredicate = audit?.GetMethod("IsViolation",
+                    System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic);
+                _rsDeliveryCounter = audit?.GetProperty("ViolationStoreTicks",
+                    System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic);
+                if (_rsDeliveryPredicate == null || _rsDeliveryCounter == null)
+                {
+                    _log?.LogWarning("[ScenarioRunner] [RearchSuite] ChargeDeliveryAudit unreachable " +
+                                     "(predicate or counter missing); delivery verdict will be SKIP.");
+                    _rsDeliveryPredicate = null;
+                    return;
+                }
+
+                RearchSuite_DeliveryCase("P1", "exact match passes", 100f, 100f, 1f, false);
+                RearchSuite_DeliveryCase("P2", "under-credit fires", 100f, 80f, 1f, true);
+                RearchSuite_DeliveryCase("P3", "over-credit fires", 100f, 130f, 1f, true);
+                RearchSuite_DeliveryCase("P4", "zero grant zero credit passes", 0f, 0f, 1f, false);
+                RearchSuite_DeliveryCase("P5", "configured-efficiency loss passes (floor 0.9)", 100f, 92f, 0.9f, false);
+                RearchSuite_DeliveryCase("P6", "loss beyond the floor fires (floor 0.9)", 100f, 85f, 0.9f, true);
+
+                _rsDeliveryBaseline = _rsDeliveryCounter.GetValue(null) is long baseline ? baseline : -1L;
+                _rsDeliveryReadable = _rsDeliveryBaseline >= 0L;
+                _log?.LogInfo(
+                    $"[ScenarioRunner] [RearchSuite] delivery baseline violationStoreTicks={_rsDeliveryBaseline} " +
+                    $"fixtures pass={_rsDeliveryFixturePass} fail={_rsDeliveryFixtureFail}");
+            }
+            catch (Exception e)
+            {
+                _log?.LogWarning($"[ScenarioRunner] [RearchSuite] delivery fixture setup threw: {e.Message}; " +
+                                 "delivery verdict will be SKIP.");
+                _rsDeliveryPredicate = null;
+                _rsDeliveryReadable = false;
+            }
+        }
+
+        private static void RearchSuite_DeliveryCase(string caseId, string label,
+            float granted, float credited, float floor, bool expectViolation)
+        {
+            bool actual;
+            try
+            {
+                actual = _rsDeliveryPredicate.Invoke(null, new object[] { granted, credited, floor }) is bool b && b;
+            }
+            catch (Exception e)
+            {
+                _rsDeliveryFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] RSD {caseId} FAIL: {label}: invoke threw {e.Message}");
+                return;
+            }
+            if (actual == expectViolation)
+            {
+                _rsDeliveryFixturePass++;
+                _log?.LogInfo($"[ScenarioRunner] RSD {caseId} PASS: {label}: granted={granted} " +
+                              $"credited={credited} floor={floor} violation={actual}");
+            }
+            else
+            {
+                _rsDeliveryFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] RSD {caseId} FAIL: {label}: granted={granted} " +
+                               $"credited={credited} floor={floor} violation={actual}, expected {expectViolation}");
+            }
         }
 
         // Stage 3 baseline: resolve the charger transformers, cache the wireless halves, log the
@@ -581,6 +680,27 @@ namespace ScenarioRunner
                     $"{_rsWirelessHalves.Count} wireless halves over the window (need >= -0.5)");
             }
 
+            // Delivery verdict: all Phase A fixture cases green AND zero live charge-delivery
+            // audit violations across the window (ViolationStoreTicks unchanged since the Phase A
+            // baseline); SKIP when the auditor was unreachable.
+            string delivery;
+            if (_rsDeliveryPredicate == null || !_rsDeliveryReadable)
+            {
+                delivery = "SKIP";
+                _log?.LogInfo("[ScenarioRunner] [RearchSuite] delivery detail: ChargeDeliveryAudit unreachable.");
+            }
+            else
+            {
+                long endCount = _rsDeliveryCounter.GetValue(null) is long l ? l : -1L;
+                long live = endCount >= 0L ? endCount - _rsDeliveryBaseline : -1L;
+                bool pass = live == 0L && _rsDeliveryFixtureFail == 0 && _rsDeliveryFixturePass > 0;
+                delivery = pass ? "PASS" : "FAIL";
+                _log?.LogInfo(
+                    $"[ScenarioRunner] [RearchSuite] delivery detail: fixtures pass={_rsDeliveryFixturePass} " +
+                    $"fail={_rsDeliveryFixtureFail}, live violationStoreTicks over window={live} " +
+                    "(need all fixtures green and zero live violations)");
+            }
+
             // Census v2 detail: the window max of every shortfall bucket. shortfalls= on the
             // VERDICT line carries maxDeadlock only (the regression signal); the other buckets
             // are honest darkness (or, for served, a vanilla-presentation disagreement) and are
@@ -592,7 +712,7 @@ namespace ScenarioRunner
 
             _log?.LogInfo(
                 $"[ScenarioRunner] [RearchSuite] VERDICT charge={charge} shortfalls={_rsMaxShortfalls} " +
-                $"powered={powered} ledger={ledger}");
+                $"powered={powered} ledger={ledger} delivery={delivery}");
         }
     }
 }

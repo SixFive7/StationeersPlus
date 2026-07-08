@@ -57,6 +57,10 @@ namespace PowerGridPlus.Patches
             // the previous world's ReferenceIds / Thing references; drop both on a hot-swap.
             SolarOutputLatchPatches.Clear();
             EmergencyLightToggleQueue.Clear();
+            // The charge-delivery audit's grants / credits / counters and the per-tick
+            // delivery-shaping allowances are per-world state too.
+            ChargeDeliveryAudit.Clear();
+            DeliveryTickLedger.Clear();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }

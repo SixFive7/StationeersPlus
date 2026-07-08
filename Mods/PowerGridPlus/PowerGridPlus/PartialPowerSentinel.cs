@@ -47,17 +47,22 @@ namespace PowerGridPlus
     ///     Excluding bridge-only nets loses no protection: they contain no member whose
     ///     operation or stored energy the ratio can shrink.</para>
     ///
-    ///     <para><b>Violation threshold: ratio &lt; 1f exactly, no invented epsilon.</b>
-    ///     Derivation from the vanilla computation (PowerTick.CacheState, 0.2.6403 decompile):
-    ///     every healthy path assigns the LITERAL 1f (the <c>Potential > 0 &amp;&amp; Required > 0</c>
-    ///     guard's else-branch, the power-met branch inside the clamp, and the clamp's upper
-    ///     bound), so 1f is an exact sentinel value, and the only sub-1 producer is the division
-    ///     <c>Potential / Required</c> on an unmet demanded network. On top of that the mod's own
-    ///     CacheState postfix (<see cref="Patches.PowerTickPatches.CacheState_PowerMetBoundary"/>)
-    ///     forces the literal 1f whenever <c>Potential >= Required - 0.01</c> W, so any ratio that
-    ///     survives below 1f already implies a supply gap above the allocator's 0.01 W epsilon,
-    ///     pre-filtered at the source. IEEE division of near-equal operands can round a sub-half-ulp
-    ///     gap to exactly 1f; that reads as healthy, which is correct at watt scale.</para>
+    ///     <para><b>Violation threshold: ratio below <see cref="SubUnityRatioCeiling"/> (1 minus
+    ///     4 float ulps).</b> Derivation from the vanilla computation (PowerTick.CacheState,
+    ///     0.2.6403 decompile): every healthy path assigns the LITERAL 1f (the
+    ///     <c>Potential > 0 &amp;&amp; Required > 0</c> guard's else-branch, the power-met branch
+    ///     inside the clamp, and the clamp's upper bound), so 1f is exact and the only sub-1
+    ///     producer is the division <c>Potential / Required</c> on an unmet demanded network. The
+    ///     mod's CacheState postfix (<see cref="Patches.PowerTickPatches.CacheState_PowerMetBoundary"/>)
+    ///     forces 1f whenever <c>Potential >= Required - 0.01</c> W, but that ABSOLUTE epsilon is
+    ///     below one operand ulp from roughly 200 kW up (ulp(1 MW) is about 0.0625 W), so on a
+    ///     megawatt net the sums' accumulated rounding (a few ulps of the operands) can survive
+    ///     the postfix and divide to a quotient one or two ulps under 1f with no real supply gap
+    ///     (the 13c soak's net-503275 event: displayed ratio 1.000000). The ceiling therefore
+    ///     allows 4 relative ulps (4 x 2^-23, about 4.77e-7: an absolute gap of at most ~0.5 W
+    ///     per MW of Required, the charge-delivery audit's tolerance class), while the smallest
+    ///     real unfunded class ever observed is quiescent-scale (10 W), orders above the band at
+    ///     any magnitude where the band exceeds the 0.01 W postfix epsilon.</para>
     ///
     ///     <para><b>Always-on, no config entry</b> (same posture as the ledger audit; the
     ///     ConservationChecker toggle predates that pattern). Counts are exact and never
@@ -123,6 +128,19 @@ namespace PowerGridPlus
         private static readonly System.Action<CableNetwork> _visit = VisitNet;
 
         /// <summary>
+        ///     Boundary guard against float rounding at large magnitudes: Potential and Required
+        ///     are kW-to-MW-scale sums whose accumulated rounding (a few ulps of the operands)
+        ///     propagates into the <c>Potential / Required</c> division on nets the CacheState
+        ///     boundary postfix cannot rescue (its absolute 0.01 W epsilon sits BELOW one operand
+        ///     ulp from ~200 kW up; ulp(1 MW) ~ 0.0625 W). A quotient within 4 float ulps of 1
+        ///     (4 x 2^-23 ~ 4.77e-7 relative; at most ~0.5 W per MW of Required) is boundary
+        ///     noise, not deprivation: the smallest real unfunded class observed is
+        ///     quiescent-scale (10 W). Ratios at or above this ceiling are healthy; the first
+        ///     firing ratio is 5 ulps under 1 (see the class doc's threshold derivation).
+        /// </summary>
+        internal const float SubUnityRatioCeiling = 1f - 4f * 1.1920929e-7f;
+
+        /// <summary>
         ///     The pure violation predicate: (in the ratio contract's scope this tick, shortfall
         ///     class, vanilla power ratio) -> is the no-partial-power contract broken.
         ///     <paramref name="inRatioScope"/> is the conjunction the caller computes from the
@@ -135,7 +153,7 @@ namespace PowerGridPlus
         {
             return inRatioScope
                    && shortfallClass == ShortfallDiagnostics.Served
-                   && ratio < 1f;
+                   && ratio < SubUnityRatioCeiling;
         }
 
         /// <summary>

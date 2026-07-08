@@ -60,10 +60,11 @@ namespace ScenarioRunner
     // Checks (house style: "[ScenarioRunner] PPI P<n> PASS|FAIL", an
     // "PPI END pass=N fail=M total=K" summary, and one grep-able
     // "[ScenarioRunner] [PPI] VERDICT result=PASS|FAIL pass=N fail=M" line):
-    //   P1-P5  synthetic cases against the pure PartialPowerSentinel.IsViolation
-    //          predicate (in-scope served + sub-1 fires; ratio 1, Dry, Deadlock, and
+    //   P1-P5b synthetic cases against the pure PartialPowerSentinel.IsViolation
+    //          predicate (in-scope served + sub-1 fires; ratio 1, Dry, Deadlock,
     //          out-of-contract nets, wireless carriers / bridge-only hops / off-scope,
-    //          do not).
+    //          and a ratio one float ulp under 1, inside the sentinel's 4-ulp boundary
+    //          band, do not).
     //   P6     a steady live target exists: a transformer with fresh published output
     //          >= 100 W on two consecutive ticks whose output net is allocator-Served,
     //          RATIO-CONTRACT IN-SCOPE (ShortfallDiagnostics.InRatioScope: has a
@@ -190,6 +191,10 @@ namespace ScenarioRunner
             PpiPredicateCase("P3", "Dry net is honest darkness, not a violation", true, 1, 0.25f, false);
             PpiPredicateCase("P4", "out-of-contract net (wireless carrier / bridge-only hop / off-scope) never fires", false, 0, 0.25f, false);
             PpiPredicateCase("P5", "Deadlock net belongs to the shortfall census", true, 3, 0.5f, false);
+            // Boundary band: a quotient one float ulp under 1 (megawatt-net operand rounding that
+            // survives the 0.01 W CacheState boundary postfix; the 13c net-503275 event) must NOT
+            // fire. 0.99999994f is the largest float below 1; the sentinel's ceiling allows 4 ulps.
+            PpiPredicateCase("P5b", "a ratio one float ulp under 1 is boundary rounding, not deprivation", true, 0, 0.99999994f, false);
 
             RebuildCaches();
             _ppiPhase = 1;

@@ -273,6 +273,13 @@ namespace PowerGridPlus.Patches
                 // so it must run after every ApplyState; always-on exact counters, one
                 // aggregated warning per 600 ticks while new violations arrive.
                 PartialPowerSentinel.RunEnforceTail(currentTick);
+                // Charge-delivery audit: every store the allocator granted charge this tick
+                // must have been credited exactly that much (observation brackets around the
+                // store-crediting ReceivePower overrides), gated on the charge-side net being
+                // Served. Runs after every ApplyState so the credit sums are final; the
+                // umbilical phase-2 crossing runs later in the device tick but never enters
+                // the sums (null-network calls are filtered at the bracket).
+                ChargeDeliveryAudit.RunEnforceTail(currentTick);
 
                 // ----------------------------------------------------------------
                 // DEVICE TICK: per-device IPowered.OnPowerTick. Vanilla copy.
