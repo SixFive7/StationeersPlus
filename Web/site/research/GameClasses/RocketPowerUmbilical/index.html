@@ -2805,6 +2805,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Per-tick power methods (battery-like, side-keyed)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gate-table-and-credit-semantics-delivered-quiescent-is-not-burned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gate table and credit semantics (delivered quiescent is not burned)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8143,6 +8160,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Per-tick power methods (battery-like, side-keyed)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gate-table-and-credit-semantics-delivered-quiescent-is-not-burned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gate table and credit semantics (delivered quiescent is not burned)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8279,7 +8313,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-08.
         </p>
       
       
@@ -8533,6 +8567,44 @@
 </span></code></pre></div>
 <p>The Female's quartet (158143-158175) differs in three ways: its <code>UsePower</code> (158143-158147) and <code>ReceivePower</code> (158149-158153) carry NO gates at all (no <code>OnOff</code>, no <code>Error</code>; they set <code>LastPowerRemoved</code> / <code>LastPowerAdded</code> and mutate <code>PowerStored</code> unconditionally, which is what lets the Male's direct <code>ReceivePower(null, ...)</code> push land regardless of the socket's switch state); its <code>GetUsedPower</code> (158155-158162) has no <code>OnOff</code> gate either (off-network or <code>Error == 1</code> returns 0, otherwise <code>UsedPower + Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)</code> even while switched off); and its <code>GetGeneratedPower</code> (158164-158175) additionally returns 0 when the partner is a <code>RocketPowerUmbilicalFemale</code> (158170-158173), a socket-to-socket guard. Conversely the Male's <code>ReceivePower</code> gates on <code>Error == 1 || !OnOff</code>, and the Female's <code>MovePowerToUmbilical</code> decrements its own <code>PowerStored</code> by the pushed amount unconditionally after the call (158138-158140), so when the Male is off or errored the Female-side push is silently DESTROYED (pulled out of the rocket batteries, subtracted from the Female's cell, never added to the Male). Static-analysis conclusion from the verified bodies; not yet observed in-game.</p>
 <p>Like a vanilla <code>Battery</code>, there is no per-tick rate cap on the umbilical's own methods: it offers full headroom (<code>PowerMaximum - PowerStored</code>) on charge and full stored energy on discharge each tick. PowerGridPlus's <code>RocketUmbilicalPatches</code> adds the rate caps and the soft-power LogicTypes; see that file. The <code>LastPowerAdded</code> / <code>LastPowerRemoved</code> accessors live on the abstract base now (backing fields 157705-157711) with the same divide-by-1000, one-tick decay, and 512-flag sync semantics observed at 0.2.6228 (accessor bodies not re-read line-by-line this pass).</p>
+<h3 id="gate-table-and-credit-semantics-delivered-quiescent-is-not-burned">Gate table and credit semantics (delivered quiescent is not burned)<a class="headerlink" href="#gate-table-and-credit-semantics-delivered-quiescent-is-not-burned" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+<p>Consolidated from the verbatim bodies above, re-read this pass (Female quartet 158143-158175, Male quartet 158628-158678). Two structural facts first: only the two QUERIES are network-keyed. All four SETTLE methods (<code>UsePower</code> / <code>ReceivePower</code> on both halves) ignore the <code>cableNetwork</code> argument entirely; nothing in their bodies reads it. That is what lets the docked crossing call <code>ReceivePower(null, ...)</code> with no network at all (Female push 158139, Male push 158624; phase-2 timing note above).</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Female</th>
+<th>Male</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UsePower</code> (settle)</td>
+<td>no gates at all (158143-158147)</td>
+<td><code>!OnOff</code> returns early with <code>LastPowerRemoved = 0</code> (158628-158637)</td>
+</tr>
+<tr>
+<td><code>ReceivePower</code> (settle)</td>
+<td>no gates at all (158149-158153)</td>
+<td><code>Error == 1</code> or <code>!OnOff</code> returns early with <code>LastPowerAdded = 0</code> (158639-158648)</td>
+</tr>
+<tr>
+<td><code>GetUsedPower</code> (query, InputNetwork-keyed)</td>
+<td>null/wrong network or <code>Error == 1</code> returns 0; no OnOff gate; else <code>UsedPower + Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)</code> (158155-158162)</td>
+<td>null/wrong network returns 0; <code>Error == 1 &amp;&amp; OnOff</code> returns the bare <code>UsedPower</code> (158656-158658); <code>!OnOff</code> returns 0; else <code>UsedPower + Clamp(headroom)</code> (158650-158665)</td>
+</tr>
+<tr>
+<td><code>GetGeneratedPower</code> (query, OutputNetwork-keyed)</td>
+<td>null/wrong network or <code>Error == 1</code> returns 0; partner-is-Female returns 0 (158170-158173); no OnOff gate; else <code>Max(PowerStored, 0)</code> (158164-158175)</td>
+<td>null/wrong network, <code>Error == 1</code>, or <code>!OnOff</code> returns 0; else <code>Max(PowerStored, 0)</code> (158667-158678)</td>
+</tr>
+</tbody>
+</table>
+<p>Notable rows: the Female quartet contains no OnOff gate anywhere (the socket's switch never gates its grid math), and the Male's errored-but-on <code>GetUsedPower</code> branch keeps requesting the bare quiescent <code>UsedPower</code> (158656-158658), so an errored Male still bills its idle wattage upstream while its <code>GetGeneratedPower</code> advertises nothing.</p>
+<p>Credit semantics: both halves' <code>ReceivePower</code> credits are bare clamps into the cell, <code>PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)</code> (Female 158152, Male 158647). Neither nets <code>UsedPower</code> out of the delivery first, even though both <code>GetUsedPower</code> bodies REQUEST <code>UsedPower + headroom</code> (158161, 158664). So the delivered quiescent component is not burned as overhead in vanilla: whatever the grid delivers for the <code>UsedPower</code> term lands in the cell as charge like the rest of the grant, clamp permitting. Contrast <code>WallLightBattery.ReceivePower</code>, which subtracts <code>UsedPower</code> from the delivery before charging its cell (see <a href="../../GameSystems/LightSources/">LightSources</a>, "F. WallLightBattery: battery backup"): vanilla burns delivery overhead elsewhere, just not here.</p>
+<p>Why this matters in this repo: PowerGridPlus's delivery alignment generalizes over exactly this seam. The mod funds each half's quiescent <code>UsedPower</code> as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share instead of quietly absorbing the quiescent component as extra charge.</p>
 <h2 id="connectors-confirmed-and-cable-type">Connectors (confirmed) and cable type<a class="headerlink" href="#connectors-confirmed-and-cable-type" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
 
@@ -8566,6 +8638,7 @@
 <p>The Male declares its own <code>CanLogicRead</code>; the Female inherits the <code>Device</code> base logic methods (relevant to Harmony targeting: a base-<code>Device</code> patch with an <code>is RocketPowerUmbilicalFemale</code> filter is required for the Female, while the Male can be patched directly; see <a href="../../Patterns/HarmonyInheritedMethods/">HarmonyInheritedMethods</a>). The umbilical does NOT carry logic/data across the coupling: <code>MovePowerToUmbilical</code> moves energy only, and the two halves sit on independent cable networks. Any logic bridging would have to go through the rocket's own data network, not the umbilical.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-08: added "Gate table and credit semantics" subsection consolidating the per-half power quartet (game version 0.2.6403.27689; re-read Female 158143-158175, Male 158628-158678, docked crossings 158139 / 158624). Facts made explicit: all four settle methods ignore the <code>cableNetwork</code> argument (only the queries are network-keyed), the Female quartet carries no OnOff gate anywhere, the Male's <code>Error == 1 &amp;&amp; OnOff</code> <code>GetUsedPower</code> branch returns the bare quiescent <code>UsedPower</code> (158656-158658), and both halves' <code>ReceivePower</code> credits are bare clamps into the cell with no <code>UsedPower</code> netting (158152 / 158647), so a delivered quiescent component lands as charge (contrast <code>WallLightBattery.ReceivePower</code>, which nets it out). Occasion: the PowerGridPlus delivery-seam generalization (the mod funds each half's quiescent as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share). Every claim matches the verbatim bodies already on this page from the 2026-07-02 pass; additive consolidation, no conflict, no fresh validator.</li>
 <li>2026-07-02: version-change pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. STRUCTURE CHANGED: there is now an abstract base <code>RocketPowerUmbilical : ElectricalInputOutput, IUmbilical, ...</code> (157690) owning <code>PowerMaximum</code> (157693), the SINGLE private <code>_partnerUmbilical</code> (157695) exposed as <code>protected PartnerUmbilical</code> (157727-157741), <code>_savedPartnerId</code> (157713), <code>TransferProgress</code> (157743-157757), and a <code>CanTransfer =&gt; true</code> (157719) that the Male HIDES with <code>new</code> (158321); <code>RocketPowerUmbilicalFemale : RocketPowerUmbilical</code> (157952) and <code>RocketPowerUmbilicalMale : RocketPowerUmbilical</code> (158302). Superseded the old per-half-field class model. TRANSFER CHANGED (supersession): the Female now has its own <code>OnPowerTick</code> transfer (158110-158118, gated <code>TransferProgress &gt;= 1f &amp;&amp; PartnerValid</code>) with a Female <code>MovePowerToUmbilical</code> (158120-158141) that pulls the partner's headroom out of <code>RocketNetwork.Batteries</code> into its own cell and pushes it to the partner via <code>ReceivePower(null, ...)</code>; the previous "one-way station -&gt; rocket only" claim is superseded, and the pair now moves power in both directions. Male push path re-verified with formula unchanged (<code>OnPowerTick</code> 158511-158518, <code>MovePowerToUmbilical</code> 158621-158626). Grid-facing methods re-verified (Male <code>GetUsedPower</code> headroom at 158664, <code>GetGeneratedPower</code> at 158677; Female 158143-158175 with its no-gate <code>UsePower</code> / <code>ReceivePower</code>, no-<code>OnOff</code> <code>GetUsedPower</code>, and Female-partner <code>GetGeneratedPower</code> guard at 158170-158173). Added the pool-slot-order-INsensitivity note (the direct <code>ReceivePower(null, ...)</code> crossing runs in phase 2, unlike every ledger bridge) and the static-analysis note that a Female push into an off/errored Male is destroyed. The 4900 J prefab <code>PowerMaximum</code> figure is prefab-serialized and could not be re-verified from the decompile; moved to Open Questions for an InspectorPlus re-check.</li>
 <li>2026-06-21: corrected the umbilical cell size -- the prefab overrides <code>PowerMaximum</code> to 4900 J on both halves, not the 10000f class default; runtime-confirmed via a <code>Prefab.AllPrefabs</code> dump on the dedicated server. Restamped Class model + Power transfer.</li>
 <li>2026-06-21: added "Partner pairing and connection state" section (private <code>_partnerUmbilical</code> fields typed to the partner class, L147900 / L148283; no public <code>IUmbilical</code> partner getter; <code>_savedPartnerId</code> L148295; exact <code>CanTransfer</code> / <code>PartnerValid</code> / <code>IsOperable</code> per half). Sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> while implementing the PowerGridPlus umbilical logic-passthrough feature. Additive; no conflict with existing content.</li>
