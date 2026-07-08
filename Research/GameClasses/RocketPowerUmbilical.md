@@ -3,7 +3,7 @@ title: RocketPowerUmbilical
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-08
 sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: Objects.Rockets.RocketPowerUmbilicalFemale (L147895-148259), Objects.Rockets.RocketPowerUmbilicalMale (L148269-148810)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 157690+ (abstract RocketPowerUmbilical base), 157952+ (RocketPowerUmbilicalFemale), 158302+ (RocketPowerUmbilicalMale)
@@ -217,6 +217,24 @@ The Female's quartet (158143-158175) differs in three ways: its `UsePower` (1581
 
 Like a vanilla `Battery`, there is no per-tick rate cap on the umbilical's own methods: it offers full headroom (`PowerMaximum - PowerStored`) on charge and full stored energy on discharge each tick. PowerGridPlus's `RocketUmbilicalPatches` adds the rate caps and the soft-power LogicTypes; see that file. The `LastPowerAdded` / `LastPowerRemoved` accessors live on the abstract base now (backing fields 157705-157711) with the same divide-by-1000, one-tick decay, and 512-flag sync semantics observed at 0.2.6228 (accessor bodies not re-read line-by-line this pass).
 
+### Gate table and credit semantics (delivered quiescent is not burned)
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+Consolidated from the verbatim bodies above, re-read this pass (Female quartet 158143-158175, Male quartet 158628-158678). Two structural facts first: only the two QUERIES are network-keyed. All four SETTLE methods (`UsePower` / `ReceivePower` on both halves) ignore the `cableNetwork` argument entirely; nothing in their bodies reads it. That is what lets the docked crossing call `ReceivePower(null, ...)` with no network at all (Female push 158139, Male push 158624; phase-2 timing note above).
+
+| Method | Female | Male |
+|---|---|---|
+| `UsePower` (settle) | no gates at all (158143-158147) | `!OnOff` returns early with `LastPowerRemoved = 0` (158628-158637) |
+| `ReceivePower` (settle) | no gates at all (158149-158153) | `Error == 1` or `!OnOff` returns early with `LastPowerAdded = 0` (158639-158648) |
+| `GetUsedPower` (query, InputNetwork-keyed) | null/wrong network or `Error == 1` returns 0; no OnOff gate; else `UsedPower + Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)` (158155-158162) | null/wrong network returns 0; `Error == 1 && OnOff` returns the bare `UsedPower` (158656-158658); `!OnOff` returns 0; else `UsedPower + Clamp(headroom)` (158650-158665) |
+| `GetGeneratedPower` (query, OutputNetwork-keyed) | null/wrong network or `Error == 1` returns 0; partner-is-Female returns 0 (158170-158173); no OnOff gate; else `Max(PowerStored, 0)` (158164-158175) | null/wrong network, `Error == 1`, or `!OnOff` returns 0; else `Max(PowerStored, 0)` (158667-158678) |
+
+Notable rows: the Female quartet contains no OnOff gate anywhere (the socket's switch never gates its grid math), and the Male's errored-but-on `GetUsedPower` branch keeps requesting the bare quiescent `UsedPower` (158656-158658), so an errored Male still bills its idle wattage upstream while its `GetGeneratedPower` advertises nothing.
+
+Credit semantics: both halves' `ReceivePower` credits are bare clamps into the cell, `PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)` (Female 158152, Male 158647). Neither nets `UsedPower` out of the delivery first, even though both `GetUsedPower` bodies REQUEST `UsedPower + headroom` (158161, 158664). So the delivered quiescent component is not burned as overhead in vanilla: whatever the grid delivers for the `UsedPower` term lands in the cell as charge like the rest of the grant, clamp permitting. Contrast `WallLightBattery.ReceivePower`, which subtracts `UsedPower` from the delivery before charging its cell (see [LightSources](../GameSystems/LightSources.md), "F. WallLightBattery: battery backup"): vanilla burns delivery overhead elsewhere, just not here.
+
+Why this matters in this repo: PowerGridPlus's delivery alignment generalizes over exactly this seam. The mod funds each half's quiescent `UsedPower` as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share instead of quietly absorbing the quiescent component as extra charge.
+
 ## Connectors (confirmed) and cable type
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
 
@@ -237,6 +255,7 @@ The Male declares its own `CanLogicRead`; the Female inherits the `Device` base 
 
 ## Verification history
 
+- 2026-07-08: added "Gate table and credit semantics" subsection consolidating the per-half power quartet (game version 0.2.6403.27689; re-read Female 158143-158175, Male 158628-158678, docked crossings 158139 / 158624). Facts made explicit: all four settle methods ignore the `cableNetwork` argument (only the queries are network-keyed), the Female quartet carries no OnOff gate anywhere, the Male's `Error == 1 && OnOff` `GetUsedPower` branch returns the bare quiescent `UsedPower` (158656-158658), and both halves' `ReceivePower` credits are bare clamps into the cell with no `UsedPower` netting (158152 / 158647), so a delivered quiescent component lands as charge (contrast `WallLightBattery.ReceivePower`, which nets it out). Occasion: the PowerGridPlus delivery-seam generalization (the mod funds each half's quiescent as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share). Every claim matches the verbatim bodies already on this page from the 2026-07-02 pass; additive consolidation, no conflict, no fresh validator.
 - 2026-07-02: version-change pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. STRUCTURE CHANGED: there is now an abstract base `RocketPowerUmbilical : ElectricalInputOutput, IUmbilical, ...` (157690) owning `PowerMaximum` (157693), the SINGLE private `_partnerUmbilical` (157695) exposed as `protected PartnerUmbilical` (157727-157741), `_savedPartnerId` (157713), `TransferProgress` (157743-157757), and a `CanTransfer => true` (157719) that the Male HIDES with `new` (158321); `RocketPowerUmbilicalFemale : RocketPowerUmbilical` (157952) and `RocketPowerUmbilicalMale : RocketPowerUmbilical` (158302). Superseded the old per-half-field class model. TRANSFER CHANGED (supersession): the Female now has its own `OnPowerTick` transfer (158110-158118, gated `TransferProgress >= 1f && PartnerValid`) with a Female `MovePowerToUmbilical` (158120-158141) that pulls the partner's headroom out of `RocketNetwork.Batteries` into its own cell and pushes it to the partner via `ReceivePower(null, ...)`; the previous "one-way station -> rocket only" claim is superseded, and the pair now moves power in both directions. Male push path re-verified with formula unchanged (`OnPowerTick` 158511-158518, `MovePowerToUmbilical` 158621-158626). Grid-facing methods re-verified (Male `GetUsedPower` headroom at 158664, `GetGeneratedPower` at 158677; Female 158143-158175 with its no-gate `UsePower` / `ReceivePower`, no-`OnOff` `GetUsedPower`, and Female-partner `GetGeneratedPower` guard at 158170-158173). Added the pool-slot-order-INsensitivity note (the direct `ReceivePower(null, ...)` crossing runs in phase 2, unlike every ledger bridge) and the static-analysis note that a Female push into an off/errored Male is destroyed. The 4900 J prefab `PowerMaximum` figure is prefab-serialized and could not be re-verified from the decompile; moved to Open Questions for an InspectorPlus re-check.
 - 2026-06-21: corrected the umbilical cell size -- the prefab overrides `PowerMaximum` to 4900 J on both halves, not the 10000f class default; runtime-confirmed via a `Prefab.AllPrefabs` dump on the dedicated server. Restamped Class model + Power transfer.
 - 2026-06-21: added "Partner pairing and connection state" section (private `_partnerUmbilical` fields typed to the partner class, L147900 / L148283; no public `IUmbilical` partner getter; `_savedPartnerId` L148295; exact `CanTransfer` / `PartnerValid` / `IsOperable` per half). Sourced from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` while implementing the PowerGridPlus umbilical logic-passthrough feature. Additive; no conflict with existing content.
