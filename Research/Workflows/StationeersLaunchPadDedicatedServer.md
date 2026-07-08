@@ -3,9 +3,11 @@ title: StationeersLaunchPad on a Dedicated Server
 type: Workflows
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-08
 sources:
   - DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)
+  - rocketstation_Data/Managed/Assembly-CSharp.dll :: NetworkServer.VerifyConnection / PackageJoinData / ProcessJoinData, GameManager.GetGameVersion, NetworkMessages.VerifyPlayer (decompile at .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs lines 204091, 212898-212902, 213188, 213684, 213768-213813, 279339-279438)
+  - DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :: no join-path patch (decompile at .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs lines 3692-3717, 3763-3803, 16922, 17193, 17255)
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: WorkshopMenu (decompile lines 38373-38491)
   - StationeersLaunchPad GitHub releases (server-side asset)
   - https://github.com/StationeersLaunchPad/StationeersLaunchPad at tag v0.4.0 :: StationeersLaunchPad/Platform.cs, StationeersLaunchPad/LaunchPadConfig.cs, StationeersLaunchPad/Configs.cs, StationeersLaunchPad/Loading/LoadStrategy.cs (fetched 2026-07-02)
@@ -13,6 +15,7 @@ related:
   - GameSystems/DedicatedServerSettings.md
   - GameSystems/ModLoadSequence.md
   - Patterns/ServerAuthoritativeSimulation.md
+  - Protocols/LaunchPadBoosterNetworking.md
 tags: [launchpad, network]
 ---
 
@@ -325,6 +328,7 @@ These configs are written by mods AS THEY LOAD, not by BepInEx ahead of time. Th
 - 2026-04-29: empirical confirmation of the workaround. Launcher gained `-GamePort` / `-UpdatePort` parameters with new defaults `28016` / `28015` (offset by +1000 from the Stationeers client defaults). Re-test with same client in-session (`10.20.30.200:27016`): server log shows clean "Attempting to host at 10.20.30.200:28016" -> "RakNet successfully hosted with Address: 10.20.30.200:28016", no "Hosting failed. Attempting fallback behaviour" line. UDP endpoints show both processes own distinct, exclusive specific-IP binds (`10.20.30.200:27016` for the client, `10.20.30.200:28016` for the server). Clean coexistence.
 - 2026-04-29: documented why a "headless client" is not a supported automation mode. `Platform.CheckIsServer()` (line 4433) routes any `Application.isBatchMode` instance into `ServerPlatform`, which is `IsServer=true, IsClient=false, SteamDisabled=true` and has no outbound-connect path. Both batch-mode regular-client and any dedicated-server build land on the server side. Practical options A-D listed for client-side automation; recommended ranking C > A > B > D.
 - 2026-07-02: added "Load-failure and self-update exits (StationeersLaunchPad 0.4.0)" from the StationeersLaunchPad GitHub source at tag v0.4.0 (Platform.cs, LaunchPadConfig.cs, Configs.cs, Loading/LoadStrategy.cs) plus the exit line observed on our dedicated server during the 0.2.6403.27689 boot investigation (broken mods from the 0.2.6403 API removals; see Research/Unsorted/Api-removals-0.2.6403.md). Confirms the 0.3.1-era PlatformWait decompile finding is unchanged at 0.4.0 and adds the per-platform update-config defaults and the self-update exit path. Earlier sections keep their 0.2.6228.27061 stamps.
+- 2026-07-08: added "Client join: the mod set is NOT matched against the server" from a fresh decompile at game 0.2.6403.27689. Traced the full vanilla join accept/reject gate (`NetworkServer.VerifyConnection` line 213785: blacklist / password / game-build-version only), `GameManager.GetGameVersion` (line 204091, returns the Assembly-CSharp assembly version with no mod hash), the `VerifyPlayer` message fields (line 279339, no mod list), and `PackageJoinData` / `ProcessJoinData` (lines 213684 / 213188, world state only). Confirmed StationeersLaunchPad.dll adds no patch to the join path (16 `HarmonyPatch(typeof(...))` targets, none on `NetworkServer` / `NetworkClient` / `VerifyConnection` / `VerifyPlayer` / `GetGameVersion`; zero references to those types) and that failed mods (`LoadFailed = true`, line 17193) are skipped before entrypoints (line 17255) so they never register a LaunchPadBooster `ModNetworking` instance. Cross-referenced the opt-in per-mod handshake on `Protocols/LaunchPadBoosterNetworking.md`.
 
 ## ApplyConfig matching: clean state matches relative paths cleanly
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -457,3 +461,55 @@ return false;
 ```
 
 Operational takeaway for the launcher: both exit paths mean `rocketstation_DedicatedServer.exe` terminating early with a zero-drama log tail. Any supervisor script watching for "server up" must treat `An error occurred during loading. Exiting` and `LaunchPad has updated. Exiting` as terminal, not as transient startup noise. This section is the 0.4.0 confirmation and generalisation of the 0.3.1 decompile finding in "Server-only platform overrides" above (`ServerPlatform.PlatformWait`, decompile line 4709): the exit-on-error behaviour is unchanged between 0.3.1 and 0.4.0.
+
+## Client join: the mod set is NOT matched against the server
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+The vanilla multiplayer join handshake performs NO comparison of the client's mod set against the server's. A client may carry mods the server lacks (and the reverse) and still be accepted, as long as the game BUILD version matches. Mod-set matching exists only as an opt-in, per-mod layer that LaunchPadBooster adds on top (see `Protocols/LaunchPadBoosterNetworking.md`); StationeersLaunchPad.dll itself adds nothing to the join path.
+
+**The accept/reject gate is `NetworkServer.VerifyConnection`** (Assembly-CSharp.decompiled.cs line 213785). It has exactly three rejection reasons, each sent as a `Handshake { HandshakeState = Rejected }`:
+
+```csharp
+public static void VerifyConnection(long hostId, NetworkMessages.VerifyPlayer msg)
+{
+    Client client = new Client(hostId, msg.OwnerConnectionId, msg.ClientId, msg.Name, msg.ClientConnectionMethod);
+    ...
+    if (Blacklist.Any((BlacklistedClient x) => x.Id == msg.ClientId)) { HandleBlacklisting(msg, client); return; }          // banned
+    if (!string.IsNullOrEmpty(Settings.CurrentData.ServerPassword) && Settings.CurrentData.ServerPassword != msg.Password) // wrong password
+    { HandleIncorrectPassword(client); return; }
+    if (GameManager.GetGameVersion() != msg.Version) { HandleIncorrectVersion(client, msg); return; }                      // wrong game build
+    NetworkBase.AddClient(client);
+    ...
+}
+```
+
+There is no fourth branch for mods. The three `HandshakeType.Rejected` sites in the file (lines 213750, 213761, 213772) are exactly these three handlers.
+
+**The version compared is the game BUILD version, not a mod hash.** `GameManager.GetGameVersion()` (line 204091):
+
+```csharp
+public static string GetGameVersion()
+{
+    return _gameVersion ?? (_gameVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString());
+}
+```
+
+This returns the `Assembly-CSharp` assembly version string (for example `0.2.6403.27689`) and nothing else. It is not extended with a mod list, a content hash, or a mod-set fingerprint. A client and server running the same Stationeers build pass this check regardless of which mods each has loaded.
+
+**The `VerifyPlayer` message carries no mod list.** Its wire fields (line 279339): `OwnerConnectionId`, `ClientId`, `Name`, `Password`, `Version` (set to `GetGameVersion()` at line 279404), `ClientConnectionMethod`. No mod data is serialized.
+
+**The join data package carries no mod list either.** `NetworkServer.PackageJoinData` (line 213684) serializes only world / simulation state (game time, terrain seed, WorldManager, Vein, OrbitalSimulation, TerraForming, VoxelTerrain, StructureNetwork, CableNetwork, TraderContact, SpaceMap, Rocket, WorldLog, WorldObjectiveState, all Things, RocketLog, RoomController, AtmosphericsManager). `NetworkClient.ProcessJoinData` (line 213188) deserializes the same set. `OnServer.SendMetaData` (line 39928) sends only `GameMetaData { ConnectionId, BytesToReceive }` (the join-package byte count) and runs AFTER `VerifyConnection` already accepted the client, so it is not a gate.
+
+**StationeersLaunchPad.dll does not touch the join path.** Its Harmony surface is 16 `HarmonyPatch(typeof(...))` attributes across six patch classes (`EssentialPatches`, `WorkshopPatches`, `SteamPatches`, `BugfixPatches`, `CustomSavePathPatches`, `LinuxPathPatch`; applied at StationeersLaunchPad.decompiled.cs lines 3692-3717). None target `NetworkServer`, `NetworkClient`, `VerifyConnection`, `VerifyPlayer`, or `GetGameVersion`. The only network-related patch is a transpiler on `NetworkManager.Init` that swaps in a shared `MetaServerTransport` (line 3763) plus a prefix on `MetaServerTransport.InitClient` (line 3798), neither of which compares mods. The decompiled StationeersLaunchPad assembly contains zero references to `NetworkServer` / `NetworkClient` / `VerifyConnection` / `VerifyPlayer`. So StationeersLaunchPad does NOT inject a mod hash into the game version and adds no global mod-set gate.
+
+### Failed mods are excluded from every handshake
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+The only mod-aware join gate is LaunchPadBooster's opt-in per-mod handshake (`Protocols/LaunchPadBoosterNetworking.md`): the `MOD.Networking.Required` version gate and `IJoinValidator`. Both iterate `ModNetworking.Instances`, which contains only mods that successfully loaded AND registered a networking instance from their entrypoint (`Plugin` `Awake`). A mod that hard-fails during load is routed through `LoadStrategy.LoadFailed` (StationeersLaunchPad.decompiled.cs line 17193), which sets `LoadFailed = true`; the load loop then skips it (guard at line 17255) before `LoadEntrypoints` (entrypoints instantiated at line 16922). A failed mod therefore never runs its plugin code, never registers a `ModNetworking` instance, and cannot appear in `ModNetworking.Instances`. It is invisible to both the `Required` gate and the symmetric `IJoinValidator` check.
+
+Consequence: a mod that is subscribed / enabled on the client but BROKEN on the current game build (throws during load) is inert for join purposes. It is not compared by the vanilla gate (which ignores mods entirely) and not compared by LaunchPadBooster (which only sees loaded, registered mods). A broken client-only mod does not block the client from joining a server that lacks it.
+
+### Rejection surface for the one check that exists
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+On a game-build-version mismatch (the only vanilla check that can differ between two peers that are both running mods), the server sends `Handshake { HandshakeState = Rejected, Message = "MultiplayerIncorrectVersion" }` (localization key `MultiplayerIncorrectVersion`, line 212902) and closes the connection after 500 ms (`HandleIncorrectVersion`, line 213768; `CloseRejectedConnection`, line 213779). The server console logs ``client `{address}:{port}` attempted to connect with incorrect version: {msg.Version}`` (line 213775). The client surfaces the `MultiplayerIncorrectVersion` string. There is no mod-specific rejection message because there is no mod-set check.
