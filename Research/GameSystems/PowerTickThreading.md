@@ -2,16 +2,18 @@
 title: PowerTickThreading
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-28
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-08
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:43-49
   - Mods/PowerTransmitterPlus/RESEARCH.md:596-605
   - Mods/PowerTransmitterPlus/PowerTransmitterPlus/MainThreadDispatcher.cs:7-15
   - Mods/PowerTransmitterPlus/PowerTransmitterPlus/VisualiserPatches.cs:7-11
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:146848-147049, 205218, 396574-396677, 408014-408472, 416899-416911, 421445-421910, 423735-424015, 425248-425271 (generator census)
 related:
   - ../GameClasses/PowerTransmitter.md
   - ../GameClasses/WirelessPower.md
+  - ../GameClasses/WindTurbineGenerator.md
   - ../Patterns/MainThreadDispatcher.md
 tags: [power, threading]
 ---
@@ -100,9 +102,27 @@ Net consequence: the entire in-game economy treats "watts" and "joules per tick"
 
 This page is the canonical place for that convention. Other pages that quote numbers (`Battery.md`, `AreaPowerControl.md`, settings docs) should cite the field value as-is and link here rather than doing the doubling inline, to avoid two parallel number systems.
 
-## Verification history
-<!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
+## Generator output stability census (mid-electricity-tick mutability)
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
 
+Because the electricity tick runs on a ThreadPool worker while the main thread keeps rendering frames, a generator's `GetGeneratedPower` is only tick-stable if the value it returns cannot change between two calls inside one electricity tick. The atmosphere tick and the electricity tick run sequentially inside the same GameTick chain (they never interleave), so a field written only in `OnAtmosphericTick` is stable for the whole electricity tick that follows it. A value recomputed per call from main-thread-mutated state is not. Census of every producer class (decompile 0.2.6403.27689):
+
+| Class | Output source | Mutation site | Tick-stable? |
+|---|---|---|---|
+| `WindTurbineGenerator` (146848) + `LargeWindTurbineGenerator` (146360, no override) | `GetGeneratedPower` (147040) recomputes `CalculateGenerationRate()` per call | `WindStrength` static rewritten every frame by `WindTurbineGenerator.UpdateWind()`, called as the last line of `GameManager.Update` (205218); plus main-thread `WeatherManager` state and world atmosphere pressure | NO: recomputed per call from per-frame state |
+| `SolarPanel` | per-call recompute from sun / orientation state | main-thread sun and orientation updates | NO: same class of hazard (established earlier; the mod's solar latch predates this census) |
+| `PowerGeneratorPipe` (gas fuel generator) | returns field `_energyAsPower` (`GetGeneratedPower` 396574) | written only in `OnAtmosphericTick` (396677) | YES |
+| `PowerGeneratorSlot` (solid fuel generator) | constant `PowerGenerated = 20000f`, gated on `PoweredTicks` (`GetGeneratedPower` 421775) | `PoweredTicks` decremented in `OnAtmosphericTick` (421868-421910) | YES |
+| `StirlingEngine` | returns `EnergyAsPower` (`GetGeneratedPower` 423984) | written in `OnAtmosphericTick` (423735/424015) | YES |
+| `TurbineGenerator` (small wall turbine) | returns `_generatedPower` (`GetGeneratedPower` 425271) | written in `OnAtmosphericTick` (425248) | YES |
+| `RTG` | constant `PowerGenerated = 50000f` (416899; `GetGeneratedPower` 416911) | field initializer only | YES |
+
+Consequence for PowerGridPlus: exactly two producer families need a tick-scoped first-read latch (solar, both wind turbine classes via the single base-class patch); every other generator is stable by construction and patching it would add cost for nothing. The wind half of this census shipped as `WindTurbineOutputLatchPatches.cs` in the 2026-07-08 auditor round; details and verbatim code in `../GameClasses/WindTurbineGenerator.md`.
+
+## Verification history
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+- 2026-07-08: added the "Generator output stability census" section from the PowerGridPlus auditor-round decompile pass (0.2.6403.27689). Wind chain, pipe generator, and the LargeWindTurbineGenerator no-override claim re-read directly; solid fuel / Stirling / turbine / RTG write sites verified by the round's implementing agent at the cited lines in the same decompile file. Earlier sections untouched (their 0.2.6228.27061 stamps stand).
 - 2026-05-28: added "Tick interval and the watts-vs-joules-per-tick labelling convention" section. Documents `DefaultTickSpeedMs = 500` (decompile line 188884), the call-chain `GameTick -> ElectricityManager.ElectricityTick -> CableNetwork.OnPowerTick -> PowerTick.Initialise/CalculateState/ApplyState` (line 189484), and the in-game convention that "watts" labels and "joules per tick" values are the same number numerically even though they differ by a factor of 2 in real units. This corrects a sloppy "J/tick x 2 = W" formula previously used in `Battery.md`'s rate-cap table; the in-game-displayed wattage is the field value as-is, not doubled.
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0032 (primary), F0048, F0308, and F0364.
 
