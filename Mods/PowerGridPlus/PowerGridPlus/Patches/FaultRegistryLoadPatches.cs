@@ -58,6 +58,7 @@ namespace PowerGridPlus.Patches
             // hot-swap.
             SolarOutputLatchPatches.Clear();
             WindTurbineOutputLatchPatches.Clear();
+            ConsumerDemandLatchPatches.Clear();
             EmergencyLightToggleQueue.Clear();
             // The charge / discharge delivery audits' grants / credits / drains / counters and
             // the per-tick delivery-shaping allowances are per-world state too.
