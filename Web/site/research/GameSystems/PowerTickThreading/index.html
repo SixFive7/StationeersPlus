@@ -4714,6 +4714,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#consumer-demand-stability-census-mid-electricity-tick-mutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer demand stability census (mid-electricity-tick mutability)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8198,6 +8209,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#consumer-demand-stability-census-mid-electricity-tick-mutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer demand stability census (mid-electricity-tick mutability)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8309,7 +8331,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-08.
+           on 2026-07-09.
         </p>
       
       
@@ -8319,7 +8341,7 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (5)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
               <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:43-49</code></li>
@@ -8332,12 +8354,14 @@
             
               <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:146848-147049, 205218, 396574-396677, 408014-408472, 416899-416911, 421445-421910, 423735-424015, 425248-425271 (generator census)</code></li>
             
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:419486 (SimpleFabricatorBase class), 420195-420220 (OnBeginSmelt / GetUsedPower / ReceivePower), ~420309 (WaitThenMake per-frame accumulation) (consumer demand census)</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>../GameClasses/PowerTransmitter.md</code></li>
@@ -8345,6 +8369,8 @@
               <li><code>../GameClasses/WirelessPower.md</code></li>
             
               <li><code>../GameClasses/WindTurbineGenerator.md</code></li>
+            
+              <li><code>DevicePowerDraw.md</code></li>
             
               <li><code>../Patterns/MainThreadDispatcher.md</code></li>
             
@@ -8500,10 +8526,59 @@
 </tbody>
 </table>
 <p>Consequence for PowerGridPlus: exactly two producer families need a tick-scoped first-read latch (solar, both wind turbine classes via the single base-class patch); every other generator is stable by construction and patching it would add cost for nothing. The wind half of this census shipped as <code>WindTurbineOutputLatchPatches.cs</code> in the 2026-07-08 auditor round; details and verbatim code in <code>../GameClasses/WindTurbineGenerator.md</code>.</p>
+<h2 id="consumer-demand-stability-census-mid-electricity-tick-mutability">Consumer demand stability census (mid-electricity-tick mutability)<a class="headerlink" href="#consumer-demand-stability-census-mid-electricity-tick-mutability" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
+
+<p>The producer census above has a demand-side twin. A consumer's <code>GetUsedPower</code> is only tick-stable if the value it returns cannot change between two calls inside one electricity tick. Most consumers return a fixed <code>UsedPower</code> (or <code>OnOff ? UsedPower : 0</code>) and are stable by construction. The exception is the fabricator family, whose draw accumulates per rendered frame on the main thread while a production job runs.</p>
+<p><code>SimpleFabricatorBase</code> (decompile 0.2.6403.27689, <code>Assets.Scripts.Objects.Electrical</code>, class at line 419486) is the base of the Autolathe and every other fabricator; the Autolathe inherits this method without overriding it. Its draw method (line 420203):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetUsedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">object</span><span class="p">)</span><span class="k">base</span><span class="p">.</span><span class="n">PowerCable</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">PowerCable</span><span class="p">.</span><span class="n">CableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mf">1f</span><span class="p">;</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_powerUsedDuringTick</span><span class="p">;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">UsedPower</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">_powerUsedDuringTick</span><span class="p">;</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>_powerUsedDuringTick</code> is a per-frame accumulator: it is added to each FixedUpdate frame from inside the production coroutine <code>WaitThenMake</code> (~line 420309) and reset to <code>0f</code> in <code>ReceivePower</code> (lines 420216-420220, called at the ENFORCE phase of the tick). <code>OnBeginSmelt</code> (line 420195) starts <code>WaitThenMake</code> when <code>GameManager.RunSimulation &amp;&amp; OnOff &amp;&amp; Powered &amp;&amp; !ExportSlot.Occupant &amp;&amp; IsStructureCompleted</code> and no job is already pending; the print path is <code>Activate=1 -&gt; OnBeginSmelt -&gt; WaitThenMake</code>. So while a print runs the return value steps upward once per frame: it is NOT tick-stable, and OBSERVE, the allocator's GATHER, and ENFORCE's re-read inside one electricity tick can each see a different number.</p>
+<p>Note the foreign-network sentinel. Unlike a producer's <code>GetGeneratedPower</code> (which returns <code>0</code> on a network mismatch), the fabricator returns <code>-1f</code>. Anything that latches or caches this read must gate on the same predicate vanilla uses to return the real draw (<code>PowerCable != null &amp;&amp; PowerCable.CableNetwork == cableNetwork</code>), so it never caches the <code>-1f</code> path and then serves it to a real-network read within the tick.</p>
+<p>Census of the known per-frame-mutable consumers (the fabricator and the two furnace classes; the furnace pair is documented at <code>DevicePowerDraw.md</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Draw source</th>
+<th>Mutation site</th>
+<th>Tick-stable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SimpleFabricatorBase</code> (Autolathe + every fabricator; 420203)</td>
+<td><code>OnOff ? UsedPower + _powerUsedDuringTick : _powerUsedDuringTick</code></td>
+<td><code>_powerUsedDuringTick += ...</code> per frame in <code>WaitThenMake</code> (~420309); reset in <code>ReceivePower</code> (420219)</td>
+<td>NO: accumulates per frame during a print</td>
+</tr>
+<tr>
+<td><code>ArcFurnace</code> (<code>UsedPower + _powerUsedDuringTick</code>)</td>
+<td><code>_powerUsedDuringTick += _currentRecipe.Energy</code> per smelt tick; reset in <code>ReceivePower</code></td>
+<td>NO: spikes per smelt tick</td>
+<td></td>
+</tr>
+<tr>
+<td><code>AdvancedFurnace</code> (<code>UsedPower + Setting/MaxSetting*UsedPower + Setting2/MaxSetting2*UsedPower</code>)</td>
+<td><code>Setting</code> / <code>Setting2</code> are logic-writable, changed on the main thread</td>
+<td>Partial: stable unless a logic write lands mid-tick</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Consequence for PowerGridPlus: the fabricator family is the consumer-side analogue of the solar and wind producer latches. A rigid consumer that returns a constant <code>UsedPower</code> is coherent by construction; a fabricator mid-print is not. A demand read that tears between ALLOCATE and ENFORCE produces a one-tick spurious depower on an already-served network with no transformer shed, because the shed decision was made at ALLOCATE on the lower draw and only ENFORCE sees the spike (<code>Required &gt; Potential</code> granted, vanilla ratio drops below 1, the device reads <code>Powered == false</code> for a single tick). The mod's response is a tick-scoped first-read latch on <code>SimpleFabricatorBase.GetUsedPower</code> keyed by <code>ReferenceId</code>, engaged only on the real-network path while <code>GameManager.RunSimulation</code> is true, mirroring the producer latches (<code>ConsumerDemandLatchPatches.cs</code>). It changes only what in-tick callers see; vanilla still accumulates <code>_powerUsedDuringTick</code> and still resets it in <code>ReceivePower</code>, so energy conservation is unchanged and the print spike is allocated for on the next tick.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
 
 <ul>
+<li>2026-07-09: added the "Consumer demand stability census" section, the demand-side twin of the producer census. Read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>: <code>SimpleFabricatorBase</code> class (line 419486), <code>OnBeginSmelt</code> (420195), <code>GetUsedPower</code> (420203-420214, foreign-network sentinel <code>-1f</code>, else <code>OnOff ? UsedPower + _powerUsedDuringTick : _powerUsedDuringTick</code>), <code>ReceivePower</code> reset of <code>_powerUsedDuringTick</code> (420216-420220); the per-frame <code>WaitThenMake</code> accumulation (~420309) carried from the same session's earlier read. Establishes the fabricator family as the consumer-side analogue of the solar/wind producer read-coherence hazard. No prior content contradicted; earlier sections keep their stamps.</li>
 <li>2026-07-08: added the "Generator output stability census" section from the PowerGridPlus auditor-round decompile pass (0.2.6403.27689). Wind chain, pipe generator, and the LargeWindTurbineGenerator no-override claim re-read directly; solid fuel / Stirling / turbine / RTG write sites verified by the round's implementing agent at the cited lines in the same decompile file. Earlier sections untouched (their 0.2.6228.27061 stamps stand).</li>
 <li>2026-05-28: added "Tick interval and the watts-vs-joules-per-tick labelling convention" section. Documents <code>DefaultTickSpeedMs = 500</code> (decompile line 188884), the call-chain <code>GameTick -&gt; ElectricityManager.ElectricityTick -&gt; CableNetwork.OnPowerTick -&gt; PowerTick.Initialise/CalculateState/ApplyState</code> (line 189484), and the in-game convention that "watts" labels and "joules per tick" values are the same number numerically even though they differ by a factor of 2 in real units. This corrects a sloppy "J/tick x 2 = W" formula previously used in <code>Battery.md</code>'s rate-cap table; the in-game-displayed wattage is the field value as-is, not doubled.</li>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0032 (primary), F0048, F0308, and F0364.</li>
