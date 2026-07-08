@@ -6,11 +6,12 @@ namespace PowerGridPlus
     /// <summary>
     ///     Tick-duration watchdog: measures the wall-clock cost of every atomic electricity tick
     ///     (the whole AtomicElectricityTickPatch body) plus the PowerAllocator.RunAtomic span
-    ///     inside it, and counts ticks whose duration crosses a derived threshold. The atomic tick
-    ///     replaces vanilla's per-network relaxation with a global solve, so a pathological
-    ///     regression here (an allocator loop that stops converging early, a roster explosion, a
-    ///     diagnostic gone quadratic) degrades the whole simulation cadence; this auditor makes
-    ///     that visible as an exact counter instead of a vague "the game feels slow".
+    ///     inside it, and counts ticks whose duration crosses a derived threshold AND whose overrun
+    ///     is attributable to the allocator. The atomic tick replaces vanilla's per-network
+    ///     relaxation with a global solve, so a pathological regression here (an allocator loop that
+    ///     stops converging early, a roster explosion, a diagnostic gone quadratic) degrades the
+    ///     whole simulation cadence; this auditor makes that visible as an exact counter instead of
+    ///     a vague "the game feels slow".
     ///
     ///     <para><b>Threshold derivation.</b> The electricity tick runs at 2 Hz, so each tick owns
     ///     a 500 ms period; sustained consumption beyond the period means backlog, and a large
@@ -29,8 +30,25 @@ namespace PowerGridPlus
     ///     samples exist (world-load warm-up, where load spikes are expected) only the 400 ms
     ///     ceiling applies.</para>
     ///
+    ///     <para><b>Allocator-attribution gate.</b> Crossing the total-duration threshold means the
+    ///     tick was slow; it does NOT mean the power code was the reason. On a host whose tick
+    ///     median is small (single-digit ms), an autosave serialization stall, a GC pause, or OS
+    ///     scheduling can push a tick past 8x median while the allocator ran its normal few
+    ///     milliseconds, so gating on total time alone false-fires on environmental noise (the
+    ///     gate-14 soak produced exactly this: 150 ms ticks with the allocator at 4 to 6 ms). The
+    ///     watchdog therefore emits its warning only when the allocator is the dominant cause of the
+    ///     overrun: the allocator's EXCESS over its own rolling median must account for at least
+    ///     <see cref="MinAllocatorOverrunSharePercent"/> percent of the amount by which the whole
+    ///     tick overran its threshold (<see cref="IsAllocatorAttributable"/>). The allocator span
+    ///     carries its own 256-tick median alongside the tick ring, so the baseline self-calibrates
+    ///     to save size exactly as the tick threshold does. A slow tick that is not the allocator's
+    ///     doing is silent; a genuine allocator blow-up (an unconverged solve, a quadratic
+    ///     diagnostic) trips it even when the environment is also noisy, because the excess is
+    ///     measured against the allocator's own norm, not the tick's. This is what makes the
+    ///     "performance regression in the mod" claim in the warning text accurate.</para>
+    ///
     ///     <para><b>Zero per-tick allocation.</b> Timestamps are Stopwatch.GetTimestamp() longs;
-    ///     the ring and its sort scratch are preallocated arrays (Array.Sort on long[] is
+    ///     both rings and their sort scratch are preallocated arrays (Array.Sort on long[] is
     ///     in-place); counters are scalar fields; the only string work happens inside the
     ///     throttled warning.</para>
     ///
@@ -38,9 +56,10 @@ namespace PowerGridPlus
     ///     and never throttled; one aggregated warning at most once per 600 ticks while new
     ///     violations arrive, carrying totals since load, the high-water captures for both spans,
     ///     and the latest violation. Zero violations produce zero lines. Cleared on world load
-    ///     (the ring re-warms against the new save). The ScenarioRunner rearch suite
-    ///     reflection-drives <see cref="ComputeThresholdMicros"/> with synthetic medians and reads
-    ///     the counters across its window; keep the member names stable.</para>
+    ///     (the rings re-warm against the new save). The ScenarioRunner rearch suite
+    ///     reflection-drives <see cref="ComputeThresholdMicros"/> and <see cref="IsAllocatorAttributable"/>
+    ///     with synthetic values and reads the counters across its window; keep the member names
+    ///     stable.</para>
     ///
     ///     <para>Threading: RecordTick is called once per tick from the atomic tick body on the
     ///     power worker; the suite reads counters from the sim-tick pump. Plain fields suffice for
@@ -55,13 +74,17 @@ namespace PowerGridPlus
         private const int WarmupSamples = 64;         // ceiling-only until the ring has this many samples
         private const int RecomputeEvery = 64;        // median refresh cadence (ticks)
         private const int WarnCooldownTicks = 600;    // one aggregated warning per ~5 minutes at 2 Hz
+        private const int MinAllocatorOverrunSharePercent = 50; // allocator excess must explain >= this share of the overrun
 
         private static readonly long[] _ring = new long[RingSize];
         private static readonly long[] _scratch = new long[RingSize];
+        private static readonly long[] _allocRing = new long[RingSize];     // allocator-span history, indexed in lockstep with _ring
+        private static readonly long[] _allocScratch = new long[RingSize];
         private static int _ringCount;
         private static int _ringNext;
         private static int _sinceRecompute;
         private static long _thresholdMicros = CeilingMicros;
+        private static long _allocMedianMicros;       // 0 until the first recompute (excess = raw allocator time during warm-up)
 
         /// <summary>
         ///     The pure threshold formula: min(max(8 * median, 50 ms), 400 ms), in microseconds.
@@ -76,15 +99,36 @@ namespace PowerGridPlus
             return adaptive;
         }
 
+        /// <summary>
+        ///     The allocator-attribution gate. Given a tick that already crossed its total-duration
+        ///     threshold, decide whether the ALLOCATOR is the dominant cause and the overrun is
+        ///     therefore a mod regression rather than environmental noise. True iff the allocator's
+        ///     excess over its own rolling median accounts for at least
+        ///     <see cref="MinAllocatorOverrunSharePercent"/> percent of the amount by which the tick
+        ///     overran its threshold. All arguments in microseconds. Pure function; reflection-driven
+        ///     by the rearch suite (TDW fixtures); keep the signature stable.
+        /// </summary>
+        internal static bool IsAllocatorAttributable(long tickMicros, long allocatorMicros, long allocatorMedianMicros, long thresholdMicros)
+        {
+            long overrun = tickMicros - thresholdMicros;
+            if (overrun <= 0) return false;                      // did not actually overrun
+            long allocatorExcess = allocatorMicros - allocatorMedianMicros;
+            if (allocatorExcess <= 0) return false;              // allocator was at or below its own norm: not the cause
+            // allocatorExcess / overrun >= MinShare/100, rearranged to avoid a divide and stay in longs.
+            return allocatorExcess * 100L >= overrun * MinAllocatorOverrunSharePercent;
+        }
+
         // Exact running totals since load; reflection surface for the rearch suite.
-        internal static long ViolationTicks { get; private set; }       // ticks over the active threshold
+        internal static long ViolationTicks { get; private set; }       // ticks over threshold AND allocator-attributable
         internal static long ThresholdMicrosNow => _thresholdMicros;    // the currently active threshold
+        internal static long AllocatorMedianMicrosNow => _allocMedianMicros; // the currently active allocator baseline
         internal static long MaxTickMicros { get; private set; }        // high-water: whole atomic tick
         internal static int MaxTickAt { get; private set; }
         internal static long MaxAllocatorMicros { get; private set; }   // high-water: RunAtomic span
         internal static int MaxAllocatorAt { get; private set; }
         internal static long LastViolationMicros { get; private set; }
         internal static long LastViolationAllocatorMicros { get; private set; }
+        internal static long LastViolationAllocatorMedianMicros { get; private set; }
         internal static long LastViolationThreshold { get; private set; }
         internal static int LastViolationTick { get; private set; }
         internal static int WarningsEmitted { get; private set; }
@@ -112,23 +156,27 @@ namespace PowerGridPlus
             if (tickMicros > MaxTickMicros) { MaxTickMicros = tickMicros; MaxTickAt = currentTick; }
             if (allocatorMicros > MaxAllocatorMicros) { MaxAllocatorMicros = allocatorMicros; MaxAllocatorAt = currentTick; }
 
-            bool violated = _ringCount >= WarmupSamples
-                ? tickMicros >= _thresholdMicros
-                : tickMicros >= CeilingMicros;
+            long activeThreshold = _ringCount >= WarmupSamples ? _thresholdMicros : CeilingMicros;
+            // Two conditions: the whole tick overran its budget (sim could back up) AND the
+            // allocator is the dominant cause (it is the mod's fault, not the environment's).
+            bool violated = tickMicros >= activeThreshold
+                && IsAllocatorAttributable(tickMicros, allocatorMicros, _allocMedianMicros, activeThreshold);
             if (violated)
             {
                 ViolationTicks++;
                 LastViolationMicros = tickMicros;
                 LastViolationAllocatorMicros = allocatorMicros;
-                LastViolationThreshold = _ringCount >= WarmupSamples ? _thresholdMicros : CeilingMicros;
+                LastViolationAllocatorMedianMicros = _allocMedianMicros;
+                LastViolationThreshold = activeThreshold;
                 LastViolationTick = currentTick;
                 EmitWarningIfDue(currentTick);
             }
 
-            // Ring update AFTER the comparison, so a violating tick never softens the very
-            // threshold it was judged against; it still enters the history (a genuinely slower
-            // save re-baselines within one recompute window instead of warning forever).
+            // Ring updates AFTER the comparison (both rings in lockstep), so a violating tick never
+            // softens the thresholds it was judged against; both still enter history so a genuinely
+            // slower save re-baselines within one recompute window instead of warning forever.
             _ring[_ringNext] = tickMicros;
+            _allocRing[_ringNext] = allocatorMicros;
             _ringNext = (_ringNext + 1) % RingSize;
             if (_ringCount < RingSize) _ringCount++;
 
@@ -138,6 +186,9 @@ namespace PowerGridPlus
                 Array.Copy(_ring, _scratch, _ringCount);
                 Array.Sort(_scratch, 0, _ringCount);
                 _thresholdMicros = ComputeThresholdMicros(_scratch[_ringCount / 2]);
+                Array.Copy(_allocRing, _allocScratch, _ringCount);
+                Array.Sort(_allocScratch, 0, _ringCount);
+                _allocMedianMicros = _allocScratch[_ringCount / 2];
             }
         }
 
@@ -149,10 +200,11 @@ namespace PowerGridPlus
             _violationsAtLastWarn = ViolationTicks;
             WarningsEmitted++;
             LastWarning =
-                "[PowerGridPlus] Tick-duration watchdog: the atomic electricity tick exceeded its derived threshold on "
+                "[PowerGridPlus] Tick-duration watchdog: the atomic electricity tick overran its derived threshold with the allocator as the dominant cause on "
                 + ViolationTicks.ToString(CultureInfo.InvariantCulture)
                 + " tick(s) since load (latest: " + (LastViolationMicros / 1000.0).ToString("F1", CultureInfo.InvariantCulture)
                 + " ms, allocator " + (LastViolationAllocatorMicros / 1000.0).ToString("F1", CultureInfo.InvariantCulture)
+                + " ms vs allocator median " + (LastViolationAllocatorMedianMicros / 1000.0).ToString("F1", CultureInfo.InvariantCulture)
                 + " ms, threshold " + (LastViolationThreshold / 1000.0).ToString("F1", CultureInfo.InvariantCulture)
                 + " ms, tick " + LastViolationTick.ToString(CultureInfo.InvariantCulture)
                 + "; high-water tick " + (MaxTickMicros / 1000.0).ToString("F1", CultureInfo.InvariantCulture)
@@ -171,6 +223,7 @@ namespace PowerGridPlus
             _ringNext = 0;
             _sinceRecompute = 0;
             _thresholdMicros = CeilingMicros;
+            _allocMedianMicros = 0;
             ViolationTicks = 0;
             MaxTickMicros = 0;
             MaxTickAt = 0;
@@ -178,6 +231,7 @@ namespace PowerGridPlus
             MaxAllocatorAt = 0;
             LastViolationMicros = 0;
             LastViolationAllocatorMicros = 0;
+            LastViolationAllocatorMedianMicros = 0;
             LastViolationThreshold = 0;
             LastViolationTick = 0;
             WarningsEmitted = 0;

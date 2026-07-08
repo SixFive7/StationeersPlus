@@ -204,6 +204,7 @@ namespace ScenarioRunner
         private static System.Reflection.MethodInfo _rsDischargePredicate;
         private static System.Reflection.PropertyInfo _rsDischargeCounter;
         private static System.Reflection.MethodInfo _rsWatchdogThresholdFn;
+        private static System.Reflection.MethodInfo _rsWatchdogAttributionFn;
         private static System.Reflection.PropertyInfo _rsWatchdogCounter;
         private static System.Reflection.PropertyInfo _rsConformanceCounter;
         private static System.Reflection.PropertyInfo _rsSelfCheckRan;
@@ -365,6 +366,7 @@ namespace ScenarioRunner
 
                 var watchdog = asm?.GetType("PowerGridPlus.TickDurationWatchdog");
                 _rsWatchdogThresholdFn = watchdog?.GetMethod("ComputeThresholdMicros", flags);
+                _rsWatchdogAttributionFn = watchdog?.GetMethod("IsAllocatorAttributable", flags);
                 _rsWatchdogCounter = watchdog?.GetProperty("ViolationTicks", flags);
 
                 var conformance = asm?.GetType("PowerGridPlus.PoweredSetConformance");
@@ -377,13 +379,14 @@ namespace ScenarioRunner
                 _rsHygieneReachable = asm?.GetType("PowerGridPlus.RegistryHygiene") != null;
 
                 if (_rsDischargePredicate == null || _rsDischargeCounter == null
-                    || _rsWatchdogThresholdFn == null || _rsWatchdogCounter == null
+                    || _rsWatchdogThresholdFn == null || _rsWatchdogAttributionFn == null
+                    || _rsWatchdogCounter == null
                     || _rsConformanceCounter == null || _rsSelfCheckRan == null
                     || _rsSelfCheckPassed == null || !_rsHygieneReachable)
                 {
                     _log?.LogWarning("[ScenarioRunner] [RearchSuite] auditor surfaces unreachable " +
                                      $"(discharge={_rsDischargePredicate != null}/{_rsDischargeCounter != null} " +
-                                     $"watchdog={_rsWatchdogThresholdFn != null}/{_rsWatchdogCounter != null} " +
+                                     $"watchdog={_rsWatchdogThresholdFn != null}/{_rsWatchdogAttributionFn != null}/{_rsWatchdogCounter != null} " +
                                      $"conformance={_rsConformanceCounter != null} " +
                                      $"selfCheck={_rsSelfCheckRan != null}/{_rsSelfCheckPassed != null} " +
                                      $"hygiene={_rsHygieneReachable}); audits verdict will be FAIL.");
@@ -399,6 +402,19 @@ namespace ScenarioRunner
                 RearchSuite_WatchdogCase("T1", "floor binds at 50 ms", 1000L, 50000L);
                 RearchSuite_WatchdogCase("T2", "adaptive 8x median", 10000L, 80000L);
                 RearchSuite_WatchdogCase("T3", "ceiling binds at 400 ms", 100000L, 400000L);
+
+                // Allocator-attribution gate (IsAllocatorAttributable): only a tick whose allocator
+                // EXCESS over its own median explains >= half the overrun is a mod regression. The
+                // two suppressed cases are the gate-14 soak's environmental false positives verbatim.
+                // args: tick, allocator, allocatorMedian, threshold (micros); expect attributable.
+                RearchSuite_AttributionCase("T4", "environmental overrun suppressed (allocator near median)",
+                    152600L, 6300L, 5000L, 143900L, false);
+                RearchSuite_AttributionCase("T5", "allocator blow-up attributed",
+                    315000L, 300000L, 5000L, 160000L, true);
+                RearchSuite_AttributionCase("T6", "allocator below its median never attributed",
+                    149200L, 4200L, 5000L, 144400L, false);
+                RearchSuite_AttributionCase("T7", "allocator dominates even when environment also spikes",
+                    170000L, 80000L, 5000L, 160000L, true);
 
                 _rsDischargeBaseline = _rsDischargeCounter.GetValue(null) is long db ? db : -1L;
                 _rsWatchdogBaseline = _rsWatchdogCounter.GetValue(null) is long wb ? wb : -1L;
@@ -473,6 +489,37 @@ namespace ScenarioRunner
                 _rsAuditFixtureFail++;
                 _log?.LogError($"[ScenarioRunner] TDW {caseId} FAIL: {label}: median={medianMicros} " +
                                $"threshold={actual}, expected {expectedMicros}");
+            }
+        }
+
+        private static void RearchSuite_AttributionCase(string caseId, string label,
+            long tickMicros, long allocatorMicros, long allocMedianMicros, long thresholdMicros, bool expectAttributable)
+        {
+            bool actual;
+            try
+            {
+                actual = _rsWatchdogAttributionFn.Invoke(null,
+                    new object[] { tickMicros, allocatorMicros, allocMedianMicros, thresholdMicros }) is bool b && b;
+            }
+            catch (Exception e)
+            {
+                _rsAuditFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] TDW {caseId} FAIL: {label}: invoke threw {e.Message}");
+                return;
+            }
+            if (actual == expectAttributable)
+            {
+                _rsAuditFixturePass++;
+                _log?.LogInfo($"[ScenarioRunner] TDW {caseId} PASS: {label}: tick={tickMicros} " +
+                              $"allocator={allocatorMicros} allocMedian={allocMedianMicros} " +
+                              $"threshold={thresholdMicros} attributable={actual}");
+            }
+            else
+            {
+                _rsAuditFixtureFail++;
+                _log?.LogError($"[ScenarioRunner] TDW {caseId} FAIL: {label}: tick={tickMicros} " +
+                               $"allocator={allocatorMicros} allocMedian={allocMedianMicros} " +
+                               $"threshold={thresholdMicros} attributable={actual}, expected {expectAttributable}");
             }
         }
 
