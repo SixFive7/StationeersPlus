@@ -8096,6 +8096,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#client-join-the-mod-set-is-not-matched-against-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client join: the mod set is NOT matched against the server
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client join: the mod set is NOT matched against the server">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#failed-mods-are-excluded-from-every-handshake" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failed mods are excluded from every handshake
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rejection-surface-for-the-one-check-that-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rejection surface for the one check that exists
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -8473,6 +8512,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#client-join-the-mod-set-is-not-matched-against-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client join: the mod set is NOT matched against the server
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client join: the mod set is NOT matched against the server">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#failed-mods-are-excluded-from-every-handshake" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failed mods are excluded from every handshake
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rejection-surface-for-the-one-check-that-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rejection surface for the one check that exists
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -8563,7 +8641,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-08.
         </p>
       
       
@@ -8573,10 +8651,14 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
               <li><code>DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll (decompile at .work/decomp/0.2.6228.27061/StationeersLaunchPad.decompiled.cs)</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'NetworkServer.VerifyConnection / PackageJoinData / ProcessJoinData, GameManager.GetGameVersion, NetworkMessages.VerifyPlayer (decompile at .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs lines 204091, 212898-212902, 213188, 213684, 213768-213813, 279339-279438)'}</code></li>
+            
+              <li><code>{'DedicatedServer/install/BepInEx/plugins/StationeersLaunchPad/StationeersLaunchPad.dll :': 'no join-path patch (decompile at .work/decomp/0.2.6403.27689/StationeersLaunchPad.decompiled.cs lines 3692-3717, 3763-3803, 16922, 17193, 17255)'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'WorkshopMenu (decompile lines 38373-38491)'}</code></li>
             
@@ -8589,7 +8671,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (3)</summary>
+          <summary><strong>Related pages</strong> (4)</summary>
           <ul>
             
               <li><code>GameSystems/DedicatedServerSettings.md</code></li>
@@ -8597,6 +8679,8 @@
               <li><code>GameSystems/ModLoadSequence.md</code></li>
             
               <li><code>Patterns/ServerAuthoritativeSimulation.md</code></li>
+            
+              <li><code>Protocols/LaunchPadBoosterNetworking.md</code></li>
             
           </ul>
         </details>
@@ -8879,6 +8963,7 @@
 <li>2026-04-29: empirical confirmation of the workaround. Launcher gained <code>-GamePort</code> / <code>-UpdatePort</code> parameters with new defaults <code>28016</code> / <code>28015</code> (offset by +1000 from the Stationeers client defaults). Re-test with same client in-session (<code>10.20.30.200:27016</code>): server log shows clean "Attempting to host at 10.20.30.200:28016" -&gt; "RakNet successfully hosted with Address: 10.20.30.200:28016", no "Hosting failed. Attempting fallback behaviour" line. UDP endpoints show both processes own distinct, exclusive specific-IP binds (<code>10.20.30.200:27016</code> for the client, <code>10.20.30.200:28016</code> for the server). Clean coexistence.</li>
 <li>2026-04-29: documented why a "headless client" is not a supported automation mode. <code>Platform.CheckIsServer()</code> (line 4433) routes any <code>Application.isBatchMode</code> instance into <code>ServerPlatform</code>, which is <code>IsServer=true, IsClient=false, SteamDisabled=true</code> and has no outbound-connect path. Both batch-mode regular-client and any dedicated-server build land on the server side. Practical options A-D listed for client-side automation; recommended ranking C &gt; A &gt; B &gt; D.</li>
 <li>2026-07-02: added "Load-failure and self-update exits (StationeersLaunchPad 0.4.0)" from the StationeersLaunchPad GitHub source at tag v0.4.0 (Platform.cs, LaunchPadConfig.cs, Configs.cs, Loading/LoadStrategy.cs) plus the exit line observed on our dedicated server during the 0.2.6403.27689 boot investigation (broken mods from the 0.2.6403 API removals; see Research/Unsorted/Api-removals-0.2.6403.md). Confirms the 0.3.1-era PlatformWait decompile finding is unchanged at 0.4.0 and adds the per-platform update-config defaults and the self-update exit path. Earlier sections keep their 0.2.6228.27061 stamps.</li>
+<li>2026-07-08: added "Client join: the mod set is NOT matched against the server" from a fresh decompile at game 0.2.6403.27689. Traced the full vanilla join accept/reject gate (<code>NetworkServer.VerifyConnection</code> line 213785: blacklist / password / game-build-version only), <code>GameManager.GetGameVersion</code> (line 204091, returns the Assembly-CSharp assembly version with no mod hash), the <code>VerifyPlayer</code> message fields (line 279339, no mod list), and <code>PackageJoinData</code> / <code>ProcessJoinData</code> (lines 213684 / 213188, world state only). Confirmed StationeersLaunchPad.dll adds no patch to the join path (16 <code>HarmonyPatch(typeof(...))</code> targets, none on <code>NetworkServer</code> / <code>NetworkClient</code> / <code>VerifyConnection</code> / <code>VerifyPlayer</code> / <code>GetGameVersion</code>; zero references to those types) and that failed mods (<code>LoadFailed = true</code>, line 17193) are skipped before entrypoints (line 17255) so they never register a LaunchPadBooster <code>ModNetworking</code> instance. Cross-referenced the opt-in per-mod handshake on <code>Protocols/LaunchPadBoosterNetworking.md</code>.</li>
 </ul>
 <h2 id="applyconfig-matching-clean-state-matches-relative-paths-cleanly">ApplyConfig matching: clean state matches relative paths cleanly<a class="headerlink" href="#applyconfig-matching-clean-state-matches-relative-paths-cleanly" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
@@ -8980,6 +9065,43 @@
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
 </span></code></pre></div>
 <p>Operational takeaway for the launcher: both exit paths mean <code>rocketstation_DedicatedServer.exe</code> terminating early with a zero-drama log tail. Any supervisor script watching for "server up" must treat <code>An error occurred during loading. Exiting</code> and <code>LaunchPad has updated. Exiting</code> as terminal, not as transient startup noise. This section is the 0.4.0 confirmation and generalisation of the 0.3.1 decompile finding in "Server-only platform overrides" above (<code>ServerPlatform.PlatformWait</code>, decompile line 4709): the exit-on-error behaviour is unchanged between 0.3.1 and 0.4.0.</p>
+<h2 id="client-join-the-mod-set-is-not-matched-against-the-server">Client join: the mod set is NOT matched against the server<a class="headerlink" href="#client-join-the-mod-set-is-not-matched-against-the-server" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+<p>The vanilla multiplayer join handshake performs NO comparison of the client's mod set against the server's. A client may carry mods the server lacks (and the reverse) and still be accepted, as long as the game BUILD version matches. Mod-set matching exists only as an opt-in, per-mod layer that LaunchPadBooster adds on top (see <code>Protocols/LaunchPadBoosterNetworking.md</code>); StationeersLaunchPad.dll itself adds nothing to the join path.</p>
+<p><strong>The accept/reject gate is <code>NetworkServer.VerifyConnection</code></strong> (Assembly-CSharp.decompiled.cs line 213785). It has exactly three rejection reasons, each sent as a <code>Handshake { HandshakeState = Rejected }</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">VerifyConnection</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">hostId</span><span class="p">,</span><span class="w"> </span><span class="n">NetworkMessages</span><span class="p">.</span><span class="n">VerifyPlayer</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="p">{</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Client</span><span class="p">(</span><span class="n">hostId</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">OwnerConnectionId</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">ClientId</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">ClientConnectionMethod</span><span class="p">);</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Blacklist</span><span class="p">.</span><span class="n">Any</span><span class="p">((</span><span class="n">BlacklistedClient</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">Id</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">ClientId</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">HandleBlacklisting</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="n">client</span><span class="p">);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">          </span><span class="c1">// banned</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerPassword</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Settings</span><span class="p">.</span><span class="n">CurrentData</span><span class="p">.</span><span class="n">ServerPassword</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">Password</span><span class="p">)</span><span class="w"> </span><span class="c1">// wrong password</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">HandleIncorrectPassword</span><span class="p">(</span><span class="n">client</span><span class="p">);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">GetGameVersion</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">Version</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">HandleIncorrectVersion</span><span class="p">(</span><span class="n">client</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">                      </span><span class="c1">// wrong game build</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">    </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">AddClient</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>There is no fourth branch for mods. The three <code>HandshakeType.Rejected</code> sites in the file (lines 213750, 213761, 213772) are exactly these three handlers.</p>
+<p><strong>The version compared is the game BUILD version, not a mod hash.</strong> <code>GameManager.GetGameVersion()</code> (line 204091):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetGameVersion</span><span class="p">()</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="p">{</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">_gameVersion</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">(</span><span class="n">_gameVersion</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Assembly</span><span class="p">.</span><span class="n">GetExecutingAssembly</span><span class="p">().</span><span class="n">GetName</span><span class="p">().</span><span class="n">Version</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>This returns the <code>Assembly-CSharp</code> assembly version string (for example <code>0.2.6403.27689</code>) and nothing else. It is not extended with a mod list, a content hash, or a mod-set fingerprint. A client and server running the same Stationeers build pass this check regardless of which mods each has loaded.</p>
+<p><strong>The <code>VerifyPlayer</code> message carries no mod list.</strong> Its wire fields (line 279339): <code>OwnerConnectionId</code>, <code>ClientId</code>, <code>Name</code>, <code>Password</code>, <code>Version</code> (set to <code>GetGameVersion()</code> at line 279404), <code>ClientConnectionMethod</code>. No mod data is serialized.</p>
+<p><strong>The join data package carries no mod list either.</strong> <code>NetworkServer.PackageJoinData</code> (line 213684) serializes only world / simulation state (game time, terrain seed, WorldManager, Vein, OrbitalSimulation, TerraForming, VoxelTerrain, StructureNetwork, CableNetwork, TraderContact, SpaceMap, Rocket, WorldLog, WorldObjectiveState, all Things, RocketLog, RoomController, AtmosphericsManager). <code>NetworkClient.ProcessJoinData</code> (line 213188) deserializes the same set. <code>OnServer.SendMetaData</code> (line 39928) sends only <code>GameMetaData { ConnectionId, BytesToReceive }</code> (the join-package byte count) and runs AFTER <code>VerifyConnection</code> already accepted the client, so it is not a gate.</p>
+<p><strong>StationeersLaunchPad.dll does not touch the join path.</strong> Its Harmony surface is 16 <code>HarmonyPatch(typeof(...))</code> attributes across six patch classes (<code>EssentialPatches</code>, <code>WorkshopPatches</code>, <code>SteamPatches</code>, <code>BugfixPatches</code>, <code>CustomSavePathPatches</code>, <code>LinuxPathPatch</code>; applied at StationeersLaunchPad.decompiled.cs lines 3692-3717). None target <code>NetworkServer</code>, <code>NetworkClient</code>, <code>VerifyConnection</code>, <code>VerifyPlayer</code>, or <code>GetGameVersion</code>. The only network-related patch is a transpiler on <code>NetworkManager.Init</code> that swaps in a shared <code>MetaServerTransport</code> (line 3763) plus a prefix on <code>MetaServerTransport.InitClient</code> (line 3798), neither of which compares mods. The decompiled StationeersLaunchPad assembly contains zero references to <code>NetworkServer</code> / <code>NetworkClient</code> / <code>VerifyConnection</code> / <code>VerifyPlayer</code>. So StationeersLaunchPad does NOT inject a mod hash into the game version and adds no global mod-set gate.</p>
+<h3 id="failed-mods-are-excluded-from-every-handshake">Failed mods are excluded from every handshake<a class="headerlink" href="#failed-mods-are-excluded-from-every-handshake" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+<p>The only mod-aware join gate is LaunchPadBooster's opt-in per-mod handshake (<code>Protocols/LaunchPadBoosterNetworking.md</code>): the <code>MOD.Networking.Required</code> version gate and <code>IJoinValidator</code>. Both iterate <code>ModNetworking.Instances</code>, which contains only mods that successfully loaded AND registered a networking instance from their entrypoint (<code>Plugin</code> <code>Awake</code>). A mod that hard-fails during load is routed through <code>LoadStrategy.LoadFailed</code> (StationeersLaunchPad.decompiled.cs line 17193), which sets <code>LoadFailed = true</code>; the load loop then skips it (guard at line 17255) before <code>LoadEntrypoints</code> (entrypoints instantiated at line 16922). A failed mod therefore never runs its plugin code, never registers a <code>ModNetworking</code> instance, and cannot appear in <code>ModNetworking.Instances</code>. It is invisible to both the <code>Required</code> gate and the symmetric <code>IJoinValidator</code> check.</p>
+<p>Consequence: a mod that is subscribed / enabled on the client but BROKEN on the current game build (throws during load) is inert for join purposes. It is not compared by the vanilla gate (which ignores mods entirely) and not compared by LaunchPadBooster (which only sees loaded, registered mods). A broken client-only mod does not block the client from joining a server that lacks it.</p>
+<h3 id="rejection-surface-for-the-one-check-that-exists">Rejection surface for the one check that exists<a class="headerlink" href="#rejection-surface-for-the-one-check-that-exists" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-08 -->
+
+<p>On a game-build-version mismatch (the only vanilla check that can differ between two peers that are both running mods), the server sends <code>Handshake { HandshakeState = Rejected, Message = "MultiplayerIncorrectVersion" }</code> (localization key <code>MultiplayerIncorrectVersion</code>, line 212902) and closes the connection after 500 ms (<code>HandleIncorrectVersion</code>, line 213768; <code>CloseRejectedConnection</code>, line 213779). The server console logs <code>client `{address}:{port}` attempted to connect with incorrect version: {msg.Version}</code> (line 213775). The client surfaces the <code>MultiplayerIncorrectVersion</code> string. There is no mod-specific rejection message because there is no mod-set check.</p>
 
 
 
