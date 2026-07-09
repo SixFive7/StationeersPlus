@@ -8542,42 +8542,97 @@
 </span></code></pre></div>
 <p><code>_powerUsedDuringTick</code> is a per-frame accumulator: it is added to each FixedUpdate frame from inside the production coroutine <code>WaitThenMake</code> (~line 420309) and reset to <code>0f</code> in <code>ReceivePower</code> (lines 420216-420220, called at the ENFORCE phase of the tick). <code>OnBeginSmelt</code> (line 420195) starts <code>WaitThenMake</code> when <code>GameManager.RunSimulation &amp;&amp; OnOff &amp;&amp; Powered &amp;&amp; !ExportSlot.Occupant &amp;&amp; IsStructureCompleted</code> and no job is already pending; the print path is <code>Activate=1 -&gt; OnBeginSmelt -&gt; WaitThenMake</code>. So while a print runs the return value steps upward once per frame: it is NOT tick-stable, and OBSERVE, the allocator's GATHER, and ENFORCE's re-read inside one electricity tick can each see a different number.</p>
 <p>Note the foreign-network sentinel. Unlike a producer's <code>GetGeneratedPower</code> (which returns <code>0</code> on a network mismatch), the fabricator returns <code>-1f</code>. Anything that latches or caches this read must gate on the same predicate vanilla uses to return the real draw (<code>PowerCable != null &amp;&amp; PowerCable.CableNetwork == cableNetwork</code>), so it never caches the <code>-1f</code> path and then serves it to a real-network read within the tick.</p>
-<p>Census of the known per-frame-mutable consumers (the fabricator and the two furnace classes; the furnace pair is documented at <code>DevicePowerDraw.md</code>):</p>
+<p>The COMPLETE census (2026-07-09 whole-decompile enumeration: every <code>override float GetUsedPower(CableNetwork)</code>, all 34, classified by mutation site and thread; segmenters are cache-governed by the mod and out of scope here). Correction to the first version of this section: <code>Fabricator</code> (class 396068) is a SIBLING of <code>SimpleFabricatorBase</code> (419486) under <code>FabricatorBase</code>, with its own independent override; the earlier "Autolathe + every fabricator" reading of SimpleFabricatorBase's coverage was wrong.</p>
+<p>Mid-tick-mutable (a MAIN-thread writer can land between two solve reads):</p>
 <table>
 <thead>
 <tr>
-<th>Class</th>
-<th>Draw source</th>
-<th>Mutation site</th>
-<th>Tick-stable?</th>
+<th>Class (decl)</th>
+<th>Override</th>
+<th>Mutation site -&gt; thread</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>SimpleFabricatorBase</code> (Autolathe + every fabricator; 420203)</td>
-<td><code>OnOff ? UsedPower + _powerUsedDuringTick : _powerUsedDuringTick</code></td>
-<td><code>_powerUsedDuringTick += ...</code> per frame in <code>WaitThenMake</code> (~420309); reset in <code>ReceivePower</code> (420219)</td>
-<td>NO: accumulates per frame during a print</td>
+<td><code>SimpleFabricatorBase</code> (419486; Autolathe, AutomatedOven, ElectronicsPrinter, OrganicsPrinter, SecurityPrinter, ToolManufactory inherit)</td>
+<td>420203</td>
+<td><code>_powerUsedDuringTick +=</code> per frame in <code>WaitThenMake</code> (~420309, <code>UniTask.NextFrame</code>) -&gt; MAIN; reset in <code>ReceivePower</code> (420219)</td>
 </tr>
 <tr>
-<td><code>ArcFurnace</code> (<code>UsedPower + _powerUsedDuringTick</code>)</td>
-<td><code>_powerUsedDuringTick += _currentRecipe.Energy</code> per smelt tick; reset in <code>ReceivePower</code></td>
-<td>NO: spikes per smelt tick</td>
-<td></td>
+<td><code>Fabricator</code> (396068, sibling)</td>
+<td>396283</td>
+<td><code>+= CurrentJob.Recipe.Energy * 0.01f</code> in <code>OnServerExportTick</code> (396302-396364) -&gt; MAIN (100 ms server tick)</td>
 </tr>
 <tr>
-<td><code>AdvancedFurnace</code> (<code>UsedPower + Setting/MaxSetting*UsedPower + Setting2/MaxSetting2*UsedPower</code>)</td>
-<td><code>Setting</code> / <code>Setting2</code> are logic-writable, changed on the main thread</td>
-<td>Partial: stable unless a logic write lands mid-tick</td>
-<td></td>
+<td><code>ArcFurnace</code> (365208)</td>
+<td>365548</td>
+<td><code>+= _currentRecipe.Energy</code> in <code>WaitThenSmelt</code> (365576-365621, <code>PlayerLoopTiming.Update</code>) -&gt; MAIN</td>
+</tr>
+<tr>
+<td><code>IceCrusher</code> (380012)</td>
+<td>380296</td>
+<td><code>+= EnergyPerSmelt</code> in <code>OnServerImportTick</code> (380247-380277) -&gt; MAIN (its <code>+= EnergyForHeating</code> at 380203 is OnAtmosphericTick -&gt; stable)</td>
+</tr>
+<tr>
+<td><code>Fermenter</code> (181427, Objects.Electrical)</td>
+<td>181583</td>
+<td><code>= 200f</code> / <code>= 0f</code> in <code>OnServerTick</code> (181660-181680) -&gt; MAIN</td>
+</tr>
+<tr>
+<td><code>Bench</code> (325406)</td>
+<td>325494</td>
+<td>the <code>Appliances</code> list (add/remove 325519/325538), each appliance's OnOff, the tablet-dock occupant battery -&gt; MAIN (player-driven)</td>
+</tr>
+<tr>
+<td><code>SuitStorage</code> (327095)</td>
+<td>327442</td>
+<td>slot occupants + occupant battery <code>PowerDelta</code> -&gt; MAIN (swaps)</td>
+</tr>
+<tr>
+<td><code>WallLightBattery</code> (327936)</td>
+<td>327980</td>
+<td>cell swaps -&gt; MAIN (drain / charge are device-tick / elec-tick, stable)</td>
+</tr>
+<tr>
+<td><code>BatteryCellCharger</code> (392218)</td>
+<td>392271</td>
+<td>the <code>Batteries</code> list (392293-392308) + cell swaps -&gt; MAIN</td>
+</tr>
+<tr>
+<td><code>AdvancedFurnace</code> (364780)</td>
+<td>365058</td>
+<td><code>Setting</code> / <code>Setting2</code> wheels + Labeller -&gt; MAIN</td>
+</tr>
+<tr>
+<td><code>VolumePump</code> (176245, Objects.Pipes)</td>
+<td>176382</td>
+<td><code>Setting</code> via InteractWith (176360-176375) -&gt; MAIN</td>
+</tr>
+<tr>
+<td><code>TurboVolumePump</code> (176149, own override)</td>
+<td>176232</td>
+<td>same, plus <code>BasePowerDraw</code> term</td>
+</tr>
+<tr>
+<td><code>SatelliteDish</code> (417919)</td>
+<td>418401</td>
+<td><code>Setting</code> + the trading contact state (<code>InterrogatingContact</code> / <code>ScannedContactData</code>) -&gt; MAIN</td>
+</tr>
+<tr>
+<td><code>RocketMiner</code> (389271)</td>
+<td>389454</td>
+<td><code>_miningHead</code> swap (OnChildEnter/ExitInventory ~389395-389425) -&gt; MAIN</td>
 </tr>
 </tbody>
 </table>
-<p>Consequence for PowerGridPlus: the fabricator family is the consumer-side analogue of the solar and wind producer latches. A rigid consumer that returns a constant <code>UsedPower</code> is coherent by construction; a fabricator mid-print is not. A demand read that tears between ALLOCATE and ENFORCE produces a one-tick spurious depower on an already-served network with no transformer shed, because the shed decision was made at ALLOCATE on the lower draw and only ENFORCE sees the spike (<code>Required &gt; Potential</code> granted, vanilla ratio drops below 1, the device reads <code>Powered == false</code> for a single tick). The mod's response is a tick-scoped first-read latch on <code>SimpleFabricatorBase.GetUsedPower</code> keyed by <code>ReferenceId</code>, engaged only on the real-network path while <code>GameManager.RunSimulation</code> is true, mirroring the producer latches (<code>ConsumerDemandLatchPatches.cs</code>). It changes only what in-tick callers see; vanilla still accumulates <code>_powerUsedDuringTick</code> and still resets it in <code>ReceivePower</code>, so energy conservation is unchanged and the print spike is allocated for on the next tick.</p>
+<p>Producer-side twin: <code>PowerConnector.GetGeneratedPower</code> (408014) forwards a DOCKED <code>DynamicGenerator.PowerGenerated</code> to ANY asking network with no network guard; the dock reference (408023-408048) and the generator's OnOff / Powered gate inside <code>PowerGenerated</code> (297398-297408) are MAIN-mutable, while the underlying <code>_powerGenerated</code> is OnAtmosphericTick-written (297589/297628, stable). <code>DynamicComposter</code> (296224) is a <code>DraggableThing</code> SIBLING of <code>DynamicGenerator</code> (297342), so <code>newChild as DynamicGenerator</code> (408026) is null for it and its threaded accumulator is unreachable by the solve.</p>
+<p>Tick-STABLE by construction, no latch warranted: <code>AdvancedComposter</code> 179738, <code>FridgePowered</code> 182033, <code>FiltrationMachineBase</code> 377868 (+ <code>FiltrationMachine</code>, <code>LiquidFiltrationMachine</code>), <code>IndustrialFiltration</code> 382268, <code>PipeHeater</code> 384822, <code>AirConditioner</code> 390078, <code>SpawnPointAtmospherics</code> 422723, <code>VendingMachineRefrigerated</code> 426480, <code>WallCooler</code> 426608, <code>WallHeater</code> 426725 (all OnAtmosphericTick-written; the atmosphere tick runs sequentially BEFORE the electricity tick on the same worker, 204418/204458/204466); <code>DroidSleeper</code> 181250 and <code>PowerTransmitterOmni</code> 408690 (<code>OnPowerTick</code>-written, and the device tick runs AFTER the electricity solve, so the value is constant across the solve's reads); <code>LiquidDrain</code> 186099 and the base <code>Device</code> 371510 (constants). <code>ElevatorShaftNetwork.GetUsedPower</code> (395878-395890) has ZERO callers in the whole decompile: dead code.</p>
+<p>Consequence for PowerGridPlus: every class in the mid-tick-mutable table carries a tick-scoped first-read latch (<code>ConsumerDemandLatchPatches</code> for <code>SimpleFabricatorBase</code>, <code>ConsumerDemandLatchesExtended</code> for the other thirteen, <code>PowerConnectorOutputLatchPatches</code> for the producer gap), keyed by <code>ReferenceId</code>, engaged only on the device's own-network path while <code>GameManager.RunSimulation</code> is true, so OBSERVE, GATHER, and ENFORCE see one number per device per tick. The latches are demand-coherence hygiene: the device-reboot symptom itself (a demand spike letting vanilla ApplyState un-power the device for one tick) is closed structurally by the mod's net-liveness Powered ownership (Powered is decided per network, never per device demand; POWER.md section 0 decisions 19-21), so a torn read on an unlatched third-party class degrades to a one-tick allocation wobble, never a depower.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
 
 <ul>
+<li>2026-07-09 (later): COMPLETED the consumer census from a whole-decompile enumeration (all 34 <code>GetUsedPower(CableNetwork)</code> overrides + all 15 <code>GetGeneratedPower</code> overrides classified by mutation site and thread; produced by three independent census agents for the PowerGridPlus Powered-ownership redesign and cross-checked against the mod build). CONFLICT RESOLUTION against this page's morning version: <code>SimpleFabricatorBase</code> does NOT cover "every fabricator"; <code>Fabricator</code> (class decl 396068, <code>public class Fabricator : FabricatorBase</code>, read directly this pass) is a SIBLING with its own <code>GetUsedPower</code> override (396283) and a main-thread <code>OnServerExportTick</code> accumulator (396364). Replaced the three-row table with the complete fourteen-row mid-tick-mutable set plus the PowerConnector forwarding producer, the tick-stable list with the atmos-before-electricity and device-tick-after-solve discriminators (204418/204458/204466), the <code>DynamicComposter</code> sibling dead-end (296224 vs 297342, <code>as DynamicGenerator</code> null at 408026), and the <code>ElevatorShaftNetwork.GetUsedPower</code> dead-code finding (395878-395890, zero callers). Consequence paragraph updated to the shipped latch set + the net-liveness ownership model.</li>
 <li>2026-07-09: added the "Consumer demand stability census" section, the demand-side twin of the producer census. Read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>: <code>SimpleFabricatorBase</code> class (line 419486), <code>OnBeginSmelt</code> (420195), <code>GetUsedPower</code> (420203-420214, foreign-network sentinel <code>-1f</code>, else <code>OnOff ? UsedPower + _powerUsedDuringTick : _powerUsedDuringTick</code>), <code>ReceivePower</code> reset of <code>_powerUsedDuringTick</code> (420216-420220); the per-frame <code>WaitThenMake</code> accumulation (~420309) carried from the same session's earlier read. Establishes the fabricator family as the consumer-side analogue of the solar/wind producer read-coherence hazard. No prior content contradicted; earlier sections keep their stamps.</li>
 <li>2026-07-08: added the "Generator output stability census" section from the PowerGridPlus auditor-round decompile pass (0.2.6403.27689). Wind chain, pipe generator, and the LargeWindTurbineGenerator no-override claim re-read directly; solid fuel / Stirling / turbine / RTG write sites verified by the round's implementing agent at the cited lines in the same decompile file. Earlier sections untouched (their 0.2.6228.27061 stamps stand).</li>
 <li>2026-05-28: added "Tick interval and the watts-vs-joules-per-tick labelling convention" section. Documents <code>DefaultTickSpeedMs = 500</code> (decompile line 188884), the call-chain <code>GameTick -&gt; ElectricityManager.ElectricityTick -&gt; CableNetwork.OnPowerTick -&gt; PowerTick.Initialise/CalculateState/ApplyState</code> (line 189484), and the in-game convention that "watts" labels and "joules per tick" values are the same number numerically even though they differ by a factor of 2 in real units. This corrects a sloppy "J/tick x 2 = W" formula previously used in <code>Battery.md</code>'s rate-cap table; the in-game-displayed wattage is the field value as-is, not doubled.</li>
