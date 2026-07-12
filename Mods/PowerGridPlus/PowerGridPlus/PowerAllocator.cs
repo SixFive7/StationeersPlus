@@ -117,13 +117,6 @@ namespace PowerGridPlus
         private const float Eps = 0.01f;
         private const int UnreachableDepth = int.MaxValue / 2;
 
-        // Networks in shallow-first (depth ASC, ReferenceId ASC) order, recomputed by the DEPTH phase
-        // every tick. AtomicElectricityTickPatch ENFORCE iterates this so each network is
-        // recomputed AFTER its upstream input network's PotentialLoad has been refreshed this tick,
-        // eliminating the one-tick supply-propagation lag that made multi-stage transformer chains
-        // oscillate power on/off under variable load. Read-only outside this class.
-        internal static List<CableNetwork> ShallowFirstNetworks = new List<CableNetwork>();
-
         private enum SegKind { Transformer, PtPair, Apc }
 
         // A pull-through contributor: draws from InNet to serve OutNet (Transformer, APC, PT/PR pair).
@@ -402,7 +395,7 @@ namespace PowerGridPlus
                                     RefId = apc.ReferenceId,
                                     OutNet = apc.OutputNetwork,
                                     EffDischarge = Mathf.Min(
-                                        Mathf.Min(ApcDischargeRateRegistry.GetDischargeRate(apc.ReferenceId),
+                                        Mathf.Min(Settings.ApcBatteryDischargeRate.Value,
                                             CableMax.For(apc.OutputConnection?.GetCable())),
                                         cell.PowerStored),
                                     Locked = seg.Locked,
@@ -554,12 +547,6 @@ namespace PowerGridPlus
             List<Net> netsDeepFirst = new List<Net>(topo);
             netsDeepFirst.Reverse();                           // leaf -> source
 
-            // Publish the shallow-first network order for ENFORCE (AtomicElectricityTickPatch).
-            // Iterating ENFORCE upstream-first (topological order) is what eliminates the one-tick
-            // transformer supply lag.
-            var shallowOrder = new List<CableNetwork>(netsShallowFirst.Count);
-            for (int i = 0; i < netsShallowFirst.Count; i++) shallowOrder.Add(netsShallowFirst[i].Network);
-            ShallowFirstNetworks = shallowOrder;
             foreach (var n in netList)
             {
                 n.Suppliers.Sort(SupplierOrder);
@@ -985,7 +972,6 @@ namespace PowerGridPlus
             // an idle seg on a DARK input (night-time solar feed) presents dark in line with the
             // dead-input hover cue. A pair publishes health under both halves' ReferenceIds so
             // transmitter and receiver present the same verdict.
-            var healthySet = new HashSet<long>();
             var presentationRoster = new List<PoweredPresentation.EnrolledSeg>(segs.Count);
             foreach (var seg in segs)
             {
@@ -995,11 +981,6 @@ namespace PowerGridPlus
                     inNetMet = inRec.GenSupply + inRec.InflowCommitted + AvailableElastic(inRec) > Eps
                                && inRec.Unmet <= Eps;
                 bool healthy = IsActive(seg) && (conducts || inNetMet);
-                if (healthy)
-                {
-                    healthySet.Add(seg.RefId);
-                    if (seg.PartnerRefId != 0L) healthySet.Add(seg.PartnerRefId);
-                }
                 presentationRoster.Add(new PoweredPresentation.EnrolledSeg
                 {
                     RefId = seg.RefId,
@@ -1020,7 +1001,7 @@ namespace PowerGridPlus
                                    || seg.Kind == SegKind.Transformer,
                 });
             }
-            PoweredPresentation.Publish(healthySet, presentationRoster);
+            PoweredPresentation.Publish(presentationRoster);
             SegControlSnapshot.Publish(controlSnapshot);
 
             // ----------------------------------------------------------------

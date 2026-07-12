@@ -24,15 +24,13 @@ namespace PowerGridPlus
     ///     everyone powered) or its segmenter sheds / overloads and the subnet goes dark AS A UNIT,
     ///     which is the mod's stated contract.
     ///
-    ///     <para><b>Three cooperating pieces.</b> (1) The SetPowerFromThread false-edge block
-    ///     (PoweredOwnershipPatches) stops vanilla ApplyState from un-powering an owned device on a
-    ///     LIVE or unclassified net; being on the NON-VIRTUAL funnel it catches every class,
-    ///     including third-party AllowSetPower overrides. (2) The dead-net advertise zeroing
-    ///     (ProducerFaultEnforcementPatches + the segmenter supply patches, keyed by NetLiveness)
-    ///     makes a DEAD net deliver literally nothing, so accumulator debts freeze exactly and the
-    ///     vanilla power-ON edge cannot fire there (the zero-Potential corollary,
-    ///     Research/GameClasses/PowerTick.md). (3) This sweep, at the ENFORCE tail, asserts both
-    ///     edges per device from the verdict and audits the result.</para>
+    ///     <para><b>How it owns the flag (B + D1 edition).</b> Vanilla ApplyState is retired, so no
+    ///     vanilla tick path writes Powered at all; this sweep, at the write-back tail, is the only
+    ///     tick-driven writer and asserts both edges per device from the verdict. A DEAD net
+    ///     delivers nothing by construction (the write-back settles no energy there and the
+    ///     accumulator drains skip it, so debts freeze exactly and are billed on revival). The only
+    ///     other vanilla Powered writer left is the main-thread AssessPower event path, suppressed
+    ///     under orthogonality by PoweredOwnershipPatches.</para>
     ///
     ///     <para><b>Expected state.</b> LIVE net AND structure complete AND (orthogonality ON, or
     ///     the device's OnOff switch is on) => Powered true; otherwise false. With "Decouple
@@ -42,11 +40,10 @@ namespace PowerGridPlus
     ///     consumed. With the toggle off, expected also requires OnOff (vanilla-compatible
     ///     semantics minus the per-device depower).</para>
     ///
-    ///     <para><b>Unclassified nets freeze.</b> A net absent from this tick's verdict map (a
-    ///     mid-tick cable split mints new network ids) gets NO write: forcing dark would cancel
-    ///     prints on ordinary cable edits, the exact bug this layer removes. A device persistently
-    ///     unclassified (4+ consecutive tail sweeps) fail-safes to dark and logs once: a device the
-    ///     mod cannot classify stays depowered by design.</para>
+    ///     <para><b>Classification is total.</b> The verdict map is computed FROM the same snapshot
+    ///     this sweep iterates, so every swept net has a same-tick verdict by construction; the
+    ///     old unclassified-streak machinery is gone. A verdict miss (impossible in practice) is a
+    ///     pure fail-safe: no write.</para>
     ///
     ///     <para><b>Exemptions.</b> Segmenters keep the existing healthy-set policy
     ///     (PoweredPresentation). Classes that legitimately self-own Powered are never driven:
@@ -67,20 +64,15 @@ namespace PowerGridPlus
     ///     is counted and reported (aggregated, once per 600 ticks), and unclassified streaks
     ///     surface devices the mod failed to classify.</para>
     ///
-    ///     <para>Threading: the sweep and the SetPowerFromThread prefix both run on the power
-    ///     worker (sequential phases of the same tick); AssessPower suppression runs on the main
-    ///     thread, so the shared type-exemption cache and quarantine set are concurrent
-    ///     containers. Cleared on world load (FaultRegistryLoadPatches).</para>
+    ///     <para>Threading: the sweep runs on the power worker; AssessPower suppression runs on
+    ///     the main thread, so the shared type-exemption cache and quarantine set are concurrent
+    ///     containers. Cleared at the load boundary (Core/LoadBoundary, on the worker).</para>
     /// </summary>
     internal static class PoweredOwnership
     {
         private const int QuarantineStreak = 10;           // contested tails before giving the device back to vanilla
         private const int WarnCooldownTicks = 600;         // one aggregated warning per ~5 minutes at 2 Hz
         private const int PruneEveryTicks = 600;
-
-        /// <summary>True while the ENFORCE-tail sweep issues its own writes (worker-only), so the
-        /// false-edge block lets them through.</summary>
-        internal static bool ModWriteWindow;
 
         private struct DevState
         {
@@ -167,10 +159,9 @@ namespace PowerGridPlus
             bool orthogonal = Settings.DecouplePoweredFromOnOff.Value;
             var emergencyPrefabs = Patches.EmergencyLightSupport.PrefabNames;
 
-            ModWriteWindow = true;
-            try
+            for (int ni = 0; ni < gridSnap.Nets.Count; ni++)
             {
-                for (int ni = 0; ni < gridSnap.Nets.Count; ni++)
+                try
                 {
                     var nr = gridSnap.Nets[ni];
                     var net = nr.Network;
@@ -180,13 +171,14 @@ namespace PowerGridPlus
                     if (!NetLiveness.TryGetVerdict(nr.Id, out byte verdict)) continue;
                     for (int i = 0; i < nr.Rows.Count; i++)
                     {
-                        var device = nr.Rows[i].Device;
+                        var row = nr.Rows[i];
+                        var device = row.Device;
                         if (device == null) continue;
                         // Single-owner rule: a multi-net device is swept only by its primary
                         // network, mirroring the base AllowSetPower semantics.
                         if (device.PowerCableNetwork != net) continue;
                         if (!device.HasPowerState) continue;   // PoweredValue write would silently no-op
-                        if (nr.Rows[i].IsSegmenter) continue;  // healthy-set policy owns segmenters
+                        if (row.IsSegmenter) continue;         // the presentation roster owns segmenters
                         if (IsExemptDevice(device)) continue;
                         if (emergencyPrefabs != null && emergencyPrefabs.Contains(device.PrefabName)) continue;
                         long refId = device.ReferenceId;
@@ -194,9 +186,11 @@ namespace PowerGridPlus
 
                         _state.TryGetValue(refId, out var st);
 
+                        // OnOff comes from the boundary read (row.OnOff), so the expectation is
+                        // computed from the same sample the solve billed under.
                         byte expected = (verdict == NetLiveness.Live
                                          && device.IsStructureCompleted
-                                         && (orthogonal || device.OnOff)) ? (byte)1 : (byte)0;
+                                         && (orthogonal || row.OnOff)) ? (byte)1 : (byte)0;
 
                         bool actual = device.Powered;
 
@@ -244,10 +238,14 @@ namespace PowerGridPlus
                         _state[refId] = st;
                     }
                 }
-            }
-            finally
-            {
-                ModWriteWindow = false;
+                catch (Exception ex)
+                {
+                    // One malformed net (a throwing third-party override) costs that net's sweep,
+                    // never the tick.
+                    Plugin.Log?.LogWarning(
+                        "[PowerGridPlus] Powered ownership sweep failed on network "
+                        + gridSnap.Nets[ni].Id.ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
+                }
             }
 
             if (currentTick % PruneEveryTicks == 0) PruneStale(currentTick);
@@ -292,7 +290,6 @@ namespace PowerGridPlus
             WarningsEmitted = 0;
             _deviceTicksAtLastWarn = 0;
             _lastWarnTick = -WarnCooldownTicks;
-            ModWriteWindow = false;
             // The type-exemption cache is world-independent (pure type facts); keep it.
         }
     }

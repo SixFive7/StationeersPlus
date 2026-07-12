@@ -68,27 +68,9 @@ namespace PowerGridPlus
             return true;
         }
 
-        // A device that SUPPLIES power on this network but is in neither the known producer list nor
-        // the segmenter list: a new vanilla class or an unclassified modded producer. The
-        // producer-isolation rule catches it via the cable-burn fallback (POWER.md §0.5 decision:
-        // fault+zero for known producers, cable burn for unknown ones so nothing slips through).
-        internal static bool IsUnknownProducerLike(Device d, CableNetwork net)
-        {
-            if (d == null) return false;
-            if (IsProducer(d)) return false;
-            if (d is ElectricalInputOutput) return false;   // segmenters (incl. WirelessPower) are not producers
-            try { return d.GetGeneratedPower(net) > 0f; }
-            catch { return false; }
-        }
-
-        // A producer with an InteractableType.OnOff button (can host a red flash). The remaining producers
-        // (SolarPanel, WindTurbineGenerator, LargeWindTurbineGenerator, RadioscopicThermalGenerator) are
-        // hover-only.
-        internal static bool IsFlashableProducer(Device d)
-        {
-            return d is PowerGeneratorPipe                 // covers GasFuelGenerator
-                || d is PowerGeneratorSlot                 // covers SolidFuelGenerator
-                || d is StirlingEngine;
-        }
+        // The unknown-producer-like classification (supplies power, not in the known class list, not
+        // a segmenter) lives on the snapshot rows now: GridSnapshot.Build computes it from the
+        // boundary-read output (row.UnknownProducerLike), and the producer-isolation walk consumes
+        // the row. The cable-burn fallback semantics are unchanged (POWER.md §0.5).
     }
 }

@@ -129,8 +129,8 @@ namespace PowerGridPlus
             EnableBatteryLimits = config.Bind("Server - Batteries", "Enable Battery Limits", true,
                 Desc("(Server-authoritative) When true, stationary batteries are charge- and discharge-rate limited. " +
                      "Each per-prefab cap below applies, plus a per-device cable-headroom cap so a single battery " +
-                     "cannot exceed the rating of the cable it is wired to. With this off, batteries behave vanilla " +
-                     "(no per-tick rate cap; only the cable's own overload mechanism applies).", 10));
+                     "cannot exceed the rating of the cable it is wired to. With this off, no per-prefab rate cap " +
+                     "applies (the cable-tier cap and the allocator's share model still do).", 10));
 
             StationBatteryChargeRate = config.Bind("Server - Batteries", "Station Battery Charge Rate", 5000f,
                 Desc("(Server-authoritative) Maximum charge wattage for the small Station Battery (StructureBattery). " +
@@ -218,7 +218,8 @@ namespace PowerGridPlus
                      "counter is needed. LogicType.Setting stays pure vanilla (a writable throughput cap, clamped to " +
                      "[0, OutputMaximum]); Priority is its own writable logic value, and the read-only " +
                      "LogicType.Shedding returns 1 while a transformer is in shed lockout, 0 otherwise. When this master " +
-                     "is false, transformers behave vanilla (no priority allocation, no shedding, no flashing).", 40));
+                     "is false, no priority allocation and no shed lockouts are applied: transformers request their full " +
+                     "downstream demand and a short input network simply stays short.", 40));
 
             EnableTransformerOverloadProtection = config.Bind("Server - Transformers", "Enable Transformer Overload Protection", true,
                 Desc("(Server-authoritative) Master toggle for downstream-side overload protection. When true, a transformer " +
@@ -229,7 +230,8 @@ namespace PowerGridPlus
                      "OutputMaximum cannot meet the network's RequiredLoad. Fires instantly on detection; no tolerance " +
                      "counter. The downstream sub-network goes dark cleanly instead of vanilla's partial-power-then-Powered=" +
                      "false random device failures. A new read-only LogicType.Overloaded returns 1 while a transformer is in " +
-                     "overload lockout, 0 otherwise. When this master is false, vanilla's partial-power behaviour returns.", 50));
+                     "overload lockout, 0 otherwise. When this master is false, overload lockouts are not applied: an " +
+                     "over-demanded transformer delivers up to its limit and the remaining downstream demand goes unmet.", 50));
 
             // --- Server - Area Power Control ---
             ApcBatteryChargeRate = config.Bind("Server - Area Power Control", "APC Battery Charge Rate", 1000f,
@@ -267,8 +269,8 @@ namespace PowerGridPlus
                 Desc("(Server-authoritative) When true, the rocket power umbilical pair (Male / Female) is charge- and " +
                      "discharge-rate limited like a stationary battery, participates in the shed / overload / cycle-fault " +
                      "system as a segmenting device, and exposes the four soft-power logic values (Max/Charge/Discharge " +
-                     "Speed). When false, the umbilical reverts to vanilla behaviour (transfers up to its internal cell " +
-                     "PowerMaximum per tick) and the four logic values are not exposed.", 10));
+                     "Speed). When false, the rate caps fall back to the internal cell's PowerMaximum per tick and the " +
+                     "four logic values are not exposed; the umbilical stays a modeled storage device either way.", 10));
 
             RocketUmbilicalChargeRate = config.Bind("Server - Rocket Umbilical", "Rocket Umbilical Charge Rate", 10000,
                 Desc("(Server-authoritative) Maximum Watts the rocket umbilical pulls from upstream per tick to charge its " +

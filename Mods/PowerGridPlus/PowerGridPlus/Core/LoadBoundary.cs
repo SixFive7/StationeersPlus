@@ -34,7 +34,6 @@ namespace PowerGridPlus.Core
             CycleFaultRegistry.ClearAll();
             VariableVoltageFaultRegistry.ClearAll();
             DeadInputRegistry.ClearAll();
-            ApcDischargeRateRegistry.ClearAll();
 
             // Burn/split machinery (the burn-reason registry itself is cleared IMMEDIATELY at load,
             // before the sidecar restore repopulates it; see FaultRegistryLoadPatches).

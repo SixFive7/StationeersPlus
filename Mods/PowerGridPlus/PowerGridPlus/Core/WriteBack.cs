@@ -120,43 +120,51 @@ namespace PowerGridPlus.Core
             // ---- 2. Fuses + the deterministic generator-overflow burn ----
             for (int i = 0; i < snap.Nets.Count; i++)
             {
-                var nr = snap.Nets[i];
-                currentById.TryGetValue(nr.Id, out float flow);
-
-                if (nr.MinFuse != null && nr.MinFuseBreak < flow)
+                try
                 {
-                    // Deterministic protective blow (vanilla: random Pick among breakables).
-                    nr.MinFuse.Break();
+                    var nr = snap.Nets[i];
+                    currentById.TryGetValue(nr.Id, out float flow);
+
+                    if (nr.MinFuse != null && nr.MinFuseBreak < flow)
+                    {
+                        // Deterministic protective blow (vanilla: random Pick among breakables).
+                        nr.MinFuse.Break();
+                    }
+
+                    if (nr.GenSupply <= 0f) continue;
+                    if (SplitPendingRegistry.IsPending(nr.Id)) continue;
+                    float cap = nr.WeakestCap;
+                    if (cap >= float.MaxValue) continue;    // unlimited tier: never burns
+
+                    _producersScratch.Clear();
+                    for (int d = 0; d < nr.Rows.Count; d++)
+                    {
+                        var row = nr.Rows[d];
+                        if (row.IsSegmenter || row.Generated <= 0f) continue;
+                        _producersScratch[row.RefId] = row.Generated;
+                    }
+                    float genFlow = nr.GenSupply < flow ? nr.GenSupply : flow;
+                    CableBurnWindow.Observe(nr.Id, _producersScratch, genFlow);
+                    if (!CableBurnWindow.IsFull(nr.Id)) continue;
+                    float avg = CableBurnWindow.AverageFlow(nr.Id);
+                    if (avg <= cap) continue;
+
+                    Cable victim = ResolveProducerOutputCable(CableBurnWindow.TopProducer(nr.Id), nr)
+                                   ?? WeakestCable(nr.Network);
+                    if (victim == null) continue;
+                    BurnReasonRegistry.RegisterPending(victim,
+                        $"Overloaded -- sustained generator supply (~{avg:0} W over 10 s) exceeded this cable's rating ({cap:0} W)");
+                    int count;
+                    lock (nr.Network.CableList) count = nr.Network.CableList.Count;
+                    SplitPendingRegistry.MarkBurned(nr.Id, count);
+                    CableBurnWindow.Reset(nr.Id);
+                    victim.Break();   // self-marshals to the main thread
                 }
-
-                if (nr.GenSupply <= 0f) continue;
-                if (SplitPendingRegistry.IsPending(nr.Id)) continue;
-                float cap = nr.WeakestCap;
-                if (cap >= float.MaxValue) continue;    // unlimited tier: never burns
-
-                _producersScratch.Clear();
-                for (int d = 0; d < nr.Rows.Count; d++)
+                catch (System.Exception ex)
                 {
-                    var row = nr.Rows[d];
-                    if (row.IsSegmenter || row.Generated <= 0f) continue;
-                    _producersScratch[row.RefId] = row.Generated;
+                    Plugin.Log?.LogWarning(
+                        $"[PowerGridPlus] Write-back protection pass failed on network {snap.Nets[i].Id}: {ex.Message}");
                 }
-                float genFlow = nr.GenSupply < flow ? nr.GenSupply : flow;
-                CableBurnWindow.Observe(nr.Id, _producersScratch, genFlow);
-                if (!CableBurnWindow.IsFull(nr.Id)) continue;
-                float avg = CableBurnWindow.AverageFlow(nr.Id);
-                if (avg <= cap) continue;
-
-                Cable victim = ResolveProducerOutputCable(CableBurnWindow.TopProducer(nr.Id), nr)
-                               ?? WeakestCable(nr.Network);
-                if (victim == null) continue;
-                BurnReasonRegistry.RegisterPending(victim,
-                    $"Overloaded -- sustained generator supply (~{avg:0} W over 10 s) exceeded this cable's rating ({cap:0} W)");
-                int count;
-                lock (nr.Network.CableList) count = nr.Network.CableList.Count;
-                SplitPendingRegistry.MarkBurned(nr.Id, count);
-                CableBurnWindow.Reset(nr.Id);
-                victim.Break();   // self-marshals to the main thread
             }
 
             // ---- 3. Storage settlement (credit == grant by construction) ----
@@ -165,72 +173,22 @@ namespace PowerGridPlus.Core
             {
                 var credit = plan.Credits[i];
                 if (credit.Amount <= 0f) continue;
-                switch (credit.Kind)
+                try { ApplyCredit(credit, efficiency); }
+                catch (System.Exception ex)
                 {
-                    case ChargeDeliveryAudit.KindBattery:
-                    {
-                        if (!(credit.Owner is Battery battery)) break;
-                        // The retired ReceivePower prefix's exact rule: efficiency applies first,
-                        // and a post-efficiency credit below 500 W stores the full delivery instead
-                        // (the trickle floor, so a battery can always top off).
-                        float stored = credit.Amount * efficiency;
-                        if (stored < 500f) stored = credit.Amount;
-                        battery.PowerStored = Mathf.Clamp(battery.PowerStored + stored, 0f, battery.PowerMaximum);
-                        ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindBattery, stored);
-                        break;
-                    }
-                    case ChargeDeliveryAudit.KindApcCell:
-                    {
-                        // The cell is re-fetched at settlement (a main-thread slot pull can land
-                        // mid-tick); the grant was capped by grant-time headroom and the clamp
-                        // guards the rest.
-                        var cell = (credit.Owner as AreaPowerControl)?.Battery;
-                        if (cell == null) break;
-                        cell.PowerStored = Mathf.Clamp(cell.PowerStored + credit.Amount, 0f, cell.PowerMaximum);
-                        ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindApcCell, credit.Amount);
-                        break;
-                    }
-                    case ChargeDeliveryAudit.KindUmbilical:
-                    {
-                        if (!(credit.Owner is RocketPowerUmbilical half)) break;
-                        half.PowerStored = Mathf.Clamp(half.PowerStored + credit.Amount, 0f, half.PowerMaximum);
-                        SetLastPowerAdded?.Invoke(half, credit.Amount);
-                        ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindUmbilical, credit.Amount);
-                        break;
-                    }
+                    Plugin.Log?.LogWarning(
+                        $"[PowerGridPlus] Charge settlement failed for store {credit.RefId}: {ex.Message}");
                 }
             }
             for (int i = 0; i < plan.Debits.Count; i++)
             {
                 var debit = plan.Debits[i];
                 if (debit.Amount <= 0f) continue;
-                switch (debit.Kind)
+                try { ApplyDebit(debit); }
+                catch (System.Exception ex)
                 {
-                    case ChargeDeliveryAudit.KindBattery:
-                    {
-                        if (!(debit.Owner is Battery battery)) break;
-                        battery.PowerStored = Mathf.Clamp(battery.PowerStored - debit.Amount, 0f, battery.PowerMaximum);
-                        DischargeDeliveryAudit.RecordDrain(debit.RefId, debit.Kind, debit.Amount);
-                        break;
-                    }
-                    case ChargeDeliveryAudit.KindApcCell:
-                    {
-                        // The APC cell's discharge grant drains directly (the vanilla deferred
-                        // UsePower ledger drain is retired with ApplyState). Deliberately not fed to
-                        // the discharge audit: the allocator never publishes APC-cell grants there.
-                        var cell = (debit.Owner as AreaPowerControl)?.Battery;
-                        if (cell == null) break;
-                        cell.PowerStored = Mathf.Clamp(cell.PowerStored - debit.Amount, 0f, cell.PowerMaximum);
-                        break;
-                    }
-                    case ChargeDeliveryAudit.KindUmbilical:
-                    {
-                        if (!(debit.Owner is RocketPowerUmbilical half)) break;
-                        half.PowerStored = Mathf.Clamp(half.PowerStored - debit.Amount, 0f, half.PowerMaximum);
-                        SetLastPowerRemoved?.Invoke(half, debit.Amount);
-                        DischargeDeliveryAudit.RecordDrain(debit.RefId, debit.Kind, debit.Amount);
-                        break;
-                    }
+                    Plugin.Log?.LogWarning(
+                        $"[PowerGridPlus] Discharge settlement failed for store {debit.RefId}: {ex.Message}");
                 }
             }
 
@@ -266,6 +224,76 @@ namespace PowerGridPlus.Core
                 }
             }
             if (mainBatch != null) MainThreadDebitQueue.Post(mainBatch);
+        }
+
+        private static void ApplyCredit(in StoreCredit credit, float efficiency)
+        {
+                switch (credit.Kind)
+                {
+                    case ChargeDeliveryAudit.KindBattery:
+                    {
+                        if (!(credit.Owner is Battery battery)) break;
+                        // The retired ReceivePower prefix's exact rule: efficiency applies first,
+                        // and a post-efficiency credit below 500 W stores the full delivery instead
+                        // (the trickle floor, so a battery can always top off).
+                        float stored = credit.Amount * efficiency;
+                        if (stored < 500f) stored = credit.Amount;
+                        battery.PowerStored = Mathf.Clamp(battery.PowerStored + stored, 0f, battery.PowerMaximum);
+                        ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindBattery, stored);
+                        break;
+                    }
+                    case ChargeDeliveryAudit.KindApcCell:
+                    {
+                        // The cell is re-fetched at settlement (a main-thread slot pull can land
+                        // mid-tick); the grant was capped by grant-time headroom and the clamp
+                        // guards the rest.
+                        var cell = (credit.Owner as AreaPowerControl)?.Battery;
+                        if (cell == null) break;
+                        cell.PowerStored = Mathf.Clamp(cell.PowerStored + credit.Amount, 0f, cell.PowerMaximum);
+                        ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindApcCell, credit.Amount);
+                        break;
+                    }
+                    case ChargeDeliveryAudit.KindUmbilical:
+                    {
+                        if (!(credit.Owner is RocketPowerUmbilical half)) break;
+                        half.PowerStored = Mathf.Clamp(half.PowerStored + credit.Amount, 0f, half.PowerMaximum);
+                        SetLastPowerAdded?.Invoke(half, credit.Amount);
+                        ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindUmbilical, credit.Amount);
+                        break;
+                    }
+                }
+        }
+
+        private static void ApplyDebit(in StoreDebit debit)
+        {
+                switch (debit.Kind)
+                {
+                    case ChargeDeliveryAudit.KindBattery:
+                    {
+                        if (!(debit.Owner is Battery battery)) break;
+                        battery.PowerStored = Mathf.Clamp(battery.PowerStored - debit.Amount, 0f, battery.PowerMaximum);
+                        DischargeDeliveryAudit.RecordDrain(debit.RefId, debit.Kind, debit.Amount);
+                        break;
+                    }
+                    case ChargeDeliveryAudit.KindApcCell:
+                    {
+                        // The APC cell's discharge grant drains directly (the vanilla deferred
+                        // UsePower ledger drain is retired with ApplyState). Deliberately not fed to
+                        // the discharge audit: the allocator never publishes APC-cell grants there.
+                        var cell = (debit.Owner as AreaPowerControl)?.Battery;
+                        if (cell == null) break;
+                        cell.PowerStored = Mathf.Clamp(cell.PowerStored - debit.Amount, 0f, cell.PowerMaximum);
+                        break;
+                    }
+                    case ChargeDeliveryAudit.KindUmbilical:
+                    {
+                        if (!(debit.Owner is RocketPowerUmbilical half)) break;
+                        half.PowerStored = Mathf.Clamp(half.PowerStored - debit.Amount, 0f, half.PowerMaximum);
+                        SetLastPowerRemoved?.Invoke(half, debit.Amount);
+                        DischargeDeliveryAudit.RecordDrain(debit.RefId, debit.Kind, debit.Amount);
+                        break;
+                    }
+                }
         }
 
         private static Cable ResolveProducerOutputCable(long producerRefId, GridSnapshot.NetRow nr)

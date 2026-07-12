@@ -11,8 +11,8 @@ namespace PowerGridPlus
     ///     Vanilla <c>_powerProvided</c> ledger adoption (Stage 3). The per-class private ledger on
     ///     Transformer / AreaPowerControl / PowerTransmitter / PowerReceiver is vanilla's deferred
     ///     billing handshake and is NEVER zeroed by the game. At 0.2.6403 it is not serialized
-    ///     into saves (no SaveData member carries it; see the write-site census in
-    ///     Patches/LedgerAuditPatches.cs), so a nonzero value is runtime accumulation within the
+    ///     into saves (no SaveData member carries it; write-site census on
+    ///     Research/GameClasses/PowerTick.md), so a nonzero value is runtime accumulation within the
     ///     session, an older-version save, or an external writer. Under this mod the routed
     ///     segmenters bill their FRESH allocator pull instead of the ledger, which removes
     ///     vanilla's restoring force: vanilla bills <c>min(cap, ledger)</c>, so any residue
@@ -71,7 +71,7 @@ namespace PowerGridPlus
     ///       <item><b>World-load sweep</b> (<see cref="RunSweepIfPending"/>): on the first atomic
     ///       tick after a world load (armed at plugin load and re-armed by
     ///       FaultRegistryLoadPatches, same lifecycle as UnknownBridgeCensus), zero the ledger on
-    ///       every modeled segmenter class, both signs, BEFORE the first OBSERVE so a stale saved
+    ///       every modeled segmenter class, both signs, BEFORE the first boundary read so a stale saved
     ///       credit (observed: -176,226 on transmitter 464520 in the Luna save) can never bill as
     ///       free energy and a stale debt never lump-bills. One Info line per zeroed device plus a
     ///       summary line. The sweep also clears the ledger-audit tracking map, so the boundary
@@ -97,23 +97,15 @@ namespace PowerGridPlus
     ///     <list type="bullet">
     ///       <item><b>Boundary</b> (layer B, <see cref="AuditTickBoundary"/>): the settle records
     ///       each owned ledger's post-settle value; nothing legitimate writes the field between
-    ///       that write and the next tick's power section (the only vanilla writers live inside
-    ///       ApplyState, see the LedgerAuditPatches census). At the start of the next atomic tick
-    ///       the field must equal the recorded value EXACTLY (float identity; we wrote it, and
-    ///       both write routes store the exact float). Any deviation is an out-of-band writer.
+    ///       that write and the next tick's power section (the vanilla writers died with
+    ///       ApplyState). At the start of the next atomic tick the field must equal the recorded
+    ///       value EXACTLY (float identity; we wrote it). Any deviation is an out-of-band writer.
     ///       Checked only for devices settled last tick and only when no world load intervened
     ///       (the sweep clears the map).</item>
-    ///       <item><b>Bracket discontinuity</b> (layer A+, <see cref="NoteMutation"/>): the
-    ///       LedgerAuditPatches wrappers bracket every legitimate mutation with Priority.First /
-    ///       Priority.Last captures; each mutation's BEFORE must equal the last recorded AFTER
-    ///       (or the boundary value for the first mutation of the tick). A discontinuity is a
-    ///       foreign write BETWEEN two known operations; the jump is folded into the shadow sum
-    ///       so it is counted exactly once and does not also trip the settle-tail check.</item>
-    ///       <item><b>Unobserved path</b> (layer A+ tail, inside <see cref="SettleEnforceTail"/>):
-    ///       observed deltas accumulate into a per-device double shadow sum; at the ENFORCE tail,
-    ///       before the settle, the field must equal boundary + shadow within 0.01 W. A miss is a
-    ///       foreign write that did not pass between two observed operations (e.g. after the last
-    ///       mutation, or on a device with no mutations this tick).</item>
+    ///       <item><b>Unobserved path</b> (inside <see cref="SettleEnforceTail"/>): at the tick
+    ///       tail, before the settle, the field must equal the boundary value within 0.01 W
+    ///       (nothing legitimate mutates it in-tick any more, so the shadow sum is zero by
+    ///       construction). A miss is a foreign write inside the tick.</item>
     ///       <item><b>Non-finite</b>: a NaN / Infinity pre-settle value; the settle repairs it to
     ///       the standing value on the spot.</item>
     ///     </list>
@@ -145,22 +137,16 @@ namespace PowerGridPlus
         private const int WarnCooldownTicks = 600;     // one GLOBAL audit warning per ~5 minutes at 2 Hz
         private const float TailToleranceW = 0.01f;    // |field - (boundary + shadow)| beyond this = unobserved write
 
-        /// <summary>Observed ledger operations, the bracket-window endpoints for audit reporting.</summary>
+        /// <summary>Observed ledger operations for audit reporting.</summary>
         internal enum Site : byte
         {
             Boundary,                  // the tick-start identity check re-baseline
-            TransformerUsePower,
-            TransformerReceivePower,
-            TransmitterUsePower,
-            TransmitterReceivePower,
-            ReceiverUsePower,
-            ReceiverReceivePower,
-            Settle,                    // the ENFORCE-tail settle write
+            Settle,                    // the settle-tail write
         }
 
         private enum AuditKind : byte { Transformer, PowerTransmitter, PowerReceiver }
 
-        private enum AnomalyClass : byte { None, Boundary, UnobservedPath, BracketDiscontinuity, NonFinite }
+        private enum AnomalyClass : byte { None, Boundary, UnobservedPath, NonFinite }
 
         /// <summary>
         ///     Per-device audit state, keyed by ReferenceId. Entries are created at the first
@@ -195,7 +181,6 @@ namespace PowerGridPlus
         private static long _negativeSettles;          // pre-settle value < -0.5 W (free-energy hole squashed)
         private static long _boundaryAnomalies;        // field != recorded settled value at tick start
         private static long _unobservedAnomalies;      // pre-settle field != boundary + shadow
-        private static long _bracketAnomalies;         // mutation BEFORE != last recorded AFTER
         private static long _nonFiniteAnomalies;       // NaN / Infinity pre-settle value
 
         // Global log throttle + worst-offender capture since the last warning. Raw numbers only;
@@ -223,7 +208,7 @@ namespace PowerGridPlus
 
         /// <summary>
         ///     Run the world-load ledger sweep once if armed; otherwise a single flag check. Called
-        ///     at the top of the atomic tick, before OBSERVE and before <see cref="AuditTickBoundary"/>,
+        ///     at the top of the atomic tick, before the boundary read and before <see cref="AuditTickBoundary"/>,
         ///     so a fired sweep always clears the audit map before any boundary comparison.
         /// </summary>
         internal static void RunSweepIfPending()
@@ -233,7 +218,6 @@ namespace PowerGridPlus
             _negativeSettles = 0;
             _boundaryAnomalies = 0;
             _unobservedAnomalies = 0;
-            _bracketAnomalies = 0;
             _nonFiniteAnomalies = 0;
             _totalAtLastWarn = 0;
             _lastGlobalWarnTick = -WarnCooldownTicks;
@@ -318,8 +302,8 @@ namespace PowerGridPlus
         ///     re-baseline the per-device shadow accounting for this tick. Called at the top of the
         ///     atomic tick, immediately after <see cref="RunSweepIfPending"/> (a fired sweep leaves
         ///     the map empty, so a fresh world or hot-swapped save is never compared) and before
-        ///     the first OBSERVE (no mutation can precede the check; the only vanilla writers run
-        ///     inside ApplyState). A deviation is an out-of-band writer between last tick's settle
+        ///     the first boundary read (no mutation can precede the check; the vanilla writers
+        ///     died with ApplyState). A deviation is an out-of-band writer between last tick's settle
         ///     and now. Re-baselining to the FOUND value makes one foreign write count exactly
         ///     once (here), not again in the bracket or settle-tail checks.
         /// </summary>
@@ -352,32 +336,10 @@ namespace PowerGridPlus
             EmitWarningIfDue(currentTick);
         }
 
-        // ------------------------------------------------------------------
-        // Layer A+: observed shadow sum with bracket continuity.
-        // ------------------------------------------------------------------
-
-        /// <summary>
-        ///     Record one observed ledger mutation (called by the LedgerAuditPatches postfixes with
-        ///     the Priority.First BEFORE and Priority.Last AFTER captures). Untracked devices (not
-        ///     settled last tick: the APC, unenrolled segmenters, everything on a client peer) fall
-        ///     out on the dictionary miss. Cost on the hot path: one lookup plus two double adds.
-        /// </summary>
-        internal static void NoteMutation(long refId, Site site, float before, float after)
-        {
-            if (!_audit.TryGetValue(refId, out var e) || !e.Armed) return;
-            if (!(before == e.LastAfter))
-            {
-                _bracketAnomalies++;
-                NoteWorst(AnomalyClass.BracketDiscontinuity, e.Kind, refId, Magnitude(before - e.LastAfter),
-                    e.LastAfter, before, 0.0, e.LastSite, site);
-                // Fold the foreign jump into the shadow so the settle-tail check stays exact for
-                // any REMAINING unobserved writes; this discontinuity is already counted here.
-                e.Shadow += (double)before - e.LastAfter;
-            }
-            e.Shadow += (double)after - before;
-            e.LastAfter = after;
-            e.LastSite = site;
-        }
+        // The old layer A+ (per-mutation bracket continuity via LedgerAuditPatches postfixes on
+        // the vanilla UsePower/ReceivePower writers) is retired with vanilla ApplyState: nothing
+        // legitimate mutates an owned ledger inside the tick any more, so the boundary identity
+        // plus the unobserved-path check at the settle tail cover the whole surface.
 
         /// <summary>
         ///     ENFORCE tail: settle every enrolled, settle-eligible segmenter's ledger to its
@@ -577,7 +539,7 @@ namespace PowerGridPlus
         // grids pay one long-compare per tick and log nothing, ever.
         private static void EmitWarningIfDue(int currentTick)
         {
-            long total = _boundaryAnomalies + _unobservedAnomalies + _bracketAnomalies + _nonFiniteAnomalies;
+            long total = _boundaryAnomalies + _unobservedAnomalies + _nonFiniteAnomalies;
             if (total == _totalAtLastWarn) return;
             if (currentTick - _lastGlobalWarnTick < WarnCooldownTicks) return;
             _lastGlobalWarnTick = currentTick;
@@ -586,7 +548,6 @@ namespace PowerGridPlus
                 "[PowerGridPlus] Ledger audit: " + total.ToString(CultureInfo.InvariantCulture)
                 + " anomaly(ies) since load (boundary " + _boundaryAnomalies.ToString(CultureInfo.InvariantCulture)
                 + ", unobserved-path " + _unobservedAnomalies.ToString(CultureInfo.InvariantCulture)
-                + ", bracket " + _bracketAnomalies.ToString(CultureInfo.InvariantCulture)
                 + ", non-finite " + _nonFiniteAnomalies.ToString(CultureInfo.InvariantCulture)
                 + "; worst: " + FormatWorst()
                 + "). An anomaly means something outside PowerGridPlus wrote a ledger it owns."
@@ -611,11 +572,6 @@ namespace PowerGridPlus
                            + " + shadow " + _worstShadow.ToString("F2", CultureInfo.InvariantCulture)
                            + ", found " + _worstB.ToString("F2", CultureInfo.InvariantCulture)
                            + " W; last observed op " + SiteName(_worstSiteFrom) + ")";
-                case AnomalyClass.BracketDiscontinuity:
-                    return "foreign write between " + SiteName(_worstSiteFrom) + " and " + SiteName(_worstSiteTo)
-                           + " on " + where
-                           + " (" + _worstA.ToString("F2", CultureInfo.InvariantCulture)
-                           + " W -> " + _worstB.ToString("F2", CultureInfo.InvariantCulture) + " W)";
                 default:
                     return "non-finite pre-settle value (" + _worstB.ToString(CultureInfo.InvariantCulture)
                            + ") on " + where;
@@ -647,17 +603,7 @@ namespace PowerGridPlus
 
         private static string SiteName(Site site)
         {
-            switch (site)
-            {
-                case Site.Boundary: return "tick-boundary";
-                case Site.TransformerUsePower: return "Transformer.UsePower";
-                case Site.TransformerReceivePower: return "Transformer.ReceivePower";
-                case Site.TransmitterUsePower: return "PowerTransmitter.UsePower";
-                case Site.TransmitterReceivePower: return "PowerTransmitter.ReceivePower";
-                case Site.ReceiverUsePower: return "PowerReceiver.UsePower";
-                case Site.ReceiverReceivePower: return "PowerReceiver.ReceivePower";
-                default: return "settle";
-            }
+            return site == Site.Boundary ? "tick-boundary" : "settle";
         }
     }
 }

@@ -181,7 +181,7 @@ namespace PowerGridPlus.Patches
             if (logicType == LogicTypeRegistry.MaxChargeSpeed)
                 __result = ComputeChargeCap(__instance);
             else if (logicType == LogicTypeRegistry.MaxDischargeSpeed)
-                __result = ApcDischargeRateRegistry.GetDischargeRate(__instance.ReferenceId);
+                __result = Settings.ApcBatteryDischargeRate.Value;
             else if (logicType == LogicTypeRegistry.ChargeSpeed)
                 __result = SoftDemandShareCache.GetActualOrZero(__instance.ReferenceId);
             else if (logicType == LogicTypeRegistry.DischargeSpeed)

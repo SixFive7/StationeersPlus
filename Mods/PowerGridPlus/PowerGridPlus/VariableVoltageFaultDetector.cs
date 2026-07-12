@@ -51,8 +51,8 @@ namespace PowerGridPlus
         private static bool _diagLogged;
 
         // Networks where OffAsResetSweep cleared a producer's VVF lock this tick (the toggle edge).
-        // Populated in OBSERVE (the sweep), drained at the start of Run in PROTECT (producer-isolation) -- both on the
-        // same power-tick worker thread, sequentially within the tick. The lock guards against any
+        // Populated by the sweep, drained at the start of Run in PROTECT -- both on the same
+        // power-tick worker thread, sequentially within the tick. The lock guards against any
         // future re-ordering. A flagged net gets a cohort-wide retry even when nothing is newly
         // violating, which is how toggling a buttoned producer clears the buttonless ones on its net.
         private static readonly HashSet<long> _retryRequested = new HashSet<long>();
@@ -88,11 +88,13 @@ namespace PowerGridPlus
 
             for (int ni = 0; ni < snap.Nets.Count; ni++)
             {
+                try
+                {
                 var nr = snap.Nets[ni];
 
                 bool hasActiveProducer = false, hasForeignDevice = false;
-                var activeProducers = new List<Device>();   // IsActiveProducer -> the cohort to lock
-                var allProducers = new List<Device>();       // IsProducer by class -> the cohort to clear
+                var activeProducers = new List<Device>();                     // IsActiveProducer -> the cohort to lock
+                var allProducers = new List<Core.GridSnapshot.DeviceRow>();   // IsProducer by class -> the cohort to clear
                 var foreign = new List<Device>();
                 List<Device> unknownProducers = null;
                 Cable foreignCable = null;                   // burn adjacency for the unknown fallback
@@ -102,7 +104,7 @@ namespace PowerGridPlus
                     var row = nr.Rows[i];
                     if (row.IsProducerClass)
                     {
-                        allProducers.Add(row.Device);
+                        allProducers.Add(row);
                         if (row.IsActiveProducer)
                         {
                             hasActiveProducer = true;
@@ -150,7 +152,7 @@ namespace PowerGridPlus
                 }
                 bool hasLockedProducer = false;
                 for (int i = 0; i < allProducers.Count; i++)
-                    if (VariableVoltageFaultRegistry.IsLockedOut(allProducers[i].ReferenceId, currentTick))
+                    if (VariableVoltageFaultRegistry.IsLockedOut(allProducers[i].RefId, currentTick))
                     { hasLockedProducer = true; break; }
 
                 // Commit candidate (mirrors §8.4.1). A stable all-locked violating net is excluded
@@ -165,7 +167,7 @@ namespace PowerGridPlus
                         // producer left) -> clear every producer's lock, rejoin.
                         for (int i = 0; i < allProducers.Count; i++)
                         {
-                            long id = allProducers[i].ReferenceId;
+                            long id = allProducers[i].RefId;
                             if (VariableVoltageFaultRegistry.IsLockedOut(id, currentTick)) changed++;
                             VariableVoltageFaultRegistry.ClearLockout(id);
                         }
@@ -185,10 +187,12 @@ namespace PowerGridPlus
                         for (int i = 0; i < allProducers.Count; i++)
                         {
                             var p = allProducers[i];
-                            if (!ProducerClassifier.IsActiveProducer(p)
-                                && VariableVoltageFaultRegistry.IsLockedOut(p.ReferenceId, currentTick))
+                            // Row-captured activity: the same sample the cohort was built from,
+                            // never a second live read.
+                            if (!p.IsActiveProducer
+                                && VariableVoltageFaultRegistry.IsLockedOut(p.RefId, currentTick))
                             {
-                                VariableVoltageFaultRegistry.ClearLockout(p.ReferenceId);
+                                VariableVoltageFaultRegistry.ClearLockout(p.RefId);
                                 changed++;
                             }
                         }
@@ -215,6 +219,13 @@ namespace PowerGridPlus
                     BurnReasonRegistry.RegisterPending(foreignCable,
                         $"Power producing devices can only connect to a transformer (adjacent {label})");
                     foreignCable.Break();   // self-marshals to the main thread
+                }
+                }
+                catch (System.Exception ex)
+                {
+                    // One malformed net costs its isolation check this tick, never the whole sweep.
+                    Plugin.Log?.LogWarning(
+                        $"[PowerGridPlus] Producer-isolation walk failed on network {snap.Nets[ni].Id}: {ex.Message}");
                 }
             }
 

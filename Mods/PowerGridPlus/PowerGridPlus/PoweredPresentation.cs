@@ -37,8 +37,8 @@ namespace PowerGridPlus
     ///
     ///     <para>Threading: the allocator worker publishes both snapshots by a single reference
     ///     swap (volatile fields, immutable after publish, like the share caches). Readers are the
-    ///     AllowSetPower postfixes and the ENFORCE tail, which run later in the same tick on the
-    ///     same worker; volatile keeps any cross-thread reader coherent too.</para>
+    ///     write-back tail, which runs later in the same tick on the same worker; volatile keeps
+    ///     any cross-thread reader coherent too.</para>
     /// </summary>
     internal static class PoweredPresentation
     {
@@ -59,30 +59,22 @@ namespace PowerGridPlus
             public bool SettleLedger;                // false for the APC (its ledger is load-bearing, see PowerAllocator publish tail)
         }
 
-        private static volatile HashSet<long> _healthy = new HashSet<long>();
         private static volatile List<EnrolledSeg> _roster = new List<EnrolledSeg>();
 
-        /// <summary>Swap in this tick's snapshots (end of ALLOCATE, allocator worker).</summary>
-        internal static void Publish(HashSet<long> healthy, List<EnrolledSeg> roster)
+        /// <summary>Swap in this tick's roster (end of ALLOCATE, allocator worker). Between world
+        /// load and the first atomic tick the roster is empty, so nothing is asserted (the safe
+        /// default).</summary>
+        internal static void Publish(List<EnrolledSeg> roster)
         {
-            _healthy = healthy;
             _roster = roster;
         }
 
-        /// <summary>
-        ///     True when the device was published healthy by this tick's ALLOCATE. Between world
-        ///     load and the first atomic tick the set is empty, so everything reads unhealthy and
-        ///     vanilla behavior applies (the safe default).
-        /// </summary>
-        internal static bool IsHealthy(long refId) => _healthy.Contains(refId);
-
-        /// <summary>This tick's enrolled-segmenter roster (read by the ENFORCE tail).</summary>
+        /// <summary>This tick's enrolled-segmenter roster (read by the write-back tail).</summary>
         internal static List<EnrolledSeg> Roster => _roster;
 
-        /// <summary>World-load reset: drop the previous world's snapshots and device references.</summary>
+        /// <summary>World-load reset: drop the previous world's roster and device references.</summary>
         internal static void Clear()
         {
-            _healthy = new HashSet<long>();
             _roster = new List<EnrolledSeg>();
         }
 

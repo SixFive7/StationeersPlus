@@ -45,9 +45,15 @@ namespace PowerGridPlus.Core
             public bool IsActiveProducer;
             public bool UnknownProducerLike;    // !producer, !EIO, Generated > 0
 
-            // Control (segmenter rows).
+            // Control. OnOff is captured for every device (segmenter and plain) so downstream
+            // consumers (the cycle graph, the ownership expectation) never re-read it live.
             public bool OnOff;
             public int Error;
+
+            // Segmenter terminals, captured once at the boundary so the cycle graph and any other
+            // consumer sees the same instant the adapters billed under.
+            public CableNetwork SegInputNet;
+            public CableNetwork SegOutputNet;
 
             // The boundary read.
             public float Demand;                // own-net GetUsedPower semantics (clamped >= 0)
@@ -95,6 +101,8 @@ namespace PowerGridPlus.Core
 
             CableNetwork.AllCableNetworks.ForEach(network =>
             {
+                try
+                {
                 if (network == null) return;
                 List<Device> devices;
                 lock (network.DeviceList)
@@ -171,6 +179,8 @@ namespace PowerGridPlus.Core
                     {
                         row.OnOff = eio.OnOff;
                         row.Error = eio.Error;
+                        row.SegInputNet = eio.InputNetwork;
+                        row.SegOutputNet = eio.OutputNetwork;
                         if (seenSegs.Add(eio.ReferenceId)) snap.SegmentersSorted.Add(eio);
 
                         // The umbilical halves bill their own idle draw on the input network under
@@ -191,7 +201,7 @@ namespace PowerGridPlus.Core
                         row.IsProducerClass = ProducerClassifier.IsProducer(device);
                         row.IsActiveProducer = row.IsProducerClass && ProducerClassifier.IsActiveProducer(device);
                         row.UnknownProducerLike = !row.IsProducerClass && row.Generated > 0f;
-                        if (device.HasOnOffState) row.OnOff = device.OnOff;
+                        row.OnOff = device.OnOff;
                     }
 
                     nr.Rows.Add(row);
@@ -217,6 +227,14 @@ namespace PowerGridPlus.Core
 
                 snap.Nets.Add(nr);
                 snap.ById[nr.Id] = nr;
+                }
+                catch (System.Exception ex)
+                {
+                    // One malformed net (a throwing third-party override the per-device guard did
+                    // not cover) costs that net's rows, never the whole snapshot.
+                    Plugin.Log?.LogWarning(
+                        "[PowerGridPlus] Grid snapshot skipped a network: " + ex.Message);
+                }
             });
 
             snap.SegmentersSorted.Sort((a, b) => a.ReferenceId.CompareTo(b.ReferenceId));

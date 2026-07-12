@@ -32,10 +32,7 @@ namespace PowerGridPlus
         internal static HashSet<long> FindCycleFaultedSegmenters(Core.GridSnapshot snap)
         {
             var result = new HashSet<long>();
-            if (snap == null) return result;
-
-            var segmenters = snap.SegmentersSorted;
-            if (segmenters.Count == 0) return result;
+            if (snap == null || snap.SegmentersSorted.Count == 0) return result;
 
             // Dense node indexing: network ReferenceId -> contiguous index.
             var nodeIndex = new Dictionary<long, int>();
@@ -57,21 +54,30 @@ namespace PowerGridPlus
             var edgeTo = new List<int>();
             var edgeSeg = new List<long>();
 
-            for (int s = 0; s < segmenters.Count; s++)
+            // Edges come from the snapshot rows (control and terminals captured at the boundary
+            // read), so the graph is built from the same instant the adapters billed under; a
+            // segmenter appears on both its terminal nets' rows, hence the dedup set.
+            var seenEdges = new HashSet<long>();
+            for (int ni = 0; ni < snap.Nets.Count; ni++)
             {
-                var eio = segmenters[s];
-                if (!eio.OnOff) continue;                        // OFF device does not conduct
-                var inNet = eio.InputNetwork;
-                var outNet = eio.OutputNetwork;
-                if (inNet == null || outNet == null) continue;
-                if (inNet.ReferenceId == outNet.ReferenceId) continue;   // short-circuit / same net
+                var rows = snap.Nets[ni].Rows;
+                for (int ri = 0; ri < rows.Count; ri++)
+                {
+                    var row = rows[ri];
+                    if (!row.IsSegmenter || !seenEdges.Add(row.RefId)) continue;
+                    if (!row.OnOff) continue;                    // OFF device does not conduct
+                    var inNet = row.SegInputNet;
+                    var outNet = row.SegOutputNet;
+                    if (inNet == null || outNet == null) continue;
+                    if (inNet.ReferenceId == outNet.ReferenceId) continue;   // short-circuit / same net
 
-                int from = GetOrAddNode(inNet);
-                int to = GetOrAddNode(outNet);
-                adj[from].Add(to);
-                edgeFrom.Add(from);
-                edgeTo.Add(to);
-                edgeSeg.Add(eio.ReferenceId);
+                    int from = GetOrAddNode(inNet);
+                    int to = GetOrAddNode(outNet);
+                    adj[from].Add(to);
+                    edgeFrom.Add(from);
+                    edgeTo.Add(to);
+                    edgeSeg.Add(row.RefId);
+                }
             }
 
             if (edgeSeg.Count == 0) return result;

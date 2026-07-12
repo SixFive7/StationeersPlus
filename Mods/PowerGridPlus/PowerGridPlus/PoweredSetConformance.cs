@@ -4,14 +4,14 @@ using System.Globalization;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Powered-set conformance assert (ENFORCE tail): every segmenter ALLOCATE published as
+    ///     Powered-set conformance assert (tick tail): every segmenter ALLOCATE published as
     ///     HEALTHY this tick must actually read <c>Powered == true</c> once the presentation
-    ///     machinery has had its say. The Powered policy has two halves (the AllowSetPower
-    ///     postfixes block the False edge inside ApplyState; the ENFORCE-tail reconcile asserts
-    ///     the True edge), and a regression in either half (a postfix that stops matching, a
-    ///     roster that publishes under the wrong ReferenceId, a reconcile that skips a member)
-    ///     leaves a healthy device presenting "broken" to the player, the exact diagnostic trap
-    ///     the policy exists to kill. This auditor closes the loop by reading the flag back.
+    ///     reconcile (the ONLY tick-driven writer of a segmenter's Powered flag, asserting both
+    ///     edges from the roster's health verdict) has had its say. A regression there (a roster
+    ///     publishing under the wrong ReferenceId, a reconcile skipping a member, a third-party
+    ///     writer fighting the flag) leaves a healthy device presenting "broken" to the player,
+    ///     the exact diagnostic trap the policy exists to kill. This auditor closes the loop by
+    ///     reading the flag back.
     ///
     ///     <para><b>One-tick marshal grace.</b> The reconcile writes through the vanilla
     ///     <c>Device.SetPowerFromThread</c>, which self-marshals to the main thread, so a freshly

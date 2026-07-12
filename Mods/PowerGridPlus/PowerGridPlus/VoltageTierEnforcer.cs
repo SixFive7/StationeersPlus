@@ -248,16 +248,24 @@ namespace PowerGridPlus
 
             for (int i = 0; i < snap.Nets.Count; i++)
             {
-                var nr = snap.Nets[i];
-                long refId = nr.Id;
-                if (SplitPendingRegistry.IsPending(refId)) continue;   // burn in flight; wait for the split
+                try
+                {
+                    var nr = snap.Nets[i];
+                    long refId = nr.Id;
+                    if (SplitPendingRegistry.IsPending(refId)) continue;   // burn in flight; wait for the split
 
-                var v = DetectViolation(nr);
-                if (v.Kind == TierViolationKind.None) continue;
+                    var v = DetectViolation(nr);
+                    if (v.Kind == TierViolationKind.None) continue;
 
-                // Reserve before enqueuing so a concurrent OnNetworkChanged re-check cannot double-burn.
-                if (!SplitPendingRegistry.TryReserve(refId)) continue;
-                EnqueueBurn(refId);
+                    // Reserve before enqueuing so a concurrent OnNetworkChanged re-check cannot double-burn.
+                    if (!SplitPendingRegistry.TryReserve(refId)) continue;
+                    EnqueueBurn(refId);
+                }
+                catch (System.Exception ex)
+                {
+                    Plugin.Log?.LogWarning(
+                        $"[PowerGridPlus] Tier enforcement failed on network {snap.Nets[i].Id}: {ex.Message}");
+                }
             }
         }
 

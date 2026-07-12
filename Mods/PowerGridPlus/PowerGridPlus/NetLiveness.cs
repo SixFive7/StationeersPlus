@@ -1,14 +1,12 @@
 using System.Collections.Generic;
-using Assets.Scripts.Networks;
 
 namespace PowerGridPlus
 {
     /// <summary>
     ///     Per-net LIVE / DEAD verdict for the consumer Powered-ownership layer, published by
     ///     ALLOCATE's tail every tick (volatile reference swap, the ShortfallDiagnostics /
-    ///     PoweredPresentation pattern) and consumed the same tick by ENFORCE: the
-    ///     SetPowerFromThread false-edge block, the dead-net advertise zeroing, and the
-    ///     PoweredOwnership sweep.
+    ///     PoweredPresentation pattern) and consumed the same tick by the write-back (energy
+    ///     settlement and the accumulator drains skip DEAD nets) and the PoweredOwnership sweep.
     ///
     ///     <para><b>The formula</b> (computed in PowerAllocator's publish tail, post-clawback):
     ///     LIVE iff the net's rigid demand is fully funded (<c>Unmet &lt;= Eps</c>) AND an
@@ -17,13 +15,10 @@ namespace PowerGridPlus
     ///     generation-short root nets, the step-up and cable-limited partial-delivery carve-outs);
     ///     a net that fails the second is DEAD_NOSUPPLY (nothing energized feeds it: night-time
     ///     solar islands, Served-by-vacuity idle nets, nets behind a shed / locked feed). The
-    ///     supply term is the same expression the dead-input cue and the healthy-set gate already
-    ///     use, so the verdict is definitionally aligned with what vanilla ApplyState can deliver
-    ///     after the mod's enforcement caps: a DEAD net advertises nothing (the producer / seg
-    ///     zeroing keyed off this verdict), so its Providers array is empty, ConsumePower delivers
-    ///     nothing and never calls ReceivePower, per-tick accumulator debts freeze exactly, and
-    ///     the power-ON branch cannot fire (decompile 271782-271792, 271820-271840; the
-    ///     zero-Potential corollary on Research/GameClasses/PowerTick.md).</para>
+    ///     supply term is the same expression the dead-input cue and the presentation health gate
+    ///     already use. A DEAD net receives nothing at the settlement layer by construction (the
+    ///     write-back plan, the published caches, and the audit grants are all dead-zeroed), so
+    ///     accumulator debts freeze exactly and are billed in full on revival.</para>
     ///
     ///     <para><b>Hold-down.</b> A DEAD_UNMET verdict arms a 120-tick (60 s) hold on the net.
     ///     While held, a formula-LIVE result is forced back to DEAD_UNMET. Without it, a net whose
@@ -35,16 +30,14 @@ namespace PowerGridPlus
     ///     hold: supply-side recovery (sunrise, a battery cohort re-arming, a shed lockout
     ///     expiring) must re-power the net the tick it returns.</para>
     ///
-    ///     <para><b>Unclassified</b> (a net id absent from the map) is not dead: fresh nets minted
-    ///     by a mid-tick cable split are unclassified for one tick, and forcing them dark would
-    ///     cancel prints on ordinary cable edits. The PoweredOwnership sweep freezes unclassified
-    ///     devices (no write) and only fail-safes to dark after a persistent-unclassified streak.
-    ///     The advertise zeroing likewise treats unclassified as not-dead.</para>
+    ///     <para><b>Unclassified</b> (a net id absent from the map) is not dead. The verdict map is
+    ///     computed from the same GridSnapshot the consumers iterate, so in practice every consumed
+    ///     net has a same-tick verdict; a miss is a no-write fail-safe.</para>
     ///
     ///     <para>Threading: the map is built and the hold table mutated only on the power worker
-    ///     inside ALLOCATE; readers (ENFORCE patches, the sweep) run later on the same worker.
-    ///     The volatile swap keeps any stray cross-thread reader coherent. Cleared on world load
-    ///     (FaultRegistryLoadPatches).</para>
+    ///     inside ALLOCATE; readers (the write-back, the sweep) run later on the same worker.
+    ///     The volatile swap keeps any stray cross-thread reader coherent. Cleared at the load
+    ///     boundary (Core/LoadBoundary, on the worker).</para>
     /// </summary>
     internal static class NetLiveness
     {
@@ -102,16 +95,6 @@ namespace PowerGridPlus
         internal static bool TryGetVerdict(long netId, out byte verdict)
         {
             return _byNet.TryGetValue(netId, out verdict);
-        }
-
-        /// <summary>
-        ///     True when the net carries an explicit DEAD verdict this tick. Null and unclassified
-        ///     nets are NOT dead (fresh splits keep vanilla behavior for a tick).
-        /// </summary>
-        internal static bool IsDead(CableNetwork net)
-        {
-            if (net == null) return false;
-            return _byNet.TryGetValue(net.ReferenceId, out byte v) && v != Live;
         }
 
         /// <summary>World-load reset: drop the previous world's verdicts and holds.</summary>
