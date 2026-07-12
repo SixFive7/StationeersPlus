@@ -2452,6 +2452,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#interact-runsimulation-gate-worker-thread-queueing-and-the-destroyed-parent-silent-no-op" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interact: RunSimulation gate, worker-thread queueing, and the destroyed-parent silent no-op
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8110,6 +8121,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#interact-runsimulation-gate-worker-thread-queueing-and-the-destroyed-parent-silent-no-op" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interact: RunSimulation gate, worker-thread queueing, and the destroyed-parent silent no-op
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8220,26 +8242,32 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-29.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-13.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:120-126</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'OnServer'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 39504 (class), 39664-39723 (Interact overloads), 304374 + 304777-304785 (Interactable.QueuedInteractions + DoQueuedInteractions), 205154-205170 (GameManager.Update drain gate)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (6)</summary>
           <ul>
             
               <li><code>./Human.md</code></li>
@@ -8248,7 +8276,11 @@
             
               <li><code>./Structure.md</code></li>
             
+              <li><code>./Device.md</code></li>
+            
               <li><code>../GameSystems/Explosions.md</code></li>
+            
+              <li><code>../GameSystems/PowerTickThreading.md</code></li>
             
           </ul>
         </details>
@@ -8265,6 +8297,13 @@
       
       
         <span class="md-tag">network</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">threading</span>
       
     
   </nav>
@@ -8294,12 +8333,85 @@
 </span></code></pre></div>
 <p><code>DestroyGameObject()</code> destroys the Unity GameObject, which fires <code>Thing.OnDestroy()</code> (and <code>Structure.OnDestroy()</code> for structures). <code>OnServer.Destroy</code> itself does no item-dropping and no networking; <code>Thing.OnDestroy()</code> does the cleanup: sets <code>BeingDestroyed</code>, stops audio, queues a <code>DestroyEvent</code> for clients when <code>NetworkManager.IsServer &amp;&amp; NetworkServer.HasClients()</code>, deregisters from every manager (<code>ElectricityManager</code>, <code>AtmosphericsManager</code>, <code>OcclusionManager</code>, <code>LightManager</code>, transmitters, etc.), <code>ReleaseThing()</code> / <code>OnReleaseReagents()</code>, removes colliders from <code>Thing._colliderLookup</code>, and handles slot occupants -- with the default <code>Thing.DestroyChildrenOnDead == true</code>, children are destroyed with the parent (<code>DestroyChildren(transform)</code>); when set false, occupants are moved to the world via <code>OnServer.MoveToWorld</code>. <code>Structure.OnDestroy()</code> additionally does <code>GridController.Deregister(this)</code>, removes from <code>GridController.AllServerTickStructures</code>, and cleans up the batched renderer.</p>
 <p>Server-authoritative: it logs an error if called on a client while the game is running. Safe for a mod to call directly on any Thing (including <code>Structure</code>, <code>Frame</code>, <code>Wall</code>, <code>SmallGrid</code>, machines) <strong>on the server side only</strong> -- it bypasses the build-stage walk and the broken-mesh wreckage early-return, so structures with a broken-mesh build state actually disappear rather than convert to wreckage. There is no type gate and no <code>Indestructable</code> check inside <code>Destroy</code> itself (the <code>Indestructable</code> check lives in <code>Structure.OnDamageDestroyed</code>, the <em>damage</em> path, not here). A threaded caller should use <code>Thing.DestroyFromThread()</code> (it does <code>await UniTask.SwitchToMainThread()</code> then <code>OnServer.Destroy</code>). Related: <code>Thing.Delete(Thing)</code> (see <code>./Thing.md</code>) is the higher-level "a tool deleted me" path that recursively <code>Delete</code>s slot occupants and, on a pure client, sends a <code>DestroyThingRequest</code> to the server instead of calling <code>Destroy</code>; <code>Structure.OnDamageDestroyed()</code> (see <code>./Structure.md</code>) is the "damage maxed out" path that adds wreckage spawning and the construction-event broadcast before ending in <code>OnServer.Destroy</code>.</p>
+<h2 id="interact-runsimulation-gate-worker-thread-queueing-and-the-destroyed-parent-silent-no-op">Interact: RunSimulation gate, worker-thread queueing, and the destroyed-parent silent no-op<a class="headerlink" href="#interact-runsimulation-gate-worker-thread-queueing-and-the-destroyed-parent-silent-no-op" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+<p><code>OnServer</code> is a static class (decompile 39504 at 0.2.6403.27689). The <code>Interact</code> family is the funnel every replicated interactable-state write goes through (<code>OnOff</code>, <code>Powered</code>, <code>Error</code>, <code>Open</code>, <code>Mode</code>, ...; the whole-game <code>Powered</code> writer census is on <a href="../Device/">Device</a>). Verbatim (39664-39723):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Interact</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">InteractableType</span><span class="w"> </span><span class="n">interactableType</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">skipAnimation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">)</span><span class="w">   </span><span class="c1">// 39664</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">object</span><span class="p">)</span><span class="n">thing</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="n">Interactable</span><span class="w"> </span><span class="n">interactable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Interactable</span><span class="w"> </span><span class="n">interactable2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">thing</span><span class="p">.</span><span class="n">Interactables</span><span class="p">)</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">interactable2</span><span class="p">.</span><span class="n">Action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">interactableType</span><span class="p">)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">            </span><span class="n">interactable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interactable2</span><span class="p">;</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">            </span><span class="k">break</span><span class="p">;</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">interactable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">        </span><span class="n">Interact</span><span class="p">(</span><span class="n">interactable</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="n">skipAnimation</span><span class="p">);</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">}</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Interact</span><span class="p">(</span><span class="n">InteractionInstance</span><span class="w"> </span><span class="n">interactionInstance</span><span class="p">)</span><span class="w">   </span><span class="c1">// 39685</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="p">{</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="n">Interact</span><span class="p">(</span><span class="n">interactionInstance</span><span class="p">.</span><span class="n">Thing</span><span class="p">,</span><span class="w"> </span><span class="n">interactionInstance</span><span class="p">.</span><span class="n">Action</span><span class="p">,</span><span class="w"> </span><span class="n">interactionInstance</span><span class="p">.</span><span class="n">State</span><span class="p">,</span><span class="w"> </span><span class="n">interactionInstance</span><span class="p">.</span><span class="n">SkipAnimation</span><span class="p">);</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="p">}</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Interact</span><span class="p">(</span><span class="n">Interactable</span><span class="w"> </span><span class="n">interactable</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">skipAnimation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">)</span><span class="w">   </span><span class="c1">// 39690</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="p">{</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">interactable</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ThreadedManager</span><span class="p">.</span><span class="n">IsThread</span><span class="p">)</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">        </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">Interactable</span><span class="p">.</span><span class="n">QueuedInteractions</span><span class="p">)</span>
+</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-37"><a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">            </span><span class="n">Interactable</span><span class="p">.</span><span class="n">QueuedInteractions</span><span class="p">.</span><span class="n">Enqueue</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">InteractionInstance</span><span class="p">(</span><span class="n">interactable</span><span class="p">.</span><span class="n">Parent</span><span class="p">,</span><span class="w"> </span><span class="n">interactable</span><span class="p">.</span><span class="n">Action</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="n">skipAnimation</span><span class="p">));</span>
+</span><span id="__span-1-38"><a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-39"><a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-1-40"><a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-41"><a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">Running</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="kt">object</span><span class="p">)</span><span class="n">interactable</span><span class="p">.</span><span class="n">Parent</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-42"><a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-43"><a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-44"><a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-45"><a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">skipAnimation</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">interactable</span><span class="p">.</span><span class="n">State</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">state</span><span class="p">)</span>
+</span><span id="__span-1-46"><a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-47"><a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="w">        </span><span class="n">interactable</span><span class="p">.</span><span class="n">Interact</span><span class="p">(</span><span class="n">state</span><span class="p">);</span>
+</span><span id="__span-1-48"><a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-49"><a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">interactable</span><span class="p">.</span><span class="n">Parent</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">interactable</span><span class="p">.</span><span class="n">Parent</span><span class="p">.</span><span class="n">isActiveAndEnabled</span><span class="p">)</span>
+</span><span id="__span-1-50"><a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-51"><a id="__codelineno-1-51" name="__codelineno-1-51" href="#__codelineno-1-51"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">interactable</span><span class="p">.</span><span class="n">Parent</span><span class="p">.</span><span class="n">AllowInteraction</span><span class="p">)</span>
+</span><span id="__span-1-52"><a id="__codelineno-1-52" name="__codelineno-1-52" href="#__codelineno-1-52"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-53"><a id="__codelineno-1-53" name="__codelineno-1-53" href="#__codelineno-1-53"></a><span class="w">            </span><span class="n">interactable</span><span class="p">.</span><span class="n">Interact</span><span class="p">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="n">skipAnimation</span><span class="p">);</span>
+</span><span id="__span-1-54"><a id="__codelineno-1-54" name="__codelineno-1-54" href="#__codelineno-1-54"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-1-55"><a id="__codelineno-1-55" name="__codelineno-1-55" href="#__codelineno-1-55"></a><span class="w">        </span><span class="k">else</span>
+</span><span id="__span-1-56"><a id="__codelineno-1-56" name="__codelineno-1-56" href="#__codelineno-1-56"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-57"><a id="__codelineno-1-57" name="__codelineno-1-57" href="#__codelineno-1-57"></a><span class="w">            </span><span class="n">interactable</span><span class="p">.</span><span class="n">InteractWhenReady</span><span class="p">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="n">skipAnimation</span><span class="p">);</span>
+</span><span id="__span-1-58"><a id="__codelineno-1-58" name="__codelineno-1-58" href="#__codelineno-1-58"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-1-59"><a id="__codelineno-1-59" name="__codelineno-1-59" href="#__codelineno-1-59"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-60"><a id="__codelineno-1-60" name="__codelineno-1-60" href="#__codelineno-1-60"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Gate by gate:</p>
+<ul>
+<li><strong>Clients: the whole funnel is inert.</strong> <code>!GameManager.RunSimulation</code> returns first (<code>RunSimulation =&gt; !NetworkManager.IsClient</code>, 203945), consistent with the server-authoritative framing in the page intro.</li>
+<li><strong>Worker threads: deferred at least one main-thread frame via a queue.</strong> When called with <code>ThreadedManager.IsThread</code> true (any thread but the Unity main thread, 217769), the call enqueues an <code>InteractionInstance</code> capturing <code>interactable.Parent</code> plus action/state/skipAnimation, and returns. The queue is <code>Interactable.QueuedInteractions</code> (<code>static Queue&lt;InteractionInstance&gt;</code>, 304374); <code>Interactable.DoQueuedInteractions</code> (304777-304785) drains it under the same lock, calling <code>OnServer.Interact(instance)</code> per entry, which re-resolves the interactable off the captured Thing through the 39664 overload. The single drain site is <code>GameManager.Update</code>, gated on <code>RunSimulation &amp;&amp; !WorldManager.IsGamePaused</code> (205154-205170). This queue is one of vanilla's two marshaling mechanisms; the other is the per-method <code>await UniTask.SwitchToMainThread()</code> wrappers (<code>Device.SetPowerFromThread</code> 371648-371652, <code>Thing.DestroyFromThread</code>, <code>Transformer.SetKnobFromThread</code>), which land on the main thread first and then enter this method with <code>IsThread</code> false.</li>
+<li><strong>Destroyed or missing parent: silent no-op.</strong> On the main-thread path, a reference-null <code>Parent</code> returns at 39704-39707 (as does any <code>GameState != Running</code>, so interactions during load and teardown windows are dropped). A Unity-DESTROYED parent is reference-non-null but fails the alive check <code>(bool)interactable.Parent</code> at 39712 (Unity fake-null), and an inactive one fails <code>isActiveAndEnabled</code>; either way the state write is silently discarded. Note the asymmetry: the <code>skipAnimation &amp;&amp; interactable.State != state</code> branch (39708-39711) runs BEFORE the alive check and is guarded only by the reference-null test, so a skip-animation interact can still reach <code>interactable.Interact(state)</code> against a fake-null parent.</li>
+</ul>
+<p>Consequence for marshaled <code>Powered</code> writes: <code>PowerTick.ApplyState</code> decides power flips on the game-tick worker and marshals them via <code>Device.SetPowerFromThread -&gt; await UniTask.SwitchToMainThread() -&gt; SetPower -&gt; OnServer.Interact(InteractPowered, 0|1)</code> (call sites 271933 / 271938; bodies 371648-371652 and 371640-371646; <code>skipAnimation</code> defaults to false). If the device is deconstructed between the worker-thread decision and the main-thread continuation, the write lands in the destroyed-parent no-op above and is dropped; a late <code>Powered</code> write cannot act on a dead device. Queued interactions from other worker-thread callers get the same protection one frame later: the queue holds the Thing reference across the frame, and the 39664 overload plus these gates drop it safely if the Thing died meanwhile.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0029b. No conflicts.</li>
 <li>2026-04-29: added "Destroy(Thing) -- the canonical low-level removal" section from a direct decompile of <code>OnServer.Destroy</code> and <code>Thing.OnDestroy</code> / <code>Structure.OnDestroy</code> (game version 0.2.6228.27061). Additive only; no existing content changed.</li>
+<li>2026-07-13: added "Interact: RunSimulation gate, worker-thread queueing, and the destroyed-parent silent no-op" (game version 0.2.6403.27689) from a fresh-validation pass on a decompile-claim audit. Verbatim <code>Interact</code> overloads (39664-39723) with the gate ladder: client early-out via <code>RunSimulation</code> (203945); worker-thread enqueue into <code>Interactable.QueuedInteractions</code> (304374) under lock, drained once per frame by <code>Interactable.DoQueuedInteractions</code> (304777-304785) from <code>GameManager.Update</code> (205154-205170); <code>GameState</code> / reference-null return (39704-39707); Unity-alive check <code>(bool)Parent &amp;&amp; isActiveAndEnabled</code> (39712) guarding only the animated branch. Recorded the marshaled-<code>Powered</code>-write consequence (<code>SetPowerFromThread</code> continuations dropped silently when the device died in between). Additive; no existing content changed. Cross-links the Powered writer census on <a href="../Device/">Device</a>.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

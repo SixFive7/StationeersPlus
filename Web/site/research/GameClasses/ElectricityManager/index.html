@@ -1651,6 +1651,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#complete-lock-surface-census-which-pool-methods-lock-and-what-unlocked-iteration-can-observe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete lock-surface census: which pool methods lock, and what unlocked iteration can observe
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -8160,6 +8171,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#complete-lock-surface-census-which-pool-methods-lock-and-what-unlocked-iteration-can-observe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete lock-surface census: which pool methods lock, and what unlocked iteration can observe
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -8299,7 +8321,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-02.
+           on 2026-07-13.
         </p>
       
       
@@ -8309,7 +8331,7 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networks.ElectricityManager'}</code></li>
@@ -8317,6 +8339,8 @@
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 254818-254964 (ElectricityManager), 254905 (ElectricityTick), 254830-254840 (AllPoweredThings pool + action delegates), 253430 (AllCableNetworks pool), 212399-212412 (DensePool.ForEach), 371855-371886 (CircuitHolders.Execute)'}</code></li>
             
               <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 272091-272117 (ElectricityTick), 272016 (AllPoweredThings), 270588 (AllCableNetworks), 228801-228835 (DensePool.RemoveAt/ForEach), 229121-229137 (ForEachAsync), 229139-229223 (ConcurrentDensePool), 204387-204466 (GameManager.GameTick invocation), 272050-272067 (SolarProcessing)'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 228696-229137 (full DensePool member census incl. Add 228779-228798, Snapshot 228838-228853, ForEach<TInt> 228889-228968, bool ForEach 228970-228980), 203945 (GameManager.RunSimulation), 204448-204472 (caller-side RunSimulation gate)'}</code></li>
             
           </ul>
         </details>
@@ -8375,7 +8399,7 @@
 <p>Vanilla power-simulation driver. <code>Assets.Scripts.Networks.ElectricityManager : ThreadedManager</code>. The single entry point for one whole power tick: <code>ElectricityManager.ElectricityTick()</code> (decompile line 272091 at 0.2.6403.27689) runs every game tick (the 500 ms / 2 Hz <code>GameManager</code> simulation tick, the same cadence that drives IC10; see <a href="../../GameSystems/IC10ExecutionTick/">IC10ExecutionTick</a>) and does three things in fixed order: tick every <code>CableNetwork</code>, fire every <code>IPowered.OnPowerTick</code>, then execute every IC10 circuit.</p>
 <p>This page covers the top-level orchestration and the cross-network propagation-order consequence. The per-network arithmetic (supply/demand summation, brownout, fuse/cable burn, provider settle) lives on <a href="../PowerTick/">PowerTick</a>; the per-network book-keeping and load mirrors live on <a href="../CableNetwork/">CableNetwork</a>.</p>
 <h2 id="electricitytick-three-phases-in-fixed-order">ElectricityTick: three phases in fixed order<a class="headerlink" href="#electricitytick-three-phases-in-fixed-order" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
 
 <p><code>ElectricityTick</code> is <code>static</code>, gated on <code>GameManager.RunSimulation</code> (host / single-player only; clients do not run it), and wraps the whole body in a try/catch that logs to the console rather than letting a power-tick exception kill the frame. The caller is <code>GameManager.GameTick</code> (an <code>async UniTask</code> self-scheduling loop, decompile line 204387): the loop does <code>await UniTask.SwitchToThreadPool()</code> (204418) and then, inside the <code>RunSimulation</code> branch, calls <code>ElectricityManager.ElectricityTick()</code> (204466) after the atmospherics jobs and before <code>LogicStack.LogicStackTick</code>. So the whole tick body runs on a ThreadPool worker, not the Unity main thread. Verbatim (decompile lines 272091-272117):</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ElectricityTick</span><span class="p">()</span>
@@ -8424,6 +8448,7 @@
 <li><strong><code>CircuitHolders.Execute()</code></strong> -&gt; every IC10 chip runs up to 128 instructions. <code>CircuitHolders</code> is a separate static class (0.2.6228 decompile line 371855, <code>Execute()</code> at 371882; not re-located this pass): <code>AllCircuitHolders.ForEach(iCircuitHolder?.Execute())</code>. So IC10 logic executes LAST in the power tick, reading the power state that phases 1 and 2 already finalised. See <a href="../../GameSystems/IC10ExecutionTick/">IC10ExecutionTick</a> for the chip-level execution model.</li>
 </ol>
 <p><code>SerialiseDeltaState</code> (line 272124) / <code>DeserializeDeltaState</code> (via the per-network writer delegate <code>CableNetworkWriteAction</code> at 272028-272039, which ships <code>CurrentLoad</code> / <code>PotentialLoad</code> / <code>RequiredLoad</code>) send each network's three load floats to clients per tick; clients do not run <code>ElectricityTick</code> themselves (the <code>RunSimulation</code> gate), they receive these floats and display them. This is consistent with <a href="../../Patterns/ServerAuthoritativeSimulation/">ServerAuthoritativeSimulation</a>: the power simulation is host-only, clients are display mirrors.</p>
+<p>The client-side gate is DOUBLE, and it makes client-side Harmony patches on this method inert. <code>public static bool RunSimulation =&gt; !Assets.Scripts.Networking.NetworkManager.IsClient;</code> (verbatim, GameManager, 203945). On a multiplayer client the <code>GameTick</code> loop never reaches the call at all (204466 sits inside <code>GameTick</code>'s <code>if (RunSimulation)</code> block, 204448-204472), and even if something else invoked <code>ElectricityTick</code>, the body's own <code>if (!GameManager.RunSimulation) return;</code> (272093-272096) exits before any work. Consequence for mods: a prefix or postfix on <code>ElectricityTick</code> never executes on a multiplayer client through the vanilla call path (the caller-side gate stops the invocation before any patch on the method could run), so a client-side power-tick replacement patched here is dead code on clients. The load values clients display arrive exclusively through <code>DeserializeDeltaState</code> (272132-272149); client-visible mod behavior has to hook something clients actually run.</p>
 <h2 id="the-pools-densepool-slot-order-iteration-no-sort-no-double-buffer">The pools: DensePool, slot-order iteration, no sort, no double-buffer<a class="headerlink" href="#the-pools-densepool-slot-order-iteration-no-sort-no-double-buffer" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -8459,6 +8484,23 @@
 <li>A mod that needs deterministic same-tick cross-network settlement cannot get it by patching one network's tick; it has to re-architect the pass (compute all supply/demand first, then settle), which is exactly what PowerGridPlus's atomic two-pass tick does (OBSERVE all networks, then ENFORCE all networks; see <a href="../PowerTick/">PowerTick</a>, "CalculateState accumulates; Initialise resets").</li>
 <li><code>ConcurrentDensePool</code> (used for <code>AllCableNetworks</code>) takes a <code>lock (this)</code> on every override: <code>Add</code> (229147-229153), <code>Remove</code> (229156-229162), <code>RemoveAt</code> (229165-229171), and, at 0.2.6403.27689, <code>ForEach</code> as well (229216-229222 wraps <code>base.ForEach</code> in the same lock). So phase 1's <code>AllCableNetworks.ForEach</code> holds the pool lock for the duration of the walk, serializing it against concurrent registration; this supersedes the earlier claim that <code>ForEach</code> iterates without a lock (true only of the base <code>DensePool.ForEach</code>, which is what phase 2's <code>AllPoweredThings</code> uses).</li>
 </ul>
+<h3 id="complete-lock-surface-census-which-pool-methods-lock-and-what-unlocked-iteration-can-observe">Complete lock-surface census: which pool methods lock, and what unlocked iteration can observe<a class="headerlink" href="#complete-lock-surface-census-which-pool-methods-lock-and-what-unlocked-iteration-can-observe" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+<p>Method-by-method census of <code>DensePool&lt;T&gt;</code> (class 228696) vs <code>ConcurrentDensePool&lt;T&gt; : DensePool&lt;T&gt;</code> (229139), read verbatim at 0.2.6403.27689.</p>
+<p>Base <code>DensePool&lt;T&gt;</code>:</p>
+<ul>
+<li><code>Add(T)</code> (228779-228798) DOES <code>lock (this)</code> even in the base class, the only base method that locks: it pops a slot from the free list, calls <code>item.OnAddToPool(this, slot)</code> (a <code>false</code> return aborts the add), then publishes <code>_entries[num] = item; _slotToActiveIndex[num] = _activeCount; _activeList[_activeCount++] = num;</code>. So even on a plain pool, concurrent <code>Add</code>s are serialized against each other, but against nothing else.</li>
+<li><code>RemoveAt(int)</code> (228801-228813) does NOT lock: swap-with-last compaction ends with <code>_slotToActiveIndex[slot] = -1; _entries[slot] = null; _freeList[_freeCount++] = slot;</code>. <code>Remove(T)</code> (228816-228819) is <code>item?.OnRemoveFromPool(this)</code>, also unlocked.</li>
+<li><code>ForEach(Action&lt;T&gt;)</code> (228822-228835) does not lock. It copies the ARRAY REFERENCES and <code>_activeCount</code> to locals and walks <code>action(entries[activeList[i]])</code>; the arrays are live, so this is not a snapshot.</li>
+<li>Also unlocked in the base: the bool-early-exit <code>ForEach(Func&lt;T, bool&gt;)</code> (228970-228980, which reads the fields directly on every iteration rather than capturing locals), the serializer <code>ForEach&lt;TInt&gt;(RocketBinaryWriter, Func&lt;RocketBinaryWriter, T, bool&gt;, ref TInt)</code> (228889-228968), <code>Snapshot(Span&lt;T&gt;)</code> (228838-228853), <code>Active()</code> (228856-228859, returning the <code>ActiveEnumerable</code> ref struct over the live arrays, 228708-228739), <code>RemoveWhere</code> (228861-228877), <code>Populate</code> (228879-228887), <code>Clear</code> (228982-228994), <code>Cleanup</code> (228996-229006), <code>FindUsing</code> (229008-229023), <code>Pick</code> (229026-229035), <code>ToList</code> (229093-229105), <code>Find</code> (229107-229119), <code>ForEachAsync</code> (229121-229137).</li>
+</ul>
+<p><code>ConcurrentDensePool&lt;T&gt;</code> (229139-229223) overrides NINE members, each wrapping the base call in <code>lock (this)</code>: <code>Add</code> (229147), <code>Remove</code> (229156), <code>RemoveAt</code> (229165), <code>Clear</code> (229173), <code>Active</code> (229182), <code>Cleanup</code> (229191), <code>RemoveWhere</code> (229199), <code>Populate</code> (229207), <code>ForEach(Action&lt;T&gt;)</code> (229216). Every other member is INHERITED UNLOCKED, notably:</p>
+<ul>
+<li><code>ForEach(Func&lt;T, bool&gt;)</code>, the <code>ForEach&lt;TInt&gt;</code> serializer overload, <code>Snapshot</code>, <code>FindUsing</code>, <code>Pick</code>, <code>ToList</code>, <code>Find</code>, and <code>ForEachAsync</code> stay unlocked even on the concurrent pool. <code>ElectricityManager.SerialiseDeltaState</code> (272124-272130) iterates <code>AllCableNetworks</code> through exactly that unlocked <code>ForEach&lt;TInt&gt;</code> overload (after a LOCKED <code>Cleanup</code>), so the per-tick multiplayer load-sync walk is NOT serialized against concurrent <code>Add</code> / <code>Remove</code>, even though phase 1's plain <code>ForEach</code> is. <code>WirelessNetwork.GetWirelessNetwork</code> goes through the unlocked <code>FindUsing</code> (272474) the same way.</li>
+<li><code>ConcurrentDensePool.Active()</code> locks only the CREATION of the enumerable; the returned ref struct captures the live arrays and its enumeration runs after the lock is released.</li>
+</ul>
+<p>What an unlocked walk can observe when <code>Add</code> / <code>RemoveAt</code> land concurrently (mechanics follow from the bodies above): <code>RemoveAt</code> nulls the slot and swaps the last active entry into the removed <code>_activeList</code> position, so an in-flight walk can read <code>null</code> (both <code>ElectricityTick</code> delegates null-guard for exactly this: <code>cableNetwork?.OnPowerTick()</code> / <code>ipowered?.OnPowerTick()</code>, 272018-272026), can visit the swapped entry twice, or can skip it; a concurrent <code>Add</code> publishes past a locally captured <code>activeCount</code>, so the walk misses new entries until the next pass. No field in either class is <code>volatile</code> and there are no memory barriers. Since <code>AllPoweredThings</code> is a plain <code>DensePool</code> (272016), phase 2 of <code>ElectricityTick</code> runs with all of these hazards while <code>Register</code> / <code>Deregister</code> (272075-272089) fire from main-thread device creation and destruction; <code>AllCableNetworks</code> (ConcurrentDensePool, 270588) is protected only for <code>ForEach(Action&lt;T&gt;)</code> and the mutation methods.</p>
 <h2 id="registration-and-lifecycle">Registration and lifecycle<a class="headerlink" href="#registration-and-lifecycle" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -8518,6 +8560,7 @@
 <p>Inputs to <code>CalculateSolarEfficiency</code> that could themselves ramp, and their status on a headless load: <code>OrbitalSimulation.WorldSunVector</code> is settled at load by <code>OrbitalSimulation.Load</code> -&gt; <code>SetAllBodies</code> (0.2.6228 line 57107), not ramped; the per-arm <code>Cells.forward</code> orientation (at 0.2.6403.27689 the panel normal lives on each <code>SolarPanelArm</code>, driven through <code>YawPivot</code> / <code>PitchPivot</code>, see <a href="../SolarPanel/">SolarPanel</a>) only changes while <code>RotatableBehaviour.DoMoveTask</code> is slewing (0.2.6403 line 217434), and that loop runs on <code>UniTask.NextFrame()</code> default (Update) timing and only when current orientation differs from target, so a panel loaded already at its target does not slew; the five per-arm obscurance raycasts and the <code>VoxelTerrain.OctreeRaycast</code> terrain check (0.2.6403 lines 186970-187001) depend on colliders/terrain being present, which is a candidate second-order ramp if collision is still streaming in early post-load, but the dominant and sufficient explanation is the 0-initialised <code>GenerationEfficiency</code> waiting on the FixedUpdate pass.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-13: fresh-validation pass at 0.2.6403.27689 (decompile-claim audit), two additions. (a) The "client-side gate is DOUBLE" paragraph in the ElectricityTick section: <code>RunSimulation =&gt; !NetworkManager.IsClient</code> quoted verbatim (203945), the caller-side <code>if (RunSimulation)</code> gate around the 204466 call (204448-204472) re-read, and the modding consequence made explicit (a Harmony patch on <code>ElectricityTick</code> never runs on a multiplayer client via the vanilla path because the caller gate stops the invocation itself; restamped that section). (b) The "Complete lock-surface census" subsection under the pools section: every <code>DensePool</code> member classified locked/unlocked verbatim (base <code>Add</code> locks <code>this</code> at 228781, the only base lock; <code>RemoveAt</code> / <code>Remove</code> / both extra <code>ForEach</code> overloads / <code>Snapshot</code> / <code>Active</code> / the rest unlocked), the nine <code>ConcurrentDensePool</code> overrides enumerated (Add/Remove/RemoveAt/Clear/Active/Cleanup/RemoveWhere/Populate/ForEach(Action<T>), 229146-229222), the inherited-unlocked surface called out (notably <code>SerialiseDeltaState</code> iterating <code>AllCableNetworks</code> through the unlocked <code>ForEach&lt;TInt&gt;</code> at 272128, and <code>Active()</code> locking only enumerable creation), and the concurrent-iteration failure modes (null reads, double-visit, skip, missed adds). Additive; extends rather than contradicts the 2026-07-02 <code>ConcurrentDensePool.ForEach</code> supersession note ("every override locks" remains true, the override list is now complete).</li>
 <li>2026-07-02 (later): restamped "The solar efficiency pass" to 0.2.6403.27689 after the SolarPanel restructure pass. Updated the SolarPanel-internals refs to the new decompile (<code>GetGeneratedPower</code> 421445, <code>GenerationRate</code> line 421216, <code>PowerGenerated</code> 421245 with the altitude-aware weather factor, <code>GenerationEfficiency</code> field 421101, <code>CalculateSolarEfficiency</code> 421660-421670 now averaging per-arm <code>SolarPanelArm</code> results with its always-<code>true</code> return at 421669, <code>CalculateSolarEfficiencyAction</code> 272012 with the added <code>IsBeingDestroyed</code> guard, per-arm raycasts 186970-187001, <code>DoMoveTask</code> 217434). The ramp analysis and one-radiator-per-FixedUpdate throughput are unchanged. OrbitalSimulation refs (56827 / 57089 / 56723 / 56392 / 56735 / 57107) and the RadiatorRotatable cooldown ref remain 0.2.6228 refs pending a re-locate, marked inline.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: <code>ElectricityTick</code> three phases + <code>RunSimulation</code> gate + try/catch (272091-272117), the two action delegates (272018-272026), <code>AllPoweredThings</code> DensePool 8192 (272016), <code>AllCableNetworks</code> ConcurrentDensePool 4096 (270588), <code>DensePool.ForEach</code> pool-slot walk (228822-228835), <code>RemoveAt</code> swap-with-last (228801-228813), <code>Register</code> / <code>Deregister</code> (272075-272089), <code>ClearAll</code> (272119), <code>SolarProcessing</code> one-radiator-per-FixedUpdate (272050-272067) with <code>ForEachAsync</code> (229121-229137). NEW / superseding: (a) resolved the open question about the tick's caller: <code>GameManager.GameTick</code> (204387) does <code>await UniTask.SwitchToThreadPool()</code> (204418) and calls <code>ElectricityManager.ElectricityTick()</code> at 204466 inside the <code>RunSimulation</code> branch, after the atmospherics jobs and before <code>LogicStack.LogicStackTick</code>; documented in the ElectricityTick section and removed from Open Questions. (b) <code>ConcurrentDensePool.ForEach</code> at 0.2.6403.27689 wraps the walk in <code>lock (this)</code> (229216-229222), superseding the prior claim that <code>ForEach</code> iterates without a lock (that remains true only for the base <code>DensePool.ForEach</code> used by <code>AllPoweredThings</code>). The SolarPanel-internals line refs inside the solar section were not re-located this pass (that section keeps its 0.2.6228.27061 stamp; only the verified <code>SolarProcessing</code> / <code>ForEachAsync</code> refs were updated inline), and the <code>CircuitHolders</code> decl/Execute refs are marked as 0.2.6228 refs pending a re-locate.</li>
 <li>2026-06-29: added section "The solar efficiency pass: one radiator per FixedUpdate, and the load-time ramp" and refined the Registration-and-lifecycle description of <code>SolarProcessing</code>. New finding while investigating why solar generation ramps 0 -&gt; full over tens of sim ticks immediately after a headless world load. Key facts sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>: <code>SolarPanel.GenerationRate</code> = <code>PowerGenerated() * GenerationEfficiency * (1 - damage)</code> (line 399911); <code>GenerationEfficiency</code> is a <code>public float</code> default-0 field (line 399791) written only by <code>CalculateSolarEfficiency()</code> (line 400354); <code>PowerGenerated()</code> reads instantaneous <code>OrbitalSimulation.SolarIrradiance</code> (line 399948), which is <code>SolarConstant / distanceAu^2</code> with no smoothing (<code>CalculateSolarIrradiance</code> line 56827, set at load line 57089 and per-frame line 56723); <code>SolarProcessing</code> (line 254864) drives <code>ForEachAsync(PlayerLoopTiming.FixedUpdate, ...)</code>; <code>DensePool.ForEachAsync</code> (line 212674) <code>await UniTask.NextFrame</code> after EACH radiator whose action returns <code>true</code>, so it processes one radiator per FixedUpdate frame, not a whole-pool sweep per frame. Refines the prior "once per FixedUpdate frame" phrasing (which described how often the outer sweep restarts, not its per-frame throughput); no factual claim on the page was reversed, this is an additive clarification of throughput. Also captured: <code>WorldSunVector</code> settled at load via <code>SetAllBodies</code> (line 57107); <code>EclipseRatio</code> not updated headless because <code>SetSunState</code> early-returns under <code>IsBatchMode</code> (line 56735); <code>RotatableBehaviour.DoMoveTask</code> slews on Update timing only when off-target (line 201998). Cross-links <a href="../../GameSystems/SimulationTickDriverHooks/">SimulationTickDriverHooks</a> for the headless FixedUpdate-does-not-fire-reliably fact.</li>

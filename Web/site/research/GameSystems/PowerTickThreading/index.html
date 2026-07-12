@@ -4744,6 +4744,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-list-lock-census-who-locks-which-list-writers-the-tick-reader-the-rebuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device-list lock census: who locks which list (writers, the tick reader, the rebuild)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8272,6 +8289,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#device-list-lock-census-who-locks-which-list-writers-the-tick-reader-the-rebuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device-list lock census: who locks which list (writers, the tick reader, the rebuild)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8397,7 +8431,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-12.
+           on 2026-07-13.
         </p>
       
       
@@ -8717,11 +8751,13 @@
 <p><code>DynamicComposter</code> (296224) never resets: it has no <code>ReceivePower</code> override; its accumulator is copied into <code>_powerGenerated</code> (296395) and is unreachable by the solve (the <code>as DynamicGenerator</code> sibling dead-end in the consumer census).</p>
 <p><strong>How vanilla survives without synchronization.</strong> Three layers. (1) CLR atomicity: ECMA-335 guarantees aligned loads/stores of 32-bit-or-smaller types are atomic, so a plain <code>float</code> read can never observe a torn bit pattern; corruption in the garbage-value sense is structurally impossible (this guarantee would NOT hold if the field were a <code>double</code>). (2) Phase sequencing: the reset and the atmosphere-phase accruals are ordered against the solve by the tick structure itself, so most writers are never actually concurrent with it. (3) Tolerance: the five main-thread writers race the worker's reads and its <code>= 0f</code> reset with non-atomic read-modify-writes; an interleaving can lose an increment (work done but wiped unbilled: free power) or resurrect a pre-reset value (billed again next tick: double bill), each bounded by one frame or one 100 ms slice of work, and the absence of barriers permits slightly stale reads. Vanilla never audits energy and ratio-scales forgivingly, so these leaks are invisible in the base game. Note the direction of the hazard: the blind reset destroys even increments the resetter never observed, which is why a subtract-what-you-billed write-back (drain-and-bill) is strictly safer than the vanilla reset it replaces, and a main-thread-marshaled debit (vanilla's own <code>SetPowerFromThread</code> idiom) eliminates the writer race entirely by making every mutation execute on one thread.</p>
 <h2 id="powerdevicelist-lazy-rebuild-semantics-in-place-dirty-flag-unlocked">PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)<a class="headerlink" href="#powerdevicelist-lazy-rebuild-semantics-in-place-dirty-flag-unlocked" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
 
-<p>The <code>CableNetwork.PowerDeviceList</code> / <code>DataDeviceList</code> getters lazily rebuild on read: <code>if
-(PowerDeviceListDirty || DataDeviceListDirty) RefreshPowerAndDataDeviceLists();</code> (270690-270699 /
-270678-270688). The refresh (270746-270787) is IN PLACE on the SAME list instances (<code>_powerDeviceList
+<p>The <code>CableNetwork.PowerDeviceList</code> / <code>DataDeviceList</code> getters lazily rebuild on read, with ASYMMETRIC
+dirty tests: the <code>PowerDeviceList</code> getter runs <code>if (PowerDeviceListDirty || DataDeviceListDirty)
+RefreshPowerAndDataDeviceLists();</code> (270690-270700), while the <code>DataDeviceList</code> getter tests
+<code>PowerDeviceListDirty</code> ALONE (270678-270688; verbatim bodies in the lock-census subsection below).
+The refresh (270746-270787) is IN PLACE on the SAME list instances (<code>_powerDeviceList
 .Clear()</code> then re-<code>Add</code>), never a reference swap, iterating <code>DeviceList</code> backwards and testing power
 membership as <code>device.PowerCables[i].CableNetwork == this</code> (270772-270782; data membership the same
 over <code>DataCables</code>). It takes NO lock and runs on whichever thread happens to touch a getter while a
@@ -8737,6 +8773,79 @@ dirty flag is set. Consequences:</p>
   <code>PowerCables</code> predicate yourself. This is what PowerGridPlus's per-tick GridSnapshot does.</li>
 <li>A derived network class overrides <code>RefreshPowerAndDataDeviceLists</code> (272486), so a Harmony patch
   on the base virtual would not cover every network type; the bypass above is override-proof.</li>
+</ul>
+<h3 id="device-list-lock-census-who-locks-which-list-writers-the-tick-reader-the-rebuild">Device-list lock census: who locks which list (writers, the tick reader, the rebuild)<a class="headerlink" href="#device-list-lock-census-who-locks-which-list-writers-the-tick-reader-the-rebuild" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+<p>Complete census, at 0.2.6403.27689, of every vanilla <code>lock</code> naming the <code>CableNetwork</code> list objects, of the
+readers, and of the dirty-flag writers, produced by a fresh-validation pass on the rebuild semantics above.
+The getters, verbatim (270678-270700):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Device</span><span class="o">&gt;</span><span class="w"> </span><span class="n">DataDeviceList</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PowerDeviceListDirty</span><span class="p">)</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">            </span><span class="n">RefreshPowerAndDataDeviceLists</span><span class="p">();</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_dataDeviceList</span><span class="p">;</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">}</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Device</span><span class="o">&gt;</span><span class="w"> </span><span class="n">PowerDeviceList</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="p">{</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PowerDeviceListDirty</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">DataDeviceListDirty</span><span class="p">)</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">            </span><span class="n">RefreshPowerAndDataDeviceLists</span><span class="p">();</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_powerDeviceList</span><span class="p">;</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Note the asymmetry (fresh-validated 2026-07-13, see Verification history): only the <code>PowerDeviceList</code>
+getter tests the OR of both flags; the <code>DataDeviceList</code> getter tests <code>PowerDeviceListDirty</code> alone, so a
+network with <code>DataDeviceListDirty</code> set and <code>PowerDeviceListDirty</code> clear serves the stale <code>_dataDeviceList</code>
+until something reads <code>PowerDeviceList</code> or dirties the power flag. The dirty test at 270694 is the ONLY
+<code>PowerDeviceListDirty || DataDeviceListDirty</code> expression in the entire assembly. (<code>WirelessNetwork</code>'s
+override, 272486-272492, copies ALL of <code>DeviceList</code> into <code>_powerDeviceList</code> and clears only
+<code>PowerDeviceListDirty</code>, never <code>DataDeviceListDirty</code>.) The same asymmetry, with the explicit-refresh
+workaround, is documented on <a href="../../GameClasses/CableNetwork/">CableNetwork</a> ("Field shape and accessor
+quirk").</p>
+<p>Lock census:</p>
+<ul>
+<li><code>CableNetwork.AddDevice(Cable, Device)</code> wraps <code>DeviceList.Add(device)</code> in <code>lock (DeviceList)</code>
+  (270972-270975); <code>CableNetwork.RemoveDevice(Device)</code> wraps <code>DeviceList.Remove(device)</code> in
+  <code>lock (DeviceList)</code> (271014-271017); <code>WirelessNetwork.AddDevice(Device)</code> has the same shape
+  (272525-272531). These are main-thread topology events, outside the tick machinery.</li>
+<li><code>CableNetwork.Add(Cable)</code> / <code>Remove(Cable)</code> wrap <code>CableList.Add</code> / <code>Remove</code> in <code>lock (CableList)</code>
+  (271064-271067, 271096-271099), and the null-compaction sweep locks per removal (271255-271258); but
+  <code>Merge(CableNetwork)</code> clears the losing network's list UNLOCKED (<code>oldNetwork.CableList.Clear()</code>, 271124).</li>
+<li><code>PowerTick.Initialise</code> locks all three list objects while snapshotting: <code>lock (CableNetwork.PowerDeviceList)</code>
+  / <code>lock (CableNetwork.FuseList)</code> / <code>lock (CableNetwork.CableList)</code> (271748-271758), on the power worker.
+  This is the ONLY vanilla <code>lock</code> on <code>PowerDeviceList</code> anywhere.</li>
+<li><code>FuseList</code> writers never lock: <code>CableFuse</code> self-registers with plain <code>FuseList.Add(this)</code> /
+  <code>FuseList.Remove(this)</code> (392811, 392823). The <code>lock (FuseList)</code> in <code>Initialise</code> therefore excludes nothing
+  that actually mutates that list.</li>
+</ul>
+<p>Reader census: <code>PowerDeviceList</code> has exactly ONE vanilla reader in the whole decompile, <code>PowerTick.Initialise</code>
+(the <code>lock</code> expression at 271748 plus the <code>AddRange</code> argument at 271750), so the power-list rebuild normally
+runs on the power worker itself, triggered by evaluating that <code>lock</code> expression. <code>DataDeviceList</code> is read from
+dozens of sites (the logic-device family plus main-thread UI such as the computer <code>DisplayedDevices</code> at
+334968 / 342003), none of which lock anything; any of them can run the shared rebuild concurrently with the
+power worker when the power flag is dirty. Dirty-flag writers: <code>DirtyPowerAndDataDeviceLists</code> (270816) called
+from <code>AddDevice</code> 270991, virtual <code>AddDevice(Device)</code> 270996, <code>RemoveDevice</code> 271026, <code>Remove(Cable)</code> 271101,
+<code>Merge</code> 271126, and <code>Device.InitializeDataConnection</code> 371613-371614; <code>DirtyDataDeviceList</code> (270822) from
+<code>HandleDataNetTransmissionDevice</code> 270811.</p>
+<p>Operative conclusions:</p>
+<ul>
+<li><code>lock (net.PowerDeviceList)</code> in mod code buys mutual exclusion against exactly one thing: the snapshot
+  window inside <code>PowerTick.Initialise</code>. It buys nothing against the rebuild (which locks nothing, and which
+  the <code>lock</code> expression itself may run BEFORE the lock is acquired) and nothing against the <code>DeviceList</code>
+  writers (a different lock object).</li>
+<li>The rebuild iterates <code>DeviceList</code> backwards (270756) WITHOUT taking the <code>DeviceList</code> lock the writers hold,
+  so even the vanilla-triggered rebuild races a concurrent main-thread <code>AddDevice</code> / <code>RemoveDevice</code>.</li>
 </ul>
 <h2 id="consumer-demand-formula-nuances-fabricator-vs-simplefabricatorbase-and-fermenters-gates">Consumer demand formula nuances: Fabricator vs SimpleFabricatorBase, and Fermenter's gates<a class="headerlink" href="#consumer-demand-formula-nuances-fabricator-vs-simplefabricatorbase-and-fermenters-gates" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
@@ -8759,6 +8868,8 @@ DemandModel):</p>
 <!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
 
 <ul>
+<li>2026-07-13 (later): fresh-validator RESOLUTION of the recorded getter dirty-test conflict (protocol per Research/WORKFLOW.md Rule 3). Verdict: the verbatim census quote is correct; the 2026-07-12 parent-section paraphrase was wrong. Ground truth at 0.2.6403.27689: the <code>DataDeviceList</code> getter (270678-270688) tests <code>if (PowerDeviceListDirty)</code> alone (the test at 270682); the <code>PowerDeviceList</code> getter (270690-270700) tests <code>if (PowerDeviceListDirty || DataDeviceListDirty)</code> (270694). A whole-assembly search for both flag names confirms 270694 is the ONLY OR-test anywhere; every other occurrence is the declarations (270625/270627), the per-flag tests inside the refresh body (270748/270752/270759/270772), the resets (270785/270786), the dirty setters (270818/270819/270824), and the <code>WirelessNetwork</code> override reset (272491). The "both getters test the OR" wording therefore described nothing real elsewhere in the class: a paraphrase error. Independently corroborated by ../GameClasses/CableNetwork.md "Field shape and accessor quirk" (asymmetry first recorded 2026-05-13 from the 0.2.6228.27061 decompile lines 253460-253541, re-verified 2026-07-02 at 0.2.6403.27689 lines 270678-270700). Result: parent-section paraphrase corrected in place and restamped 2026-07-13; the RECORDED CONFLICT note in the census subsection replaced with a plain asymmetry note (<code>WirelessNetwork</code> override range normalized to 272486-272492, the full method 272486 declaration through 272492 closing brace); the corresponding Open-questions bullet removed. Swept every other Research page mentioning either flag (CableNetwork.md, Motherboard.md): both already state the asymmetry correctly; no other page carried the wrong paraphrase.</li>
+<li>2026-07-13: fresh-validation pass on the PowerDeviceList rebuild claim (0.2.6403.27689) added the "Device-list lock census" subsection: verbatim getter bodies (270678-270700), the complete lock census (<code>AddDevice</code> / <code>RemoveDevice</code> / <code>WirelessNetwork.AddDevice</code> lock <code>DeviceList</code> at 270972 / 271014 / 272525; <code>Add(Cable)</code> / <code>Remove(Cable)</code> / null-sweep lock <code>CableList</code> at 271064 / 271096 / 271255 while <code>Merge</code> clears unlocked at 271124; <code>PowerTick.Initialise</code> 271748-271758 is the only <code>PowerDeviceList</code> lock; <code>CableFuse</code> writes <code>FuseList</code> unlocked at 392811 / 392823), the single-reader census for <code>PowerDeviceList</code> (271748 / 271750 only) vs the many unlocked <code>DataDeviceList</code> readers, and the dirty-flag writer census (270991 / 270996 / 271026 / 271101 / 271126 / 371613-371614). CONFLICT RECORDED, not resolved: the 2026-07-12 section paraphrases both getters as testing <code>PowerDeviceListDirty || DataDeviceListDirty</code>, but the verbatim <code>DataDeviceList</code> getter tests <code>PowerDeviceListDirty</code> alone (the OR-form belongs to <code>PowerDeviceList</code> only). Both claims stand on the page pending the fresh-validator conflict protocol; also logged under Open questions. The parent section's operative conclusions (unlocked in-place rebuild; <code>lock (net.PowerDeviceList)</code> cannot exclude it) are CONFIRMED by this pass.</li>
 <li>2026-07-12 (later): added "PowerDeviceList lazy rebuild semantics" (getter dirty-check 270690-270699, in-place unlocked refresh body 270746-270787 with the PowerCables membership predicate, the derived override at 272486, and the lock(DeviceList)+predicate bypass) and "Consumer demand formula nuances" (Fabricator 396283-396294 bills NO accumulator while off, unlike SimpleFabricatorBase/ArcFurnace/IceCrusher which bill the residual accumulator; Fermenter's completion + IsOperable gates 181583-181594). Read directly from the 0.2.6403.27689 decompile during the PowerGridPlus B + D1 data-plane implementation. No prior content contradicted; the consumer census rows are refined, not changed.</li>
 <li>2026-07-12: added the "_powerUsedDuringTick synchronization census" section from a whole-decompile enumeration pass (0.2.6403.27689) driven by the PowerGridPlus data-plane redesign discussion. All 17 field declarations read verbatim (plain instance float, never volatile / static / double; 16 private, <code>FiltrationMachineBase</code> 377803 protected; no shared base field, proven by <code>DroidSleeper</code> declaring its own directly under <code>Device</code>; no property wrapper). Every write site classified by thread: the power-worker reset in all 16 <code>ReceivePower</code> overrides via <code>ApplyState -&gt; ConsumePower</code> (271820-271832), with the off-main-thread proof at 271933 / 371648-371651 (<code>SetPowerFromThread</code> marshals via <code>SwitchToMainThread</code>); eleven atmosphere-phase writers (sequenced before the solve, 204458/204466); five genuinely concurrent main-thread writers matching the mid-tick-mutable accumulator rows (181666/181674, 380277, 396364, 365606, 420309). <code>Interlocked</code> confirmed at ZERO occurrences assembly-wide; no <code>lock</code> in any relevant method (the only power-machinery lock is <code>PowerTick.Initialise</code> 271748-271758 snapshotting the lists). The <code>SpawnPointAtmospherics</code> fold-then-zero variant (422742-422746) and the <code>DynamicComposter</code> never-reset variant (296395) recorded verbatim. No prior content contradicted: the consumer census's mid-tick-mutable vs tick-stable split is confirmed and extended with the declaration and reset-thread facts.</li>
 <li>2026-07-09 (later): COMPLETED the consumer census from a whole-decompile enumeration (all 34 <code>GetUsedPower(CableNetwork)</code> overrides + all 15 <code>GetGeneratedPower</code> overrides classified by mutation site and thread; produced by three independent census agents for the PowerGridPlus Powered-ownership redesign and cross-checked against the mod build). CONFLICT RESOLUTION against this page's morning version: <code>SimpleFabricatorBase</code> does NOT cover "every fabricator"; <code>Fabricator</code> (class decl 396068, <code>public class Fabricator : FabricatorBase</code>, read directly this pass) is a SIBLING with its own <code>GetUsedPower</code> override (396283) and a main-thread <code>OnServerExportTick</code> accumulator (396364). Replaced the three-row table with the complete fourteen-row mid-tick-mutable set plus the PowerConnector forwarding producer, the tick-stable list with the atmos-before-electricity and device-tick-after-solve discriminators (204418/204458/204466), the <code>DynamicComposter</code> sibling dead-end (296224 vs 297342, <code>as DynamicGenerator</code> null at 408026), and the <code>ElevatorShaftNetwork.GetUsedPower</code> dead-code finding (395878-395890, zero callers). Consequence paragraph updated to the shipped latch set + the net-liveness ownership model.</li>
@@ -8768,7 +8879,7 @@ DemandModel):</p>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0032 (primary), F0048, F0308, and F0364.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<p>None.</p>
 
 
 

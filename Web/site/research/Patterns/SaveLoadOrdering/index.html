@@ -6459,6 +6459,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#xmlsaveloadloadworld-is-async-a-harmony-postfix-fires-at-load-start-not-load-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XmlSaveLoad.LoadWorld is async: a Harmony postfix fires at load START, not load completion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8176,6 +8187,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#xmlsaveloadloadworld-is-async-a-harmony-postfix-fires-at-load-start-not-load-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XmlSaveLoad.LoadWorld is async: a Harmony postfix fires at load START, not load completion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8287,13 +8309,14 @@
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-13
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
   - Plans/EquipmentPlus/EquipmentPlus/AdvancedTabletPatches.cs:103-108 (F0373)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:95-101 (F0374)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: XmlSaveLoad class (line 267663), Load<T> (line 268424), Load (line 268463)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: LoadWorld (line 268507), caller (line 264682), GameManager.GameTick pause gate (lines 204387-204418)
 related:
   - ../GameSystems/SaveDataRegistration.md
   - ./HarmonyInheritedMethods.md
@@ -8438,6 +8461,29 @@ tags: [save-load, harmony]</p>
 </span></code></pre></div>
 <p><code>Thing.Create</code> -&gt; <code>DeserializeSave</code> -&gt; <code>ValidateOnLoad</code> is unchanged, so the ordering conclusion in "OnRegistered fires before DeserializeSave" above (verified at 0.2.6228.27061 through the old <code>LoadThing</code> name) carries over; only the method name and the added generic overload differ. The <code>GridController.AddGridStructure</code> registration leg of that section was not re-read at 0.2.6403.</p>
 <p>Mod impact: any mod that calls or reflection-resolves <code>XmlSaveLoad.LoadThing</code> by name breaks at 0.2.6403 (<code>MissingMethodException</code> on a compiled call, null from <code>AccessTools.Method</code>). The 2026-07-02 dedicated-server boot investigation records ModularConsoleMod as a casualty of exactly this removal. Retarget to <code>Load(ThingSaveData, bool)</code>; when resolving by reflection, pass explicit parameter types since the name now also has a generic overload. See <code>../Unsorted/Api-removals-0.2.6403.md</code> for the sibling API removals in the same game update.</p>
+<h2 id="xmlsaveloadloadworld-is-async-a-harmony-postfix-fires-at-load-start-not-load-completion">XmlSaveLoad.LoadWorld is async: a Harmony postfix fires at load START, not load completion<a class="headerlink" href="#xmlsaveloadloadworld-is-async-a-harmony-postfix-fires-at-load-start-not-load-completion" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+<p><code>XmlSaveLoad.LoadWorld</code> (same class, decompile line 268507 at 0.2.6403.27689) is an async method. Verbatim head:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTask</span><span class="w"> </span><span class="nf">LoadWorld</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">loadWithoutChars</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">)</span><span class="w">                                </span><span class="c1">// 268507</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">WorldManager</span><span class="p">.</span><span class="n">SetGamePause</span><span class="p">(</span><span class="n">pauseGame</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span><span class="w">                                                     </span><span class="c1">// 268509: first synchronous statement</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">ImGuiLoadingScreen</span><span class="p">.</span><span class="n">SetState</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">LoadingScreenInitializing</span><span class="p">.</span><span class="n">DisplayString</span><span class="p">);</span><span class="w">         </span><span class="c1">// 268510: first await</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="n">FadePanel</span><span class="p">.</span><span class="n">ToBlack</span><span class="p">(</span><span class="mf">0.5f</span><span class="p">);</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="n">DelayType</span><span class="p">.</span><span class="n">UnscaledDeltaTime</span><span class="p">);</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="n">Stopwatch</span><span class="w"> </span><span class="n">overallLoadTime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Stopwatch</span><span class="p">();</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">overallLoadTime</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">DelayFrame</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">Loading</span><span class="p">;</span><span class="w">                                                      </span><span class="c1">// 268516: only after three awaits</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The C# compiler rewrites an <code>async</code> method into a stub that constructs the state machine, runs it to the first suspending <code>await</code>, and returns the <code>UniTask</code>. Harmony patches that stub. A <code>[HarmonyPostfix]</code> on <code>LoadWorld</code> therefore runs when the stub returns, i.e. as soon as the method suspends at its first await (268510): at postfix time the pause request from 268509 has been issued, <code>GameState</code> is not yet <code>Loading</code> (268516), nothing has been deserialized, and the actual load continues asynchronously long after the postfix returned. The postfix observes load START, never load completion. The single vanilla caller awaits the task (<code>await XmlSaveLoad.LoadWorld();</code>, 264682).</p>
+<p>Two consequences for mods:</p>
+<ul>
+<li>To run code at load completion, do not postfix <code>LoadWorld</code> directly. Hook something the tail of the load actually reaches (per-Thing <code>OnFinishedLoad</code>, or the <code>GameState</code> transition to <code>Running</code>), or take <code>__result</code> (the <code>UniTask</code>) in the postfix and continue after awaiting it.</li>
+<li>A postfix that assumes "no simulation tick is running because the game just paused" is also wrong on arrival: <code>GameManager.GameTick</code> (204387) checks <code>WorldManager.IsGamePaused</code> only at the TOP of each loop iteration (204394) and then moves the tick body onto a ThreadPool worker (<code>await UniTask.SwitchToThreadPool()</code>, 204418). A tick that passed the pause check before <code>SetGamePause(true)</code> landed runs to completion, including <code>ElectricityManager.ElectricityTick()</code> (204466), concurrently with the first stretch of <code>LoadWorld</code> and with anything a load-start postfix does. See <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading</a>.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8445,6 +8491,7 @@ tags: [save-load, harmony]</p>
 <li>2026-04-20: page created from the Research migration; F0122 primary, three additional sources corroborating across two device classes.</li>
 <li>2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of <code>XmlSaveLoad.LoadThing</code> (line 251312) and <code>GridController.AddGridStructure</code> (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.</li>
 <li>2026-07-02: added the "XmlSaveLoad.LoadThing renamed to Load at 0.2.6403" section (<code>Load</code> plus a new generic <code>Load&lt;T&gt;</code> overload). Verified against the 0.2.6403.27689 decompile: zero grep hits for <code>LoadThing</code>, replacement overloads quoted verbatim from lines 268424 and 268463. The 0.2.6228-stamped ordering sections above were not restamped; the new section records which part of their evidence (the Create -&gt; DeserializeSave -&gt; ValidateOnLoad order) is re-confirmed by the new body and which part (<code>GridController.AddGridStructure</code>) was not re-read.</li>
+<li>2026-07-13: added the "XmlSaveLoad.LoadWorld is async" section (game version 0.2.6403.27689) from a fresh-validation pass on a decompile-claim audit. Verbatim method head read at 268507-268516 (<code>public static async UniTask LoadWorld(bool loadWithoutChars = false)</code>; <code>SetGamePause(true)</code> is the first synchronous statement, <code>GameState = Loading</code> lands only after three awaits); sole caller <code>await XmlSaveLoad.LoadWorld();</code> at 264682; the <code>GameTick</code> top-of-loop pause gate (204394) and <code>SwitchToThreadPool</code> handoff (204418) read the same pass. Establishes that a Harmony postfix on <code>LoadWorld</code> fires at load start (the async stub returns at the first suspending await) with a simulation tick possibly still in flight. Additive; no existing content contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
