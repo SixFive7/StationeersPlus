@@ -200,9 +200,49 @@ public override void ReceivePower(CableNetwork cableNetwork, float powerAdded)
 
 **How vanilla survives without synchronization.** Three layers. (1) CLR atomicity: ECMA-335 guarantees aligned loads/stores of 32-bit-or-smaller types are atomic, so a plain `float` read can never observe a torn bit pattern; corruption in the garbage-value sense is structurally impossible (this guarantee would NOT hold if the field were a `double`). (2) Phase sequencing: the reset and the atmosphere-phase accruals are ordered against the solve by the tick structure itself, so most writers are never actually concurrent with it. (3) Tolerance: the five main-thread writers race the worker's reads and its `= 0f` reset with non-atomic read-modify-writes; an interleaving can lose an increment (work done but wiped unbilled: free power) or resurrect a pre-reset value (billed again next tick: double bill), each bounded by one frame or one 100 ms slice of work, and the absence of barriers permits slightly stale reads. Vanilla never audits energy and ratio-scales forgivingly, so these leaks are invisible in the base game. Note the direction of the hazard: the blind reset destroys even increments the resetter never observed, which is why a subtract-what-you-billed write-back (drain-and-bill) is strictly safer than the vanilla reset it replaces, and a main-thread-marshaled debit (vanilla's own `SetPowerFromThread` idiom) eliminates the writer race entirely by making every mutation execute on one thread.
 
+## PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)
+<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+
+The `CableNetwork.PowerDeviceList` / `DataDeviceList` getters lazily rebuild on read: `if
+(PowerDeviceListDirty || DataDeviceListDirty) RefreshPowerAndDataDeviceLists();` (270690-270699 /
+270678-270688). The refresh (270746-270787) is IN PLACE on the SAME list instances (`_powerDeviceList
+.Clear()` then re-`Add`), never a reference swap, iterating `DeviceList` backwards and testing power
+membership as `device.PowerCables[i].CableNetwork == this` (270772-270782; data membership the same
+over `DataCables`). It takes NO lock and runs on whichever thread happens to touch a getter while a
+dirty flag is set. Consequences:
+
+- Two threads calling a getter concurrently while dirty both run the refresh over the same lists
+  (duplicate entries / torn state). A reader that does `lock (net.PowerDeviceList) { copy }` is NOT
+  protected either: the `lock` expression evaluates the getter FIRST (potentially running the
+  unlocked refresh), and a later refresh triggered from another thread mutates the very instance
+  the reader holds locked, because the refresh itself never locks.
+- The race-free way to read power membership off-thread is to bypass the getter entirely: snapshot
+  `DeviceList` under `lock (net.DeviceList)` (vanilla writers hold that lock) and apply the same
+  `PowerCables` predicate yourself. This is what PowerGridPlus's per-tick GridSnapshot does.
+- A derived network class overrides `RefreshPowerAndDataDeviceLists` (272486), so a Harmony patch
+  on the base virtual would not cover every network type; the bypass above is override-proof.
+
+## Consumer demand formula nuances: Fabricator vs SimpleFabricatorBase, and Fermenter's gates
+<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+
+Exact `GetUsedPower` bodies for the accumulator classes whose formulas differ in their OFF branch
+(needed verbatim by anything reconstructing demand from the accumulator, e.g. PowerGridPlus's
+DemandModel):
+
+- `SimpleFabricatorBase` (420203): foreign net -> `-1f`; `!OnOff` -> `_powerUsedDuringTick` (the
+  residual accumulator still bills while switched off); else `UsedPower + _powerUsedDuringTick`.
+  `ArcFurnace` (365548) and `IceCrusher` (380296) share this shape.
+- `Fabricator` (396283-396294): foreign net -> `-1f`; `!OnOff` -> `0f` (the accumulator is NOT
+  billed while off, unlike its SimpleFabricatorBase sibling); else `UsedPower +
+  _powerUsedDuringTick`.
+- `Fermenter` (181583-181594): `!OnOff || foreign || PowerCableNetwork == null ||
+  !IsStructureCompleted` -> `0f`; `!IsOperable` -> `UsedPower` only; else `UsedPower +
+  _powerUsedDuringTick`.
+
 ## Verification history
 <!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
 
+- 2026-07-12 (later): added "PowerDeviceList lazy rebuild semantics" (getter dirty-check 270690-270699, in-place unlocked refresh body 270746-270787 with the PowerCables membership predicate, the derived override at 272486, and the lock(DeviceList)+predicate bypass) and "Consumer demand formula nuances" (Fabricator 396283-396294 bills NO accumulator while off, unlike SimpleFabricatorBase/ArcFurnace/IceCrusher which bill the residual accumulator; Fermenter's completion + IsOperable gates 181583-181594). Read directly from the 0.2.6403.27689 decompile during the PowerGridPlus B + D1 data-plane implementation. No prior content contradicted; the consumer census rows are refined, not changed.
 - 2026-07-12: added the "_powerUsedDuringTick synchronization census" section from a whole-decompile enumeration pass (0.2.6403.27689) driven by the PowerGridPlus data-plane redesign discussion. All 17 field declarations read verbatim (plain instance float, never volatile / static / double; 16 private, `FiltrationMachineBase` 377803 protected; no shared base field, proven by `DroidSleeper` declaring its own directly under `Device`; no property wrapper). Every write site classified by thread: the power-worker reset in all 16 `ReceivePower` overrides via `ApplyState -> ConsumePower` (271820-271832), with the off-main-thread proof at 271933 / 371648-371651 (`SetPowerFromThread` marshals via `SwitchToMainThread`); eleven atmosphere-phase writers (sequenced before the solve, 204458/204466); five genuinely concurrent main-thread writers matching the mid-tick-mutable accumulator rows (181666/181674, 380277, 396364, 365606, 420309). `Interlocked` confirmed at ZERO occurrences assembly-wide; no `lock` in any relevant method (the only power-machinery lock is `PowerTick.Initialise` 271748-271758 snapshotting the lists). The `SpawnPointAtmospherics` fold-then-zero variant (422742-422746) and the `DynamicComposter` never-reset variant (296395) recorded verbatim. No prior content contradicted: the consumer census's mid-tick-mutable vs tick-stable split is confirmed and extended with the declaration and reset-thread facts.
 - 2026-07-09 (later): COMPLETED the consumer census from a whole-decompile enumeration (all 34 `GetUsedPower(CableNetwork)` overrides + all 15 `GetGeneratedPower` overrides classified by mutation site and thread; produced by three independent census agents for the PowerGridPlus Powered-ownership redesign and cross-checked against the mod build). CONFLICT RESOLUTION against this page's morning version: `SimpleFabricatorBase` does NOT cover "every fabricator"; `Fabricator` (class decl 396068, `public class Fabricator : FabricatorBase`, read directly this pass) is a SIBLING with its own `GetUsedPower` override (396283) and a main-thread `OnServerExportTick` accumulator (396364). Replaced the three-row table with the complete fourteen-row mid-tick-mutable set plus the PowerConnector forwarding producer, the tick-stable list with the atmos-before-electricity and device-tick-after-solve discriminators (204418/204458/204466), the `DynamicComposter` sibling dead-end (296224 vs 297342, `as DynamicGenerator` null at 408026), and the `ElevatorShaftNetwork.GetUsedPower` dead-code finding (395878-395890, zero callers). Consequence paragraph updated to the shipped latch set + the net-liveness ownership model.
 - 2026-07-09: added the "Consumer demand stability census" section, the demand-side twin of the producer census. Read directly from `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs`: `SimpleFabricatorBase` class (line 419486), `OnBeginSmelt` (420195), `GetUsedPower` (420203-420214, foreign-network sentinel `-1f`, else `OnOff ? UsedPower + _powerUsedDuringTick : _powerUsedDuringTick`), `ReceivePower` reset of `_powerUsedDuringTick` (420216-420220); the per-frame `WaitThenMake` accumulation (~420309) carried from the same session's earlier read. Establishes the fabricator family as the consumer-side analogue of the solar/wind producer read-coherence hazard. No prior content contradicted; earlier sections keep their stamps.

@@ -3,7 +3,7 @@ title: PowerTick
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-09
+verified_at: 2026-07-12
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 254484-254511 (PowerProvider), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState), 350696-350724 (Device base query/settle methods)
@@ -63,7 +63,7 @@ public class PowerTick
 Field declarations at 0.2.6403.27689: class 271698, `BreakableCables` 271708, `BreakableFuses` 271710, `_powerAvailable` 271718. `_powerAvailable` is a DEAD field: it is declared and never referenced anywhere else in the whole decompile (single grep hit at 271718). See "BreakableFuses / BreakableCables are append-only accumulators" below for the lifetime semantics of the two Breakable lists.
 
 ## CableNetwork.OnPowerTick drives it
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
 
 ```csharp
 public virtual void OnPowerTick()   // on CableNetwork
@@ -83,6 +83,8 @@ public virtual void OnPowerTick()   // on CableNetwork
 ```
 
 Runs on the UniTask ThreadPool worker (see [PowerTickThreading](../GameSystems/PowerTickThreading.md)): managed-memory reads (`cable.MaxVoltage`, `cable.CableType`, list iteration) are safe off-thread; Unity-API calls crash. `Cable.Break()` is reached from here and self-marshals to the main thread.
+
+**Caller exclusivity (whole-decompile census, 0.2.6403.27689).** The trio `PowerTick.Initialise` / `CalculateState` / `ApplyState` has exactly ONE vanilla call site each, all inside `CableNetwork.OnPowerTick` (270831-270833); `CableNetwork.OnPowerTick` (270827) has exactly one call site, the `CableNetworkTickAction` delegate (272023-272026) invoked only by `ElectricityManager.ElectricityTick` (272099). `PowerTick` is a `readonly` field of `CableNetwork` (270617), not a method; there is no other entry into the vanilla per-network power flow anywhere in the assembly. A mod that replaces `ElectricityTick` and does not call the trio has therefore retired the vanilla solver completely.
 
 ### Load mirrors are written at the END of the tick: cross-network advertise is one-tick lagged, and a dead island cannot bootstrap
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
@@ -290,8 +292,35 @@ Un-powering also happens OUTSIDE the tick on wiring/state events via the `CheckP
 
 This matters for any mod that ticks a network more than once per game tick. PowerGridPlus's atomic tick splits the work into an OBSERVE pass and an ENFORCE pass, and each pass calls `Initialise` then `CalculateState`, so the second pass starts from a clean zero instead of doubling the first. `ApplyState` is different: it has real side effects (it drains `Providers[].Energy` and calls `Device.ReceivePower` via `ConsumePower`, lines 271820-271840 -- which mutates a transformer's `_powerProvided` ledger -- sets `Device.Powered`, and may `Break()` a fuse or cable), so it is run only once per game tick, in the enforce pass. Re-running `ApplyState` a second time would double-drain providers and re-trigger the break checks.
 
+## Net-load-field consumer census, and the UsePower override census
+<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+
+Whole-decompile census of everything that READS or WRITES the four `CableNetwork` load mirrors plus `DuringTickLoad`, i.e. the complete external contract a replacement power solver must keep filling:
+
+Writers besides `OnPowerTick` (270834-270838):
+- `Device.AssessPower` (main thread, 371654-371685) accumulates `cableNetwork.DuringTickLoad += ...` at 371671/371679, gated on `EstimatedRemainingLoad` (`PotentialLoad - CurrentLoad - DuringTickLoad`, 270676). This is vanilla's instant-power headroom check when a device toggles on mid-tick.
+- Multiplayer: the server serializes `CurrentLoad` / `PotentialLoad` / `RequiredLoad` per network (`ElectricityManager.CableNetworkWriteAction`, 272028-272037) and the client writes them back in `DeserializeDeltaState` (272144-272146). Client HUD load readouts therefore depend on the HOST filling these fields.
+
+Readers:
+- The network analyser handheld cartridge renders `CurrentLoad` / `PotentialLoad` / `RequiredLoad` (`OnPreScreenUpdate`, 350752-350754).
+- `CableAnalyser` wraps all three as properties, tooltip text, and IC10 `LogicType.PowerRequired` / `PowerActual` / `PowerPotential` (392705-392787).
+- `ElectricalInputOutput` forwards `CurrentLoad` -> `OutputNetwork.CurrentLoad` and `PotentialLoad` / `AvailablePower` -> `InputNetwork.PotentialLoad` (394873-394897); `AreaPowerControl.GetLogicValue` and `Battery.GetLogicValue` map `LogicType.PowerPotential` / `PowerActual` onto those wrappers (390769-390770, 391905-391906), as does `WirelessPower.GetLogicValue` (427128-427129).
+- `AreaPowerControl` property surfaces read `InputNetwork.PotentialLoad` (MaximumPower 390610/390612, NoPower 390644, AvailablePower 390656).
+- `Cable.Break` sparks only when `CableNetwork.RequiredLoad > 0f` (392477).
+- **`ShortfallLoad` has ZERO readers anywhere** (declared 270603, written 270838, never consumed; not serialized).
+
+`UsePower` override census (the provider-debit half of the settle; `PowerProvider.ApplyPower` calls `Device.UsePower(net, EnergyUsed)` at 271690-271696, base is a no-op 371523-371525):
+- `Battery.UsePower` (392144-392150): `PowerStored = Clamp(PowerStored - powerUsed, 0, PowerMaximum)`, gated `Error != 1 && OnOff && cableNetwork == OutputNetwork && IsOperable`; `Battery.ReceivePower` (392152-392158) is the mirrored charge clamp on the input side.
+- `Transformer.UsePower` / `ReceivePower` (424757-424771): the `_powerProvided` ledger handshake (`+= powerUsed` on the output side, `-= powerAdded` on the input side).
+- `AreaPowerControl.UsePower` (391000-391012): the deferred cell-cover drain (`min(cell stored, _powerProvided)` drained one tick after the cell covered a shortfall) then `_powerProvided += powerUsed`; `ReceivePower` (391014-391026) repays the ledger and charges the cell from the negative remainder.
+- `PowerTransmitter.UsePower` (408424-408430) / `PowerReceiver.UsePower` (408184-408190): ledger `+=` on their respective output sides.
+- `RocketPowerUmbilicalFemale.UsePower` / `ReceivePower` (158143-158153) and `Male.UsePower` (158628-158637): direct `PowerStored` clamps plus the `LastPowerRemoved` / `LastPowerAdded` mirrors (the Male zeroes `LastPowerRemoved` when OFF).
+- Pure generators (SolarPanel, WindTurbineGenerator, SolidFuelGenerator, GasFuelGenerator, TurbineGenerator, DynamicGenerator) override nothing; `RadioscopicThermalGenerator.UsePower` (416916-416919) calls the empty base. A generator's delivered energy is therefore never debited from anything; output is recomputed per tick.
+- Non-delivery `UsePower` callers exist: `Fermenter.OnPowerTick` self-calls `UsePower(net, GetUsedPower(net))` (181602-181610, a no-op through the base), and `DynamicComposter.UsePower()` (296399) is an unrelated parameterless battery-cell toggle.
+
 ## Verification history
 
+- 2026-07-12: added the "Net-load-field consumer census, and the UsePower override census" section and the caller-exclusivity paragraph under "CableNetwork.OnPowerTick drives it" (whole-decompile censuses at 0.2.6403.27689, produced for the PowerGridPlus B + D1 data-plane replacement: the load mirrors' complete reader/writer contract incl. the MP serialize at 272028-272037 / client write-back at 272144-272146 and the ShortfallLoad zero-reader finding; the per-class UsePower/ReceivePower settle semantics verbatim-cited; the trio + OnPowerTick single-caller-chain proof). No prior content contradicted; the load-mirror lag section's bridge-read list is confirmed and extended.
 - 2026-07-09 (later): two changes from the PowerGridPlus Powered-ownership redesign investigation (game version 0.2.6403.27689). (a) CONFLICT RESOLUTION on the AllowSetPower override census: the four-row table (added 2026-07-02) claimed to be the whole-decompile census; two independent census agents found six device overrides, and the fresh-validation direct read confirmed the two missing rows verbatim (`PowerGeneratorPipe.AllowSetPower` 396569-396572 and `StirlingEngine.AllowSetPower` 423979-423982, both `return false;`), plus the uncalled non-Device `ElevatorShaftNetwork.AllowSetPower` aggregate (395892). Table corrected to six rows + the dead-code note; the "all four nominate the input side" conclusion narrowed to the four bridges, with the generator classes documented as fully self-owned (OnAtmosphericTick writes both Powered edges: 396692-396705, 424025-424077). (b) Added the "Zero-Potential corollary (the dark-net freeze)" paragraph to the settle-loops section: `CalculateState` enrolls a `PowerProvider` only for `generatedPower > 0f` (271782-271792) and `ConsumePower` skips drained providers (271826), so a network whose producers all advertise 0 has an EMPTY provider array, `ReceivePower` is never called, `ConsumePower` returns false, per-tick accumulator debts freeze exactly, and the ApplyState power-on branch cannot fire. Read directly from the decompile this pass; this corollary is the conservation mechanism a mod-forced dark network rests on.
 - 2026-07-09: re-confirmed the `ApplyState` device power-apply gate (271903-271946) and base `Device.AllowSetPower` (371531-371534) verbatim against the 0.2.6403.27689 decompile; no content change (the "ApplyState un-powers zero-demand and unfed devices" and "CacheState: strict power-met" sections already capture the else-branch, the strict `_isPowerMet` gate, and the base `PowerCableNetwork == cableNetwork` semantics). Occasion: diagnosing a PowerGridPlus fabricator print-start reboot. A print spikes a fabricator's `GetUsedPower` for one tick; because PowerGridPlus pins each net's `Potential` to the allocator's exact grant with no headroom, that one-tick spike makes `Potential < Required`, `_isPowerMet` false, and the else-branch (271936-271938) un-powers the fabricator, whose main-thread `OnPoweredChanged` cancels the in-progress print. Vanilla's advertised supply headroom normally masks this. The mod-side fix mirrors PowerGridPlus's existing segmenter `AllowSetPower` veto (`PoweredPresentationPatches`) for plain consumers behind a one-tick grace; that is mod-local and belongs in the PowerGridPlus docs, not here.
 - 2026-07-07: re-confirmed the `CacheState` ratio computation (271842-271855, zero-Potential guard assigns the literal `1f`) and the `ApplyState` ratio consumption (`usedPower *= _powerRatio` at 271928 feeding `ConsumePower`, plus the power-on/off ladder) byte-identical against the 0.2.6403.27689 decompile. Occasion: deriving the PowerGridPlus partial-power sentinel's scope (which networks a sub-1 ratio can actually deprive) and its injection positive control (zeroing a sole supplier's advertise trips the zero-Potential guard and reads whole-dark ratio 1, so the injector must understate fractionally). No content change.
