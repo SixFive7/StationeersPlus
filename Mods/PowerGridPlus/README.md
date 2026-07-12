@@ -8,20 +8,21 @@ Work in progress. Not on the Workshop yet. A pure-patch mod: no new craftable de
 
 The atomic power tick:
 
-- Replaces the outer electricity tick with a five-phase flow: observe every network, decide every fault and allocation globally, then run the vanilla per-network power flow with those decisions already in effect. Decisions made in a tick apply in that same tick, so there is no one-tick lag and no flicker.
-- The inner per-network simulation is the vanilla PowerTick, unmodified. Power Grid Plus changes behaviour through device-level patches and the global allocator, not by replacing the simulation core.
-- Vanilla partial-power scaling is kept as a safety net: if a configuration slips past every Power Grid Plus rule (a future game update, an unclassified modded device), the grid degrades the vanilla way instead of misbehaving.
+- Replaces the electricity tick outright: one snapshot of the whole grid (topology plus every device's demand and output, read exactly once per tick), the protection checks, one global allocation, then one write-back that applies the results. Decisions made in a tick apply in that same tick, so there is no one-tick lag and no flicker.
+- The vanilla per-network power flow no longer runs at all. Every device's demand is sampled once, every delivery equals the allocator's grant exactly, and every joule is accounted for; the mid-tick races and partial-power artifacts of the vanilla flow are gone by construction, not patched around.
+- A device is either fully powered or cleanly off. Vanilla's partial-power scaling (every machine browning out a little) has no equivalent in this model; a network that cannot carry its load goes dark as a unit with a visible fault instead.
 
 Faults. A power device that cannot do its job enters a visible 60-second fault lockout instead of silently misbehaving. Four fault types, each with its own on-device feedback:
 
 - **Shedding** (orange flash): a transformer (or other bridging device) cannot get its full draw from its input network. When siblings compete for a short input, the lowest Priority sheds first. While shed it contributes 0 to its output network, so the subnet goes dark cleanly instead of every device flickering.
 - **Overloaded** (red flash): a device is delivering everything its Setting allows while downstream demand stays unmet, or a battery is discharging at its full effective rate with demand still unmet. The bottleneck device is the one that trips, so you know what to upgrade or split.
 - **Cycle Fault** (red flash): the device is part of a closed power loop. Every bridging device on the loop faults and contributes 0, which dissolves the loop. No cable is burned for loops.
-- **Variable Voltage Fault** (red flash): a power producer (solar, wind, generator, RTG, the small wall turbine, or a portable generator plugged into a power connector) is wired to consumers without a transformer in between. Producers may only share a network with other producers and transformers; everything else must sit behind a transformer. Producers without a button (solar, wind, RTG) stop generating and explain themselves in their hover text. An unrecognised modded producer in the same situation falls back to burning the cable next to the violating consumer. Every producer with a logic port (so not the RTG or the bare Power Connector dock) exposes a read-only `VariableVoltageFault` logic value, 1 while faulted, for IC10.
+- **Variable Voltage Fault** (red flash): a power producer (solar, wind, generator, RTG, the small wall turbine, or a portable generator plugged into a power connector) shares a cable network with any device that is not another producer or a transformer. The rule is strict: batteries and other bridging devices (APCs, wireless dishes, rocket umbilicals) count as violations too, and a transformer on the network does not exempt the rest; everything except producers and transformers must sit behind a transformer. Producers without a button (solar, wind, RTG) stop generating and explain themselves in their hover text. An unrecognised modded producer in the same situation falls back to burning the cable next to the violating device. Every producer with a logic port (so not the RTG or the bare Power Connector dock) exposes a read-only `VariableVoltageFault` logic value, 1 while faulted, for IC10.
 - Every faulted device shows the cause and a live countdown in its hover text (for example `(Shedding: Insufficient upstream supply! 42.17s)`). Toggling the device off clears the fault instantly; toggling back on re-evaluates, and the fault re-fires if the cause is still there.
 - Faults are transient: they clear on save load and recompute from the live topology on the first tick.
 - Not every dark subnet is a fault: a contributor whose input network has no power source at all simply idles, with a steady grey `(No upstream supply)` hover (no flash, no countdown, no lockout). Power its input and it delivers again immediately.
 - A healthy but idle bridge stays powered. A charger transformer whose batteries are full, or an idle dish pair, reads Powered on (hover and IC10 alike) instead of vanilla's misleading "unpowered" state. Only faulted, switched-off, or dead-input bridges read unpowered, so the Powered flag means what a player thinks it means.
+- A machine's own demand spike can never reboot it. The mod decides every device's Powered flag from its network's state (live, shed, overloaded, or dead), not from vanilla's per-device met-this-tick check, so a printer starting a job keeps running: either its network carries the load, or the whole subnet goes dark for 60 seconds as a unit. Powered and the on/off switch are independent as well: a switched-off device on a live network reads `Power` = 1 in IC10 (powered but off) and draws nothing; read `On` for the switch state, or turn off the Decouple Powered From On Off setting to restore the vanilla coupling.
 
 Transformer priority and dispatch:
 
@@ -93,16 +94,15 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Server - Batteries | Battery Charge Efficiency | 1.0 | Fraction of incoming power stored. |
 | Server - Batteries | Enable Battery Logic Additions | true | Expose the four soft-power logic values on batteries. |
 | Server - Batteries | Enable Battery Logic Passthrough | true | Master toggle for battery logic passthrough. |
-| Server - Transformers | Enable Transformer Exploit Mitigation | true | Close the transformer free-power exploit (fresh, exact billing of what flows). |
 | Server - Transformers | Enable Transformer Logic Additions | true | Expose transformer throughput as Power Actual. |
 | Server - Transformers | Enable Transformer Logic Passthrough | true | Master toggle for transformer logic passthrough. |
 | Server - Transformers | Enable Transformer Shedding | true | Priority dispatch and shed lockouts. Off restores vanilla input-side behaviour. |
 | Server - Transformers | Enable Transformer Overload Protection | true | Overload lockouts (including the cable-overflow trip). Off restores vanilla partial power. |
-| Server - Area Power Control | Enable APC Power Fix | true | Stop the APC power leak and idle battery drain; apply cable caps. |
 | Server - Area Power Control | APC Battery Charge Rate | 1000 | APC cell charge cap (W). |
 | Server - Area Power Control | APC Battery Discharge Rate | 1000 | APC cell discharge cap (W). |
 | Server - Area Power Control | Enable APC Logic Passthrough | true | APCs are logic-transparent. |
 | Server - Power Transmitters | Enable Power Transmitter Logic Passthrough | true | Master toggle for transmitter / receiver logic passthrough. |
+| Server - Powered Presentation | Decouple Powered From On Off | true | Powered means "network energized", independent of the on/off switch: a switched-off device on a live network reads Power=1. Off restores the vanilla coupling. |
 | Server - Rocket Umbilical | Enable Rocket Umbilical Limits | true | Rate caps + the four soft-power logic values on the umbilical pair. |
 | Server - Rocket Umbilical | Rocket Umbilical Charge Rate | 10000 | Umbilical charge cap (W). |
 | Server - Rocket Umbilical | Rocket Umbilical Discharge Rate | 10000 | Umbilical discharge cap (W). |
@@ -111,7 +111,7 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Server - Emergency Lights | Enable Wall Light Battery Emergency Mode | true | Battery wall lights act as emergency backup lights. |
 | Server - Emergency Lights | Emergency Light Prefabs | StructureWallLightBattery | Comma-separated prefab names that get the emergency behaviour. |
 
-Always-on behaviour with no toggle: voltage tiers, cycle faults, producer isolation (the Variable Voltage Fault rule), the deterministic cable-burn rule, the powered presentation for idle healthy bridges, and the wireless ledger cleanup. These are the core of the redesigned grid.
+Always-on behaviour with no toggle: voltage tiers, cycle faults, producer isolation (the Variable Voltage Fault rule), the deterministic cable-burn rule, the transformer free-power exploit fix, the Area Power Control power fix, device Powered ownership (the network's state decides every device's Powered flag, so a demand spike cannot reboot a printer), the powered presentation for idle healthy bridges, and the wireless ledger cleanup. These are the core of the redesigned grid.
 
 ## How it works
 
@@ -128,27 +128,29 @@ When a network cannot cover everything asking for power, the lowest-Priority doo
 
 The result is a grid where a machine is either fully powered or cleanly off, supply always reaches a network before it is spent, and the protections act like breakers and priorities you can reason about instead of random brownouts.
 
-Under the hood this is three layers: the vanilla per-network `PowerTick` runs unmodified; small device-level patches make a shed or faulted device report 0 power so the vanilla flow already reflects every decision; and a global allocator runs once per tick across every network at once (the piece vanilla cannot express, since the base game ticks each network in isolation).
+Under the hood this is three layers: a per-tick snapshot reads the whole grid exactly once (topology and every device's demand and output); a global allocator solves every network at once (the piece vanilla cannot express, since the base game ticks each network in isolation); and a write-back applies the converged result (delivered energy, stored charge, the Powered flags, the network readouts). The vanilla per-network power flow is not called at all.
 
-### The five-phase tick
+### The tick pipeline
 
-The outer electricity tick is replaced by one driver (`AtomicElectricityTickPatch`) that runs five phases in order. Reading that file top to bottom is reading the whole flow; each phase hands off to one registry, detector, or patch.
+The electricity tick is replaced by one driver (`AtomicElectricityTickPatch`) that runs the pipeline in order. Reading that file top to bottom is reading the whole flow.
 
-- **Phase 1, observe.** Initialise and calculate every network from current state, populating each network's required and potential power from this tick's device readings. Burn candidates are cleared so the tick starts clean. On the first tick after a world load, stale wireless billing ledgers from the save are zeroed and unrecognised modded bridge devices are inventoried, before anything can read them.
-- **Phase 1.5, faults.** Wrong-tier cable burns fire first, then cycle detection faults every device on a closed power loop, then producer isolation faults any generator wired to consumers without a transformer. If anything is newly faulted, the networks are re-observed so the next phase sees the corrected grid.
-- **Phase 2, decide.** The global allocator reads every network's required and potential power, decides which devices shed (lowest Priority first when an input runs short) and which overload (demand still unmet at full output), and records the lockouts. Per-tick fault snapshots to clients are sent here.
-- **Phase 3, enforce.** Initialise, calculate, and apply every network again, upstream networks first. The second calculation reads the fresh lockout flags and the allocated flows through the device patches, so locked-out devices contribute 0 and vanilla distributes power and burns overloaded cables with every decision already in effect. Decisions made this tick take effect this tick: no one-tick lag, no flicker. At the end of the pass, idle healthy bridges are re-marked powered and the vanilla billing ledger is clamped into bounds.
-- **Phase 4, devices.** Every powered thing runs its per-device tick: battery charge state, generator fuel, and any other mod's device-tick patch.
-- **Phase 5, logic.** IC10 chips execute on the vanilla schedule.
+- **Snapshot.** One pass over the grid builds the tick's model: network membership (read under the game's own locks), every device's power draw and output (sampled exactly once, so a device changing its mind mid-tick cannot tear the solve), storage levels, and each bridge device's physics. On the first tick after a world load, stale wireless billing ledgers from the save are zeroed and unrecognised modded bridge devices are inventoried first.
+- **Protect.** Wrong-tier cable burns fire first, then cycle detection faults every device on a closed power loop, then producer isolation faults any producer sharing a network with anything but producers and transformers. Newly faulted producers are zeroed in the snapshot so the allocator solves the corrected grid in the same tick.
+- **Allocate.** The global allocator decides every flow, which devices shed (lowest Priority first when an input runs short, leaf networks before mid-chain hops), which overload (demand still unmet at full output), and each network's live-or-dark verdict. Per-tick fault snapshots to clients are sent here.
+- **Write back.** The results are applied in one pass: machines are billed exactly what the allocator granted, batteries and cells charge and discharge by exactly their shares, fuses blow when flow exceeds their rating, sustained generator overflow burns the cable at the top producer, the network readouts (the analyser and IC10 values) are filled, and every device's Powered flag is asserted from its network's verdict.
+- **Devices.** Every powered thing runs its per-device tick: battery charge state, generator fuel, and any other mod's device-tick patch.
+- **Logic.** IC10 chips execute on the vanilla schedule.
 
 ### Where it lives in the source
 
-- `AtomicElectricityTickPatch` is the five-phase driver and the single entry point.
-- `PowerAllocator` is Phase 2: the three flow classes (rigid machine demand, storage charge, storage discharge), shedding, overload, and the integer-keyed ordering that keeps multiplayer peers in agreement. `SegAdapters` describes each bridge device class (transformer, linked dish pair, APC, rocket umbilical) to the allocator through one contract, and `PowerTransmitterPlusInterop` handles the PowerTransmitterPlus tiers and the billing handshake.
+- `AtomicElectricityTickPatch` is the pipeline driver and the single entry point.
+- `Core/GridSnapshot` is the snapshot: topology plus the single boundary read, with `Core/DemandModel` handling the accumulator-driven machines (fabricators, furnaces) so their billed work is drained exactly once on the thread that owns it (`Core/MainThreadDebitQueue`).
+- `PowerAllocator` is the solve: the three flow classes (rigid machine demand, storage charge, storage discharge), shedding, overload, and the integer-keyed ordering that keeps multiplayer peers in agreement. `SegAdapters` describes each bridge device class (transformer, linked dish pair, APC, rocket umbilical) to the allocator through one contract, and `PowerTransmitterPlusInterop` handles the PowerTransmitterPlus tiers and the billing handshake.
+- `Core/WriteBack` applies the plan: energy settlement, fuses, the generator-overflow burn, and the network readouts; `PoweredOwnership` and `PoweredPresentation` assert the Powered flags.
 - Four registries hold the transient fault lockouts (shedding, overload, cycle, variable voltage). They are cleared on save load and recomputed from live topology on the first tick.
 - The detectors are separate from the registries: `CycleGraphBuilder` finds power loops, `VariableVoltageFaultDetector` finds unprotected producers, and `VoltageTierEnforcer` with `CableBurnWindow` handles the two kinds of cable burn (wrong-tier and generator overflow).
-- The device patches (battery, transformer, Area Power Control, wireless pair, rocket umbilical) are where a lockout becomes a 0-power reading, where each allocated flow is advertised and billed, and where the soft-power logic values live.
-- `PoweredPresentation`, `LedgerAdoption`, `ConservationChecker`, and `UnknownBridgeCensus` are the presentation and self-check layer: the powered-state policy for idle bridges, the wireless-ledger cleanup, the per-tick conservation audit, and the modded-bridge inventory.
+- The remaining device patches are presentation: they serve the allocator's published totals to tooltips, hovers, and the logic values.
+- `LedgerAdoption`, `ConservationChecker`, and `UnknownBridgeCensus` are the self-check layer: the wireless-ledger cleanup, the per-tick conservation audit, and the modded-bridge inventory.
 
 Full algorithm specifications, invariants, and the decision log are in the repo-root [POWER.md](../../POWER.md) and the mod-local `RESEARCH.md`.
 

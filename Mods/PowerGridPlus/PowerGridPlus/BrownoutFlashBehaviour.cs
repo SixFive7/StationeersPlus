@@ -302,11 +302,31 @@ namespace PowerGridPlus
             _wasFlashing = false;
         }
 
-        // Cached reflection handle for vanilla SwitchOnOff.RefreshColorState
-        // (private instance method, no parameters). Resolved once at type
-        // load via AccessTools so a null lookup degrades silently.
+        // Cached reflection handle for vanilla SwitchOnOff.RefreshColorState. Resolved once at
+        // type load via AccessTools so a null lookup degrades silently. Arity-proof: the method
+        // was parameterless when this was written and gained a parameter in a later game version
+        // ("Number of parameters specified does not match" spam), so the default-argument array
+        // is built from the CURRENT signature (declared defaults where present, else the value
+        // type's default instance, else null).
         private static readonly MethodInfo RefreshColorStateMethod =
             AccessTools.Method(typeof(VanillaSwitchOnOff), "RefreshColorState");
+
+        private static readonly object[] RefreshColorStateArgs = BuildDefaultArgs(RefreshColorStateMethod);
+
+        private static object[] BuildDefaultArgs(MethodInfo method)
+        {
+            if (method == null) return null;
+            var parameters = method.GetParameters();
+            if (parameters.Length == 0) return null;
+            var args = new object[parameters.Length];
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                var p = parameters[i];
+                if (p.HasDefaultValue) args[i] = p.DefaultValue;
+                else if (p.ParameterType.IsValueType) args[i] = System.Activator.CreateInstance(p.ParameterType);
+            }
+            return args;
+        }
 
         private void ForceVanillaRefresh()
         {
@@ -317,7 +337,7 @@ namespace PowerGridPlus
             {
                 var s = switches[i];
                 if (s == null) continue;
-                try { RefreshColorStateMethod.Invoke(s, null); }
+                try { RefreshColorStateMethod.Invoke(s, RefreshColorStateArgs); }
                 catch (System.Exception e) { Plugin.Log?.LogWarning($"[BFB] RefreshColorState invoke failed for ref={_device.ReferenceId}: {e.Message}"); }
             }
         }

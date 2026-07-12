@@ -52,9 +52,12 @@ namespace PowerGridPlus
         }
 
         // Per-network tier scan, recomputed when the network's cable count changes. Cable count is a
-        // reliable proxy: tier membership only changes when a cable is added or removed.
-        private static readonly System.Collections.Generic.Dictionary<long, TierInfo> _tierCache =
-            new System.Collections.Generic.Dictionary<long, TierInfo>();
+        // reliable proxy: tier membership only changes when a cable is added or removed. Concurrent:
+        // written from both the power worker (the snapshot builder / per-tick backstop) and the
+        // main thread (the OnNetworkChanged re-check), which corrupted the old plain Dictionary
+        // (round-3 tier-1 finding; POWER.md §0 decision 24 stage 0).
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, TierInfo> _tierCache =
+            new System.Collections.Concurrent.ConcurrentDictionary<long, TierInfo>();
 
         // Coalescing flag for the OnNetworkChanged-driven main-thread re-check (0 = idle, 1 = scheduled).
         private static int _recheckScheduled;
@@ -102,21 +105,44 @@ namespace PowerGridPlus
         }
 
         /// <summary>
-        ///     Worker- and main-thread-safe detection: returns the first tier violation on this network
-        ///     (cached reads only -- no <c>ConnectedCables</c> / <c>Transform</c> access). Victim
-        ///     selection for the mixed case is deferred to <see cref="ExecuteBurn"/> on the main thread.
+        ///     Main-thread detection (the OnNetworkChanged re-check and the pre-burn re-detect):
+        ///     the power-flow gate reads the write-back-published net load fields (last tick's
+        ///     truth; the retired vanilla PowerTick fields are never updated any more), and the
+        ///     device walk snapshots the live list. The worker's per-tick backstop goes through
+        ///     <see cref="DetectViolation(Core.GridSnapshot.NetRow)"/> instead.
         /// </summary>
         internal static TierViolation DetectViolation(CableNetwork net)
         {
             if (net == null) return TierViolation.None;
-            var pt = net.PowerTick;
-            if (pt == null) return TierViolation.None;
 
             // Power-flow gate: only networks actually carrying power burn (POWER.md §4.4 analog). An idle
             // or unpowered network destroys nothing; the next tick that carries power re-checks it.
-            float actual = pt.Potential < pt.Required ? pt.Potential : pt.Required;
+            float actual = net.PotentialLoad < net.RequiredLoad ? net.PotentialLoad : net.RequiredLoad;
             if (actual <= 0f) return TierViolation.None;
 
+            System.Collections.Generic.List<Device> devices;
+            lock (net.PowerDeviceList)
+            {
+                devices = new System.Collections.Generic.List<Device>(net.PowerDeviceList);
+            }
+            return DetectViolationCore(net, devices);
+        }
+
+        /// <summary>Worker detection from the tick snapshot (no vanilla list or field reads).</summary>
+        internal static TierViolation DetectViolation(Core.GridSnapshot.NetRow nr)
+        {
+            if (nr == null) return TierViolation.None;
+            float actual = nr.PotentialSum < nr.RequiredSum ? nr.PotentialSum : nr.RequiredSum;
+            if (actual <= 0f) return TierViolation.None;
+
+            var devices = new System.Collections.Generic.List<Device>(nr.Rows.Count);
+            for (int i = 0; i < nr.Rows.Count; i++) devices.Add(nr.Rows[i].Device);
+            return DetectViolationCore(nr.Network, devices);
+        }
+
+        private static TierViolation DetectViolationCore(
+            CableNetwork net, System.Collections.Generic.List<Device> devices)
+        {
             var info = GetTierInfo(net);
 
             // 1. Mixed-tier network (root cause): victim is chosen at burn time on the main thread.
@@ -127,42 +153,38 @@ namespace PowerGridPlus
             AreaPowerControl apcMismatch = null;
             Device misplacedDevice = null;
 
-            lock (net.PowerDeviceList)
+            for (int i = 0; i < devices.Count; i++)
             {
-                var list = net.PowerDeviceList;
-                for (int i = 0; i < list.Count; i++)
+                var device = devices[i];
+                if (device == null) continue;
+
+                if (transformerForBurn == null
+                    && device is Transformer transformer
+                    && VoltageTier.IsTransformerTierViolated(transformer)
+                    && VoltageTier.IsTransformerActivelyConducting(transformer))
                 {
-                    var device = list[i];
-                    if (device == null) continue;
+                    transformerForBurn = transformer;
+                    break;   // highest-priority device case
+                }
 
-                    if (transformerForBurn == null
-                        && device is Transformer transformer
-                        && VoltageTier.IsTransformerTierViolated(transformer)
-                        && VoltageTier.IsTransformerActivelyConducting(transformer))
-                    {
-                        transformerForBurn = transformer;
-                        break;   // highest-priority device case
-                    }
+                if (apcMismatch == null
+                    && device is AreaPowerControl apc
+                    && VoltageTier.FindMismatchedApcCable(apc) != null)
+                {
+                    apcMismatch = apc;
+                }
 
-                    if (apcMismatch == null
-                        && device is AreaPowerControl apc
-                        && VoltageTier.FindMismatchedApcCable(apc) != null)
-                    {
-                        apcMismatch = apc;
-                    }
-
-                    // Data-only-port carve-out: only judge a device on a network it reaches through a
-                    // POWER port. A device wired to this network solely via its exclusive data-only port
-                    // imposes no tier requirement and must never burn (it is not in PowerDeviceList today,
-                    // but the explicit guard keeps that guarantee robust). Power / power+data ports are
-                    // unaffected. See VoltageTier.ReachesNetworkViaPowerPort.
-                    if (misplacedDevice == null
-                        && info.Tier.HasValue
-                        && VoltageTier.ReachesNetworkViaPowerPort(device, net)
-                        && !VoltageTier.IsAllowedOnTier(device, info.Tier.Value))
-                    {
-                        misplacedDevice = device;
-                    }
+                // Data-only-port carve-out: only judge a device on a network it reaches through a
+                // POWER port. A device wired to this network solely via its exclusive data-only port
+                // imposes no tier requirement and must never burn (the snapshot rows and
+                // PowerDeviceList both exclude it today, but the explicit guard keeps that
+                // guarantee robust). See VoltageTier.ReachesNetworkViaPowerPort.
+                if (misplacedDevice == null
+                    && info.Tier.HasValue
+                    && VoltageTier.ReachesNetworkViaPowerPort(device, net)
+                    && !VoltageTier.IsAllowedOnTier(device, info.Tier.Value))
+                {
+                    misplacedDevice = device;
                 }
             }
 
@@ -217,25 +239,26 @@ namespace PowerGridPlus
         ///     Per-tick backstop (PROTECT (wrong-tier burn), worker thread). Clears landed pendings, then re-checks
         ///     every network and marshals a burn to the main thread for any non-pending violation.
         /// </summary>
-        internal static void Run()
+        internal static void Run(Core.GridSnapshot snap)
         {
             // State-based pending clear: drop networks whose burn-induced split has landed (cable count
             // changed). Replaces the old fixed 4-tick cooldown.
             SplitPendingRegistry.SweepLanded();
+            if (snap == null) return;
 
-            CableNetwork.AllCableNetworks.ForEach(net =>
+            for (int i = 0; i < snap.Nets.Count; i++)
             {
-                if (net == null) return;
-                long refId = net.ReferenceId;
-                if (SplitPendingRegistry.IsPending(refId)) return;   // burn in flight; wait for the split
+                var nr = snap.Nets[i];
+                long refId = nr.Id;
+                if (SplitPendingRegistry.IsPending(refId)) continue;   // burn in flight; wait for the split
 
-                var v = DetectViolation(net);
-                if (v.Kind == TierViolationKind.None) return;
+                var v = DetectViolation(nr);
+                if (v.Kind == TierViolationKind.None) continue;
 
                 // Reserve before enqueuing so a concurrent OnNetworkChanged re-check cannot double-burn.
-                if (!SplitPendingRegistry.TryReserve(refId)) return;
+                if (!SplitPendingRegistry.TryReserve(refId)) continue;
                 EnqueueBurn(refId);
-            });
+            }
         }
 
         /// <summary>

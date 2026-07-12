@@ -117,32 +117,11 @@ namespace PowerGridPlus.Patches
         public static void FemaleGenerated(RocketPowerUmbilicalFemale __instance, ref float __result)
             => CapGenerated(__instance, ref __result);
 
-        // ------------------------------------------------------------------
-        // Delivery-side quiescent burn. Vanilla umbilical ReceivePower is a bare
-        // Clamp-credit into the cell (no subtraction, 0.2.6403 decompile 158149-158153 /
-        // 158639-158648), so the delivered quiescent component of the bill would land in the
-        // cell as free charge: credited = share + quiescent while the allocator granted share
-        // (the grant-vs-delivery seam, umbilical edition). Burn the funded quiescent out of the
-        // stream first, at most once per tick across provider chunks (DeliveryTickLedger), only
-        // on input-network deliveries (the phase-2 cell-to-cell crossing passes a null network
-        // and must stay untouched). The prefix only shrinks the argument; vanilla still runs.
-        // ------------------------------------------------------------------
-
-        [HarmonyPrefix, HarmonyPatch(typeof(RocketPowerUmbilicalMale), nameof(RocketPowerUmbilicalMale.ReceivePower))]
-        public static void MaleReceive(RocketPowerUmbilicalMale __instance, CableNetwork cableNetwork, ref float powerAdded)
-            => BurnQuiescent(__instance, cableNetwork, ref powerAdded);
-
-        [HarmonyPrefix, HarmonyPatch(typeof(RocketPowerUmbilicalFemale), nameof(RocketPowerUmbilicalFemale.ReceivePower))]
-        public static void FemaleReceive(RocketPowerUmbilicalFemale __instance, CableNetwork cableNetwork, ref float powerAdded)
-            => BurnQuiescent(__instance, cableNetwork, ref powerAdded);
-
-        private static void BurnQuiescent(RocketPowerUmbilical umbilical, CableNetwork cableNetwork, ref float powerAdded)
-        {
-            if (powerAdded <= 0f) return;
-            if (cableNetwork == null || cableNetwork != umbilical.InputNetwork) return;
-            powerAdded -= DeliveryTickLedger.TakeQuiescentBurn(
-                umbilical.ReferenceId, QuiescentBill(umbilical), powerAdded);
-        }
+        // The old delivery-side quiescent-burn ReceivePower prefixes are retired with vanilla
+        // ApplyState: the write-back credits the cell exactly the granted share, so no delivered
+        // quiescent component exists to burn. Vanilla ReceivePower itself still runs for the
+        // docked halves' phase-2 cell-to-cell crossing (a null-network call outside the power
+        // tick) and stays untouched.
 
         // ------------------------------------------------------------------
         // LogicType exposure (gated on EnableRocketUmbilicalLimits).

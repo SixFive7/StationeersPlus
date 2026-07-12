@@ -125,31 +125,10 @@ namespace PowerGridPlus.Patches
                 __result = Mathf.Min(__result, SoftSupplyShareCache.GetShare(__instance.ReferenceId));
         }
 
-        [HarmonyPrefix, HarmonyPatch(nameof(Battery.ReceivePower))]
-        public static bool ChargeEfficiencyControl(Battery __instance, CableNetwork cableNetwork, float powerAdded)
-        {
-            // Master toggle off: let vanilla ReceivePower run unmodified.
-            if (!Settings.EnableBatteryLimits.Value) return true;
-
-            // Snapshot OnOff / Error (SegControlSnapshot): the charge credit runs under the same
-            // tick-coherent verdict the allocator granted under; a mid-tick toggle lands next
-            // tick. Live fallback for a battery the allocator never enumerated this tick.
-            if (!SegControlSnapshot.TryGet(__instance.ReferenceId, out bool onOff, out int error))
-            {
-                onOff = __instance.OnOff;
-                error = __instance.Error;
-            }
-            if (error != 1 && onOff && cableNetwork == __instance.InputNetwork && GetIsOperable(__instance))
-            {
-                float charged = Settings.BatteryChargeEfficiency.Value * powerAdded;
-                if (charged < 500f)
-                    charged = powerAdded;
-
-                __instance.PowerStored = Mathf.Clamp(charged + __instance.PowerStored, 0f, __instance.PowerMaximum);
-            }
-
-            return false;
-        }
+        // The old ReceivePower charge-efficiency prefix is retired with vanilla ApplyState: the
+        // write-back (Core/WriteBack) credits the battery its granted share with the same
+        // efficiency / sub-500 W trickle rule, and no vanilla delivery path calls
+        // Battery.ReceivePower during the tick any more.
 
         [HarmonyReversePatch, HarmonyPatch("get_IsOperable")]
         public static bool GetIsOperable(Battery __instance)

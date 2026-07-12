@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using Assets.Scripts.Networks;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Objects.Rockets;
@@ -7,9 +5,9 @@ using Objects.Rockets;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Enumerates the "segmenting devices" on the map: every device that holds two distinct cable /
-    ///     wireless network references and has Input/Output power-flow semantics (POWER.md §5.0). These are
-    ///     the level boundaries the cascade walks and the edges of the cycle-detection graph.
+    ///     Classifies the "segmenting devices": every device that holds two distinct cable /
+    ///     wireless network references and has Input/Output power-flow semantics (POWER.md §5.0).
+    ///     These are the level boundaries the allocator models and the edges of the cycle graph.
     ///
     ///     Verified concrete classes (all derive from <see cref="ElectricalInputOutput"/>, which exposes
     ///     <c>InputNetwork</c> / <c>OutputNetwork</c> / <c>OnOff</c> / <c>ReferenceId</c> uniformly):
@@ -18,10 +16,9 @@ namespace PowerGridPlus
     ///     PowerConnection is excluded: it is vestigial dead code (POWER.md §5.0.1) and is not an
     ///     ElectricalInputOutput.
     ///
-    ///     <para>MP determinism: <see cref="EnumerateSorted"/> returns segmenters sorted by
-    ///     <c>ReferenceId</c> ascending so every peer walks them in identical order (POWER.md §8.0.1).
-    ///     Rebuilt by scanning the live networks on demand rather than maintained via add/remove hooks
-    ///     (simpler and equally deterministic).</para>
+    ///     <para>The old on-demand map scan (EnumerateSorted) is gone: the per-tick roster now comes
+    ///     from GridSnapshot.SegmentersSorted, built during the single boundary read (sorted by
+    ///     ReferenceId ascending for MP determinism, POWER.md §8.0.1).</para>
     /// </summary>
     internal static class SegmentingDeviceRegistry
     {
@@ -42,30 +39,6 @@ namespace PowerGridPlus
                 default:
                     return false;
             }
-        }
-
-        // All segmenting devices on the map, deduplicated and sorted by ReferenceId ascending. A segmenter
-        // appears on both its input and output network's PowerDeviceList, hence the dedup set.
-        internal static List<ElectricalInputOutput> EnumerateSorted()
-        {
-            var seen = new HashSet<long>();
-            var result = new List<ElectricalInputOutput>();
-            // CableNetwork.AllCableNetworks is a ConcurrentDensePool (ForEach only, no indexer).
-            CableNetwork.AllCableNetworks.ForEach(net =>
-            {
-                if (net == null) return;
-                lock (net.PowerDeviceList)
-                {
-                    var list = net.PowerDeviceList;
-                    for (int i = 0; i < list.Count; i++)
-                    {
-                        if (list[i] is ElectricalInputOutput eio && IsSegmenter(eio) && seen.Add(eio.ReferenceId))
-                            result.Add(eio);
-                    }
-                }
-            });
-            result.Sort((a, b) => a.ReferenceId.CompareTo(b.ReferenceId));
-            return result;
         }
     }
 }

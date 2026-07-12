@@ -8,10 +8,12 @@ using Assets.Scripts.Objects.Pipes;   // Device base lives here (Device : SmallG
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     PROTECT (producer-isolation) walk (POWER.md §8.5). A power producer may only connect to a
-    ///     transformer or to other producers; a producer that shares a cable network with a rigid
-    ///     consumer and no transformer enters VARIABLE_VOLTAGE_FAULT and stops generating
-    ///     (ProducerFaultEnforcementPatches).
+    ///     PROTECT (producer-isolation) walk (POWER.md §8.5, strict-literal). A power producer may only
+    ///     connect to a transformer or to other producers; a producer that shares a cable network with
+    ///     ANY other device (a consumer, a battery, an APC, a dish, an umbilical, anything that is
+    ///     neither a producer nor a Transformer) enters VARIABLE_VOLTAGE_FAULT and stops generating
+    ///     (ProducerFaultEnforcementPatches). A Transformer on the net is allowed but exempts nothing:
+    ///     the foreign devices themselves are the violation (full-strict, user decision 2026-07-12).
     ///
     ///     <para>The fault is a NETWORK property handled with the same network-level commit as the
     ///     elastic-overload retry (§8.4.1): <c>VariableVoltageFaultRegistry</c> stays per-device (each
@@ -26,8 +28,8 @@ namespace PowerGridPlus
     ///       toggle requested a retry (<see cref="RequestRetry"/>, raised by OffAsResetSweep when it
     ///       clears a producer's lock). A stable all-locked violating net is NOT a candidate, so its
     ///       synced timer counts down instead of being re-stamped (no frozen countdown).</item>
-    ///       <item>RECOVER: if the candidate net no longer violates (transformer added, no active
-    ///       producer, no rigid consumer) the whole producer cohort's locks are CLEARED.</item>
+    ///       <item>RECOVER: if the candidate net no longer violates (the foreign devices are gone, or
+    ///       no active producer is left) the whole producer cohort's locks are CLEARED.</item>
     ///       <item>RESET: if it still violates, every active producer is stamped to ONE shared fresh
     ///       expiry (<c>NoteVariableVoltageFault</c> re-stamps currentTick + LockoutDurationTicks, so
     ///       the cohort is phase-synced and a buttonless producer re-arms together with the buttoned
@@ -74,7 +76,7 @@ namespace PowerGridPlus
 
         // Returns the number of producers whose VVF lock state CHANGED this tick (faulted or
         // recovered), so the caller can decide whether a re-observe is needed before the allocator.
-        internal static int Run(int currentTick)
+        internal static int Run(int currentTick, Core.GridSnapshot snap)
         {
             var retryNets = DrainRetryRequests();   // null when empty
             int changed = 0;
@@ -82,48 +84,60 @@ namespace PowerGridPlus
             var producerTally = diag ? new Dictionary<string, int>() : null;
             var violatorTally = diag ? new Dictionary<string, int>() : null;
             int faultingNets = 0;
+            if (snap == null) return 0;
 
-            CableNetwork.AllCableNetworks.ForEach(net =>
+            for (int ni = 0; ni < snap.Nets.Count; ni++)
             {
-                if (net == null) return;
+                var nr = snap.Nets[ni];
 
-                bool hasActiveProducer = false, hasRigid = false, hasTransformer = false;
+                bool hasActiveProducer = false, hasForeignDevice = false;
                 var activeProducers = new List<Device>();   // IsActiveProducer -> the cohort to lock
                 var allProducers = new List<Device>();       // IsProducer by class -> the cohort to clear
-                var rigid = new List<Device>();
+                var foreign = new List<Device>();
                 List<Device> unknownProducers = null;
+                Cable foreignCable = null;                   // burn adjacency for the unknown fallback
 
-                lock (net.PowerDeviceList)
+                for (int i = 0; i < nr.Rows.Count; i++)
                 {
-                    var list = net.PowerDeviceList;
-                    for (int i = 0; i < list.Count; i++)
+                    var row = nr.Rows[i];
+                    if (row.IsProducerClass)
                     {
-                        if (!(list[i] is Device dev)) continue;
-                        if (ProducerClassifier.IsProducer(dev))
+                        allProducers.Add(row.Device);
+                        if (row.IsActiveProducer)
                         {
-                            allProducers.Add(dev);
-                            if (ProducerClassifier.IsActiveProducer(dev))
-                            {
-                                hasActiveProducer = true;
-                                activeProducers.Add(dev);
-                            }
-                        }
-                        else if (dev is Transformer) { hasTransformer = true; }   // ONLY Transformer isolates (Q1)
-                        else if (ProducerClassifier.IsUnknownProducerLike(dev, net))
-                        {
-                            // Producer-LIKE but not in the known class list (new game version or an
-                            // unclassified modded producer). IsUnknownProducerLike already gates on
-                            // GetGeneratedPower > 0, so it is delivery-checked like an active producer.
-                            // The cable-burn fallback below handles it (POWER.md §0.5).
                             hasActiveProducer = true;
-                            (unknownProducers ?? (unknownProducers = new List<Device>())).Add(dev);
+                            activeProducers.Add(row.Device);
                         }
-                        else if (ProducerClassifier.IsRigidConsumer(dev, net)) { hasRigid = true; rigid.Add(dev); }
+                    }
+                    else if (row.IsSegmenter && row.IsTransformer)
+                    {
+                        // The only allowed non-producer (POWER.md §8.5 strict-literal). Allowed,
+                        // never exempting: a Transformer's presence does not legalize anything
+                        // else on the net.
+                    }
+                    else if (row.UnknownProducerLike)
+                    {
+                        // Producer-LIKE but not in the known class list (new game version or an
+                        // unclassified modded producer). The flag already gates on a positive
+                        // boundary-read output, so it is delivery-checked like an active producer.
+                        // The cable-burn fallback below handles it (POWER.md §0.5).
+                        hasActiveProducer = true;
+                        (unknownProducers ?? (unknownProducers = new List<Device>())).Add(row.Device);
+                    }
+                    else
+                    {
+                        // Foreign: neither a producer nor a Transformer. Rigid consumers,
+                        // batteries, APCs, dishes, umbilicals, idle devices, everything.
+                        // Presence-based, not draw-based: topology legality, not instantaneous
+                        // load, is what the rule protects.
+                        hasForeignDevice = true;
+                        foreign.Add(row.Device);
+                        if (foreignCable == null) foreignCable = row.PowerCable;
                     }
                 }
 
-                bool violating = hasActiveProducer && hasRigid && !hasTransformer;
-                bool retryRequested = retryNets != null && retryNets.Contains(net.ReferenceId);
+                bool violating = hasActiveProducer && hasForeignDevice;
+                bool retryRequested = retryNets != null && retryNets.Contains(nr.Id);
 
                 // Is any active producer not yet locked (a NEW violator), and is any producer (active
                 // or stale) currently locked (something to recover / re-sync)?
@@ -147,7 +161,8 @@ namespace PowerGridPlus
                 {
                     if (!violating)
                     {
-                        // RECOVER: net no longer violates -> clear every producer's lock, rejoin.
+                        // RECOVER: net no longer violates (foreign devices gone, or no active
+                        // producer left) -> clear every producer's lock, rejoin.
                         for (int i = 0; i < allProducers.Count; i++)
                         {
                             long id = allProducers[i].ReferenceId;
@@ -160,7 +175,7 @@ namespace PowerGridPlus
                         // RESET: still violating -> stamp every ACTIVE producer to one shared fresh
                         // expiry (phase-synced cohort). Clear any stale lock left on a now-inactive
                         // producer so it does not linger.
-                        string violatorNames = BuildViolatorNames(rigid);
+                        string violatorNames = BuildViolatorNames(foreign);
                         for (int i = 0; i < activeProducers.Count; i++)
                         {
                             long id = activeProducers[i].ReferenceId;
@@ -183,46 +198,40 @@ namespace PowerGridPlus
                 // Diagnostics + the unknown-producer cable-burn fallback run whenever the net is
                 // violating, independent of the VVF commit (unknown producers are handled by burning a
                 // cable, not by a lock).
-                if (!violating) return;
+                if (!violating) continue;
 
                 if (diag)
                 {
                     faultingNets++;
                     foreach (var p in activeProducers) Tally(producerTally, CleanTypeName(p.GetType().Name));
-                    foreach (var r in rigid) Tally(violatorTally, CleanTypeName(r.GetType().Name));
+                    foreach (var r in foreign) Tally(violatorTally, CleanTypeName(r.GetType().Name));
                 }
 
-                if (unknownProducers != null)
+                if (unknownProducers != null && foreignCable != null)
                 {
                     string label = CleanTypeName(unknownProducers[0].GetType().Name);
-                    foreach (var violator in rigid)
-                    {
-                        var cable = violator.PowerCable;
-                        if (cable == null) continue;
-                        Plugin.Log?.LogInfo(
-                            $"Producer isolation: unclassified producer {label} on network {net.ReferenceId}; burning the cable adjacent to {CleanTypeName(violator.GetType().Name)} (fallback handling).");
-                        BurnReasonRegistry.RegisterPending(cable,
-                            $"Power producing devices can only connect to a transformer (adjacent {label})");
-                        cable.Break();
-                        break;
-                    }
+                    Plugin.Log?.LogInfo(
+                        $"Producer isolation: unclassified producer {label} on network {nr.Id}; burning the cable adjacent to a foreign device (fallback handling).");
+                    BurnReasonRegistry.RegisterPending(foreignCable,
+                        $"Power producing devices can only connect to a transformer (adjacent {label})");
+                    foreignCable.Break();   // self-marshals to the main thread
                 }
-            });
+            }
 
             if (diag && faultingNets > 0)
             {
                 _diagLogged = true;
                 Plugin.Log?.LogInfo($"[PGP-VVF-DIAG] producer-isolation faulted across {faultingNets} network(s). " +
                                     $"Producers faulted by class: {Format(producerTally)}. " +
-                                    $"Rigid consumers that triggered it (the 'also on the network' devices): {Format(violatorTally)}.");
+                                    $"Foreign devices that triggered it (the 'also on the network' devices): {Format(violatorTally)}.");
             }
             return changed;
         }
 
-        // Distinct rigid-consumer class names for the hover line, comma-separated, capped at 3 + "...".
-        private static string BuildViolatorNames(List<Device> rigid)
+        // Distinct foreign-device class names for the hover line, comma-separated, capped at 3 + "...".
+        private static string BuildViolatorNames(List<Device> foreign)
         {
-            var violatorList = rigid
+            var violatorList = foreign
                 .Select(r => CleanTypeName(r.GetType().Name))
                 .Distinct()
                 .Take(4)

@@ -29,11 +29,12 @@ namespace PowerGridPlus
     internal static class CycleGraphBuilder
     {
         // Returns the ReferenceIds of every segmenter on a powered directed cycle.
-        internal static HashSet<long> FindCycleFaultedSegmenters()
+        internal static HashSet<long> FindCycleFaultedSegmenters(Core.GridSnapshot snap)
         {
             var result = new HashSet<long>();
+            if (snap == null) return result;
 
-            var segmenters = SegmentingDeviceRegistry.EnumerateSorted();
+            var segmenters = snap.SegmentersSorted;
             if (segmenters.Count == 0) return result;
 
             // Dense node indexing: network ReferenceId -> contiguous index.
@@ -87,18 +88,20 @@ namespace PowerGridPlus
                 int to = edgeTo[e];
                 if (sccId[from] != sccId[to]) continue;
                 if (sccSize[sccId[from]] < 2) continue;
-                if (IsPowered(nodeNet[from]) || IsPowered(nodeNet[to]))
+                if (IsPowered(snap, nodeNet[from]) || IsPowered(snap, nodeNet[to]))
                     result.Add(edgeSeg[e]);
             }
 
             return result;
         }
 
-        private static bool IsPowered(CableNetwork net)
+        // "Carries power" from the snapshot's vanilla-OBSERVE-equivalent per-net sums (the
+        // segmenter surfaces serve the previous tick's published totals at the boundary read,
+        // exactly what the retired PowerTick.CalculateState produced here).
+        private static bool IsPowered(Core.GridSnapshot snap, CableNetwork net)
         {
-            var pt = net?.PowerTick;
-            if (pt == null) return false;
-            float actual = pt.Potential < pt.Required ? pt.Potential : pt.Required;
+            if (net == null || !snap.ById.TryGetValue(net.ReferenceId, out var nr)) return false;
+            float actual = nr.PotentialSum < nr.RequiredSum ? nr.PotentialSum : nr.RequiredSum;
             return actual > 0f;
         }
 

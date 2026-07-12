@@ -39,14 +39,14 @@ namespace PowerGridPlus
         internal static ConfigEntry<bool> EnableBatteryLogicPassthrough;
 
         // --- Server - Transformers ---
-        internal static ConfigEntry<bool> EnableTransformerExploitMitigation;
+        // The transformer free-power exploit mitigation (fresh-pull billing) is always on (no toggle).
         internal static ConfigEntry<bool> EnableTransformerLogicAdditions;
         internal static ConfigEntry<bool> EnableTransformerLogicPassthrough;
         internal static ConfigEntry<bool> EnableTransformerShedding;
         internal static ConfigEntry<bool> EnableTransformerOverloadProtection;
 
         // --- Server - Area Power Control ---
-        internal static ConfigEntry<bool> EnableAreaPowerControlFix;
+        // The APC power-leak / idle-drain / cable-cap fix is always on (no toggle).
         internal static ConfigEntry<float> ApcBatteryChargeRate;
         internal static ConfigEntry<float> ApcBatteryDischargeRate;
         internal static ConfigEntry<bool> EnableAreaPowerControlLogicPassthrough;
@@ -68,7 +68,8 @@ namespace PowerGridPlus
         internal static ConfigEntry<string> EmergencyLightPrefabs;
 
         // --- Server - Powered Presentation ---
-        internal static ConfigEntry<bool> EnableDevicePoweredOwnership;
+        // Device Powered ownership (the allocator decides every device's Powered flag from its
+        // network's liveness verdict) is always on (no toggle).
         internal static ConfigEntry<bool> DecouplePoweredFromOnOff;
 
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
@@ -193,10 +194,6 @@ namespace PowerGridPlus
                      "When this master is false, every battery behaves vanilla-opaque regardless of its per-device mode.", 100));
 
             // --- Server - Transformers ---
-            EnableTransformerExploitMitigation = config.Bind("Server - Transformers", "Enable Transformer Exploit Mitigation", true,
-                Desc("(Server-authoritative) When true, transformers no longer leak free power and charge their own " +
-                     "quiescent draw to the upstream network.", 10));
-
             EnableTransformerLogicAdditions = config.Bind("Server - Transformers", "Enable Transformer Logic Additions", true,
                 Desc("(Server-authoritative) When true, transformers expose their current throughput as the Power Actual " +
                      "logic value.", 20));
@@ -235,14 +232,6 @@ namespace PowerGridPlus
                      "overload lockout, 0 otherwise. When this master is false, vanilla's partial-power behaviour returns.", 50));
 
             // --- Server - Area Power Control ---
-            EnableAreaPowerControlFix = config.Bind("Server - Area Power Control", "Enable APC Power Fix", true,
-                Desc("(Server-authoritative) When true, Area Power Controllers (a) no longer leak a small amount of power " +
-                     "and slowly drain their battery when nothing is connected downstream, (b) apply the cable-headroom " +
-                     "cap on charge so a single APC cannot exceed its input cable's MaxVoltage by adding charge demand " +
-                     "on top of its pass-through, and (c) apply the cable cap on output so a single APC cannot supply " +
-                     "more than its output cable's MaxVoltage. With this off, the APC behaves vanilla (the original " +
-                     "free-power exploit returns and the cable caps do not apply).", 10));
-
             ApcBatteryChargeRate = config.Bind("Server - Area Power Control", "APC Battery Charge Rate", 1000f,
                 Desc("(Server-authoritative) Maximum wattage an APC pulls from upstream to charge its internal cell. " +
                      "Per device, not per network. Capped further by the input cable's remaining headroom after the " +
@@ -311,20 +300,14 @@ namespace PowerGridPlus
                      "to once per network per five minutes. Violations indicate a mod bug, not a base problem; the " +
                      "check costs a few microseconds per tick, so leave it on unless chasing maximum performance.", 10));
 
-            // --- Server - Emergency Lights ---
             // --- Server - Powered Presentation ---
-            EnableDevicePoweredOwnership = config.Bind("Server - Powered Presentation", "Enable Device Powered Ownership", true,
-                Desc("(Server-authoritative) The power allocator decides every device's Powered flag from its network's " +
-                     "state (live, shed, overloaded, or dead) instead of vanilla's per-device met-this-tick heuristic. A " +
-                     "demand spike (a printer starting a job) can no longer power-cycle the device and cancel its work: " +
-                     "either the subnet carries the load, or the feeding transformer sheds and the whole subnet goes dark " +
-                     "as a unit. Off restores vanilla per-device power flicker.", 10));
             DecouplePoweredFromOnOff = config.Bind("Server - Powered Presentation", "Decouple Powered From On Off", true,
                 Desc("(Server-authoritative) Powered means 'this device's network is energized', independent of the " +
                      "device's own on/off switch: a switched-off device on a live network reads Power=1 (powered but off) " +
                      "and still draws nothing. Off keeps the vanilla coupling, where a switched-off device also reads " +
-                     "Power=0. Only applies while Enable Device Powered Ownership is on.", 20));
+                     "Power=0.", 10));
 
+            // --- Server - Emergency Lights ---
             EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,
                 Desc("(Server-authoritative) When true, Wall Light Battery devices behave as emergency backup lights: the lamp " +
                      "stays off while the cable grid powers it, and switches on (powered by its internal battery cell) when " +

@@ -55,8 +55,8 @@ namespace PowerGridPlus
                 case Kind.VariableVoltage:
                 {
                     VariableVoltageFaultRegistry.TryGetFault(refId, tick, out var seconds, out var violators);
-                    string who = string.IsNullOrEmpty(violators) ? "a consumer" : violators;
-                    line = $"<color=#ff2626>(Variable Voltage Fault: connected to {who} without transformer. {Fmt(seconds)}s)</color>";
+                    string who = string.IsNullOrEmpty(violators) ? "another device" : violators;
+                    line = $"<color=#ff2626>(Variable Voltage Fault: connected to {who}. A producer connects only to producers and transformers. {Fmt(seconds)}s)</color>";
                     return true;
                 }
                 case Kind.Overload:

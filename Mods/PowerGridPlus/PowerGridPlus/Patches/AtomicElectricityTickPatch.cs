@@ -1,367 +1,121 @@
 using System;
-using System.Collections.Generic;
 using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects.Electrical;
 using HarmonyLib;
+using PowerGridPlus.Core;
 
 namespace PowerGridPlus.Patches
 {
-    // Atomic electricity tick: takes over ElectricityManager.ElectricityTick and
-    // splits the per-network Initialise+CalculateState+ApplyState into two outer
-    // passes, with our global shed+overload allocator between them. This gives
-    // the allocator fresh in-tick supply/demand data (OBSERVE's CalculateState
-    // populates PowerTick.Required/.Potential per network from this tick's
-    // GetUsedPower/GetGeneratedPower calls) and lets shed/overload decisions
-    // take effect in the SAME tick (ENFORCE's re-CalculateState reads the
-    // flags via our patched GetGeneratedPower/GetUsedPower returning 0 for
-    // locked-out transformers).
+    // The atomic electricity tick, B + D1 data-plane edition (POWER.md section 0 decisions 24-26):
+    // one prefix replaces ElectricityManager.ElectricityTick outright, and vanilla's per-network
+    // PowerTick trio (Initialise / CalculateState / ApplyState) is NEVER called. The pipeline:
     //
-    // The phase names below are PowerGridPlus's own atomic-tick phases (POWER.md
-    // section 2 is the source of truth). SETUP/OBSERVE is the combined
-    // Initialise + CalculateState step: the per-network reset/gather walk that
-    // populates fresh this-tick supply/demand state.
+    //   0. HOUSEKEEPING   load-boundary drain (world-load clears run HERE on the worker, never on
+    //                     the load path racing an in-flight tick), debit-queue reconcile, censuses,
+    //                     ledger sweeps, registry hygiene, the emergency-light toggle drain.
+    //   1. SNAPSHOT       GridSnapshot.Build: topology (lock(DeviceList) + the power-port
+    //                     predicate; the PowerDeviceList lazy getter is never touched) plus the
+    //                     single boundary read of every device's demand / output / control.
+    //   2. PROTECT        tier enforcement, cycle detection, producer isolation, the OFF-as-reset
+    //                     sweep; all fed from the snapshot. Newly VVF-locked producers are zeroed
+    //                     IN the snapshot (no second observation pass).
+    //   3. ALLOCATE       PowerAllocator.RunAtomic consumes the snapshot, converges, publishes the
+    //                     presentation caches and the write-back plan.
+    //   4. WRITE-BACK     WriteBack.Run applies the plan: net HUD/MP/logic fields, fuse protection,
+    //                     the deterministic generator-overflow burn, storage settlement (credits =
+    //                     grants by construction), and the consumer accumulator drains (decision 26:
+    //                     main-thread queue + worker-direct, dead nets freeze).
+    //   5. TAIL           Powered ownership sweep + presentation reconcile + ledger settle + the
+    //                     conformance / delivery audits.
+    //   6. DEVICE TICK    per-device IPowered.OnPowerTick (vanilla copy; third-party device-tick
+    //                     patches still fire).
+    //   7. LOGIC          CircuitHolders.Execute (vanilla copy).
     //
-    // Compared to vanilla's flow (per network: Init -> Calc -> Apply, all
-    // atomic per network):
-    //   - vanilla does roughly:   for each net: Init+Calc+Apply, then per-device
-    //                             OnPowerTick, then CircuitHolders.Execute.
-    //   - atomic flow does:       for each net: Init+Calc  (OBSERVE)
-    //                             global allocator           (ALLOCATE)
-    //                             for each net: Init+Calc+Apply  (ENFORCE)
-    //                             per-device OnPowerTick (DEVICE TICK, vanilla copy)
-    //                             CircuitHolders.Execute (LOGIC TICK, vanilla copy)
-    //
-    // Cost: one extra Initialise+CalculateState pass per network per tick. For
-    // a populated Lunar save (~209 networks at 2 Hz) this is well under one ms.
-    //
-    // Vanilla compatibility:
-    //   - All per-device IPowered.OnPowerTick patches (BatteryLight,
-    //     ScriptedScreens, HaulerMod) still fire in DEVICE TICK.
-    //   - CableNetwork.OnPowerTick is NOT called -- its body is inlined into
-    //     OBSERVE + ENFORCE + the trailing field copies. No mod in the surveyed set
-    //     patches CableNetwork.OnPowerTick (see ENFORCE comment for the audit).
-    //     Re-Volt is the only known mod that wraps the power tick at this level,
-    //     and PowerGridPlus refuses to load when Re-Volt is detected (Plugin.cs
-    //     TryFindIncompatibleMod).
-    //
-    // Threading: vanilla calls ElectricityTick on the UniTask ThreadPool worker
-    // ("Electronics THread Exception" message in vanilla's catch block confirms).
-    // Our prefix runs on the same worker. Managed-memory only; no Unity API
-    // calls in the loops.
+    // Threading: vanilla calls ElectricityTick on the UniTask ThreadPool worker; the prefix runs on
+    // the same worker. The only main-thread crossings are the self-marshaling vanilla calls
+    // (SetPowerFromThread, Cable/CableFuse.Break) and the batched accumulator-debit post.
     [HarmonyPatch(typeof(ElectricityManager), nameof(ElectricityManager.ElectricityTick))]
     public static class AtomicElectricityTickPatch
     {
-        /// <summary>
-        ///     True while the ENFORCE loops run (re-Initialise + CalculateState + ApplyState per
-        ///     network). The dead-net advertise zeroing (ProducerFaultEnforcementPatches + the
-        ///     segmenter supply patches) keys on this so it applies ONLY to ENFORCE reads: GATHER
-        ///     and OBSERVE must keep seeing real producer output, or a recovering net (sunrise)
-        ///     could never classify LIVE again.
-        /// </summary>
-        internal static volatile bool InEnforcePhase;
-
         [HarmonyPrefix]
         public static bool Prefix()
         {
+            // Clients and paused sims run nothing, mirroring vanilla's RunSimulation gate; a client
+            // receives net loads and fault snapshots over the wire.
             if (!GameManager.RunSimulation) return false;
+
+            long tickStartTs = System.Diagnostics.Stopwatch.GetTimestamp();
+            long allocMicros = 0;
+
             try
             {
-                // Tick-duration watchdog span (whole atomic tick). Stopwatch timestamps only;
-                // zero allocation on this path (TickDurationWatchdog doc has the derivation).
-                long tickStartTs = System.Diagnostics.Stopwatch.GetTimestamp();
-                long allocMicros = 0;
-
-                // Tick counter: shared with BrownoutRegistry / OverloadRegistry
-                // lockout-expiry math. Advance once per tick, at the very
-                // start, so every read inside this flow sees the same value.
                 ElectricityTickCounter.Advance();
                 int currentTick = ElectricityTickCounter.CurrentTick;
 
-                // One-shot unmodelled-bridge census (Stage 2b unknown-bridge lane): on the first
-                // atomic tick after a world load, log every ElectricalInputOutput subclass in the
-                // scene that no seg adapter models and the segmenter roster does not know (one line
-                // per type). Those devices stay on vanilla behaviour inside OBSERVE/ENFORCE, the
-                // conservative fallback; the census only makes the gap visible. A single flag check
-                // on every later tick.
+                // ---- 0. HOUSEKEEPING ----
+                LoadBoundary.DrainPending();
+                MainThreadDebitQueue.Reconcile();
                 UnknownBridgeCensus.RunIfPending();
-
-                // One-shot world-load ledger sweep (Stage 3 ledger adoption): zero every modeled
-                // segmenter's saved _powerProvided before the first OBSERVE ever reads it, so a
-                // stale credit from the save (the -176k class) can never bill as free energy and a
-                // stale debt never lump-bills. Same armed-at-load lifecycle as the census. A fired
-                // sweep also clears the ledger-audit tracking map, which is why the boundary check
-                // below MUST come after this call.
                 LedgerAdoption.RunSweepIfPending();
-
-                // Ledger-audit tick boundary (Stage 3 exact audit, layer B): every ledger settled
-                // at last tick's ENFORCE tail must still hold its recorded value EXACTLY (nothing
-                // legitimate writes _powerProvided between the settle and this point; the only
-                // vanilla writers run inside ApplyState). Any deviation is an out-of-band writer.
-                // Also re-baselines the per-device shadow sums the LedgerAuditPatches wrappers
-                // accumulate during ENFORCE. Always-on, like the census and the conservation
-                // audit's exact counterparts; a healthy grid pays a handful of field reads here.
                 LedgerAdoption.AuditTickBoundary(currentTick);
-
-                // Save/load one-shot self-check: with the load hooks above done and before this
-                // tick's detectors write anything, verify the load path's contract shape (fault
-                // registries empty, priority sidecar fully restored, ledger sweep ran). One Info
-                // line per load; a warning names any failed clause.
                 SaveLoadSelfCheck.RunIfPending(currentTick);
-
-                // Registry hygiene: every 600 ticks, prune expired and destroyed-device entries
-                // from the four fault registries (a single comparison on every other tick).
                 RegistryHygiene.MaybeRun(currentTick);
-
-                // Deferred emergency-light OnOff toggles from LAST tick's device tick are issued
-                // here, at the tick boundary before OBSERVE reads any device state, so a flip is
-                // never initiated mid-tick between ALLOCATE's read and ENFORCE's re-read (the
-                // transition-clustered partial-power dips). See EmergencyLightToggleQueue.
                 EmergencyLightToggleQueue.Drain();
 
-                // ----------------------------------------------------------------
-                // OBSERVE (SETUP/OBSERVE). Initialise + CalculateState per network
-                // with CURRENT state. Populates PowerTick.Required / .Potential /
-                // .Providers from fresh this-tick GetUsedPower / GetGeneratedPower
-                // calls. Our patched GetGeneratedPower / GetUsedPower run here;
-                // for transformers locked-out from a PREVIOUS tick they return 0,
-                // which is correct (their contribution to fresh state should be
-                // 0). For transformers not yet in any lockout, they return the
-                // normal vanilla-faithful values.
-                //
-                // We also clear BreakableFuses / BreakableCables here. Vanilla
-                // never clears them across ticks (Pick() picks a random index
-                // without removing), so they accumulate across our extra OBSERVE
-                // walk. Clearing once per tick keeps the cable-burn check
-                // grounded in the current tick's state and incidentally fixes
-                // the vanilla accumulation drift.
-                // ----------------------------------------------------------------
-                CableNetwork.AllCableNetworks.ForEach(net =>
-                {
-                    if (net == null) return;
-                    var pt = net.PowerTick;
-                    if (pt == null) return;
-                    pt.BreakableFuses.Clear();
-                    pt.BreakableCables.Clear();
-                    if (net.DeviceList.Count == 0) return;
-                    pt.Initialise(net);
-                    pt.CalculateState();
-                });
+                // ---- 1. SNAPSHOT (topology + the single boundary read) ----
+                var snap = GridSnapshot.Build(currentTick);
 
-                // Server-side OFF-as-reset: clear every lockout on devices the player has switched
-                // off (POWER.md §10.3). Runs before fault detection so a toggled-off device is
-                // clean when the detectors re-evaluate.
+                // ---- 2. PROTECT ----
                 OffAsResetSweep.Run(currentTick);
-
-                // ----------------------------------------------------------------
-                // PROTECT (wrong-tier burn): wrong-tier cable burns (POWER.md §4.3 order:
-                // tier burns run BEFORE cycle detection so the cycle walk never wastes work
-                // on a junction that is about to vanish). Burn requests marshal to the main
-                // thread, so the actual split lands after this tick; the next tick's
-                // OBSERVE observes the post-burn topology.
-                // ----------------------------------------------------------------
-                VoltageTierEnforcer.Run();
-
-                // ----------------------------------------------------------------
-                // PROTECT (cycle detection): pre-allocator CYCLE_FAULT detection. PowerGridPlus's
-                // own directed-SCC graph over the segmenting devices (CycleGraphBuilder)
-                // finds every powered closed power loop and faults every segmenter on
-                // it for 60 s. Each faulted device then contributes 0 on both terminals
-                // (CycleFaultEnforcementPatches), so the loop dissolves before the
-                // allocator runs and ALLOCATE never sees the cycle's inflated
-                // Potential / Required (POWER.md §4.3). No cable is burned for cycles.
-                // ----------------------------------------------------------------
-                var cycleFaulted = CycleGraphBuilder.FindCycleFaultedSegmenters();
+                VoltageTierEnforcer.Run(snap);
+                var cycleFaulted = CycleGraphBuilder.FindCycleFaultedSegmenters(snap);
                 foreach (long refId in cycleFaulted)
                     CycleFaultRegistry.NoteCycleFault(refId, currentTick);
-
-                // PROTECT (producer-isolation): A power producer wired to a rigid consumer
-                // with no transformer between them enters VARIABLE_VOLTAGE_FAULT and stops generating.
-                // Always-on (no toggle), per POWER.md and the developer's decision.
-                int newVvf = VariableVoltageFaultDetector.Run(currentTick);
-
-                // Re-observe once if anything was newly faulted this tick, so ALLOCATE sees the dissolved
-                // loop / silenced producer (devices faulted on a PRIOR tick already read 0 in OBSERVE via
-                // the enforcement postfixes -- CycleFaultEnforcementPatches for segmenters,
-                // ProducerFaultEnforcementPatches for producers -- so only NEW faults need it).
-                if (cycleFaulted.Count > 0 || newVvf > 0)
+                int newVvf = VariableVoltageFaultDetector.Run(currentTick, snap);
+                if (newVvf > 0 || cycleFaulted.Count > 0)
                 {
-                    CableNetwork.AllCableNetworks.ForEach(net =>
-                    {
-                        if (net == null) return;
-                        var pt = net.PowerTick;
-                        if (pt == null || net.DeviceList.Count == 0) return;
-                        pt.Initialise(net);
-                        pt.CalculateState();
-                    });
+                    // Newly locked producers stop supplying THIS tick: zero their table rows in
+                    // place (the old OBSERVE / re-observe pair collapsed into this). Newly locked
+                    // segmenters are consumed by GATHER through the registries directly.
+                    snap.ZeroFaultedProducers(currentTick);
                 }
 
-                // ----------------------------------------------------------------
-                // ALLOCATE. Global atomic shed + overload allocator
-                // reads every network's freshly-populated PowerTick.Required /
-                // .Potential, decides which transformers shed (input shortfall)
-                // and which overload (downstream demand > capacity), and writes
-                // the lockout flags to BrownoutRegistry / OverloadRegistry.
-                // ----------------------------------------------------------------
+                // ---- 3. ALLOCATE ----
                 long allocStartTs = System.Diagnostics.Stopwatch.GetTimestamp();
                 PowerAllocator.RunAtomic(currentTick);
-                allocMicros = TickDurationWatchdog.TimestampDeltaToMicros(
-                    allocStartTs, System.Diagnostics.Stopwatch.GetTimestamp());
-                // Per-tick full fault-registry snapshots to clients (all four registries,
-                // POWER.md §13 heartbeat model).
+                allocMicros = TickDurationWatchdog.TimestampDeltaToMicros(allocStartTs,
+                    System.Diagnostics.Stopwatch.GetTimestamp());
                 PowerAllocator.SyncFaultSnapshots(currentTick);
 
-                // ----------------------------------------------------------------
-                // ENFORCE. Re-Initialise + CalculateState + ApplyState
-                // per network. The second CalculateState's GetUsedPower /
-                // GetGeneratedPower see the freshly-set lockout flags via our
-                // patches and return 0 for transformers newly locked out this
-                // tick. Vanilla ApplyState then computes _powerRatio, breaks
-                // overloaded fuses / cables, distributes power. Trailing field
-                // copies mirror vanilla CableNetwork.OnPowerTick L253670-L253680.
-                // ----------------------------------------------------------------
-                // ENFORCE iterates networks UPSTREAM-FIRST (shallow depth first), the order the
-                // allocator's DEPTH phase just computed. Processing a transformer's input network
-                // before its output network means the output network's CalculateState reads an
-                // InputNetwork.PotentialLoad that was already refreshed THIS tick (the write at the
-                // end of this body), so multi-stage transformer chains see current supply instead of
-                // last tick's. Without the ordering a downstream network read the prior tick's
-                // upstream PotentialLoad, so a chain under variable load oscillated power on/off every
-                // tick (the net-492209 regression). Order is a hint for correctness of the lag fix,
-                // not of the per-network math: each network is still enforced exactly once, and a
-                // trailing sweep covers any network the allocator's roster did not include.
-                void EnforceNet(CableNetwork net)
-                {
-                    if (net == null) return;
-                    var pt = net.PowerTick;
-                    if (pt == null) return;
-                    if (net.DeviceList.Count == 0) return;
-                    pt.Initialise(net);
-                    pt.CalculateState();
-                    pt.ApplyState();
-                    net.DuringTickLoad = 0f;
-                    net.RequiredLoad = pt.Required;
-                    net.CurrentLoad = pt.Consumed;
-                    net.PotentialLoad = pt.Potential;
-                    net.ShortfallLoad = pt.Required > pt.Potential
-                        ? pt.Required - pt.Potential : 0f;
-                }
+                // ---- 4. WRITE-BACK ----
+                WriteBack.Run(currentTick, snap);
 
-                var enforced = new HashSet<long>();
-                InEnforcePhase = true;
-                try
-                {
-                    var ordered = PowerAllocator.ShallowFirstNetworks;
-                    if (ordered != null)
-                    {
-                        for (int i = 0; i < ordered.Count; i++)
-                        {
-                            var net = ordered[i];
-                            if (net == null || !enforced.Add(net.ReferenceId)) continue;
-                            EnforceNet(net);
-                        }
-                    }
-                    CableNetwork.AllCableNetworks.ForEach(net =>
-                    {
-                        if (net == null || !enforced.Add(net.ReferenceId)) return;
-                        EnforceNet(net);
-                    });
-                }
-                finally
-                {
-                    InEnforcePhase = false;
-                }
-
-                // ----------------------------------------------------------------
-                // ENFORCE TAIL (Stage 3). Runs after every network's ApplyState has
-                // settled, still on the power worker, before the device tick.
-                //   - Powered reconcile: assert Powered=True on healthy segmenters
-                //     vanilla left dark (idle at zero pull). The False edge was
-                //     already blocked inside ApplyState by the AllowSetPower
-                //     postfixes; both halves read the roster ALLOCATE published
-                //     this tick. Server-authoritative: this code only runs on the
-                //     sim host, and SetPowerFromThread routes the write through
-                //     OnServer.Interact, so clients get it via normal replication.
-                //   - Ledger settle: set every enrolled transformer / wireless
-                //     half's _powerProvided to its vanilla-equivalent standing
-                //     value (transformer := TotalThrough, transmitter := 0,
-                //     receiver := min(debt, TotalThrough)), AFTER the tick's
-                //     chunked UsePower / ReceivePower mutations. PowerGridPlus
-                //     owns the billing for these devices, so the vestigial
-                //     vanilla ledger never strands residue into the save again
-                //     (negative = the free-energy credit class; positive = the
-                //     ramp-lag plateaus). The settle also closes the exact
-                //     ledger audit for the tick: pre-settle, each owned field
-                //     must equal boundary + observed shadow sum (the
-                //     LedgerAuditPatches wrappers), with a NaN/Infinity
-                //     backstop the settle repairs; post-settle, the resulting
-                //     value is recorded for the next tick's boundary check.
-                //     Counts are exact; the warning line is globally
-                //     throttled. The IC10 LOGIC phase below reads the settled
-                //     value (LogicType.PowerActual = current throughput).
-                // ----------------------------------------------------------------
+                // ---- 5. TAIL ----
                 PoweredPresentation.ReconcileEnforceTail();
-                // Consumer Powered-ownership sweep: assert both Powered edges on every plain
-                // device from this tick's per-net LIVE / DEAD verdict (NetLiveness), audit the
-                // previous tick's expectation, and quarantine contested devices. The false edge
-                // was already blocked inside ApplyState (PoweredOwnershipPatches), so this pass
-                // is the sole owner of both transitions for owned devices.
-                PoweredOwnership.SweepEnforceTail(currentTick);
+                PoweredOwnership.SweepEnforceTail(currentTick, snap);
                 LedgerAdoption.SettleEnforceTail(currentTick);
-                // Powered-set conformance: every healthy roster member must read Powered=true
-                // past the one-tick marshal grace (the reconcile above writes via a main-thread
-                // marshal, so a fresh transition legitimately lands next frame). Runs right
-                // after the reconcile against the same published roster.
                 PoweredSetConformance.RunEnforceTail(currentTick);
-                // Partial-power sentinel: on every network the allocator marked SERVED this
-                // tick, the vanilla ratio the device loop just scaled with must be exactly 1
-                // (the no-partial-power contract). Reads each PowerTick's settled _powerRatio,
-                // so it must run after every ApplyState; always-on exact counters, one
-                // aggregated warning per 600 ticks while new violations arrive.
-                PartialPowerSentinel.RunEnforceTail(currentTick);
-                // Charge-delivery audit: every store the allocator granted charge this tick
-                // must have been credited exactly that much (observation brackets around the
-                // store-crediting ReceivePower overrides), gated on the charge-side net being
-                // Served. Runs after every ApplyState so the credit sums are final; the
-                // umbilical phase-2 crossing runs later in the device tick but never enters
-                // the sums (null-network calls are filtered at the bracket).
                 ChargeDeliveryAudit.RunEnforceTail(currentTick);
-                // Discharge-delivery audit: the second delivery direction. Every battery /
-                // umbilical elastic's drained sum (observation brackets around the store-draining
-                // UsePower overrides) must equal its granted share (rigid share + soft top-up),
-                // gated on the discharge-side net being Served. The APC cell is out of scope by
-                // design (vanilla deferred ledger settlement; see the audit's class doc).
                 DischargeDeliveryAudit.RunEnforceTail(currentTick);
 
-                // ----------------------------------------------------------------
-                // DEVICE TICK: per-device IPowered.OnPowerTick. Vanilla copy.
-                // Covers Battery state updates, generator fuel consumption,
-                // and every IPowered patch in the mod ecosystem (BatteryLight,
-                // ScriptedScreens, HaulerMod, etc).
-                // ----------------------------------------------------------------
+                // ---- 6. DEVICE TICK (vanilla copy) ----
                 ElectricityManager.AllPoweredThings.ForEach(p => p?.OnPowerTick());
 
-                // ----------------------------------------------------------------
-                // LOGIC TICK: CircuitHolders.Execute. Vanilla copy. Runs IC10
-                // chips on the standard schedule.
-                // ----------------------------------------------------------------
+                // ---- 7. LOGIC (vanilla copy) ----
                 CircuitHolders.Execute();
 
-                // Close the tick-duration watchdog span: the whole atomic tick body, DEVICE and
-                // LOGIC phases included, judged against the derived threshold (rolling-median
-                // multiple with a floor and an unconditional ceiling; see TickDurationWatchdog).
                 TickDurationWatchdog.RecordTick(currentTick,
-                    TickDurationWatchdog.TimestampDeltaToMicros(
-                        tickStartTs, System.Diagnostics.Stopwatch.GetTimestamp()),
+                    TickDurationWatchdog.TimestampDeltaToMicros(tickStartTs,
+                        System.Diagnostics.Stopwatch.GetTimestamp()),
                     allocMicros);
             }
             catch (Exception ex)
             {
-                // Mirror vanilla's catch-and-log shape so any other layer that
-                // expects a non-throwing ElectricityTick sees the same surface.
-                UnityEngine.Debug.LogError($"[PowerGridPlus] Atomic electricity tick threw: {ex.Message}\n{ex.StackTrace}");
+                UnityEngine.Debug.LogError(
+                    $"[PowerGridPlus] Atomic electricity tick threw: {ex.Message}\n{ex.StackTrace}");
             }
-            return false;     // skip vanilla
+            return false;   // vanilla ElectricityTick never runs
         }
     }
 }

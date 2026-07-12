@@ -28,20 +28,11 @@ namespace PowerGridPlus.Patches
     public static class AreaPowerControlPatches
     {
         /// <summary>
-        ///     Per-APC pass-through magnitude tracked from the previous power tick's UsePower call.
-        ///     Vanilla UsePower(Output, powerUsed) supplies the exact downstream draw routed through
-        ///     this APC last tick -- the value we need to subtract from input-cable MaxVoltage when
-        ///     computing the charge headroom. CurrentLoad on the output network is wrong here
-        ///     because it includes contributions from sibling suppliers on the same output bus.
-        ///     ReferenceId keys the entry (stable across save/load, never reused); the dictionary
-        ///     entry leaks if an APC is destroyed mid-session, but the leak is bounded by APC count.
-        /// </summary>
-        private static readonly ConcurrentDictionary<long, float> _lastPassthrough = new ConcurrentDictionary<long, float>();
-
-        /// <summary>
         ///     Per-device charge cap: configured rate, further capped by the input cable's remaining
         ///     MaxVoltage after this APC's own downstream pass-through is subtracted. Returns 0 when
-        ///     the cable is at or over MaxVoltage already from THIS APC's own contribution.
+        ///     the cable is at or over MaxVoltage already from THIS APC's own contribution. The
+        ///     pass-through figure is the allocator's own published total from the previous tick
+        ///     (ApcPassthroughCache); the old vanilla-UsePower tracker died with ApplyState.
         /// </summary>
         internal static float ComputeChargeCap(AreaPowerControl apc)
         {
@@ -55,28 +46,15 @@ namespace PowerGridPlus.Patches
             float maxVoltage = CableMax.For(inputCable);
             if (maxVoltage <= 0f) return 0f;
 
-            // Per-APC pass-through: last tick's powerUsed routed through THIS APC. Falls back to 0
-            // on the first tick after world load (no entry yet); that's the most permissive case
-            // and self-corrects after one tick. Multi-APC output-network case: each APC tracks
-            // only its own share, so the formula does not deadlock.
-            float passthrough = 0f;
-            _lastPassthrough.TryGetValue(apc.ReferenceId, out passthrough);
+            // Per-APC pass-through: the allocator's published routed total for this APC. Falls
+            // back to 0 when roster-absent (first tick after load, errored); that's the most
+            // permissive case and self-corrects after one tick. Multi-APC output-network case:
+            // each APC's entry carries only its own share, so the formula does not deadlock.
+            ApcPassthroughCache.TryGet(apc.ReferenceId, out float passthrough);
             float cableSpare = maxVoltage - passthrough;
             if (cableSpare <= 0f) return 0f;
 
             return Mathf.Min(configCap, cableSpare);
-        }
-
-        /// <summary>
-        ///     Track per-APC downstream pass-through every tick. Vanilla UsePower(OutputNetwork, powerUsed)
-        ///     is the canonical "downstream pulled this much from this APC this tick" signal.
-        /// </summary>
-        [HarmonyPostfix, HarmonyPatch(nameof(AreaPowerControl.UsePower))]
-        public static void TrackPassthroughPatch(AreaPowerControl __instance, CableNetwork cableNetwork, float powerUsed)
-        {
-            if (__instance == null) return;
-            if (__instance.OutputNetwork == null || cableNetwork != __instance.OutputNetwork) return;
-            _lastPassthrough[__instance.ReferenceId] = powerUsed;
         }
 
         /// <summary>
@@ -99,75 +77,13 @@ namespace PowerGridPlus.Patches
                 : 0f;
         }
 
-        // Delivery-side alignment (the charge-delivery audit's contract: credit == grant on a
-        // served network). Vanilla ApplyState delivers a device's bill in one ReceivePower call
-        // PER CONTRIBUTING PROVIDER (PowerTick.ConsumePower), so every per-call adjustment here
-        // rides a per-tick allowance (DeliveryTickLedger) instead of applying per chunk:
-        //   1. The device's own quiescent is BURNED out of the stream first, at most once per
-        //      tick and only up to the FUNDED amount (the same FundedQuiescent the bill used).
-        //      The old unconditional per-chunk `powerAdded -= UsedPower` over-subtracted once per
-        //      provider and kept subtracting for shed / roster-absent APCs whose bill carried no
-        //      quiescent, under-crediting the cell by up to one quiescent per tick.
-        //   2. The cell credit comes straight out of the delivered stream, cumulatively capped at
-        //      the allocator's granted charge share for the tick (plus the physical PowerDelta /
-        //      ComputeChargeCap caps). The old negative-ledger gate shuttled passthrough watts
-        //      through the cell on conducting APCs (credited beyond the share, re-drained by
-        //      UsePower a tick later) and starved the credit entirely on passthrough down-ramps.
-        //   3. Only the remainder (the passthrough component) reduces the vanilla _powerProvided
-        //      ledger, which keeps the vanilla cell-cover feature intact: UsePower still drains
-        //      the cell when the downstream draw outruns what the input repaid.
-        [HarmonyPrefix, HarmonyPatch(nameof(AreaPowerControl.ReceivePower))]
-        public static bool ReceivePowerPatch(CableNetwork cableNetwork, float powerAdded, AreaPowerControl __instance, ref float ____powerProvided)
-        {
-            if (!Settings.EnableAreaPowerControlFix.Value)
-                return true;
-
-            if (__instance.InputNetwork == null || cableNetwork != __instance.InputNetwork)
-                return false;
-
-            long refId = __instance.ReferenceId;
-            powerAdded -= DeliveryTickLedger.TakeQuiescentBurn(refId, FundedQuiescent(__instance), powerAdded);
-            if (powerAdded <= 0.0f)
-                return false;
-
-            var cell = __instance.Battery;
-            if ((bool)cell && !cell.IsCharged)
-            {
-                float grantedShare = SoftDemandShareCache.TryGetShare(refId, out var share) ? share : 0f;
-                float credit = DeliveryTickLedger.TakeShareCredit(refId, grantedShare,
-                    Mathf.Min(powerAdded, Mathf.Min(cell.PowerDelta, ComputeChargeCap(__instance))));
-                if (credit > 0f)
-                {
-                    cell.PowerStored += credit;
-                    powerAdded -= credit;
-                    // Record the exact credited amount at the source (argument-derived by
-                    // construction): the APC needs no observation bracket, and the cell's own
-                    // float storage rounding never enters the audit.
-                    ChargeDeliveryAudit.RecordCredit(refId, ChargeDeliveryAudit.KindApcCell, credit);
-                }
-            }
-            else if (SoftDemandShareCache.TryGetShare(refId, out var mootShare) && mootShare > 0f)
-            {
-                // A charge share exists but the cell can take none (reads full, or was pulled):
-                // the cell crossed its Mode-based IsCharged between the ALLOCATE grant and this
-                // delivery (Mode updates through a main-thread interact, so the flip can land
-                // inside the tick). The grant is moot this tick; tell the audit so the
-                // legitimate fill-edge (granted > 0, credited 0) is recognized instead of
-                // flagged (the farm-APC tick-868 finding).
-                ChargeDeliveryAudit.MarkChargeGateClosed(refId);
-            }
-
-            if (powerAdded > 0.0f)
-                ____powerProvided -= powerAdded;
-            return false;
-        }
+        // The old ReceivePower delivery-alignment prefix is retired with vanilla ApplyState: the
+        // write-back (Core/WriteBack) credits the cell exactly the granted share and records it
+        // for the charge-delivery audit; no delivered stream exists to burn or split any more.
 
         [HarmonyPrefix, HarmonyPatch(nameof(AreaPowerControl.GetUsedPower))]
         public static bool GetUsedPowerPatch(CableNetwork cableNetwork, AreaPowerControl __instance, ref float __result)
         {
-            if (!Settings.EnableAreaPowerControlFix.Value)
-                return true;
-
             __result = 0.0f;
 
             if (__instance.InputNetwork == null || cableNetwork != __instance.InputNetwork)
@@ -286,7 +202,6 @@ namespace PowerGridPlus.Patches
         public static void GetGeneratedPowerPatch(CableNetwork cableNetwork, AreaPowerControl __instance, ref float __result)
         {
             __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: true);
-            if (!Settings.EnableAreaPowerControlFix.Value) return;
             if (__instance.OutputNetwork == null || cableNetwork != __instance.OutputNetwork) return;
             if (__result <= 0f) return;
 

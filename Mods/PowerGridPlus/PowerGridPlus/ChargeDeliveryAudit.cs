@@ -47,8 +47,7 @@ namespace PowerGridPlus
     ///     <see cref="PublishGrants"/>: refId -> granted watts, charge-side net, store kind), the
     ///     credited sum must equal the grant. Gates: the charge-side net must be classified Served
     ///     this tick (on an unmet net vanilla ratio-scales deliveries by design, honest darkness,
-    ///     same exemption as the partial-power sentinel); APC entries are skipped when
-    ///     EnableAreaPowerControlFix is off (vanilla owns that delivery path); Battery entries
+    ///     same exemption as the partial-power sentinel); Battery entries
     ///     compare against the band [granted * BatteryChargeEfficiency, granted] because the
     ///     configured efficiency loss is legitimate (and its sub-500 W per-chunk exemption keeps
     ///     the actual inside that band); zero-grant zero-credit passes trivially. Stores with
@@ -186,11 +185,6 @@ namespace PowerGridPlus
                     ? c.credited : 0f;
 
                 if (grant.Granted <= Tolerance && credited <= Tolerance) continue;   // trivially clean
-
-                // Vanilla owns the APC delivery path when the fix master is off.
-                if (grant.Kind == KindApcCell
-                    && (Settings.EnableAreaPowerControlFix == null || !Settings.EnableAreaPowerControlFix.Value))
-                    continue;
 
                 // Grant-moot recognition: the store's charge gate closed after the grant was
                 // made (the APC cell fill edge; see the class doc). Not a seam; skip.

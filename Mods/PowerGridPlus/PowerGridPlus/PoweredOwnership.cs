@@ -74,7 +74,6 @@ namespace PowerGridPlus
     /// </summary>
     internal static class PoweredOwnership
     {
-        private const int UnclassifiedDarkThreshold = 4;   // tails frozen before fail-safe dark
         private const int QuarantineStreak = 10;           // contested tails before giving the device back to vanilla
         private const int WarnCooldownTicks = 600;         // one aggregated warning per ~5 minutes at 2 Hz
         private const int PruneEveryTicks = 600;
@@ -85,10 +84,9 @@ namespace PowerGridPlus
 
         private struct DevState
         {
-            public byte LastExpected;        // 0 false, 1 true, 2 none (frozen/unclassified)
+            public byte LastExpected;        // 0 false, 1 true, 2 none (fresh / quarantine-reset)
             public byte PrevExpected;
             public byte MismatchStreak;
-            public byte UnclassifiedStreak;
             public int LastTouchedTick;
         }
 
@@ -98,7 +96,6 @@ namespace PowerGridPlus
         // SetPowerFromThread callers, hence concurrent.
         private static readonly ConcurrentDictionary<long, byte> _quarantined = new ConcurrentDictionary<long, byte>();
         private static readonly ConcurrentDictionary<Type, bool> _exemptTypeCache = new ConcurrentDictionary<Type, bool>();
-        private static readonly HashSet<long> _loggedUnclassified = new HashSet<long>();
 
         // Exact counters since load; reflection surface for the rearch suite.
         internal static long MismatchDeviceTicks { get; private set; }
@@ -111,11 +108,13 @@ namespace PowerGridPlus
         private static long _deviceTicksAtLastWarn;
         private static int _lastWarnTick = -WarnCooldownTicks;
 
-        /// <summary>Master gate: the ownership layer is on and this tick's verdict is published.</summary>
+        /// <summary>
+        ///     Gate: this tick's liveness verdict is published. The ownership layer itself is always
+        ///     on (no setting); only verdict freshness can hold it back.
+        /// </summary>
         internal static bool OwnershipActiveNow()
         {
-            return Settings.EnableDevicePoweredOwnership.Value
-                   && NetLiveness.PublishedTick == ElectricityTickCounter.CurrentTick;
+            return NetLiveness.PublishedTick == ElectricityTickCounter.CurrentTick;
         }
 
         internal static bool IsQuarantined(long refId) => _quarantined.ContainsKey(refId);
@@ -161,36 +160,33 @@ namespace PowerGridPlus
         ///     audit last tick's expectation against the actual flag, and quarantine contested
         ///     devices. Runs on the power worker after every network's ApplyState.
         /// </summary>
-        internal static void SweepEnforceTail(int currentTick)
+        internal static void SweepEnforceTail(int currentTick, Core.GridSnapshot gridSnap)
         {
-            if (!Settings.EnableDevicePoweredOwnership.Value) return;
             if (NetLiveness.PublishedTick != currentTick) return;
+            if (gridSnap == null) return;
             bool orthogonal = Settings.DecouplePoweredFromOnOff.Value;
             var emergencyPrefabs = Patches.EmergencyLightSupport.PrefabNames;
 
             ModWriteWindow = true;
             try
             {
-                CableNetwork.AllCableNetworks.ForEach(net =>
+                for (int ni = 0; ni < gridSnap.Nets.Count; ni++)
                 {
-                    if (net == null) return;
-                    List<Device> snapshot;
-                    lock (net.PowerDeviceList)
+                    var nr = gridSnap.Nets[ni];
+                    var net = nr.Network;
+                    // Snapshot nets always receive a same-tick verdict (the allocator builds its
+                    // model FROM this snapshot), so the old unclassified-streak machinery is gone
+                    // by construction; the guard below is a pure fail-safe (no write on a miss).
+                    if (!NetLiveness.TryGetVerdict(nr.Id, out byte verdict)) continue;
+                    for (int i = 0; i < nr.Rows.Count; i++)
                     {
-                        if (net.PowerDeviceList.Count == 0) return;
-                        snapshot = new List<Device>(net.PowerDeviceList);
-                    }
-                    bool classified = NetLiveness.TryGetVerdict(net.ReferenceId, out byte verdict);
-                    for (int i = 0; i < snapshot.Count; i++)
-                    {
-                        var device = snapshot[i];
+                        var device = nr.Rows[i].Device;
                         if (device == null) continue;
                         // Single-owner rule: a multi-net device is swept only by its primary
                         // network, mirroring the base AllowSetPower semantics.
                         if (device.PowerCableNetwork != net) continue;
                         if (!device.HasPowerState) continue;   // PoweredValue write would silently no-op
-                        if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio))
-                            continue;                          // healthy-set policy owns segmenters
+                        if (nr.Rows[i].IsSegmenter) continue;  // healthy-set policy owns segmenters
                         if (IsExemptDevice(device)) continue;
                         if (emergencyPrefabs != null && emergencyPrefabs.Contains(device.PrefabName)) continue;
                         long refId = device.ReferenceId;
@@ -198,39 +194,9 @@ namespace PowerGridPlus
 
                         _state.TryGetValue(refId, out var st);
 
-                        byte expected;
-                        if (!classified)
-                        {
-                            st.UnclassifiedStreak = (byte)Math.Min(byte.MaxValue, st.UnclassifiedStreak + 1);
-                            if (st.UnclassifiedStreak < UnclassifiedDarkThreshold)
-                            {
-                                // Freeze: fresh split nets keep their state until a verdict lands.
-                                st.PrevExpected = st.LastExpected;
-                                st.LastExpected = 2;
-                                st.MismatchStreak = 0;
-                                st.LastTouchedTick = currentTick;
-                                _state[refId] = st;
-                                continue;
-                            }
-                            // Persistently unclassified: the fail-safe. A device the mod cannot
-                            // classify stays depowered, and the auditor names it once.
-                            expected = 0;
-                            if (_loggedUnclassified.Add(refId))
-                            {
-                                Plugin.Log?.LogWarning(
-                                    "[PowerGridPlus] Powered ownership: device " + refId.ToString(CultureInfo.InvariantCulture)
-                                    + " ('" + (device.DisplayName ?? device.PrefabName) + "') sat on an unclassified network for "
-                                    + UnclassifiedDarkThreshold.ToString(CultureInfo.InvariantCulture)
-                                    + "+ ticks; forcing it dark (fail-safe). If this persists, the network is outside the allocator's model.");
-                            }
-                        }
-                        else
-                        {
-                            st.UnclassifiedStreak = 0;
-                            expected = (verdict == NetLiveness.Live
-                                        && device.IsStructureCompleted
-                                        && (orthogonal || device.OnOff)) ? (byte)1 : (byte)0;
-                        }
+                        byte expected = (verdict == NetLiveness.Live
+                                         && device.IsStructureCompleted
+                                         && (orthogonal || device.OnOff)) ? (byte)1 : (byte)0;
 
                         bool actual = device.Powered;
 
@@ -277,7 +243,7 @@ namespace PowerGridPlus
                         st.LastTouchedTick = currentTick;
                         _state[refId] = st;
                     }
-                });
+                }
             }
             finally
             {
@@ -296,7 +262,6 @@ namespace PowerGridPlus
             for (int i = 0; i < _pruneScratch.Count; i++)
             {
                 _state.Remove(_pruneScratch[i]);
-                _loggedUnclassified.Remove(_pruneScratch[i]);
             }
         }
 
@@ -321,7 +286,6 @@ namespace PowerGridPlus
         {
             _state.Clear();
             _quarantined.Clear();
-            _loggedUnclassified.Clear();
             _mismatchDevices.Clear();
             MismatchDeviceTicks = 0;
             LastMismatchRefId = 0L;

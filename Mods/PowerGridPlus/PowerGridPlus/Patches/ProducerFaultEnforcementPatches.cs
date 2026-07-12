@@ -50,17 +50,11 @@ namespace PowerGridPlus.Patches
                     __instance.ReferenceId, ElectricityTickCounter.CurrentTick))
             {
                 __result = 0f;
-                return;
             }
-            // Dead-net advertise zeroing (net-liveness ownership): during ENFORCE a producer on a
-            // DEAD-verdict net advertises nothing, so the net's Providers array stays empty,
-            // ConsumePower delivers nothing and never calls ReceivePower, accumulator debts freeze
-            // exactly, and the vanilla power-ON edge cannot fire (the zero-Potential corollary,
-            // Research/GameClasses/PowerTick.md). ENFORCE-phase only: GATHER and OBSERVE keep
-            // reading the REAL output so a recovering net (sunrise, a re-armed battery cohort)
-            // classifies LIVE again the tick supply returns.
-            if (AtomicElectricityTickPatch.InEnforcePhase && NetLiveness.IsDead(cableNetwork))
-                __result = 0f;
+            // The old ENFORCE-phase dead-net advertise zeroing is retired with vanilla ApplyState:
+            // the write-back delivers nothing on a DEAD net by construction (no ConsumePower path
+            // exists any more), and the boundary read must keep seeing REAL output so a recovering
+            // net (sunrise, a re-armed battery cohort) classifies LIVE the tick supply returns.
         }
     }
 }

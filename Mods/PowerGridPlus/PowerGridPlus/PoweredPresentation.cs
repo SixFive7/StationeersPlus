@@ -15,23 +15,11 @@ namespace PowerGridPlus
     ///     Powered=True even when idle; a faulted / locked-out / dead-input segmenter keeps vanilla
     ///     behavior (bills 0, vanilla un-powers it, the hover explains why).
     ///
-    ///     <para>Mechanics, two halves around vanilla's own writer:</para>
-    ///     <list type="bullet">
-    ///       <item>Block the False edge: vanilla ApplyState's only un-power path is gated on
-    ///       <c>Device.AllowSetPower(net)</c> (PowerTick.ApplyState, the sole caller in the game).
-    ///       The <see cref="Patches.PoweredPresentationPatches"/> postfixes return false for a
-    ///       device in the healthy set, so ApplyState can never un-power a healthy segmenter and
-    ///       no False/True double transition (with its OnServer.Interact network churn) ever
-    ///       happens. Unhealthy segmenters pass through untouched: vanilla un-powers them exactly
-    ///       as it always did.</item>
-    ///       <item>Assert the True edge: vanilla only powers a device that consumed this tick, so
-    ///       an idle healthy segmenter would stay False forever. <see cref="ReconcileEnforceTail"/>
-    ///       runs at the ENFORCE tail (AtomicElectricityTickPatch, after every network's
-    ///       ApplyState) and calls the vanilla <c>Device.SetPowerFromThread(net, true)</c> (which
-    ///       self-marshals to the main thread, same as ApplyState itself uses) for each healthy
-    ///       segmenter still reading Powered=False. SetPower no-ops when the state already
-    ///       matches, so this fires exactly once per transition: zero steady-state churn.</item>
-    ///     </list>
+    ///     <para>Mechanics (B + D1 edition): vanilla ApplyState is retired, so nothing else writes
+    ///     a segmenter's Powered flag any more. <see cref="ReconcileEnforceTail"/> owns BOTH edges
+    ///     from the health verdict: healthy asserts true, unhealthy asserts false, via the vanilla
+    ///     self-marshaling <c>Device.SetPowerFromThread</c>. Edges fire only on an actual
+    ///     transition, so steady state causes zero per-tick traffic.</para>
     ///
     ///     <para>Healthy (published by PowerAllocator at the end of ALLOCATE): enrolled in this
     ///     tick's roster, carrying no fault (not cycle-faulted / shed-locked / overload-locked /
@@ -99,12 +87,13 @@ namespace PowerGridPlus
         }
 
         /// <summary>
-        ///     ENFORCE tail: re-assert Powered=True on every healthy segmenter vanilla left dark.
-        ///     Runs on the power worker after all ApplyState passes; SetPowerFromThread marshals
-        ///     the actual interactable write to the main thread, exactly as vanilla ApplyState
-        ///     does. Only fires on an actual False -&gt; True transition (the Powered check here
-        ///     plus SetPower's own no-op on a matching state), so a steadily healthy segmenter
-        ///     causes no per-tick traffic.
+        ///     Write-back tail: assert BOTH Powered edges on every rostered segmenter from its
+        ///     health verdict. With vanilla ApplyState retired (POWER.md §0 decision 24 stage 3)
+        ///     nothing else writes a segmenter's Powered any more, so this owns the false edge too:
+        ///     healthy presents powered, unhealthy (dark input, shed, overloaded, cycle-locked)
+        ///     presents dark, matching the §10.6 presentation policy exactly. SetPowerFromThread
+        ///     marshals the interactable write to the main thread as vanilla did; edges only fire
+        ///     on an actual transition, so steady state causes no per-tick traffic.
         /// </summary>
         internal static void ReconcileEnforceTail()
         {
@@ -112,16 +101,15 @@ namespace PowerGridPlus
             for (int i = 0; i < roster.Count; i++)
             {
                 var e = roster[i];
-                if (!e.Healthy) continue;
                 // The CableNetwork argument is decorative for these classes (Device.SetPower
                 // ignores it; none of the four segmenter classes override SetPower), so pass the
                 // terminal the device draws from / delivers to for readability.
                 var anchor = e.Anchor;
-                if (anchor != null && !anchor.Powered)
-                    anchor.SetPowerFromThread(e.InNet, true).Forget();
+                if (anchor != null && anchor.Powered != e.Healthy)
+                    anchor.SetPowerFromThread(e.InNet, e.Healthy).Forget();
                 var partner = e.Partner;
-                if (partner != null && !partner.Powered)
-                    partner.SetPowerFromThread(e.OutNet, true).Forget();
+                if (partner != null && partner.Powered != e.Healthy)
+                    partner.SetPowerFromThread(e.OutNet, e.Healthy).Forget();
             }
         }
     }

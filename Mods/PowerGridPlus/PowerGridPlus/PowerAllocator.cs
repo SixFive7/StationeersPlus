@@ -149,6 +149,10 @@ namespace PowerGridPlus
             public long PartnerRefId;
             public ElectricalInputOutput AnchorDevice;
             public ElectricalInputOutput PartnerDevice;
+            // The Net model this seg delivers onto, resolved when rosters are registered. Consumed
+            // by the leaf-first shed protection (a seg whose output net still feeds ACTIVE child
+            // segs is a hop and never a shed victim; POWER.md §0 decision 24 stage 4).
+            public Net OutNetModel;
             // per-round:
             public bool Shed;
             public bool Overloaded;
@@ -178,6 +182,7 @@ namespace PowerGridPlus
             public bool Overloaded;        // per-round (elastic hit-max analog)
             public float Share;            // final delivered share (rigid share + soft top-up)
             public byte Kind;              // store kind (ChargeDeliveryAudit.Kind*) for the discharge-delivery audit
+            public ElectricalInputOutput Owner;   // the store device, consumed by the write-back plan
         }
 
         // A soft demander: charges a store from InNet out of the firm residual only (§7.4).
@@ -196,6 +201,7 @@ namespace PowerGridPlus
             // the owner that sheds / overloads INSIDE the deciding loop.
             public Seg OwnerSeg;           // the APC's routed seg (null for battery / umbilical stores)
             public Elastic OwnerElastic;   // the store's own discharge half this tick (null when absent)
+            public ElectricalInputOutput Owner;   // the store device, consumed by the write-back plan
         }
 
         private sealed class Net
@@ -208,6 +214,7 @@ namespace PowerGridPlus
             // per-tick Softs roster it decides the partial-power sentinel's ratio-contract
             // scope (published to ShortfallDiagnostics alongside the classification snapshot).
             public bool HasNonSegmenterDevice;
+            public float WeakestCap = float.MaxValue;   // snapshot-time weakest-cable cap (tier rating)
             public int Depth = UnreachableDepth;
             public readonly List<Seg> Suppliers = new List<Seg>();
             public readonly List<Seg> Consumers = new List<Seg>();
@@ -265,68 +272,38 @@ namespace PowerGridPlus
             // lands next tick.
             var controlSnapshot = new Dictionary<long, SegControlSnapshot.Entry>();
 
-            // Per-network rigid demand + generator supply. Segmenters are skipped here (they are
-            // modelled structurally below); everything else generating is a rigid generator and
-            // everything else drawing is a rigid consumer. VVF-faulted producers already read 0 via
-            // ProducerFaultEnforcementPatches, so faulted solar contributes no supply here.
-            CableNetwork.AllCableNetworks.ForEach(network =>
+            // Per-network rigid demand + generator supply, consumed from the tick's GridSnapshot
+            // (the single boundary read; POWER.md §0 decision 24). The umbilical quiescent bill and
+            // the demand-model reconstruction already happened in the snapshot builder; VVF-locked
+            // producers were zeroed in place after PROTECT (ZeroFaultedProducers), so faulted solar
+            // contributes no supply here. This method performs no vanilla topology or demand reads.
+            var gridSnap = Core.GridSnapshot.Current;
+            if (gridSnap == null) return;
+            for (int ni = 0; ni < gridSnap.Nets.Count; ni++)
             {
-                if (network == null) return;
-                List<Device> snapshot;
-                lock (network.PowerDeviceList)
+                var nr = gridSnap.Nets[ni];
+                var n = GetNet(nr.Network);
+                if (n == null) continue;
+                n.RigidDemand = nr.RigidDemand;
+                n.GenSupply = nr.GenSupply;
+                n.HasNonSegmenterDevice = nr.HasNonSegmenterDevice;
+                n.WeakestCap = nr.WeakestCap;
+                for (int ri = 0; ri < nr.Rows.Count; ri++)
                 {
-                    if (network.PowerDeviceList.Count == 0) return;
-                    snapshot = new List<Device>(network.PowerDeviceList);
-                }
-                var n = GetNet(network);
-                for (int i = 0; i < snapshot.Count; i++)
-                {
-                    var device = snapshot[i];
-                    if (device == null) continue;
-                    if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio))
+                    var row = nr.Rows[ri];
+                    if (!row.IsSegmenter) continue;
+                    // First-read-wins control snapshot: the boundary read is the first (and only)
+                    // touch, so enrollment, the quiescent bill, and every published gate agree.
+                    if (!controlSnapshot.ContainsKey(row.RefId))
                     {
-                        // First-read-wins control snapshot (see the declaration above).
-                        if (!controlSnapshot.ContainsKey(eio.ReferenceId))
+                        controlSnapshot[row.RefId] = new SegControlSnapshot.Entry
                         {
-                            controlSnapshot[eio.ReferenceId] = new SegControlSnapshot.Entry
-                            {
-                                OnOff = eio.OnOff,
-                                Error = eio.Error,
-                            };
-                        }
-                        // The rocket umbilical halves bill their own idle draw on the input
-                        // network under vanilla gates the Buffered adapter cannot carry (no
-                        // routed seg exists to hold a quiescent pull): the Male whenever ON
-                        // (Error included), the Female whenever wired and not errored (her
-                        // GetUsedPower has no OnOff gate). Fund that draw as plain rigid
-                        // demand so the vanilla bill is never a phantom no advertise covers
-                        // (the idle-APC 160/150 partial-power shape, umbilical edition). The
-                        // charge component stays a share-capped Soft, and the delivery-side
-                        // burn (RocketUmbilicalPatches) keeps the credited charge equal to
-                        // the share. Deliberately does NOT set HasNonSegmenterDevice: the
-                        // umbilical is still a segmenter for the sentinel's scope gate.
-                        if (device is RocketPowerUmbilical umbilical && network == umbilical.InputNetwork)
-                        {
-                            float quiescent = Patches.RocketUmbilicalPatches.QuiescentBill(umbilical);
-                            if (quiescent > 0f) n.RigidDemand += quiescent;
-                        }
-                        continue;
+                            OnOff = row.OnOff,
+                            Error = row.Error,
+                        };
                     }
-                    // A plain (non-segmenter) power device is ratio-deprivable: vanilla
-                    // ApplyState scales its delivery and drives its Powered state, neither
-                    // cache-governed. Feeds the partial-power sentinel's scope set (device-
-                    // based, not draw-based, so the flag is stable while the device idles).
-                    n.HasNonSegmenterDevice = true;
-                    try
-                    {
-                        float used = device.GetUsedPower(network);
-                        if (used > 0f) n.RigidDemand += used;
-                        float generated = device.GetGeneratedPower(network);
-                        if (generated > 0f) n.GenSupply += generated;
-                    }
-                    catch { }
                 }
-            });
+            }
 
             // Contributor / elastic / soft rosters from the deterministic segmenter enumeration.
             var segs = new List<Seg>();
@@ -370,7 +347,7 @@ namespace PowerGridPlus
                 };
             }
 
-            var segmenters = SegmentingDeviceRegistry.EnumerateSorted();
+            var segmenters = gridSnap.SegmentersSorted;
             for (int i = 0; i < segmenters.Count; i++)
             {
                 var eio = segmenters[i];
@@ -430,6 +407,7 @@ namespace PowerGridPlus
                                         cell.PowerStored),
                                     Locked = seg.Locked,
                                     Kind = ChargeDeliveryAudit.KindApcCell,
+                                    Owner = apc,
                                 });
                             }
                             // A registry-locked APC's vanilla bill is zeroed at ENFORCE
@@ -451,6 +429,7 @@ namespace PowerGridPlus
                                         Kind = ChargeDeliveryAudit.KindApcCell,
                                         OwnerSeg = seg,
                                         OwnerElastic = cellElastic,
+                                        Owner = apc,
                                     });
                             }
                         }
@@ -481,6 +460,7 @@ namespace PowerGridPlus
                                 EffDischarge = Mathf.Min(rateCap, battery.PowerStored),
                                 Locked = locked,
                                 Kind = ChargeDeliveryAudit.KindBattery,
+                                Owner = battery,
                             });
                         }
                         // A registry-locked battery's vanilla bill is zeroed at ENFORCE
@@ -503,6 +483,7 @@ namespace PowerGridPlus
                                     Request = req,
                                     Kind = ChargeDeliveryAudit.KindBattery,
                                     OwnerElastic = ownElastic,
+                                    Owner = battery,
                                 });
                         }
                         break;
@@ -526,6 +507,7 @@ namespace PowerGridPlus
                                 EffDischarge = spec.ElasticCapacity,
                                 Locked = locked,
                                 Kind = ChargeDeliveryAudit.KindUmbilical,
+                                Owner = umbilical,
                             });
                         }
                         // Same billability rule as the APC cell and the battery: a registry-
@@ -539,6 +521,7 @@ namespace PowerGridPlus
                                 Request = spec.SoftRequest,
                                 Kind = ChargeDeliveryAudit.KindUmbilical,
                                 OwnerElastic = umbElastic,
+                                Owner = umbilical,
                             });
                         break;
                     }
@@ -553,6 +536,7 @@ namespace PowerGridPlus
                 if (inNet == null || outNet == null) continue;
                 inNet.Consumers.Add(seg);
                 outNet.Suppliers.Add(seg);
+                seg.OutNetModel = outNet;
             }
             foreach (var e in elastics) GetNet(e.OutNet)?.Elastics.Add(e);
             foreach (var s in softs)
@@ -857,16 +841,13 @@ namespace PowerGridPlus
             //     untouched (next tick re-reads real supply), so recovery is never deadlocked.
             // ----------------------------------------------------------------
             var liveness = new Dictionary<long, byte>(netList.Count);
-            if (Settings.EnableDevicePoweredOwnership.Value)
+            foreach (var n in netList)
             {
-                foreach (var n in netList)
-                {
-                    bool hasSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n) > Eps;
-                    byte formula = n.Unmet > Eps ? NetLiveness.DeadUnmet
-                                 : hasSupply ? NetLiveness.Live
-                                 : NetLiveness.DeadNoSupply;
-                    liveness[n.Id] = NetLiveness.ApplyHold(n.Id, formula, currentTick);
-                }
+                bool hasSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n) > Eps;
+                byte formula = n.Unmet > Eps ? NetLiveness.DeadUnmet
+                             : hasSupply ? NetLiveness.Live
+                             : NetLiveness.DeadNoSupply;
+                liveness[n.Id] = NetLiveness.ApplyHold(n.Id, formula, currentTick);
             }
             NetLiveness.Publish(liveness, currentTick);
             bool IsDeadNet(CableNetwork net)
@@ -904,7 +885,10 @@ namespace PowerGridPlus
                 if (s.InNet == null) continue;
                 chargeGrants[s.RefId] = new ChargeDeliveryAudit.Grant
                 {
-                    Granted = s.Share,
+                    // Dead-net zeroing, same as the caches and the write-back plan: a store charging
+                    // on a DEAD net is credited nothing, so the audit must expect nothing (a store
+                    // on a faulted solar bus was the live counterexample: raw grant vs zero credit).
+                    Granted = IsDeadNet(s.InNet) ? 0f : s.Share,
                     NetId = s.InNet.ReferenceId,
                     Kind = s.Kind,
                 };
@@ -927,7 +911,8 @@ namespace PowerGridPlus
                 if (e.Kind == ChargeDeliveryAudit.KindApcCell) continue;
                 dischargeGrants[e.RefId] = new DischargeDeliveryAudit.Grant
                 {
-                    Granted = e.Share,
+                    // Dead-net zeroing, symmetric with the charge audit and the write-back plan.
+                    Granted = IsDeadNet(e.OutNet) ? 0f : e.Share,
                     NetId = e.OutNet.ReferenceId,
                     Kind = e.Kind,
                 };
@@ -990,18 +975,16 @@ namespace PowerGridPlus
                 }
             }
 
-            // Powered presentation + ledger-settle roster (Stage 3), swapped atomically like the
-            // share caches. HEALTHY = enrolled this tick, carrying no fault (not locked / shed /
+            // Powered presentation + ledger-settle roster, swapped atomically like the share
+            // caches. HEALTHY = enrolled this tick, carrying no fault (not locked / shed /
             // overloaded; segmenters are never VVF candidates), and either conducting flow or
             // sitting idle on an input network that has effective supply with its rigid demand
-            // met. The AllowSetPower postfixes (PoweredPresentationPatches) read the set inside
-            // ENFORCE's ApplyState to block vanilla from un-powering a healthy segmenter, and the
-            // ENFORCE tail (PoweredPresentation.ReconcileEnforceTail) re-asserts Powered=True on
-            // healthy segmenters vanilla left dark: an idle healthy charger bills a fresh pull of
-            // 0, which vanilla reads as "unpowered", the diagnostic trap this kills. An idle seg
-            // on a DARK input (night-time solar feed) is deliberately unhealthy, so vanilla
-            // un-powers it in line with the dead-input hover cue. A pair publishes health under
-            // both halves' ReferenceIds so transmitter and receiver present the same verdict.
+            // met. With vanilla ApplyState retired, PoweredPresentation.ReconcileEnforceTail is
+            // the ONLY writer of a segmenter's Powered flag and asserts both edges from this
+            // verdict: an idle healthy charger presents powered (the diagnostic trap this kills),
+            // an idle seg on a DARK input (night-time solar feed) presents dark in line with the
+            // dead-input hover cue. A pair publishes health under both halves' ReferenceIds so
+            // transmitter and receiver present the same verdict.
             var healthySet = new HashSet<long>();
             var presentationRoster = new List<PoweredPresentation.EnrolledSeg>(segs.Count);
             foreach (var seg in segs)
@@ -1031,16 +1014,61 @@ namespace PowerGridPlus
                     // excluded: its positive _powerProvided is how vanilla UsePower drains the
                     // internal cell one tick after the cell covers a shortfall, and its
                     // GetUsedPower uses Max(ledger, quiescent) so negatives are inert; settling
-                    // would hand the cell free energy. The transformer is settled only while the
-                    // fresh-pull billing replaces the vanilla ledger handshake (mitigation off
-                    // leaves vanilla owning the transformer ledger).
+                    // would hand the cell free energy. The transformer is settled because the
+                    // always-on fresh-pull billing replaces the vanilla ledger handshake.
                     SettleLedger = seg.Kind == SegKind.PtPair
-                                   || (seg.Kind == SegKind.Transformer
-                                       && Settings.EnableTransformerExploitMitigation.Value),
+                                   || seg.Kind == SegKind.Transformer,
                 });
             }
             PoweredPresentation.Publish(healthySet, presentationRoster);
             SegControlSnapshot.Publish(controlSnapshot);
+
+            // ----------------------------------------------------------------
+            // 5.5 WRITE-BACK PLAN (decision 24 stage 3): the converged results the write-back
+            //     applies after this method returns. Net numbers feed the HUD/MP/logic fields;
+            //     store credits and debits ARE the delivery (vanilla ApplyState no longer runs),
+            //     zeroed on dead nets exactly like the published caches so all-or-nothing holds
+            //     at the settlement layer too.
+            // ----------------------------------------------------------------
+            var writePlan = new Core.WriteBack.Plan();
+            foreach (var n in netList)
+            {
+                float elasticGrantedTotal = 0f;
+                foreach (var e in n.Elastics) elasticGrantedTotal += e.Share;
+                writePlan.Nets.Add(new Core.WriteBack.NetResult
+                {
+                    Network = n.Network,
+                    Id = n.Id,
+                    Required = n.RigidDemand + n.PullsGranted + n.SoftPullsGranted + n.SoftGrantedLocal,
+                    Current = n.RigidServed + n.PullsGranted + n.SoftPullsGranted + n.SoftGrantedLocal,
+                    Potential = n.GenSupply + n.InflowCommitted + elasticGrantedTotal,
+                });
+            }
+            foreach (var s in softs)
+            {
+                float amount = IsDeadNet(s.InNet) ? 0f : s.Share;
+                if (amount <= 0f || s.Owner == null) continue;
+                writePlan.Credits.Add(new Core.WriteBack.StoreCredit
+                {
+                    RefId = s.RefId,
+                    Kind = s.Kind,
+                    Amount = amount,
+                    Owner = s.Owner,
+                });
+            }
+            foreach (var e in elastics)
+            {
+                float amount = IsDeadNet(e.OutNet) ? 0f : e.Share;
+                if (amount <= 0f || e.Owner == null) continue;
+                writePlan.Debits.Add(new Core.WriteBack.StoreDebit
+                {
+                    RefId = e.RefId,
+                    Kind = e.Kind,
+                    Amount = amount,
+                    Owner = e.Owner,
+                });
+            }
+            Core.WriteBack.Current = writePlan;
 
             // ----------------------------------------------------------------
             // 6. CONSERVATION CHECK (config-gated): audit the converged grants. Per net, granted
@@ -1339,6 +1367,23 @@ namespace PowerGridPlus
         private static readonly List<(long refId, int priority, float claim, bool stepUp)> _shedCandidateBuffer
             = new List<(long refId, int priority, float claim, bool stepUp)>();
 
+        // Leaf-first shed protection: true while this seg's output net feeds at least one other
+        // ACTIVE (unlocked, unoverloaded, unshed) seg, i.e. the seg is a mid-chain hop. Evaluated
+        // fresh inside every deciding round, so a hop becomes sheddable the round after its whole
+        // subtree went dark, and only then.
+        private static bool FeedsActiveSeg(Seg c)
+        {
+            var outNet = c.OutNetModel;
+            if (outNet == null) return false;
+            var children = outNet.Consumers;
+            for (int i = 0; i < children.Count; i++)
+            {
+                var child = children[i];
+                if (!ReferenceEquals(child, c) && IsActive(child)) return true;
+            }
+            return false;
+        }
+
         private static void ForwardSupplyAndShed(List<Net> topo, List<Seg> segs, bool shedOn, bool settleOnly)
         {
             foreach (var seg in segs)
@@ -1379,7 +1424,14 @@ namespace PowerGridPlus
                         _shedCandidateBuffer.Clear();
                         foreach (var c in n.Consumers)
                             if (!c.Locked && !c.Overloaded && !c.Shed)
-                                _shedCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp));
+                                // Leaf-first shedding (POWER.md §0 decision 24 stage 4): a seg whose
+                                // output net still feeds ACTIVE child segs is a HOP and is protected
+                                // exactly like a step-up (partial grant, never a victim), so the
+                                // deficit forwards downstream until it reaches segs feeding leaf
+                                // nets. As children shed across rounds, their parent stops being a
+                                // hop and becomes eligible: sheds escalate leaf-to-trunk, and a
+                                // no-practical-load trunk chain never sheds at all.
+                                _shedCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp || FeedsActiveSeg(c)));
                         var victims = SelectShedVictims(_shedCandidateBuffer, claims - budget);
                         for (int vi = 0; vi < victims.Count; vi++)
                         {
@@ -1449,7 +1501,7 @@ namespace PowerGridPlus
                 float softAvail = softFirm + elasticLeftover;
                 if (softAvail > 0f)
                 {
-                    float cableHeadroom = CableMax.WeakestCapOnNetwork(n.Network) - (n.RigidServed + survivorPull);
+                    float cableHeadroom = n.WeakestCap - (n.RigidServed + survivorPull);
                     if (cableHeadroom < 0f) cableHeadroom = 0f;
                     if (softAvail > cableHeadroom) softAvail = cableHeadroom;
                 }
@@ -1571,7 +1623,7 @@ namespace PowerGridPlus
             {
                 float flow = (n.RigidDemand - n.Unmet) + n.PullsGranted;
                 if (flow <= Eps) continue;
-                float cableCap = CableMax.WeakestCapOnNetwork(n.Network);
+                float cableCap = n.WeakestCap;
                 if (flow <= cableCap || n.GenSupply > cableCap) continue;
                 foreach (var s in n.Suppliers)
                 {

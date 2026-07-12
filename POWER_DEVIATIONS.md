@@ -497,6 +497,30 @@ in the mid-cooldown join handshake (no countdown to resume; the first heartbeat 
 tick). The join handshake covers the four countdown registries only. No mod-code change was needed, the
 VVF rework was already fully and correctly folded into the unified sync.
 
+### P17. Producer isolation aligned to the strict-literal spec (RESOLVED 2026-07-12)
+
+A silent code-spec divergence, found during the 2026-07-12 audit round and closed on the developer's
+"go full strict" decision. POWER.md §8.5 has always been strict-literal (a producer's network may
+contain ONLY producers and `Transformer` instances; everything else, batteries and the other segmenter
+classes included, is a violator; a Transformer's presence exempts nothing). The implementation lagged:
+`VariableVoltageFaultDetector.Run` exempted the whole net whenever ANY `Transformer` was present
+(`violating = hasActiveProducer && hasRigid && !hasTransformer`) and only counted DRAWING rigid
+consumers (`ProducerClassifier.IsRigidConsumer`, gated on `GetUsedPower > 0`) as violators, so
+solar + battery + transformer on one bus passed, and an idle consumer on a producer bus passed.
+
+Aligned to spec: the classification loop now sets `hasForeignDevice` for every device that is neither
+a producer (class-based, so inactive producers stay transparent per P12) nor a `Transformer` nor an
+unknown-producer-like (which keeps the cable-burn fallback), presence-based rather than draw-based;
+`violating = hasActiveProducer && hasForeignDevice`. `IsRigidConsumer` was deleted (no remaining
+caller). The hover line dropped the now-misleading "without transformer" tail in favour of the fixed
+advisory "A producer connects only to producers and transformers." (FaultHover, §11.1 updated), and
+the §8.5 Recover text no longer claims adding a transformer recovers a net. Consequence for existing
+worlds: buses that passed under the lag (generator + battery sharing a net with a transformer) fault
+at load until rewired; the Medium transformer's {heavy, heavy} tier map keeps
+generators -> Medium transformer -> battery bank legal. CHANGELOG + README carry the player-facing
+warning; the fault-on-load sweep is queued in PLAYTEST.md. The 108-producer Luna VVF baseline recorded
+in this file's status summary predates this change and will read higher on the next run.
+
 ## Verification gaps (implemented, not yet observed)
 
 ### 2026-06-16 headless campaign update

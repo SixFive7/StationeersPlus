@@ -9,18 +9,21 @@ using WindTurbineGenerator = global::Objects.WindTurbineGenerator;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Classifies devices for the producer-isolation rule (POWER.md §8.5 / POWERTODO 1.6.5): a power
+    ///     Classifies devices for the producer-isolation rule (POWER.md §8.5, strict-literal): a power
     ///     producer may only connect to a transformer or to other producers. If a producer shares a cable
-    ///     network with a rigid consumer and no transformer, it is faulted (VARIABLE_VOLTAGE_FAULT).
+    ///     network with any device that is neither a producer nor a Transformer, it is faulted
+    ///     (VARIABLE_VOLTAGE_FAULT).
     ///
     ///     <para>"Producer" = the game's generator classes. "Flashable producer" = a producer with an OnOff
     ///     button that can host a red flash; the rest (SolarPanel, both wind turbines, RTG) are hover-only.
     ///     Base-class checks cover the variants: WindTurbineGenerator covers LargeWindTurbineGenerator,
     ///     PowerGeneratorPipe covers GasFuelGenerator, PowerGeneratorSlot covers SolidFuelGenerator.</para>
     ///
-    ///     <para>Only a Transformer satisfies isolation (POWERTODO Q1): Battery / APC / PT / PR / rocket
-    ///     umbilical do NOT. So SolarPanel + Battery + Light still faults the solar; the battery is
-    ///     transparent to the rule.</para>
+    ///     <para>Only a Transformer is allowed next to producers, and its presence exempts nothing else
+    ///     (full-strict, user decision 2026-07-12): Battery / AreaPowerControl / PowerTransmitter /
+    ///     PowerReceiver / rocket umbilical are foreign devices that fault the producers themselves. So
+    ///     SolarPanel + Battery faults the solar even with a Transformer on the same net; the battery
+    ///     belongs behind the transformer.</para>
     /// </summary>
     internal static class ProducerClassifier
     {
@@ -86,18 +89,6 @@ namespace PowerGridPlus
             return d is PowerGeneratorPipe                 // covers GasFuelGenerator
                 || d is PowerGeneratorSlot                 // covers SolidFuelGenerator
                 || d is StirlingEngine;
-        }
-
-        // A rigid consumer is any power-drawing device that is NEITHER a producer NOR a segmenting device.
-        // Segmenting devices (Transformer / Battery / APC / PT / PR / rocket umbilical) are transparent to
-        // the producer-isolation rule and do not count as rigid consumers.
-        internal static bool IsRigidConsumer(Device d, CableNetwork net)
-        {
-            if (d == null) return false;
-            if (IsProducer(d)) return false;
-            if (d is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio)) return false;
-            try { return d.GetUsedPower(net) > 0f; }
-            catch { return false; }
         }
     }
 }
