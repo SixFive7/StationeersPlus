@@ -4736,6 +4736,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#powerdevicelist-lazy-rebuild-semantics-in-place-dirty-flag-unlocked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer-demand-formula-nuances-fabricator-vs-simplefabricatorbase-and-fermenters-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer demand formula nuances: Fabricator vs SimpleFabricatorBase, and Fermenter's gates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8242,6 +8264,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#powerdevicelist-lazy-rebuild-semantics-in-place-dirty-flag-unlocked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer-demand-formula-nuances-fabricator-vs-simplefabricatorbase-and-fermenters-gates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer demand formula nuances: Fabricator vs SimpleFabricatorBase, and Fermenter's gates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8672,10 +8716,50 @@
 </span></code></pre></div>
 <p><code>DynamicComposter</code> (296224) never resets: it has no <code>ReceivePower</code> override; its accumulator is copied into <code>_powerGenerated</code> (296395) and is unreachable by the solve (the <code>as DynamicGenerator</code> sibling dead-end in the consumer census).</p>
 <p><strong>How vanilla survives without synchronization.</strong> Three layers. (1) CLR atomicity: ECMA-335 guarantees aligned loads/stores of 32-bit-or-smaller types are atomic, so a plain <code>float</code> read can never observe a torn bit pattern; corruption in the garbage-value sense is structurally impossible (this guarantee would NOT hold if the field were a <code>double</code>). (2) Phase sequencing: the reset and the atmosphere-phase accruals are ordered against the solve by the tick structure itself, so most writers are never actually concurrent with it. (3) Tolerance: the five main-thread writers race the worker's reads and its <code>= 0f</code> reset with non-atomic read-modify-writes; an interleaving can lose an increment (work done but wiped unbilled: free power) or resurrect a pre-reset value (billed again next tick: double bill), each bounded by one frame or one 100 ms slice of work, and the absence of barriers permits slightly stale reads. Vanilla never audits energy and ratio-scales forgivingly, so these leaks are invisible in the base game. Note the direction of the hazard: the blind reset destroys even increments the resetter never observed, which is why a subtract-what-you-billed write-back (drain-and-bill) is strictly safer than the vanilla reset it replaces, and a main-thread-marshaled debit (vanilla's own <code>SetPowerFromThread</code> idiom) eliminates the writer race entirely by making every mutation execute on one thread.</p>
+<h2 id="powerdevicelist-lazy-rebuild-semantics-in-place-dirty-flag-unlocked">PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)<a class="headerlink" href="#powerdevicelist-lazy-rebuild-semantics-in-place-dirty-flag-unlocked" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+
+<p>The <code>CableNetwork.PowerDeviceList</code> / <code>DataDeviceList</code> getters lazily rebuild on read: <code>if
+(PowerDeviceListDirty || DataDeviceListDirty) RefreshPowerAndDataDeviceLists();</code> (270690-270699 /
+270678-270688). The refresh (270746-270787) is IN PLACE on the SAME list instances (<code>_powerDeviceList
+.Clear()</code> then re-<code>Add</code>), never a reference swap, iterating <code>DeviceList</code> backwards and testing power
+membership as <code>device.PowerCables[i].CableNetwork == this</code> (270772-270782; data membership the same
+over <code>DataCables</code>). It takes NO lock and runs on whichever thread happens to touch a getter while a
+dirty flag is set. Consequences:</p>
+<ul>
+<li>Two threads calling a getter concurrently while dirty both run the refresh over the same lists
+  (duplicate entries / torn state). A reader that does <code>lock (net.PowerDeviceList) { copy }</code> is NOT
+  protected either: the <code>lock</code> expression evaluates the getter FIRST (potentially running the
+  unlocked refresh), and a later refresh triggered from another thread mutates the very instance
+  the reader holds locked, because the refresh itself never locks.</li>
+<li>The race-free way to read power membership off-thread is to bypass the getter entirely: snapshot
+  <code>DeviceList</code> under <code>lock (net.DeviceList)</code> (vanilla writers hold that lock) and apply the same
+  <code>PowerCables</code> predicate yourself. This is what PowerGridPlus's per-tick GridSnapshot does.</li>
+<li>A derived network class overrides <code>RefreshPowerAndDataDeviceLists</code> (272486), so a Harmony patch
+  on the base virtual would not cover every network type; the bypass above is override-proof.</li>
+</ul>
+<h2 id="consumer-demand-formula-nuances-fabricator-vs-simplefabricatorbase-and-fermenters-gates">Consumer demand formula nuances: Fabricator vs SimpleFabricatorBase, and Fermenter's gates<a class="headerlink" href="#consumer-demand-formula-nuances-fabricator-vs-simplefabricatorbase-and-fermenters-gates" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+
+<p>Exact <code>GetUsedPower</code> bodies for the accumulator classes whose formulas differ in their OFF branch
+(needed verbatim by anything reconstructing demand from the accumulator, e.g. PowerGridPlus's
+DemandModel):</p>
+<ul>
+<li><code>SimpleFabricatorBase</code> (420203): foreign net -&gt; <code>-1f</code>; <code>!OnOff</code> -&gt; <code>_powerUsedDuringTick</code> (the
+  residual accumulator still bills while switched off); else <code>UsedPower + _powerUsedDuringTick</code>.
+  <code>ArcFurnace</code> (365548) and <code>IceCrusher</code> (380296) share this shape.</li>
+<li><code>Fabricator</code> (396283-396294): foreign net -&gt; <code>-1f</code>; <code>!OnOff</code> -&gt; <code>0f</code> (the accumulator is NOT
+  billed while off, unlike its SimpleFabricatorBase sibling); else <code>UsedPower +
+  _powerUsedDuringTick</code>.</li>
+<li><code>Fermenter</code> (181583-181594): <code>!OnOff || foreign || PowerCableNetwork == null ||
+  !IsStructureCompleted</code> -&gt; <code>0f</code>; <code>!IsOperable</code> -&gt; <code>UsedPower</code> only; else <code>UsedPower +
+  _powerUsedDuringTick</code>.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
 
 <ul>
+<li>2026-07-12 (later): added "PowerDeviceList lazy rebuild semantics" (getter dirty-check 270690-270699, in-place unlocked refresh body 270746-270787 with the PowerCables membership predicate, the derived override at 272486, and the lock(DeviceList)+predicate bypass) and "Consumer demand formula nuances" (Fabricator 396283-396294 bills NO accumulator while off, unlike SimpleFabricatorBase/ArcFurnace/IceCrusher which bill the residual accumulator; Fermenter's completion + IsOperable gates 181583-181594). Read directly from the 0.2.6403.27689 decompile during the PowerGridPlus B + D1 data-plane implementation. No prior content contradicted; the consumer census rows are refined, not changed.</li>
 <li>2026-07-12: added the "_powerUsedDuringTick synchronization census" section from a whole-decompile enumeration pass (0.2.6403.27689) driven by the PowerGridPlus data-plane redesign discussion. All 17 field declarations read verbatim (plain instance float, never volatile / static / double; 16 private, <code>FiltrationMachineBase</code> 377803 protected; no shared base field, proven by <code>DroidSleeper</code> declaring its own directly under <code>Device</code>; no property wrapper). Every write site classified by thread: the power-worker reset in all 16 <code>ReceivePower</code> overrides via <code>ApplyState -&gt; ConsumePower</code> (271820-271832), with the off-main-thread proof at 271933 / 371648-371651 (<code>SetPowerFromThread</code> marshals via <code>SwitchToMainThread</code>); eleven atmosphere-phase writers (sequenced before the solve, 204458/204466); five genuinely concurrent main-thread writers matching the mid-tick-mutable accumulator rows (181666/181674, 380277, 396364, 365606, 420309). <code>Interlocked</code> confirmed at ZERO occurrences assembly-wide; no <code>lock</code> in any relevant method (the only power-machinery lock is <code>PowerTick.Initialise</code> 271748-271758 snapshotting the lists). The <code>SpawnPointAtmospherics</code> fold-then-zero variant (422742-422746) and the <code>DynamicComposter</code> never-reset variant (296395) recorded verbatim. No prior content contradicted: the consumer census's mid-tick-mutable vs tick-stable split is confirmed and extended with the declaration and reset-thread facts.</li>
 <li>2026-07-09 (later): COMPLETED the consumer census from a whole-decompile enumeration (all 34 <code>GetUsedPower(CableNetwork)</code> overrides + all 15 <code>GetGeneratedPower</code> overrides classified by mutation site and thread; produced by three independent census agents for the PowerGridPlus Powered-ownership redesign and cross-checked against the mod build). CONFLICT RESOLUTION against this page's morning version: <code>SimpleFabricatorBase</code> does NOT cover "every fabricator"; <code>Fabricator</code> (class decl 396068, <code>public class Fabricator : FabricatorBase</code>, read directly this pass) is a SIBLING with its own <code>GetUsedPower</code> override (396283) and a main-thread <code>OnServerExportTick</code> accumulator (396364). Replaced the three-row table with the complete fourteen-row mid-tick-mutable set plus the PowerConnector forwarding producer, the tick-stable list with the atmos-before-electricity and device-tick-after-solve discriminators (204418/204458/204466), the <code>DynamicComposter</code> sibling dead-end (296224 vs 297342, <code>as DynamicGenerator</code> null at 408026), and the <code>ElevatorShaftNetwork.GetUsedPower</code> dead-code finding (395878-395890, zero callers). Consequence paragraph updated to the shipped latch set + the net-liveness ownership model.</li>
 <li>2026-07-09: added the "Consumer demand stability census" section, the demand-side twin of the producer census. Read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>: <code>SimpleFabricatorBase</code> class (line 419486), <code>OnBeginSmelt</code> (420195), <code>GetUsedPower</code> (420203-420214, foreign-network sentinel <code>-1f</code>, else <code>OnOff ? UsedPower + _powerUsedDuringTick : _powerUsedDuringTick</code>), <code>ReceivePower</code> reset of <code>_powerUsedDuringTick</code> (420216-420220); the per-frame <code>WaitThenMake</code> accumulation (~420309) carried from the same session's earlier read. Establishes the fabricator family as the consumer-side analogue of the solar/wind producer read-coherence hazard. No prior content contradicted; earlier sections keep their stamps.</li>
