@@ -257,6 +257,14 @@ namespace PowerGridPlus
                 return n;
             }
 
+            // GATHER-time control-state snapshot (SegControlSnapshot): the FIRST touch of a
+            // segmenter this tick pins its (OnOff, Error) for the whole tick. The umbilical
+            // quiescent bill in the gather below, the enrollment gate in the segmenter
+            // enumeration, and every ENFORCE-phase gate in the segmenter patch files read this
+            // one coherent value, so a player toggle landing mid-tick cannot tear the solve; it
+            // lands next tick.
+            var controlSnapshot = new Dictionary<long, SegControlSnapshot.Entry>();
+
             // Per-network rigid demand + generator supply. Segmenters are skipped here (they are
             // modelled structurally below); everything else generating is a rigid generator and
             // everything else drawing is a rigid consumer. VVF-faulted producers already read 0 via
@@ -277,6 +285,15 @@ namespace PowerGridPlus
                     if (device == null) continue;
                     if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio))
                     {
+                        // First-read-wins control snapshot (see the declaration above).
+                        if (!controlSnapshot.ContainsKey(eio.ReferenceId))
+                        {
+                            controlSnapshot[eio.ReferenceId] = new SegControlSnapshot.Entry
+                            {
+                                OnOff = eio.OnOff,
+                                Error = eio.Error,
+                            };
+                        }
                         // The rocket umbilical halves bill their own idle draw on the input
                         // network under vanilla gates the Buffered adapter cannot carry (no
                         // routed seg exists to hold a quiescent pull): the Male whenever ON
@@ -357,7 +374,16 @@ namespace PowerGridPlus
             for (int i = 0; i < segmenters.Count; i++)
             {
                 var eio = segmenters[i];
-                if (eio == null || !eio.OnOff) continue;
+                if (eio == null) continue;
+                // Enrollment gates on the tick's control snapshot (first-read-wins; recorded in
+                // the rigid gather above, backfilled here for a segmenter the gather never saw),
+                // so enrollment, the quiescent bill, and the ENFORCE gates all agree.
+                if (!controlSnapshot.TryGetValue(eio.ReferenceId, out var snap))
+                {
+                    snap = new SegControlSnapshot.Entry { OnOff = eio.OnOff, Error = eio.Error };
+                    controlSnapshot[eio.ReferenceId] = snap;
+                }
+                if (!snap.OnOff) continue;
 
                 switch (eio)
                 {
@@ -814,20 +840,59 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
+            // 4.9 NET LIVENESS: the per-net LIVE / DEAD verdict for the consumer Powered-ownership
+            //     layer (NetLiveness), computed from the converged post-clawback state BEFORE the
+            //     caches publish so a dead net's shares and totals can be zeroed at the source.
+            //     LIVE = rigid demand fully funded AND an energized feed exists (the same supply
+            //     expression the dead-input cue and the healthy-set inNetMet gate use). DEAD_UNMET
+            //     (demand the allocator could not fund: generation-short root nets, the step-up and
+            //     cable-limited partial-delivery carve-outs) arms a 60 s hold against demand-
+            //     collapse flapping; DEAD_NOSUPPLY re-arms the tick supply returns. Consumed the
+            //     same tick by the SetPowerFromThread false-edge block, the producer dead-net
+            //     advertise zeroing, and the PoweredOwnership sweep. Zeroing a dead net's caches
+            //     below is what makes the verdict conservation-exact: no provider on the net means
+            //     an EMPTY Providers array at ENFORCE, ConsumePower never calls ReceivePower,
+            //     accumulator debts freeze, and the vanilla power-ON edge cannot fire (the
+            //     zero-Potential corollary, Research/GameClasses/PowerTick.md). GATHER is
+            //     untouched (next tick re-reads real supply), so recovery is never deadlocked.
+            // ----------------------------------------------------------------
+            var liveness = new Dictionary<long, byte>(netList.Count);
+            if (Settings.EnableDevicePoweredOwnership.Value)
+            {
+                foreach (var n in netList)
+                {
+                    bool hasSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n) > Eps;
+                    byte formula = n.Unmet > Eps ? NetLiveness.DeadUnmet
+                                 : hasSupply ? NetLiveness.Live
+                                 : NetLiveness.DeadNoSupply;
+                    liveness[n.Id] = NetLiveness.ApplyHold(n.Id, formula, currentTick);
+                }
+            }
+            NetLiveness.Publish(liveness, currentTick);
+            bool IsDeadNet(CableNetwork net)
+            {
+                return net != null
+                       && liveness.TryGetValue(net.ReferenceId, out byte v)
+                       && v != NetLiveness.Live;
+            }
+
+            // ----------------------------------------------------------------
             // 5. PUBLISH: write the share caches (ENFORCE's postfixes read these).
             // ----------------------------------------------------------------
             foreach (var e in elastics)
             {
                 // For APCs the GetGeneratedPower surface bundles passthrough + cell (vanilla
                 // AvailablePower), so the cap must include the total committed passthrough (rigid +
-                // soft); the matching Seg is found below.
-                SoftSupplyShareCache.SetShare(e.RefId, e.Share);
+                // soft); the matching Seg is found below. A store discharging onto a DEAD net
+                // publishes a zero share: all-or-nothing, nothing drains into a dark subnet.
+                SoftSupplyShareCache.SetShare(e.RefId, IsDeadNet(e.OutNet) ? 0f : e.Share);
             }
             // Storage charge shares: the forward sweep's per-device soft grants. The soft-demand
             // GetUsedPower postfixes cap the reported charge demand to these, so each store charges
-            // exactly what the allocator granted.
+            // exactly what the allocator granted. A store charging on a DEAD net publishes zero:
+            // its charge bill would be a phantom no dark supplier ever funds.
             foreach (var s in softs)
-                SoftDemandShareCache.SetShare(s.RefId, s.Share);
+                SoftDemandShareCache.SetShare(s.RefId, IsDeadNet(s.InNet) ? 0f : s.Share);
 
             // Charge-grant snapshot for the charge-delivery audit (§8.8 fifth surface): every
             // store's granted charge this tick, with the charge-side net (the audit's Served gate)
@@ -882,6 +947,18 @@ namespace PowerGridPlus
             {
                 float totalThrough = seg.Throughput + seg.SoftThrough;
                 float totalPull = seg.Pull + seg.SoftPull;
+                // A seg whose OUTPUT net is verdict-DEAD delivers nothing and bills nothing: the
+                // partial-delivery carve-outs (a step-up on a short input, a cable-limited seg)
+                // would otherwise trickle ratio-scaled power into a dark subnet, evaporating
+                // accumulator debts at partial price and billing upstream for undelivered flow.
+                // Zeroing the published totals routes every cache-governed surface (advertise AND
+                // input bill) through the same all-or-nothing verdict; the model values stay
+                // untouched, so next tick's solve re-decides from real state.
+                if (IsDeadNet(seg.OutNet))
+                {
+                    totalThrough = 0f;
+                    totalPull = 0f;
+                }
                 if (seg.Kind == SegKind.Transformer || seg.Kind == SegKind.PtPair)
                 {
                     // The transformer bills via TransformerExploitPatches; the wireless PT/PR pair
@@ -903,6 +980,7 @@ namespace PowerGridPlus
                     float cellShare = 0f;
                     foreach (var e in elastics)
                         if (e.RefId == seg.RefId) { cellShare = e.Share; break; }
+                    if (IsDeadNet(seg.OutNet)) cellShare = 0f;   // all-or-nothing on a dead subnet
                     ApcCellDischargeCache.SetShare(seg.RefId, cellShare);
                     SoftSupplyShareCache.SetShare(seg.RefId, totalThrough + cellShare);
                     // Presentation totals for the APC too, so every routed seg kind publishes the same
@@ -962,6 +1040,7 @@ namespace PowerGridPlus
                 });
             }
             PoweredPresentation.Publish(healthySet, presentationRoster);
+            SegControlSnapshot.Publish(controlSnapshot);
 
             // ----------------------------------------------------------------
             // 6. CONSERVATION CHECK (config-gated): audit the converged grants. Per net, granted

@@ -59,7 +59,15 @@ namespace PowerGridPlus.Patches
             SolarOutputLatchPatches.Clear();
             WindTurbineOutputLatchPatches.Clear();
             ConsumerDemandLatchPatches.Clear();
+            ConsumerDemandLatchesExtended.Clear();
+            PowerConnectorOutputLatchPatches.Clear();
             EmergencyLightToggleQueue.Clear();
+            // The consumer Powered-ownership layer: the per-net LIVE/DEAD verdicts and their 60 s
+            // holds, the GATHER-time segmenter control snapshot, and the sweep's per-device
+            // expectation / quarantine state all reference the previous world's ids.
+            NetLiveness.Clear();
+            SegControlSnapshot.Clear();
+            PoweredOwnership.Clear();
             // The charge / discharge delivery audits' grants / credits / drains / counters and
             // the per-tick delivery-shaping allowances are per-world state too.
             ChargeDeliveryAudit.Clear();

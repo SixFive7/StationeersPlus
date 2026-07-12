@@ -33,7 +33,14 @@ namespace PowerGridPlus.Patches
         {
             if (__instance.InputNetwork == null || cableNetwork != __instance.InputNetwork)
                 return true;   // not the input cable network: let vanilla return 0
-            if (!__instance.OnOff || __instance.Error == 1)
+            // GATHER-time control snapshot in place of live OnOff / Error (SegControlSnapshot);
+            // live fallback for a device the allocator never enumerated this tick.
+            if (!SegControlSnapshot.TryGet(__instance.ReferenceId, out bool onOff, out int error))
+            {
+                onOff = __instance.OnOff;
+                error = __instance.Error;
+            }
+            if (!onOff || error == 1)
                 return true;   // off / error: vanilla handles it
 
             if (TransformerSupplyCache.TryGetInputDraw(__instance.ReferenceId, out var fresh))

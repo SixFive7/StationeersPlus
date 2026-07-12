@@ -89,7 +89,11 @@ namespace PowerGridPlus.Patches
         /// </summary>
         internal static float FundedQuiescent(AreaPowerControl apc)
         {
-            if (!apc.OnOff || apc.OutputNetwork == null) return 0f;
+            // Snapshot OnOff (SegControlSnapshot): billed == burned under one tick-coherent
+            // verdict; a mid-tick toggle lands next tick. Live fallback for an un-enumerated APC.
+            bool onOff = SegControlSnapshot.TryGet(apc.ReferenceId, out bool snapOn, out _)
+                ? snapOn : apc.OnOff;
+            if (!onOff || apc.OutputNetwork == null) return 0f;
             return TransformerSupplyCache.TryGetInputDraw(apc.ReferenceId, out var fundedPull) && fundedPull > 0f
                 ? apc.UsedPower
                 : 0f;
@@ -170,7 +174,10 @@ namespace PowerGridPlus.Patches
                 return false;
 
             float usedPower = 0.0f;
-            if (__instance.OnOff)
+            // Snapshot OnOff (SegControlSnapshot), matching FundedQuiescent's gate.
+            bool onOff = SegControlSnapshot.TryGet(__instance.ReferenceId, out bool snapOn, out _)
+                ? snapOn : __instance.OnOff;
+            if (onOff)
             {
                 if (__instance.OutputNetwork != null)
                 {

@@ -67,6 +67,10 @@ namespace PowerGridPlus
         internal static ConfigEntry<bool> EnableEmergencyLights;
         internal static ConfigEntry<string> EmergencyLightPrefabs;
 
+        // --- Server - Powered Presentation ---
+        internal static ConfigEntry<bool> EnableDevicePoweredOwnership;
+        internal static ConfigEntry<bool> DecouplePoweredFromOnOff;
+
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
         {
             if (requireRestart)
@@ -308,6 +312,19 @@ namespace PowerGridPlus
                      "check costs a few microseconds per tick, so leave it on unless chasing maximum performance.", 10));
 
             // --- Server - Emergency Lights ---
+            // --- Server - Powered Presentation ---
+            EnableDevicePoweredOwnership = config.Bind("Server - Powered Presentation", "Enable Device Powered Ownership", true,
+                Desc("(Server-authoritative) The power allocator decides every device's Powered flag from its network's " +
+                     "state (live, shed, overloaded, or dead) instead of vanilla's per-device met-this-tick heuristic. A " +
+                     "demand spike (a printer starting a job) can no longer power-cycle the device and cancel its work: " +
+                     "either the subnet carries the load, or the feeding transformer sheds and the whole subnet goes dark " +
+                     "as a unit. Off restores vanilla per-device power flicker.", 10));
+            DecouplePoweredFromOnOff = config.Bind("Server - Powered Presentation", "Decouple Powered From On Off", true,
+                Desc("(Server-authoritative) Powered means 'this device's network is energized', independent of the " +
+                     "device's own on/off switch: a switched-off device on a live network reads Power=1 (powered but off) " +
+                     "and still draws nothing. Off keeps the vanilla coupling, where a switched-off device also reads " +
+                     "Power=0. Only applies while Enable Device Powered Ownership is on.", 20));
+
             EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,
                 Desc("(Server-authoritative) When true, Wall Light Battery devices behave as emergency backup lights: the lamp " +
                      "stays off while the cable grid powers it, and switches on (powered by its internal battery cell) when " +

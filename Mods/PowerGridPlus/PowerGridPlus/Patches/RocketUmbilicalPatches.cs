@@ -64,8 +64,16 @@ namespace PowerGridPlus.Patches
         internal static float QuiescentBill(RocketPowerUmbilical umbilical)
         {
             if (umbilical == null || umbilical.InputNetwork == null) return 0f;
-            if (umbilical is RocketPowerUmbilicalMale) return umbilical.OnOff ? umbilical.UsedPower : 0f;
-            return umbilical.Error == 1 ? 0f : umbilical.UsedPower;   // Female: OnOff-blind, vanilla
+            // Snapshot OnOff / Error (SegControlSnapshot): GATHER records the half first-read-wins
+            // before calling this, and the ENFORCE-side delivery burn calls it again, so bill ==
+            // burn under one tick-coherent verdict. Live fallback for an un-enumerated half.
+            if (!SegControlSnapshot.TryGet(umbilical.ReferenceId, out bool onOff, out int error))
+            {
+                onOff = umbilical.OnOff;
+                error = umbilical.Error;
+            }
+            if (umbilical is RocketPowerUmbilicalMale) return onOff ? umbilical.UsedPower : 0f;
+            return error == 1 ? 0f : umbilical.UsedPower;   // Female: OnOff-blind, vanilla
         }
 
         private static void CapUsed(ElectricalInputOutput umbilical, float ownDraw, ref float result)

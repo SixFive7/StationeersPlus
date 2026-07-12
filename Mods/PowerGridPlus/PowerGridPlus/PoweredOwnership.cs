@@ -1,0 +1,335 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Reflection;
+using Assets.Scripts.Networks;
+using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts.Objects.Structures;
+using VanillaLandingPadTankConnector = global::Objects.LandingPads.LandingPadTankConnector;
+using VanillaLandingPadPump = global::Objects.Electrical.LandingPadPump;
+using VanillaLandingPadTaxiThreshold = global::Objects.Electrical.LandingPadTaxiThreshold;
+
+namespace PowerGridPlus
+{
+    /// <summary>
+    ///     Consumer Powered ownership (the net-liveness model): the mod, not vanilla, decides every
+    ///     plain device's Powered flag, from its network's LIVE / DEAD verdict (NetLiveness), never
+    ///     from whether the device's own demand was met this tick. A device on a LIVE net is
+    ///     powered; a device on a DEAD net is dark; a device's own draw, however spiky or random,
+    ///     cannot flicker it. This kills the whole per-device depower class (the fabricator
+    ///     print-start reboot) structurally: either the subnet can carry the load (stays LIVE,
+    ///     everyone powered) or its segmenter sheds / overloads and the subnet goes dark AS A UNIT,
+    ///     which is the mod's stated contract.
+    ///
+    ///     <para><b>Three cooperating pieces.</b> (1) The SetPowerFromThread false-edge block
+    ///     (PoweredOwnershipPatches) stops vanilla ApplyState from un-powering an owned device on a
+    ///     LIVE or unclassified net; being on the NON-VIRTUAL funnel it catches every class,
+    ///     including third-party AllowSetPower overrides. (2) The dead-net advertise zeroing
+    ///     (ProducerFaultEnforcementPatches + the segmenter supply patches, keyed by NetLiveness)
+    ///     makes a DEAD net deliver literally nothing, so accumulator debts freeze exactly and the
+    ///     vanilla power-ON edge cannot fire there (the zero-Potential corollary,
+    ///     Research/GameClasses/PowerTick.md). (3) This sweep, at the ENFORCE tail, asserts both
+    ///     edges per device from the verdict and audits the result.</para>
+    ///
+    ///     <para><b>Expected state.</b> LIVE net AND structure complete AND (orthogonality ON, or
+    ///     the device's OnOff switch is on) => Powered true; otherwise false. With "Decouple
+    ///     Powered From On Off" enabled (the default), Powered means "my outlet is energized": a
+    ///     switched-off device on a live net reads Power=1 (powered but off), which is the
+    ///     physically-correct decoupling the mod adopts; the draw stays OnOff-gated so nothing is
+    ///     consumed. With the toggle off, expected also requires OnOff (vanilla-compatible
+    ///     semantics minus the per-device depower).</para>
+    ///
+    ///     <para><b>Unclassified nets freeze.</b> A net absent from this tick's verdict map (a
+    ///     mid-tick cable split mints new network ids) gets NO write: forcing dark would cancel
+    ///     prints on ordinary cable edits, the exact bug this layer removes. A device persistently
+    ///     unclassified (4+ consecutive tail sweeps) fail-safes to dark and logs once: a device the
+    ///     mod cannot classify stays depowered by design.</para>
+    ///
+    ///     <para><b>Exemptions.</b> Segmenters keep the existing healthy-set policy
+    ///     (PoweredPresentation). Classes that legitimately self-own Powered are never driven:
+    ///     battery wall lights (the emergency-light feature depends on their per-device-tick
+    ///     CheckPowerState re-assert), the gas / Stirling generator family (AllowSetPower=false in
+    ///     vanilla; their atmospheric tick writes both edges from combustion state), landing pad
+    ///     devices (AssessPower from their own OnPowerTick), doors forced always-powered, the
+    ///     elevator family (shaft-network aggregate + per-physics-frame carriage sync), and, via
+    ///     reflection, ANY class overriding the Powered getter below Thing (a SetPower write would
+    ///     be invisible to its reads; vanilla Battery is the archetype). Emergency-light prefabs
+    ///     from the config list are exempt by name.</para>
+    ///
+    ///     <para><b>Quarantine.</b> A device whose actual Powered keeps contradicting the sweep's
+    ///     stable expectation for 10 consecutive tails (a third-party self-asserter fighting the
+    ///     write) is quarantined: the mod stops writing it and restores full vanilla behavior for
+    ///     it, one log line. The conformance counters double as the auditor the design demands:
+    ///     any device found in a state the mod did not expect, past the one-tick marshal grace,
+    ///     is counted and reported (aggregated, once per 600 ticks), and unclassified streaks
+    ///     surface devices the mod failed to classify.</para>
+    ///
+    ///     <para>Threading: the sweep and the SetPowerFromThread prefix both run on the power
+    ///     worker (sequential phases of the same tick); AssessPower suppression runs on the main
+    ///     thread, so the shared type-exemption cache and quarantine set are concurrent
+    ///     containers. Cleared on world load (FaultRegistryLoadPatches).</para>
+    /// </summary>
+    internal static class PoweredOwnership
+    {
+        private const int UnclassifiedDarkThreshold = 4;   // tails frozen before fail-safe dark
+        private const int QuarantineStreak = 10;           // contested tails before giving the device back to vanilla
+        private const int WarnCooldownTicks = 600;         // one aggregated warning per ~5 minutes at 2 Hz
+        private const int PruneEveryTicks = 600;
+
+        /// <summary>True while the ENFORCE-tail sweep issues its own writes (worker-only), so the
+        /// false-edge block lets them through.</summary>
+        internal static bool ModWriteWindow;
+
+        private struct DevState
+        {
+            public byte LastExpected;        // 0 false, 1 true, 2 none (frozen/unclassified)
+            public byte PrevExpected;
+            public byte MismatchStreak;
+            public byte UnclassifiedStreak;
+            public int LastTouchedTick;
+        }
+
+        private static readonly Dictionary<long, DevState> _state = new Dictionary<long, DevState>();
+        private static readonly List<long> _pruneScratch = new List<long>();
+        // Read from the main thread by the AssessPower prefix and (rarely) third-party
+        // SetPowerFromThread callers, hence concurrent.
+        private static readonly ConcurrentDictionary<long, byte> _quarantined = new ConcurrentDictionary<long, byte>();
+        private static readonly ConcurrentDictionary<Type, bool> _exemptTypeCache = new ConcurrentDictionary<Type, bool>();
+        private static readonly HashSet<long> _loggedUnclassified = new HashSet<long>();
+
+        // Exact counters since load; reflection surface for the rearch suite.
+        internal static long MismatchDeviceTicks { get; private set; }
+        internal static int MismatchDistinctDevices => _mismatchDevices.Count;
+        internal static int QuarantinedCount => _quarantined.Count;
+        internal static long LastMismatchRefId { get; private set; }
+        internal static int WarningsEmitted { get; private set; }
+
+        private static readonly HashSet<long> _mismatchDevices = new HashSet<long>();
+        private static long _deviceTicksAtLastWarn;
+        private static int _lastWarnTick = -WarnCooldownTicks;
+
+        /// <summary>Master gate: the ownership layer is on and this tick's verdict is published.</summary>
+        internal static bool OwnershipActiveNow()
+        {
+            return Settings.EnableDevicePoweredOwnership.Value
+                   && NetLiveness.PublishedTick == ElectricityTickCounter.CurrentTick;
+        }
+
+        internal static bool IsQuarantined(long refId) => _quarantined.ContainsKey(refId);
+
+        /// <summary>Class-level exemption (see the class doc), cached per concrete type.</summary>
+        internal static bool IsExemptDevice(Device device)
+        {
+            var t = device.GetType();
+            if (_exemptTypeCache.TryGetValue(t, out bool cached)) return cached;
+            bool exempt = ComputeExempt(t);
+            _exemptTypeCache[t] = exempt;
+            return exempt;
+        }
+
+        private static bool ComputeExempt(Type t)
+        {
+            if (typeof(WallLightBattery).IsAssignableFrom(t)) return true;
+            if (typeof(PowerGeneratorPipe).IsAssignableFrom(t)) return true;   // + GasFuelGenerator
+            if (typeof(StirlingEngine).IsAssignableFrom(t)) return true;
+            if (typeof(UnPoweredDoor).IsAssignableFrom(t)) return true;
+            if (typeof(ElevatorShaft).IsAssignableFrom(t)) return true;        // + ElevatorLevel
+            if (typeof(VanillaLandingPadTankConnector).IsAssignableFrom(t)) return true;
+            if (typeof(VanillaLandingPadPump).IsAssignableFrom(t)) return true;
+            if (typeof(VanillaLandingPadTaxiThreshold).IsAssignableFrom(t)) return true;
+            try
+            {
+                // Any Powered-getter override below Thing is unownable: our SetPower writes the
+                // interactable, but the class's reads come from somewhere else (vanilla Battery's
+                // charge state, a modded equivalent). Leave those classes fully vanilla.
+                var getter = t.GetProperty("Powered",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy)?.GetGetMethod();
+                if (getter != null && getter.DeclaringType != typeof(Thing)) return true;
+            }
+            catch
+            {
+                return true;   // ambiguous / hidden property: fail safe, leave it vanilla
+            }
+            return false;
+        }
+
+        /// <summary>
+        ///     ENFORCE tail: assert both Powered edges per device from this tick's net verdict,
+        ///     audit last tick's expectation against the actual flag, and quarantine contested
+        ///     devices. Runs on the power worker after every network's ApplyState.
+        /// </summary>
+        internal static void SweepEnforceTail(int currentTick)
+        {
+            if (!Settings.EnableDevicePoweredOwnership.Value) return;
+            if (NetLiveness.PublishedTick != currentTick) return;
+            bool orthogonal = Settings.DecouplePoweredFromOnOff.Value;
+            var emergencyPrefabs = Patches.EmergencyLightSupport.PrefabNames;
+
+            ModWriteWindow = true;
+            try
+            {
+                CableNetwork.AllCableNetworks.ForEach(net =>
+                {
+                    if (net == null) return;
+                    List<Device> snapshot;
+                    lock (net.PowerDeviceList)
+                    {
+                        if (net.PowerDeviceList.Count == 0) return;
+                        snapshot = new List<Device>(net.PowerDeviceList);
+                    }
+                    bool classified = NetLiveness.TryGetVerdict(net.ReferenceId, out byte verdict);
+                    for (int i = 0; i < snapshot.Count; i++)
+                    {
+                        var device = snapshot[i];
+                        if (device == null) continue;
+                        // Single-owner rule: a multi-net device is swept only by its primary
+                        // network, mirroring the base AllowSetPower semantics.
+                        if (device.PowerCableNetwork != net) continue;
+                        if (!device.HasPowerState) continue;   // PoweredValue write would silently no-op
+                        if (device is ElectricalInputOutput eio && SegmentingDeviceRegistry.IsSegmenter(eio))
+                            continue;                          // healthy-set policy owns segmenters
+                        if (IsExemptDevice(device)) continue;
+                        if (emergencyPrefabs != null && emergencyPrefabs.Contains(device.PrefabName)) continue;
+                        long refId = device.ReferenceId;
+                        if (_quarantined.ContainsKey(refId)) continue;
+
+                        _state.TryGetValue(refId, out var st);
+
+                        byte expected;
+                        if (!classified)
+                        {
+                            st.UnclassifiedStreak = (byte)Math.Min(byte.MaxValue, st.UnclassifiedStreak + 1);
+                            if (st.UnclassifiedStreak < UnclassifiedDarkThreshold)
+                            {
+                                // Freeze: fresh split nets keep their state until a verdict lands.
+                                st.PrevExpected = st.LastExpected;
+                                st.LastExpected = 2;
+                                st.MismatchStreak = 0;
+                                st.LastTouchedTick = currentTick;
+                                _state[refId] = st;
+                                continue;
+                            }
+                            // Persistently unclassified: the fail-safe. A device the mod cannot
+                            // classify stays depowered, and the auditor names it once.
+                            expected = 0;
+                            if (_loggedUnclassified.Add(refId))
+                            {
+                                Plugin.Log?.LogWarning(
+                                    "[PowerGridPlus] Powered ownership: device " + refId.ToString(CultureInfo.InvariantCulture)
+                                    + " ('" + (device.DisplayName ?? device.PrefabName) + "') sat on an unclassified network for "
+                                    + UnclassifiedDarkThreshold.ToString(CultureInfo.InvariantCulture)
+                                    + "+ ticks; forcing it dark (fail-safe). If this persists, the network is outside the allocator's model.");
+                            }
+                        }
+                        else
+                        {
+                            st.UnclassifiedStreak = 0;
+                            expected = (verdict == NetLiveness.Live
+                                        && device.IsStructureCompleted
+                                        && (orthogonal || device.OnOff)) ? (byte)1 : (byte)0;
+                        }
+
+                        bool actual = device.Powered;
+
+                        // Conformance audit: judged against LAST tail's expectation, and only when
+                        // that expectation was stable across two tails (the marshal grace: a fresh
+                        // transition legitimately lands on the next main-thread frame).
+                        if (st.LastExpected != 2 && st.LastExpected == st.PrevExpected
+                            && actual != (st.LastExpected == 1))
+                        {
+                            st.MismatchStreak = (byte)Math.Min(byte.MaxValue, st.MismatchStreak + 1);
+                            if (st.MismatchStreak >= 2)
+                            {
+                                MismatchDeviceTicks++;
+                                _mismatchDevices.Add(refId);
+                                LastMismatchRefId = refId;
+                            }
+                            if (st.MismatchStreak >= QuarantineStreak && _quarantined.TryAdd(refId, 1))
+                            {
+                                Plugin.Log?.LogWarning(
+                                    "[PowerGridPlus] Powered ownership: device " + refId.ToString(CultureInfo.InvariantCulture)
+                                    + " ('" + (device.DisplayName ?? device.PrefabName) + "', " + device.GetType().Name
+                                    + ") kept contradicting the expected Powered state for "
+                                    + QuarantineStreak.ToString(CultureInfo.InvariantCulture)
+                                    + " consecutive ticks (another writer owns it); quarantined back to vanilla behavior.");
+                                st.MismatchStreak = 0;
+                                st.PrevExpected = st.LastExpected = 2;
+                                st.LastTouchedTick = currentTick;
+                                _state[refId] = st;
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            st.MismatchStreak = 0;
+                        }
+
+                        // Enforce both edges. SetPower no-ops on a matching state, so steady state
+                        // costs nothing; the write marshals to the main thread like vanilla's own.
+                        if (expected == 1 && !actual) device.SetPowerFromThread(net, hasPower: true).Forget();
+                        else if (expected == 0 && actual) device.SetPowerFromThread(net, hasPower: false).Forget();
+
+                        st.PrevExpected = st.LastExpected;
+                        st.LastExpected = expected;
+                        st.LastTouchedTick = currentTick;
+                        _state[refId] = st;
+                    }
+                });
+            }
+            finally
+            {
+                ModWriteWindow = false;
+            }
+
+            if (currentTick % PruneEveryTicks == 0) PruneStale(currentTick);
+            EmitWarningIfDue(currentTick);
+        }
+
+        private static void PruneStale(int currentTick)
+        {
+            _pruneScratch.Clear();
+            foreach (var kv in _state)
+                if (currentTick - kv.Value.LastTouchedTick > PruneEveryTicks) _pruneScratch.Add(kv.Key);
+            for (int i = 0; i < _pruneScratch.Count; i++)
+            {
+                _state.Remove(_pruneScratch[i]);
+                _loggedUnclassified.Remove(_pruneScratch[i]);
+            }
+        }
+
+        private static void EmitWarningIfDue(int currentTick)
+        {
+            if (MismatchDeviceTicks == _deviceTicksAtLastWarn) return;
+            if (currentTick - _lastWarnTick < WarnCooldownTicks) return;
+            _lastWarnTick = currentTick;
+            _deviceTicksAtLastWarn = MismatchDeviceTicks;
+            WarningsEmitted++;
+            Plugin.Log?.LogWarning(
+                "[PowerGridPlus] Powered ownership conformance: a device read a Powered state the sweep did not expect past the marshal grace on "
+                + MismatchDeviceTicks.ToString(CultureInfo.InvariantCulture)
+                + " device-tick(s) across " + MismatchDistinctDevices.ToString(CultureInfo.InvariantCulture)
+                + " device(s) since load (latest: device " + LastMismatchRefId.ToString(CultureInfo.InvariantCulture)
+                + "). Persistent offenders are quarantined automatically; "
+                + QuarantinedCount.ToString(CultureInfo.InvariantCulture) + " quarantined so far.");
+        }
+
+        /// <summary>World-load reset: drop the previous world's state, quarantine, and counters.</summary>
+        internal static void Clear()
+        {
+            _state.Clear();
+            _quarantined.Clear();
+            _loggedUnclassified.Clear();
+            _mismatchDevices.Clear();
+            MismatchDeviceTicks = 0;
+            LastMismatchRefId = 0L;
+            WarningsEmitted = 0;
+            _deviceTicksAtLastWarn = 0;
+            _lastWarnTick = -WarnCooldownTicks;
+            ModWriteWindow = false;
+            // The type-exemption cache is world-independent (pure type facts); keep it.
+        }
+    }
+}

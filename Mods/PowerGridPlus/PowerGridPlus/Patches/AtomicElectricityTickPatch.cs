@@ -52,6 +52,15 @@ namespace PowerGridPlus.Patches
     [HarmonyPatch(typeof(ElectricityManager), nameof(ElectricityManager.ElectricityTick))]
     public static class AtomicElectricityTickPatch
     {
+        /// <summary>
+        ///     True while the ENFORCE loops run (re-Initialise + CalculateState + ApplyState per
+        ///     network). The dead-net advertise zeroing (ProducerFaultEnforcementPatches + the
+        ///     segmenter supply patches) keys on this so it applies ONLY to ENFORCE reads: GATHER
+        ///     and OBSERVE must keep seeing real producer output, or a recovering net (sunrise)
+        ///     could never classify LIVE again.
+        /// </summary>
+        internal static volatile bool InEnforcePhase;
+
         [HarmonyPrefix]
         public static bool Prefix()
         {
@@ -239,21 +248,29 @@ namespace PowerGridPlus.Patches
                 }
 
                 var enforced = new HashSet<long>();
-                var ordered = PowerAllocator.ShallowFirstNetworks;
-                if (ordered != null)
+                InEnforcePhase = true;
+                try
                 {
-                    for (int i = 0; i < ordered.Count; i++)
+                    var ordered = PowerAllocator.ShallowFirstNetworks;
+                    if (ordered != null)
                     {
-                        var net = ordered[i];
-                        if (net == null || !enforced.Add(net.ReferenceId)) continue;
-                        EnforceNet(net);
+                        for (int i = 0; i < ordered.Count; i++)
+                        {
+                            var net = ordered[i];
+                            if (net == null || !enforced.Add(net.ReferenceId)) continue;
+                            EnforceNet(net);
+                        }
                     }
+                    CableNetwork.AllCableNetworks.ForEach(net =>
+                    {
+                        if (net == null || !enforced.Add(net.ReferenceId)) return;
+                        EnforceNet(net);
+                    });
                 }
-                CableNetwork.AllCableNetworks.ForEach(net =>
+                finally
                 {
-                    if (net == null || !enforced.Add(net.ReferenceId)) return;
-                    EnforceNet(net);
-                });
+                    InEnforcePhase = false;
+                }
 
                 // ----------------------------------------------------------------
                 // ENFORCE TAIL (Stage 3). Runs after every network's ApplyState has
@@ -284,6 +301,12 @@ namespace PowerGridPlus.Patches
                 //     value (LogicType.PowerActual = current throughput).
                 // ----------------------------------------------------------------
                 PoweredPresentation.ReconcileEnforceTail();
+                // Consumer Powered-ownership sweep: assert both Powered edges on every plain
+                // device from this tick's per-net LIVE / DEAD verdict (NetLiveness), audit the
+                // previous tick's expectation, and quarantine contested devices. The false edge
+                // was already blocked inside ApplyState (PoweredOwnershipPatches), so this pass
+                // is the sole owner of both transitions for owned devices.
+                PoweredOwnership.SweepEnforceTail(currentTick);
                 LedgerAdoption.SettleEnforceTail(currentTick);
                 // Powered-set conformance: every healthy roster member must read Powered=true
                 // past the one-tick marshal grace (the reconcile above writes via a main-thread

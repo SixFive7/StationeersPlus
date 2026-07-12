@@ -131,7 +131,15 @@ namespace PowerGridPlus.Patches
             // Master toggle off: let vanilla ReceivePower run unmodified.
             if (!Settings.EnableBatteryLimits.Value) return true;
 
-            if (__instance.Error != 1 && __instance.OnOff && cableNetwork == __instance.InputNetwork && GetIsOperable(__instance))
+            // Snapshot OnOff / Error (SegControlSnapshot): the charge credit runs under the same
+            // tick-coherent verdict the allocator granted under; a mid-tick toggle lands next
+            // tick. Live fallback for a battery the allocator never enumerated this tick.
+            if (!SegControlSnapshot.TryGet(__instance.ReferenceId, out bool onOff, out int error))
+            {
+                onOff = __instance.OnOff;
+                error = __instance.Error;
+            }
+            if (error != 1 && onOff && cableNetwork == __instance.InputNetwork && GetIsOperable(__instance))
             {
                 float charged = Settings.BatteryChargeEfficiency.Value * powerAdded;
                 if (charged < 500f)
