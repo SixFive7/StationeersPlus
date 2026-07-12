@@ -3,13 +3,14 @@ title: Save-load ordering: defer restore to OnFinishedLoad
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-13
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
   - Plans/EquipmentPlus/EquipmentPlus/AdvancedTabletPatches.cs:103-108 (F0373)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:95-101 (F0374)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: XmlSaveLoad class (line 267663), Load<T> (line 268424), Load (line 268463)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: LoadWorld (line 268507), caller (line 264682), GameManager.GameTick pause gate (lines 204387-204418)
 related:
   - ../GameSystems/SaveDataRegistration.md
   - ./HarmonyInheritedMethods.md
@@ -174,12 +175,40 @@ The non-generic body (lines 268463-268500) keeps the semantics the previous sect
 
 Mod impact: any mod that calls or reflection-resolves `XmlSaveLoad.LoadThing` by name breaks at 0.2.6403 (`MissingMethodException` on a compiled call, null from `AccessTools.Method`). The 2026-07-02 dedicated-server boot investigation records ModularConsoleMod as a casualty of exactly this removal. Retarget to `Load(ThingSaveData, bool)`; when resolving by reflection, pass explicit parameter types since the name now also has a generic overload. See `../Unsorted/Api-removals-0.2.6403.md` for the sibling API removals in the same game update.
 
+## XmlSaveLoad.LoadWorld is async: a Harmony postfix fires at load START, not load completion
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+`XmlSaveLoad.LoadWorld` (same class, decompile line 268507 at 0.2.6403.27689) is an async method. Verbatim head:
+
+```csharp
+public static async UniTask LoadWorld(bool loadWithoutChars = false)                                // 268507
+{
+    WorldManager.SetGamePause(pauseGame: true);                                                     // 268509: first synchronous statement
+    await ImGuiLoadingScreen.SetState(GameStrings.LoadingScreenInitializing.DisplayString);         // 268510: first await
+    FadePanel.ToBlack(0.5f);
+    await UniTask.Delay(500, DelayType.UnscaledDeltaTime);
+    Stopwatch overallLoadTime = new Stopwatch();
+    overallLoadTime.Start();
+    await UniTask.DelayFrame(2);
+    GameManager.GameState = GameState.Loading;                                                      // 268516: only after three awaits
+    ...
+}
+```
+
+The C# compiler rewrites an `async` method into a stub that constructs the state machine, runs it to the first suspending `await`, and returns the `UniTask`. Harmony patches that stub. A `[HarmonyPostfix]` on `LoadWorld` therefore runs when the stub returns, i.e. as soon as the method suspends at its first await (268510): at postfix time the pause request from 268509 has been issued, `GameState` is not yet `Loading` (268516), nothing has been deserialized, and the actual load continues asynchronously long after the postfix returned. The postfix observes load START, never load completion. The single vanilla caller awaits the task (`await XmlSaveLoad.LoadWorld();`, 264682).
+
+Two consequences for mods:
+
+- To run code at load completion, do not postfix `LoadWorld` directly. Hook something the tail of the load actually reaches (per-Thing `OnFinishedLoad`, or the `GameState` transition to `Running`), or take `__result` (the `UniTask`) in the postfix and continue after awaiting it.
+- A postfix that assumes "no simulation tick is running because the game just paused" is also wrong on arrival: `GameManager.GameTick` (204387) checks `WorldManager.IsGamePaused` only at the TOP of each loop iteration (204394) and then moves the tick body onto a ThreadPool worker (`await UniTask.SwitchToThreadPool()`, 204418). A tick that passed the pause check before `SetGamePause(true)` landed runs to completion, including `ElectricityManager.ElectricityTick()` (204466), concurrently with the first stretch of `LoadWorld` and with anything a load-start postfix does. See [PowerTickThreading](../GameSystems/PowerTickThreading.md).
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; F0122 primary, three additional sources corroborating across two device classes.
 - 2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of `XmlSaveLoad.LoadThing` (line 251312) and `GridController.AddGridStructure` (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.
 - 2026-07-02: added the "XmlSaveLoad.LoadThing renamed to Load at 0.2.6403" section (`Load` plus a new generic `Load<T>` overload). Verified against the 0.2.6403.27689 decompile: zero grep hits for `LoadThing`, replacement overloads quoted verbatim from lines 268424 and 268463. The 0.2.6228-stamped ordering sections above were not restamped; the new section records which part of their evidence (the Create -> DeserializeSave -> ValidateOnLoad order) is re-confirmed by the new body and which part (`GridController.AddGridStructure`) was not re-read.
+- 2026-07-13: added the "XmlSaveLoad.LoadWorld is async" section (game version 0.2.6403.27689) from a fresh-validation pass on a decompile-claim audit. Verbatim method head read at 268507-268516 (`public static async UniTask LoadWorld(bool loadWithoutChars = false)`; `SetGamePause(true)` is the first synchronous statement, `GameState = Loading` lands only after three awaits); sole caller `await XmlSaveLoad.LoadWorld();` at 264682; the `GameTick` top-of-loop pause gate (204394) and `SwitchToThreadPool` handoff (204418) read the same pass. Establishes that a Harmony postfix on `LoadWorld` fires at load start (the async stub returns at the first suspending await) with a simulation tick possibly still in flight. Additive; no existing content contradicted.
 
 ## Open questions
 

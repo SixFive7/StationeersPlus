@@ -3,12 +3,12 @@ title: Transformer
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-07
+verified_at: 2026-07-13
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Transformer, Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373766 (ElectricalInputOutput fields), 403300-403545 (Transformer core), 403579-403591 (SetKnob), 403593-403644 (InteractWith), 403646-403686 (CheckError + OnAddCableNetwork / OnRemoveCableNetwork / CheckStateNextFrame), 403295-403299 + 403547-403571 (TransformerSaveData round-trip), 403333-403349 + 403373-403389 (Setting setter + BuildUpdate / ProcessUpdate), 297646-297785 (Thing+DelayedActionInstance)
   - Plans/PowerGridPlus/PLAN.md (phase 3 research); Mods/.../revolt-source/Assets/Scripts/Patches/TransformerExploitPatch.cs (Re-Volt patches this class)
-  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424757-424805 (power methods), 424944-424984 (CheckError + event callers)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 424598 (Transformer class), 424615-424630 (fields incl. _powerProvided 424621), 424748-424805 (power methods incl. AllowSetPower), 370351 (base Device.UsedPower), 424944-424984 (CheckError + event callers)
 related:
   - ./Cable.md
   - ./PowerTransmitter.md
@@ -28,7 +28,7 @@ Vanilla power transformer. `Assets.Scripts.Objects.Electrical.Transformer : Elec
 `grep` for `class Transformer`, `: Transformer`, `TransformerLarge`, `TransformerSmall` in the decompile returns only the single `Transformer` class at line 403300 (the string `"Transformer"` elsewhere is an audio-clip key). Vanilla historically ships more than one transformer *prefab* (a smaller one), but they are the same `Transformer` class with a different serialized `OutputMaximum` and mesh -- there is no subclass hierarchy. A mod that wants a "heavy transformer" tier would register a new prefab of this same class (different `OutputMaximum`, different input/output `Connection` configuration, different mesh) via `AddPrefabs`; it does not need a new class.
 
 ## Class hierarchy and fields
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
 
 `ElectricalInputOutput` (the base):
 
@@ -77,6 +77,8 @@ public class Transformer : ElectricalInputOutput, ISetable, ILogicable, IReferen
 `OutputMaximum = 10000f` is the C# default; the real per-prefab value is serialized (the vanilla small transformer is lower). `Setting` is clamped to `[0, OutputMaximum]`. Logic surface: `LogicType.Setting` (read/write, write clamps to `[0, OutputMaximum]`), `LogicType.Maximum => OutputMaximum`, `LogicType.Ratio => Setting / OutputMaximum`. (Re-Volt additionally exposes `LogicType.PowerActual` = current power provided; vanilla does not.)
 
 `GetGeneratedPower(cableNetwork)` returns 0 unless `cableNetwork == OutputNetwork && Error != 1 && OnOff && InputNetwork != null`; otherwise (vanilla) `Mathf.Min((float)Setting, InputNetwork.PotentialLoad)` drawn from the input network's available potential into the output network. Method bodies re-verified unchanged at 0.2.6403.27689 (class declaration 424598; `_powerProvided` 424621; `UsePower` 424757-424763; `ReceivePower` 424765-424771; `GetUsedPower` = `Min((float)Setting + UsedPower, _powerProvided)` 424773-424792; `GetGeneratedPower` 424794-424805; verbatim bodies quoted on [AreaPowerControl](./AreaPowerControl.md), "Pattern presence in other ledger-based classes"). (Re-Volt rewrites `GetGeneratedPower` / `GetUsedPower` / `ReceivePower` to clamp output to `min(Setting, InputNetwork.PotentialLoad - alreadyProvided)` and charge the transformer's own `UsedPower` quiescent draw to the upstream network.)
+
+Two details completing the power surface. `AllowSetPower(cableNetwork)` returns true only for the input side (verbatim, 424748-424755: `if (InputNetwork == cableNetwork) { return true; } return false;`), so only the input network's `ApplyState` may un-power a transformer; the whole-game override census and the ON/OFF asymmetry live on [PowerTick](./PowerTick.md), "ApplyState un-powers zero-demand and unfed devices". And the `UsedPower` term inside `GetUsedPower` (including the `Error == 1` branch, which bills `OnOff ? UsedPower : 0f` while the ledger path is bypassed) is the base `Device.UsedPower` field (370351, code default `10f`, per-prefab serialized), the transformer's own quiescent draw billed to the input network on top of the pass-through debt.
 
 ## Relevance to a "voltage tier" mod
 <!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
@@ -227,6 +229,7 @@ So the rocket small transformer carries a dedicated `Data` connector (3 connecto
 
 ## Verification history
 
+- 2026-07-13: fresh-validation pass at 0.2.6403.27689 (decompile-claim audit) re-read the five power surfaces verbatim at 424748-424805: `AllowSetPower` (input-side gate), `UsePower` (output-side `_powerProvided += powerUsed`, gated `Error != 1 && OnOff && cableNetwork == OutputNetwork`), `ReceivePower` (input-side `_powerProvided -= powerAdded`, gated on OnOff and a non-null `InputNetwork`), `GetUsedPower` (including the `Error == 1 -> OnOff ? UsedPower : 0f` branch the section's one-line formula omits), and `GetGeneratedPower`. All byte-identical to the bodies quoted on [AreaPowerControl](./AreaPowerControl.md). Restamped "Class hierarchy and fields" and added the `AllowSetPower` + base `Device.UsedPower` (370351, default 10f) paragraph, the two surfaces this page did not yet name. The ledger's tick-phase flow (query at `CalculateState` 271777 / 271782, consumer settle at `ConsumePower -> ReceivePower` 271832, producer settle at `PowerProvider.ApplyPower -> UsePower` 271690-271696 from the tail loop 271941-271945) stays documented on [PowerTick](./PowerTick.md) and [Device](./Device.md). No content contradicted.
 - 2026-07-07: re-verified "CheckError and Error write path" against the 0.2.6403.27689 decompile and restamped it. `CheckError` (424944-424957) and its three event callers (`OnAddCableNetwork` 424959-424963, `OnRemoveCableNetwork` 424965-424969, `CheckStateNextFrame` 424971-424975 scheduled from `OnInteractableUpdated` 424977-424984) are verbatim-unchanged from 0.2.6228; added the `GameManager.RunSimulation` gate detail on `OnInteractableUpdated` and updated line refs (the `ElectricalInputOutput.IsOperable` sub-claim keeps its 0.2.6228 ref, not re-read). Occasion: the PowerGridPlus partial-power forensics floated the claim that "the whole-decompile census shows no vanilla Error writer for Transformer"; the re-read REJECTS that literal claim (CheckError exists and writes 0/1 via `OnServer.Interact(InteractError, ...)`) while confirming the section's standing operative claim: all writers are event-driven, there is no per-tick call, and steady-state overload never raises `Error`. Existing verified content confirmed, not changed, so no fresh validator was required; the whole-game write census lives on [Device](./Device.md).
 
 - 2026-07-06: added the "`_powerProvided` is runtime-only" subsection under the save round-trip section (game version 0.2.6403.27689). Re-read `TransformerSaveData` (424593-424597, still only `OutputSetting`) and re-ran the whole-decompile `_powerProvided` census (Transformer sites: declaration 424621, `UsePower` 424761, `ReceivePower` 424769, `GetUsedPower` 424791; no serialization member anywhere). Additive: confirms and sharpens the existing "Only `Setting` is persisted at the Transformer level" claim, which was already consistent; no fresh validator needed. The parent section's other content (Setting setter, sync flags, 0.2.6228 line refs) was not re-read and keeps its stamp.

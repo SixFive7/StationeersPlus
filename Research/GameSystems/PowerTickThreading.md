@@ -3,7 +3,7 @@ title: PowerTickThreading
 type: GameSystems
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-12
+verified_at: 2026-07-13
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:43-49
   - Mods/PowerTransmitterPlus/RESEARCH.md:596-605
@@ -201,11 +201,13 @@ public override void ReceivePower(CableNetwork cableNetwork, float powerAdded)
 **How vanilla survives without synchronization.** Three layers. (1) CLR atomicity: ECMA-335 guarantees aligned loads/stores of 32-bit-or-smaller types are atomic, so a plain `float` read can never observe a torn bit pattern; corruption in the garbage-value sense is structurally impossible (this guarantee would NOT hold if the field were a `double`). (2) Phase sequencing: the reset and the atmosphere-phase accruals are ordered against the solve by the tick structure itself, so most writers are never actually concurrent with it. (3) Tolerance: the five main-thread writers race the worker's reads and its `= 0f` reset with non-atomic read-modify-writes; an interleaving can lose an increment (work done but wiped unbilled: free power) or resurrect a pre-reset value (billed again next tick: double bill), each bounded by one frame or one 100 ms slice of work, and the absence of barriers permits slightly stale reads. Vanilla never audits energy and ratio-scales forgivingly, so these leaks are invisible in the base game. Note the direction of the hazard: the blind reset destroys even increments the resetter never observed, which is why a subtract-what-you-billed write-back (drain-and-bill) is strictly safer than the vanilla reset it replaces, and a main-thread-marshaled debit (vanilla's own `SetPowerFromThread` idiom) eliminates the writer race entirely by making every mutation execute on one thread.
 
 ## PowerDeviceList lazy rebuild semantics (in-place, dirty-flag, unlocked)
-<!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
 
-The `CableNetwork.PowerDeviceList` / `DataDeviceList` getters lazily rebuild on read: `if
-(PowerDeviceListDirty || DataDeviceListDirty) RefreshPowerAndDataDeviceLists();` (270690-270699 /
-270678-270688). The refresh (270746-270787) is IN PLACE on the SAME list instances (`_powerDeviceList
+The `CableNetwork.PowerDeviceList` / `DataDeviceList` getters lazily rebuild on read, with ASYMMETRIC
+dirty tests: the `PowerDeviceList` getter runs `if (PowerDeviceListDirty || DataDeviceListDirty)
+RefreshPowerAndDataDeviceLists();` (270690-270700), while the `DataDeviceList` getter tests
+`PowerDeviceListDirty` ALONE (270678-270688; verbatim bodies in the lock-census subsection below).
+The refresh (270746-270787) is IN PLACE on the SAME list instances (`_powerDeviceList
 .Clear()` then re-`Add`), never a reference swap, iterating `DeviceList` backwards and testing power
 membership as `device.PowerCables[i].CableNetwork == this` (270772-270782; data membership the same
 over `DataCables`). It takes NO lock and runs on whichever thread happens to touch a getter while a
@@ -221,6 +223,84 @@ dirty flag is set. Consequences:
   `PowerCables` predicate yourself. This is what PowerGridPlus's per-tick GridSnapshot does.
 - A derived network class overrides `RefreshPowerAndDataDeviceLists` (272486), so a Harmony patch
   on the base virtual would not cover every network type; the bypass above is override-proof.
+
+### Device-list lock census: who locks which list (writers, the tick reader, the rebuild)
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+Complete census, at 0.2.6403.27689, of every vanilla `lock` naming the `CableNetwork` list objects, of the
+readers, and of the dirty-flag writers, produced by a fresh-validation pass on the rebuild semantics above.
+The getters, verbatim (270678-270700):
+
+```csharp
+public List<Device> DataDeviceList
+{
+    get
+    {
+        if (PowerDeviceListDirty)
+        {
+            RefreshPowerAndDataDeviceLists();
+        }
+        return _dataDeviceList;
+    }
+}
+
+public List<Device> PowerDeviceList
+{
+    get
+    {
+        if (PowerDeviceListDirty || DataDeviceListDirty)
+        {
+            RefreshPowerAndDataDeviceLists();
+        }
+        return _powerDeviceList;
+    }
+}
+```
+
+Note the asymmetry (fresh-validated 2026-07-13, see Verification history): only the `PowerDeviceList`
+getter tests the OR of both flags; the `DataDeviceList` getter tests `PowerDeviceListDirty` alone, so a
+network with `DataDeviceListDirty` set and `PowerDeviceListDirty` clear serves the stale `_dataDeviceList`
+until something reads `PowerDeviceList` or dirties the power flag. The dirty test at 270694 is the ONLY
+`PowerDeviceListDirty || DataDeviceListDirty` expression in the entire assembly. (`WirelessNetwork`'s
+override, 272486-272492, copies ALL of `DeviceList` into `_powerDeviceList` and clears only
+`PowerDeviceListDirty`, never `DataDeviceListDirty`.) The same asymmetry, with the explicit-refresh
+workaround, is documented on [CableNetwork](../GameClasses/CableNetwork.md) ("Field shape and accessor
+quirk").
+
+Lock census:
+
+- `CableNetwork.AddDevice(Cable, Device)` wraps `DeviceList.Add(device)` in `lock (DeviceList)`
+  (270972-270975); `CableNetwork.RemoveDevice(Device)` wraps `DeviceList.Remove(device)` in
+  `lock (DeviceList)` (271014-271017); `WirelessNetwork.AddDevice(Device)` has the same shape
+  (272525-272531). These are main-thread topology events, outside the tick machinery.
+- `CableNetwork.Add(Cable)` / `Remove(Cable)` wrap `CableList.Add` / `Remove` in `lock (CableList)`
+  (271064-271067, 271096-271099), and the null-compaction sweep locks per removal (271255-271258); but
+  `Merge(CableNetwork)` clears the losing network's list UNLOCKED (`oldNetwork.CableList.Clear()`, 271124).
+- `PowerTick.Initialise` locks all three list objects while snapshotting: `lock (CableNetwork.PowerDeviceList)`
+  / `lock (CableNetwork.FuseList)` / `lock (CableNetwork.CableList)` (271748-271758), on the power worker.
+  This is the ONLY vanilla `lock` on `PowerDeviceList` anywhere.
+- `FuseList` writers never lock: `CableFuse` self-registers with plain `FuseList.Add(this)` /
+  `FuseList.Remove(this)` (392811, 392823). The `lock (FuseList)` in `Initialise` therefore excludes nothing
+  that actually mutates that list.
+
+Reader census: `PowerDeviceList` has exactly ONE vanilla reader in the whole decompile, `PowerTick.Initialise`
+(the `lock` expression at 271748 plus the `AddRange` argument at 271750), so the power-list rebuild normally
+runs on the power worker itself, triggered by evaluating that `lock` expression. `DataDeviceList` is read from
+dozens of sites (the logic-device family plus main-thread UI such as the computer `DisplayedDevices` at
+334968 / 342003), none of which lock anything; any of them can run the shared rebuild concurrently with the
+power worker when the power flag is dirty. Dirty-flag writers: `DirtyPowerAndDataDeviceLists` (270816) called
+from `AddDevice` 270991, virtual `AddDevice(Device)` 270996, `RemoveDevice` 271026, `Remove(Cable)` 271101,
+`Merge` 271126, and `Device.InitializeDataConnection` 371613-371614; `DirtyDataDeviceList` (270822) from
+`HandleDataNetTransmissionDevice` 270811.
+
+Operative conclusions:
+
+- `lock (net.PowerDeviceList)` in mod code buys mutual exclusion against exactly one thing: the snapshot
+  window inside `PowerTick.Initialise`. It buys nothing against the rebuild (which locks nothing, and which
+  the `lock` expression itself may run BEFORE the lock is acquired) and nothing against the `DeviceList`
+  writers (a different lock object).
+- The rebuild iterates `DeviceList` backwards (270756) WITHOUT taking the `DeviceList` lock the writers hold,
+  so even the vanilla-triggered rebuild races a concurrent main-thread `AddDevice` / `RemoveDevice`.
 
 ## Consumer demand formula nuances: Fabricator vs SimpleFabricatorBase, and Fermenter's gates
 <!-- verified: 0.2.6403.27689 @ 2026-07-12 -->
@@ -242,6 +322,8 @@ DemandModel):
 ## Verification history
 <!-- verified: 0.2.6403.27689 @ 2026-07-09 -->
 
+- 2026-07-13 (later): fresh-validator RESOLUTION of the recorded getter dirty-test conflict (protocol per Research/WORKFLOW.md Rule 3). Verdict: the verbatim census quote is correct; the 2026-07-12 parent-section paraphrase was wrong. Ground truth at 0.2.6403.27689: the `DataDeviceList` getter (270678-270688) tests `if (PowerDeviceListDirty)` alone (the test at 270682); the `PowerDeviceList` getter (270690-270700) tests `if (PowerDeviceListDirty || DataDeviceListDirty)` (270694). A whole-assembly search for both flag names confirms 270694 is the ONLY OR-test anywhere; every other occurrence is the declarations (270625/270627), the per-flag tests inside the refresh body (270748/270752/270759/270772), the resets (270785/270786), the dirty setters (270818/270819/270824), and the `WirelessNetwork` override reset (272491). The "both getters test the OR" wording therefore described nothing real elsewhere in the class: a paraphrase error. Independently corroborated by ../GameClasses/CableNetwork.md "Field shape and accessor quirk" (asymmetry first recorded 2026-05-13 from the 0.2.6228.27061 decompile lines 253460-253541, re-verified 2026-07-02 at 0.2.6403.27689 lines 270678-270700). Result: parent-section paraphrase corrected in place and restamped 2026-07-13; the RECORDED CONFLICT note in the census subsection replaced with a plain asymmetry note (`WirelessNetwork` override range normalized to 272486-272492, the full method 272486 declaration through 272492 closing brace); the corresponding Open-questions bullet removed. Swept every other Research page mentioning either flag (CableNetwork.md, Motherboard.md): both already state the asymmetry correctly; no other page carried the wrong paraphrase.
+- 2026-07-13: fresh-validation pass on the PowerDeviceList rebuild claim (0.2.6403.27689) added the "Device-list lock census" subsection: verbatim getter bodies (270678-270700), the complete lock census (`AddDevice` / `RemoveDevice` / `WirelessNetwork.AddDevice` lock `DeviceList` at 270972 / 271014 / 272525; `Add(Cable)` / `Remove(Cable)` / null-sweep lock `CableList` at 271064 / 271096 / 271255 while `Merge` clears unlocked at 271124; `PowerTick.Initialise` 271748-271758 is the only `PowerDeviceList` lock; `CableFuse` writes `FuseList` unlocked at 392811 / 392823), the single-reader census for `PowerDeviceList` (271748 / 271750 only) vs the many unlocked `DataDeviceList` readers, and the dirty-flag writer census (270991 / 270996 / 271026 / 271101 / 271126 / 371613-371614). CONFLICT RECORDED, not resolved: the 2026-07-12 section paraphrases both getters as testing `PowerDeviceListDirty || DataDeviceListDirty`, but the verbatim `DataDeviceList` getter tests `PowerDeviceListDirty` alone (the OR-form belongs to `PowerDeviceList` only). Both claims stand on the page pending the fresh-validator conflict protocol; also logged under Open questions. The parent section's operative conclusions (unlocked in-place rebuild; `lock (net.PowerDeviceList)` cannot exclude it) are CONFIRMED by this pass.
 - 2026-07-12 (later): added "PowerDeviceList lazy rebuild semantics" (getter dirty-check 270690-270699, in-place unlocked refresh body 270746-270787 with the PowerCables membership predicate, the derived override at 272486, and the lock(DeviceList)+predicate bypass) and "Consumer demand formula nuances" (Fabricator 396283-396294 bills NO accumulator while off, unlike SimpleFabricatorBase/ArcFurnace/IceCrusher which bill the residual accumulator; Fermenter's completion + IsOperable gates 181583-181594). Read directly from the 0.2.6403.27689 decompile during the PowerGridPlus B + D1 data-plane implementation. No prior content contradicted; the consumer census rows are refined, not changed.
 - 2026-07-12: added the "_powerUsedDuringTick synchronization census" section from a whole-decompile enumeration pass (0.2.6403.27689) driven by the PowerGridPlus data-plane redesign discussion. All 17 field declarations read verbatim (plain instance float, never volatile / static / double; 16 private, `FiltrationMachineBase` 377803 protected; no shared base field, proven by `DroidSleeper` declaring its own directly under `Device`; no property wrapper). Every write site classified by thread: the power-worker reset in all 16 `ReceivePower` overrides via `ApplyState -> ConsumePower` (271820-271832), with the off-main-thread proof at 271933 / 371648-371651 (`SetPowerFromThread` marshals via `SwitchToMainThread`); eleven atmosphere-phase writers (sequenced before the solve, 204458/204466); five genuinely concurrent main-thread writers matching the mid-tick-mutable accumulator rows (181666/181674, 380277, 396364, 365606, 420309). `Interlocked` confirmed at ZERO occurrences assembly-wide; no `lock` in any relevant method (the only power-machinery lock is `PowerTick.Initialise` 271748-271758 snapshotting the lists). The `SpawnPointAtmospherics` fold-then-zero variant (422742-422746) and the `DynamicComposter` never-reset variant (296395) recorded verbatim. No prior content contradicted: the consumer census's mid-tick-mutable vs tick-stable split is confirmed and extended with the declaration and reset-thread facts.
 - 2026-07-09 (later): COMPLETED the consumer census from a whole-decompile enumeration (all 34 `GetUsedPower(CableNetwork)` overrides + all 15 `GetGeneratedPower` overrides classified by mutation site and thread; produced by three independent census agents for the PowerGridPlus Powered-ownership redesign and cross-checked against the mod build). CONFLICT RESOLUTION against this page's morning version: `SimpleFabricatorBase` does NOT cover "every fabricator"; `Fabricator` (class decl 396068, `public class Fabricator : FabricatorBase`, read directly this pass) is a SIBLING with its own `GetUsedPower` override (396283) and a main-thread `OnServerExportTick` accumulator (396364). Replaced the three-row table with the complete fourteen-row mid-tick-mutable set plus the PowerConnector forwarding producer, the tick-stable list with the atmos-before-electricity and device-tick-after-solve discriminators (204418/204458/204466), the `DynamicComposter` sibling dead-end (296224 vs 297342, `as DynamicGenerator` null at 408026), and the `ElevatorShaftNetwork.GetUsedPower` dead-code finding (395878-395890, zero callers). Consequence paragraph updated to the shipped latch set + the net-liveness ownership model.
@@ -252,4 +334,4 @@ DemandModel):
 
 ## Open questions
 
-None at creation.
+None.
