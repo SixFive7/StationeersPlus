@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using Assets.Scripts;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.Objects.Motherboards;
 using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 
@@ -220,9 +222,17 @@ namespace ScenarioRunner
                     if (d != null)
                     {
                         string powerNet = d.PowerCableNetwork != null ? d.PowerCableNetwork.ReferenceId.ToString() : "none";
+                        // Option-3 verification pair: Powered is the flag (vanilla coupling, the
+                        // ownership sweep: verdict AND structure AND OnOff), ic10Power is the logic
+                        // read (PowerGridPlus serves it from net liveness). A force field with
+                        // OnOff=False on a live net must show Powered=False ic10Power=1. Reflect-
+                        // call via Lv (Dispatcher.PtCampaign) so a throwing override degrades to
+                        // "err" instead of killing the survey.
+                        double powerLv = Lv(ff, LogicType.Power);
+                        string ic10Power = double.IsNaN(powerLv) ? "err" : powerLv.ToString(CultureInfo.InvariantCulture);
                         _log?.LogInfo(
                             $"[ScenarioRunner] APCB FF type={ff.GetType().Name} ref={ff.ReferenceId} " +
-                            $"Powered={d.Powered} OnOff={d.OnOff} powerNet={powerNet}");
+                            $"Powered={d.Powered} OnOff={d.OnOff} powerNet={powerNet} ic10Power={ic10Power}");
                     }
                     else
                     {
