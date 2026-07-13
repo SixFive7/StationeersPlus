@@ -2,8 +2,8 @@
 title: LaunchPadBooster Networking
 type: Protocols
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-28
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-14
 sources:
   - Mods/PowerTransmitterPlus/RESEARCH.md:676-692
   - Mods/SprayPaintPlus/RESEARCH.md:211-213
@@ -12,9 +12,12 @@ sources:
   - BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :: LaunchPadBooster.Networking.IJoinValidator
   - BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :: LaunchPadBooster.Networking.ModNetworking
   - BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :: LaunchPadBooster.Networking.ConnectionState
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 274266-274519 (RocketBinaryReader, complete), 274520-274839 (RocketBinaryWriter, complete), 272552 (namespace Assets.Scripts.Networking)
 related:
   - ../GameSystems/NetworkRoles.md
   - ../Patterns/SinglePlayerNetworkRole.md
+  - ../Patterns/BinaryStreamSafety.md
+  - ../Patterns/Float16Quantization.md
   - ./PowerTransmitterPlusNetworking.md
   - ./SprayPaintPlusNetworking.md
   - ./EquipmentPlusNetworking.md
@@ -252,12 +255,44 @@ Invocation (verified from `Mods/PowerTransmitterPlus/PowerTransmitterPlus/Plugin
 
 Why this and not a `NetworkManager.PlayerConnected` broadcast: that hook fires BEFORE the joiner is added to `NetworkBase.Clients`, so an `INetworkMessage.SendAll` from a `PlayerConnected` postfix reaches existing clients but never the new joiner. PowerTransmitterPlus used the `PlayerConnected` rebroadcast through v1.6.x and removed it in v1.7.0 in favour of `IJoinSuffixSerializer` for exactly this reason. The established split: live `SendAll` for runtime changes to already-connected clients, `IJoinSuffixSerializer` for the initial snapshot to a joiner.
 
+## RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+Every serializer hook on this page (`IJoinValidator.SerializeJoinValidate` / `ProcessJoinValidate`, `IJoinSuffixSerializer.SerializeJoinSuffix` / `DeserializeJoinSuffix`, and LaunchPadBooster message serialization generally) hands the mod a `RocketBinaryWriter` or `RocketBinaryReader`. These are VANILLA game types in `Assets.Scripts.Networking` (Assembly-CSharp; namespace declaration at 0.2.6403.27689 decompile line 272552), not LaunchPadBooster types:
+
+- `public class RocketBinaryReader : RocketBinaryCore` (274266, spans 274266-274519): wraps a `Stream`; every multi-byte read goes through `ReadExactly` (274284), which throws `EndOfStreamException` on a short read. Reader methods are `virtual` (subclass hook `PostRead`, 274275).
+- `public class RocketBinaryWriter : RocketBinaryCore` (274520, spans 274520-274839): writes into an `ArrayPool<byte>`-rented buffer (constructor takes `bufferSize`, 274549) guarded by `Ensure(count)` (274560-274566, throws `OverflowException("Buffer too small for message.")`). Writer methods are plain instance methods (hook `PreWrite`, 274556).
+
+Float payloads round-trip through `WriteSingle` / `ReadSingle` as 4-byte little-endian IEEE 754 singles, verbatim:
+
+```csharp
+public void WriteSingle(float value)                     // RocketBinaryWriter, line 274644
+{
+    Ensure(4);
+    int value2 = BitConverter.SingleToInt32Bits(value);
+    BinaryPrimitives.WriteInt32LittleEndian(_buffer.AsSpan(Position, 4), value2);
+    Position += 4;
+}
+
+public virtual float ReadSingle()                        // RocketBinaryReader, line 274380
+{
+    Span<byte> span = stackalloc byte[4];
+    ReadExactly(span);
+    return BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span));
+}
+```
+
+Complete primitive inventory at 0.2.6403.27689 (writer line / reader line): Boolean 274574/274300, Byte 274580/274305, SByte 274586/274315, Bytes 274592/274325, Int32 274602/274338, UInt32 274609/274345, Int16 274616/274352, UInt16 274623/274359, Int64 274630/274366, UInt64 274637/274373, Single 274644/274380, Double 274652/274392, FloatHalf 274715/274387 (half precision via `Mathf.FloatToHalf` on write and `RocketMath.HalfToFloat(ReadUInt16())` on read; rounding consequences on [Float16Quantization](../Patterns/Float16Quantization.md)), Quaternion 274660/274399 and QuaternionHalf 274668/274404 (the read side renormalizes: `.normalized`), Colour 274676/274409, AnimationCurve 274684/274414, Vector3 274701/274435 and Vector3Half 274720/274445, Vector3d 274708/274440 (doubles), WorldGrid 274727/274450 (stored as `Int16` of value/10), Grid3 274734/274455, String 274741/274460 (`Int32` byte-length prefix + UTF8; writer emits length -1 for null, reader returns `string.Empty` for -1 or 0 and throws `InvalidDataException` on other negatives), NetworkUpdateType 274763/274504, MessageType 274568/274279 (a `MessageFactory` type index byte), Ascii 274799/274509. Writer-side positioning extras: `Position` / `Length` properties (274530/274547), `Seek(int, SeekOrigin)` 274768, `SeekZero` 274784, `SeekEnd` 274789, `Seek(long, SeekOrigin)` 274794, plus buffer lifecycle (`ReturnBuffer` 274808, `Close` 274817, `Dispose` 274823, `Reset` 274829).
+
+Mod consequence: a custom payload carrying floats writes `writer.WriteSingle(x)` on one side and reads `x = reader.ReadSingle()` on the other for a full 32-bit round trip; reach for the FloatHalf pair only when half-precision rounding is acceptable. Write order must equal read order field for field, and no try-catch goes around the calls ([BinaryStreamSafety](../Patterns/BinaryStreamSafety.md)): a swallowed exception leaves the stream position misaligned for every subsequent field.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 - 2026-04-20: page created from the Research migration. Primary source F0055 (PowerTransmitterPlus RESEARCH.md:676-692). Additional sources cited: F0025 (SprayPaintPlus RESEARCH.md:211-213), F0029c (SprayPaintPlus RESEARCH.md:149-151), F0312 (PowerTransmitterPlus/DistanceConfigSync.cs:66-72).
 - 2026-04-23: added "IJoinValidator: custom per-mod join validation" section. Verified against `LaunchPadBooster.dll` in game version 0.2.6228.27061 by decompilation of `IJoinValidator`, `IModNetworking`, `ModNetworking.PrepareJoinValidateData`, `ModNetworking` `VerifyPlayer` / `VerifyPlayerRequest` Harmony postfixes, and `ConnectionState.DoJoinValidateModCustom`. Finding: validator fires only on remote client-join exchanges; does NOT fire for host-own-world load or single-player.
 - 2026-05-28: added "IJoinSuffixSerializer: join-time state snapshot to a joining client". Verified from PowerTransmitterPlus `Plugin.cs:260-348` (implements `IJoinSuffixSerializer`; `SerializeJoinSuffix` / `DeserializeJoinSuffix` ship the auto-aim cache + seven config values) and `DistanceConfigSync.cs:9-23`, cross-referenced with `./PlayerConnectedThingFindTiming.md`. Documents the host `PackageJoinData` / client `ProcessJoinData`-after-`ProcessThings` invocation points, the remote-join-only gating, and why it replaced the v1.6.x `PlayerConnected` rebroadcast (which fires before the joiner is in `NetworkBase.Clients`). Additive (the page previously documented only `IJoinValidator`, with `IJoinPrefixSerializer` noted out of scope); no existing claim contradicted, so no fresh validator.
+- 2026-07-14: added "RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface" (game version 0.2.6403.27689), from the PowerGridPlus fault-hover session's float-payload check. Both classes read in full from the 0.2.6403.27689 decompile: `RocketBinaryReader : RocketBinaryCore` 274266-274519 (Stream-backed, `ReadExactly` 274284, virtual methods, `PostRead` hook 274275) and `RocketBinaryWriter : RocketBinaryCore` 274520-274839 (ArrayPool buffer, `Ensure` 274560-274566, `PreWrite` hook 274556); namespace `Assets.Scripts.Networking` confirmed at 272552. `WriteSingle` (274644-274650) and `ReadSingle` (274380-274385) quoted verbatim: 4-byte little-endian IEEE 754 via `BitConverter.SingleToInt32Bits` / `Int32BitsToSingle`, confirming full-precision float payloads for custom network messages (the FloatHalf pair at 274715 / 274387 remains the only half-precision path). Full primitive inventory recorded with paired line references. Additive; no existing claim contradicted (the page previously used these types in verbatim LaunchPadBooster excerpts without documenting the game-side surface). Top-level `verified_in` bumped to 0.2.6403.27689 for this section; earlier sections keep their 0.2.6228.27061 stamps and were not re-read this pass.
 
 ## Open questions
 

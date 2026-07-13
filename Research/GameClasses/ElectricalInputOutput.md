@@ -3,11 +3,12 @@ title: ElectricalInputOutput
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-02
+verified_at: 2026-07-14
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.ElectricalInputOutput
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373933 (ElectricalInputOutput class, fields, IsPowerProvider/IsPowerInputOutput, IsOperable, AvailablePower/CurrentLoad/PotentialLoad, CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork), 349623 (Device.MaxProviderRecursionIterations), 350691 (Device.IsProviderToDevice base)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 394930-395006 (CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork, OnRemoveCableNetwork), 390636-390998 (AreaPowerControl NoPower / CheckPower / AllowSetPower), 391963-391969 (Battery.CheckPower)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 395008-395023 (GetPassiveTooltip), 371547-371557 (Device.GetPassiveTooltip), 314440-314465 (Structure.GetPassiveTooltip), 319731-319739 (Thing.GetPassiveTooltip / GetPassiveUITooltip), 390800-390826 (AreaPowerControl.GetPassiveTooltip / GetContextualName), 424598-424993 (Transformer negative census), 307029-307155 (PassiveUITooltip + PassiveTooltip structs), 253966-254375 (Tooltip UI class), 287864-287869 + 285975 (InventoryManager.NormalModeThing + TooltipRef), 239691-239721 (InputMouse route)
 related:
   - ./Device.md
   - ./Transformer.md
@@ -15,7 +16,8 @@ related:
   - ./AreaPowerControl.md
   - ./WirelessPower.md
   - ./PowerTick.md
-tags: [power, network]
+  - ../Patterns/HarmonyBaseCallDetourMultiFire.md
+tags: [power, network, ui]
 ---
 
 # ElectricalInputOutput
@@ -211,8 +213,236 @@ Key facts:
 
 `ElectricalInputOutput` implements `ISubmergeable`. `IsSubmerged` (line 373785) sets `NetworkUpdateFlags |= 512` on change (synced to clients). `CanShortOut => OnOff` (line 373841): a powered-on submerged device sparks. `HandleUnderWaterFX` (line 373859) emits sparks + an electrical-failure sound at 25% chance per `Update100MS` when `CanShortOut && IsSubmerged`. The constants `SUBMERGED_TICKS_BEFORE_BREAK = 60` and `SUBMERGED_BREAK_CHANCE = 0.5f` gate the eventual break of a submerged device (the per-tick submerge counters `_inputSubmerged` / `_outputSubmerged` drive the break path in `OnSubmergeableTick`, which the subclass opts into via `DoSubmergableTick`, default `false` on the base, line 373845). Cosmetic-plus-eventual-break; not part of the steady-state power arithmetic.
 
+## GetPassiveTooltip: body-hover tooltip resolution chain
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`Thing.GetPassiveTooltip(Collider hitCollider)` is the virtual hover-tooltip hook the HUD polls while the cursor rests on a thing. Two UI call sites route into it: `InputMouse` (`Assets.Scripts.UI`, class at 239369) calls `passiveTooltip = CursorThing.GetPassiveTooltip(hitInfo.collider);` (239691) and hands the result to `InventoryManager.Instance.TooltipRef.HandleToolTipDisplay(passiveTooltip);` (239721), and `InventoryManager.NormalModeThing` (class 285881, method 287864) evaluates both the null-collider and target-collider forms each poll:
+
+```csharp
+PassiveTooltip cursorPassiveTooltip = ((CursorManager.CursorThing != null) ? CursorManager.CursorThing.GetPassiveTooltip(null) : default(PassiveTooltip));                            // line 287868
+PassiveTooltip cursorPassiveTooltip2 = ((CursorManager.CursorThing != null) ? CursorManager.CursorThing.GetPassiveTooltip(cursorTargetCollider) : default(PassiveTooltip));           // line 287869
+```
+
+The bridge base declares the override that actually runs for `Transformer` and `Battery` body hovers, because neither subclass declares its own (see the census below). Full body (395008-395023):
+
+```csharp
+public override PassiveTooltip GetPassiveTooltip(Collider hitCollider)               // line 395008
+{
+    if (InputConnection.ConnectionType != NetworkType.None && hitCollider == InputConnection.Collider)
+    {
+        PassiveTooltip result = new PassiveTooltip(true);
+        result.Title = InterfaceStrings.ConnectionInput;
+        return result;
+    }
+    if (OutputConnection.ConnectionType != NetworkType.None && hitCollider == OutputConnection.Collider)
+    {
+        PassiveTooltip result = new PassiveTooltip(true);
+        result.Title = InterfaceStrings.ConnectionOutput;
+        return result;
+    }
+    return base.GetPassiveTooltip(hitCollider);
+}
+```
+
+It answers ONLY the two port-collider cases (the "Input" / "Output" labels). Any other collider, including the device body, falls through the base chain, which at 0.2.6403.27689 runs in this dispatch order:
+
+**1. `Device.GetPassiveTooltip` (371547-371557)**: answers when the hit collider is one of the device's `OpenEnds` connection colliders (delegates to `Connection.Populate`), else calls base:
+
+```csharp
+public override PassiveTooltip GetPassiveTooltip(Collider hitCollider)               // line 371547
+{
+    foreach (Connection openEnd in OpenEnds)
+    {
+        if (!(hitCollider != openEnd.Collider) && !(hitCollider == null))
+        {
+            return new PassiveTooltip(true).Populate(openEnd);
+        }
+    }
+    return base.GetPassiveTooltip(hitCollider);
+}
+```
+
+**2. `SmallGrid` (312025-313014) declares no override**, so Device's base call lands in `Structure.GetPassiveTooltip` (314440), the damage / build-state tooltip. Its head (314440-314452):
+
+```csharp
+public override PassiveTooltip GetPassiveTooltip(Collider hitCollider)               // line 314440
+{
+    bool flag = ShowBuildTooltip();
+    bool flag2 = ShowDeconstructTooltip();
+    bool flag3 = ShowRepairTooltip();
+    if (DamageState.Total <= 0f && !flag && !flag2 && !flag3)
+    {
+        return base.GetPassiveTooltip(hitCollider);
+    }
+    PassiveTooltip passiveTooltip = new PassiveTooltip(true);
+    passiveTooltip.Title = DisplayName;
+    passiveTooltip.Extended = GetExtendedText().ToString();
+    ...
+```
+
+The remainder (314453-314465+) fills `ConstructString` from `NextBuildState.Tool.GetToolsAsString()` and `DeconstructString` from `BrokenBuildStates[index]` when `IsBroken`, else from `CurrentBuildState.Tool.GetExitToolAsString()`. An undamaged, fully built structure with no build/deconstruct/repair tooltip to show falls through again.
+
+**3. `Thing.GetPassiveTooltip` (319731-319734)** ends the chain with the all-empty struct:
+
+```csharp
+public virtual PassiveTooltip GetPassiveTooltip(Collider hitCollider)                // line 319731
+{
+    return new PassiveTooltip(true);
+}
+```
+
+(`new PassiveTooltip(true)` initializes every string field to `string.Empty`; see the struct section below. The adjacent `Thing.GetPassiveUITooltip` at 319736-319739 returns the separate `PassiveUITooltip` readonly struct, 307029, and is not part of this chain.)
+
+Net effect: hovering the BODY of a healthy, fully built `Transformer` or `Battery` produces an empty tooltip; vanilla shows nothing there. `AreaPowerControl` is the one bridge subclass that overrides for the body case, and BOTH of its paths call `base.GetPassiveTooltip` (390800-390810):
+
+```csharp
+public override PassiveTooltip GetPassiveTooltip(Collider hitCollider)               // line 390800
+{
+    if (hitCollider != null)
+    {
+        return base.GetPassiveTooltip(hitCollider);
+    }
+    PassiveTooltip passiveTooltip = base.GetPassiveTooltip(hitCollider);
+    passiveTooltip.Title = DisplayName;
+    passiveTooltip.Extended = GetExtendedText().ToString();
+    return passiveTooltip;
+}
+```
+
+A real collider hit defers entirely to the chain; the APC's charge readout (`GetExtendedText`, 390796 region) ships only through the null-collider poll (`InventoryManager.NormalModeThing` line 287868).
+
+### Override census: which electrical classes declare GetPassiveTooltip
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+Method-name census over the class spans in the 0.2.6403.27689 decompile ("none" = no `GetPassiveTooltip` occurrence inside the class span, so the class inherits the nearest base override; class-declaration line in parentheses):
+
+| Class | Declares override | Body-hover entry point |
+|---|---|---|
+| `Electrical` (394786) | none | `Device` (371547) |
+| `ElectricalInputOutput` (394813) | 395008 | own |
+| `AreaPowerControl` (390555) | 390800 | own (both paths call base) |
+| `Battery` (391662) | none | `ElectricalInputOutput` (395008) |
+| `Transformer` (424598, span 424598-424993) | none | `ElectricalInputOutput` (395008) |
+| `WirelessPower` (426779) | none | `ElectricalInputOutput` (395008) |
+| `PowerTransmitter` (408269) | none | `ElectricalInputOutput` (395008) |
+| `PowerReceiver` (408065) | none | `ElectricalInputOutput` (395008) |
+| `BatteryCellCharger` (392218) | none | `Device` (371547) |
+| `PowerTransmitterOmni` (408582) | none | `Device` (371547) |
+| `Gyroscope` (397102) | none | `Device` (371547) |
+| `PowerConnection` (407942) | none | `Device` (371547) |
+| `PowerConnector` (408002) | 408050 | own (tail base call at 408058) |
+| `SolarPanel` (421087) | 421384 | own (base call at 421386) |
+| `RadioscopicThermalGenerator` (416897) | none | `Device` (371547) |
+| `LandingPadDeprecated` (398068) | none | `Device` (371547) |
+| `LargeElectrical` (207539, abstract) | none | `Device` (371547) |
+| `SatelliteDish` (417919) | none | `Device` (371547) |
+| `GroundTelescope` (207752) | 208070 | own |
+
+`Transformer` also declares no `GetContextualName` override (no occurrence in 424598-424993; the virtual is `Thing.GetContextualName` at 319699). `AreaPowerControl` does override `GetContextualName` (390817-390826) for its three area buttons. Power producers outside this namespace branch that declare their own `GetPassiveTooltip`: `PowerGeneratorPipe` (396655) and `StirlingEngine` (424241); `Cable` declares one as well (392747).
+
+Mod consequence: a Harmony postfix that annotates the BODY hover of a `Transformer` or `Battery` must attach to `ElectricalInputOutput.GetPassiveTooltip`, the override that actually runs. Attaching at more than one level of this chain makes the postfix fire once per patched level per poll, because the derived overrides call `base.GetPassiveTooltip` and Harmony detours base calls too; see [HarmonyBaseCallDetourMultiFire](../Patterns/HarmonyBaseCallDetourMultiFire.md) for the trap and the shipped depth-guard mitigation.
+
+## PassiveTooltip: the struct and its TextMeshPro render path
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`PassiveTooltip` is a mutable struct (`Assets.Scripts.Objects`, decompile line 307045). Fields, the `Extended` accessors, and the default constructor, verbatim (307045-307107):
+
+```csharp
+public struct PassiveTooltip                     // line 307045
+{
+    public string Title;
+    public string Action;
+    public string State;
+    public string Extended;
+    public string RepairString;
+    public string DeconstructString;
+    public string ConstructString;
+    public string PlacementString;
+    public string BuildStateIndexMessage;
+    public bool ShowRotate;
+    public bool ShowConstructionRotate;
+    public bool ShowScroll;
+    public bool ShowAction;
+    public float Slider;
+    public UnityEngine.Color color;
+    public bool FollowMouseMovement;
+
+    public string GetExtendedText()              // line 307079
+    {
+        return Extended;
+    }
+
+    public void SetExtendedText(string text)     // line 307084
+    {
+        Extended = text;
+    }
+
+    public PassiveTooltip(bool toDefault = true) // line 307089
+    {
+        Title = string.Empty;
+        Action = string.Empty;
+        State = string.Empty;
+        Extended = string.Empty;
+        RepairString = string.Empty;
+        DeconstructString = string.Empty;
+        ConstructString = string.Empty;
+        PlacementString = string.Empty;
+        ShowRotate = false;
+        ShowScroll = false;
+        ShowConstructionRotate = false;
+        ShowAction = true;
+        BuildStateIndexMessage = string.Empty;
+        color = UnityEngine.Color.white;
+        Slider = -1f;
+        FollowMouseMovement = false;
+    }
+}
+```
+
+Two further constructors exist (from a `Thing.DelayedActionInstance`, 307109-307129; full-argument, 307131-307149) plus `Populate(Connection end) => end.Populate(this)` (307151-307154). Do not confuse it with `PassiveUITooltip` (307029), the two-field readonly struct returned by `Thing.GetPassiveUITooltip`.
+
+Every HUD hover path lands the struct in `Assets.Scripts.UI.Tooltip : UserInterfaceBase` (class 253966), held as `public Tooltip TooltipRef;` on `InventoryManager` (285975). The display fields are TextMeshPro components (253976-253982):
+
+```csharp
+public TextMeshProUGUI TooltipTitle;             // line 253976
+public TextMeshProUGUI TooltipAction;            // line 253978
+public TextMeshProUGUI TooltipState;             // line 253980
+public TextMeshProUGUI TooltipExtended;          // line 253982
+```
+
+`Tooltip.HandleToolTipDisplay(PassiveTooltip cursorPassiveTooltip)` (254322) calls `SetUpToolTip` (254298-254320), which copies `Extended = cursorPassiveTooltip.Extended;` (254305) into the `Extended` property. The property setter writes the TextMeshPro text directly (254144-254163, verbatim):
+
+```csharp
+public string Extended                           // line 254144
+{
+    get
+    {
+        return _extended;
+    }
+    set
+    {
+        if (Mode == TooltipMode.Hidden)
+        {
+            Mode = TooltipMode.ActionFirst;
+        }
+        if (_extended != value)
+        {
+            Dirty = true;
+        }
+        _extended = value;
+        TooltipExtended.text = _extended;        // line 254161
+    }
+}
+```
+
+So the `Extended` string is rendered by a `TextMeshProUGUI`, which parses `\n` line breaks and rich-text tags (`<color>`, nested spans) in `.text`. The game relies on exactly that in this component: `SetUpToolTip` itself wraps the action line in a color tag, `Action = "<color=#" + ColorToHex(Color) + ">" + Action + "</color> ";` (254319), and vanilla overrides write tags into the struct too (`LogicMirror.GetPassiveTooltip` puts `$"Mirroring <color=green>{...}</color>"` into `State`, see [LogicMirror](./LogicMirror.md)). Confirmed in-game during the PowerGridPlus fault-hover work: multi-line blocks appended to `Extended` with `"\n"` separators and `<color>` tags render as colored lines in the body tooltip.
+
+Visibility gating: `_hasExtended = !string.IsNullOrEmpty(_extended) && _extended.Length > 0;` (254314) feeds both the panel-visible decision (`flag2` at 254331 ORs `_hasExtended` in) and `ExtendedRenderer.SetVisible(_hasExtended)` (254350), so appending a non-empty `Extended` to an otherwise empty tooltip makes the panel appear. Caveat: `HandleToolTipDisplay` returns early when the player's active hand holds a `Tablet` (254325-254328), so body tooltips are suppressed while a tablet is out.
+
 ## Verification history
 
+- 2026-07-14 (later the same day): the cross-page flag at the end of the entry below is RESOLVED. A Rule 3 fresh validator confirmed against the 0.2.6403.27689 decompile that `CableRuptured : SmallGrid` (392848) declares no `GetPassiveTooltip` (full body 392848-392881) and that a wreckage body hover dispatches to `Structure.GetPassiveTooltip` (314440), with `Thing.GetPassiveTooltip` (319731) reached only by the no-damage / no-build-tooltip fall-through. [Cable](./Cable.md)'s Wreckage section is corrected and restamped to 0.2.6403.27689; its patch recommendation now targets `Structure.GetPassiveTooltip`, matching this page and the shipped `Mods/PowerGridPlus/PowerGridPlus/Patches/BurnReasonPatches.cs`. The "conflict protocol pending" note below no longer applies.
+- 2026-07-14: added "GetPassiveTooltip: body-hover tooltip resolution chain" (with the override census) and "PassiveTooltip: the struct and its TextMeshPro render path" (game version 0.2.6403.27689), from the PowerGridPlus fault-hover work. All bodies read verbatim from the 0.2.6403.27689 decompile: ElectricalInputOutput override 395008-395023 (port labels only, tail base call), Device 371547-371557 (open-end labels, tail base call), Structure 314440-314465 (damage/build tooltip; healthy structures fall through to base), Thing 319731-319734 (returns the all-empty `new PassiveTooltip(true)`), AreaPowerControl 390800-390810 (both paths call base; the charge readout ships via the null-collider poll only); negative census for Transformer (no `GetPassiveTooltip`, no `GetContextualName` anywhere in 424598-424993) and the family table. Render path: PassiveTooltip struct 307045-307155, InputMouse route 239691/239721, InventoryManager.NormalModeThing 287868-287869 with `TooltipRef` 285975, Tooltip class 253966 with `TooltipExtended` TextMeshProUGUI 253982, SetUpToolTip 254298-254320 (Extended copy 254305, Action color-wrap 254319), Extended setter 254144-254163 (`TooltipExtended.text` write 254161), visibility gates 254314/254331/254350, tablet early-out 254325. Additive; no prior content on this page contradicted. Cross-page flag (not edited here, conflict protocol pending): [Cable](./Cable.md)'s CableRuptured section (stamped 0.2.6228.27061) states the wreckage inherits "the base `Thing.GetPassiveTooltip`"; at 0.2.6403.27689 the dispatch target for any SmallGrid subclass without its own override is `Structure.GetPassiveTooltip` (314440), with Thing's base only reached by fall-through.
 - 2026-07-02: added "CheckPower: event-driven un-power outside the tick" and restamped "CheckConnections" against the 0.2.6403.27689 decompile. `CheckConnections` verbatim-unchanged at 394930-394936; NEW at 0.2.6403.27689: `OnRemoveCableNetwork` (394993-395006) nulls the matching `InputNetwork` / `OutputNetwork` before `CheckConnections` + `CheckPower` (the 0.2.6228 version had no such null-out; consequence documented on [PowerReceiver](./PowerReceiver.md)). CheckPower facts: base virtual at 394945-394951 (`RunSimulation && InputNetwork == null && Powered` -> `OnServer.Interact(InteractPowered, 0)`), call sites `OnAddCableNetwork` 394985-394991 / `OnRemoveCableNetwork` 394993-395006; `AreaPowerControl.CheckPower` override 390983-390989 gated on `NoPower` (390636-390650: no/empty cell AND (no input net OR `PotentialLoad <= 0`)) with extra call sites on OnOff interaction and battery-cell insert/remove; `Battery.CheckPower` override 391963-391969 re-syncs `InteractPowered.State` to the computed `Powered`; the handheld `PowerTool` `CheckPower` family (virtual ~353114, `SensorLenses` override 354109) flagged as unrelated. Additive plus one supersession-by-game-change (the OnRemoveCableNetwork null-out); no fresh validator needed. Driving work: Powered-semantics stage of the power rearchitecture session. Sections not re-read this pass (class header/fields, IsOperable, load accessors, IsProviderToDevice body, submergeable block) keep their 0.2.6228.27061 stamps; `IsProviderToDevice` was spot-checked shape-identical at 394953+.
 - 2026-06-29: page created. Consolidates the `ElectricalInputOutput` bridge base, previously documented piecemeal on [Transformer](./Transformer.md) (fields + IsOperable), [Battery](./Battery.md) (class hierarchy), and [Device](./Device.md) (IsOperable collision). Sourced verbatim from `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs` lines 373755-373933: class header + fields, `IsPowerProvider => true` (373783), `IsPowerInputOutput => true` (373801), `IsOperable` self-short rule (373803-373813), `AvailablePower` / `CurrentLoad` / `PotentialLoad` load accessors (373815-373839), `CheckConnections` (373872-373878), `CheckPower` (373887-373893), `IsProviderToDevice` recursive cycle walk bounded by `MaxProviderRecursionIterations` (373895-373926, cap value 349623), `OnAddCableNetwork` (373928), and the submergeable block (373773-373870). Additive (new page); no existing verified content contradicted -- the IsOperable and field facts match what Transformer.md / Battery.md / Device.md already state, this page is the canonical home and they cross-link to it.
 
