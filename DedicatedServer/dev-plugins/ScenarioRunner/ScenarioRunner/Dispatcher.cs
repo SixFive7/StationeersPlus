@@ -129,6 +129,10 @@ namespace ScenarioRunner
                     Scenario_PgpPassthroughPortProbe();
                     return;
 
+                case "pgp-apc-bridge-probe":
+                    Scenario_PgpApcBridgeProbe();
+                    return;
+
                 case "pgp-dataport-tier-diag":
                     Scenario_DataPortTierDiag();
                     return;
@@ -282,8 +286,8 @@ namespace ScenarioRunner
                     Scenario_PgpShedVictimFixture();
                     return;
 
-                case "pgp-partial-power-injection":
-                    Scenario_PgpPartialPowerInjection();
+                case "pgp-chain-fixture":
+                    Scenario_PgpChainFixture();
                     return;
 
                 case "pgp-rearch-suite":
@@ -488,7 +492,7 @@ namespace ScenarioRunner
                     new[] { typeof(CableNetwork) },
                     null);
                 // IPowerGenerator lives in the top-level `Objects` namespace (game v0.2.6228.27061,
-                // decompile line 138702 in `namespace Objects`). Don't search by bare-name — use
+                // decompile line 138702 in `namespace Objects`). Don't search by bare-name; use
                 // every prefab's own interface list at iteration time instead, which is robust to
                 // future namespace moves and catches inherited interface implementations.
 
@@ -1734,16 +1738,24 @@ namespace ScenarioRunner
         }
 
         // PGP scenario: battery-efficiency-probe.
-        // One-shot. Directly invokes Battery.ReceivePower(InputNetwork, powerAdded)
-        // against the first OnOff Battery with headroom, logs PowerStored before /
-        // after each call. Used to verify PGP's
-        //   StationaryBatteryPatches.ChargeEfficiencyControl
-        // math:
-        //   charged = BatteryChargeEfficiency * powerAdded
-        //   if (charged < 500) charged = powerAdded     // sub-500 W trickle floor
-        //   PowerStored += charged (clamped)
-        // Run twice across two server starts, once at BatteryChargeEfficiency = 1.0
-        // and once at 0.5; the two log lines compared confirm the math.
+        // One-shot PASS/FAIL check of the battery charge-cost settlement math. The old
+        // Battery.ReceivePower charge-efficiency prefix is retired (vanilla ApplyState no
+        // longer runs; nothing calls ReceivePower during the tick), so the probe drives the
+        // REAL settlement path instead: Core/WriteBack.ApplyCredit(StoreCredit, chargeCost),
+        // the exact method the mod-owned write-back runs per store credit each tick.
+        // Current rule (Battery Charge Efficiency is a COST multiplier, default 1.5):
+        //   stored = credited / max(1, BatteryChargeEfficiency)
+        //   if (stored < 500) stored = credited        // post-division sub-500 W trickle floor
+        //   PowerStored += stored (clamped)
+        // The expected values are computed from the LIVE config value via reflection, so the
+        // probe follows the server cfg instead of hardcoding the shipped default:
+        //   Case A: credited=5000 -> stored 5000/cost (3333.33 at cost 1.5).
+        //   Case B: credited=600  -> 600/cost lands under 500 at cost > 1.2, so the floor
+        //           stores the full 600; at cost <= 1.2 the divided value is >= 500 and
+        //           applies directly. Both branches share one expected-value formula.
+        // The mutated PowerStored is restored afterwards, so the save is left as found.
+        // ApplyCredit also records the credit with ChargeDeliveryAudit; a credit with no
+        // matching allocator grant this tick is outside the audit's model and ignored.
 
         private static bool _bepProbeFired;
 
@@ -1753,42 +1765,97 @@ namespace ScenarioRunner
             if (_bepProbeFired) return;
             _bepProbeFired = true;
 
-            if (_batteries.Count == 0) RebuildCaches();
-            Battery target = null;
-            foreach (var b in _batteries)
+            int pass = 0, fail = 0;
+            try
             {
-                if (b != null && b.OnOff && b.InputNetwork != null && b.PowerStored + 5000f <= b.PowerMaximum)
+                var asm = GetModAssembly(PGP_ASSEMBLY);
+                const System.Reflection.BindingFlags SF =
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.Static;
+
+                var writeBackType = asm?.GetType("PowerGridPlus.Core.WriteBack");
+                var creditType = asm?.GetType("PowerGridPlus.Core.WriteBack+StoreCredit");
+                var auditType = asm?.GetType("PowerGridPlus.ChargeDeliveryAudit");
+                var applyCredit = writeBackType?.GetMethod("ApplyCredit", SF);
+                var kindBatteryField = auditType?.GetField("KindBattery", SF);
+                double cost = PgpBatteryChargeEfficiency();
+
+                if (applyCredit == null || creditType == null || kindBatteryField == null || double.IsNaN(cost))
                 {
-                    target = b;
-                    break;
+                    _log?.LogError(
+                        "[ScenarioRunner] BEP FAIL: reflection surface incomplete " +
+                        $"(WriteBack.ApplyCredit={applyCredit != null} StoreCredit={creditType != null} " +
+                        $"ChargeDeliveryAudit.KindBattery={kindBatteryField != null} configReadable={!double.IsNaN(cost)}); " +
+                        "PowerGridPlus renamed or too old.");
+                    fail++;
+                    return;
                 }
+                byte kindBattery = (byte)kindBatteryField.GetValue(null);
+                float chargeCost = UnityEngine.Mathf.Max(1f, (float)cost);
+
+                if (_batteries.Count == 0) RebuildCaches();
+                Battery target = null;
+                foreach (var b in _batteries)
+                {
+                    // Enough headroom that neither case clamps at PowerMaximum.
+                    if (b != null && b.PowerStored + 7000f <= b.PowerMaximum) { target = b; break; }
+                }
+                if (target == null)
+                {
+                    _log?.LogWarning("[ScenarioRunner] BEP COULD-NOT-RUN: no Battery with 7 kJ headroom; nothing to probe.");
+                    return;
+                }
+
+                float original = target.PowerStored;
+                _log?.LogInfo(
+                    $"[ScenarioRunner] BEP target: ref={target.ReferenceId} prefab={target.PrefabName} " +
+                    $"PowerStored={original:F2} PowerMaximum={target.PowerMaximum:F2} " +
+                    $"BatteryChargeEfficiency={cost} (cost multiplier, effective {chargeCost})");
+
+                float ExpectedStored(float credited)
+                {
+                    float stored = credited / chargeCost;
+                    if (stored < 500f) stored = credited;   // post-division trickle floor
+                    return stored;
+                }
+
+                void RunCase(string tag, float credited)
+                {
+                    float before = target.PowerStored;
+                    object credit = Activator.CreateInstance(creditType);
+                    creditType.GetField("RefId")?.SetValue(credit, target.ReferenceId);
+                    creditType.GetField("Kind")?.SetValue(credit, kindBattery);
+                    creditType.GetField("Amount")?.SetValue(credit, credited);
+                    creditType.GetField("Owner")?.SetValue(credit, target);
+                    applyCredit.Invoke(null, new object[] { credit, chargeCost });
+                    float after = target.PowerStored;
+                    float delta = after - before;
+                    float expected = ExpectedStored(credited);
+                    bool ok = Math.Abs(delta - expected) < 0.5f;
+                    if (ok)
+                    { pass++; _log?.LogInfo($"[ScenarioRunner] BEP {tag} PASS: credited={credited:F0} stored={delta:F2} expected={expected:F2} (cost={chargeCost}, floor {(credited / chargeCost < 500f ? "applied" : "not applied")})."); }
+                    else
+                    { fail++; _log?.LogError($"[ScenarioRunner] BEP {tag} FAIL: credited={credited:F0} stored={delta:F2}, expected {expected:F2} at cost={chargeCost}."); }
+                }
+
+                // Case A: well above the floor after division.
+                RunCase("A", 5000f);
+                // Case B: exercises the post-division sub-500 W full-store branch at cost > 1.2.
+                RunCase("B", 600f);
+
+                // Leave the save as found.
+                target.PowerStored = original;
+                _log?.LogInfo($"[ScenarioRunner] BEP restored PowerStored={target.PowerStored:F2} on ref={target.ReferenceId}.");
             }
-            if (target == null)
+            catch (Exception e)
             {
-                _log?.LogWarning("[ScenarioRunner] pgp-battery-efficiency-probe: no OnOff Battery with headroom + InputNetwork; nothing to probe.");
-                return;
+                fail++;
+                _log?.LogError($"[ScenarioRunner] BEP threw: {e}");
             }
-
-            _log?.LogInfo(
-                $"[ScenarioRunner] BEP target: ref={target.ReferenceId} prefab={target.PrefabName} " +
-                $"PowerStored={target.PowerStored:F2} PowerMaximum={target.PowerMaximum:F2} " +
-                $"BatteryChargeEfficiency_setting={PgpBatteryChargeEfficiency()}");
-
-            // Probe A: large powerAdded above the 500 W trickle floor.
-            //   Expected at eff=1.0: delta = 5000.  At eff=0.5: delta = 2500.
-            var beforeA = target.PowerStored;
-            target.ReceivePower(target.InputNetwork, 5000f);
-            var afterA = target.PowerStored;
-            _log?.LogInfo(
-                $"[ScenarioRunner] BEP A: powerAdded=5000 before={beforeA:F2} after={afterA:F2} delta={afterA - beforeA:F2}");
-
-            // Probe B: small powerAdded below the 500 W trickle floor.
-            //   Expected at any eff: delta = 200 (trickle floor: charged = powerAdded).
-            var beforeB = target.PowerStored;
-            target.ReceivePower(target.InputNetwork, 200f);
-            var afterB = target.PowerStored;
-            _log?.LogInfo(
-                $"[ScenarioRunner] BEP B: powerAdded=200  before={beforeB:F2} after={afterB:F2} delta={afterB - beforeB:F2}");
+            finally
+            {
+                _log?.LogInfo($"[ScenarioRunner] BEP END pass={pass} fail={fail}");
+            }
         }
 
         private static double PgpBatteryChargeEfficiency()
@@ -1841,11 +1908,13 @@ namespace ScenarioRunner
 
         // PGP scenario: cable-burn-probe.
         // Two parts. Periodic: list every CableNetwork with Required or Current > 5 kW
-        // (where normal cables would naturally burn). One-shot at tick (Delay+25):
-        // reflect-invoke PowerGridPlus.Power.PowerGridTick.TestBurnCable(10000,10000)
-        // against every network's PowerTick and tally would-burn counts by tier.
-        // Verifies PGP's burn-decision formula plus the NEW-1 super-heavy carve-out
-        // without needing a real overload.
+        // (where normal cables would naturally burn). One-shot: the burn decision moved
+        // in the rebuild from the per-network PowerGridTick.TestBurnCable to the
+        // mod-owned write-back (Core/WriteBack + the CableBurnWindow 20-tick running
+        // average), so the one-shot now asserts the LEGACY type is absent (a regression
+        // tripwire against the per-network tick coming back) and points at
+        // pgp-cable-burn-window-probe, which drives the current burn-decision math
+        // (CableBurnWindow.Observe / IsFull / AverageFlow / TopProducer) directly.
 
         private static int _cbpLastLogTick = int.MinValue;
         private const int CBP_LOG_EVERY_TICKS = 25;
@@ -2240,46 +2309,27 @@ namespace ScenarioRunner
             {
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogWarning("[ScenarioRunner] CBP reflection probe: PowerGridPlus assembly missing."); return; }
-                var tickType = asm.GetType("PowerGridPlus.Power.PowerGridTick");
-                if (tickType == null) { _log?.LogWarning("[ScenarioRunner] CBP reflection probe: PowerGridPlus.Power.PowerGridTick type not found."); return; }
-                var testBurnCable = tickType.GetMethod("TestBurnCable",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-                if (testBurnCable == null) { _log?.LogWarning("[ScenarioRunner] CBP reflection probe: TestBurnCable method not found."); return; }
 
-                int probedNets = 0;
-                int wouldBurn = 0;
-                int normalCableNets = 0;
-                int heavyCableNets = 0;
-                int superHeavyCableNets = 0;
-
-                CableNetwork.AllCableNetworks.ForEach(n =>
+                // The per-network PowerGridTick (and its TestBurnCable seam) was retired when the
+                // whole power tick became mod-owned; the deterministic burn now lives in the
+                // write-back (Core/WriteBack) fed by CableBurnWindow's 20-tick running average.
+                // Assert the legacy type stays gone AND the current surface exists.
+                var legacyTickType = asm.GetType("PowerGridPlus.Power.PowerGridTick");
+                var burnWindowType = asm.GetType("PowerGridPlus.CableBurnWindow");
+                if (legacyTickType == null && burnWindowType != null)
                 {
-                    if (n == null) return;
-                    var pt = n.PowerTick;
-                    if (pt == null || pt.GetType() != tickType) return;
-                    probedNets++;
-
-                    float minMaxVoltage = float.PositiveInfinity;
-                    if (n.CableList != null)
-                    {
-                        foreach (var c in n.CableList)
-                        {
-                            if (c == null) continue;
-                            if (c.MaxVoltage < minMaxVoltage) minMaxVoltage = c.MaxVoltage;
-                        }
-                    }
-                    if (minMaxVoltage == 5000f) normalCableNets++;
-                    else if (minMaxVoltage == 100000f) heavyCableNets++;
-                    else if (minMaxVoltage == 500000f) superHeavyCableNets++;
-
-                    var result = testBurnCable.Invoke(pt, new object[] { 10000.0f, 10000.0f });
-                    if (result != null) wouldBurn++;
-                });
-
-                _log?.LogInfo(
-                    $"[ScenarioRunner] CBP reflection probe: probedNets={probedNets} " +
-                    $"wouldBurn={wouldBurn} normalNets={normalCableNets} heavyNets={heavyCableNets} " +
-                    $"superHeavyNets={superHeavyCableNets} (synthetic powerUsed=10000 W against TestBurnCable)");
+                    _log?.LogInfo(
+                        "[ScenarioRunner] CBP one-shot PASS: legacy PowerGridPlus.Power.PowerGridTick is absent " +
+                        "and CableBurnWindow exists (burn decision lives in the mod-owned write-back). " +
+                        "Run pgp-cable-burn-window-probe to exercise the burn-decision math directly.");
+                }
+                else
+                {
+                    _log?.LogError(
+                        "[ScenarioRunner] CBP one-shot FAIL: type surface wrong. " +
+                        $"legacy PowerGridTick={legacyTickType != null} (expect false) " +
+                        $"CableBurnWindow={burnWindowType != null} (expect true).");
+                }
             }
             catch (Exception e)
             {
@@ -2886,57 +2936,59 @@ namespace ScenarioRunner
 
         // PGP scenario: priority-shedding-probe.
         // One-shot, multi-phase end-to-end verification of the Transformer Priority +
-        // Shedding feature. Reaches into PowerGridPlus via reflection (no build-time
-        // dependency on PGP), then drives the feature through every observable surface
-        // and asserts results structurally.
+        // Shedding feature surface. Reaches into PowerGridPlus via reflection (no
+        // build-time dependency on PGP) and asserts results structurally against the
+        // CURRENT architecture: the Priority + Shedding system is always on (no master
+        // toggle), Priority is a first-class writable LogicType slot (Setting / Ratio
+        // are pure vanilla, no redirect), allocations are computed once per tick by
+        // PowerAllocator and published to TransformerSupplyCache (live allocation
+        // behaviour is covered by pgp-priority-shedding-topology-probe,
+        // pgp-shed-multilevel, and pgp-chain-fixture, which drive across ticks).
         //
         // Phases:
         //   1. Inventory + baseline. Count Transformers, log per-Transformer state
-        //      (Priority, OutputMaximum, OnOff, Error, IsShedding, InputNetwork ref,
-        //      OutputNetwork ref, allocator-reported supply). Confirms the LogicTypes
-        //      are registered (Priority=6578, Shedding=6579), the feature is gated by
-        //      EnableTransformerShedding, and Setting reads return OutputMaximum.
-        //   2. Setting -> Priority redirect. For a sample transformer, call
-        //      SetLogicValue(LogicType.Setting, 175) directly server-side via the
-        //      patched code path; verify PriorityStore now reports 175 (the redirect
-        //      lock-in) and Setting still reads OutputMaximum (the read rewire).
-        //   3. CanLogicRead/Write surface. For every relevant LogicType, call the
-        //      vanilla CanLogicRead / CanLogicWrite via the patched code path and
-        //      assert expected booleans (Priority R+W, Shedding R only, Setting still
-        //      W -> redirects).
-        //   4. Strict-priority allocation. Group transformers by InputNetwork. For
-        //      each group with >= 2 transformers, set priorities so highest-priority
-        //      gets full budget, lowest gets shed. Re-run TransformerAllocator and
-        //      verify the expected allocation pattern (high gets OutputMaximum, mid
-        //      gets remainder, low gets 0). Also verify BrownoutRegistry now reports
-        //      the low-priority one as shedding.
-        //   5. Lockout duration. Confirm that ElectricityTickCounter.CurrentTick + 20
-        //      equals BrownoutRegistry.LockoutUntilTick for a freshly-shed device.
-        //   6. Ratio == 1.0 read rewire. Verify GetLogicValue(LogicType.Ratio) returns
-        //      exactly 1.0 (was Setting/OutputMaximum vanilla; now hardcoded).
-        //   7. PriorityMessage symmetry. Construct a PriorityMessage server-side, run
-        //      its Process() method (host path returns early per server-gated design;
-        //      verify no exception).
-        //   8. Settings panel. Confirm EnableTransformerShedding ConfigEntry exists,
-        //      is bound, and its current value matches what ShedSettingsSync.Effective
-        //      reports.
-        //   9. Stationpedia footer. Read Localization.GetThingDescription for every
-        //      Transformer prefab name (StructureTransformer, ...Small, ...SmallReversed,
-        //      ...Large) and assert the footer contains the "POWER GRID PLUS" header.
-        //      Negative case: a non-transformer prefab does NOT carry the same footer.
+        //      (Priority, OutputMaximum, OnOff, Error, IsShedding, published output
+        //      from TransformerSupplyCache, both network refs). Baseline Priority is
+        //      the default 100 for untouched transformers.
+        //   2. Priority logic slot. SetLogicValue(Priority=6578, 175) through the real
+        //      Device path (server-gated write + PriorityMessage broadcast, a no-op at
+        //      zero clients); GetLogicValue(Priority) reads it back; a Setting write
+        //      stays PURE VANILLA (does not touch Priority; Setting readback returns
+        //      the written value; restored after).
+        //   3. CanLogicRead/Write surface: Priority R+W, Shedding read-only.
+        //   4. PriorityStore contract: SetPriority persists, bumps the monotonic
+        //      Version (the allocator's invalidation cue), and clamps negatives to 0.
+        //   4b. Lockout precedence: NoteShed arms the 60 s lockout instantly and a
+        //      priority write does NOT clear it (only expiry or the OFF-as-reset
+        //      ClearLockout does).
+        //   5. Registry constants: LockoutDurationTicks == 120 (60 s at 2 Hz) and the
+        //      retired ShortfallTolerance counter stays deleted.
+        //   6. Deleted-surface tripwires: the EnableTransformerShedding ConfigEntry and
+        //      the ShedSettingsSync / OverloadSettingsSync / PassthroughSettingsSync /
+        //      TransformerAllocator types must all be ABSENT (always-on rework), while
+        //      PowerAllocator exists.
+        //   7. Stationpedia footer. StationpediaPatches.GetDescriptionFooter for every
+        //      Transformer prefab name carries the "POWER GRID PLUS" header; ItemWrench
+        //      (non-transformer) does not.
+        //   8. PriorityMessage host short-circuit (Process on the host is a no-op).
+        //   9. PrioritySideCar snapshot inventory (phase 2/4 writes visible).
+        //  10. PrioritySideCar on-disk Write -> Read round-trip.
+        //  11. OFF-as-reset seam: ClearLockout drops a fresh lockout immediately.
+        //  12. SnapshotRemaining carries the (refId, remainingTicks) pair the per-tick
+        //      FaultRegistrySnapshotMessage heartbeat serializes.
         //
         // Each phase emits structured `[ScenarioRunner] PSP ...` lines and tags
         // PASS/FAIL per check. The final summary line aggregates pass/fail counts.
         //
         // Threading: every read/invoke runs from the simulation-tick worker (UniTask
         // ThreadPool). All reflection-driven calls touch managed state only; no Unity
-        // API calls. PriorityStore / BrownoutRegistry / TransformerAllocator are
-        // concurrent dictionaries safe to read from the worker.
+        // API calls. PriorityStore / BrownoutRegistry are concurrent dictionaries safe
+        // to read from the worker.
         //
-        // Side effects: phase 2 mutates a transformer's Priority via SetLogicValue.
-        // Phase 4 mutates several transformers' priorities via PriorityStore.SetPriority.
-        // The scenario logs what was written so the changes are traceable in a save-load
-        // follow-up (pgp-priority-shedding-persist-probe).
+        // Side effects: phase 2 leaves the sample transformer's Priority at 175 and phase 4
+        // leaves a second transformer at 137 (so the save-load follow-up
+        // pgp-priority-shedding-persist-probe has >= 2 non-default values to verify);
+        // everything else is restored. The scenario logs what was written.
 
         private static bool _pspFired;
 
@@ -2957,12 +3009,12 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] PSP no PGP assembly"); return; }
 
-                // Resolve all PGP types up front; missing types are FAIL.
+                // Resolve the PGP types the probe drives; missing types are FAIL. The deleted
+                // types (ShedSettingsSync / TransformerAllocator and friends) are looked up too,
+                // but as ABSENCE tripwires asserted in phase 6.
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
                 var brownoutRegistryType = asm.GetType("PowerGridPlus.BrownoutRegistry");
-                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-                var shedSyncType = asm.GetType("PowerGridPlus.ShedSettingsSync");
                 var logicRegType = asm.GetType("PowerGridPlus.LogicTypeRegistry");
                 var settingsType = asm.GetType("PowerGridPlus.Settings");
                 var stationpediaType = asm.GetType("PowerGridPlus.StationpediaPatches");
@@ -2971,9 +3023,8 @@ namespace ScenarioRunner
 
                 if (priorityStoreType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: PriorityStore type missing"); failCount++; return; }
                 if (brownoutRegistryType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: BrownoutRegistry type missing"); failCount++; return; }
-                if (allocatorType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: TransformerAllocator type missing"); failCount++; return; }
                 if (tickCounterType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: ElectricityTickCounter type missing"); failCount++; return; }
-                if (shedSyncType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: ShedSettingsSync type missing"); failCount++; return; }
+                if (priorityLogicPatchType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: TransformerPriorityLogicPatches type missing"); failCount++; return; }
 
                 var getPriorityMethod = priorityStoreType.GetMethod("GetPriority",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
@@ -2981,7 +3032,7 @@ namespace ScenarioRunner
                 var setPriorityMethod = priorityStoreType.GetMethod("SetPriority",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(Assets.Scripts.Objects.Thing), typeof(int) }, null);
-                var getAllocatedSupplyMethod = allocatorType.GetMethod("GetAllocatedSupply",
+                var versionProp = priorityStoreType.GetProperty("Version",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
                 var isSheddingMethod = brownoutRegistryType.GetMethod("IsShedding",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
@@ -2989,36 +3040,37 @@ namespace ScenarioRunner
                 var isLockedOutMethodLong = brownoutRegistryType.GetMethod("IsLockedOut",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                var currentTickProp = tickCounterType.GetProperty("CurrentTick",
+                var noteShedMethod = brownoutRegistryType.GetMethod("NoteShed",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var clearLockoutMethod = brownoutRegistryType.GetMethod("ClearLockout",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+                    null, new[] { typeof(long) }, null);
+                var snapshotRemainingMethod = brownoutRegistryType.GetMethod("SnapshotRemaining",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                var effectiveProp = shedSyncType.GetProperty("Effective",
+                var currentTickProp = tickCounterType.GetProperty("CurrentTick",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
                 int currentTick = (int)(currentTickProp?.GetValue(null) ?? -1);
-                bool effective = (bool)(effectiveProp?.GetValue(null) ?? false);
 
-                _log?.LogInfo($"[ScenarioRunner] PSP env: ElectricityTickCounter.CurrentTick={currentTick} ShedSettingsSync.Effective={effective}");
+                _log?.LogInfo($"[ScenarioRunner] PSP env: ElectricityTickCounter.CurrentTick={currentTick} (Priority + Shedding is always on; no master toggle)");
 
                 // ---- PHASE 1: inventory + baseline ----
                 if (_transformers.Count == 0) RebuildCaches();
                 _log?.LogInfo($"[ScenarioRunner] PSP P1 transformers={_transformers.Count}");
 
-                // Group transformers by InputNetwork.ReferenceId for phase 4.
-                var byInputNet = new Dictionary<long, List<Transformer>>();
+                // Per-transformer baseline: published output comes from TransformerSupplyCache
+                // (the per-tick presentation totals PowerAllocator publishes; -1 = no entry).
                 foreach (var t in _transformers)
                 {
                     if (t == null || t.InputNetwork == null || t.OutputNetwork == null) continue;
-                    long key = t.InputNetwork.ReferenceId;
-                    if (!byInputNet.TryGetValue(key, out var list)) byInputNet[key] = list = new List<Transformer>();
-                    list.Add(t);
-
                     int prio = (int)(getPriorityMethod?.Invoke(null, new object[] { t.ReferenceId }) ?? -1);
-                    float allocated = (float)(getAllocatedSupplyMethod?.Invoke(null, new object[] { t }) ?? -1f);
+                    float published = TpPublishedOutput(asm, t.ReferenceId);
                     bool shedding = (bool)(isSheddingMethod?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                     double setting = t.Setting;
                     _log?.LogInfo(
                         $"[ScenarioRunner] PSP P1 T ref={t.ReferenceId} prefab={t.PrefabName} OnOff={t.OnOff} Error={t.Error} " +
-                        $"OutputMax={t.OutputMaximum:F0} Setting={setting:F0} Priority={prio} Allocated={allocated:F0} Shedding={shedding} " +
+                        $"OutputMax={t.OutputMaximum:F0} Setting={setting:F0} Priority={prio} PublishedOut={published:F0} Shedding={shedding} " +
                         $"InNet={t.InputNetwork.ReferenceId} OutNet={t.OutputNetwork.ReferenceId}");
                 }
 
@@ -3040,7 +3092,11 @@ namespace ScenarioRunner
                 else
                 { _log?.LogInfo($"[ScenarioRunner] PSP P1 NOTE: {defaultPriorityMisses} transformers have non-default priorities from a prior save; baseline tainted but not a failure."); passCount++; }
 
-                // ---- PHASE 2: Setting -> Priority redirect ----
+                // ---- PHASE 2: the writable Priority logic slot; Setting stays pure vanilla ----
+                // The old Setting -> Priority redirect was retired: LogicType.Setting reads and
+                // writes are vanilla (clamped [0, OutputMaximum] by the property); Priority is a
+                // first-class writable slot (LogicTypeRegistry.Priority = 6578, the number owned
+                // by Patterns/Logic/LogicTypeNumbers.cs).
                 Transformer sampleT = _transformers.FirstOrDefault(x => x != null && x.OnOff);
                 if (sampleT == null && _transformers.Count > 0) sampleT = _transformers[0];
                 if (sampleT == null)
@@ -3049,41 +3105,42 @@ namespace ScenarioRunner
                 }
                 else
                 {
+                    var priorityLogic = (Assets.Scripts.Objects.Motherboards.LogicType)6578;
+
                     int prioBefore = (int)(getPriorityMethod?.Invoke(null, new object[] { sampleT.ReferenceId }) ?? -1);
-                    double settingBefore = sampleT.Setting;
-                    // LogicType.Setting=12, Ratio=24, Maximum=23 (decompile L314762/24/23).
-                    sampleT.SetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting, 175.0);
+                    // Real Device.SetLogicValue path: PGP's SetLogicValuePatch (server-gated write
+                    // + PriorityMessage broadcast, a no-op with zero clients connected).
+                    sampleT.SetLogicValue(priorityLogic, 175.0);
                     int prioAfter = (int)(getPriorityMethod?.Invoke(null, new object[] { sampleT.ReferenceId }) ?? -1);
-                    double settingAfter = sampleT.Setting;
 
                     totalChecks++;
                     if (prioAfter == 175)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: SetLogicValue(Setting, 175) redirected to Priority. before={prioBefore} after={prioAfter} ref={sampleT.ReferenceId}"); passCount++; }
+                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: SetLogicValue(Priority, 175) wrote through to PriorityStore. before={prioBefore} after={prioAfter} ref={sampleT.ReferenceId}"); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: SetLogicValue(Setting, 175) did NOT redirect to Priority. Priority before={prioBefore} after={prioAfter} ref={sampleT.ReferenceId}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: SetLogicValue(Priority, 175) did not land. Priority before={prioBefore} after={prioAfter} ref={sampleT.ReferenceId}"); failCount++; }
 
                     totalChecks++;
-                    var settingReadback = sampleT.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting);
-                    if (System.Math.Abs(settingReadback - sampleT.OutputMaximum) < 0.01)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: GetLogicValue(Setting) returned OutputMaximum ({settingReadback:F0}) post-write. ref={sampleT.ReferenceId}"); passCount++; }
+                    var prioReadback = sampleT.GetLogicValue(priorityLogic);
+                    if (System.Math.Abs(prioReadback - 175.0) < 0.001)
+                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: GetLogicValue(Priority) reads back {prioReadback:F0}. ref={sampleT.ReferenceId}"); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: GetLogicValue(Setting) returned {settingReadback:F0}, expected OutputMaximum={sampleT.OutputMaximum:F0}. ref={sampleT.ReferenceId}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: GetLogicValue(Priority)={prioReadback:F0}, expected 175. ref={sampleT.ReferenceId}"); failCount++; }
 
-                    // Also Ratio should be 1.0
-                    var ratio = sampleT.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Ratio);
-                    totalChecks++;
-                    if (System.Math.Abs(ratio - 1.0) < 0.001)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: GetLogicValue(Ratio) returned 1.0 (hardcoded). ref={sampleT.ReferenceId}"); passCount++; }
-                    else
-                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: GetLogicValue(Ratio)={ratio:F3}, expected 1.0. ref={sampleT.ReferenceId}"); failCount++; }
+                    // Setting is PURE VANILLA now: a Setting write must not touch Priority (a
+                    // regression back to the redirect era would), and its readback must return
+                    // the written value through the vanilla clamp. Restored afterwards.
+                    double settingBefore = sampleT.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting);
+                    double settingProbe = System.Math.Min(37.0, sampleT.OutputMaximum);
+                    sampleT.SetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting, settingProbe);
+                    double settingReadback = sampleT.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting);
+                    int prioAfterSetting = (int)(getPriorityMethod?.Invoke(null, new object[] { sampleT.ReferenceId }) ?? -1);
+                    sampleT.SetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting, settingBefore);
 
-                    // Maximum should still equal OutputMaximum
-                    var maximum = sampleT.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Maximum);
                     totalChecks++;
-                    if (System.Math.Abs(maximum - sampleT.OutputMaximum) < 0.01)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: GetLogicValue(Maximum) returned OutputMaximum ({maximum:F0}). ref={sampleT.ReferenceId}"); passCount++; }
+                    if (prioAfterSetting == 175 && System.Math.Abs(settingReadback - settingProbe) < 0.01)
+                    { _log?.LogInfo($"[ScenarioRunner] PSP P2 PASS: SetLogicValue(Setting, {settingProbe:F0}) stayed vanilla (Setting readback={settingReadback:F0}, Priority untouched at {prioAfterSetting}); Setting restored to {settingBefore:F0}. ref={sampleT.ReferenceId}"); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: GetLogicValue(Maximum)={maximum:F0}, expected OutputMaximum={sampleT.OutputMaximum:F0}. ref={sampleT.ReferenceId}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] PSP P2 FAIL: Setting write leaked. settingReadback={settingReadback:F0} (expected {settingProbe:F0}), Priority={prioAfterSetting} (expected 175, a change means the retired redirect is back). ref={sampleT.ReferenceId}"); failCount++; }
                 }
 
                 // ---- PHASE 3: CanLogicRead / CanLogicWrite surface ----
@@ -3110,197 +3167,113 @@ namespace ScenarioRunner
                     { _log?.LogError($"[ScenarioRunner] PSP P3 FAIL: Shedding surface wrong (expected RO). canRead={canReadShedding} canWrite={canWriteShedding}"); failCount++; }
                 }
 
-                // ---- PHASE 4: strict-priority allocation ----
-                List<Transformer> contestGroup = null;
-                long contestNetId = 0;
-                foreach (var kv in byInputNet)
+                // ---- PHASE 4: PriorityStore contract (persist, Version bump, negative clamp) ----
+                // Live strict-priority allocation is multi-tick under the atomic allocator and is
+                // covered by pgp-priority-shedding-topology-probe / pgp-shed-multilevel /
+                // pgp-chain-fixture; here the probe asserts the store semantics the allocator
+                // depends on: a write persists, bumps the monotonic Version counter (the
+                // intra-tick invalidation cue), and clamps negatives to 0. Runs on a SECOND
+                // transformer where one exists and leaves it at 137, so together with P2's 175
+                // the save carries the >= 2 non-default priorities the persist follow-up
+                // (pgp-priority-shedding-persist-probe) verifies across a reload.
+                if (sampleT != null)
                 {
-                    if (kv.Value.Count >= 2 && kv.Value.Any(x => x.OnOff))
-                    {
-                        contestGroup = kv.Value.Where(x => x.OnOff).ToList();
-                        contestNetId = kv.Key;
-                        break;
-                    }
-                }
+                    Transformer contractT = _transformers.FirstOrDefault(x => x != null && !ReferenceEquals(x, sampleT)) ?? sampleT;
 
-                if (contestGroup == null || contestGroup.Count < 2)
-                {
-                    _log?.LogWarning("[ScenarioRunner] PSP P4 SKIP: no input network has >= 2 ON transformers in this save.");
-                }
-                else
-                {
-                    _log?.LogInfo($"[ScenarioRunner] PSP P4 contest group on InputNet={contestNetId}: {contestGroup.Count} ON transformers");
-
-                    // Snapshot the input network's PotentialLoad so we can reason about budget.
-                    var inputNet = contestGroup[0].InputNetwork;
-                    float budget = inputNet.PotentialLoad;
-                    _log?.LogInfo($"[ScenarioRunner] PSP P4 InputNet.PotentialLoad={budget:F0}");
-
-                    // Sort by OutputMaximum desc so we deterministically pick the same "high" one.
-                    contestGroup.Sort((a, b) => b.OutputMaximum.CompareTo(a.OutputMaximum));
-
-                    // Assign synthetic priorities: 500, 250, 100, 50, ...
-                    int[] testPriorities = new[] { 500, 250, 100, 50, 25, 10 };
-                    for (int i = 0; i < contestGroup.Count; i++)
-                    {
-                        int p = testPriorities[System.Math.Min(i, testPriorities.Length - 1)];
-                        setPriorityMethod?.Invoke(null, new object[] { contestGroup[i], p });
-                        _log?.LogInfo($"[ScenarioRunner] PSP P4 set ref={contestGroup[i].ReferenceId} Priority={p}");
-                    }
-
-                    // Force a tick-counter advance via reading current tick fresh + clearing cache by
-                    // calling GetAllocatedSupply right after another tick. Because our PSP probe runs
-                    // INSIDE the ElectricityTick postfix (after the prefix has already advanced the
-                    // counter), the cache is already keyed to this tick. The allocator will recompute
-                    // with the new priorities.
-                    int tickNow = (int)(currentTickProp?.GetValue(null) ?? -1);
-
-                    // Clear lockouts inherited from baseline (P1's tick triggered NoteShortfall on
-                    // every contender that couldn't get its full OutputMaximum at all-equal-100
-                    // priorities; after ShortfallTolerance ticks those entered the 10-sec lockout).
-                    // For a clean strict-priority verification we want a fresh shedding-state baseline.
-                    // The real-world behavior (a shed transformer stays offline for 10 s even if the
-                    // player re-prioritizes mid-lockout) is verified separately in PSP P10.
-                    var clearAllMethod = brownoutRegistryType.GetMethod("ClearAll",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    clearAllMethod?.Invoke(null, null);
-                    var invalidateAllMethod = allocatorType.GetMethod("InvalidateAll",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    invalidateAllMethod?.Invoke(null, null);
-                    _log?.LogInfo($"[ScenarioRunner] PSP P4 BrownoutRegistry.ClearAll() + TransformerAllocator.InvalidateAll() called for clean baseline.");
-
-                    // Walk strictly by priority desc (the algorithm's own order) and predict allocations.
-                    var sortedByPrio = contestGroup
-                        .Select(t => new {
-                            T = t,
-                            Prio = (int)(getPriorityMethod?.Invoke(null, new object[] { t.ReferenceId }) ?? -1)
-                        })
-                        .OrderByDescending(x => x.Prio)
-                        .ThenBy(x => x.T.ReferenceId)
-                        .ToList();
-
-                    float remaining = budget;
-                    int predictedShed = 0;
-                    var expected = new Dictionary<long, float>();
-                    foreach (var item in sortedByPrio)
-                    {
-                        float desired = item.T.OutputMaximum;
-                        if (desired <= remaining)
-                        {
-                            expected[item.T.ReferenceId] = desired;
-                            remaining -= desired;
-                        }
-                        else
-                        {
-                            expected[item.T.ReferenceId] = 0f;
-                            predictedShed++;
-                        }
-                    }
-
-                    // Now ask the allocator and compare. Per-network cache is keyed by tickNow, so the
-                    // first call recomputes for everyone in the group.
-                    int matches = 0;
-                    int mismatches = 0;
-                    foreach (var item in sortedByPrio)
-                    {
-                        float actual = (float)(getAllocatedSupplyMethod?.Invoke(null, new object[] { item.T }) ?? -1f);
-                        float exp = expected[item.T.ReferenceId];
-                        bool match = System.Math.Abs(actual - exp) < 0.5f;
-                        _log?.LogInfo($"[ScenarioRunner] PSP P4 ref={item.T.ReferenceId} prio={item.Prio} OutMax={item.T.OutputMaximum:F0} expectedAlloc={exp:F0} actualAlloc={actual:F0} match={match}");
-                        if (match) matches++; else mismatches++;
-                    }
+                    int v0 = versionProp?.GetValue(null) is int vi ? vi : int.MinValue;
+                    setPriorityMethod?.Invoke(null, new object[] { contractT, 137 });
+                    int after137 = (int)(getPriorityMethod?.Invoke(null, new object[] { contractT.ReferenceId }) ?? -1);
+                    int v1 = versionProp?.GetValue(null) is int vj ? vj : int.MinValue;
 
                     totalChecks++;
-                    if (mismatches == 0)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P4 PASS: strict-priority allocation matches predicted for all {matches} transformers. PredictedShed={predictedShed}"); passCount++; }
+                    if (after137 == 137 && v1 > v0)
+                    { _log?.LogInfo($"[ScenarioRunner] PSP P4 PASS: SetPriority persisted (137 on ref={contractT.ReferenceId}) and bumped Version ({v0} -> {v1})."); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P4 FAIL: {mismatches} allocator outputs diverged from predicted strict-priority assignment."); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] PSP P4 FAIL: SetPriority contract broken. priority={after137} (expected 137) Version {v0} -> {v1} (expected a bump)."); failCount++; }
+
+                    setPriorityMethod?.Invoke(null, new object[] { contractT, -5 });
+                    int afterNeg = (int)(getPriorityMethod?.Invoke(null, new object[] { contractT.ReferenceId }) ?? -1);
+                    totalChecks++;
+                    if (afterNeg == 0)
+                    { _log?.LogInfo("[ScenarioRunner] PSP P4 PASS: SetPriority(-5) clamped to 0 (non-negative contract)."); passCount++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] PSP P4 FAIL: SetPriority(-5) stored {afterNeg}, expected clamp to 0."); failCount++; }
+
+                    // Leave the contract transformer at 137 (or restore the P2 value when the
+                    // save has only one transformer).
+                    setPriorityMethod?.Invoke(null,
+                        new object[] { contractT, ReferenceEquals(contractT, sampleT) ? 175 : 137 });
                 }
 
-                // ---- PHASE 4b: lockout precedence ----
-                // Once a transformer is shed, it stays offline for the LockoutDurationTicks even if
-                // its priority changes mid-lockout. This is the "10-second hold" the user requested.
-                if (contestGroup != null && contestGroup.Count >= 2)
+                // ---- PHASE 4b: lockout precedence over priority changes ----
+                // NoteShed arms the 60 s lockout INSTANTLY (no tolerance counter in the atomic
+                // architecture), and a priority write must NOT clear it: only expiry or the
+                // OFF-as-reset ClearLockout releases a locked device. Uses the sample transformer
+                // transiently; no allocator pass runs between arm and clear (the pump is a
+                // postfix), so the transient lockout never affects a real allocation.
+                if (sampleT != null)
                 {
-                    var p4bClearAll = brownoutRegistryType.GetMethod("ClearAll",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    var p4bInvalidate = allocatorType.GetMethod("InvalidateAll",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    var bottomT = contestGroup.OrderBy(x => PriorityStore_GetPriority(getPriorityMethod, x.ReferenceId)).First();
-                    var noteShortfallMethod = brownoutRegistryType.GetMethod("NoteShortfall",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
-                        null, new[] { typeof(long), typeof(int) }, null);
                     int simTick = (int)(currentTickProp?.GetValue(null) ?? 0);
-                    noteShortfallMethod?.Invoke(null, new object[] { bottomT.ReferenceId, simTick });
-                    bool lockedAfterOne = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { bottomT.ReferenceId, simTick }) ?? false);
-                    noteShortfallMethod?.Invoke(null, new object[] { bottomT.ReferenceId, simTick + 1 });
-                    bool lockedAfterTwo = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { bottomT.ReferenceId, simTick + 1 }) ?? false);
+                    noteShedMethod?.Invoke(null, new object[] { sampleT.ReferenceId, simTick });
+                    bool lockedAfterNote = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { sampleT.ReferenceId, simTick }) ?? false);
+
+                    setPriorityMethod?.Invoke(null, new object[] { sampleT, 9999 });
+                    bool lockedAfterPromote = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { sampleT.ReferenceId, simTick }) ?? false);
+
+                    clearLockoutMethod?.Invoke(null, new object[] { sampleT.ReferenceId });
+                    bool lockedAfterClear = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { sampleT.ReferenceId, simTick }) ?? false);
+                    setPriorityMethod?.Invoke(null, new object[] { sampleT, 175 });
 
                     totalChecks++;
-                    if (!lockedAfterOne && lockedAfterTwo)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P4b PASS: NoteShortfall enters lockout after exactly 2 consecutive ticks (lockedAfterOne={lockedAfterOne}, lockedAfterTwo={lockedAfterTwo})."); passCount++; }
+                    if (lockedAfterNote && lockedAfterPromote && !lockedAfterClear)
+                    { _log?.LogInfo("[ScenarioRunner] PSP P4b PASS: NoteShed arms the lockout instantly, a priority write (9999) does NOT clear it, ClearLockout does."); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P4b FAIL: shortfall tolerance miscount (lockedAfterOne={lockedAfterOne}, lockedAfterTwo={lockedAfterTwo}; expected false / true)."); failCount++; }
-
-                    setPriorityMethod?.Invoke(null, new object[] { bottomT, 9999 });
-                    p4bInvalidate?.Invoke(null, null);
-                    float allocPromoted = (float)(getAllocatedSupplyMethod?.Invoke(null, new object[] { bottomT }) ?? -1f);
-
-                    totalChecks++;
-                    if (System.Math.Abs(allocPromoted) < 0.5f)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P4b PASS: locked-out transformer (now prio 9999) still allocates 0 W (lockout precedence over priority change)."); passCount++; }
-                    else
-                    { _log?.LogError($"[ScenarioRunner] PSP P4b FAIL: locked-out transformer promoted to prio 9999 allocated {allocPromoted:F0} W; expected 0."); failCount++; }
-
-                    p4bClearAll?.Invoke(null, null);
-                    p4bInvalidate?.Invoke(null, null);
+                    { _log?.LogError($"[ScenarioRunner] PSP P4b FAIL: lockedAfterNote={lockedAfterNote} lockedAfterPromote={lockedAfterPromote} lockedAfterClear={lockedAfterClear} (expected true/true/false)."); failCount++; }
                 }
 
-                // ---- PHASE 5: lockout duration (10s = 20 ticks @ 2 Hz) ----
-                // After phase 4, NoteShortfall has been called for any transformer that couldn't get
-                // its OutputMaximum (ShortfallTolerance=2 means it takes 2 consecutive shortfall ticks
-                // to enter lockout). We can't easily wait 2 ticks inside one scenario invocation,
-                // but we can verify the constants directly.
+                // ---- PHASE 5: registry constants ----
+                // LockoutDurationTicks is 120 (60 seconds at 2 Hz) and the retired
+                // ShortfallTolerance counter (the old 2-consecutive-ticks rule) stays deleted:
+                // the atomic tick has fresh in-tick supply data, so lockout fires instantly.
                 var shortfallToleranceField = brownoutRegistryType.GetField("ShortfallTolerance",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
                 var lockoutDurationField = brownoutRegistryType.GetField("LockoutDurationTicks",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                int tolerance = (int)(shortfallToleranceField?.GetValue(null) ?? -1);
                 int lockoutTicks = (int)(lockoutDurationField?.GetValue(null) ?? -1);
 
                 totalChecks++;
-                if (tolerance == 2)
-                { _log?.LogInfo($"[ScenarioRunner] PSP P5 PASS: ShortfallTolerance={tolerance} (matches spec: 2 consecutive shortfall ticks)."); passCount++; }
+                if (shortfallToleranceField == null)
+                { _log?.LogInfo("[ScenarioRunner] PSP P5 PASS: ShortfallTolerance stays deleted (instant lockout, no tolerance counter)."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] PSP P5 FAIL: ShortfallTolerance={tolerance}, expected 2."); failCount++; }
+                { _log?.LogError("[ScenarioRunner] PSP P5 FAIL: ShortfallTolerance reappeared on BrownoutRegistry (regression to the tolerance-counter era)."); failCount++; }
 
                 totalChecks++;
-                if (lockoutTicks == 20)
-                { _log?.LogInfo($"[ScenarioRunner] PSP P5 PASS: LockoutDurationTicks={lockoutTicks} (= 10 seconds @ 2 Hz)."); passCount++; }
+                if (lockoutTicks == 120)
+                { _log?.LogInfo($"[ScenarioRunner] PSP P5 PASS: LockoutDurationTicks={lockoutTicks} (= 60 seconds @ 2 Hz)."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] PSP P5 FAIL: LockoutDurationTicks={lockoutTicks}, expected 20."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] PSP P5 FAIL: LockoutDurationTicks={lockoutTicks}, expected 120."); failCount++; }
 
-                // ---- PHASE 6: ShedSettingsSync ----
+                // ---- PHASE 6: deleted-surface tripwires ----
+                // The 2026-07-13 settings rework deleted the master toggles and their synced
+                // wrappers; the 2026-07-12 rebuild replaced TransformerAllocator with the atomic
+                // PowerAllocator. Assert all of them stay gone (a reappearance is a regression),
+                // and that the current allocator type exists.
                 var settingFieldT = settingsType?.GetField("EnableTransformerShedding",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                var settingConfigEntry = settingFieldT?.GetValue(null);
-                if (settingConfigEntry != null)
-                {
-                    var valueProp = settingConfigEntry.GetType().GetProperty("Value");
-                    bool localVal = (bool)(valueProp?.GetValue(settingConfigEntry) ?? false);
-                    bool effSync = (bool)(effectiveProp?.GetValue(null) ?? false);
-                    totalChecks++;
-                    if (localVal == effSync)
-                    { _log?.LogInfo($"[ScenarioRunner] PSP P6 PASS: EnableTransformerShedding ConfigEntry value={localVal} matches ShedSettingsSync.Effective={effSync}."); passCount++; }
-                    else
-                    { _log?.LogError($"[ScenarioRunner] PSP P6 FAIL: ConfigEntry={localVal} but ShedSettingsSync.Effective={effSync}."); failCount++; }
-                }
+                var shedSyncTypeGone = asm.GetType("PowerGridPlus.ShedSettingsSync");
+                var overloadSyncTypeGone = asm.GetType("PowerGridPlus.OverloadSettingsSync");
+                var passthroughSyncTypeGone = asm.GetType("PowerGridPlus.PassthroughSettingsSync");
+                var legacyAllocatorGone = asm.GetType("PowerGridPlus.TransformerAllocator");
+                var powerAllocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
+                totalChecks++;
+                if (settingFieldT == null && shedSyncTypeGone == null && overloadSyncTypeGone == null
+                    && passthroughSyncTypeGone == null && legacyAllocatorGone == null && powerAllocatorType != null)
+                { _log?.LogInfo("[ScenarioRunner] PSP P6 PASS: EnableTransformerShedding ConfigEntry, ShedSettingsSync, OverloadSettingsSync, PassthroughSettingsSync, and TransformerAllocator are all absent; PowerAllocator exists (always-on atomic architecture)."); passCount++; }
                 else
-                {
-                    totalChecks++;
-                    _log?.LogError("[ScenarioRunner] PSP P6 FAIL: EnableTransformerShedding ConfigEntry not found via reflection.");
-                    failCount++;
-                }
+                { _log?.LogError("[ScenarioRunner] PSP P6 FAIL: deleted surface reappeared or current one missing. " +
+                    $"EnableTransformerShedding={settingFieldT != null} ShedSettingsSync={shedSyncTypeGone != null} " +
+                    $"OverloadSettingsSync={overloadSyncTypeGone != null} PassthroughSettingsSync={passthroughSyncTypeGone != null} " +
+                    $"TransformerAllocator={legacyAllocatorGone != null} (all expect false); PowerAllocator={powerAllocatorType != null} (expect true)."); failCount++; }
 
                 // ---- PHASE 7: Stationpedia footer ----
                 var getDescFooter = stationpediaType?.GetMethod("GetDescriptionFooter",
@@ -3481,106 +3454,49 @@ namespace ScenarioRunner
                     }
                 }
 
-                // ---- PHASE 11: master toggle OFF fallback path ----
-                // Mutate the EnableTransformerShedding ConfigEntry value to false directly. Verify:
-                //   - ShedSettingsSync.Effective flips to false.
-                //   - GetAllocatedSupply returns Setting (NOT Priority-driven allocation) -- this is the
-                //     vanilla fallback we documented.
-                //   - GetLogicValue(Setting) on a Transformer no longer returns OutputMaximum (vanilla path
-                //     runs; returns _outputSetting).
-                //   - Stationpedia footer text flips to the OFF variant ("Server config ... is off").
-                // Restore the toggle ON at the end so subsequent phases still see the on state.
-                if (settingConfigEntry != null && sampleT != null)
+                // ---- PHASE 11: OFF-as-reset seam ----
+                // The master-toggle off-path is gone (always-on); the surviving user-facing reset
+                // is ClearLockout (the OFF-as-reset sweep drives it when a player switches a
+                // locked device off). A fresh lockout on a synthetic ref must drop immediately.
                 {
-                    var valueProp = settingConfigEntry.GetType().GetProperty("Value");
-                    bool originalValue = (bool)(valueProp?.GetValue(settingConfigEntry) ?? true);
-                    try
-                    {
-                        valueProp?.SetValue(settingConfigEntry, false);
-                        // Clear allocator + brownout state so the next call uses the new effective value.
-                        var p11ClearAll = brownoutRegistryType.GetMethod("ClearAll",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                        var p11Invalidate = allocatorType.GetMethod("InvalidateAll",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                        p11ClearAll?.Invoke(null, null);
-                        p11Invalidate?.Invoke(null, null);
-
-                        bool effOff = (bool)(effectiveProp?.GetValue(null) ?? true);
-                        totalChecks++;
-                        if (!effOff)
-                        { _log?.LogInfo("[ScenarioRunner] PSP P11 PASS: toggling EnableTransformerShedding -> false flipped ShedSettingsSync.Effective to false."); passCount++; }
-                        else
-                        { _log?.LogError("[ScenarioRunner] PSP P11 FAIL: ShedSettingsSync.Effective still true after toggle off."); failCount++; }
-
-                        // GetAllocatedSupply with feature off returns Setting (Transformer's _outputSetting,
-                        // which for vanilla Luna transformers is OutputMaximum). We just check it does NOT
-                        // throw and returns a finite >= 0 value.
-                        float allocOff = (float)(getAllocatedSupplyMethod?.Invoke(null, new object[] { sampleT }) ?? float.NaN);
-                        totalChecks++;
-                        if (!float.IsNaN(allocOff) && allocOff >= 0f)
-                        { _log?.LogInfo($"[ScenarioRunner] PSP P11 PASS: GetAllocatedSupply with feature off returned {allocOff:F0} (vanilla path)."); passCount++; }
-                        else
-                        { _log?.LogError($"[ScenarioRunner] PSP P11 FAIL: GetAllocatedSupply with feature off returned {allocOff}."); failCount++; }
-
-                        // Setting read: feature off -> vanilla path returns _outputSetting (which our scenario
-                        // wrote 175 to via Setting setter earlier... wait that's wrong; SetLogicValue routed
-                        // to Priority, not _outputSetting. So _outputSetting remains 0 for sampleT unless the
-                        // save had a non-zero value. For Luna save's transformers, the saved OutputSetting
-                        // equals OutputMaximum in most cases. We assert vanilla path runs by checking the
-                        // result is NOT exactly the hardcoded OutputMaximum that our patch returns. It might
-                        // legitimately equal OutputMaximum if the save value happens to match; this check is
-                        // looser.
-                        double settingOff = sampleT.GetLogicValue(Assets.Scripts.Objects.Motherboards.LogicType.Setting);
-                        _log?.LogInfo($"[ScenarioRunner] PSP P11 NOTE: GetLogicValue(Setting) with feature off returned {settingOff:F0} (vanilla _outputSetting). For Luna transformers the saved value commonly equals OutputMaximum; this is not a failure.");
-
-                        // Stationpedia footer when feature off.
-                        if (getDescFooter != null)
-                        {
-                            string footerOff = (string)(getDescFooter.Invoke(null, new object[] { "StructureTransformer" }) ?? null);
-                            bool offFooterOk = !string.IsNullOrEmpty(footerOff) && footerOff.Contains("Behaviour: vanilla");
-                            totalChecks++;
-                            if (offFooterOk)
-                            { _log?.LogInfo($"[ScenarioRunner] PSP P11 PASS: Stationpedia footer with feature off contains 'Behaviour: vanilla'."); passCount++; }
-                            else
-                            { _log?.LogError($"[ScenarioRunner] PSP P11 FAIL: Stationpedia footer with feature off missing 'Behaviour: vanilla'. Got: {(footerOff?.Length ?? 0)} chars"); failCount++; }
-                        }
-                    }
-                    finally
-                    {
-                        valueProp?.SetValue(settingConfigEntry, originalValue);
-                    }
-                }
-
-                // ---- PHASE 12: NoteSupplyOk resets shortfall counter ----
-                // A shortfall counter that's been bumped by 1 (below tolerance threshold) should reset
-                // when NoteSupplyOk fires before the second consecutive tick. Verifies the consecutive-
-                // shortfall semantic isn't a sticky counter.
-                {
-                    var noteShortfallMethod2 = brownoutRegistryType.GetMethod("NoteShortfall",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
-                        null, new[] { typeof(long), typeof(int) }, null);
-                    var noteSupplyOk = brownoutRegistryType.GetMethod("NoteSupplyOk",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
-                        null, new[] { typeof(long) }, null);
-                    var p12ClearAll = brownoutRegistryType.GetMethod("ClearAll",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    p12ClearAll?.Invoke(null, null);
-
                     long fakeRef = 999999999L;
                     int simTick2 = (int)(currentTickProp?.GetValue(null) ?? 0);
-                    noteShortfallMethod2?.Invoke(null, new object[] { fakeRef, simTick2 });
-                    bool lockedHalfway = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { fakeRef, simTick2 }) ?? false);
-                    noteSupplyOk?.Invoke(null, new object[] { fakeRef });
-                    noteShortfallMethod2?.Invoke(null, new object[] { fakeRef, simTick2 + 5 });    // gap -> NOT consecutive
-                    bool stillNotLocked = !(bool)(isLockedOutMethodLong?.Invoke(null, new object[] { fakeRef, simTick2 + 5 }) ?? false);
+                    noteShedMethod?.Invoke(null, new object[] { fakeRef, simTick2 });
+                    bool lockedFresh = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { fakeRef, simTick2 }) ?? false);
+                    clearLockoutMethod?.Invoke(null, new object[] { fakeRef });
+                    bool lockedAfterClear = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { fakeRef, simTick2 }) ?? false);
 
                     totalChecks++;
-                    if (!lockedHalfway && stillNotLocked)
-                    { _log?.LogInfo("[ScenarioRunner] PSP P12 PASS: NoteSupplyOk resets counter; a non-consecutive shortfall does not enter lockout."); passCount++; }
+                    if (lockedFresh && !lockedAfterClear)
+                    { _log?.LogInfo("[ScenarioRunner] PSP P11 PASS: ClearLockout (OFF-as-reset seam) drops a fresh lockout immediately."); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P12 FAIL: lockedHalfway={lockedHalfway} stillNotLocked={stillNotLocked}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] PSP P11 FAIL: lockedFresh={lockedFresh} lockedAfterClear={lockedAfterClear} (expected true/false)."); failCount++; }
+                }
 
-                    p12ClearAll?.Invoke(null, null);
+                // ---- PHASE 12: SnapshotRemaining heartbeat payload ----
+                // The per-tick FaultRegistrySnapshotMessage serializes
+                // BrownoutRegistry.SnapshotRemaining(currentTick): a fresh lockout must appear
+                // there with the full LockoutDurationTicks remaining.
+                {
+                    long fakeRef = 999999998L;
+                    int simTick3 = (int)(currentTickProp?.GetValue(null) ?? 0);
+                    noteShedMethod?.Invoke(null, new object[] { fakeRef, simTick3 });
+                    int remaining = -1;
+                    if (snapshotRemainingMethod?.Invoke(null, new object[] { simTick3 }) is System.Collections.IEnumerable snapEnum)
+                    {
+                        foreach (var item in snapEnum)
+                        {
+                            if (item is KeyValuePair<long, int> pair && pair.Key == fakeRef)
+                            { remaining = pair.Value; break; }
+                        }
+                    }
+                    clearLockoutMethod?.Invoke(null, new object[] { fakeRef });
+
+                    totalChecks++;
+                    if (remaining == lockoutTicks && lockoutTicks > 0)
+                    { _log?.LogInfo($"[ScenarioRunner] PSP P12 PASS: SnapshotRemaining carries the fresh lockout with remaining={remaining} ticks (the MP heartbeat payload)."); passCount++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] PSP P12 FAIL: SnapshotRemaining remaining={remaining}, expected {lockoutTicks}."); failCount++; }
                 }
 
                 _log?.LogInfo($"[ScenarioRunner] PSP END pass={passCount} fail={failCount} total={totalChecks}");
@@ -3592,12 +3508,14 @@ namespace ScenarioRunner
         }
 
         // PGP scenario: priority-shedding-network-breakdown.
-        // Per input cable network with >= 1 transformer, log: PotentialLoad, list of contestants
-        // sorted by priority desc + ReferenceId asc, expected vs actual allocation per contestant,
-        // and a verdict for any shedding transformer explaining WHY (insufficient budget remaining
-        // at its position in the sort order). Use this to investigate "unexpected sheds" -- the
-        // log line for each shedding transformer carries the budget remaining at that step so you
-        // can trace it back to the upstream supply / earlier-allocated peers.
+        // Diagnostic (no PASS/FAIL). Per input cable network with >= 1 transformer, log the net
+        // fields (PotentialLoad / CurrentLoad / RequiredLoad) and each contestant sorted by
+        // priority desc + ReferenceId asc with its PUBLISHED output (the TransformerSupplyCache
+        // presentation totals the atomic PowerAllocator writes each tick; the old on-demand
+        // GetAllocatedSupply is gone), its downstream RequiredLoad, and its shed / overload
+        // state. Use this to investigate "unexpected sheds": a CONDUCTING line publishes > 0, an
+        // IDLE line publishes 0 with no fault (standby or dead input), SHED / OVERLOAD name the
+        // active lockout.
         private static bool _pspNbFired;
 
         private static void Scenario_PgpPriorityShedingNetworkBreakdown()
@@ -3613,16 +3531,17 @@ namespace ScenarioRunner
                 if (asm == null) { _log?.LogError("[ScenarioRunner] NBP no PGP assembly"); return; }
 
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
                 var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
 
                 var getPriorityMethod = priorityStoreType?.GetMethod("GetPriority",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long) }, null);
-                var getAllocatedSupply = allocatorType?.GetMethod("GetAllocatedSupply",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
                 var isShedding = brownoutType?.GetMethod("IsShedding",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                var isOverloaded = overloadType?.GetMethod("IsOverloaded",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
                 var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
@@ -3654,7 +3573,8 @@ namespace ScenarioRunner
                         $"[ScenarioRunner] NBP InputNet={kv.Key} PotentialLoad={budget:F0} CurrentLoad={currentLoad:F0} " +
                         $"RequiredLoad={requiredLoad:F0} contestants={kv.Value.Count}");
 
-                    // Sort by Priority desc, then ReferenceId asc (the algorithm's order).
+                    // Sort by Priority desc, then ReferenceId asc (the allocator's grant order
+                    // within a tier).
                     var sorted = kv.Value
                         .Select(t => new
                         {
@@ -3665,41 +3585,26 @@ namespace ScenarioRunner
                         .ThenBy(x => x.T.ReferenceId)
                         .ToList();
 
-                    float running = budget;
-                    var outDemand = new Dictionary<long, float>();
                     foreach (var item in sorted)
                     {
                         var t = item.T;
-                        float actualAlloc = (float)(getAllocatedSupply?.Invoke(null, new object[] { t }) ?? -1f);
+                        float published = TpPublishedOutput(asm, t.ReferenceId);
                         bool isShed = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
-
-                        // Match the new TransformerAllocator semantics: desired is capped by
-                        // OutputNetwork.RequiredLoad (per-output-network leftover tracked across
-                        // the sorted list) and by OutputMaximum.
+                        bool isOver = (bool)(isOverloaded?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                         float outNetReq = t.OutputNetwork?.RequiredLoad ?? 0f;
                         long outId = t.OutputNetwork?.ReferenceId ?? 0L;
-                        if (!outDemand.TryGetValue(outId, out var remOut)) remOut = outNetReq;
-                        float desired = System.Math.Min(t.OutputMaximum, remOut);
 
-                        string verdict;
-                        if (!t.OnOff) verdict = "OFF";
-                        else if (t.Error == 1) verdict = "ERROR";
-                        else if (desired <= 0.01f)
-                            verdict = $"STANDBY (no remaining demand on OutNet)";
-                        else if (running >= desired)
-                        {
-                            verdict = $"GRANT desired={desired:F0} -> remaining {running - desired:F0} after";
-                            running -= desired;
-                            outDemand[outId] = remOut - desired;
-                        }
-                        else if (running > 0.01f)
-                            verdict = $"SHORT need={desired:F0} have={running:F0} -> SHED (partial supply, higher-prio took share)";
-                        else
-                            verdict = $"DEFER need={desired:F0} have=0 -> no shed (network has no supply, chain bootstrap or dead)";
+                        string state;
+                        if (!t.OnOff) state = "OFF";
+                        else if (t.Error == 1) state = "ERROR";
+                        else if (isShed) state = "SHED (60 s lockout)";
+                        else if (isOver) state = "OVERLOAD (60 s lockout)";
+                        else if (published > 0.01f) state = "CONDUCTING";
+                        else state = "IDLE (standby, no downstream demand, or dead input)";
                         _log?.LogInfo(
                             $"[ScenarioRunner] NBP   ref={t.ReferenceId} prefab={t.PrefabName} prio={item.Prio} " +
                             $"OutMax={t.OutputMaximum:F0} OutReq={outNetReq:F0} OnOff={t.OnOff} Error={t.Error} " +
-                            $"actualAlloc={actualAlloc:F0} isShedding={isShed} verdict=[{verdict}] OutNet={outId}");
+                            $"publishedOut={published:F0} shedding={isShed} overloaded={isOver} state=[{state}] OutNet={outId}");
                     }
 
                     netsLogged++;
@@ -3710,12 +3615,6 @@ namespace ScenarioRunner
             {
                 _log?.LogError($"[ScenarioRunner] NBP threw: {e}");
             }
-        }
-
-        // Helper for P4b: reflected GetPriority via long overload.
-        private static int PriorityStore_GetPriority(System.Reflection.MethodInfo getPriorityMethod, long refId)
-        {
-            try { return (int)(getPriorityMethod?.Invoke(null, new object[] { refId }) ?? -1); } catch { return -1; }
         }
 
         // PGP scenario: priority-shedding-persist-probe.

@@ -184,7 +184,9 @@ namespace ScenarioRunner
         {
             try
             {
-                var t = asm?.GetType("PowerGridPlus.PowerAllocator");
+                // IsStepUp moved from PowerAllocator to the SegAdapters helper when the
+                // adapters became the physical-description layer. "?" signals a miss.
+                var t = asm?.GetType("PowerGridPlus.SegAdapters");
                 var m = t?.GetMethod("IsStepUp",
                     BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
                     null, new[] { typeof(CableNetwork), typeof(CableNetwork) }, null);

@@ -20,8 +20,8 @@ namespace ScenarioRunner
     //
     // Scenario ids:
     //   pgp-umbilical-passthrough-probe  -- tests 1-6 (default mode, real SetLogicValue mirror,
-    //                                        merged DataDeviceList, undock breaks bridge, master
-    //                                        toggle gate, MP wire-format round-trip).
+    //                                        merged DataDeviceList, undock breaks bridge, per-device
+    //                                        mode gate, MP wire-format round-trip).
     //   pgp-umbilical-saveload-set       -- test 7 phase 1: set a non-default mode (0) on a docked
     //                                        umbilical, log it, so a save captures it.
     //   pgp-umbilical-saveload-verify    -- test 7 phase 2: after reload, confirm the umbilical mode
@@ -63,7 +63,6 @@ namespace ScenarioRunner
 
                 var storeT = asm.GetType("PowerGridPlus.PassthroughModeStore");
                 var topoT = asm.GetType("PowerGridPlus.Patches.PassthroughTopology");
-                var syncT = asm.GetType("PowerGridPlus.PassthroughSettingsSync");
                 var settingsT = asm.GetType("PowerGridPlus.Settings");
                 var regT = asm.GetType("PowerGridPlus.LogicTypeRegistry");
 
@@ -82,7 +81,7 @@ namespace ScenarioRunner
                 _log?.LogInfo(
                     $"[ScenarioRunner] UPB reflection: getMode={getMode != null} setMode={setMode != null} " +
                     $"getDefaultMode={getDefaultMode != null} isEnabledBridge={isEnabledBridge != null} gather={gather != null} " +
-                    $"getPartner={getPartner != null} dirtyBridge={dirtyBridge != null} lpm={(int)lpm} syncT={syncT != null} settingsT={settingsT != null}");
+                    $"getPartner={getPartner != null} dirtyBridge={dirtyBridge != null} lpm={(int)lpm} settingsT={settingsT != null}");
 
                 // Locate a docked male/female umbilical pair.
                 Objects.Rockets.RocketPowerUmbilicalMale male = null;
@@ -115,20 +114,24 @@ namespace ScenarioRunner
                     int origFemale = (int)getMode.Invoke(null, new object[] { (Thing)femaleDev });
 
                     // ---- TEST 1: DEFAULT MODE ----
-                    // A never-written docked umbilical reads mode 1 (GetMode falls through to
-                    // GetDefaultMode==1 for both halves). We clear any stored value by reflecting the
-                    // backing dictionary, then read GetMode -- it must fall through to the default.
+                    // A never-written docked umbilical falls through GetMode -> GetDefaultMode, which
+                    // reads the Umbilical Passthrough Default setting (via PassthroughDefaultsSync;
+                    // on this host the local ConfigEntry). Read the live config value so the check
+                    // follows the server cfg instead of hardcoding the shipped default (true -> 1).
+                    // We clear any stored value by reflecting the backing dictionary, then read
+                    // GetMode -- it must fall through to the config-driven default.
                     UpbClearStoredMode(storeT, male.ReferenceId);
                     UpbClearStoredMode(storeT, female.ReferenceId);
+                    int expectedDefault = UpbReadUmbilicalDefaultConfig(settingsT, fallback: 1);
                     int defM = getDefaultMode != null ? (int)getDefaultMode.Invoke(null, new object[] { (Thing)maleDev }) : -1;
                     int defF = getDefaultMode != null ? (int)getDefaultMode.Invoke(null, new object[] { (Thing)femaleDev }) : -1;
                     int readM = (int)getMode.Invoke(null, new object[] { (Thing)maleDev });
                     int readF = (int)getMode.Invoke(null, new object[] { (Thing)femaleDev });
                     total++;
-                    if (defM == 1 && defF == 1 && readM == 1 && readF == 1)
-                    { _log?.LogInfo($"[ScenarioRunner] UPB P1 PASS: unwritten docked umbilical reads mode 1 (default). GetDefaultMode male={defM} female={defF}; GetMode male={readM} female={readF}."); pass++; }
+                    if (defM == expectedDefault && defF == expectedDefault && readM == expectedDefault && readF == expectedDefault)
+                    { _log?.LogInfo($"[ScenarioRunner] UPB P1 PASS: unwritten docked umbilical reads the configured default ({expectedDefault}, Umbilical Passthrough Default). GetDefaultMode male={defM} female={defF}; GetMode male={readM} female={readF}."); pass++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] UPB P1 FAIL: GetDefaultMode male={defM} female={defF}; GetMode male={readM} female={readF} (expected all 1)."); fail++; }
+                    { _log?.LogError($"[ScenarioRunner] UPB P1 FAIL: GetDefaultMode male={defM} female={defF}; GetMode male={readM} female={readF} (expected all {expectedDefault} per UmbilicalPassthroughDefault config)."); fail++; }
 
                     // ---- TEST 2: REAL WRITE + PARTNER MIRROR ----
                     // Invoke the real game method male.SetLogicValue(LogicPassthroughMode, 0.0) so PGP's
@@ -265,58 +268,41 @@ namespace ScenarioRunner
                         fail++;
                     }
 
-                    // ---- TEST 5: MASTER TOGGLE ----
-                    // Force EnableUmbilicalLogicPassthrough.Value=false AND the synced EffectiveUmbilical
-                    // override to false, confirm IsEnabledBridge=false even when docked + mode 1; restore
-                    // true and confirm the bridge returns.
+                    // ---- TEST 5: PER-DEVICE MODE GATE ----
+                    // The Enable*LogicPassthrough master toggles were deleted (passthrough support is
+                    // always on); the ONLY off-path left is the per-device LogicPassthroughMode. Drive
+                    // it through the same real SetLogicValue path P2 uses: mode 0 on a docked pair must
+                    // read opaque (IsEnabledBridge=false, partner net dropped from GatherReachable);
+                    // mode 1 must bridge again. Docking state is untouched, so only the mode gates.
                     total++;
-                    var enableField = settingsT?.GetField("EnableUmbilicalLogicPassthrough", SF);
-                    var effUmbProp = syncT?.GetProperty("EffectiveUmbilical", SF);
-                    var setSynced = syncT?.GetMethod("SetSyncedValues", SF, null,
-                        new[] { typeof(bool), typeof(bool), typeof(bool), typeof(bool), typeof(bool) }, null);
-                    var syncedUmbField = syncT?.GetField("_umbilical", SF); // bool? backing the synced override
-                    object savedEnableVal = null, savedSyncedUmb = null;
-                    var configEntry = enableField?.GetValue(null);
-                    var valueProp = configEntry?.GetType().GetProperty("Value");
                     try
                     {
-                        // Ensure mode 1 + docked (already restored above) so only the toggle gates it.
-                        setMode.Invoke(null, new object[] { (Thing)maleDev, 1 });
+                        // Mode 0 via the real game write (PGP's SetLogicValuePatch + partner mirror).
+                        maleDev.SetLogicValue(lpm, 0.0);
+                        bool bridgeMode0 = (bool)isEnabledBridge.Invoke(null, new object[] { maleDev });
+                        var reachMode0 = UpbReach(gather, maleEio.InputNetwork);
+                        long femaleOutIdP5 = female.OutputNetwork?.ReferenceId ?? -1;
+                        bool femaleReachableMode0 = femaleOutIdP5 >= 0 && reachMode0.Contains(femaleOutIdP5);
 
-                        savedEnableVal = valueProp?.GetValue(configEntry);
-                        savedSyncedUmb = syncedUmbField?.GetValue(null);
-
-                        bool effBefore = effUmbProp != null && (bool)effUmbProp.GetValue(null);
-                        bool bridgeBefore = (bool)isEnabledBridge.Invoke(null, new object[] { maleDev });
-
-                        // Turn OFF: set config false and the synced override false (EffectiveUmbilical
-                        // returns the synced value when present, else the config value).
-                        valueProp?.SetValue(configEntry, false);
-                        if (syncedUmbField != null) syncedUmbField.SetValue(null, (bool?)false);
-                        bool effOff = effUmbProp != null && (bool)effUmbProp.GetValue(null);
-                        bool bridgeOff = (bool)isEnabledBridge.Invoke(null, new object[] { maleDev });
-
-                        // Turn back ON.
-                        valueProp?.SetValue(configEntry, savedEnableVal);
-                        if (syncedUmbField != null) syncedUmbField.SetValue(null, savedSyncedUmb);
-                        bool effOn = effUmbProp != null && (bool)effUmbProp.GetValue(null);
-                        bool bridgeOn = (bool)isEnabledBridge.Invoke(null, new object[] { maleDev });
+                        // Mode 1: the bridge returns.
+                        maleDev.SetLogicValue(lpm, 1.0);
+                        bool bridgeMode1 = (bool)isEnabledBridge.Invoke(null, new object[] { maleDev });
+                        var reachMode1 = UpbReach(gather, maleEio.InputNetwork);
+                        bool femaleReachableMode1 = femaleOutIdP5 >= 0 && reachMode1.Contains(femaleOutIdP5);
 
                         _log?.LogInfo(
-                            $"[ScenarioRunner] UPB P5 effUmbilical before={effBefore}/bridge={bridgeBefore} | " +
-                            $"off={effOff}/bridge={bridgeOff} | restored={effOn}/bridge={bridgeOn}");
+                            $"[ScenarioRunner] UPB P5 mode0: bridge={bridgeMode0} femaleNetReachable={femaleReachableMode0} | " +
+                            $"mode1: bridge={bridgeMode1} femaleNetReachable={femaleReachableMode1} (femaleOutNet={femaleOutIdP5})");
 
-                        bool ok = bridgeBefore && !bridgeOff && bridgeOn && !effOff && effOn;
+                        bool ok = !bridgeMode0 && !femaleReachableMode0 && bridgeMode1 && femaleReachableMode1;
                         if (ok)
-                        { _log?.LogInfo("[ScenarioRunner] UPB P5 PASS: master toggle off forces IsEnabledBridge=false even when docked + mode 1; restoring true returns the bridge."); pass++; }
+                        { _log?.LogInfo("[ScenarioRunner] UPB P5 PASS: per-device mode 0 forces IsEnabledBridge=false and drops the partner net from GatherReachable even while docked; mode 1 returns the bridge. The surviving off-path (per-device mode) gates correctly."); pass++; }
                         else
-                        { _log?.LogError($"[ScenarioRunner] UPB P5 FAIL: bridgeBefore={bridgeBefore} bridgeOff={bridgeOff} bridgeOn={bridgeOn} effOff={effOff} effOn={effOn}."); fail++; }
+                        { _log?.LogError($"[ScenarioRunner] UPB P5 FAIL: bridgeMode0={bridgeMode0} reachMode0={femaleReachableMode0} bridgeMode1={bridgeMode1} reachMode1={femaleReachableMode1} (expected false/false/true/true)."); fail++; }
                     }
                     catch (Exception e)
                     {
-                        // Restore toggle on any failure.
-                        try { if (valueProp != null && savedEnableVal != null) valueProp.SetValue(configEntry, savedEnableVal); if (syncedUmbField != null) syncedUmbField.SetValue(null, savedSyncedUmb); } catch { }
-                        _log?.LogError($"[ScenarioRunner] UPB P5 threw (toggle restored): {e.GetBaseException().Message}");
+                        _log?.LogError($"[ScenarioRunner] UPB P5 threw: {e.GetBaseException().Message}");
                         fail++;
                     }
 
@@ -339,10 +325,13 @@ namespace ScenarioRunner
         }
 
         // Test 6a: full SerializeJoinSuffix -> DeserializeJoinSuffix round-trip focused on the umbilical
-        // surface: seed a per-device umbilical mode entry in PassthroughModeStore, flip the 5th boolean
-        // (EnableUmbilicalLogicPassthrough), serialize, mutate both, deserialize, and confirm BOTH the
-        // per-device mode entry AND the umbilical boolean survived in the correct field order. A
-        // misaligned field desyncs every field after it, so this is the key MP-format check.
+        // surface: seed a per-device umbilical mode entry in PassthroughModeStore, pin the sixth boolean
+        // (Umbilical Passthrough Default), serialize, mutate both, deserialize, and confirm BOTH the
+        // per-device mode entry AND the umbilical default boolean survived in the correct field order.
+        // The join suffix carries the six per-kind passthrough DEFAULTS (smallTransformer,
+        // otherTransformer, battery, apc, powerTransmitter, umbilical) into
+        // PassthroughDefaultsSync.SetSyncedValues; a misaligned field desyncs every field after it,
+        // so this is the key MP-format check.
         private static void UpbJoinSuffixUmbilicalRoundTrip(Assembly asm, ref int total, ref int pass, ref int fail)
         {
             try
@@ -350,7 +339,7 @@ namespace ScenarioRunner
                 const BindingFlags SF = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
                 var pluginType = asm.GetType("PowerGridPlus.Plugin");
                 var storeT = asm.GetType("PowerGridPlus.PassthroughModeStore");
-                var syncT = asm.GetType("PowerGridPlus.PassthroughSettingsSync");
+                var syncT = asm.GetType("PowerGridPlus.PassthroughDefaultsSync");
                 var settingsT = asm.GetType("PowerGridPlus.Settings");
 
                 object pluginInstance = UpbFindPluginInstance();
@@ -360,11 +349,10 @@ namespace ScenarioRunner
                 var serialize = pluginType?.GetMethod("SerializeJoinSuffix", BindingFlags.Public | BindingFlags.Instance);
                 var deserialize = pluginType?.GetMethod("DeserializeJoinSuffix", BindingFlags.Public | BindingFlags.Instance);
                 var setModeByRef = storeT?.GetMethod("SetModeByReference", SF, null, new[] { typeof(long), typeof(int) }, null);
-                var effUmbProp = syncT?.GetProperty("EffectiveUmbilical", SF);
-                var enableField = settingsT?.GetField("EnableUmbilicalLogicPassthrough", SF);
+                var enableField = settingsT?.GetField("UmbilicalPassthroughDefault", SF);
                 var configEntry = enableField?.GetValue(null);
                 var valueProp = configEntry?.GetType().GetProperty("Value");
-                var syncedUmbField = syncT?.GetField("_umbilical", SF);
+                var syncedUmbField = syncT?.GetField("_umbilical", SF);   // bool? backing the client-synced default
 
                 if (serialize == null || deserialize == null || setModeByRef == null || valueProp == null)
                 { _log?.LogError($"[ScenarioRunner] UPB P6 FAIL: plumbing missing (serialize={serialize != null} deserialize={deserialize != null} setModeByRef={setModeByRef != null} valueProp={valueProp != null})."); fail++; total++; return; }
@@ -417,11 +405,11 @@ namespace ScenarioRunner
                 deserialize.Invoke(pluginInstance, new object[] { reader });
 
                 int restoredMode = UpbReadStoredMode(storeT, seedRef, -1);
-                // DeserializeJoinSuffix routes the 5 booleans into PassthroughSettingsSync.SetSyncedValues,
+                // DeserializeJoinSuffix routes the six booleans into PassthroughDefaultsSync.SetSyncedValues,
                 // which writes the synced backing field _umbilical (a bool?). Read THAT directly: it is the
                 // value that crossed the wire. EffectiveUmbilical cannot be used here because on a host
                 // (NetworkManager.IsServer=true) it returns the LOCAL config value and ignores the synced
-                // field (PassthroughSettingsSync.Effective short-circuits for the server), so it would
+                // field (PassthroughDefaultsSync.Effective short-circuits for the server), so it would
                 // report the host's config, not the deserialized wire value.
                 bool? restoredSyncedUmb = syncedUmbField?.GetValue(null) as bool?;
 
@@ -429,9 +417,9 @@ namespace ScenarioRunner
                 bool modeOk = restoredMode == seedMode;
                 bool boolOk = restoredSyncedUmb == seedToggle;
                 if (modeOk && boolOk)
-                { _log?.LogInfo($"[ScenarioRunner] UPB P6 PASS: join-suffix round-trip preserved umbilical per-device mode (ref {seedRef}: {restoredMode}) AND the 5th (umbilical) boolean (synced _umbilical={restoredSyncedUmb}) in correct field order. (Read via the synced field, not host-biased EffectiveUmbilical.)"); pass++; }
+                { _log?.LogInfo($"[ScenarioRunner] UPB P6 PASS: join-suffix round-trip preserved umbilical per-device mode (ref {seedRef}: {restoredMode}) AND the sixth (umbilical) default boolean (synced _umbilical={restoredSyncedUmb}) in correct field order. (Read via the synced field, not host-biased EffectiveUmbilical.)"); pass++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] UPB P6 FAIL: round-trip mismatch. perDeviceMode expected={seedMode} got={restoredMode} (ok={modeOk}); umbilicalBool expected={seedToggle} got synced _umbilical={restoredSyncedUmb} (ok={boolOk}). A FAIL here means a field-order desync in the join suffix."); fail++; }
+                { _log?.LogError($"[ScenarioRunner] UPB P6 FAIL: round-trip mismatch. perDeviceMode expected={seedMode} got={restoredMode} (ok={modeOk}); umbilical default expected={seedToggle} got synced _umbilical={restoredSyncedUmb} (ok={boolOk}). A FAIL here means a field-order desync in the join suffix."); fail++; }
 
                 // Restore the real toggle + synced override; drop the synthetic store entry.
                 valueProp.SetValue(configEntry, savedToggle);
@@ -665,6 +653,23 @@ namespace ScenarioRunner
             }
             catch { }
             return 0; // headless dedi with nobody joined
+        }
+
+        // Read the Umbilical Passthrough Default ConfigEntry (bool) as the expected default mode
+        // (1 when true, 0 when false); `fallback` when the entry is unresolvable.
+        private static int UpbReadUmbilicalDefaultConfig(Type settingsT, int fallback)
+        {
+            try
+            {
+                var field = settingsT?.GetField("UmbilicalPassthroughDefault",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                var entry = field?.GetValue(null);
+                var valueProp = entry?.GetType().GetProperty("Value");
+                var v = valueProp?.GetValue(entry);
+                if (v is bool b) return b ? 1 : 0;
+            }
+            catch { }
+            return fallback;
         }
 
         // Clear a stored per-device mode so GetMode falls through to GetDefaultMode. The store keys by

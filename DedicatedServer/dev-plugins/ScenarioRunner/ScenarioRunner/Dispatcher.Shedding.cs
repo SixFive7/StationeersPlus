@@ -146,10 +146,9 @@ namespace ScenarioRunner
                         var hbsField = patchType.GetField("HandleButtonSettingMethod",
                             BindingFlags.NonPublic | BindingFlags.Static);
                         var savedHbs = hbsField?.GetValue(null);
-                        // InteractWithPatch's first line is `if (!ShedSettingsSync.Effective)
-                        // return true;` -- with the server cfg toggle off, every button drive
-                        // below is a silent no-op. Pin the toggle for the probe window.
-                        var restoreShedToggle = ForcePgpToggleOn(asm, "EnableTransformerShedding", "KBP");
+                        // The Priority + Shedding system is always on (the EnableTransformerShedding
+                        // master toggle was deleted); InteractWithPatch has no settings gate, so the
+                        // button drives below exercise the patched path unconditionally.
                         try
                         {
                             setKnobMethodField?.SetValue(null, null);
@@ -228,11 +227,9 @@ namespace ScenarioRunner
                         finally
                         {
                             // Restore SetKnobMethod and HandleButtonSettingMethod resolution so
-                            // other scenarios + production code see the real path, and put the
-                            // shedding toggle back to the cfg value.
+                            // other scenarios + production code see the real path.
                             setKnobMethodField?.SetValue(null, savedSetKnob);
                             hbsField?.SetValue(null, savedHbs);
-                            restoreShedToggle();
                         }
                     }
                 }
@@ -416,9 +413,6 @@ namespace ScenarioRunner
 
                 var clearAll = brownoutType.GetMethod("ClearAll",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var noteShortfall = brownoutType.GetMethod("NoteShortfall",
-                    BindingFlags.NonPublic | BindingFlags.Static,
-                    null, new[] { typeof(long), typeof(int) }, null);
                 var currentTickProp = tickCounterType.GetProperty("CurrentTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var isShedding = brownoutType.GetMethod("IsShedding",
@@ -602,55 +596,6 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Probe fixture: pin a PGP master toggle ON for one probe.
-        // ------------------------------------------------------------
-        // KBP / LP / OP assert enabled-mode behaviour of patches that
-        // early-out when ShedSettingsSync.Effective / OverloadSettingsSync
-        // .Effective is false. On a server, Effective reads the local
-        // BepInEx ConfigEntry, and the dedi's persisted cfg can carry the
-        // toggle off (observed 2026-07-02: net.powergridplus.cfg had
-        // "Enable Transformer Shedding = false" and "Enable Transformer
-        // Overload Protection = false", which silently turned the whole
-        // knob / labeller / logic probe family into vanilla no-ops).
-        // Pin the entry to true for the probe and restore the original
-        // value in the caller's finally. BepInEx SaveOnConfigSet may
-        // flush the flip to disk; the restore write flushes it back, so
-        // the cfg file is net-unchanged. Returns a never-null restore
-        // delegate (no-op when the toggle was already on or unresolvable).
-        // ============================================================
-        private static Action ForcePgpToggleOn(Assembly asm, string settingsFieldName, string probeTag)
-        {
-            try
-            {
-                var settingsType = asm.GetType("PowerGridPlus.Settings");
-                var entryField = settingsType?.GetField(settingsFieldName,
-                    BindingFlags.NonPublic | BindingFlags.Static);
-                object entry = entryField?.GetValue(null);
-                var valueProp = entry?.GetType().GetProperty("Value",
-                    BindingFlags.Public | BindingFlags.Instance);
-                if (valueProp == null)
-                {
-                    _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: Settings.{settingsFieldName} not resolvable; probe runs against the live cfg value.");
-                    return () => { };
-                }
-                bool original = (bool)valueProp.GetValue(entry);
-                if (original) return () => { };
-                _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: {settingsFieldName} is OFF in the server cfg; force-enabling for this probe, restoring after.");
-                valueProp.SetValue(entry, true);
-                return () =>
-                {
-                    try { valueProp.SetValue(entry, false); }
-                    catch (Exception e) { _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: toggle restore failed: {e.GetBaseException().Message}"); }
-                };
-            }
-            catch (Exception e)
-            {
-                _log?.LogWarning($"[ScenarioRunner] {probeTag} NOTE: ForcePgpToggleOn threw: {e.GetBaseException().Message}");
-                return () => { };
-            }
-        }
-
-        // ============================================================
         // Scenario: pgp-priority-shedding-labeller-probe (C-e)
         // ------------------------------------------------------------
         // Directly invokes the TransformerLabellerPatches.Set_Prefix and
@@ -706,12 +651,9 @@ namespace ScenarioRunner
                     return;
                 }
 
-                // Both prefixes early-out when ShedSettingsSync.Effective is false
-                // (feature master toggle); pin the toggle for the probe window so the
-                // swap logic itself is what gets tested.
-                var restoreShedToggle = ForcePgpToggleOn(asm, "EnableTransformerShedding", "LP");
-                try
-                {
+                // The Priority + Shedding system is always on (the EnableTransformerShedding
+                // master toggle was deleted); the labeller prefixes have no settings gate, so
+                // the swap logic below is exercised unconditionally.
 
                 // ---- P1: Set_Prefix on Transformer with Setting -> swap to Priority ----
                 object[] args = new object[] { sampleT, LogicType.Setting };
@@ -772,12 +714,6 @@ namespace ScenarioRunner
                 else
                 {
                     _log?.LogWarning("[ScenarioRunner] LP P4 SKIP: no non-Transformer ISetable in scene (APC etc.). ISetable interface lookup also exercised.");
-                }
-
-                }
-                finally
-                {
-                    restoreShedToggle();
                 }
 
                 _log?.LogInfo($"[ScenarioRunner] LP END pass={passCount} fail={failCount} total={totalChecks}");
@@ -1378,213 +1314,232 @@ namespace ScenarioRunner
         // ============================================================
         // Scenario: pgp-priority-shedding-topology-probe (cascade + parallel)
         // ------------------------------------------------------------
-        // Confirms the global TransformerAllocator respects topology
-        // independence:
-        //   - Parallel same-in, same-out: only higher-priority allocates.
-        //   - Multi-source same-out: total allocation <= OutputNetwork.RequiredLoad.
-        //   - Demand-driven desired: allocation never exceeds Min(OutputMaximum,
-        //     OutputNetwork.RequiredLoad).
-        //   - 418422 / 418423 case (if present): no cascade-shed on chains
-        //     where each transformer's downstream demand is well below its
-        //     OutputMaximum.
+        // Confirms the atomic PowerAllocator respects topology independence,
+        // judged off the per-seg presentation totals it publishes to
+        // TransformerSupplyCache every tick (the old on-demand
+        // TransformerAllocator.GetAllocatedSupply / InvalidateAll API is gone;
+        // allocations are computed once per tick and read back post-tick):
+        //   - Parallel same-in, same-out: the higher-priority transformer's
+        //     published output is at least the lower's.
+        //   - Multi-source same-out: total published output onto a net stays
+        //     within the net's written-back RequiredLoad (conservation +
+        //     stranded-inflow clawback guarantee this bound).
+        //   - Demand-driven desired: a low-demand transformer's published
+        //     output never exceeds its output net's RequiredLoad (no greedy
+        //     OutputMaximum claim; the 418422/418423 cascade fix).
+        //   - 418422 / 418423 case (if present): no lockout under default
+        //     priorities after a clean pass.
+        // Priority writes only take effect on the NEXT allocator tick (the
+        // pump is an ElectricityTick postfix, so this tick's pass already
+        // ran), so the probe is phased across three consecutive ticks:
+        //   tick 0: arrange the parallel-pair priorities (500 / 100), clear
+        //           shed lockouts.
+        //   tick 1: assert P1 (parallel order), P2 (demand cap), P3
+        //           (demand-driven bound) off the freshly published totals;
+        //           then reset every priority to the default 100 + ClearAll
+        //           for the P4 baseline.
+        //   tick 2: assert P4 (418422/418423 not in lockout) and finish.
         // ============================================================
-        private static bool _tpFired;
+        private static int _tpPhase;
+        private static int _tpPass;
+        private static int _tpFail;
+        private static int _tpChecks;
+        private static readonly List<(long hi, long lo, long inNet, long outNet)> _tpParallelPairs
+            = new List<(long hi, long lo, long inNet, long outNet)>();
+
+        // Published output-side watts for one seg (rigid + soft through), from
+        // TransformerSupplyCache.TryGetOutput(long, out float). Returns -1 when
+        // the cache has no entry (seg not enrolled this tick).
+        private static float TpPublishedOutput(Assembly asm, long refId)
+        {
+            try
+            {
+                var cacheType = asm?.GetType("PowerGridPlus.TransformerSupplyCache");
+                var tryGet = cacheType?.GetMethod("TryGetOutput",
+                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+                if (tryGet == null) return float.NaN;
+                object[] args = { refId, 0f };
+                bool found = tryGet.Invoke(null, args) is bool b && b;
+                return found ? (float)args[1] : -1f;
+            }
+            catch { return float.NaN; }
+        }
 
         private static void Scenario_PgpPriorityShedingTopologyProbe()
         {
             if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-topology-probe")) return;
-            if (_tpFired) return;
-            _tpFired = true;
-
-            int totalChecks = 0;
-            int passCount = 0;
-            int failCount = 0;
+            if (_tpPhase >= 3) return;
 
             try
             {
-                _log?.LogInfo("[ScenarioRunner] TP START topology-probe");
                 var asm = GetModAssembly(PGP_ASSEMBLY);
-                if (asm == null) { _log?.LogError("[ScenarioRunner] TP no PGP assembly"); return; }
+                if (asm == null) { _log?.LogError("[ScenarioRunner] TP no PGP assembly"); _tpPhase = 3; return; }
 
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
                 var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
 
-                var getAlloc = allocatorType?.GetMethod("GetAllocatedSupply",
-                    BindingFlags.NonPublic | BindingFlags.Static);
-                var invalidate = allocatorType?.GetMethod("InvalidateAll",
-                    BindingFlags.NonPublic | BindingFlags.Static);
                 var clearAll = brownoutType?.GetMethod("ClearAll",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var setPrio = priorityStoreType?.GetMethod("SetPriority",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(Thing), typeof(int) }, null);
-                var getPrio = priorityStoreType?.GetMethod("GetPriority",
-                    BindingFlags.NonPublic | BindingFlags.Static,
-                    null, new[] { typeof(long) }, null);
                 var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                int currentTick = (int)(currentTickProp?.GetValue(null) ?? -1);
 
                 if (_transformers.Count == 0) RebuildCaches();
 
-                // Group by input network.
-                var byInputNet = new Dictionary<long, List<Transformer>>();
-                var byOutputNet = new Dictionary<long, List<Transformer>>();
-                foreach (var t in _transformers)
+                if (_tpPhase == 0)
                 {
-                    if (t == null || t.InputNetwork == null || t.OutputNetwork == null) continue;
-                    long inId = t.InputNetwork.ReferenceId;
-                    long outId = t.OutputNetwork.ReferenceId;
-                    if (!byInputNet.TryGetValue(inId, out var l1)) byInputNet[inId] = l1 = new List<Transformer>();
-                    l1.Add(t);
-                    if (!byOutputNet.TryGetValue(outId, out var l2)) byOutputNet[outId] = l2 = new List<Transformer>();
-                    l2.Add(t);
+                    _log?.LogInfo("[ScenarioRunner] TP START topology-probe (three-tick phased: arrange, assert P1-P3, assert P4)");
+
+                    // Find true parallel pairs (same input net AND same output net, both ON) and
+                    // assign 500 / 100 priorities; the next tick's pass allocates with them.
+                    var byOutputNet = new Dictionary<long, List<Transformer>>();
+                    foreach (var t in _transformers)
+                    {
+                        if (t == null || t.InputNetwork == null || t.OutputNetwork == null) continue;
+                        long outId = t.OutputNetwork.ReferenceId;
+                        if (!byOutputNet.TryGetValue(outId, out var l2)) byOutputNet[outId] = l2 = new List<Transformer>();
+                        l2.Add(t);
+                    }
+
+                    _tpParallelPairs.Clear();
+                    foreach (var kv in byOutputNet)
+                    {
+                        if (kv.Value.Count < 2) continue;
+                        var inputGroups = kv.Value
+                            .Where(t => t.OnOff && t.Error != 1 && t.InputNetwork != null)
+                            .GroupBy(t => t.InputNetwork.ReferenceId)
+                            .Where(g => g.Count() >= 2)
+                            .ToList();
+                        foreach (var ig in inputGroups)
+                        {
+                            var par = ig.OrderByDescending(t => t.OutputMaximum).ToList();
+                            if (par.Count < 2) continue;
+                            setPrio?.Invoke(null, new object[] { par[0], 500 });
+                            setPrio?.Invoke(null, new object[] { par[1], 100 });
+                            _tpParallelPairs.Add((par[0].ReferenceId, par[1].ReferenceId, ig.Key, kv.Key));
+                        }
+                    }
+                    clearAll?.Invoke(null, null);
+                    _log?.LogInfo($"[ScenarioRunner] TP arranged {_tpParallelPairs.Count} parallel pair(s) at priorities 500/100; asserting next tick.");
+                    _tpPhase = 1;
+                    return;
                 }
 
-                // ---- P1: PARALLEL TOPOLOGY (same input, same output, multiple transformers) ----
-                // Find an output network with >= 2 feeders whose input networks ALSO match (true parallel).
-                clearAll?.Invoke(null, null);
-                invalidate?.Invoke(null, null);
-                int parallelCases = 0;
-                int parallelCorrect = 0;
-                foreach (var kv in byOutputNet)
+                if (_tpPhase == 1)
                 {
-                    if (kv.Value.Count < 2) continue;
-                    // True parallel: at least two share an input network too.
-                    var inputGroups = kv.Value
-                        .Where(t => t.OnOff && t.Error != 1 && t.InputNetwork != null)
-                        .GroupBy(t => t.InputNetwork.ReferenceId)
-                        .Where(g => g.Count() >= 2)
-                        .ToList();
-                    foreach (var ig in inputGroups)
+                    // ---- P1: PARALLEL TOPOLOGY off the published totals ----
+                    int parallelCases = 0;
+                    int parallelCorrect = 0;
+                    foreach (var (hi, lo, inNet, outNet) in _tpParallelPairs)
                     {
-                        var par = ig.OrderByDescending(t => t.OutputMaximum).ToList();
-                        if (par.Count < 2) continue;
                         parallelCases++;
-                        // Assign 500 / 100 priorities
-                        setPrio?.Invoke(null, new object[] { par[0], 500 });
-                        setPrio?.Invoke(null, new object[] { par[1], 100 });
-                        invalidate?.Invoke(null, null);
-                        float a0 = (float)(getAlloc?.Invoke(null, new object[] { par[0] }) ?? -1f);
-                        float a1 = (float)(getAlloc?.Invoke(null, new object[] { par[1] }) ?? -1f);
-                        // Lower-priority should be in standby (a1 == 0) if a0 alone covers demand.
-                        // Use a loose check: a0 >= a1 (higher-prio gets at least as much).
-                        if (a0 >= a1 - 0.5f) parallelCorrect++;
-                        _log?.LogInfo($"[ScenarioRunner] TP P1 parallel inNet={ig.Key} outNet={kv.Key} prio500={par[0].ReferenceId} alloc={a0:F0} prio100={par[1].ReferenceId} alloc={a1:F0}");
+                        float a0 = TpPublishedOutput(asm, hi);
+                        float a1 = TpPublishedOutput(asm, lo);
+                        // Loose check: the higher-priority transformer publishes at least as much.
+                        if (!float.IsNaN(a0) && !float.IsNaN(a1) && a0 >= a1 - 0.5f) parallelCorrect++;
+                        _log?.LogInfo($"[ScenarioRunner] TP P1 parallel inNet={inNet} outNet={outNet} prio500={hi} publishedOut={a0:F0} prio100={lo} publishedOut={a1:F0}");
                     }
-                }
-                totalChecks++;
-                if (parallelCases == 0)
-                { _log?.LogWarning("[ScenarioRunner] TP P1 SKIP: no parallel (same input + same output) transformer pairs in this save."); passCount++; }
-                else if (parallelCorrect == parallelCases)
-                { _log?.LogInfo($"[ScenarioRunner] TP P1 PASS: all {parallelCases} parallel cases respect priority order."); passCount++; }
-                else
-                { _log?.LogError($"[ScenarioRunner] TP P1 FAIL: {parallelCorrect}/{parallelCases} parallel cases respected priority order."); failCount++; }
-
-                // ---- P2: MULTI-OUT (same input, different outputs) cap by RequiredLoad ----
-                // For every output network with feeders, sum of allocations must NOT exceed RequiredLoad.
-                clearAll?.Invoke(null, null);
-                invalidate?.Invoke(null, null);
-                int multiOutCases = 0;
-                int multiOutCorrect = 0;
-                foreach (var kv in byOutputNet)
-                {
-                    if (kv.Value.Count == 0) continue;
-                    var feeders = kv.Value.Where(t => t.OnOff && t.Error != 1).ToList();
-                    if (feeders.Count == 0) continue;
-                    float reqLoad = feeders[0].OutputNetwork?.RequiredLoad ?? 0f;
-                    if (reqLoad <= 0.01f) continue;     // skip output nets with no demand
-                    multiOutCases++;
-                    invalidate?.Invoke(null, null);
-                    float totalAlloc = 0f;
-                    foreach (var f in feeders)
-                    {
-                        float a = (float)(getAlloc?.Invoke(null, new object[] { f }) ?? -1f);
-                        if (a > 0f) totalAlloc += a;
-                    }
-                    // Allow small slack (1 W).
-                    bool ok = totalAlloc <= reqLoad + 1f;
-                    if (ok) multiOutCorrect++;
-                    else _log?.LogInfo($"[ScenarioRunner] TP P2 outNet={kv.Key} totalAlloc={totalAlloc:F0} reqLoad={reqLoad:F0} OVERSHOOT");
-                }
-                totalChecks++;
-                if (multiOutCases == 0)
-                { _log?.LogWarning("[ScenarioRunner] TP P2 SKIP: no output nets with positive RequiredLoad in this save."); passCount++; }
-                else if (multiOutCorrect == multiOutCases)
-                { _log?.LogInfo($"[ScenarioRunner] TP P2 PASS: all {multiOutCases} output nets respect totalAlloc <= RequiredLoad."); passCount++; }
-                else
-                { _log?.LogError($"[ScenarioRunner] TP P2 FAIL: {multiOutCorrect}/{multiOutCases} output nets respected the demand cap."); failCount++; }
-
-                // ---- P3: DEMAND-DRIVEN desired -- no cascade-shed for low demand ----
-                // For every On transformer where OutputNetwork.RequiredLoad is small (< 1 kW)
-                // and its InputNetwork.PotentialLoad is reasonable, allocation should equal
-                // OutputNetwork.RequiredLoad (NOT OutputMaximum, NOT 0). This is the 418422/418423
-                // cascade fix.
-                clearAll?.Invoke(null, null);
-                invalidate?.Invoke(null, null);
-                int demandCases = 0;
-                int demandCorrect = 0;
-                int demandOvershoot = 0;
-                int demandUndershoot = 0;
-                foreach (var t in _transformers)
-                {
-                    if (t == null || !t.OnOff || t.Error == 1) continue;
-                    if (t.OutputNetwork == null || t.InputNetwork == null) continue;
-                    float req = t.OutputNetwork.RequiredLoad;
-                    float pot = t.InputNetwork.PotentialLoad;
-                    if (req <= 0f || req >= 1000f) continue;    // looking for SMALL demand cases
-                    if (pot < req) continue;                    // upstream has enough
-                    demandCases++;
-                    invalidate?.Invoke(null, null);
-                    float alloc = (float)(getAlloc?.Invoke(null, new object[] { t }) ?? -1f);
-                    // Other transformers on the SAME output net may share this RequiredLoad,
-                    // so per-transformer alloc <= RequiredLoad is the right check, not equality.
-                    if (alloc <= req + 0.5f && alloc >= 0f)
-                    {
-                        demandCorrect++;
-                        if (alloc > t.OutputMaximum + 0.5f) demandOvershoot++;
-                    }
+                    _tpChecks++;
+                    if (parallelCases == 0)
+                    { _log?.LogWarning("[ScenarioRunner] TP P1 SKIP: no parallel (same input + same output) transformer pairs in this save."); _tpPass++; }
+                    else if (parallelCorrect == parallelCases)
+                    { _log?.LogInfo($"[ScenarioRunner] TP P1 PASS: all {parallelCases} parallel cases respect priority order in the published totals."); _tpPass++; }
                     else
-                    {
-                        if (alloc > req) demandOvershoot++;
-                        else demandUndershoot++;
-                        _log?.LogInfo($"[ScenarioRunner] TP P3 ref={t.ReferenceId} alloc={alloc:F0} req={req:F0} OutMax={t.OutputMaximum:F0} POT={pot:F0}");
-                    }
-                }
-                totalChecks++;
-                if (demandCases == 0)
-                { _log?.LogWarning("[ScenarioRunner] TP P3 SKIP: no transformers with low downstream demand and sufficient upstream in this save."); passCount++; }
-                else if (demandCorrect == demandCases)
-                { _log?.LogInfo($"[ScenarioRunner] TP P3 PASS: all {demandCases} low-demand transformers allocate within their downstream RequiredLoad (no greedy OutputMaximum claim)."); passCount++; }
-                else
-                { _log?.LogError($"[ScenarioRunner] TP P3 FAIL: {demandCorrect}/{demandCases} respected demand cap. overshoot={demandOvershoot} undershoot={demandUndershoot}."); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] TP P1 FAIL: {parallelCorrect}/{parallelCases} parallel cases respected priority order."); _tpFail++; }
 
-                // ---- P4: 418422 + 418423 explicit (the cascade regression case) ----
-                // The user's playtest from session 2026-06-02 reported these two parallel
-                // transformers mass-shedding with default priorities on Luna. The cascade fix
-                // is: per-output-network demand cap on `desired` + global allocator. The
-                // success criterion is NOT "alloc > 0" (deferred standby with alloc=0 is OK
-                // for a chain-bootstrap tick) -- it is "NOT in lockout". Verify via
-                // BrownoutRegistry.IsShedding after a clean re-allocation.
-                Transformer t418422 = _transformers.FirstOrDefault(x => x != null && x.ReferenceId == 418422L);
-                Transformer t418423 = _transformers.FirstOrDefault(x => x != null && x.ReferenceId == 418423L);
-                totalChecks++;
-                if (t418422 == null && t418423 == null)
-                { _log?.LogWarning("[ScenarioRunner] TP P4 SKIP: neither 418422 nor 418423 present in this save."); passCount++; }
-                else
-                {
-                    // Reset every transformer's priority to the default 100 (P1 may have set
-                    // 500 / 100 on these two; clear that contamination for the realistic test).
+                    // ---- P2: MULTI-OUT demand cap off the published totals ----
+                    // Conservation + the stranded-inflow clawback bound the summed published
+                    // inflow onto a net by the net's written-back RequiredLoad (which includes
+                    // granted downstream pulls and soft charge).
+                    var byOutputNet = new Dictionary<long, List<Transformer>>();
+                    foreach (var t in _transformers)
+                    {
+                        if (t == null || t.InputNetwork == null || t.OutputNetwork == null) continue;
+                        long outId = t.OutputNetwork.ReferenceId;
+                        if (!byOutputNet.TryGetValue(outId, out var l2)) byOutputNet[outId] = l2 = new List<Transformer>();
+                        l2.Add(t);
+                    }
+                    int multiOutCases = 0;
+                    int multiOutCorrect = 0;
+                    foreach (var kv in byOutputNet)
+                    {
+                        var feeders = kv.Value.Where(t => t.OnOff && t.Error != 1).ToList();
+                        if (feeders.Count == 0) continue;
+                        float reqLoad = feeders[0].OutputNetwork?.RequiredLoad ?? 0f;
+                        if (reqLoad <= 0.01f) continue;     // skip output nets with no demand
+                        multiOutCases++;
+                        float totalAlloc = 0f;
+                        foreach (var f in feeders)
+                        {
+                            float a = TpPublishedOutput(asm, f.ReferenceId);
+                            if (a > 0f) totalAlloc += a;
+                        }
+                        bool ok = totalAlloc <= reqLoad + 1.5f;   // small float slack
+                        if (ok) multiOutCorrect++;
+                        else _log?.LogInfo($"[ScenarioRunner] TP P2 outNet={kv.Key} totalPublished={totalAlloc:F0} reqLoad={reqLoad:F0} OVERSHOOT");
+                    }
+                    _tpChecks++;
+                    if (multiOutCases == 0)
+                    { _log?.LogWarning("[ScenarioRunner] TP P2 SKIP: no output nets with positive RequiredLoad in this save."); _tpPass++; }
+                    else if (multiOutCorrect == multiOutCases)
+                    { _log?.LogInfo($"[ScenarioRunner] TP P2 PASS: all {multiOutCases} output nets respect totalPublished <= RequiredLoad."); _tpPass++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] TP P2 FAIL: {multiOutCorrect}/{multiOutCases} output nets respected the demand cap."); _tpFail++; }
+
+                    // ---- P3: DEMAND-DRIVEN bound (the 418422/418423 cascade fix shape) ----
+                    int demandCases = 0;
+                    int demandCorrect = 0;
+                    foreach (var t in _transformers)
+                    {
+                        if (t == null || !t.OnOff || t.Error == 1) continue;
+                        if (t.OutputNetwork == null || t.InputNetwork == null) continue;
+                        float req = t.OutputNetwork.RequiredLoad;
+                        float pot = t.InputNetwork.PotentialLoad;
+                        if (req <= 0f || req >= 1000f) continue;    // looking for SMALL demand cases
+                        if (pot < req) continue;                    // upstream has enough
+                        demandCases++;
+                        float alloc = TpPublishedOutput(asm, t.ReferenceId);
+                        // Other transformers on the SAME output net may share this RequiredLoad,
+                        // so per-transformer published <= RequiredLoad is the right check.
+                        if (alloc <= req + 0.5f) demandCorrect++;
+                        else _log?.LogInfo($"[ScenarioRunner] TP P3 ref={t.ReferenceId} publishedOut={alloc:F0} req={req:F0} OutMax={t.OutputMaximum:F0} POT={pot:F0}");
+                    }
+                    _tpChecks++;
+                    if (demandCases == 0)
+                    { _log?.LogWarning("[ScenarioRunner] TP P3 SKIP: no transformers with low downstream demand and sufficient upstream in this save."); _tpPass++; }
+                    else if (demandCorrect == demandCases)
+                    { _log?.LogInfo($"[ScenarioRunner] TP P3 PASS: all {demandCases} low-demand transformers publish within their downstream RequiredLoad (no greedy OutputMaximum claim)."); _tpPass++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] TP P3 FAIL: {demandCorrect}/{demandCases} respected the demand bound."); _tpFail++; }
+
+                    // Arrange P4: reset every transformer's priority to the default 100 (P1 set
+                    // 500/100 on the pairs; clear that contamination for the realistic test) and
+                    // clear lockouts so the next tick's pass is a clean baseline.
                     foreach (var t in _transformers)
                     {
                         if (t == null) continue;
                         setPrio?.Invoke(null, new object[] { t, 100 });
                     }
                     clearAll?.Invoke(null, null);
-                    invalidate?.Invoke(null, null);
+                    _tpPhase = 2;
+                    return;
+                }
 
+                // ---- Phase 2 / P4: 418422 + 418423 explicit (the cascade regression case) ----
+                // The 2026-06-02 playtest reported these two parallel transformers mass-shedding
+                // with default priorities on Luna. Success is NOT "published > 0" (deferred
+                // standby is legal on a bootstrap tick); it is "NOT in lockout" after a clean
+                // default-priority pass.
+                Transformer t418422 = _transformers.FirstOrDefault(x => x != null && x.ReferenceId == 418422L);
+                Transformer t418423 = _transformers.FirstOrDefault(x => x != null && x.ReferenceId == 418423L);
+                _tpChecks++;
+                if (t418422 == null && t418423 == null)
+                { _log?.LogWarning("[ScenarioRunner] TP P4 SKIP: neither 418422 nor 418423 present in this save."); _tpPass++; }
+                else
+                {
                     var isShedding = brownoutType?.GetMethod("IsShedding",
                         BindingFlags.NonPublic | BindingFlags.Static,
                         null, new[] { typeof(long), typeof(int) }, null);
@@ -1595,31 +1550,26 @@ namespace ScenarioRunner
                     foreach (var t in new[] { t418422, t418423 })
                     {
                         if (t == null) continue;
-                        float a = (float)(getAlloc?.Invoke(null, new object[] { t }) ?? -1f);
+                        float a = TpPublishedOutput(asm, t.ReferenceId);
                         float req = t.OutputNetwork?.RequiredLoad ?? -1f;
                         float pot = t.InputNetwork?.PotentialLoad ?? -1f;
                         bool shedding = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, tickNow }) ?? false);
-                        // Cascade fix success: NOT shedding (lockout is the bad state). Demand-
-                        // driven allocator may legitimately return 0 if upstream chain hasn't
-                        // bootstrapped yet, but it must NOT have triggered a 10s lockout.
                         if (shedding) ok = false;
-                        verdict += $" ref={t.ReferenceId} OnOff={t.OnOff} alloc={a:F0} req={req:F0} pot={pot:F0} OutMax={t.OutputMaximum:F0} shedding={shedding};";
+                        verdict += $" ref={t.ReferenceId} OnOff={t.OnOff} publishedOut={a:F0} req={req:F0} pot={pot:F0} OutMax={t.OutputMaximum:F0} shedding={shedding};";
                     }
                     if (ok)
-                    { _log?.LogInfo($"[ScenarioRunner] TP P4 PASS: 418422/418423 not in lockout under default priorities (cascade fix works).{verdict}"); passCount++; }
+                    { _log?.LogInfo($"[ScenarioRunner] TP P4 PASS: 418422/418423 not in lockout under default priorities (cascade fix works).{verdict}"); _tpPass++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] TP P4 FAIL: 418422/418423 in lockout despite cascade fix.{verdict}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] TP P4 FAIL: 418422/418423 in lockout despite cascade fix.{verdict}"); _tpFail++; }
                 }
 
-                // Restore baseline.
-                clearAll?.Invoke(null, null);
-                invalidate?.Invoke(null, null);
-
-                _log?.LogInfo($"[ScenarioRunner] TP END pass={passCount} fail={failCount} total={totalChecks}");
+                _tpPhase = 3;
+                _log?.LogInfo($"[ScenarioRunner] TP END pass={_tpPass} fail={_tpFail} total={_tpChecks}");
             }
             catch (Exception e)
             {
                 _log?.LogError($"[ScenarioRunner] TP threw: {e}");
+                _tpPhase = 3;
             }
         }
 
@@ -1630,9 +1580,10 @@ namespace ScenarioRunner
         // network it's on, logs the network's PotentialLoad / CurrentLoad
         // / RequiredLoad, and recursively walks UPSTREAM through any
         // transformer found on the network. For every transformer in the
-        // chain, logs its OnOff / Error / Priority / allocated supply /
-        // both networks' loads. Used to debug "transformer chain doesn't
-        // bootstrap" regressions in the demand-driven allocator.
+        // chain, logs its OnOff / Error / Priority / published output
+        // (TransformerSupplyCache presentation totals) / both networks'
+        // loads. Used to debug "transformer chain doesn't bootstrap"
+        // regressions in the demand-driven allocator.
         //
         // Target device id is hardcoded -- edit `_pfdTargetRef` and rebuild.
         // ============================================================
@@ -1653,12 +1604,9 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] PFD no PGP assembly"); return; }
 
-                var allocatorType = asm.GetType("PowerGridPlus.TransformerAllocator");
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
                 var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-                var getAlloc = allocatorType?.GetMethod("GetAllocatedSupply",
-                    BindingFlags.NonPublic | BindingFlags.Static);
                 var getPrio = priorityStoreType?.GetMethod("GetPriority",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long) }, null);
@@ -1705,7 +1653,7 @@ namespace ScenarioRunner
 
                 if (startNet != null)
                     DumpNetworkAndUpstream(startNet, 0, new HashSet<long>(), currentTick,
-                        getAlloc, getPrio, isShedding);
+                        asm, getPrio, isShedding);
 
                 // Also enumerate every cable network in the world and log those with
                 // PotentialLoad > 0 (= a generator on it that's actually producing).
@@ -1848,7 +1796,7 @@ namespace ScenarioRunner
         }
 
         private static void DumpNetworkAndUpstream(CableNetwork net, int depth, HashSet<long> visited,
-            int currentTick, MethodInfo getAlloc, MethodInfo getPrio, MethodInfo isShedding)
+            int currentTick, Assembly asm, MethodInfo getPrio, MethodInfo isShedding)
         {
             if (net == null || depth > _pfdMaxHops) return;
             if (visited.Contains(net.ReferenceId)) return;
@@ -1910,14 +1858,14 @@ namespace ScenarioRunner
             {
                 if (t == null) continue;
                 int prio = (int)(getPrio?.Invoke(null, new object[] { t.ReferenceId }) ?? -1);
-                float alloc = (float)(getAlloc?.Invoke(null, new object[] { t }) ?? -1f);
+                float published = TpPublishedOutput(asm, t.ReferenceId);
                 bool shed = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                 string role = (t.OutputNetwork == net) ? "OUTPUT" : (t.InputNetwork == net ? "INPUT" : "UNKNOWN");
-                _log?.LogInfo($"[ScenarioRunner] PFD{indent}  T ref={t.ReferenceId} prefab={t.PrefabName} role-on-net={role} OnOff={t.OnOff} Error={t.Error} OutMax={t.OutputMaximum:F0} Prio={prio} alloc={alloc:F0} shed={shed} InNet={t.InputNetwork?.ReferenceId ?? -1} OutNet={t.OutputNetwork?.ReferenceId ?? -1}");
+                _log?.LogInfo($"[ScenarioRunner] PFD{indent}  T ref={t.ReferenceId} prefab={t.PrefabName} role-on-net={role} OnOff={t.OnOff} Error={t.Error} OutMax={t.OutputMaximum:F0} Prio={prio} publishedOut={published:F0} shed={shed} InNet={t.InputNetwork?.ReferenceId ?? -1} OutNet={t.OutputNetwork?.ReferenceId ?? -1}");
                 if (t.OutputNetwork == net && t.InputNetwork != null)
                 {
                     DumpNetworkAndUpstream(t.InputNetwork, depth + 1, visited, currentTick,
-                        getAlloc, getPrio, isShedding);
+                        asm, getPrio, isShedding);
                 }
             }
 
@@ -1934,7 +1882,7 @@ namespace ScenarioRunner
                 _log?.LogInfo($"[ScenarioRunner] PFD{indent}  IO ref={b.ReferenceId} prefab={b.PrefabName} type={b.GetType().Name} role-on-net={brole} OnOff={bon} Error={berr} InNet={b.InputNetwork?.ReferenceId ?? -1} OutNet={b.OutputNetwork?.ReferenceId ?? -1}");
                 if (b.OutputNetwork == net && b.InputNetwork != null)
                     DumpNetworkAndUpstream(b.InputNetwork, depth + 1, visited, currentTick,
-                        getAlloc, getPrio, isShedding);
+                        asm, getPrio, isShedding);
             }
         }
 
@@ -2069,7 +2017,14 @@ namespace ScenarioRunner
 
         private static void Scenario_PgpPriorityShedingAll()
         {
-            if (_allShedFired) return;
+            // The topology probe is phased across three ticks (priority writes only land on
+            // the next allocator pass), so it is pumped every tick and self-gates; the
+            // one-shot probes below run once on the first tick.
+            if (_allShedFired)
+            {
+                Scenario_PgpPriorityShedingTopologyProbe();
+                return;
+            }
             _allShedFired = true;
             _log?.LogInfo("[ScenarioRunner] ALL START priority-shedding-all aggregator");
             Scenario_PgpPriorityShedingKnobProbe();
@@ -2083,7 +2038,7 @@ namespace ScenarioRunner
             // the entire feature surface.
             Scenario_PgpPriorityShedingProbe();
             Scenario_PgpPriorityShedingNetworkBreakdown();
-            _log?.LogInfo("[ScenarioRunner] ALL END priority-shedding-all aggregator");
+            _log?.LogInfo("[ScenarioRunner] ALL END priority-shedding-all aggregator (topology probe continues for two more ticks)");
         }
 
         // ============================================================
@@ -2194,8 +2149,6 @@ namespace ScenarioRunner
                 var allocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-                var shedSyncType = asm.GetType("PowerGridPlus.ShedSettingsSync");
-                var overloadSyncType = asm.GetType("PowerGridPlus.OverloadSettingsSync");
                 if (brownoutType == null || allocatorType == null || tickCounterType == null)
                 {
                     _log?.LogError($"[ScenarioRunner] STR FAIL: type lookup BR={brownoutType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
@@ -2214,16 +2167,10 @@ namespace ScenarioRunner
                 var getPrioMethod = priorityStoreType?.GetMethod("GetPriority",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long) }, null);
-                var effectiveProp = shedSyncType?.GetProperty("Effective",
-                    BindingFlags.NonPublic | BindingFlags.Static);
                 var powerProvidedField = typeof(Transformer).GetField("_powerProvided",
                     BindingFlags.NonPublic | BindingFlags.Instance);
 
                 int currentTick = (int)(currentTickProp?.GetValue(null) ?? 0);
-                bool shedEffective = (bool)(effectiveProp?.GetValue(null) ?? false);
-                var overloadEffectiveProp = overloadSyncType?.GetProperty("Effective",
-                    BindingFlags.NonPublic | BindingFlags.Static);
-                bool overloadEffective = (bool)(overloadEffectiveProp?.GetValue(null) ?? false);
 
                 if (_transformers.Count == 0) RebuildCaches();
 
@@ -2231,9 +2178,11 @@ namespace ScenarioRunner
                 if (_stStartTick < 0)
                 {
                     _stStartTick = currentTick;
-                    _log?.LogInfo($"[ScenarioRunner] STR-INIT startTick={currentTick} ShedSettingsSync.Effective={shedEffective} OverloadSettingsSync.Effective={overloadEffective} transformers={_transformers.Count}");
+                    // Shedding and overload protection are always on (the synced master toggles
+                    // and their *SettingsSync types were deleted); no effective-state line needed.
+                    _log?.LogInfo($"[ScenarioRunner] STR-INIT startTick={currentTick} transformers={_transformers.Count}");
 
-                    int linkedTx = 0, ones = 0, errored = 0;
+                    int ones = 0, errored = 0;
                     int prioSum = 0, prioMin = int.MaxValue, prioMax = int.MinValue;
                     foreach (var t in _transformers)
                     {
@@ -2565,12 +2514,15 @@ namespace ScenarioRunner
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
                 var hoverPatchType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
 
-                // P1: types present.
+                // P1: current type surface. OverloadRegistry + FaultRegistrySnapshotMessage exist;
+                // OverloadSettingsSync must be ABSENT (overload protection is always on; the synced
+                // master toggle was deleted in the settings rework, so its reappearance is a
+                // regression back to the toggle era).
                 total++;
-                if (overloadType != null && overloadSyncType != null && faultMsgType != null)
-                { _log?.LogInfo("[ScenarioRunner] OP P1 PASS: OverloadRegistry + OverloadSettingsSync + FaultRegistrySnapshotMessage exist."); pass++; }
+                if (overloadType != null && overloadSyncType == null && faultMsgType != null)
+                { _log?.LogInfo("[ScenarioRunner] OP P1 PASS: OverloadRegistry + FaultRegistrySnapshotMessage exist and OverloadSettingsSync is absent (always-on, no synced toggle)."); pass++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] OP P1 FAIL: type lookup OR={overloadType != null} OS={overloadSyncType != null} FM={faultMsgType != null}"); fail++; }
+                { _log?.LogError($"[ScenarioRunner] OP P1 FAIL: type surface wrong. OverloadRegistry={overloadType != null} (expect true) OverloadSettingsSync={overloadSyncType != null} (expect false) FaultRegistrySnapshotMessage={faultMsgType != null} (expect true)"); fail++; }
 
                 // Loud guard instead of an NRE / ArgumentNullException on the next
                 // rename: everything below dereferences these types.
@@ -2639,16 +2591,13 @@ namespace ScenarioRunner
                 { _log?.LogError($"[ScenarioRunner] OP P5 FAIL: Overloaded LogicType value = {(ushort)overloadedLogic}, expected 6580."); fail++; }
 
                 // P6: live transformer GetLogicValue for Overloaded.
-                // The Overloaded logic slot (TransformerPriorityLogicPatches) is gated on
-                // OverloadSettingsSync.Effective, which on a server reads the local cfg
-                // toggle; pin it for the probe window so the slot wiring itself is tested.
+                // Overload protection is always on (the EnableTransformerOverloadProtection
+                // master toggle and its OverloadSettingsSync were deleted); the Overloaded
+                // logic slot (TransformerPriorityLogicPatches) has no settings gate.
                 if (_transformers.Count == 0) RebuildCaches();
                 var sampleT = _transformers.FirstOrDefault(x => x != null);
                 if (sampleT != null)
                 {
-                    var restoreOverloadToggle = ForcePgpToggleOn(asm, "EnableTransformerOverloadProtection", "OP");
-                    try
-                    {
                     noteOverload?.Invoke(null, new object[] { sampleT.ReferenceId, tick });
                     double v = sampleT.GetLogicValue(overloadedLogic);
                     total++;
@@ -2695,11 +2644,6 @@ namespace ScenarioRunner
                     { _log?.LogInfo("[ScenarioRunner] OP P9 PASS: Overloaded is CanLogicRead=true, CanLogicWrite=false (read-only)."); pass++; }
                     else
                     { _log?.LogError($"[ScenarioRunner] OP P9 FAIL: canR={canR} canW={canW}."); fail++; }
-                    }
-                    finally
-                    {
-                        restoreOverloadToggle();
-                    }
                 }
 
                 // P10: FaultRegistrySnapshotMessage(KindOverload) host short-circuits

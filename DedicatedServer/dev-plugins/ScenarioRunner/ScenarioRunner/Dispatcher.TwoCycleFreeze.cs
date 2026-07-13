@@ -170,15 +170,28 @@ namespace ScenarioRunner
                 $"Y={_tfY}({bestY.PrefabName} stepUp={TfStepUp(asm, bestY.InputNetwork, bestY.OutputNetwork)})");
         }
 
+        private static bool _tfStepUpWarned;
+
         private static bool TfStepUp(Assembly asm, CableNetwork inNet, CableNetwork outNet)
         {
             try
             {
-                var t = asm?.GetType("PowerGridPlus.PowerAllocator");
+                // IsStepUp moved from PowerAllocator to the SegAdapters helper when the
+                // adapters became the physical-description layer.
+                var t = asm?.GetType("PowerGridPlus.SegAdapters");
                 var m = t?.GetMethod("IsStepUp",
                     BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static, null,
                     new[] { typeof(CableNetwork), typeof(CableNetwork) }, null);
-                return m?.Invoke(null, new object[] { inNet, outNet }) is bool b && b;
+                if (m == null)
+                {
+                    if (!_tfStepUpWarned)
+                    {
+                        _tfStepUpWarned = true;
+                        _log?.LogWarning("[ScenarioRunner] 2CYC NOTE: SegAdapters.IsStepUp unresolvable (renamed?); step-up classification falls back to false, the X pick may include step-ups.");
+                    }
+                    return false;
+                }
+                return m.Invoke(null, new object[] { inNet, outNet }) is bool b && b;
             }
             catch { return false; }
         }
