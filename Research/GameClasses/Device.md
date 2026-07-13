@@ -12,6 +12,7 @@ sources:
   - Plans/PowerGridPlus/PLAN.md, Mods/PowerGridPlus/RESEARCH.md
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 317927-317957 (Thing.Error property), 319497-319503 (Thing.SetIntegerSafe), Error write-path census (257 InteractError interact sites; CheckError bodies 424944-424957 / 391986-391999 / 427072; direct writes 389414/389424/374288/432580/42534/42544)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 370335 (Device class), 370460-370462 (DataCables/PowerCables arrays), 371501-371534 (power virtuals), 371568-371615 (FindDataCable/FindPowerCable/InitializeDataConnection), 371617-371638 (CanConstruct), 371640-371698 (SetPower/AssessPower/OnInteractableUpdated)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 304441-304460 (Interactable.State setter funnel), 319509-319522 (Thing.OnInteractableStateChanged/OnInteractableUpdated), 371700-371707 (Device.RefreshAnimState), 33633-33647 (InfoScreenComponent), 146456-146661 (SwitchMode/SwitchColorState/SwitchOnOff), 375983 (DeviceInputOutputImportExportCircuit tooltip gate), 371178-371181 (GetLogicValue On/Power arms)
 related:
   - ./Cable.md
   - ./CableNetwork.md
@@ -416,6 +417,164 @@ Caching / threading semantics that matter for a mod reader:
 - On the **main thread**, the getter reads the live `Animator.GetInteger(...)` once per frame and caches into the `_xxx` field (keyed by `Time.frameCount`). Subsequent same-frame reads return the cache.
 - On a **background thread** (`ThreadedManager.IsThread`, e.g. inside `PowerTick.ApplyState` on the UniTask ThreadPool worker), the getter short-circuits to the cached `_onOff` / `_powered` / `_error` field WITHOUT touching the `Animator` (Unity API calls from a worker thread crash the player). So from a power-tick-adjacent patch these properties are safe to read and return last-frame's value. This is exactly why PowerTransmitterPlus reads `t.OnOff` / `t.Error` from its power-tick postfixes without a `MainThreadDispatcher` round-trip (`Mods/PowerTransmitterPlus/PowerTransmitterPlus/LogicReadoutPatches.cs:44`: `if (t == null || !t.OnOff || t.Error == 1) return 0f;`).
 
+### Visual-state plumbing: the animator integer IS the storage, and each visual surface keys off one property
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+Three consequences of the getter shape above, verified end to end at 0.2.6403.27689.
+
+**1. There is no separate render flag.** For a Thing WITH a `BaseAnimator`, the Unity animator integer parameters (`Interactable.PoweredState` / `Interactable.OnOffState`) are the storage for `PoweredValue` / `OnOff`: the getter reads `BaseAnimator.GetInteger(Interactable.PoweredState)` (318296) and the setter writes back through `SetIntegerSafe` (318306). For an animator-less Thing the `Interactable` slot is the storage (`return InteractPowered.State;`, 318290). Visual state, logical flag, and the IC10 values share that one storage: `Device.GetLogicValue` returns `LogicType.On => OnOff ? 1 : 0` (371178-371179) and `LogicType.Power => Powered ? 1 : 0` (371180-371181).
+
+**2. Every interactable write, local or replicated, lands in the animator and refreshes the visuals.** The funnel is the `Interactable.State` setter (304441-304460): it assigns `_state` (304449), notifies the parent Thing (304450), and then triggers the visual refresh (304458):
+
+```csharp
+public virtual void OnInteractableStateChanged(Interactable interactable, int newState, int oldState)   // Thing, 319509-319515
+{
+    if ((bool)BaseAnimator)
+    {
+        SetIntegerSafe(interactable.PropertyId, newState);
+    }
+}
+
+public virtual void OnInteractableUpdated(Interactable interactable)   // Thing, 319517-319522
+{
+    CacheAnimatorInteractableVariable(interactable.Action);
+    RefreshAnimState(GameManager.GameState != GameState.Running);
+    this.OnInteractable?.Invoke();
+}
+```
+
+**3. Which property each visual surface reads.** Info screens are Powered-ONLY. `Device.RefreshAnimState` (371700-371707) forwards to the optional info-screen component (`protected InfoScreenComponent _infoScreen;`, 370366):
+
+```csharp
+protected override void RefreshAnimState(bool skipAnimation = false)   // Device, 371700-371707
+{
+    base.RefreshAnimState(skipAnimation);
+    if (_infoScreen != null)
+    {
+        _infoScreen.RefreshState(this);
+    }
+}
+```
+
+```csharp
+public class InfoScreenComponent : GameBase   // 33633-33647
+{
+    [SerializeField]
+    private MaterialChanger _materialChanger;
+
+    [SerializeField]
+    private Collider infoTrigger;
+
+    public Collider InfoTrigger => infoTrigger;
+
+    public void RefreshState(Device parent)
+    {
+        _materialChanger.ChangeState(parent.Powered ? Defines.Animator.OnPowered : Defines.Animator.NotPowered);
+    }
+}
+```
+
+No `OnOff` term: an info screen lights whenever `Powered == 1`, whatever the switch says. The same Powered-only keying gates the IC-housing info-panel tooltip: `DeviceInputOutputImportExportCircuit.GetPassiveTooltip` shows the operation text only when `hitCollider == _infoScreen.InfoTrigger && Powered` (375983).
+
+Switch levers are OnOff-first. `SwitchOnOff.RefreshColorState` (146597-146629, on the `DevicePart` visual-component family, driven from `RefreshState` at 146575-146582):
+
+```csharp
+protected virtual void RefreshColorState(bool skipAnim)   // SwitchOnOff, 146597-146629
+{
+    SwitchColorState switchColorState = SwitchColorState.Off;
+    if (parentThing.OnOff)
+    {
+        switchColorState = ((parentThing.Powered || !parentThing.HasPowerState) ? SwitchColorState.OnPowered : SwitchColorState.On);
+    }
+    if ((parentThing.Error != 0 && parentThing.Powered) || (parentThing.Error != 0 && !parentThing.HasPowerState))
+    {
+        switchColorState = SwitchColorState.Error;
+    }
+    if (switchColorState != _currentColorState)
+    {
+        _currentColorState = switchColorState;
+        CancelErrorAnimation();
+        switch (_currentColorState)
+        {
+        case SwitchColorState.Off:
+            switchRenderer.material = off;
+            break;
+        case SwitchColorState.On:
+            switchRenderer.material = on;
+            break;
+        case SwitchColorState.OnPowered:
+            switchRenderer.material = onPowered;
+            break;
+        case SwitchColorState.Error:
+            _errorStateCancellationTokenSource = new CancellationTokenSource();
+            ErrorAnimation(_errorStateCancellationTokenSource.Token).Forget();
+            break;
+        }
+    }
+}
+```
+
+Off wins unconditionally: `OnOff == false` selects the `off` material regardless of `Powered`. On and Powered selects `onPowered`; on and unpowered selects `on` (the `!parentThing.HasPowerState` term promotes things with no Powered interactable straight to `onPowered`, since their `Powered` reads false permanently per the `CacheStates` subsection above). The Error state blinks `error[0]` / `error[1]` every 250 ms (`ErrorAnimation`, 146641-146661). The base class has no `OffPowered` case; `SwitchMode` (146456-146502) adds the fourth material `offPowered` (field 146459) with this decision ladder (146480):
+
+```csharp
+SwitchColorState switchColorState = ((parentThing.GetInteractable(State).State != 1) ? ((!parentThing.Powered) ? SwitchColorState.Off : SwitchColorState.OffPowered) : (parentThing.Powered ? SwitchColorState.OnPowered : SwitchColorState.On));
+```
+
+The enum is the game's designed four-plus-state switch visual model:
+
+```csharp
+public enum SwitchColorState   // 146504-146512
+{
+    Undefined,
+    Off,
+    On,
+    OnPowered,
+    Error,
+    OffPowered
+}
+```
+
+**Why the two keyings never visibly disagree in vanilla.** Toggling OnOff off fires `Device.OnInteractableUpdated` -> `AssessPower(net, isOn)` (371687-371698), and `AssessPower` un-powers immediately (the same body the "Mid-tick admission" subsection above describes; verbatim, 371654-371685):
+
+```csharp
+protected virtual void AssessPower(CableNetwork cableNetwork, bool isOn)   // Device, 371654-371685
+{
+    if (cableNetwork == null || !isOn)
+    {
+        if (Powered)
+        {
+            SetPower(cableNetwork, hasPower: false);
+        }
+        return;
+    }
+    float usedPower = GetUsedPower(cableNetwork);
+    if (usedPower <= 0f)
+    {
+        return;
+    }
+    if (usedPower > cableNetwork.EstimatedRemainingLoad)
+    {
+        cableNetwork.DuringTickLoad += Mathf.Min(usedPower, cableNetwork.EstimatedRemainingLoad);
+        if (Powered)
+        {
+            SetPower(cableNetwork, hasPower: false);
+        }
+    }
+    else
+    {
+        cableNetwork.DuringTickLoad += usedPower;
+        if (!Powered)
+        {
+            SetPower(cableNetwork, hasPower: true);
+        }
+    }
+}
+```
+
+Independently, `PowerTick.ApplyState` un-powers zero-demand and unfed devices every tick (OFF edge 271936-271938 inside the device loop 271916-271940; see [PowerTick](./PowerTick.md)). So in vanilla `OnOff = 0` forces `Powered = 0` within the frame, and the Powered-only surfaces (info screens, the 375983 tooltip gate) never light on a switched-off device.
+
+**Mod context.** A mod that holds `Powered = 1` while `OnOff = 0` exposes every Powered-only-keyed surface: info screens stay lit, `offPowered`-material switches glow, and 375983-style Powered gates stay open. And because the animator integer IS the storage (point 1), there is no hidden render flag to patch: re-keying a surface means patching the visual component itself (`InfoScreenComponent.RefreshState`, `SwitchOnOff.RefreshColorState`) or changing the stored value, nothing in between.
+
 ### Network sync: animator state, server-driven
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
 
@@ -486,6 +645,7 @@ Consequence for a mod taking ownership of Powered: blocking the ApplyState OFF e
 
 ## Verification history
 
+- 2026-07-13 (later): added the "Visual-state plumbing" subsection to the operational-state section (game version 0.2.6403.27689), all bodies re-read from the decompile this pass. The chain: animator integers are the storage for `PoweredValue` / `OnOff` (getter animator read 318296, animator-less `InteractPowered.State` 318290, setter 318306; the IC10 `LogicType.On` / `LogicType.Power` arms read the same properties, 371178-371181); the `Interactable.State` setter funnel (304441-304460) drives `Thing.OnInteractableStateChanged` (319509-319515, stamps the animator via `SetIntegerSafe`) and `Thing.OnInteractableUpdated` -> `RefreshAnimState` (319517-319522), both quoted verbatim; `Device.RefreshAnimState` (371700-371707) forwards to `InfoScreenComponent.RefreshState` (33633-33647, keyed on `parent.Powered` ONLY, no OnOff term; same keying as the `DeviceInputOutputImportExportCircuit.GetPassiveTooltip` gate at 375983); `SwitchOnOff.RefreshColorState` quoted verbatim in full (146597-146629, OnOff-first with the `!HasPowerState` promotion, Error blink 146641-146661, no OffPowered case in the base); `SwitchMode` adds `offPowered` (146456-146502, ladder 146480); `SwitchColorState` enum verbatim (146504-146512); `AssessPower` quoted verbatim (371654-371685, immediate `SetPower(false)` when `!isOn`), triggered from `Device.OnInteractableUpdated` (371687-371698), plus the per-tick `PowerTick.ApplyState` OFF edge (271936-271938), which together force `Powered = 0` within the frame of an OnOff-off in vanilla. Occasion: a mod holding `Powered = 1` while `OnOff = 0` lights every Powered-only surface; recorded the re-keying constraint (animator-is-storage means no separate render flag exists). Additive; no prior content contradicted.
 - 2026-07-13: fresh-validation pass at 0.2.6403.27689 (decompile-claim audit). (a) Restamped "Thing-level state properties": `OnOff` / `Powered` / `PoweredValue` re-read verbatim at 318249-318315 (byte-identical to the 0.2.6228 excerpt; a worker thread returns the cached `_onOff` / `_powered` without touching the animator), `Exporting2` (318223-318247) and `IsOpen` (318317-318348) confirmed to share the shape, `ThreadedManager.IsThread` located at 217769; the `CacheStates` excerpt keeps its 0.2.6228 ref, marked inline. (b) Re-confirmed the Powered-writer census's tick-writer claim by whole-decompile grep: `SetPowerFromThread` is declared once (`Device`, 371648, `await UniTask.SwitchToMainThread(); SetPower(cableNetwork, hasPower);`) and called exactly twice, both in `PowerTick.ApplyState` (271933 ON edge, 271938 OFF edge); no other vanilla system marshals `Powered` writes through it. No content contradicted. The destroyed-parent drop semantics of the `OnServer.Interact` funnel these writes land in are now on [OnServer](./OnServer.md).
 - 2026-07-09 (later): added the "Vanilla Powered writer census" section from the PowerGridPlus Powered-ownership redesign investigation (game version 0.2.6403.27689): the SetPowerFromThread -> SetPower -> OnServer.Interact funnel with its RunSimulation gate, the ApplyState ON/OFF edges as SetPowerFromThread's only vanilla callers, the AssessPower admission (triggers + the six overrides), the CheckPower / CheckPowerState event families, the per-device-tick self-asserters, the out-of-scope self-owner list, and the PowerConnector -> DynamicGenerator forwarding chain with the DynamicComposter sibling dead-end. Additive; the existing operational-state sections stand.
 - 2026-07-09: re-confirmed the operational-state surface (`OnOff` / `Powered` / `PoweredValue` / `InteractOnOff` / `InteractPowered`) and the base `Device.GetUsedPower` OnOff gate verbatim against the 0.2.6403.27689 decompile; no content change (the section already carries `GetUsedPower` returning 0 when `!OnOff || !base.IsStructureCompleted` at 371510-371521, `Powered => PoweredValue >= 1` read off `InteractPowered.State` at 318282, and "Powered set by the power tick"). Incremental fact recorded this pass: the IC10 logic-type mapping. `LogicType.On` is the writable `OnOff` switch (`SetLogicValue(LogicType.On, ...)` gates on `OnOff`, 153191-153205); `LogicType.Power` is the read-only energized flag; `PowerTick.ApplyState -> SetPowerFromThread -> InteractPowered` is the sole writer of `Powered`. So `On` and `Power` are two distinct networked states (two interactables: `Thing.HasState` maps `OnOffState -> InteractOnOff` and `PoweredState -> InteractPowered`, 320106-320134), not one, and a switched-off device reads `Power == 0` only indirectly (OnOff false makes `GetUsedPower` return 0, so `ApplyState` un-powers it the next tick). Occasion: explaining the OnOff-vs-Powered distinction behind a PowerGridPlus fabricator reboot (a `Powered` transition; the switch never moved).

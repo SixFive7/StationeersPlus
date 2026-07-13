@@ -3,11 +3,12 @@ title: PowerTick
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-12
+verified_at: 2026-07-13
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 254484-254511 (PowerProvider), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState), 350696-350724 (Device base query/settle methods)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 271698-271947 (PowerTick), 271676-271697 (PowerProvider), 270827-270840 (CableNetwork.OnPowerTick), 270617 (CableNetwork.PowerTick field), 230535-230542 (Pick extension), 371501-371534 (Device base query/settle methods)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: ReceivePower override census (29 two-argument override sites), 408641-408672 (PowerTransmitterOmni.ReceivePower), 356760-356791 (WirelessBattery), 325481-325492 (Bench), 327413-327440 (SuitStorage), 327955-327978 (WallLightBattery), 392227-392269 (BatteryCellCharger), 432516-432519 + 265-298 (Appliance.ReceivePower(float) overload family)
   - Mods/PowerGridPlus/RESEARCH.md (voltage-tier research); .work/revolt-source/Assets/Scripts/RevoltTick.cs (RevoltTick : PowerTick); Mods/PowerGridPlus (PowerGridTick : PowerTick, reverse-patches CacheState + CheckForRecursiveProviders)
 related:
   - ./CableNetwork.md
@@ -318,8 +319,89 @@ Readers:
 - Pure generators (SolarPanel, WindTurbineGenerator, SolidFuelGenerator, GasFuelGenerator, TurbineGenerator, DynamicGenerator) override nothing; `RadioscopicThermalGenerator.UsePower` (416916-416919) calls the empty base. A generator's delivered energy is therefore never debited from anything; output is recomputed per tick.
 - Non-delivery `UsePower` callers exist: `Fermenter.OnPowerTick` self-calls `UsePower(net, GetUsedPower(net))` (181602-181610, a no-op through the base), and `DynamicComposter.UsePower()` (296399) is an unrelated parameterless battery-cell toggle.
 
+## ReceivePower override census: the consumer-settle side effects
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+The consumer-debit half mirroring the `UsePower` census above. The base is an empty virtual on `Device`:
+
+```csharp
+public virtual void ReceivePower(CableNetwork cableNetwork, float powerAdded)   // Device, 371527-371529
+{
+}
+```
+
+Vanilla dispatch to a plain consumer is exactly one site: `PowerTick.ConsumePower` (271820-271840) calls `device.ReceivePower(cableNetwork, num2)` at 271832, once per provider drained, from the `ApplyState` device loop (271929). (The rocket umbilical's direct `PartnerUmbilical.ReceivePower(null, ...)` crossing at 158139 / 158624 dispatches only onto `RocketPowerUmbilical` halves; see [Device](./Device.md), "Two per-device draw-state fields".) A power solver that never calls `ReceivePower` therefore switches off every side effect below at once.
+
+Whole-decompile census at 0.2.6403.27689: **29 overrides** of the two-argument `Device.ReceivePower(CableNetwork, float)` (grep `override void ReceivePower`). The single-float `Appliance.ReceivePower(float)` at 432516-432519 (`return powerReceived - UsedPower;`, one override: `ApplianceTabletDock` 285-298, which additionally charges a docked tablet's battery cell) is a separate overload never dispatched by `PowerTick`; it is reached only through `Bench.ReceivePower` below. Breakdown of the 29:
+
+- **16 impulse-reset overrides** whose whole body is `base.ReceivePower(...); _powerUsedDuringTick = 0f;`: AdvancedComposter 179751, DroidSleeper 181263, Fermenter 181596, FridgePowered 182046, ArcFurnace 365561, FiltrationMachineBase 377881, IceCrusher 380309, IndustrialFiltration 382281, PipeHeater 384831, AirConditioner 390268, Fabricator 396296, SimpleFabricatorBase 420216, SpawnPointAtmospherics 422742 (variant: passes `powerAdded + _powerUsedDuringTick` into the empty base first, then resets), VendingMachineRefrigerated 426493, WallCooler 426621, WallHeater 426738. The reset is the settle-side half of the `_powerUsedDuringTick` impulse protocol ([Device](./Device.md), "Two per-device draw-state fields"); the zero-Potential corollary above describes the freeze when the call never comes.
+- **1 pure base call**: LiquidDrain 186108-186111 (no effect).
+- **4 `_powerProvided` bridge ledgers**: AreaPowerControl 391014-391026 (ledger settle plus cell charge), Transformer 424765-424771, PowerTransmitter 408432-408444, PowerReceiver 408192-408203 (ledger `-=`; the two dishes ALSO write `base.VisualizerIntensity` from `powerAdded` here, so the dish glow intensity is itself a ReceivePower-only surface). Verbatim bodies on [AreaPowerControl](./AreaPowerControl.md).
+- **3 terminal stores**: Battery 392152-392158 (`PowerStored` charge clamp, gated `Error != 1 && OnOff && cableNetwork == InputNetwork && IsOperable`), RocketPowerUmbilicalFemale 158149-158153 and RocketPowerUmbilicalMale 158639-158648 (`PowerStored` clamps plus the `LastPowerAdded` mirror; the Male zeroes the mirror when errored or off).
+- **5 plain-consumer classes with real gameplay effects inside `ReceivePower`**, i.e. the classes whose behavior exists ONLY when a power system actually settles them:
+
+| Class | Override | Effect when settled |
+|---|---|---|
+| `PowerTransmitterOmni` | 408641-408672 | Pays its own `UsedPower`, then equal-split charges every linked `WirelessBattery` in `_batteriesInRange` (verbatim below). |
+| `SuitStorage` | 327431-327440 | Pays `UsedPower`, then recharges the stored suit, helmet, and backpack batteries in that order (`Recharge` helper 327413-327420 calls `Battery.AddPowerSafe`). |
+| `Bench` | 325481-325492 | Calls the empty base, deducts `UsedPower`, then chains the remainder through each docked switched-on appliance's `Appliance.ReceivePower(float)` (each deducts its own `UsedPower`, 432516-432519). |
+| `BatteryCellCharger` | 392227-392269 | Pays `UsedPower`, equal-split charges the non-charged slotted `BatteryCell`s via `AddPowerSafe`, and toggles its Activate light via `OnServer.Interact(base.InteractActivate, ...)`. |
+| `WallLightBattery` | 327955-327978 | Shortfall (`UsedPower - powerAdded > 0`): drains the internal cell by the deficit, or runs `CheckPowerState()` when the slot is empty or drained. Otherwise: stamps `_lastPoweredByCableOnTick = GameManager.GameTickCount` and recharges the cell with any excess over `UsedPower`. |
+
+The omni's override verbatim (408641-408672):
+
+```csharp
+public override void ReceivePower(CableNetwork cableNetwork, float powerAdded)   // PowerTransmitterOmni
+{
+    if (powerAdded < UsedPower)
+    {
+        return;
+    }
+    powerAdded -= UsedPower;
+    _batteriesToCharge.Clear();
+    _batteriesToCharge.AddRange(_batteriesInRange);
+    float num = 0.1f;
+    while (_batteriesToCharge.Count > 0 && powerAdded > num)
+    {
+        float num2 = powerAdded / (float)_batteriesToCharge.Count;
+        for (int num3 = _batteriesToCharge.Count - 1; num3 >= 0; num3--)
+        {
+            if (_batteriesToCharge[num3].LinkedOmni == null || _batteriesToCharge[num3].LinkedOmni != this)
+            {
+                _batteriesToCharge.RemoveAt(num3);
+            }
+            else
+            {
+                float num4 = _batteriesToCharge[num3].AddPowerWireless(num2);
+                powerAdded -= num2 - num4;
+                if (_batteriesToCharge[num3] == null || _batteriesToCharge[num3].IsCharged || _batteriesToCharge[num3].CalculateUniqueRatioIdentifier() >= 0.999f)
+                {
+                    _batteriesToCharge.RemoveAt(num3);
+                }
+            }
+        }
+    }
+    base.ReceivePower(cableNetwork, powerAdded);
+}
+```
+
+`WirelessBattery.AddPowerWireless` (356781-356785) applies the distance falloff before storing:
+
+```csharp
+public float AddPowerWireless(float availablePower)   // WirelessBattery : BatteryCell
+{
+    availablePower *= efficiencyOverDistanceMultiplier.Evaluate(Mathf.Clamp01(RangeToOmni / LinkedOmni.MaxDistance));
+    return AddPowerSafe(availablePower);
+}
+```
+
+where `efficiencyOverDistanceMultiplier = new AnimationCurve(new Keyframe(0f, 0.75f), new Keyframe(1f, 0.25f))` (356768): 75% of the offered slice is stored at zero range, falling to 25% at `LinkedOmni.MaxDistance`.
+
+**Mod context.** A replacement power solver that keeps consumers Powered but never calls `ReceivePower` on them silences all five classes' gameplay: suit storages stop recharging suits, benches stop feeding appliances, cell chargers stop charging (and their Activate light freezes), battery wall lights neither drain nor recharge their cell (and `_lastPoweredByCableOnTick` freezes stale), and omni transmitters stop wireless-charging their linked batteries. The 16 impulse-reset classes additionally never get `_powerUsedDuringTick` zeroed. This is exactly the PowerGridPlus atomic-tick regression found 2026-07-13 (the mod's replacement tick settles supply and demand in its own snapshot without running `ConsumePower`, so no per-device consumer settle ever fires).
+
 ## Verification history
 
+- 2026-07-13: added the "ReceivePower override census: the consumer-settle side effects" section (whole-decompile census at 0.2.6403.27689, produced from the PowerGridPlus atomic-tick regression found the same day). Base `Device.ReceivePower` re-read verbatim (371527-371529, empty body); 29 overrides of the two-argument signature enumerated and classified (16 impulse-reset, 1 pure base call, 4 `_powerProvided` bridges including the dish `VisualizerIntensity` writes, 3 terminal stores, 5 plain consumers with gameplay effects); `PowerTransmitterOmni.ReceivePower` (408641-408672) and `WirelessBattery.AddPowerWireless` (356781-356785, falloff curve declared 356768) quoted verbatim; Bench / SuitStorage / BatteryCellCharger / WallLightBattery summarized with line cites (325481-325492, 327431-327440 with Recharge 327413-327420, 392227-392269, 327955-327978); the single-float `Appliance.ReceivePower(float)` overload family (432516-432519, ApplianceTabletDock 265/285-298) recorded as separate from the PowerTick dispatch. Count note: the incoming claim from the regression session said 31 overrides; the direct grep census finds 29 two-argument overrides (30 counting the Appliance-overload override, 32 counting the two virtual declarations), so the section records 29. Additive; no prior page content contradicted.
 - 2026-07-12: added the "Net-load-field consumer census, and the UsePower override census" section and the caller-exclusivity paragraph under "CableNetwork.OnPowerTick drives it" (whole-decompile censuses at 0.2.6403.27689, produced for the PowerGridPlus B + D1 data-plane replacement: the load mirrors' complete reader/writer contract incl. the MP serialize at 272028-272037 / client write-back at 272144-272146 and the ShortfallLoad zero-reader finding; the per-class UsePower/ReceivePower settle semantics verbatim-cited; the trio + OnPowerTick single-caller-chain proof). No prior content contradicted; the load-mirror lag section's bridge-read list is confirmed and extended.
 - 2026-07-09 (later): two changes from the PowerGridPlus Powered-ownership redesign investigation (game version 0.2.6403.27689). (a) CONFLICT RESOLUTION on the AllowSetPower override census: the four-row table (added 2026-07-02) claimed to be the whole-decompile census; two independent census agents found six device overrides, and the fresh-validation direct read confirmed the two missing rows verbatim (`PowerGeneratorPipe.AllowSetPower` 396569-396572 and `StirlingEngine.AllowSetPower` 423979-423982, both `return false;`), plus the uncalled non-Device `ElevatorShaftNetwork.AllowSetPower` aggregate (395892). Table corrected to six rows + the dead-code note; the "all four nominate the input side" conclusion narrowed to the four bridges, with the generator classes documented as fully self-owned (OnAtmosphericTick writes both Powered edges: 396692-396705, 424025-424077). (b) Added the "Zero-Potential corollary (the dark-net freeze)" paragraph to the settle-loops section: `CalculateState` enrolls a `PowerProvider` only for `generatedPower > 0f` (271782-271792) and `ConsumePower` skips drained providers (271826), so a network whose producers all advertise 0 has an EMPTY provider array, `ReceivePower` is never called, `ConsumePower` returns false, per-tick accumulator debts freeze exactly, and the ApplyState power-on branch cannot fire. Read directly from the decompile this pass; this corollary is the conservation mechanism a mod-forced dark network rests on.
 - 2026-07-09: re-confirmed the `ApplyState` device power-apply gate (271903-271946) and base `Device.AllowSetPower` (371531-371534) verbatim against the 0.2.6403.27689 decompile; no content change (the "ApplyState un-powers zero-demand and unfed devices" and "CacheState: strict power-met" sections already capture the else-branch, the strict `_isPowerMet` gate, and the base `PowerCableNetwork == cableNetwork` semantics). Occasion: diagnosing a PowerGridPlus fabricator print-start reboot. A print spikes a fabricator's `GetUsedPower` for one tick; because PowerGridPlus pins each net's `Potential` to the allocator's exact grant with no headroom, that one-tick spike makes `Potential < Required`, `_isPowerMet` false, and the else-branch (271936-271938) un-powers the fabricator, whose main-thread `OnPoweredChanged` cancels the in-progress print. Vanilla's advertised supply headroom normally masks this. The mod-side fix mirrors PowerGridPlus's existing segmenter `AllowSetPower` veto (`PoweredPresentationPatches`) for plain consumers behind a one-tick grace; that is mod-local and belongs in the PowerGridPlus docs, not here.

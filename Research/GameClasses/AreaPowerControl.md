@@ -3,17 +3,20 @@ title: AreaPowerControl
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-07
+verified_at: 2026-07-13
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.AreaPowerControl
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 390555-391057 (AreaPowerControl declaration through GetGeneratedPower), 424757-424805 (Transformer power methods)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 390753-390773 (CanLogicRead/GetLogicValue overrides), 371028-371164 (Device logic virtuals), 394813 (ElectricalInputOutput declaration)
   - Mods/PowerGridPlus/PowerGridPlus/Patches/AreaPowerControlPatches.cs
   - .work/revolt-source/Assets/Scripts/Patches/AreaPowerControllerPatches.cs
 related:
   - ./Battery.md
   - ./CableNetwork.md
   - ./Transformer.md
-tags: [power, prefab]
+  - ./Device.md
+  - ../Patterns/HarmonyLogicableInheritedMethodTrap.md
+tags: [power, prefab, logic]
 ---
 
 # AreaPowerControl
@@ -117,6 +120,44 @@ Re-read from the verbatim bodies above (`GetUsedPower` 391028-391044, `GetGenera
 | `GetGeneratedPower` (downstream supply advertisement) | `OutputNetwork != null && Error != 1 && OnOff` |
 
 Consequence: an APC that is switched OFF, errored (`Error == 1`), or has no output cable still adds its cell-charge demand to the INPUT network every tick while a non-charged cell sits in the slot, while `GetGeneratedPower` (which IS Error- and OnOff-gated) advertises nothing downstream. A vanilla APC therefore charge-draws in states a player reads as "off" or "faulted"; during the PowerGridPlus partial-power forensics this input-side draw from apparently idle APCs is expected vanilla behavior, not a mod-introduced load. The same asymmetry exists on `WallLightBattery.GetUsedPower` (`(OnOff ? UsedPower : 0f)` plus a charge term gated only on cell-present-and-not-charged, decompile 327979-327992; see [LightSources](../GameSystems/LightSources.md), "F. WallLightBattery: battery backup").
+
+## Logic-method override surface: CanLogicRead and GetLogicValue only
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+Of the four `LogicType` accessors that `Device` declares as virtuals (`CanLogicRead` 371028, `CanLogicWrite` 371104, `SetLogicValue` 371122, `GetLogicValue` 371164), `AreaPowerControl` overrides exactly two. Verbatim from the class body (390753-390773):
+
+```csharp
+public override bool CanLogicRead(LogicType logicType)
+{
+    if (logicType == LogicType.Charge || logicType - 23 <= LogicType.Mode)
+    {
+        return true;
+    }
+    return base.CanLogicRead(logicType);
+}
+
+public override double GetLogicValue(LogicType logicType)
+{
+    return logicType switch
+    {
+        LogicType.Charge => AvailablePower, 
+        LogicType.Maximum => Battery ? Battery.PowerMaximum : 0f, 
+        LogicType.Ratio => Battery ? (Battery.PowerStored / Battery.PowerMaximum) : 0f, 
+        LogicType.PowerPotential => base.PotentialLoad, 
+        LogicType.PowerActual => base.CurrentLoad, 
+        _ => base.GetLogicValue(logicType), 
+    };
+}
+```
+
+(The `logicType - 23 <= LogicType.Mode` guard is the decompiler's rendering of a small enum range check, not source-shaped code.)
+
+Both overrides fall through to the base for every unhandled `LogicType`: `return base.CanLogicRead(logicType);` at 390759 and the `_ => base.GetLogicValue(logicType)` default arm at 390771. `CanLogicWrite` and `SetLogicValue` are NOT overridden anywhere in the class body (390555-391146; a grep for the four accessor names inside that range returns only the two methods above), and the intermediate base `ElectricalInputOutput` (394813-395114) overrides none of the four either, so on an APC both write-side accessors resolve directly to the `Device` virtuals (371104, 371122).
+
+Mod context, two sides of the same fact:
+
+- A Harmony patch on the base `Device` logic methods reaches the APC for mod-registered LogicTypes: the write-side pair dispatches straight to `Device.CanLogicWrite` / `Device.SetLogicValue` (no APC override exists to shadow the patch), and the read-side pair funnels every unhandled type into `base.*` through the fall-through lines above.
+- A direct `[HarmonyPatch(typeof(AreaPowerControl), "CanLogicWrite")]` attribute cannot resolve, because that method does not exist on `AreaPowerControl` (it is declared on `Device`); the failed resolve once killed every patch in the mod that tried it (PowerGridPlus, 2026-06-22). Target the declaring type instead. Same trap as [HarmonyLogicableInheritedMethodTrap](../Patterns/HarmonyLogicableInheritedMethodTrap.md) documents for `Battery` / `PowerTransmitter` / `PowerReceiver`.
 
 ## How the vanilla `PowerTick` drives these methods
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
@@ -424,6 +465,7 @@ Consequence: the ledger is runtime accumulation within a session. On save load a
 ## Verification history
 <!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
+- 2026-07-13: added "Logic-method override surface: CanLogicRead and GetLogicValue only" section (game version 0.2.6403.27689). Direct grep census over the class body (390555-391146): `CanLogicRead` (390753-390760) and `GetLogicValue` (390762-390773) are the only two of the four `Device` logic accessors the APC overrides, quoted verbatim; both fall through to `base.*` for unhandled types (390759 and the default arm at 390771); no `CanLogicWrite` / `SetLogicValue` override exists in the class or in `ElectricalInputOutput` (394813-395114, grep returns nothing), so the write side resolves to the `Device` virtuals (`CanLogicWrite` 371104, `SetLogicValue` 371122; declarations `CanLogicRead` 371028, `GetLogicValue` 371164). Recorded the two Harmony consequences: base-`Device` patches reach the APC for mod-registered LogicTypes, and a `typeof(AreaPowerControl)` attribute on the write-side names cannot resolve (the PowerGridPlus 2026-06-22 all-patches-dead incident). Additive; no prior content contradicted.
 - 2026-07-07: added "Gate shape" subsection under the four-methods section (game version 0.2.6403.27689). Re-read `GetUsedPower` (391028-391044) and `GetGeneratedPower` (391046-391057): the quiescent + ledger term is gated on `OnOff && OutputNetwork != null`, the cell-charge term on `(bool)Battery && !Battery.IsCharged` ONLY (no OnOff, no Error, no OutputNetwork), and `GetGeneratedPower` on `OutputNetwork != null && Error != 1 && OnOff`. Note: the incoming claim from the PowerGridPlus partial-power forensics said the charge term was "gated on OnOff only"; the decompile shows it is not OnOff-gated either, so the documented consequence is wider (OFF, errored, and output-less APCs all still charge-draw). Cross-referenced the same asymmetry on `WallLightBattery.GetUsedPower` (327979-327992). Additive; the verbatim bodies already on this page were confirmed unchanged.
 - 2026-07-06: added "The ledger is not serialized" subsection under the pattern-presence section (game version 0.2.6403.27689). Evidence read directly from the decompile: the four SaveData record bodies (`TransformerSaveData` 424593-424597, `WirelessPowerSaveData` 426765-426778, `PowerTransmitterSaveData` 408264-408268, `PowerReceiverSaveData` 408062-408064), the absence of any serialization member in the `AreaPowerControl` class body (390555-391146, next type at 391147), the whole-decompile `_powerProvided` reference census, and the `.UsePower(` / `.ReceivePower(` caller census isolating `PowerProvider.ApplyPower` (271690-271696) and `PowerTick.ConsumePower` (271820-271840) as the only dispatch sites reaching the four ledger classes. Checked first for existing verified content claiming the ledger persists into saves (fresh-validator trigger): none found on this or any other central page, so the addition is additive; no validator spawned.
 - 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration (390555), `BatteryChargeRate = 1000f` (390586), the slot `Battery` property is a `BatteryCell` (390594), `UsePower` drain-gated on `_powerProvided > 0` (391000-391012), `ReceivePower` charges the cell only when `_powerProvided < 0` (391014-391026), `GetUsedPower` = `Max(_powerProvided, UsedPower)` + `Min(BatteryChargeRate, Battery.PowerDelta)` (391028-391044), `GetGeneratedPower` = `AvailablePower` = `InputNetwork.PotentialLoad + Battery.PowerStored` uncapped (391046-391057, `AvailablePower` 390652-390663). Also refreshed the Transformer method citations carried by this page (`UsePower` / `ReceivePower` 424757-424771, `GetUsedPower` 424773-424792, `GetGeneratedPower` = `Min(Setting, InputNetwork.PotentialLoad)` 424794-424805), the four `_powerProvided` declaration lines in the pattern-presence table (390592 / 424621 / 408071 / 408287), the RX/TX method ranges (408184-408229 / 408424-408469), and the station-Battery `UsePower` / `ReceivePower` range (392144-392158). Corrected the PowerTick-driver section's attribution of the ratio math: `CalculateState` is public at 0.2.6403 and the ratio lives in the private `CacheState` with the both-positive guard (see [PowerTick](./PowerTick.md)). PGP-behaviour sections (post-b3baffb, historical ceiling, Re-Volt attribution) were not re-tested this pass and keep their stamps.
