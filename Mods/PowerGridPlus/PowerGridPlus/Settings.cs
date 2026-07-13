@@ -9,11 +9,12 @@ namespace PowerGridPlus
     ///
     ///     Always on, with no toggle: per-prefab battery rate limits, transformer priority +
     ///     shedding, transformer overload protection, rocket umbilical rate limits and the four
-    ///     soft-power logic values, the allocator conservation check, Powered decoupled from the
-    ///     device's own on/off switch, and logic passthrough for every bridge kind (batteries,
-    ///     transformers, APCs, power transmitters, umbilicals). Passthrough is controlled per
-    ///     device via its LogicPassthroughMode logic value; the per-kind Passthrough Default
-    ///     settings below seed devices whose mode has never been set.
+    ///     soft-power logic values, the allocator conservation check, mod-owned consumer Powered
+    ///     (vanilla on/off coupling from the tick snapshot; the IC10 Power logic value serves net
+    ///     liveness instead), the plain-consumer delivery shim, and logic passthrough for every
+    ///     bridge kind (batteries, transformers, APCs, power transmitters, umbilicals).
+    ///     Passthrough is controlled per device via its LogicPassthroughMode logic value; the
+    ///     per-kind Passthrough Default settings below seed devices whose mode has never been set.
     /// </summary>
     internal static class Settings
     {
@@ -29,6 +30,12 @@ namespace PowerGridPlus
         // Voltage tiers are always on (no toggle). This list extends the built-in
         // heavy-cable device allow-list for modded high-draw machines.
         internal static ConfigEntry<string> ExtraHeavyCableDevices;
+
+        // --- Server - Compatibility ---
+        // The delivery shim's built-in five classes are always on (no toggle). This list
+        // extends the shim for modded devices whose gameplay effect runs inside ReceivePower
+        // (the load-time census log names candidates).
+        internal static ConfigEntry<string> ExtraDeliveryDevices;
 
         // --- Server - Batteries ---
         // Rate limits are always enforced: each per-prefab cap applies, plus a per-device
@@ -125,6 +132,16 @@ namespace PowerGridPlus
                      "modded high-draw machines. Names are matched against the device's PrefabName. Example: " +
                      "StructureBigMachine,StructureAnotherMachine", 10));
             ExtraHeavyCableDevices.SettingChanged += (_, __) => VoltageTier.RefreshConfig();
+
+            // --- Server - Compatibility ---
+            ExtraDeliveryDevices = config.Bind("Server - Compatibility", "Extra Delivery Devices", "",
+                Desc("(Server-authoritative) Comma-separated list of extra device prefab names whose ReceivePower " +
+                     "should be called with their granted power each tick, on top of the built-in set (Omni Power " +
+                     "Transmitter, Suit Storage, Battery Cell Charger, Powered Bench, Wall Light Battery). Use this " +
+                     "for modded devices whose gameplay effect (charging something, forwarding power) runs inside " +
+                     "ReceivePower and that the load-time census log names as candidates. Names are matched against " +
+                     "the device's PrefabName.", 10));
+            ExtraDeliveryDevices.SettingChanged += (_, __) => DeliveryEffectClassifier.RefreshConfig();
 
             // --- Server - Batteries ---
             StationBatteryChargeRate = config.Bind("Server - Batteries", "Station Battery Charge Rate", 5000f,

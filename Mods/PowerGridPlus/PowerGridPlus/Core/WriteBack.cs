@@ -29,6 +29,10 @@ namespace PowerGridPlus.Core
     ///       fed at the settlement site (credit == grant by construction), and the consumer
     ///       accumulator drains per decision 26 (main-queue post + worker-direct debits; a DEAD net
     ///       drains nothing, so debts freeze exactly and are billed on revival).</item>
+    ///       <item>The plain-consumer delivery shim: consumers whose gameplay effect runs inside
+    ///       <c>ReceivePower</c> (DeliveryEffectClassifier: the five vanilla classes plus the Extra
+    ///       Delivery Devices list) receive their granted power on LIVE nets, replacing vanilla
+    ///       ConsumePower's per-provider ReceivePower calls.</item>
     ///     </list>
     /// </summary>
     internal static class WriteBack
@@ -71,6 +75,7 @@ namespace PowerGridPlus.Core
         internal static void Clear()
         {
             Current = null;
+            _deliveryWarnLastTick.Clear();
         }
 
         // Umbilical Last* mirrors (vanilla ReceivePower/UsePower kept these; public get, protected set).
@@ -96,6 +101,25 @@ namespace PowerGridPlus.Core
         }
 
         private static readonly Dictionary<long, float> _producersScratch = new Dictionary<long, float>();
+
+        // Delivery-shim warning throttle: one warning per device per window, or a throwing
+        // third-party ReceivePower override would flood the log at 2 Hz. Worker-only.
+        private const int DeliveryWarnCooldownTicks = 600;
+        private static readonly Dictionary<long, int> _deliveryWarnLastTick = new Dictionary<long, int>();
+
+        private static void WarnDeliveryThrottled(int currentTick, GridSnapshot.DeviceRow row, System.Exception ex)
+        {
+            if (_deliveryWarnLastTick.TryGetValue(row.RefId, out int lastWarn)
+                && currentTick - lastWarn < DeliveryWarnCooldownTicks) return;
+            _deliveryWarnLastTick[row.RefId] = currentTick;
+            var device = row.Device;
+            string name = device == null
+                ? "<null>"
+                : (string.IsNullOrEmpty(device.DisplayName) ? device.PrefabName : device.DisplayName);
+            Plugin.Log?.LogWarning(
+                $"[PowerGridPlus] Delivery shim: ReceivePower threw for device {row.RefId} ('{name}', "
+                + $"{device?.GetType().Name}): {ex.Message}");
+        }
 
         internal static void Run(int currentTick, GridSnapshot snap)
         {
@@ -194,7 +218,39 @@ namespace PowerGridPlus.Core
                 }
             }
 
-            // ---- 4. Consumer accumulator drains (decision 26) ----
+            // ---- 4. Plain-consumer delivery shim ----
+            // The classified rows (GridSnapshot.DeviceRow.DeliveryEffect) carry real gameplay only
+            // inside ReceivePower: wireless charge forwarding (PowerTransmitterOmni), suit / cell
+            // recharge (SuitStorage, BatteryCellCharger), appliance forwarding (Bench), and the
+            // wall-light grid-fed latch (WallLightBattery). On a LIVE net the grant equals the
+            // snapshot demand by the all-or-nothing construction, so the delivered figure is
+            // row.Demand; a DEAD net delivers nothing, which is vanilla equivalence (an empty
+            // provider set meant ConsumePower never called ReceivePower). Deliberately excluded:
+            // the fabricator family (their accumulator reset belongs to the debit queue below) and
+            // stores / segmenters (this write-back owns their ledgers above). Vanilla issued these
+            // calls from the same power worker (PowerTick.ApplyState), so threading is unchanged.
+            for (int i = 0; i < snap.Nets.Count; i++)
+            {
+                var nr = snap.Nets[i];
+                if (!NetLiveness.TryGetVerdict(nr.Id, out byte deliveryVerdict) || deliveryVerdict != NetLiveness.Live)
+                    continue;
+                for (int d = 0; d < nr.Rows.Count; d++)
+                {
+                    var row = nr.Rows[d];
+                    if (!row.DeliveryEffect || row.Demand <= 0f) continue;
+                    if (row.Device == null) continue;
+                    try
+                    {
+                        row.Device.ReceivePower(nr.Network, row.Demand);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        WarnDeliveryThrottled(currentTick, row, ex);
+                    }
+                }
+            }
+
+            // ---- 5. Consumer accumulator drains (decision 26) ----
             List<MainThreadDebitQueue.Entry> mainBatch = null;
             for (int i = 0; i < snap.Nets.Count; i++)
             {

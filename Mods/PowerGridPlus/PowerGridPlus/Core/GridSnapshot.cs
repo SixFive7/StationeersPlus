@@ -44,6 +44,7 @@ namespace PowerGridPlus.Core
             public bool IsProducerClass;        // ProducerClassifier.IsProducer
             public bool IsActiveProducer;
             public bool UnknownProducerLike;    // !producer, !EIO, Generated > 0
+            public bool DeliveryEffect;         // ReceivePower carries gameplay (WriteBack shim)
 
             // Control. OnOff is captured for every device (segmenter and plain) so downstream
             // consumers (the cycle graph, the ownership expectation) never re-read it live.
@@ -202,6 +203,10 @@ namespace PowerGridPlus.Core
                         row.IsActiveProducer = row.IsProducerClass && ProducerClassifier.IsActiveProducer(device);
                         row.UnknownProducerLike = !row.IsProducerClass && row.Generated > 0f;
                         row.OnOff = device.OnOff;
+                        // Delivery-effect classification (the write-back shim re-delivers these
+                        // rows' granted power through ReceivePower). Segmenter rows never reach
+                        // this branch, so a segmenter can never be classified even by config.
+                        row.DeliveryEffect = DeliveryEffectClassifier.IsDeliveryEffect(device);
                     }
 
                     nr.Rows.Add(row);

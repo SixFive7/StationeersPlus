@@ -57,6 +57,7 @@ namespace PowerGridPlus.Patches
                 LoadBoundary.DrainPending();
                 MainThreadDebitQueue.Reconcile();
                 UnknownBridgeCensus.RunIfPending();
+                ReceivePowerOverrideCensus.RunIfPending();
                 LedgerAdoption.RunSweepIfPending();
                 LedgerAdoption.AuditTickBoundary(currentTick);
                 SaveLoadSelfCheck.RunIfPending(currentTick);

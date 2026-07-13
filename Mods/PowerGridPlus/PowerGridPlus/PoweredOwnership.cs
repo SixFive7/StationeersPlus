@@ -17,12 +17,12 @@ namespace PowerGridPlus
     /// <summary>
     ///     Consumer Powered ownership (the net-liveness model): the mod, not vanilla, decides every
     ///     plain device's Powered flag, from its network's LIVE / DEAD verdict (NetLiveness), never
-    ///     from whether the device's own demand was met this tick. A device on a LIVE net is
-    ///     powered; a device on a DEAD net is dark; a device's own draw, however spiky or random,
-    ///     cannot flicker it. This kills the whole per-device depower class (the fabricator
-    ///     print-start reboot) structurally: either the subnet can carry the load (stays LIVE,
-    ///     everyone powered) or its segmenter sheds / overloads and the subnet goes dark AS A UNIT,
-    ///     which is the mod's stated contract.
+    ///     from whether the device's own demand was met this tick. A switched-on device on a LIVE
+    ///     net is powered; a device on a DEAD net (or switched off) is dark; a device's own draw,
+    ///     however spiky or random, cannot flicker it. This kills the whole per-device depower
+    ///     class (the fabricator print-start reboot) structurally: either the subnet can carry
+    ///     the load (stays LIVE, everyone powered) or its segmenter sheds / overloads and the
+    ///     subnet goes dark AS A UNIT, which is the mod's stated contract.
     ///
     ///     <para><b>How it owns the flag (B + D1 edition).</b> Vanilla ApplyState is retired, so no
     ///     vanilla tick path writes Powered at all; this sweep, at the write-back tail, is the only
@@ -32,11 +32,13 @@ namespace PowerGridPlus
     ///     other vanilla Powered writer left is the main-thread AssessPower event path, suppressed
     ///     by PoweredOwnershipPatches.</para>
     ///
-    ///     <para><b>Expected state.</b> LIVE net AND structure complete => Powered true; otherwise
-    ///     false. Powered is decoupled from the device's own on/off switch (always, no toggle):
-    ///     Powered means "my outlet is energized", so a switched-off device on a live net reads
-    ///     Power=1 (powered but off), which is the physically-correct decoupling the mod adopts;
-    ///     the draw stays OnOff-gated so nothing is consumed.</para>
+    ///     <para><b>Expected state.</b> LIVE net AND structure complete AND switched on => Powered
+    ///     true; otherwise false. Powered follows the vanilla coupling, decided from this tick's
+    ///     snapshot: the OnOff term is the snapshot row's capture, never a live re-read, so a
+    ///     switched-off device reads Powered=false and a toggle edge lands when the next tick's
+    ///     snapshot carries the new OnOff. Scripts that need "is my network energized" read the
+    ///     IC10 Power logic value, which Patches.PowerLogicReadPatches serves from the net verdict
+    ///     instead of the flag.</para>
     ///
     ///     <para><b>Classification is total.</b> The verdict map is computed FROM the same snapshot
     ///     this sweep iterates, so every swept net has a same-tick verdict by construction; the
@@ -202,10 +204,12 @@ namespace PowerGridPlus
 
                         _state.TryGetValue(refId, out var st);
 
-                        // Powered is decoupled from the device's own OnOff switch: the verdict and
-                        // structure completeness alone decide the expectation.
+                        // Vanilla coupling from the snapshot: the verdict, structure completeness,
+                        // and the row's OnOff (the boundary capture, never a live re-read) decide
+                        // the expectation.
                         byte expected = (verdict == NetLiveness.Live
-                                         && device.IsStructureCompleted) ? (byte)1 : (byte)0;
+                                         && device.IsStructureCompleted
+                                         && row.OnOff) ? (byte)1 : (byte)0;
 
                         bool actual = device.Powered;
 

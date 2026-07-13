@@ -29,6 +29,7 @@ namespace PowerGridPlus.Patches
             BurnReasonRegistry.ClearAll();
 
             UnknownBridgeCensus.Arm();
+            ReceivePowerOverrideCensus.Arm();
             LedgerAdoption.Arm();
             SaveLoadSelfCheck.Arm();
             LoadBoundary.Arm();

@@ -14,11 +14,13 @@ namespace PowerGridPlus.Patches
 
     /// <summary>
     ///     Suppresses vanilla's event-driven Powered writes (<c>Device.AssessPower</c>: OnOff
-    ///     toggles, wiring changes) for owned devices. Powered is decoupled from the device's own
-    ///     on/off switch, so a toggle-OFF must NOT drop Powered (powered-but-off is a valid
-    ///     state); without this prefix the toggle writes false instantly and the sweep re-raises
-    ///     it up to half a second later, a guaranteed per-toggle flicker. The sweep owns both
-    ///     edges within the tick instead.
+    ///     toggles, wiring changes) for owned devices, keeping the ownership sweep the single
+    ///     Powered writer. Powered follows the snapshot coupling (verdict AND structure AND
+    ///     OnOff), so a toggle edge lands within one tick (up to half a second): the NEXT tick's
+    ///     snapshot carries the new OnOff and the sweep asserts the edge. That latency is the
+    ///     deliberate race-free single-writer trade; letting this vanilla write through, or
+    ///     adding a live-OnOff freshness guard to the sweep, would be a second boundary read
+    ///     acting mid-tick, exactly what the snapshot pipeline exists to eliminate.
     ///
     ///     <para>A null network passes through: <c>AssessPower(null, ...)</c> is how vanilla
     ///     darkens a device that lost its last power cable, and a cable-less device never reaches

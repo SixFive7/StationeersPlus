@@ -8,7 +8,7 @@
 
 Reworks Stationeers wired power: an atomic power tick with priority-based transformer dispatch, automatic shedding and overload lockouts, loop and producer-isolation faults with on-device countdowns, elastic battery allocation, three cable tiers as separate transmission voltages, logic-transparent transformer / battery / dish bridges, and deterministic multiplayer cable-network ids.
 
-A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re-Volt (MIT). Multiplayer-compatible; safe to remove from a save. Early build. The power simulation is fully mod-owned and the vanilla power flow never runs, so its races, billing leaks, and partial-power brownouts are gone. A machine is either fully powered or its network is cleanly dark with a visible fault.
+A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re-Volt (MIT). Multiplayer-compatible; safe to remove from a save. Early build. The power simulation is fully mod-owned; the vanilla power flow never runs. A machine is either fully powered or its network is cleanly dark with a visible fault.
 
 [h2]Features[/h2]
 
@@ -18,7 +18,7 @@ A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re
 [*][b]Overloaded[/b] (red flash): delivering everything Setting allows (or a battery at its full rate) while demand stays unmet; the bottleneck trips.
 [*][b]Cycle Fault[/b] (red flash): every member of a power loop faults and contributes 0, dissolving the loop without a burn.
 [*][b]Variable Voltage Fault[/b] (red flash): a producer may only share a network with other producers and transformers; strict: batteries and other bridges count too, and a transformer exempts nothing.
-[*]A machine's own demand spike can never reboot it: Powered is decided from the network's state, so a printer starting a job keeps running. Powered and on/off are always independent: a switched-off device on a live network reads Power=1; read On for the switch.
+[*]A machine's own demand spike can never reboot it: Powered is decided from the network's state plus the device's own switch, so a printer starting a job keeps running and a switched-off device goes dark as in the base game. IC10 Power on a plain device reads network liveness (1 on a live network even while switched off); read On for the switch.
 [*]Hover text names the cause with a live countdown; toggling off clears instantly. A healthy idle bridge stays powered.
 [/list]
 
@@ -29,6 +29,7 @@ A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re
 [*]Per-prefab charge / discharge rate caps (batteries, APC cell, umbilical), each also capped by the cable tier.
 [*]MaxChargeSpeed / MaxDischargeSpeed and live ChargeSpeed / DischargeSpeed logic values on every storage device; Import Quantity / Export Quantity are removed.
 [*]Transformers never leak free power; APCs never leak or drain their cell while idle.
+[*]Charging devices work as before: the Omni Power Transmitter, Suit Storage, Battery Cell Charger, Powered Bench, and Wall Light Battery receive their granted power; modded equivalents enroll via the Extra Delivery Devices setting (the load log names candidates).
 [/list]
 
 [h3]Three-tier transmission voltages (new)[/h3]
@@ -36,14 +37,14 @@ A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re
 [*]The three cable tiers are separate voltages: a network must be all one tier, a wrong-tier cable burns on the next powered tick (an idle network destroys nothing), and transformers / APCs are the bridges.
 [*]Devices belong on their tier: generators and stationary batteries on heavy; high-draw machines (configurable) on heavy or normal; super-heavy is cables-and-transformers only; the rest on normal. A misplaced device burns the adjacent cable when power flows, never the device itself.
 [*]Per-tier cable Watts caps (normal 5000, heavy 100000, super-heavy 0 = unlimited), runtime-enforced; cables in the save are never modified. Super-heavy cable costs 2x to craft (configurable).
-[*]Only direct generator overflow burns cables (a deterministic 10 s sustained-average rule); transformer or battery overflow trips the upstream devices into Overloaded instead.
+[*]Only direct generator overflow burns cables (a 10 s sustained-average rule); transformer or battery overflow trips the upstream devices into Overloaded instead.
 [*]A wrong-tier cable shows a red "Wrong voltage" ghost at the cursor; device placement is never blocked. Burned cables explain why on hover, and the reason survives save / load.
 [/list]
 
 [h3]Transformer priority and dispatch (new)[/h3]
 [list]
 [*]Setting is the vanilla throughput cap again (IC10 reads and writes it as in the base game); new transformers start at full throughput, saved worlds keep theirs.
-[*]The in-world knob and the Labeller set [b]Priority[/b] instead (default 100, step 10 per click or 1 with Alt). Priority decides who sheds first, per input network, and shedding is leaf-first: mid-chain bridges forward a deficit downstream.
+[*]The in-world knob and the Labeller set [b]Priority[/b] instead (default 100; step 10, or 1 with Alt). Priority decides who sheds first, per input network, and shedding is leaf-first: mid-chain bridges forward a deficit downstream.
 [*]New writable [b]Priority[/b] + read-only [b]Shedding[/b] / [b]Overloaded[/b] / [b]CycleFault[/b] logic values; Priority saves with the world and syncs in multiplayer.
 [*]Transmitter / receiver dish pairs join dispatch like transformers, using whichever distance-cost model is active.
 [/list]
@@ -51,22 +52,22 @@ A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re
 [h3]Logic passthrough (new)[/h3]
 [list]
 [*]Bridging devices (transformers, batteries, APCs, linked dish pairs, docked umbilicals) can be made logic-transparent: a reader sees through the bridge, and a whole chain of bridges, with no extra data cable.
-[*]A writable LogicPassthroughMode controls it per device, saved with the world; passthrough support is always on. Six Passthrough Default settings seed a device whose mode was never set (transparent except non-small transformers); a stored mode wins once set; the APC (no logic port) is config-seeded only.
+[*]A writable LogicPassthroughMode controls it per device, saved with the world. Six Passthrough Default settings seed a device whose mode was never set (transparent except non-small transformers); a stored mode wins once set; the APC (no logic port) is config-seeded only.
 [/list]
 
 [h3]Diagnostics (new)[/h3]
 [list]
-[*]A conservation check audits the allocator every tick: inflow must match outflow on every network, and every bridge must bill exactly what it passes on plus its own draw; a violation means a mod bug.
-[*]Stale wireless transfer debts in old saves are zeroed on load; delivery audits verify every store is credited exactly its grant.
+[*]A conservation check audits the allocator every tick: inflow must match outflow on every network and every bridge; a violation means a mod bug.
+[*]Stale wireless transfer debts in old saves are zeroed on load.
 [*]Unrecognised two-port power devices from other mods are listed once at load.
 [/list]
 
 [h3]Settings[/h3]
 All settings are server-authoritative: the host's value applies for everyone. Highlights:
 [list]
-[*]Per-tier cable Watts caps + super-heavy craft cost, per-prefab battery / APC / umbilical charge / discharge rates, [b]Battery Charge Efficiency[/b] (default 1.5: grid energy drawn per unit stored), an extra heavy-cable device list for modded machines.
+[*]Per-tier cable Watts caps + super-heavy craft cost, per-prefab battery / APC / umbilical charge / discharge rates, [b]Battery Charge Efficiency[/b] (default 1.5: grid energy drawn per unit stored), extra heavy-cable and extra delivery device lists for modded machines.
 [*]The six [b]Passthrough Default[/b] seeds for devices whose mode was never set, the battery / transformer [b]Logic Additions[/b] toggles, and the [b]Emergency Light[/b] master + prefab list.
-[*]Always on (no toggle): voltage tiers, cycle faults, producer isolation, deterministic cable burns, battery / umbilical rate limits, transformer shedding and overload protection, the conservation audit, Powered decoupled from on/off, logic passthrough support, the transformer and APC power fixes, device Powered ownership, idle-bridge powered presentation, wireless ledger cleanup.
+[*]Always on (no toggle): voltage tiers, cycle faults, producer isolation, deterministic cable burns, rate limits, shedding and overload protection, the conservation audit, Powered ownership (network state plus the device's switch), delivery to charging devices, logic passthrough, the transformer and APC fixes, idle-bridge presentation, ledger cleanup.
 [/list]
 
 [h2]Compatibility[/h2]
@@ -79,14 +80,14 @@ All settings are server-authoritative: the host's value applies for everyone. Hi
 
 [b]All players[/b] and the dedicated server must run Power Grid Plus; matching versions are enforced in the connection handshake.
 
-Re-Volt also swaps the power tick, so running both is not supported. Power Transmitter Plus is fully compatible: 1.9.0+ hands wireless billing to Power Grid Plus through a load-time handshake; beam visuals, links, and capacity settings stay there.
+Re-Volt also swaps the power tick, so running both is not supported. Power Transmitter Plus is fully compatible: 1.9.0+ hands wireless billing to Power Grid Plus; beam visuals, links, and capacity settings stay there.
 
 [h2]Reporting Issues[/h2]
-Please report bugs as issues on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url], with the mod name in the title. Steam comment notifications don't always come through, so GitHub is the reliable channel.
+Please report bugs as issues on [url=https://github.com/SixFive7/StationeersPlus/issues]GitHub[/url], with the mod name in the title (Steam comment notifications are unreliable).
 
 [h2]Credits[/h2]
 [list]
-[*]Built on the power-simulation work in [url=https://github.com/sukasa/revolt]Re-Volt[/url] by Sukasa (MIT License; the derived portions retain their notice, see the repository NOTICE).
+[*]Built on the power-simulation work in [url=https://github.com/sukasa/revolt]Re-Volt[/url] by Sukasa (MIT License; the derived portions retain their notice, see NOTICE).
 [/list]
 
 [url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/PowerGridPlus]Source Code on GitHub[/url]
@@ -96,23 +97,24 @@ Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/
   <ChangeLog>
 v0.2.0: Atomic power tick and the fault system (work in progress)
 - The power simulation is fully mod-owned: one per-tick snapshot reads the whole grid exactly once, the global allocator solves every network at once, and a write-back applies the result (energy, storage, Powered flags, network readouts, fuses, cable burns). The vanilla per-network power flow no longer runs, so its mid-tick races, billing leaks, and partial-power brownouts are gone: a machine is either fully powered or its network is cleanly dark with a visible fault.
-- Load shedding is leaf-first: only bridges feeding end-of-chain networks with unmet demand shed, lowest Priority first; mid-chain hops forward the deficit downstream instead of decapitating a whole supply chain.
-- Four 60-second fault lockouts with on-device feedback: Shedding (orange flash; the input network cannot cover the device, lowest Priority sheds first), Overloaded (red; at the cap with demand still unmet), Cycle Fault (red; every loop member faults and the loop dissolves without a burn), and Variable Voltage Fault (red; an unprotected producer stops generating). Hover text names the cause with a live countdown; toggling off clears instantly.
-- Producer isolation is always on and strict: producers (solar, wind, generators, RTG, turbine, dynamic generator dock) may only share a cable network with other producers and transformers. Anything else on the network faults the producers (batteries and other bridging devices included); a transformer does not exempt the rest. Unrecognised modded producers fall back to burning the cable next to the violating device.
+- Load shedding is leaf-first: only bridges feeding end-of-chain networks with unmet demand shed, lowest Priority first; mid-chain hops forward the deficit downstream.
+- Four 60-second fault lockouts with on-device feedback: Shedding (orange flash; input short, lowest Priority first), Overloaded (red; at the cap with demand unmet), Cycle Fault (red; every loop member faults, no burn), and Variable Voltage Fault (red; an unprotected producer stops generating). Hover text names the cause with a live countdown; toggling off clears instantly.
+- Producer isolation is always on and strict: producers (solar, wind, generators, RTG, turbine, dynamic generator dock) may only share a cable network with other producers and transformers; anything else faults them, and a transformer does not exempt the rest. Unrecognised modded producers fall back to burning the cable next to the violating device.
 - Elastic storage: batteries, APC cells, and rocket power umbilicals charge only from surplus and discharge only to fill a shortfall, sharing proportionally. New read-only logic values MaxChargeSpeed, MaxDischargeSpeed, ChargeSpeed, and DischargeSpeed on all storage devices; the earlier Import Quantity / Export Quantity exposure on batteries is removed (breaking change).
-- Battery Charge Efficiency is now a charge cost: grid energy drawn per unit stored, default 1.5 (a battery stores two thirds of what it draws; values below 1.0 count as 1.0). Post-loss trickles below 500 W store in full. The loss is destroyed for now; a heat conversion is planned.
-- Transformer Setting is vanilla again: IC10 reads and writes the live throughput cap (the earlier Setting-to-Priority write redirect is removed); new transformers start at full throughput, saved worlds keep their Settings, and Setting 0 means deliberately off (logged at load). The knob and the Labeller set Priority (no upper cap); dispatch is per input network by Priority.
+- Battery Charge Efficiency is now a charge cost: grid energy drawn per unit stored, default 1.5 (a battery stores two thirds of what it draws; values below 1.0 count as 1.0). Post-loss trickles below 500 W store in full.
+- Transformer Setting is vanilla again: IC10 reads and writes the live throughput cap; new transformers start at full throughput, saved worlds keep their Settings, and Setting 0 means deliberately off. The knob and the Labeller set Priority (no upper cap); dispatch is per input network by Priority.
 - Cable Watts caps are configurable per tier (normal 5000, heavy 100000, super-heavy unlimited; 0 = unlimited) and enforced at runtime only; cables in the save are never modified, so removing the mod restores vanilla ratings.
 - Only direct generator overflow burns cables; transformer or battery overflow trips the upstream devices into Overloaded instead. Burned-cable reasons survive save and load.
 - Power transmitter / receiver pairs participate in dispatch as transformer-like devices, using whichever distance-loss model is active (vanilla or PowerTransmitterPlus).
 - Rocket power umbilical rate caps and logic values (charge / discharge rate settings; always on).
-- Multiplayer fault sync rebuilt as per-tick full snapshots with a join handshake, so clients always show the correct flash and countdown, self-healing after packet loss.
+- Multiplayer fault sync rebuilt as per-tick full snapshots with a join handshake, so clients always show the correct flash and countdown.
 - Emergency lights: the battery wall-light emergency behaviour applies to a configurable prefab list (default StructureWallLightBattery).
-- Logic passthrough support is always on; a device bridges only while its LogicPassthroughMode is 1. Six new Passthrough Default settings seed a device whose mode was never set (newly built, or an existing save first running the mod); a stored mode wins once set. Defaults are transparent except non-small transformers; the APC (no logic port) is config-seeded only.
-- Removed settings: Enable Voltage Tiers, Enable Recursive Network Limits, Enable Unlimited Super-Heavy Cables, Enable Transformer Exploit Mitigation, Enable APC Power Fix, Enable Battery Limits, Enable Transformer Shedding, and the per-family logic passthrough masters (all now always on; the super-heavy toggle became the 0 = unlimited cap; orphaned entries are ignored). New settings: the three per-tier cable caps, APC Battery Discharge Rate, the two Rocket Umbilical rate settings, the six per-family Passthrough Default seeds, and Emergency Light Prefabs.
-- Devices no longer power-cycle on their own demand spikes: the mod decides every device's Powered flag from its network's state (live, shed, overloaded, or dead), so a printer starting a job cannot reboot itself and cancel the print. Either the subnet carries the load, or it goes dark as a unit for 60 seconds.
-- Powered and the on/off switch are now independent (no toggle): a switched-off device on a live network reads Power=1 in IC10 and draws nothing. Read On for the switch state.
-- Every device's demand and output is read exactly once per tick into the grid snapshot, so a mid-tick change can never tear the solve; the fabricator-family work accumulators drain on the thread that owns them, and unfunded work on a dark network freezes and bills in full on revival.
+- Logic passthrough support is always on; a device bridges only while its LogicPassthroughMode is 1. Six new Passthrough Default settings seed a device whose mode was never set; a stored mode wins once set. Defaults are transparent except non-small transformers; the APC (no logic port) is config-seeded only.
+- Removed settings: every on/off master for behaviour that is now always on (voltage tiers, recursive limits, exploit fixes, rate limits, shedding, overload protection, the conservation check, the passthrough masters) plus the Powered decoupling toggle; the super-heavy toggle became the 0 = unlimited cap; orphaned entries are ignored. New settings: the per-tier cable caps, APC Battery Discharge Rate, the Rocket Umbilical rates, the six Passthrough Default seeds, Extra Delivery Devices, and Emergency Light Prefabs.
+- Devices no longer power-cycle on their own demand spikes: the mod decides every device's Powered flag from its network's state (live, shed, overloaded, or dead), so a printer starting a job cannot reboot itself and cancel the print.
+- Powered still follows the on/off switch: a switched-off device goes dark exactly as in the base game (info screens and button glows included), and a toggle lands within one power tick (half a second). In IC10, Power on a plain device now reads network liveness (1 while its cable network is energized, even while switched off); read On for the switch state.
+- Devices that do their work when power arrives keep working: the Omni Power Transmitter charges wireless batteries, Suit Storage recharges the stored suit, the Battery Cell Charger fills its slotted cells, the Powered Bench feeds its appliances, and the Wall Light Battery recharges its cell and reports grid power to the emergency-light logic. The new Extra Delivery Devices setting enrolls modded devices; the load log names candidates.
+- Every device's demand and output is read exactly once per tick into the grid snapshot, so a mid-tick change can never tear the solve; unfunded work on a dark network freezes and bills in full on revival.
 
 v0.1.0: First build (work in progress)
 - Reworked cable-network power tick from Re-Volt: proportional load sharing, gradual probabilistic cable burnout on a rolling throughput average, NaN-power guard.
