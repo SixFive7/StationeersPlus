@@ -2675,6 +2675,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#receivepower-override-census-the-consumer-settle-side-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReceivePower override census: the consumer-settle side effects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8332,6 +8343,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#receivepower-override-census-the-consumer-settle-side-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReceivePower override census: the consumer-settle side effects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8443,11 +8465,12 @@
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-12
+verified_at: 2026-07-13
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networks.PowerTick
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 254512-254760 (PowerTick), 254484-254511 (PowerProvider), 253668-253681 (CableNetwork.OnPowerTick), 254610-254613 (CheckForRecursiveProviders), 254656 (CacheState), 350696-350724 (Device base query/settle methods)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 271698-271947 (PowerTick), 271676-271697 (PowerProvider), 270827-270840 (CableNetwork.OnPowerTick), 270617 (CableNetwork.PowerTick field), 230535-230542 (Pick extension), 371501-371534 (Device base query/settle methods)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: ReceivePower override census (29 two-argument override sites), 408641-408672 (PowerTransmitterOmni.ReceivePower), 356760-356791 (WirelessBattery), 325481-325492 (Bench), 327413-327440 (SuitStorage), 327955-327978 (WallLightBattery), 392227-392269 (BatteryCellCharger), 432516-432519 + 265-298 (Appliance.ReceivePower(float) overload family)
   - Mods/PowerGridPlus/RESEARCH.md (voltage-tier research); .work/revolt-source/Assets/Scripts/RevoltTick.cs (RevoltTick : PowerTick); Mods/PowerGridPlus (PowerGridTick : PowerTick, reverse-patches CacheState + CheckForRecursiveProviders)
 related:
   - ./CableNetwork.md
@@ -8754,8 +8777,105 @@ tags: [power, threading]</p>
 - <code>RocketPowerUmbilicalFemale.UsePower</code> / <code>ReceivePower</code> (158143-158153) and <code>Male.UsePower</code> (158628-158637): direct <code>PowerStored</code> clamps plus the <code>LastPowerRemoved</code> / <code>LastPowerAdded</code> mirrors (the Male zeroes <code>LastPowerRemoved</code> when OFF).
 - Pure generators (SolarPanel, WindTurbineGenerator, SolidFuelGenerator, GasFuelGenerator, TurbineGenerator, DynamicGenerator) override nothing; <code>RadioscopicThermalGenerator.UsePower</code> (416916-416919) calls the empty base. A generator's delivered energy is therefore never debited from anything; output is recomputed per tick.
 - Non-delivery <code>UsePower</code> callers exist: <code>Fermenter.OnPowerTick</code> self-calls <code>UsePower(net, GetUsedPower(net))</code> (181602-181610, a no-op through the base), and <code>DynamicComposter.UsePower()</code> (296399) is an unrelated parameterless battery-cell toggle.</p>
+<h2 id="receivepower-override-census-the-consumer-settle-side-effects">ReceivePower override census: the consumer-settle side effects<a class="headerlink" href="#receivepower-override-census-the-consumer-settle-side-effects" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
+
+<p>The consumer-debit half mirroring the <code>UsePower</code> census above. The base is an empty virtual on <code>Device</code>:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ReceivePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">)</span><span class="w">   </span><span class="c1">// Device, 371527-371529</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Vanilla dispatch to a plain consumer is exactly one site: <code>PowerTick.ConsumePower</code> (271820-271840) calls <code>device.ReceivePower(cableNetwork, num2)</code> at 271832, once per provider drained, from the <code>ApplyState</code> device loop (271929). (The rocket umbilical's direct <code>PartnerUmbilical.ReceivePower(null, ...)</code> crossing at 158139 / 158624 dispatches only onto <code>RocketPowerUmbilical</code> halves; see <a href="../Device/">Device</a>, "Two per-device draw-state fields".) A power solver that never calls <code>ReceivePower</code> therefore switches off every side effect below at once.</p>
+<p>Whole-decompile census at 0.2.6403.27689: <strong>29 overrides</strong> of the two-argument <code>Device.ReceivePower(CableNetwork, float)</code> (grep <code>override void ReceivePower</code>). The single-float <code>Appliance.ReceivePower(float)</code> at 432516-432519 (<code>return powerReceived - UsedPower;</code>, one override: <code>ApplianceTabletDock</code> 285-298, which additionally charges a docked tablet's battery cell) is a separate overload never dispatched by <code>PowerTick</code>; it is reached only through <code>Bench.ReceivePower</code> below. Breakdown of the 29:</p>
+<ul>
+<li><strong>16 impulse-reset overrides</strong> whose whole body is <code>base.ReceivePower(...); _powerUsedDuringTick = 0f;</code>: AdvancedComposter 179751, DroidSleeper 181263, Fermenter 181596, FridgePowered 182046, ArcFurnace 365561, FiltrationMachineBase 377881, IceCrusher 380309, IndustrialFiltration 382281, PipeHeater 384831, AirConditioner 390268, Fabricator 396296, SimpleFabricatorBase 420216, SpawnPointAtmospherics 422742 (variant: passes <code>powerAdded + _powerUsedDuringTick</code> into the empty base first, then resets), VendingMachineRefrigerated 426493, WallCooler 426621, WallHeater 426738. The reset is the settle-side half of the <code>_powerUsedDuringTick</code> impulse protocol (<a href="../Device/">Device</a>, "Two per-device draw-state fields"); the zero-Potential corollary above describes the freeze when the call never comes.</li>
+<li><strong>1 pure base call</strong>: LiquidDrain 186108-186111 (no effect).</li>
+<li><strong>4 <code>_powerProvided</code> bridge ledgers</strong>: AreaPowerControl 391014-391026 (ledger settle plus cell charge), Transformer 424765-424771, PowerTransmitter 408432-408444, PowerReceiver 408192-408203 (ledger <code>-=</code>; the two dishes ALSO write <code>base.VisualizerIntensity</code> from <code>powerAdded</code> here, so the dish glow intensity is itself a ReceivePower-only surface). Verbatim bodies on <a href="../AreaPowerControl/">AreaPowerControl</a>.</li>
+<li><strong>3 terminal stores</strong>: Battery 392152-392158 (<code>PowerStored</code> charge clamp, gated <code>Error != 1 &amp;&amp; OnOff &amp;&amp; cableNetwork == InputNetwork &amp;&amp; IsOperable</code>), RocketPowerUmbilicalFemale 158149-158153 and RocketPowerUmbilicalMale 158639-158648 (<code>PowerStored</code> clamps plus the <code>LastPowerAdded</code> mirror; the Male zeroes the mirror when errored or off).</li>
+<li><strong>5 plain-consumer classes with real gameplay effects inside <code>ReceivePower</code></strong>, i.e. the classes whose behavior exists ONLY when a power system actually settles them:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Override</th>
+<th>Effect when settled</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PowerTransmitterOmni</code></td>
+<td>408641-408672</td>
+<td>Pays its own <code>UsedPower</code>, then equal-split charges every linked <code>WirelessBattery</code> in <code>_batteriesInRange</code> (verbatim below).</td>
+</tr>
+<tr>
+<td><code>SuitStorage</code></td>
+<td>327431-327440</td>
+<td>Pays <code>UsedPower</code>, then recharges the stored suit, helmet, and backpack batteries in that order (<code>Recharge</code> helper 327413-327420 calls <code>Battery.AddPowerSafe</code>).</td>
+</tr>
+<tr>
+<td><code>Bench</code></td>
+<td>325481-325492</td>
+<td>Calls the empty base, deducts <code>UsedPower</code>, then chains the remainder through each docked switched-on appliance's <code>Appliance.ReceivePower(float)</code> (each deducts its own <code>UsedPower</code>, 432516-432519).</td>
+</tr>
+<tr>
+<td><code>BatteryCellCharger</code></td>
+<td>392227-392269</td>
+<td>Pays <code>UsedPower</code>, equal-split charges the non-charged slotted <code>BatteryCell</code>s via <code>AddPowerSafe</code>, and toggles its Activate light via <code>OnServer.Interact(base.InteractActivate, ...)</code>.</td>
+</tr>
+<tr>
+<td><code>WallLightBattery</code></td>
+<td>327955-327978</td>
+<td>Shortfall (<code>UsedPower - powerAdded &gt; 0</code>): drains the internal cell by the deficit, or runs <code>CheckPowerState()</code> when the slot is empty or drained. Otherwise: stamps <code>_lastPoweredByCableOnTick = GameManager.GameTickCount</code> and recharges the cell with any excess over <code>UsedPower</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The omni's override verbatim (408641-408672):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ReceivePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">)</span><span class="w">   </span><span class="c1">// PowerTransmitterOmni</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">powerAdded</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">UsedPower</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="n">powerAdded</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">UsedPower</span><span class="p">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">Clear</span><span class="p">();</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span><span class="n">_batteriesInRange</span><span class="p">);</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">;</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">powerAdded</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">num</span><span class="p">)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">powerAdded</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">num3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">num3</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">num3</span><span class="o">--</span><span class="p">)</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_batteriesToCharge</span><span class="p">[</span><span class="n">num3</span><span class="p">].</span><span class="n">LinkedOmni</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">_batteriesToCharge</span><span class="p">[</span><span class="n">num3</span><span class="p">].</span><span class="n">LinkedOmni</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">this</span><span class="p">)</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">                </span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">RemoveAt</span><span class="p">(</span><span class="n">num3</span><span class="p">);</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">            </span><span class="k">else</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">                </span><span class="kt">float</span><span class="w"> </span><span class="n">num4</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_batteriesToCharge</span><span class="p">[</span><span class="n">num3</span><span class="p">].</span><span class="n">AddPowerWireless</span><span class="p">(</span><span class="n">num2</span><span class="p">);</span>
+</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="w">                </span><span class="n">powerAdded</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">num4</span><span class="p">;</span>
+</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_batteriesToCharge</span><span class="p">[</span><span class="n">num3</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">_batteriesToCharge</span><span class="p">[</span><span class="n">num3</span><span class="p">].</span><span class="n">IsCharged</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">_batteriesToCharge</span><span class="p">[</span><span class="n">num3</span><span class="p">].</span><span class="n">CalculateUniqueRatioIdentifier</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.999f</span><span class="p">)</span>
+</span><span id="__span-5-25"><a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-5-26"><a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="w">                    </span><span class="n">_batteriesToCharge</span><span class="p">.</span><span class="n">RemoveAt</span><span class="p">(</span><span class="n">num3</span><span class="p">);</span>
+</span><span id="__span-5-27"><a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-5-28"><a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-29"><a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-5-30"><a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-31"><a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">ReceivePower</span><span class="p">(</span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">);</span>
+</span><span id="__span-5-32"><a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>WirelessBattery.AddPowerWireless</code> (356781-356785) applies the distance falloff before storing:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">AddPowerWireless</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">availablePower</span><span class="p">)</span><span class="w">   </span><span class="c1">// WirelessBattery : BatteryCell</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">availablePower</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">efficiencyOverDistanceMultiplier</span><span class="p">.</span><span class="n">Evaluate</span><span class="p">(</span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp01</span><span class="p">(</span><span class="n">RangeToOmni</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">LinkedOmni</span><span class="p">.</span><span class="n">MaxDistance</span><span class="p">));</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">AddPowerSafe</span><span class="p">(</span><span class="n">availablePower</span><span class="p">);</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>where <code>efficiencyOverDistanceMultiplier = new AnimationCurve(new Keyframe(0f, 0.75f), new Keyframe(1f, 0.25f))</code> (356768): 75% of the offered slice is stored at zero range, falling to 25% at <code>LinkedOmni.MaxDistance</code>.</p>
+<p><strong>Mod context.</strong> A replacement power solver that keeps consumers Powered but never calls <code>ReceivePower</code> on them silences all five classes' gameplay: suit storages stop recharging suits, benches stop feeding appliances, cell chargers stop charging (and their Activate light freezes), battery wall lights neither drain nor recharge their cell (and <code>_lastPoweredByCableOnTick</code> freezes stale), and omni transmitters stop wireless-charging their linked batteries. The 16 impulse-reset classes additionally never get <code>_powerUsedDuringTick</code> zeroed. This is exactly the PowerGridPlus atomic-tick regression found 2026-07-13 (the mod's replacement tick settles supply and demand in its own snapshot without running <code>ConsumePower</code>, so no per-device consumer settle ever fires).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-13: added the "ReceivePower override census: the consumer-settle side effects" section (whole-decompile census at 0.2.6403.27689, produced from the PowerGridPlus atomic-tick regression found the same day). Base <code>Device.ReceivePower</code> re-read verbatim (371527-371529, empty body); 29 overrides of the two-argument signature enumerated and classified (16 impulse-reset, 1 pure base call, 4 <code>_powerProvided</code> bridges including the dish <code>VisualizerIntensity</code> writes, 3 terminal stores, 5 plain consumers with gameplay effects); <code>PowerTransmitterOmni.ReceivePower</code> (408641-408672) and <code>WirelessBattery.AddPowerWireless</code> (356781-356785, falloff curve declared 356768) quoted verbatim; Bench / SuitStorage / BatteryCellCharger / WallLightBattery summarized with line cites (325481-325492, 327431-327440 with Recharge 327413-327420, 392227-392269, 327955-327978); the single-float <code>Appliance.ReceivePower(float)</code> overload family (432516-432519, ApplianceTabletDock 265/285-298) recorded as separate from the PowerTick dispatch. Count note: the incoming claim from the regression session said 31 overrides; the direct grep census finds 29 two-argument overrides (30 counting the Appliance-overload override, 32 counting the two virtual declarations), so the section records 29. Additive; no prior page content contradicted.</li>
 <li>2026-07-12: added the "Net-load-field consumer census, and the UsePower override census" section and the caller-exclusivity paragraph under "CableNetwork.OnPowerTick drives it" (whole-decompile censuses at 0.2.6403.27689, produced for the PowerGridPlus B + D1 data-plane replacement: the load mirrors' complete reader/writer contract incl. the MP serialize at 272028-272037 / client write-back at 272144-272146 and the ShortfallLoad zero-reader finding; the per-class UsePower/ReceivePower settle semantics verbatim-cited; the trio + OnPowerTick single-caller-chain proof). No prior content contradicted; the load-mirror lag section's bridge-read list is confirmed and extended.</li>
 <li>2026-07-09 (later): two changes from the PowerGridPlus Powered-ownership redesign investigation (game version 0.2.6403.27689). (a) CONFLICT RESOLUTION on the AllowSetPower override census: the four-row table (added 2026-07-02) claimed to be the whole-decompile census; two independent census agents found six device overrides, and the fresh-validation direct read confirmed the two missing rows verbatim (<code>PowerGeneratorPipe.AllowSetPower</code> 396569-396572 and <code>StirlingEngine.AllowSetPower</code> 423979-423982, both <code>return false;</code>), plus the uncalled non-Device <code>ElevatorShaftNetwork.AllowSetPower</code> aggregate (395892). Table corrected to six rows + the dead-code note; the "all four nominate the input side" conclusion narrowed to the four bridges, with the generator classes documented as fully self-owned (OnAtmosphericTick writes both Powered edges: 396692-396705, 424025-424077). (b) Added the "Zero-Potential corollary (the dark-net freeze)" paragraph to the settle-loops section: <code>CalculateState</code> enrolls a <code>PowerProvider</code> only for <code>generatedPower &gt; 0f</code> (271782-271792) and <code>ConsumePower</code> skips drained providers (271826), so a network whose producers all advertise 0 has an EMPTY provider array, <code>ReceivePower</code> is never called, <code>ConsumePower</code> returns false, per-tick accumulator debts freeze exactly, and the ApplyState power-on branch cannot fire. Read directly from the decompile this pass; this corollary is the conservation mechanism a mod-forced dark network rests on.</li>
 <li>2026-07-09: re-confirmed the <code>ApplyState</code> device power-apply gate (271903-271946) and base <code>Device.AllowSetPower</code> (371531-371534) verbatim against the 0.2.6403.27689 decompile; no content change (the "ApplyState un-powers zero-demand and unfed devices" and "CacheState: strict power-met" sections already capture the else-branch, the strict <code>_isPowerMet</code> gate, and the base <code>PowerCableNetwork == cableNetwork</code> semantics). Occasion: diagnosing a PowerGridPlus fabricator print-start reboot. A print spikes a fabricator's <code>GetUsedPower</code> for one tick; because PowerGridPlus pins each net's <code>Potential</code> to the allocator's exact grant with no headroom, that one-tick spike makes <code>Potential &lt; Required</code>, <code>_isPowerMet</code> false, and the else-branch (271936-271938) un-powers the fabricator, whose main-thread <code>OnPoweredChanged</code> cancels the in-progress print. Vanilla's advertised supply headroom normally masks this. The mod-side fix mirrors PowerGridPlus's existing segmenter <code>AllowSetPower</code> veto (<code>PoweredPresentationPatches</code>) for plain consumers behind a one-tick grace; that is mod-local and belongs in the PowerGridPlus docs, not here.</li>
