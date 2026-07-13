@@ -42,7 +42,6 @@ namespace PowerGridPlus.Patches
         public static void Postfix(CableNetwork __instance, bool __state, List<Device> ____dataDeviceList)
         {
             if (!__state) return;
-            if (!PassthroughTopology.AnyPassthroughEnabled()) return;
 
             var reachable = PassthroughTopology.GatherReachable(__instance);
             if (reachable == null) return; // not part of a passthrough component

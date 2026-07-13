@@ -7,8 +7,7 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     // Redirects the Labeller's "Set value" input panel from LogicType.Setting
-    // to LogicType.Priority when the target is a Transformer and the Priority +
-    // Shedding feature is enabled.
+    // to LogicType.Priority when the target is a Transformer.
     //
     // Vanilla flow (decompile L329782 + L403408-403440):
     //   Transformer.HandleButtonSetting -> labeller.Set(this)  // default logicType = Setting
@@ -33,7 +32,6 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch(nameof(Labeller.Set))]
         public static void Set_Prefix(ISetable setable, ref LogicType logicType)
         {
-            if (!ShedSettingsSync.Effective) return;
             if (setable is Transformer && logicType == LogicType.Setting)
             {
                 logicType = LogicTypeRegistry.Priority;
@@ -43,7 +41,6 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch(nameof(Labeller.InputSetting))]
         public static void InputSetting_Prefix(ISetable settable, ref LogicType logicType)
         {
-            if (!ShedSettingsSync.Effective) return;
             if (settable is Transformer && logicType == LogicType.Setting)
             {
                 logicType = LogicTypeRegistry.Priority;

@@ -4,7 +4,7 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     Per-network sliding 20-tick window of direct-generator power, for the §5.7 deterministic
-    ///     cable-burn rule (see <see cref="Patches.PowerTickPatches"/>). A cable burns when the 20-tick
+    ///     cable-burn rule (fed and consumed by <see cref="Core.WriteBack"/>). A cable burns when the 20-tick
     ///     running average of the generator power flowing on a network exceeds the weakest cable's cap;
     ///     the victim is the cable at the output of the generator that produced the most over that same
     ///     window. No randomness, no settings -- fully deterministic and reproducible.

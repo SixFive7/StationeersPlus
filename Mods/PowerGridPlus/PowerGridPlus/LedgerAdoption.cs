@@ -92,7 +92,7 @@ namespace PowerGridPlus
     ///     <para><b>Diagnostics: exact ledger audit</b> (always-on, no config entry; replaces the
     ///     former approximate 4x high-water detector). The settle makes the ledger's lifecycle
     ///     fully deterministic, so ownership violations are detected EXACTLY rather than by
-    ///     threshold, in four anomaly classes:</para>
+    ///     threshold, in three anomaly classes:</para>
     ///
     ///     <list type="bullet">
     ///       <item><b>Boundary</b> (layer B, <see cref="AuditTickBoundary"/>): the settle records
@@ -160,8 +160,7 @@ namespace PowerGridPlus
             public float Settled;      // post-settle field value (layer B reference)
             public float Baseline;     // field value observed at this tick's boundary
             public double Shadow;      // sum of observed in-tick deltas since the boundary
-            public float LastAfter;    // field value after the last observed operation
-            public Site LastSite;      // last observed operation (bracket-window reporting)
+            public Site LastSite;      // last observed operation (named in the unobserved-path warning)
             public int SettleStamp;    // tick of the settle that last recorded this entry (purge)
             public bool Armed;         // boundary ran since the last settle: in-tick checks active
         }
@@ -193,11 +192,10 @@ namespace PowerGridPlus
         private static float _worstMagnitude;
         private static AuditKind _worstKind;
         private static long _worstRefId;
-        private static float _worstA;                  // boundary: settled; unobserved: baseline; bracket: last AFTER
-        private static float _worstB;                  // boundary/unobserved: found; bracket: found BEFORE; non-finite: the value
+        private static float _worstA;                  // boundary: settled; unobserved: baseline
+        private static float _worstB;                  // boundary/unobserved: found; non-finite: the value
         private static double _worstShadow;            // unobserved: the shadow sum
         private static Site _worstSiteFrom;
-        private static Site _worstSiteTo;
 
         /// <summary>Arm the world-load sweep to run on the next atomic tick.</summary>
         internal static void Arm() => _sweepPending = true;
@@ -305,7 +303,7 @@ namespace PowerGridPlus
         ///     the first boundary read (no mutation can precede the check; the vanilla writers
         ///     died with ApplyState). A deviation is an out-of-band writer between last tick's settle
         ///     and now. Re-baselining to the FOUND value makes one foreign write count exactly
-        ///     once (here), not again in the bracket or settle-tail checks.
+        ///     once (here), not again in the settle-tail check.
         /// </summary>
         internal static void AuditTickBoundary(int currentTick)
         {
@@ -325,21 +323,20 @@ namespace PowerGridPlus
                 {
                     _boundaryAnomalies++;
                     NoteWorst(AnomalyClass.Boundary, e.Kind, kv.Key, Magnitude(current - e.Settled),
-                        e.Settled, current, 0.0, Site.Settle, Site.Boundary);
+                        e.Settled, current, 0.0, Site.Settle);
                 }
                 e.Baseline = current;
                 e.Shadow = 0.0;
-                e.LastAfter = current;
                 e.LastSite = Site.Boundary;
                 e.Armed = true;
             }
             EmitWarningIfDue(currentTick);
         }
 
-        // The old layer A+ (per-mutation bracket continuity via LedgerAuditPatches postfixes on
-        // the vanilla UsePower/ReceivePower writers) is retired with vanilla ApplyState: nothing
-        // legitimate mutates an owned ledger inside the tick any more, so the boundary identity
-        // plus the unobserved-path check at the settle tail cover the whole surface.
+        // No per-mutation audit layer exists between the boundary check and the settle tail:
+        // nothing legitimate mutates an owned ledger inside the tick (the vanilla
+        // UsePower / ReceivePower writers died with ApplyState), so the boundary identity plus
+        // the unobserved-path check at the settle tail cover the whole surface.
 
         /// <summary>
         ///     ENFORCE tail: settle every enrolled, settle-eligible segmenter's ledger to its
@@ -433,14 +430,14 @@ namespace PowerGridPlus
         }
 
         // Pre-settle audit: the non-finite backstop, the silent negative counter (the free-energy
-        // metric), and the layer A+ settle-tail identity (field == boundary + shadow).
+        // metric), and the settle-tail identity (field == boundary + shadow).
         private static void AuditPreSettle(AuditKind kind, long refId, float value)
         {
             if (float.IsNaN(value) || float.IsInfinity(value))
             {
                 _nonFiniteAnomalies++;
                 NoteWorst(AnomalyClass.NonFinite, kind, refId, float.PositiveInfinity,
-                    0f, value, 0.0, Site.Boundary, Site.Settle);
+                    0f, value, 0.0, Site.Boundary);
                 return;   // the settle repairs it (NeedsWrite is true for non-finite)
             }
             if (value < -Tolerance) _negativeSettles++;
@@ -452,7 +449,7 @@ namespace PowerGridPlus
                 {
                     _unobservedAnomalies++;
                     NoteWorst(AnomalyClass.UnobservedPath, kind, refId, Magnitude((float)diff),
-                        e.Baseline, value, e.Shadow, e.LastSite, Site.Settle);
+                        e.Baseline, value, e.Shadow, e.LastSite);
                 }
             }
         }
@@ -518,7 +515,7 @@ namespace PowerGridPlus
         }
 
         private static void NoteWorst(AnomalyClass cls, AuditKind kind, long refId, float magnitude,
-            float a, float b, double shadow, Site siteFrom, Site siteTo)
+            float a, float b, double shadow, Site siteFrom)
         {
             if (_worstClass == AnomalyClass.None || magnitude >= _worstMagnitude)
             {
@@ -530,7 +527,6 @@ namespace PowerGridPlus
                 _worstB = b;
                 _worstShadow = shadow;
                 _worstSiteFrom = siteFrom;
-                _worstSiteTo = siteTo;
             }
         }
 
@@ -588,7 +584,6 @@ namespace PowerGridPlus
             _worstB = 0f;
             _worstShadow = 0.0;
             _worstSiteFrom = Site.Boundary;
-            _worstSiteTo = Site.Boundary;
         }
 
         private static string KindName(AuditKind kind)

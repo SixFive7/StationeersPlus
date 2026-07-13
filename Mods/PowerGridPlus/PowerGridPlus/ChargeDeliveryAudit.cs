@@ -5,54 +5,48 @@ using System.Globalization;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Charge-delivery audit: the grant-vs-credit seam detector, the fifth self-diagnostic
-    ///     surface (POWER.md §8.8) next to the conservation check, the shortfall census, the ledger
-    ///     audit, and the partial-power sentinel. The allocator's GRANTS are audited by the
-    ///     conservation checker and the vanilla-facing BILLS by the ledger audit and the sentinel,
+    ///     Charge-delivery audit: the grant-vs-credit seam detector, a self-diagnostic surface
+    ///     (POWER.md §8.8) next to the conservation check, the shortfall census, and the ledger
+    ///     audit. The allocator's GRANTS are audited by the
+    ///     conservation checker and the vanilla-facing BILLS by the ledger audit,
     ///     but what actually lands in a STORE (a PowerStored credit) was unaudited: a delivery-side
     ///     adjustment (a quiescent subtraction, a ledger dance, a clamp) can silently under- or
     ///     over-credit a store relative to the charge the allocator granted, with every other
     ///     invariant green (the APC quiescent-subtraction wrinkle that motivated this auditor).
     ///
-    ///     <para><b>Observation via the argument stream, not field diffing.</b> The store fields
+    ///     <para><b>Observation at the settlement site, not field diffing.</b> The store fields
     ///     are float32, so a PowerStored delta quantizes at the store's magnitude (16 J per ulp
     ///     on a 230 MJ nuclear bank: the 13c soak measured 39.37 W grants landing as 32, 25.58
     ///     as 32, 0.67 as 0, all multiples of 16). That rounding is storage physics, not a
-    ///     delivery seam, so the credited amount is derived from the delivered ARGUMENT after
-    ///     every patch adjustment, through the implementation's own credit gates, clamped by the
-    ///     pre-call headroom: <c>credited = min(delivered-after-adjustments, headroom-before)</c>
-    ///     (the vanilla Clamp at PowerMaximum reported truthfully, so a near-full store's clamp
-    ///     truncation never fires the audit; the grant is sized from the same float headroom, so
-    ///     the two sides meet exactly). Battery and umbilical credits are computed by the
-    ///     Priority.First/Last brackets in Patches.ChargeDeliveryObservationPatches (gates cited
-    ///     there against the decompile); the APC records its exact credit at the source inside
-    ///     its own ReceivePowerPatch. Only calls on the store's INPUT network count: the
-    ///     umbilical's phase-2 cell-to-cell crossing passes a null network and vanishes from the
-    ///     sum by construction, and discharge (UsePower) and the battery's OnAtmosphericTick
-    ///     self-drain are different methods entirely, so neither can pollute a credit.</para>
+    ///     delivery seam, so the credited amount is recorded where the energy lands: the
+    ///     write-back settlement (Core/WriteBack.ApplyCredit) feeds <see cref="RecordCredit"/>
+    ///     the amount it actually stores, after the battery charge-cost divisor and the
+    ///     sub-500 W trickle floor. Credit == grant then holds by construction, and the audit
+    ///     exists to catch a settlement-path change that breaks the identity. The umbilical's
+    ///     phase-2 cell-to-cell crossing and the battery's OnAtmosphericTick self-drain mutate
+    ///     PowerStored outside the settlement plan, so neither can pollute a credit sum.</para>
     ///
     ///     <para><b>Grant-moot recognition.</b> A store whose charge gate legitimately closed
     ///     between the ALLOCATE grant and ENFORCE is not a seam: the APC cell's IsCharged is the
     ///     Mode display state, updated by a main-thread interact that can land inside the tick,
     ///     so on the tick a cell fills the grant exists while the bill and delivery correctly
     ///     carry no charge (granted 1000 / credited 0, the farm-APC tick-868 finding: one event
-    ///     per fill edge, sentinel silent because the supplier's surplus advertise keeps the net
-    ///     met). The APC billing and delivery patches call <see cref="MarkChargeGateClosed"/>
+    ///     per fill edge while the supplier's surplus advertise kept the net Served). The APC
+    ///     billing patch calls <see cref="MarkChargeGateClosed"/>
     ///     when a fresh share exists but the cell can take no charge; a marked store's grant is
     ///     skipped this tick. Battery and umbilical bills are headroom-gated (no display-state
     ///     flag), stable within the tick, so they need no marker.</para>
     ///
-    ///     <para><b>Comparison</b> (ENFORCE tail, after every ApplyState): for every store the
-    ///     allocator granted charge this tick (the per-tick grant snapshot ALLOCATE publishes via
+    ///     <para><b>Comparison</b> (ENFORCE tail, after the write-back settlement): for every store
+    ///     the allocator granted charge this tick (the per-tick grant snapshot ALLOCATE publishes via
     ///     <see cref="PublishGrants"/>: refId -> granted watts, charge-side net, store kind), the
     ///     credited sum must equal the grant. Gates: the charge-side net must be classified Served
-    ///     this tick (on an unmet net vanilla ratio-scales deliveries by design, honest darkness,
-    ///     same exemption as the partial-power sentinel); Battery entries
-    ///     compare against the band [granted * BatteryChargeEfficiency, granted] because the
-    ///     configured efficiency loss is legitimate (and its sub-500 W per-chunk exemption keeps
-    ///     the actual inside that band); zero-grant zero-credit passes trivially. Stores with
+    ///     this tick (an unmet net legitimately delivers short: honest darkness); Battery entries
+    ///     compare against the band [granted / max(1, BatteryChargeEfficiency), granted] because
+    ///     the configured charge-cost loss is legitimate (and its sub-500 W per-chunk exemption
+    ///     keeps the actual inside that band); zero-grant zero-credit passes trivially. Stores with
     ///     credits but NO grant record are outside the allocator's model (a short-circuited
-    ///     battery, a master toggled off, vanilla fallback) and are not a grant-vs-credit seam by
+    ///     battery, vanilla fallback) and are not a grant-vs-credit seam by
     ///     definition; they are not audited.</para>
     ///
     ///     <para><b>Tolerance: 0.5 W.</b> Same basis as the ConservationChecker tolerance and the
@@ -72,8 +66,8 @@ namespace PowerGridPlus
     ///     window; keep the member names stable.</para>
     ///
     ///     <para>Threading: grants swap by volatile reference (allocator worker); credits are
-    ///     recorded from ApplyState on the power worker; the tail comparison runs on the same
-    ///     worker after every ApplyState. The suite reads counters from the sim-tick pump.</para>
+    ///     recorded from the write-back settlement on the power worker; the tail comparison runs
+    ///     later on the same worker. The suite reads counters from the sim-tick pump.</para>
     /// </summary>
     internal static class ChargeDeliveryAudit
     {
@@ -107,11 +101,9 @@ namespace PowerGridPlus
             new ConcurrentDictionary<long, (int, float, byte)>();
 
         /// <summary>
-        ///     Record an observed store credit (argument-derived: the delivered amount after every
-        ///     patch adjustment, through the implementation's credit gates, clamped by the
-        ///     pre-call headroom) for one ReceivePower call on the store's input network. Called
-        ///     from the observation brackets / the APC delivery patch inside ApplyState;
-        ///     single-threaded per tick on the power worker.
+        ///     Record a settlement store credit (the amount the write-back actually stores, after
+        ///     its adjustment gates). Called from Core/WriteBack.ApplyCredit; single-threaded per
+        ///     tick on the power worker.
         /// </summary>
         internal static void RecordCredit(long refId, byte kind, float credited)
         {
@@ -128,7 +120,7 @@ namespace PowerGridPlus
             new ConcurrentDictionary<long, int>();
 
         /// <summary>Mark a store's charge grant moot for this tick (its charge gate closed after
-        /// the grant was made). Called from the APC billing / delivery patches.</summary>
+        /// the grant was made). Called from the APC billing patch.</summary>
         internal static void MarkChargeGateClosed(long refId)
         {
             _gateClosed[refId] = ElectricityTickCounter.CurrentTick;
@@ -137,9 +129,10 @@ namespace PowerGridPlus
         /// <summary>
         ///     The pure comparison predicate: does a (granted, credited) pair break the
         ///     credit-equals-grant contract? <paramref name="efficiencyFloor"/> is 1 for exact
-        ///     stores and the configured charge efficiency (0..1] for batteries, whose configured
-        ///     loss keeps a legitimate credit inside [granted * floor, granted]. Reflection-driven
-        ///     by the ScenarioRunner rearch suite; keep the signature stable.
+        ///     stores and 1 / max(1, BatteryChargeEfficiency) (0..1] for batteries, whose
+        ///     configured charge-cost loss keeps a legitimate credit inside
+        ///     [granted * floor, granted]. Reflection-driven by the ScenarioRunner rearch suite;
+        ///     keep the signature stable.
         /// </summary>
         internal static bool IsViolation(float granted, float credited, float efficiencyFloor)
         {
@@ -169,9 +162,9 @@ namespace PowerGridPlus
 
         /// <summary>
         ///     ENFORCE tail: compare every granted store's credited sum against its grant and emit
-        ///     the throttled aggregated warning when due. Runs after every network's ApplyState so
-        ///     the credits are final for the tick (the umbilical crossing runs later in the device
-        ///     tick but never enters the sum; see the class doc).
+        ///     the throttled aggregated warning when due. Runs after the write-back settlement so
+        ///     the credits are final for the tick (the umbilical cell-to-cell crossing runs later
+        ///     in the device tick but never enters the sum; see the class doc).
         /// </summary>
         internal static void RunEnforceTail(int currentTick)
         {
@@ -191,16 +184,20 @@ namespace PowerGridPlus
                 if (_gateClosed.TryGetValue(pair.Key, out int closedTick) && closedTick == currentTick)
                     continue;
 
-                // Honest darkness: on an unmet net vanilla ratio-scales the delivery by design
-                // (the partial-power sentinel's exemption); only a Served net promises
-                // delivered == granted.
+                // Honest darkness: an unmet net legitimately delivers short; only a Served net
+                // promises delivered == granted.
                 if (!ShortfallDiagnostics.TryClassify(grant.NetId, out byte cls)
                     || cls != ShortfallDiagnostics.Served)
                     continue;
 
+                // Battery Charge Efficiency is a cost multiplier (grid energy drawn per unit
+                // stored, floored at 1), so the legitimate credited fraction is its reciprocal.
                 float floor = 1f;
                 if (grant.Kind == KindBattery && Settings.BatteryChargeEfficiency != null)
-                    floor = Settings.BatteryChargeEfficiency.Value;
+                {
+                    float chargeCost = Settings.BatteryChargeEfficiency.Value;
+                    floor = 1f / (chargeCost > 1f ? chargeCost : 1f);
+                }
 
                 if (!IsViolation(grant.Granted, credited, floor)) continue;
 

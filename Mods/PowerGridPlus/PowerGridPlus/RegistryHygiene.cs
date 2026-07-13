@@ -4,12 +4,14 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     Registry hygiene sweep: every 600 ticks (about 5 minutes at the 2 Hz power tick), prune
-    ///     the four fault registries (Brownout / Overload / CycleFault / VariableVoltageFault) of
-    ///     entries that can no longer matter: EXPIRED lockouts (the IsLockedOut read path
-    ///     self-cleans, but an entry nobody queries again leaks forever; e.g. a device that
-    ///     faulted once and then idled out of every roster) and entries for DESTROYED Things (a
-    ///     deconstructed device's ReferenceId is never queried again, so its entry is immortal
-    ///     without this sweep). The registries are small in practice, so this is a hygiene bound,
+    ///     the four fault registries (Brownout / Overload / CycleFault / VariableVoltageFault) and
+    ///     the PoweredOwnership quarantine of entries that can no longer matter: EXPIRED lockouts
+    ///     (the IsLockedOut read path self-cleans, but an entry nobody queries again leaks forever;
+    ///     e.g. a device that faulted once and then idled out of every roster) and entries for
+    ///     DESTROYED Things (a deconstructed device's ReferenceId is never queried again, so its
+    ///     entry is immortal without this sweep). The quarantine is swept for the destroyed class
+    ///     only: a quarantined device has no expiry by design, but a deconstructed one can never
+    ///     be swept again. The registries are small in practice, so this is a hygiene bound,
     ///     not a hot-path fix: it guarantees session-long memory is bounded by the number of
     ///     CURRENTLY faulted devices instead of the number of devices that EVER faulted.
     ///
@@ -60,6 +62,7 @@ namespace PowerGridPlus
             OverloadRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
             CycleFaultRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
             VariableVoltageFaultRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
+            destroyed += PoweredOwnership.PruneDestroyedQuarantine();
 
             ExpiredPruned += expired;
             DestroyedPruned += destroyed;
@@ -68,7 +71,7 @@ namespace PowerGridPlus
                 Plugin.Log?.LogInfo(
                     "[PowerGridPlus] Registry hygiene: pruned " + expired.ToString(CultureInfo.InvariantCulture)
                     + " expired and " + destroyed.ToString(CultureInfo.InvariantCulture)
-                    + " destroyed-device fault entr(ies) at tick " + currentTick.ToString(CultureInfo.InvariantCulture)
+                    + " destroyed-device entr(ies) at tick " + currentTick.ToString(CultureInfo.InvariantCulture)
                     + " (totals since load: " + ExpiredPruned.ToString(CultureInfo.InvariantCulture)
                     + " expired, " + DestroyedPruned.ToString(CultureInfo.InvariantCulture) + " destroyed).");
             }

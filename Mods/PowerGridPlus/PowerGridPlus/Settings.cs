@@ -6,6 +6,14 @@ namespace PowerGridPlus
     /// <summary>
     ///     Central holder for every <see cref="ConfigEntry{T}"/> the mod binds. All settings are
     ///     server-authoritative: in multiplayer the host's values apply for everyone.
+    ///
+    ///     Always on, with no toggle: per-prefab battery rate limits, transformer priority +
+    ///     shedding, transformer overload protection, rocket umbilical rate limits and the four
+    ///     soft-power logic values, the allocator conservation check, Powered decoupled from the
+    ///     device's own on/off switch, and logic passthrough for every bridge kind (batteries,
+    ///     transformers, APCs, power transmitters, umbilicals). Passthrough is controlled per
+    ///     device via its LogicPassthroughMode logic value; the per-kind Passthrough Default
+    ///     settings below seed devices whose mode has never been set.
     /// </summary>
     internal static class Settings
     {
@@ -23,7 +31,8 @@ namespace PowerGridPlus
         internal static ConfigEntry<string> ExtraHeavyCableDevices;
 
         // --- Server - Batteries ---
-        internal static ConfigEntry<bool> EnableBatteryLimits;
+        // Rate limits are always enforced: each per-prefab cap applies, plus a per-device
+        // cable-headroom cap so a single battery cannot exceed the rating of its own cable.
         internal static ConfigEntry<float> StationBatteryChargeRate;
         internal static ConfigEntry<float> StationBatteryDischargeRate;
         internal static ConfigEntry<float> LargeBatteryChargeRate;
@@ -36,41 +45,33 @@ namespace PowerGridPlus
         internal static ConfigEntry<float> RocketBatterySmallDischargeRate;
         internal static ConfigEntry<float> BatteryChargeEfficiency;
         internal static ConfigEntry<bool> EnableBatteryLogicAdditions;
-        internal static ConfigEntry<bool> EnableBatteryLogicPassthrough;
+        internal static ConfigEntry<bool> BatteryPassthroughDefault;
 
         // --- Server - Transformers ---
-        // The transformer free-power exploit mitigation (fresh-pull billing) is always on (no toggle).
+        // The transformer free-power exploit mitigation (fresh-pull billing), the Priority +
+        // Shedding system, and overload protection are always on (no toggles).
         internal static ConfigEntry<bool> EnableTransformerLogicAdditions;
-        internal static ConfigEntry<bool> EnableTransformerLogicPassthrough;
-        internal static ConfigEntry<bool> EnableTransformerShedding;
-        internal static ConfigEntry<bool> EnableTransformerOverloadProtection;
+        internal static ConfigEntry<bool> SmallTransformerPassthroughDefault;
+        internal static ConfigEntry<bool> OtherTransformerPassthroughDefault;
 
         // --- Server - Area Power Control ---
         // The APC power-leak / idle-drain / cable-cap fix is always on (no toggle).
         internal static ConfigEntry<float> ApcBatteryChargeRate;
         internal static ConfigEntry<float> ApcBatteryDischargeRate;
-        internal static ConfigEntry<bool> EnableAreaPowerControlLogicPassthrough;
+        internal static ConfigEntry<bool> ApcPassthroughDefault;
 
         // --- Server - Power Transmitters ---
-        internal static ConfigEntry<bool> EnablePowerTransmitterLogicPassthrough;
+        internal static ConfigEntry<bool> PowerTransmitterPassthroughDefault;
 
         // --- Server - Rocket Umbilical ---
-        internal static ConfigEntry<bool> EnableRocketUmbilicalLimits;
+        // Umbilical rate limits and the four soft-power logic values are always on (no toggle).
         internal static ConfigEntry<int> RocketUmbilicalChargeRate;
         internal static ConfigEntry<int> RocketUmbilicalDischargeRate;
-        internal static ConfigEntry<bool> EnableUmbilicalLogicPassthrough;
-
-        // --- Server - Diagnostics ---
-        internal static ConfigEntry<bool> EnableConservationCheck;
+        internal static ConfigEntry<bool> UmbilicalPassthroughDefault;
 
         // --- Server - Emergency Lights ---
         internal static ConfigEntry<bool> EnableEmergencyLights;
         internal static ConfigEntry<string> EmergencyLightPrefabs;
-
-        // --- Server - Powered Presentation ---
-        // Device Powered ownership (the allocator decides every device's Powered flag from its
-        // network's liveness verdict) is always on (no toggle).
-        internal static ConfigEntry<bool> DecouplePoweredFromOnOff;
 
         private static ConfigDescription Desc(string text, int order, bool requireRestart = false)
         {
@@ -89,7 +90,7 @@ namespace PowerGridPlus
             // --- Server - Cable Simulation ---
             // Cable burnout itself is deterministic and hardcoded (no setting): a cable burns when the
             // 20-tick running average of direct generator power on its network exceeds the weakest
-            // cable's cap (PowerTickPatches / CableBurnWindow). Only the per-tier caps are configurable.
+            // cable's cap (Core/WriteBack + CableBurnWindow). Only the per-tier caps are configurable.
             CableNormalMaxWatts = config.Bind("Server - Cable Simulation", "Normal Cable Max Watts", 5000,
                 Desc("(Server-authoritative) Watts cap for normal cable. A cable carrying more than this from direct " +
                      "generator supply burns out; overflow caused by transformers or batteries trips those devices into " +
@@ -126,12 +127,6 @@ namespace PowerGridPlus
             ExtraHeavyCableDevices.SettingChanged += (_, __) => VoltageTier.RefreshConfig();
 
             // --- Server - Batteries ---
-            EnableBatteryLimits = config.Bind("Server - Batteries", "Enable Battery Limits", true,
-                Desc("(Server-authoritative) When true, stationary batteries are charge- and discharge-rate limited. " +
-                     "Each per-prefab cap below applies, plus a per-device cable-headroom cap so a single battery " +
-                     "cannot exceed the rating of the cable it is wired to. With this off, no per-prefab rate cap " +
-                     "applies (the cable-tier cap and the allocator's share model still do).", 10));
-
             StationBatteryChargeRate = config.Bind("Server - Batteries", "Station Battery Charge Rate", 5000f,
                 Desc("(Server-authoritative) Maximum charge wattage for the small Station Battery (StructureBattery). " +
                      "Per device, not per network. Capped further by the input cable's MaxVoltage so a single battery " +
@@ -150,11 +145,11 @@ namespace PowerGridPlus
                      "(StructureBatteryLarge). Per device. Capped further by the output cable's MaxVoltage.", 50));
 
             NuclearBatteryChargeRate = config.Bind("Server - Batteries", "Nuclear Battery Charge Rate", 25000f,
-                Desc("(Server-authoritative) Maximum charge wattage for the Nuclear Battery (StructureBatteryNuclear, " +
+                Desc("(Server-authoritative) Maximum charge wattage for the Nuclear Battery (StationBatteryNuclear, " +
                      "from the third-party MorePowerMod). No effect if MorePowerMod is not installed.", 60));
 
             NuclearBatteryDischargeRate = config.Bind("Server - Batteries", "Nuclear Battery Discharge Rate", 50000f,
-                Desc("(Server-authoritative) Maximum discharge wattage for the Nuclear Battery (StructureBatteryNuclear, " +
+                Desc("(Server-authoritative) Maximum discharge wattage for the Nuclear Battery (StationBatteryNuclear, " +
                      "from the third-party MorePowerMod). No effect if MorePowerMod is not installed.", 70));
 
             RocketBatteryMediumChargeRate = config.Bind("Server - Batteries", "Rocket Battery (Medium) Charge Rate", 5000f,
@@ -175,10 +170,12 @@ namespace PowerGridPlus
                 Desc("(Server-authoritative) Maximum discharge wattage for the Auxiliary Rocket Battery (StructureBatterySmall). " +
                      "Per device, not per network. Capped further by the output cable's MaxVoltage.", 78));
 
-            BatteryChargeEfficiency = config.Bind("Server - Batteries", "Battery Charge Efficiency", 1.0f,
-                Desc("(Server-authoritative) Fraction of incoming power a stationary battery actually stores. 1.0 is " +
-                     "lossless; lower it to lose energy to charging inefficiency. (Trickle charges below 500 W are stored " +
-                     "in full regardless, to avoid a battery never topping off.)", 80));
+            BatteryChargeEfficiency = config.Bind("Server - Batteries", "Battery Charge Efficiency", 1.5f,
+                Desc("(Server-authoritative) Grid energy a stationary battery draws per unit of energy it stores. 1.0 is " +
+                     "lossless; the default 1.5 means a battery stores two thirds of what it draws and the rest is lost " +
+                     "(a future update turns the loss into heat). Values below 1.0 are treated as 1.0: a battery never " +
+                     "stores more than it draws. Post-loss trickle charges below 500 W are stored in full regardless, so " +
+                     "a battery can always top off.", 80));
 
             EnableBatteryLogicAdditions = config.Bind("Server - Batteries", "Enable Battery Logic Additions", true,
                 Desc("(Server-authoritative) When true, stationary batteries expose four read-only logic values, in " +
@@ -186,52 +183,36 @@ namespace PowerGridPlus
                      "the connected cable's tier cap) and Charge Speed and Discharge Speed (the actual per-tick rates " +
                      "the power allocator granted this tick). When false, none of the four values is readable.", 90));
 
-            EnableBatteryLogicPassthrough = config.Bind("Server - Batteries", "Enable Battery Logic Passthrough", true,
-                Desc("(Server-authoritative) Master kill-switch for stationary-battery logic-passthrough. When true, batteries " +
-                     "honour the per-device LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 makes the " +
-                     "battery logic-transparent (devices on either cable side are visible across), 0 keeps vanilla logic-opaque " +
-                     "behaviour. Every battery defaults to mode 1 (enabled); per-device mode is persisted across save / load. " +
-                     "When this master is false, every battery behaves vanilla-opaque regardless of its per-device mode.", 100));
+            BatteryPassthroughDefault = config.Bind("Server - Batteries", "Battery Passthrough Default", true,
+                Desc("(Server-authoritative) The logic-passthrough mode a stationary battery starts with: applies to a " +
+                     "newly built battery and to any battery whose mode has never been set (for example an existing save " +
+                     "running this mod for the first time). On = logic-transparent (devices on either cable side are " +
+                     "visible across), off = vanilla-opaque. A battery's own LogicPassthroughMode logic value (writable " +
+                     "via IC10 or a logic writer, persisted with the save) overrides this once set. Passthrough support " +
+                     "itself is always on; there is no master kill-switch.", 100));
 
             // --- Server - Transformers ---
             EnableTransformerLogicAdditions = config.Bind("Server - Transformers", "Enable Transformer Logic Additions", true,
                 Desc("(Server-authoritative) When true, transformers expose their current throughput as the Power Actual " +
                      "logic value.", 20));
 
-            EnableTransformerLogicPassthrough = config.Bind("Server - Transformers", "Enable Transformer Logic Passthrough", true,
-                Desc("(Server-authoritative) Master kill-switch for transformer logic-passthrough. When true, transformers " +
-                     "honour the per-device LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 makes " +
-                     "the transformer logic-transparent (devices on either side are visible across), 0 keeps vanilla " +
-                     "logic-opaque behaviour. The small transformer and its reversed variant default to mode 1; every other " +
-                     "transformer defaults to mode 0. Per-device mode is persisted across save / load. When this master is " +
-                     "false, every transformer behaves vanilla-opaque regardless of its per-device mode.", 30));
+            SmallTransformerPassthroughDefault = config.Bind("Server - Transformers", "Small Transformer Passthrough Default", true,
+                Desc("(Server-authoritative) The logic-passthrough mode a small transformer (StructureTransformerSmall, " +
+                     "StructureTransformerSmallReversed, StructureRocketTransformerSmall) starts with: applies to a newly " +
+                     "built small transformer and to any small transformer whose mode has never been set (for example an " +
+                     "existing save running this mod for the first time). On = logic-transparent (devices on either side " +
+                     "are visible across), off = vanilla-opaque. A transformer's own LogicPassthroughMode logic value " +
+                     "(writable via IC10 or a logic writer, persisted with the save) overrides this once set. Passthrough " +
+                     "support itself is always on; there is no master kill-switch.", 30));
 
-            EnableTransformerShedding = config.Bind("Server - Transformers", "Enable Transformer Shedding", true,
-                Desc("(Server-authoritative) Master toggle for the transformer Priority + Shedding feature (upstream-side " +
-                     "protection). When true, the in-world dial sets a per-transformer Priority (non-negative int, default " +
-                     "100, step 10 per click or 1 with Alt), and the power allocator divides each input cable network's " +
-                     "supply by priority tier: higher-priority transformers fill first, equal-priority transformers share " +
-                     "in proportion to capacity. When supply falls short, the lowest-priority claims shed first, whole " +
-                     "(never partial): a shed transformer flashes its on / off button orange, surfaces a hover error, " +
-                     "contributes 0 to its output network for 60 seconds, then re-engages automatically. Shed fires " +
-                     "instantly on detection; the atomic power tick decides with fresh in-tick data, so no tolerance " +
-                     "counter is needed. LogicType.Setting stays pure vanilla (a writable throughput cap, clamped to " +
-                     "[0, OutputMaximum]); Priority is its own writable logic value, and the read-only " +
-                     "LogicType.Shedding returns 1 while a transformer is in shed lockout, 0 otherwise. When this master " +
-                     "is false, no priority allocation and no shed lockouts are applied: transformers request their full " +
-                     "downstream demand and a short input network simply stays short.", 40));
-
-            EnableTransformerOverloadProtection = config.Bind("Server - Transformers", "Enable Transformer Overload Protection", true,
-                Desc("(Server-authoritative) Master toggle for downstream-side overload protection. When true, a transformer " +
-                     "whose output cable network demands more than the transformer can deliver enters overload protection: " +
-                     "it contributes 0 W to the output network for 60 seconds (flashes its on / off button orange, surfaces a " +
-                     "hover error 'downstream demand exceeds this transformer's limit'), then re-engages automatically. For parallel " +
-                     "transformers on the same output network, overload fires for all of them together when combined " +
-                     "OutputMaximum cannot meet the network's RequiredLoad. Fires instantly on detection; no tolerance " +
-                     "counter. The downstream sub-network goes dark cleanly instead of vanilla's partial-power-then-Powered=" +
-                     "false random device failures. A new read-only LogicType.Overloaded returns 1 while a transformer is in " +
-                     "overload lockout, 0 otherwise. When this master is false, overload lockouts are not applied: an " +
-                     "over-demanded transformer delivers up to its limit and the remaining downstream demand goes unmet.", 50));
+            OtherTransformerPassthroughDefault = config.Bind("Server - Transformers", "Other Transformer Passthrough Default", false,
+                Desc("(Server-authoritative) The logic-passthrough mode every transformer variant other than the three " +
+                     "small-transformer prefabs starts with: applies to a newly built transformer and to any transformer " +
+                     "whose mode has never been set (for example an existing save running this mod for the first time). " +
+                     "On = logic-transparent (devices on either side are visible across), off = vanilla-opaque. A " +
+                     "transformer's own LogicPassthroughMode logic value (writable via IC10 or a logic writer, persisted " +
+                     "with the save) overrides this once set. Passthrough support itself is always on; there is no master " +
+                     "kill-switch.", 35));
 
             // --- Server - Area Power Control ---
             ApcBatteryChargeRate = config.Bind("Server - Area Power Control", "APC Battery Charge Rate", 1000f,
@@ -245,33 +226,29 @@ namespace PowerGridPlus
                      "output network. Per device, not per network. Capped further by the output cable's MaxVoltage. The " +
                      "elastic-supply allocator discharges the cell only to fill the output network's shortfall, never more.", 17));
 
-            EnableAreaPowerControlLogicPassthrough = config.Bind("Server - Area Power Control", "Enable APC Logic Passthrough", true,
-                Desc("(Server-authoritative) Master kill-switch for Area Power Control logic-passthrough. When true, " +
-                     "Area Power Controllers honour the per-device LogicPassthroughMode logic value (writable via IC10 " +
-                     "or a logic writer): 1 makes the APC logic-transparent (devices on either cable side are visible " +
-                     "across, and the APC's own logic ports are visible from both), 0 keeps vanilla logic-opaque " +
-                     "behaviour where the APC breaks the logic network the same way it breaks the power network. Every " +
-                     "APC defaults to mode 1 (enabled); per-device mode is persisted across save / load. When this master " +
-                     "is false, every APC behaves vanilla-opaque regardless of its per-device mode. Power is unaffected " +
-                     "either way: the APC's downstream side always meters and gates power normally.", 20));
+            ApcPassthroughDefault = config.Bind("Server - Area Power Control", "APC Passthrough Default", true,
+                Desc("(Server-authoritative) The logic-passthrough mode an Area Power Control starts with: applies to a " +
+                     "newly built APC and to any APC whose mode has never been set (for example an existing save running " +
+                     "this mod for the first time). On = logic-transparent (devices on either cable side are visible " +
+                     "across, and the APC's own logic ports are visible from both), off = vanilla-opaque, where the APC " +
+                     "breaks the logic network the same way it breaks the power network. The APC's mode is currently " +
+                     "seeded from this setting only (the APC does not yet expose a writable LogicPassthroughMode logic " +
+                     "port); it still persists with the save once set by the mod. Passthrough support itself is always " +
+                     "on; there is no master kill-switch. Power is unaffected either way: the APC's downstream side " +
+                     "always meters and gates power normally.", 20));
 
             // --- Server - Power Transmitters ---
-            EnablePowerTransmitterLogicPassthrough = config.Bind("Server - Power Transmitters", "Enable Power Transmitter Logic Passthrough", true,
-                Desc("(Server-authoritative) Master kill-switch for power-transmitter logic-passthrough across a wireless link. " +
-                     "When true, a linked TX/RX dish pair is logic-transparent: an IC10 or logic reader wired to the TX's cable " +
-                     "network can see devices wired to the RX's cable network, and vice versa. Each dish honours its own " +
-                     "LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 = transparent, 0 = opaque. " +
-                     "Defaults to mode 1 for every transmitter and receiver. Bridging requires the pair to be linked (auto-aim " +
-                     "or manual link); an unlinked dish has nothing to bridge to. Per-device mode is persisted across save / load.", 10));
+            PowerTransmitterPassthroughDefault = config.Bind("Server - Power Transmitters", "Power Transmitter Passthrough Default", true,
+                Desc("(Server-authoritative) The logic-passthrough mode a wireless power dish starts with, covering both " +
+                     "ends of a link (PowerTransmitter and PowerReceiver): applies to a newly built dish and to any dish " +
+                     "whose mode has never been set (for example an existing save running this mod for the first time). " +
+                     "On = logic-transparent (a reader wired to the transmitter's cable network sees devices on the " +
+                     "receiver's network, and vice versa), off = vanilla-opaque. Bridging requires the pair to be linked; " +
+                     "an unlinked dish has nothing to bridge to. A dish's own LogicPassthroughMode logic value (writable " +
+                     "via IC10 or a logic writer, persisted with the save) overrides this once set. Passthrough support " +
+                     "itself is always on; there is no master kill-switch.", 10));
 
             // --- Server - Rocket Umbilical ---
-            EnableRocketUmbilicalLimits = config.Bind("Server - Rocket Umbilical", "Enable Rocket Umbilical Limits", true,
-                Desc("(Server-authoritative) When true, the rocket power umbilical pair (Male / Female) is charge- and " +
-                     "discharge-rate limited like a stationary battery, participates in the shed / overload / cycle-fault " +
-                     "system as a segmenting device, and exposes the four soft-power logic values (Max/Charge/Discharge " +
-                     "Speed). When false, the rate caps fall back to the internal cell's PowerMaximum per tick and the " +
-                     "four logic values are not exposed; the umbilical stays a modeled storage device either way.", 10));
-
             RocketUmbilicalChargeRate = config.Bind("Server - Rocket Umbilical", "Rocket Umbilical Charge Rate", 10000,
                 Desc("(Server-authoritative) Maximum Watts the rocket umbilical pulls from upstream per tick to charge its " +
                      "internal cell. Capped further by the input cable's MaxVoltage. Default 10000 matches the vanilla " +
@@ -282,32 +259,16 @@ namespace PowerGridPlus
                      "Capped further by the output cable's MaxVoltage. Default 10000 matches the vanilla umbilical cell " +
                      "PowerMaximum.", 30));
 
-            EnableUmbilicalLogicPassthrough = config.Bind("Server - Rocket Umbilical", "Enable Umbilical Logic Passthrough", true,
-                Desc("(Server-authoritative) Master kill-switch for rocket power-umbilical logic-passthrough. When true, a " +
-                     "docked umbilical pair (Male + Socket) is logic-transparent: a logic reader on the rocket-internal grid " +
-                     "sees devices on the external grid (and its data bus) and vice versa, as if the two halves were one wire. " +
-                     "Each half honours its own LogicPassthroughMode logic value (writable via IC10 or a logic writer): 1 = " +
-                     "transparent, 0 = opaque; writing one half mirrors the value to its docked partner so both always read " +
-                     "the same. Bridging requires the pair to be docked (connected); an undocked umbilical bridges nothing. " +
-                     "Both halves default to mode 1. Per-device mode is persisted across save / load. When this master is " +
-                     "false, the umbilical carries no logic regardless of per-device mode.", 40));
-
-            // --- Server - Diagnostics ---
-            EnableConservationCheck = config.Bind("Server - Diagnostics", "Enable Conservation Check", true,
-                Desc("(Server-authoritative) When true, the power allocator audits its own decisions every tick: per " +
-                     "cable network, the granted inflow (generators, contributor throughput, battery discharge) must " +
-                     "match the granted outflow (loads served, storage charge, contributor draws) within half a Watt, " +
-                     "and every transformer / wireless pair / APC must bill its input exactly what it passes downstream " +
-                     "plus its own quiescent draw. A violation logs a warning with a per-component breakdown, throttled " +
-                     "to once per network per five minutes. Violations indicate a mod bug, not a base problem; the " +
-                     "check costs a few microseconds per tick, so leave it on unless chasing maximum performance.", 10));
-
-            // --- Server - Powered Presentation ---
-            DecouplePoweredFromOnOff = config.Bind("Server - Powered Presentation", "Decouple Powered From On Off", true,
-                Desc("(Server-authoritative) Powered means 'this device's network is energized', independent of the " +
-                     "device's own on/off switch: a switched-off device on a live network reads Power=1 (powered but off) " +
-                     "and still draws nothing. Off keeps the vanilla coupling, where a switched-off device also reads " +
-                     "Power=0.", 10));
+            UmbilicalPassthroughDefault = config.Bind("Server - Rocket Umbilical", "Umbilical Passthrough Default", true,
+                Desc("(Server-authoritative) The logic-passthrough mode a rocket power umbilical half starts with, " +
+                     "covering both halves (Male and Socket): applies to a newly built umbilical and to any umbilical " +
+                     "whose mode has never been set (for example an existing save running this mod for the first time). " +
+                     "On = logic-transparent (a docked pair carries logic as if the two halves were one wire: a reader on " +
+                     "the rocket-internal grid sees devices on the external grid and vice versa), off = vanilla-opaque. " +
+                     "Bridging requires the pair to be docked; an undocked umbilical bridges nothing. A half's own " +
+                     "LogicPassthroughMode logic value (writable via IC10 or a logic writer, persisted with the save; " +
+                     "writing one half mirrors the value to its docked partner) overrides this once set. Passthrough " +
+                     "support itself is always on; there is no master kill-switch.", 40));
 
             // --- Server - Emergency Lights ---
             EnableEmergencyLights = config.Bind("Server - Emergency Lights", "Enable Wall Light Battery Emergency Mode", true,
@@ -326,6 +287,7 @@ namespace PowerGridPlus
                      "modded battery-light prefab names to include them, or remove entries to restrict the set. Entries " +
                      "must be battery-backed wall lights (the WallLightBattery device class); names are matched against " +
                      "the device's PrefabName.", 20));
+            EmergencyLightPrefabs.SettingChanged += (_, __) => Patches.EmergencyLightSupport.RefreshConfig();
         }
     }
 }

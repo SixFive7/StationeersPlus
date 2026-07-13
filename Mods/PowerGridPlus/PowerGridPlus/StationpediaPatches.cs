@@ -167,13 +167,6 @@ namespace PowerGridPlus
 
         private static string BuildRocketUmbilicalFooter()
         {
-            if (!Settings.EnableRocketUmbilicalLimits.Value)
-            {
-                return
-                    "\n\n{HEADER:POWER GRID PLUS}\n" +
-                    "Behaviour: vanilla (transfers up to its internal cell maximum per tick). " +
-                    "(Server config \"Enable Rocket Umbilical Limits\" is off; the soft-power logic values are not exposed.)";
-            }
             return
                 "\n\n{HEADER:POWER GRID PLUS}\n" +
                 $"Internal cell: 10 kJ. Charge rate capped at {FormatWatts(Settings.RocketUmbilicalChargeRate.Value)} " +
@@ -209,14 +202,6 @@ namespace PowerGridPlus
 
         private static string BuildTransformerFooter()
         {
-            if (!Settings.EnableTransformerShedding.Value)
-            {
-                return
-                    "\n\n{HEADER:POWER GRID PLUS}\n" +
-                    "Behaviour: vanilla. The knob controls throughput; Setting / Maximum / Ratio logic " +
-                    "values behave as in the base game. (Server config \"Enable Transformer Shedding\" is off.)";
-            }
-
             return
                 "\n\n{HEADER:POWER GRID PLUS}\n" +
                 "Throughput: governed by the vanilla Setting value (IC10 read / write, clamped 0..OutputMaximum). " +

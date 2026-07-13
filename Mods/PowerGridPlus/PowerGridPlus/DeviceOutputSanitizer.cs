@@ -7,19 +7,18 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     Sanitizes non-finite (NaN / Infinity) power values reported by devices, so one broken device
-    ///     cannot poison a whole network's sums and cascade into <c>_powerRatio</c> / stored battery
-    ///     charge (POWER.md §P3). Two entry points:
+    ///     cannot poison a whole network's sums and cascade into the allocator's grants or stored
+    ///     battery charge (POWER.md §P3). <see cref="Sanitize"/> is called from two places:
     ///
     ///     <list type="bullet">
-    ///       <item><see cref="Sanitize"/> -- called from the <c>GetGeneratedPower</c> / <c>GetUsedPower</c>
-    ///       postfixes on the device classes PowerGridPlus already patches (battery, APC, umbilical,
-    ///       producers). It clamps a non-finite return to 0 AT THE SOURCE, so the value is clean for
-    ///       every reader (vanilla CalculateState, the §5.7 average, the allocator) and the network never
-    ///       darkens.</item>
-    ///       <item><see cref="Report"/> -- called from the per-network backstop
-    ///       (<c>PowerTickPatches.CalculateState_NanGuard</c>) when a poisoned sum is detected: it scans
-    ///       the network for the culprit and names it. This covers devices PowerGridPlus does NOT patch
-    ///       (an unknown or modded class), which is the case a player most needs to hear about.</item>
+    ///       <item>From the <c>GetGeneratedPower</c> / <c>GetUsedPower</c> postfixes on the device
+    ///       classes PowerGridPlus already patches (battery, APC, umbilical, producers). Clamping a
+    ///       non-finite return to 0 AT THE SOURCE keeps the value clean for every reader, including
+    ///       main-thread callers outside the tick.</item>
+    ///       <item>From the snapshot boundary read (<c>Core/GridSnapshot</c>), which samples every
+    ///       power device's demand and output once per tick before the allocator consumes them. This
+    ///       covers devices PowerGridPlus does NOT patch (an unknown or modded class), which is the
+    ///       case a player most needs to hear about.</item>
     ///     </list>
     ///
     ///     <para>Reporting: every occurrence goes to the BepInEx file log (developer detail). The
@@ -48,8 +47,8 @@ namespace PowerGridPlus
 
         /// <summary>
         ///     Report a broken device (file log every time; in-game console once per device per session).
-        ///     Does not clamp -- used by the per-network backstop where the value is already in a poisoned
-        ///     sum and the goal is only to name the culprit.
+        ///     Does not clamp; split from <see cref="Sanitize"/> so a caller that already replaced the
+        ///     value can still name the culprit.
         /// </summary>
         internal static void Report(Device device, bool generated, float value)
         {

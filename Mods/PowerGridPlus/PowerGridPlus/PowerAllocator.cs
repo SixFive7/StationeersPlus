@@ -204,8 +204,8 @@ namespace PowerGridPlus
             public float RigidDemand;
             public float GenSupply;
             // GATHER saw at least one non-segmenter power device on this net. Combined with the
-            // per-tick Softs roster it decides the partial-power sentinel's ratio-contract
-            // scope (published to ShortfallDiagnostics alongside the classification snapshot).
+            // per-tick Softs roster it decides the ratio-contract scope (published to
+            // ShortfallDiagnostics alongside the classification snapshot).
             public bool HasNonSegmenterDevice;
             public float WeakestCap = float.MaxValue;   // snapshot-time weakest-cable cap (tier rating)
             public int Depth = UnreachableDepth;
@@ -238,9 +238,6 @@ namespace PowerGridPlus
 
         internal static void RunAtomic(int currentTick)
         {
-            bool shedOn = ShedSettingsSync.Effective;
-            bool overloadOn = OverloadSettingsSync.Effective;
-
             // ----------------------------------------------------------------
             // 1. GATHER.
             // ----------------------------------------------------------------
@@ -443,9 +440,7 @@ namespace PowerGridPlus
                         Elastic ownElastic = null;
                         if (battery.OutputNetwork != null && battery.PowerStored > 0f)
                         {
-                            float rateCap = Settings.EnableBatteryLimits.Value
-                                ? Patches.StationaryBatteryPatches.EffectiveDischargeCap(battery)
-                                : float.MaxValue;
+                            float rateCap = Patches.StationaryBatteryPatches.EffectiveDischargeCap(battery);
                             elastics.Add(ownElastic = new Elastic
                             {
                                 RefId = battery.ReferenceId,
@@ -464,9 +459,7 @@ namespace PowerGridPlus
                         if (battery.InputNetwork != null && !locked)
                         {
                             float headroom = battery.PowerMaximum - battery.PowerStored;
-                            float rateCap = Settings.EnableBatteryLimits.Value
-                                ? Patches.StationaryBatteryPatches.EffectiveChargeCap(battery)
-                                : float.MaxValue;
+                            float rateCap = Patches.StationaryBatteryPatches.EffectiveChargeCap(battery);
                             float req = Mathf.Min(rateCap, headroom);
                             if (req > 0f)
                                 softs.Add(new Soft
@@ -567,7 +560,7 @@ namespace PowerGridPlus
             //    clawback then removes shed-orphaned surplus before the elastic-share / publish /
             //    conservation tail reads them.
             // ----------------------------------------------------------------
-            RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList, shedOn, overloadOn);
+            RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList);
 
             // Dead-input cue (POWER.md §8.3): a contributor whose input network has NO effective supply
             // (no generators, no upstream inflow, no live battery -- the same totalAvail the shed pass
@@ -652,16 +645,15 @@ namespace PowerGridPlus
             // net absent from the map was outside allocator scope this tick (the census reads
             // absence as off-scope).
             var shortfallClasses = new Dictionary<long, byte>(netList.Count);
-            // Ratio-contract scope for the partial-power sentinel (POWER.md §8.8): a net is
-            // ratio-deprivable iff vanilla ApplyState's `usedPower *= _powerRatio` can shrink
-            // something the allocator granted: a plain (non-segmenter) power device's delivery
-            // and Powered state, or a charging store's delivered chunks (Battery.ReceivePower
-            // adds the scaled stream to PowerStored). A net whose power members are all routed
-            // segmenters is inert (bills and advertises cache-governed; Powered reconciled at
-            // the ENFORCE tail); notably every wireless carrier net, whose vanilla mirrors are
-            // structurally asymmetric under the billing handshake (unclamped receiver drain vs
-            // delivery-gated advertise), so ratio < 1 is its normal conducting state, not a
-            // contract breach.
+            // Ratio-contract scope (POWER.md §8.8), published for the ScenarioRunner census: a
+            // net is ratio-deprivable iff a delivery shortfall could shrink something the
+            // allocator granted: a plain (non-segmenter) power device's delivery and Powered
+            // state, or a charging store's delivered energy. A net whose power members are all
+            // routed segmenters is inert (bills and advertises cache-governed; Powered
+            // reconciled at the ENFORCE tail); notably every wireless carrier net, whose
+            // vanilla mirrors are structurally asymmetric under the billing handshake
+            // (unclamped receiver drain vs delivery-gated advertise), so ratio < 1 is its
+            // normal conducting state, not a contract breach.
             var ratioScope = new HashSet<long>();
             foreach (var n in netList)
             {
@@ -864,8 +856,8 @@ namespace PowerGridPlus
 
             // Charge-grant snapshot for the charge-delivery audit (§8.8 fifth surface): every
             // store's granted charge this tick, with the charge-side net (the audit's Served gate)
-            // and the store kind (efficiency-band / master-toggle handling). Published even when
-            // empty so a stale tick's grants never linger into the comparison.
+            // and the store kind (efficiency-band handling). Published even when empty so a stale
+            // tick's grants never linger into the comparison.
             var chargeGrants = new Dictionary<long, ChargeDeliveryAudit.Grant>(softs.Count);
             foreach (var s in softs)
             {
@@ -1052,29 +1044,26 @@ namespace PowerGridPlus
             Core.WriteBack.Current = writePlan;
 
             // ----------------------------------------------------------------
-            // 6. CONSERVATION CHECK (config-gated): audit the converged grants. Per net, granted
+            // 6. CONSERVATION CHECK (always on): audit the converged grants. Per net, granted
             //    inflow == granted outflow within tolerance; per seg, TotalPull == TotalThrough *
             //    max(m,1) + quiescent. A violation is a code bug in the allocator, never a player
             //    problem; warnings are throttled per net / per seg.
             // ----------------------------------------------------------------
-            if (ConservationChecker.Enabled)
+            foreach (var n in netList)
             {
-                foreach (var n in netList)
-                {
-                    float softInflow = 0f;
-                    foreach (var s in n.Suppliers)
-                        if (IsActive(s)) softInflow += s.SoftThrough;
-                    float elasticGranted = 0f;
-                    foreach (var e in n.Elastics) elasticGranted += e.Share;
-                    ConservationChecker.CheckNet(n.Id, currentTick, n.GenSupply, n.InflowCommitted,
-                        softInflow, elasticGranted, n.RigidServed, n.PullsGranted, n.SoftPullsGranted,
-                        n.SoftGrantedLocal);
-                }
-                foreach (var seg in segs)
-                    ConservationChecker.CheckSeg(seg.RefId, seg.Kind.ToString(), currentTick,
-                        seg.Throughput + seg.SoftThrough, seg.Pull + seg.SoftPull,
-                        seg.InputDrawFactor, seg.UsedPower);
+                float softInflow = 0f;
+                foreach (var s in n.Suppliers)
+                    if (IsActive(s)) softInflow += s.SoftThrough;
+                float elasticGranted = 0f;
+                foreach (var e in n.Elastics) elasticGranted += e.Share;
+                ConservationChecker.CheckNet(n.Id, currentTick, n.GenSupply, n.InflowCommitted,
+                    softInflow, elasticGranted, n.RigidServed, n.PullsGranted, n.SoftPullsGranted,
+                    n.SoftGrantedLocal);
             }
+            foreach (var seg in segs)
+                ConservationChecker.CheckSeg(seg.RefId, seg.Kind.ToString(), currentTick,
+                    seg.Throughput + seg.SoftThrough, seg.Pull + seg.SoftPull,
+                    seg.InputDrawFactor, seg.UsedPower);
         }
 
         // Option C gate: true when a cable burn is in flight on either side of this contributor's span,
@@ -1155,10 +1144,19 @@ namespace PowerGridPlus
         // RE-DECIDES shedding against the settled upstream supply), then the overload pass (which
         // RE-DECIDES overload against the post-shed demand). Forward-before-overload means a shed that
         // relieves an over-demanded network is honoured the same round, killing the shed<->overload
-        // 2-cycle. Converges when the (shed, overload) sets stop changing. Bounded by 2N+4 rounds; a
-        // detected 2-cycle resolves to the safe union of the two states, then settles throughputs.
+        // 2-cycle. Converges when the (shed, overload) sets stop changing. Bounded by 2N+4 rounds (the
+        // hard cap; N = segmenter count): a tick that exhausts the bound keeps the last settled state
+        // (internally consistent, safe) and logs the throttled warning below. A detected 2-cycle
+        // resolves to the safe union of the two states, then settles throughputs.
+
+        // Non-convergence diagnostic throttle (the TickDurationWatchdog idiom): hitting the round cap
+        // is safe but worth one aggregated line, not one per tick at 2 Hz. The tick counter never
+        // resets on world load, so no load-boundary reset is needed.
+        private const int NonConvergenceWarnCooldownTicks = 600;   // ~5 minutes at 2 Hz
+        private static int _lastNonConvergenceWarnTick = -NonConvergenceWarnCooldownTicks;
+
         private static void RunAllocationLoop(List<Net> topo, List<Net> topoRev, List<Seg> segs,
-            List<Elastic> elastics, List<Net> netList, bool shedOn, bool overloadOn)
+            List<Elastic> elastics, List<Net> netList)
         {
             // Clean slate once per tick. Within the loop SHED is re-decided every round (ForwardSupplyAndShed
             // clears it); OVERLOAD only ever GROWS (sticky: committed on detection, reset only by the 60 s
@@ -1179,9 +1177,9 @@ namespace PowerGridPlus
                 // structurally cannot serve its downstream is diagnosed as OVERLOAD here, before the shed
                 // pass could mislabel it as input-starved. The structural rule is desire-based (pre-shed);
                 // the supply rules (elastic / cable) need the forward pass's Unmet, so they run after it.
-                DetectStructuralOverload(netList, segs, overloadOn);
-                ForwardSupplyAndShed(topo, segs, shedOn, settleOnly: false);
-                DetectSupplyOverload(netList, elastics, overloadOn);
+                DetectStructuralOverload(netList, segs);
+                ForwardSupplyAndShed(topo, segs, settleOnly: false);
+                DetectSupplyOverload(netList, elastics);
 
                 var curShed = CollectFlagged(segs, shed: true);
                 var curOver = CollectFlagged(segs, shed: false);
@@ -1205,7 +1203,7 @@ namespace PowerGridPlus
                     }
                     foreach (var e in elastics) if (prevEl.Contains(e.RefId)) e.Overloaded = true;
                     BackwardDesirePass(topoRev);
-                    ForwardSupplyAndShed(topo, segs, shedOn, settleOnly: true);
+                    ForwardSupplyAndShed(topo, segs, settleOnly: true);
                     converged = true;
                     break;
                 }
@@ -1214,8 +1212,15 @@ namespace PowerGridPlus
             }
 
             if (!converged)
-                UnityEngine.Debug.LogWarning(
-                    $"[PowerGridPlus] Allocator did not converge in {maxRounds} rounds; using last settled state (internally consistent, safe).");
+            {
+                int tick = ElectricityTickCounter.CurrentTick;
+                if (tick - _lastNonConvergenceWarnTick >= NonConvergenceWarnCooldownTicks)
+                {
+                    _lastNonConvergenceWarnTick = tick;
+                    UnityEngine.Debug.LogWarning(
+                        $"[PowerGridPlus] Allocator did not converge in {maxRounds} rounds ({segs.Count} segmenter(s), {netList.Count} network(s), tick {tick}); using last settled state (internally consistent, safe).");
+                }
+            }
         }
 
         // Backward demand sweep (leaf -> source), carrying BOTH flow classes in one walk. Each
@@ -1365,7 +1370,7 @@ namespace PowerGridPlus
             return false;
         }
 
-        private static void ForwardSupplyAndShed(List<Net> topo, List<Seg> segs, bool shedOn, bool settleOnly)
+        private static void ForwardSupplyAndShed(List<Net> topo, List<Seg> segs, bool settleOnly)
         {
             foreach (var seg in segs)
             {
@@ -1388,7 +1393,7 @@ namespace PowerGridPlus
                 float budget = avail - n.RigidDemand;
                 if (budget < 0f) budget = 0f;
 
-                if (shedOn && !settleOnly && avail > Eps)
+                if (!settleOnly && avail > Eps)
                 {
                     float claims = 0f;
                     foreach (var c in n.Consumers)
@@ -1564,9 +1569,8 @@ namespace PowerGridPlus
         // so the overload commits even if a same-tick shed in its subnetwork would have removed the condition
         // (desired: overload is the structural signal the player must act on). Desire-based, no forward
         // dependency, so it is safe to run before the forward pass.
-        private static void DetectStructuralOverload(List<Net> netList, List<Seg> segs, bool overloadOn)
+        private static void DetectStructuralOverload(List<Net> netList, List<Seg> segs)
         {
-            if (!overloadOn) return;
             foreach (var n in netList)
             {
                 float demand = n.RigidDemand;
@@ -1589,10 +1593,8 @@ namespace PowerGridPlus
         // Supply overload (rules 2 and 3): elastic hit-max and the §5.7 cable overflow. Both read the forward
         // pass's Unmet / PullsGranted, so they run AFTER ForwardSupplyAndShed. GROW-ONLY, like the structural
         // pass: never cleared within a tick.
-        private static void DetectSupplyOverload(List<Net> netList, List<Elastic> elastics, bool overloadOn)
+        private static void DetectSupplyOverload(List<Net> netList, List<Elastic> elastics)
         {
-            if (!overloadOn) return;
-
             foreach (var n in netList)   // rule 2: elastic hit-max
             {
                 if (n.Unmet <= Eps) continue;

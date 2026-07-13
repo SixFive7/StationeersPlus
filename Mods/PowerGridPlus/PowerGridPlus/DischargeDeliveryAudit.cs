@@ -10,45 +10,40 @@ namespace PowerGridPlus
     ///     granted charge LANDS in the store; this auditor proves a granted discharge LEAVES the
     ///     store as granted, no more and no less. The allocator's elastic share (rigid share + soft
     ///     top-up since the elastic-to-soft transfer rung, POWER.md §9.2) is min-clamped onto every
-    ///     donor's GetGeneratedPower advertise, so on a Served net vanilla ApplyState must drain
-    ///     the store exactly that share: an over-drain means vanilla consumed store energy the
-    ///     allocator never granted (phantom discharge), an under-drain means the grid was told
-    ///     power flowed that never left the store (phantom supply somewhere else, e.g. a mid-tick
-    ///     generator step the read-coherence latches exist to prevent).
+    ///     donor's GetGeneratedPower advertise, and on a Served net the write-back settlement must
+    ///     drain the store exactly that share: an over-drain means store energy was consumed that
+    ///     the allocator never granted (phantom discharge), an under-drain means the grid was told
+    ///     power flowed that never left the store (phantom supply somewhere else).
     ///
-    ///     <para><b>Observation via the argument stream, not field diffing</b> (the charge audit's
-    ///     rationale, same float32 store-quantization argument): the drained amount is derived from
-    ///     the UsePower ARGUMENT through the vanilla drain gates, clamped by the pre-call store
-    ///     (<c>drained = min(powerUsed, PowerStored-before)</c>, mirroring vanilla's Clamp at 0).
-    ///     Battery and umbilical drains come from Priority.First/Priority.Last observation brackets
-    ///     (<c>Patches/DischargeDeliveryObservationPatches.cs</c>, output-network calls only).</para>
+    ///     <para><b>Observation at the settlement site, not field diffing</b> (the charge audit's
+    ///     rationale, same float32 store-quantization argument): the drained amount is the
+    ///     settlement debit the write-back applies (Core/WriteBack.ApplyDebit feeds
+    ///     <see cref="RecordDrain"/>), so drain == grant holds by construction and the audit
+    ///     exists to catch a settlement-path change that breaks the identity.</para>
     ///
-    ///     <para><b>Charge / discharge same-tick disambiguation is by-method by construction.</b>
+    ///     <para><b>Charge / discharge same-tick disambiguation is by-record by construction.</b>
     ///     A battery can charge and discharge in the same tick on distinct networks (POWER.md
-    ///     §7.1); the two audits can never confuse the flows because they bracket DIFFERENT
-    ///     methods: the charge audit brackets ReceivePower (input-network calls), this auditor
-    ///     brackets UsePower (output-network calls). The umbilical phase-2 cell-to-cell crossing
-    ///     mutates PowerStored directly (never through UsePower with a cable network) and the
-    ///     battery atmos self-drain is another method again, so neither pollutes a drain sum.</para>
+    ///     §7.1); the two audits can never confuse the flows because they consume DIFFERENT
+    ///     settlement records: the charge audit sums the plan's credits, this auditor sums the
+    ///     plan's debits. The umbilical phase-2 cell-to-cell crossing mutates PowerStored
+    ///     directly (never through a settlement record) and the battery atmos self-drain sits
+    ///     outside the plan entirely, so neither pollutes a drain sum.</para>
     ///
-    ///     <para><b>The APC cell is out of scope.</b> Vanilla AreaPowerControl.UsePower drains the
-    ///     cell by deferred ledger settlement: min(PowerStored, _powerProvided) repays the PREVIOUS
-    ///     tick's output shortfall before this tick's powerUsed enters the ledger (0.2.6403
-    ///     decompile 391000-391012), and this mod deliberately keeps that vanilla mechanism (the
-    ///     cell-cover feature; the APC ledger is never settled by LedgerAdoption for the same
-    ///     reason). A same-tick granted-vs-drained comparison is therefore structurally lag-prone
-    ///     on the APC, so ALLOCATE publishes no APC discharge grants and no drain bracket exists
-    ///     for it. The APC's advertised discharge stays bounded by its bundled
+    ///     <para><b>The APC cell is out of scope.</b> The APC's cell-cover drain settles through
+    ///     its own write-back debit lane, deliberately unpublished here: ALLOCATE publishes no
+    ///     APC discharge grants and the settlement records no APC drain, so there is nothing to
+    ///     compare (the APC ledger is likewise never settled by LedgerAdoption). The APC's
+    ///     advertised discharge stays bounded by its bundled
     ///     SoftSupplyShareCache cap, and its credit side is covered by the charge audit.</para>
     ///
-    ///     <para><b>Comparison</b> (ENFORCE tail, after every ApplyState): for every store the
-    ///     allocator rostered as an elastic this tick (the per-tick grant snapshot ALLOCATE
+    ///     <para><b>Comparison</b> (ENFORCE tail, after the write-back settlement): for every store
+    ///     the allocator rostered as an elastic this tick (the per-tick grant snapshot ALLOCATE
     ///     publishes via <see cref="PublishGrants"/>: refId -> granted watts, discharge-side net,
     ///     store kind; zero-share entries included so an ungranted drain on a Served net is
     ///     caught), the drained sum must equal the grant. Gates: the discharge-side net must be
     ///     classified Served this tick (on an unmet net every elastic is overload-tripped to share
-    ///     0 and its advertise is zeroed by the lockout postfixes, and vanilla's partial scaling
-    ///     owns whatever remains: honest darkness, the same exemption as the charge audit);
+    ///     0 and its advertise is zeroed by the lockout postfixes: honest darkness, the same
+    ///     exemption as the charge audit);
     ///     zero-grant zero-drain passes trivially. Drains on stores with NO grant record are
     ///     outside the allocator's model (roster-absent: errored, short-circuited, the vanilla
     ///     fallback on the first ticks after load while the share cache is stale) and are not a
@@ -66,8 +61,8 @@ namespace PowerGridPlus
     ///     the counters across its window; keep the member names stable.</para>
     ///
     ///     <para>Threading: grants swap by volatile reference (allocator worker); drains are
-    ///     recorded from ApplyState on the power worker; the tail comparison runs on the same
-    ///     worker after every ApplyState. The suite reads counters from the sim-tick pump.</para>
+    ///     recorded from the write-back settlement on the power worker; the tail comparison runs
+    ///     later on the same worker. The suite reads counters from the sim-tick pump.</para>
     /// </summary>
     internal static class DischargeDeliveryAudit
     {
@@ -97,10 +92,8 @@ namespace PowerGridPlus
             new ConcurrentDictionary<long, (int, float, byte)>();
 
         /// <summary>
-        ///     Record an observed store drain (argument-derived: the powerUsed amount through the
-        ///     vanilla drain gates, clamped by the pre-call PowerStored) for one UsePower call on
-        ///     the store's output network. Called from the observation brackets inside ApplyState;
-        ///     single-threaded per tick on the power worker.
+        ///     Record a settlement store drain (the debit the write-back applies to the store).
+        ///     Called from Core/WriteBack.ApplyDebit; single-threaded per tick on the power worker.
         /// </summary>
         internal static void RecordDrain(long refId, byte kind, float drained)
         {
@@ -144,7 +137,7 @@ namespace PowerGridPlus
         /// <summary>
         ///     ENFORCE tail: compare every rostered store's drained sum against its granted
         ///     discharge share and emit the throttled aggregated warning when due. Runs after
-        ///     every network's ApplyState so the drains are final for the tick.
+        ///     the write-back settlement so the drains are final for the tick.
         /// </summary>
         internal static void RunEnforceTail(int currentTick)
         {
@@ -160,8 +153,8 @@ namespace PowerGridPlus
                 if (grant.Granted <= Tolerance && drained <= Tolerance) continue;   // trivially clean
 
                 // Honest darkness: on an unmet net the elastics are overload-tripped to share 0
-                // and vanilla's partial scaling owns the outcome (the charge audit's exemption,
-                // mirrored); only a Served net promises drained == granted.
+                // and their advertises are zeroed by the lockout postfixes (the charge audit's
+                // exemption, mirrored); only a Served net promises drained == granted.
                 if (!ShortfallDiagnostics.TryClassify(grant.NetId, out byte cls)
                     || cls != ShortfallDiagnostics.Served)
                     continue;

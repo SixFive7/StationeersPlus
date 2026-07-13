@@ -22,7 +22,7 @@ Faults. A power device that cannot do its job enters a visible 60-second fault l
 - Faults are transient: they clear on save load and recompute from the live topology on the first tick.
 - Not every dark subnet is a fault: a contributor whose input network has no power source at all simply idles, with a steady grey `(No upstream supply)` hover (no flash, no countdown, no lockout). Power its input and it delivers again immediately.
 - A healthy but idle bridge stays powered. A charger transformer whose batteries are full, or an idle dish pair, reads Powered on (hover and IC10 alike) instead of vanilla's misleading "unpowered" state. Only faulted, switched-off, or dead-input bridges read unpowered, so the Powered flag means what a player thinks it means.
-- A machine's own demand spike can never reboot it. The mod decides every device's Powered flag from its network's state (live, shed, overloaded, or dead), not from vanilla's per-device met-this-tick check, so a printer starting a job keeps running: either its network carries the load, or the whole subnet goes dark for 60 seconds as a unit. Powered and the on/off switch are independent as well: a switched-off device on a live network reads `Power` = 1 in IC10 (powered but off) and draws nothing; read `On` for the switch state, or turn off the Decouple Powered From On Off setting to restore the vanilla coupling.
+- A machine's own demand spike can never reboot it. The mod decides every device's Powered flag from its network's state (live, shed, overloaded, or dead), not from vanilla's per-device met-this-tick check, so a printer starting a job keeps running: either its network carries the load, or the whole subnet goes dark for 60 seconds as a unit. Powered and the on/off switch are independent as well: a switched-off device on a live network reads `Power` = 1 in IC10 (powered but off) and draws nothing; read `On` for the switch state. The decoupling is always on; there is no setting to restore the vanilla coupling.
 
 Transformer priority and dispatch:
 
@@ -52,7 +52,7 @@ Cable tiers and burns:
 Logic passthrough:
 
 - **Bridging devices can be made logic-transparent.** A transformer, stationary battery, or Area Power Controller splits a power network into two sides, and normally an IC10 chip or logic reader on one side cannot see the devices on the other. Turn passthrough on and that wall disappears for logic: a reader sees through the bridge, and through a whole chain of bridges, with no extra data cable. A linked Microwave Power Transmitter and Receiver pair bridges the same way across its wireless link.
-- **A writable `LogicPassthroughMode` logic value controls it per device** (1 = transparent, 0 = vanilla opaque), with per-family server master toggles. The per-device setting is saved with the world. Fault state never affects logic passthrough; power and logic are independent lanes.
+- **A writable `LogicPassthroughMode` logic value controls it per device** (1 = transparent, 0 = vanilla opaque), saved with the world. Passthrough support itself is always on; there is no master kill-switch. Six per-family Passthrough Default settings seed the mode of a device that was never explicitly set (newly built, or an existing save running the mod for the first time); a device's own stored mode wins once set. The APC has no logic port, so its mode comes from the config default only. Fault state never affects logic passthrough; power and logic are independent lanes.
 
 Emergency lights:
 
@@ -60,7 +60,7 @@ Emergency lights:
 
 Diagnostics and self-checks:
 
-- A conservation check audits the allocator every tick: per cable network, granted inflow must match granted outflow, and every transformer / dish pair / APC must bill its input exactly what it passes downstream plus its own draw. A violation logs a throttled warning with a per-component breakdown; it always indicates a mod bug worth reporting, never a problem with your base. Can be switched off under `Server - Diagnostics`.
+- A conservation check audits the allocator every tick: per cable network, granted inflow must match granted outflow, and every transformer / dish pair / APC must bill its input exactly what it passes downstream plus its own draw. A violation logs a throttled warning with a per-component breakdown; it always indicates a mod bug worth reporting, never a problem with your base. Always on; there is no setting to disable it.
 - Stale wireless transfer debts and credits saved into a world by earlier versions are zeroed on load, so a dish pair no longer starts with free transfer credit after loading an old save, and the vanilla billing ledger is kept in bounds every tick from then on.
 - Unrecognised two-port power devices from other mods are listed once in the log at world load and left on vanilla behaviour, so a modded bridge degrades gracefully instead of silently misbehaving.
 
@@ -80,7 +80,6 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Server - Cable Simulation | Super Heavy Cable Max Watts | 0 | Watts cap for super-heavy cable. Default 0 = unlimited (the backbone never burns). |
 | Server - Cable Costs | Super-Heavy Cable Cost Multiplier | 2.0 | Multiplies the super-heavy cable coil recipe cost. 1.0 = vanilla. Requires restart. |
 | Server - Voltage Tiers | Extra Heavy-Cable Devices | (empty) | Comma-separated prefab names of extra devices allowed on heavy cable (for modded high-draw machines). |
-| Server - Batteries | Enable Battery Limits | true | Charge/discharge-rate limit stationary batteries. |
 | Server - Batteries | Station Battery Charge Rate | 5000 | Small battery charge cap (W). |
 | Server - Batteries | Station Battery Discharge Rate | 10000 | Small battery discharge cap (W). |
 | Server - Batteries | Large Station Battery Charge Rate | 25000 | Large battery charge cap (W). |
@@ -91,27 +90,23 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Server - Batteries | Rocket Battery (Medium) Discharge Rate | 10000 | Rocket Battery (Medium) discharge cap (W). |
 | Server - Batteries | Auxiliary Rocket Battery Charge Rate | 2500 | Auxiliary Rocket Battery charge cap (W). |
 | Server - Batteries | Auxiliary Rocket Battery Discharge Rate | 5000 | Auxiliary Rocket Battery discharge cap (W). |
-| Server - Batteries | Battery Charge Efficiency | 1.0 | Fraction of incoming power stored. |
+| Server - Batteries | Battery Charge Efficiency | 1.5 | Grid energy a battery draws per unit stored. 1.0 = lossless; the default 1.5 stores two thirds of the draw. Values below 1.0 count as 1.0; post-loss trickles under 500 W store in full. |
 | Server - Batteries | Enable Battery Logic Additions | true | Expose the four soft-power logic values on batteries. |
-| Server - Batteries | Enable Battery Logic Passthrough | true | Master toggle for battery logic passthrough. |
+| Server - Batteries | Battery Passthrough Default | true | Passthrough mode a battery starts with while its own mode was never set. |
 | Server - Transformers | Enable Transformer Logic Additions | true | Expose transformer throughput as Power Actual. |
-| Server - Transformers | Enable Transformer Logic Passthrough | true | Master toggle for transformer logic passthrough. |
-| Server - Transformers | Enable Transformer Shedding | true | Priority dispatch and shed lockouts. Off restores vanilla input-side behaviour. |
-| Server - Transformers | Enable Transformer Overload Protection | true | Overload lockouts (including the cable-overflow trip). Off restores vanilla partial power. |
+| Server - Transformers | Small Transformer Passthrough Default | true | Passthrough mode the three small transformer prefabs start with while their own mode was never set. |
+| Server - Transformers | Other Transformer Passthrough Default | false | Passthrough mode every other transformer variant starts with while its own mode was never set. |
 | Server - Area Power Control | APC Battery Charge Rate | 1000 | APC cell charge cap (W). |
 | Server - Area Power Control | APC Battery Discharge Rate | 1000 | APC cell discharge cap (W). |
-| Server - Area Power Control | Enable APC Logic Passthrough | true | APCs are logic-transparent. |
-| Server - Power Transmitters | Enable Power Transmitter Logic Passthrough | true | Master toggle for transmitter / receiver logic passthrough. |
-| Server - Powered Presentation | Decouple Powered From On Off | true | Powered means "network energized", independent of the on/off switch: a switched-off device on a live network reads Power=1. Off restores the vanilla coupling. |
-| Server - Rocket Umbilical | Enable Rocket Umbilical Limits | true | Rate caps + the four soft-power logic values on the umbilical pair. |
+| Server - Area Power Control | APC Passthrough Default | true | Passthrough mode an APC starts with. The APC has no logic port, so the config default is its only seed. |
+| Server - Power Transmitters | Power Transmitter Passthrough Default | true | Passthrough mode a linked dish pair starts with while its own mode was never set. |
 | Server - Rocket Umbilical | Rocket Umbilical Charge Rate | 10000 | Umbilical charge cap (W). |
 | Server - Rocket Umbilical | Rocket Umbilical Discharge Rate | 10000 | Umbilical discharge cap (W). |
-| Server - Rocket Umbilical | Enable Umbilical Logic Passthrough | true | Master toggle for docked umbilical-pair logic passthrough. |
-| Server - Diagnostics | Enable Conservation Check | true | Per-tick allocator self-audit; a violation logs a throttled warning and means a mod bug, not a base problem. Costs a few microseconds per tick. |
+| Server - Rocket Umbilical | Umbilical Passthrough Default | true | Passthrough mode an umbilical half starts with while its own mode was never set. |
 | Server - Emergency Lights | Enable Wall Light Battery Emergency Mode | true | Battery wall lights act as emergency backup lights. |
 | Server - Emergency Lights | Emergency Light Prefabs | StructureWallLightBattery | Comma-separated prefab names that get the emergency behaviour. |
 
-Always-on behaviour with no toggle: voltage tiers, cycle faults, producer isolation (the Variable Voltage Fault rule), the deterministic cable-burn rule, the transformer free-power exploit fix, the Area Power Control power fix, device Powered ownership (the network's state decides every device's Powered flag, so a demand spike cannot reboot a printer), the powered presentation for idle healthy bridges, and the wireless ledger cleanup. These are the core of the redesigned grid.
+Always-on behaviour with no toggle: voltage tiers, cycle faults, producer isolation (the Variable Voltage Fault rule), the deterministic cable-burn rule, per-prefab battery rate limits, transformer priority and shedding, transformer overload protection, rocket umbilical rate limits, the per-tick conservation audit, the transformer free-power exploit fix, the Area Power Control power fix, device Powered ownership (the network's state decides every device's Powered flag, so a demand spike cannot reboot a printer), Powered decoupled from the on/off switch, the powered presentation for idle healthy bridges, the wireless ledger cleanup, and logic-passthrough support (each device's LogicPassthroughMode stays player-controlled; the six Passthrough Default settings above seed devices whose mode was never set). These are the core of the redesigned grid.
 
 ## How it works
 

@@ -21,7 +21,7 @@ namespace PowerGridPlus.Patches
     public static class UmbilicalPassthroughPatches
     {
         // Male.CanLogicRead is an override, invisible to the base-Device prefix; expose LogicPassthroughMode
-        // on it directly. Always readable, matching the other bridges -- the master toggle gates the actual
+        // on it directly. Always readable, matching the other bridges -- the per-device mode gates the actual
         // bridging in PassthroughTopology.IsEnabledBridge, not the logic port itself.
         [HarmonyPostfix, HarmonyPatch(typeof(RocketPowerUmbilicalMale), nameof(RocketPowerUmbilicalMale.CanLogicRead), new[] { typeof(LogicType) })]
         public static void MaleCanReadPassthrough(LogicType logicType, ref bool __result)

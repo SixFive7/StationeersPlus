@@ -347,9 +347,8 @@ namespace PowerGridPlus
     ///       cell in phase 2, partner cell -> far grid on a later tick.</item>
     ///     </list>
     ///
-    ///     <para>Rate caps come from the Server - Rocket Umbilical settings when enabled (else the
-    ///     cell's PowerMaximum, i.e. vanilla behaviour), both further bounded by the respective
-    ///     cable's tier cap, mirroring RocketUmbilicalPatches.</para>
+    ///     <para>Rate caps come from the Server - Rocket Umbilical settings, both further bounded
+    ///     by the respective cable's tier cap, mirroring RocketUmbilicalPatches.</para>
     /// </summary>
     internal sealed class UmbilicalAdapter : ISegAdapter
     {
@@ -366,9 +365,8 @@ namespace PowerGridPlus
                 && umbilical.InputNetwork.ReferenceId == umbilical.OutputNetwork.ReferenceId) return false;   // short-circuit gate
             float stored = umbilical.PowerStored;
             float maximum = umbilical.PowerMaximum;
-            bool limits = Settings.EnableRocketUmbilicalLimits.Value;
-            float chargeRate = limits ? Settings.RocketUmbilicalChargeRate.Value : maximum;
-            float dischargeRate = limits ? Settings.RocketUmbilicalDischargeRate.Value : maximum;
+            float chargeRate = Settings.RocketUmbilicalChargeRate.Value;
+            float dischargeRate = Settings.RocketUmbilicalDischargeRate.Value;
             spec.Kind = SegAdapterKind.Buffered;
             spec.InNet = umbilical.InputNetwork;
             spec.OutNet = umbilical.OutputNetwork;

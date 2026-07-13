@@ -11,8 +11,8 @@ namespace PowerGridPlus.Patches
 {
     /// <summary>
     ///     Shared topology helpers for logic passthrough. A "bridge" is a device that, when its
-    ///     per-device LogicPassthroughMode is 1 (and its server toggle is on), makes the two cable
-    ///     networks it joins mutually logic-transparent.
+    ///     per-device LogicPassthroughMode is 1, makes the two cable networks it joins mutually
+    ///     logic-transparent.
     ///
     ///     Passthrough is TRANSITIVE: a logic reader sees devices on every network reachable through a
     ///     chain of bridges (transformer -> spine -> transformer -> ...), not just the immediate
@@ -22,42 +22,32 @@ namespace PowerGridPlus.Patches
     /// </summary>
     internal static class PassthroughTopology
     {
-        /// <summary>True if any of the five passthrough server toggles is on. Cheap pre-check so the
-        /// per-network walk is skipped entirely when passthrough is globally off.</summary>
-        internal static bool AnyPassthroughEnabled() =>
-            PassthroughSettingsSync.EffectiveTransformer
-            || PassthroughSettingsSync.EffectiveApc
-            || PassthroughSettingsSync.EffectiveBattery
-            || PassthroughSettingsSync.EffectivePowerTransmitter
-            || PassthroughSettingsSync.EffectiveUmbilical;
-
         /// <summary>
-        ///     True if <paramref name="device"/> is an enabled, mode-1 logic-passthrough bridge: its
-        ///     per-type server toggle is on AND its per-device LogicPassthroughMode is 1. The per-type
-        ///     gating is identical to the original single-hop merge, so all-port bridging does not change
-        ///     WHICH devices bridge, only how many of each bridge's own networks are folded together.
+        ///     True if <paramref name="device"/> is a mode-1 logic-passthrough bridge. The per-device
+        ///     LogicPassthroughMode is the only runtime gate; the gating is identical to the original
+        ///     single-hop merge, so all-port bridging does not change WHICH devices bridge, only how
+        ///     many of each bridge's own networks are folded together.
         /// </summary>
         internal static bool IsEnabledBridge(Device device)
         {
             switch (device)
             {
                 case Transformer transformer:
-                    return PassthroughSettingsSync.EffectiveTransformer && PassthroughModeStore.GetMode(transformer) != 0;
+                    return PassthroughModeStore.GetMode(transformer) != 0;
                 case AreaPowerControl apc:
-                    return PassthroughSettingsSync.EffectiveApc && PassthroughModeStore.GetMode(apc) != 0;
+                    return PassthroughModeStore.GetMode(apc) != 0;
                 case Battery battery:
-                    return PassthroughSettingsSync.EffectiveBattery && PassthroughModeStore.GetMode(battery) != 0;
+                    return PassthroughModeStore.GetMode(battery) != 0;
                 case PowerTransmitter tx:
-                    return PassthroughSettingsSync.EffectivePowerTransmitter && PassthroughModeStore.GetMode(tx) != 0;
+                    return PassthroughModeStore.GetMode(tx) != 0;
                 case PowerReceiver rx:
-                    return PassthroughSettingsSync.EffectivePowerTransmitter && PassthroughModeStore.GetMode(rx) != 0;
+                    return PassthroughModeStore.GetMode(rx) != 0;
                 case RocketPowerUmbilicalMale _:
                 case RocketPowerUmbilicalFemale _:
                     // A docked umbilical pair bridges only while connected: gate on a non-null partner so an
                     // undocked half (the partner is severed on launch, restored on land) carries no logic,
                     // per the connected / disconnected requirement.
-                    return PassthroughSettingsSync.EffectiveUmbilical
-                        && PassthroughModeStore.GetMode(device) != 0
+                    return PassthroughModeStore.GetMode(device) != 0
                         && GetUmbilicalPartner((ElectricalInputOutput)device) != null;
                 default:
                     return false;

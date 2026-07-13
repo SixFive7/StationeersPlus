@@ -36,7 +36,7 @@ namespace PowerGridPlus
                 "PowerGridPlus_MainThreadDispatcher", msg => Log?.LogError(msg));
             Settings.Bind(Config);
             // Server-authoritative ConfigEntry values are replicated to clients via the
-            // join-suffix snapshot only (see PassthroughSettingsSync.cs). StationeersLaunchPad
+            // join-suffix snapshot only (see PassthroughDefaultsSync.cs). StationeersLaunchPad
             // exposes no per-mod ConfigEntry UI surface mid-session, so a host-side
             // SettingChanged subscription would never fire from a UI toggle. The host's
             // current value rides Plugin.SerializeJoinSuffix when a client joins.
@@ -119,17 +119,21 @@ namespace PowerGridPlus
                 writer.WriteInt32(entry.Value);
             }
 
-            // Then the five server-authoritative Enable*LogicPassthrough toggles (order must match
-            // DeserializeJoinSuffix), so the joining client computes the merge with the host's values.
-            writer.WriteBoolean(Settings.EnableTransformerLogicPassthrough.Value);
-            writer.WriteBoolean(Settings.EnableBatteryLogicPassthrough.Value);
-            writer.WriteBoolean(Settings.EnableAreaPowerControlLogicPassthrough.Value);
-            writer.WriteBoolean(Settings.EnablePowerTransmitterLogicPassthrough.Value);
-            writer.WriteBoolean(Settings.EnableUmbilicalLogicPassthrough.Value);
+            // Then the six server-authoritative per-kind passthrough defaults, in the fixed order
+            // smallTransformer, otherTransformer, battery, apc, powerTransmitter, umbilical (order
+            // must match DeserializeJoinSuffix). The client's PassthroughModeStore.GetDefaultMode
+            // consults these for every device with no explicit mode entry, so the merged
+            // data-device lists match the host's from the first read.
+            writer.WriteBoolean(Settings.SmallTransformerPassthroughDefault.Value);
+            writer.WriteBoolean(Settings.OtherTransformerPassthroughDefault.Value);
+            writer.WriteBoolean(Settings.BatteryPassthroughDefault.Value);
+            writer.WriteBoolean(Settings.ApcPassthroughDefault.Value);
+            writer.WriteBoolean(Settings.PowerTransmitterPassthroughDefault.Value);
+            writer.WriteBoolean(Settings.UmbilicalPassthroughDefault.Value);
 
-            // Then the per-Transformer Priority overrides + the EnableTransformerShedding toggle. The
-            // priority defaults to PriorityStore.DefaultPriority for any transformer without an entry;
-            // overrides are server-authoritative and persist via PrioritySideCar. Order must match
+            // Then the per-Transformer Priority overrides. The priority defaults to
+            // PriorityStore.DefaultPriority for any transformer without an entry; overrides are
+            // server-authoritative and persist via PrioritySideCar. Order must match
             // DeserializeJoinSuffix.
             var priorityEntries = new List<KeyValuePair<long, int>>(PriorityStore.SnapshotEntries());
             writer.WriteInt32(priorityEntries.Count);
@@ -138,13 +142,11 @@ namespace PowerGridPlus
                 writer.WriteInt64(entry.Key);
                 writer.WriteInt32(entry.Value);
             }
-            writer.WriteBoolean(Settings.EnableTransformerShedding.Value);
 
             // Fault-registry join handshake (POWER.md §13 mid-cooldown join): all four registries
             // ship their current (ReferenceId, remainingTicks) pairs -- plus violator names for the
             // VVF entries -- so a joining client lands mid-lockout with correct flash + countdown
             // state before the first per-tick snapshot arrives.
-            writer.WriteBoolean(Settings.EnableTransformerOverloadProtection.Value);
             int tick = ElectricityTickCounter.CurrentTick;
             WriteRemaining(writer, BrownoutRegistry.SnapshotRemaining(tick));
             WriteRemaining(writer, OverloadRegistry.SnapshotRemaining(tick));
@@ -196,14 +198,16 @@ namespace PowerGridPlus
 
             // Same order as SerializeJoinSuffix. SetSyncedValues (no refresh) suffices at join: the device
             // lists build fresh once the join completes, using these effective values.
-            bool transformer = reader.ReadBoolean();
+            bool smallTransformer = reader.ReadBoolean();
+            bool otherTransformer = reader.ReadBoolean();
             bool battery = reader.ReadBoolean();
             bool apc = reader.ReadBoolean();
             bool powerTransmitter = reader.ReadBoolean();
             bool umbilical = reader.ReadBoolean();
-            PassthroughSettingsSync.SetSyncedValues(transformer, battery, apc, powerTransmitter, umbilical);
+            PassthroughDefaultsSync.SetSyncedValues(smallTransformer, otherTransformer, battery,
+                apc, powerTransmitter, umbilical);
 
-            // Per-Transformer priority + EnableTransformerShedding master toggle.
+            // Per-Transformer priority overrides.
             int priorityCount = reader.ReadInt32();
             for (int i = 0; i < priorityCount; i++)
             {
@@ -211,12 +215,8 @@ namespace PowerGridPlus
                 int priority = reader.ReadInt32();
                 PriorityStore.SetPriorityByReference(referenceId, priority);
             }
-            bool sheddingEnabled = reader.ReadBoolean();
-            ShedSettingsSync.SetSyncedValue(sheddingEnabled);
 
             // Fault-registry join handshake: remaining-ticks snapshots for all four registries.
-            bool overloadEnabled = reader.ReadBoolean();
-            OverloadSettingsSync.SetSyncedValue(overloadEnabled);
             BrownoutRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
             OverloadRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
             CycleFaultRegistry.ReplaceClientSnapshot(ReadRemaining(reader));

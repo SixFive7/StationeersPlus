@@ -7,10 +7,11 @@ namespace PowerGridPlus
     ///     Non-mutating per-tier cable Watts caps (POWER.md decision 2). <c>Cable.MaxVoltage</c> is a
     ///     per-instance serialized field; rewriting it bakes the configured caps into the save and
     ///     survives mod removal. Instead, every cap reader in PowerGridPlus (battery / APC headroom,
-    ///     the generator-overflow burn check, the allocator's effective-cap formula) consults this
-    ///     helper, and vanilla's own cable-burn check is patched to do the same
-    ///     (PowerTickPatches.GetBreakableCables_Prefix). The cable instances are never written;
-    ///     removing the mod reverts cables to vanilla ratings with no save contamination.
+    ///     the write-back's generator-overflow burn, the allocator's effective-cap formula) consults
+    ///     this helper; vanilla's own cable-burn check never runs (the atomic tick never calls the
+    ///     vanilla PowerTick trio, and Core/WriteBack owns the burn rule). The cable instances are
+    ///     never written; removing the mod reverts cables to vanilla ratings with no save
+    ///     contamination.
     ///
     ///     <para>A configured value of 0 means "unlimited" and is normalised to
     ///     <see cref="float.MaxValue"/> so a <c>flow &gt; cap</c> comparison is never satisfied.

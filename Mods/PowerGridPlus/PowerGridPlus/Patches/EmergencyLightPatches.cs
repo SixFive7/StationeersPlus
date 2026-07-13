@@ -48,23 +48,36 @@ namespace PowerGridPlus.Patches
             new ConcurrentDictionary<long, (bool, bool)>();
 
         // Configured emergency-light prefab names (Settings.EmergencyLightPrefabs, comma-separated,
-        // default StructureWallLightBattery). Parsed once; settings are immutable mid-session.
-        private static System.Collections.Generic.HashSet<string> _prefabNames;
+        // default StructureWallLightBattery). Parsed lazily; a config edit drops the set via
+        // RefreshConfig (wired to SettingChanged in Settings.Bind) so the next read re-parses.
+        // Readers include the power worker (the ownership sweep, the per-tick toggle) while the
+        // edit lands on the main thread, so the field is a volatile reference to a set that is
+        // never mutated after publish; readers grab one reference and work on that snapshot.
+        private static volatile System.Collections.Generic.HashSet<string> _prefabNames;
 
         internal static System.Collections.Generic.HashSet<string> PrefabNames
         {
             get
             {
-                if (_prefabNames == null)
+                var set = _prefabNames;
+                if (set == null)
                 {
                     var raw = Settings.EmergencyLightPrefabs?.Value ?? "StructureWallLightBattery";
-                    _prefabNames = new System.Collections.Generic.HashSet<string>(
+                    set = new System.Collections.Generic.HashSet<string>(
                         raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()),
                         StringComparer.OrdinalIgnoreCase);
+                    _prefabNames = set;
                 }
-                return _prefabNames;
+                return set;
             }
         }
+
+        /// <summary>Drop the parsed prefab set so the next read re-parses the setting (the
+        /// VoltageTier.RefreshConfig pattern). Wired to SettingChanged in Settings.Bind. Note the
+        /// Mode-interactable injection (Prefab.LoadAll) has already run by then, so a prefab name
+        /// ADDED mid-session gets sweep exemption and toggle behaviour but no Mode knob until the
+        /// next game start.</summary>
+        internal static void RefreshConfig() => _prefabNames = null;
 
         // Fast accessor for WallLightBattery.WasPoweredByCableLastTick (private property:
         // _lastPoweredByCableOnTick >= GameManager.GameTickCount). Bound once at class load.

@@ -4,9 +4,10 @@ using System.Globalization;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     Post-ALLOCATE conservation audit over the allocator's converged grants (config-gated by
-    ///     <c>Enable Conservation Check</c>). Two invariants, both properties of the allocator's own
-    ///     bookkeeping, so a violation is a code bug in PowerGridPlus, never a player problem:
+    ///     Post-ALLOCATE conservation audit over the allocator's converged grants (always on, no
+    ///     config entry; it costs a few microseconds per tick). Two invariants, both properties of
+    ///     the allocator's own bookkeeping, so a violation is a code bug in PowerGridPlus, never a
+    ///     player problem:
     ///
     ///     <list type="bullet">
     ///       <item>Per network: granted inflow == granted outflow within 0.5 W. Inflow = contributor
@@ -34,9 +35,6 @@ namespace PowerGridPlus
 
         private static readonly Dictionary<long, int> _lastNetWarn = new Dictionary<long, int>();
         private static readonly Dictionary<long, int> _lastSegWarn = new Dictionary<long, int>();
-
-        internal static bool Enabled => Settings.EnableConservationCheck != null
-                                        && Settings.EnableConservationCheck.Value;
 
         /// <summary>
         ///     Audit one network's converged grants. All arguments are the allocator's own per-tick

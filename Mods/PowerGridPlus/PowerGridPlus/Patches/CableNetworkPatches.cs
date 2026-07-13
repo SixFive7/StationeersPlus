@@ -14,10 +14,9 @@ namespace PowerGridPlus.Patches
 {
     /// <summary>
     ///     Propagates device-list invalidations across a logic-passthrough component so transitive
-    ///     passthrough stays correct when a far network changes. (This file previously also injected
-    ///     the custom PowerGridTick into every CableNetwork; that subclass is deleted under the
-    ///     single-architecture decision, POWER.md §0.1, and the vanilla PowerTick now runs
-    ///     unmodified.)
+    ///     passthrough stays correct when a far network changes. Power simulation is untouched
+    ///     here: the whole power tick runs in AtomicElectricityTickPatch, and the vanilla
+    ///     per-network PowerTick trio is never called.
     /// </summary>
     [HarmonyPatch(typeof(CableNetwork))]
     public static class CableNetworkPatches
@@ -39,7 +38,6 @@ namespace PowerGridPlus.Patches
             // here; the merge reads live DeviceLists, so it is correct once the dependents are dirtied.
             if (_propagatingPassthroughDirty) return;       // inside a propagation already: just mark the tick, do not cascade
             if (!GameManager.RunSimulation) return;          // skip world-load / join churn: every network is dirtied then anyway
-            if (!PassthroughTopology.AnyPassthroughEnabled()) return;
 
             var reachable = PassthroughTopology.GatherReachable(__instance);
             if (reachable == null) return;                   // not part of a passthrough component: nothing to invalidate
@@ -125,10 +123,11 @@ namespace PowerGridPlus.Patches
             });
         }
 
-        // Refresh every cable network. Used when a global Enable*LogicPassthrough setting toggles and
-        // changes which devices bridge, so there is no single device or component to scope to. Each dirty
-        // also fires the propagation postfix; the per-network diff-guard means only networks whose merged
-        // set actually changed rebuild their consumers, so this is cheap apart from the (rare) toggle.
+        // Refresh every cable network. For global changes that alter which devices bridge (for example
+        // the per-kind passthrough defaults arriving on a client), where there is no single device or
+        // component to scope to. Each dirty also fires the propagation postfix; the per-network
+        // diff-guard means only networks whose merged set actually changed rebuild their consumers,
+        // so this is cheap apart from the (rare) global change.
         internal static void RefreshAllNetworks()
         {
             var all = new List<CableNetwork>(CableNetwork.AllCableNetworks.ActiveCount);

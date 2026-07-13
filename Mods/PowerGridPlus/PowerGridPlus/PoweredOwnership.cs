@@ -30,15 +30,13 @@ namespace PowerGridPlus
     ///     delivers nothing by construction (the write-back settles no energy there and the
     ///     accumulator drains skip it, so debts freeze exactly and are billed on revival). The only
     ///     other vanilla Powered writer left is the main-thread AssessPower event path, suppressed
-    ///     under orthogonality by PoweredOwnershipPatches.</para>
+    ///     by PoweredOwnershipPatches.</para>
     ///
-    ///     <para><b>Expected state.</b> LIVE net AND structure complete AND (orthogonality ON, or
-    ///     the device's OnOff switch is on) => Powered true; otherwise false. With "Decouple
-    ///     Powered From On Off" enabled (the default), Powered means "my outlet is energized": a
-    ///     switched-off device on a live net reads Power=1 (powered but off), which is the
-    ///     physically-correct decoupling the mod adopts; the draw stays OnOff-gated so nothing is
-    ///     consumed. With the toggle off, expected also requires OnOff (vanilla-compatible
-    ///     semantics minus the per-device depower).</para>
+    ///     <para><b>Expected state.</b> LIVE net AND structure complete => Powered true; otherwise
+    ///     false. Powered is decoupled from the device's own on/off switch (always, no toggle):
+    ///     Powered means "my outlet is energized", so a switched-off device on a live net reads
+    ///     Power=1 (powered but off), which is the physically-correct decoupling the mod adopts;
+    ///     the draw stays OnOff-gated so nothing is consumed.</para>
     ///
     ///     <para><b>Classification is total.</b> The verdict map is computed FROM the same snapshot
     ///     this sweep iterates, so every swept net has a same-tick verdict by construction; the
@@ -111,6 +109,25 @@ namespace PowerGridPlus
 
         internal static bool IsQuarantined(long refId) => _quarantined.ContainsKey(refId);
 
+        /// <summary>
+        ///     Registry hygiene (RegistryHygiene sweep): drop quarantine entries whose device no
+        ///     longer exists, so a deconstructed self-asserter does not pin its ReferenceId for
+        ///     the rest of the session. Same worker-safe lookup as the fault registries:
+        ///     <c>Thing.Find</c> is a plain dictionary lookup and the verdict is a reference test
+        ///     (<c>is null</c>), never the Unity lifetime operator. Live devices stay quarantined
+        ///     by design (quarantine has no expiry). Returns the number of entries removed.
+        /// </summary>
+        internal static int PruneDestroyedQuarantine()
+        {
+            int removed = 0;
+            foreach (var pair in _quarantined)
+            {
+                if (Thing.Find(pair.Key) is null && _quarantined.TryRemove(pair.Key, out _))
+                    removed++;
+            }
+            return removed;
+        }
+
         /// <summary>Class-level exemption (see the class doc), cached per concrete type.</summary>
         internal static bool IsExemptDevice(Device device)
         {
@@ -156,7 +173,6 @@ namespace PowerGridPlus
         {
             if (NetLiveness.PublishedTick != currentTick) return;
             if (gridSnap == null) return;
-            bool orthogonal = Settings.DecouplePoweredFromOnOff.Value;
             var emergencyPrefabs = Patches.EmergencyLightSupport.PrefabNames;
 
             for (int ni = 0; ni < gridSnap.Nets.Count; ni++)
@@ -186,11 +202,10 @@ namespace PowerGridPlus
 
                         _state.TryGetValue(refId, out var st);
 
-                        // OnOff comes from the boundary read (row.OnOff), so the expectation is
-                        // computed from the same sample the solve billed under.
+                        // Powered is decoupled from the device's own OnOff switch: the verdict and
+                        // structure completeness alone decide the expectation.
                         byte expected = (verdict == NetLiveness.Live
-                                         && device.IsStructureCompleted
-                                         && (orthogonal || row.OnOff)) ? (byte)1 : (byte)0;
+                                         && device.IsStructureCompleted) ? (byte)1 : (byte)0;
 
                         bool actual = device.Powered;
 

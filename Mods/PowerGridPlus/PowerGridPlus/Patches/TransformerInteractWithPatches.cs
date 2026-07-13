@@ -11,8 +11,7 @@ namespace PowerGridPlus.Patches
 {
     // Re-purposes the transformer's two screwdriver knob-step buttons (Button1 /
     // Button2) to control the new Priority value (default 100, step 10 per click
-    // or 1 with Alt) and reskins the on-screen hover text. When
-    // EnableTransformerShedding is off, vanilla InteractWith runs unchanged.
+    // or 1 with Alt) and reskins the on-screen hover text.
     //
     // Vanilla InteractWith (Research/GameClasses/Transformer.md "InteractWith button
     // model and DelayedActionInstance state messages") writes Setting directly in
@@ -116,7 +115,6 @@ namespace PowerGridPlus.Patches
             bool doAction,
             ref Thing.DelayedActionInstance __result)
         {
-            if (!ShedSettingsSync.Effective) return true;
             if (interactable == null) return true;
 
             // Labeller / multi-tool path: vanilla checks first. If it would return
@@ -174,7 +172,6 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix, HarmonyPatch(typeof(Assets.Scripts.Objects.Thing), nameof(Assets.Scripts.Objects.Thing.OnFinishedLoad))]
         public static void OnFinishedLoadPostfix(Assets.Scripts.Objects.Thing __instance)
         {
-            if (!ShedSettingsSync.Effective) return;
             if (!(__instance is Transformer t)) return;
             try { SetKnobMethod?.Invoke(t, null); }
             catch (System.Exception e) { Plugin.Log?.LogWarning($"SetKnob on load failed for ref={t.ReferenceId}: {e.Message}"); }
@@ -192,7 +189,6 @@ namespace PowerGridPlus.Patches
         [HarmonyPrefix, HarmonyPatch("SetKnob")]
         public static bool SetKnobPatch(Transformer __instance)
         {
-            if (!ShedSettingsSync.Effective) return true;
             if (__instance == null) return true;
 
             // Mirror vanilla SetKnob (decompile L403579-403597) exactly:

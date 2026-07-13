@@ -24,8 +24,8 @@ namespace PowerGridPlus.Core
     ///       deterministic, multiplayer-stable choice). <c>CableFuse.Break</c> self-marshals.</item>
     ///       <item>The deterministic §5.7 generator-overflow cable burn (the 20-tick window,
     ///       ported verbatim from the retired PowerTick prefix; <c>Cable.Break</c> self-marshals).</item>
-    ///       <item>Energy settlement: storage charge credits (battery efficiency + sub-500 W trickle
-    ///       floor preserved), storage discharge debits, umbilical Last* mirrors, the delivery audits
+    ///       <item>Energy settlement: storage charge credits (battery charge-cost loss + sub-500 W
+    ///       trickle floor), storage discharge debits, umbilical Last* mirrors, the delivery audits
     ///       fed at the settlement site (credit == grant by construction), and the consumer
     ///       accumulator drains per decision 26 (main-queue post + worker-direct debits; a DEAD net
     ///       drains nothing, so debts freeze exactly and are billed on revival).</item>
@@ -168,12 +168,14 @@ namespace PowerGridPlus.Core
             }
 
             // ---- 3. Storage settlement (credit == grant by construction) ----
-            float efficiency = Mathf.Clamp01(Settings.BatteryChargeEfficiency.Value);
+            // Battery Charge Efficiency is a cost multiplier: grid energy drawn per unit stored.
+            // Values below 1 are treated as 1 (a battery never stores more than it draws).
+            float chargeCost = Mathf.Max(1f, Settings.BatteryChargeEfficiency.Value);
             for (int i = 0; i < plan.Credits.Count; i++)
             {
                 var credit = plan.Credits[i];
                 if (credit.Amount <= 0f) continue;
-                try { ApplyCredit(credit, efficiency); }
+                try { ApplyCredit(credit, chargeCost); }
                 catch (System.Exception ex)
                 {
                     Plugin.Log?.LogWarning(
@@ -226,17 +228,17 @@ namespace PowerGridPlus.Core
             if (mainBatch != null) MainThreadDebitQueue.Post(mainBatch);
         }
 
-        private static void ApplyCredit(in StoreCredit credit, float efficiency)
+        private static void ApplyCredit(in StoreCredit credit, float chargeCost)
         {
                 switch (credit.Kind)
                 {
                     case ChargeDeliveryAudit.KindBattery:
                     {
                         if (!(credit.Owner is Battery battery)) break;
-                        // The retired ReceivePower prefix's exact rule: efficiency applies first,
-                        // and a post-efficiency credit below 500 W stores the full delivery instead
-                        // (the trickle floor, so a battery can always top off).
-                        float stored = credit.Amount * efficiency;
+                        // The charge-cost divisor applies first (stored = delivered / cost), then
+                        // the sub-500 W trickle floor stores the full delivery instead, so a
+                        // battery can always top off.
+                        float stored = credit.Amount / chargeCost;
                         if (stored < 500f) stored = credit.Amount;
                         battery.PowerStored = Mathf.Clamp(battery.PowerStored + stored, 0f, battery.PowerMaximum);
                         ChargeDeliveryAudit.RecordCredit(credit.RefId, ChargeDeliveryAudit.KindBattery, stored);

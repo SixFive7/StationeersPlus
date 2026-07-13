@@ -19,7 +19,8 @@ namespace PowerGridPlus.Patches
 {
     /// <summary>
     ///     Per-prefab absolute charge / discharge wattage caps on stationary batteries, further
-    ///     bounded by the respective cable's MaxVoltage. Plus the optional charge-efficiency loss.
+    ///     bounded by the respective cable's MaxVoltage. The charge-cost loss itself is applied at
+    ///     settlement in Core/WriteBack.
     /// </summary>
     [HarmonyPatch(typeof(Battery))]
     public static class StationaryBatteryPatches
@@ -102,8 +103,7 @@ namespace PowerGridPlus.Patches
             // Clamp a non-finite value at the source before the Min logic (Mathf.Min(NaN, cap) would
             // silently return the cap instead of flagging the broken device).
             __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: false);
-            if (Settings.EnableBatteryLimits.Value)
-                __result = Mathf.Min(__result, EffectiveChargeCap(__instance));
+            __result = Mathf.Min(__result, EffectiveChargeCap(__instance));
             // Soft charge demand (POWER.md §7.4): the allocator grants each battery a per-tick charge
             // share; the reported demand caps to it so vanilla never sees soft demand beyond what the
             // grid's firm residual covers. Falls back to the rate-capped value when no fresh share
@@ -116,8 +116,7 @@ namespace PowerGridPlus.Patches
         public static void LimitMaxDischargeRate(Battery __instance, ref float __result)
         {
             __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: true);
-            if (Settings.EnableBatteryLimits.Value)
-                __result = Mathf.Min(__result, EffectiveDischargeCap(__instance));
+            __result = Mathf.Min(__result, EffectiveDischargeCap(__instance));
             // Elastic discharge (POWER.md §7.3.0.1): clamp to the allocator's per-tick share so the
             // battery delivers only the rigid shortfall it was allocated, never raw PowerStored.
             // GetShare returns float.MaxValue when no fresh share exists (fallback to vanilla).
@@ -127,7 +126,7 @@ namespace PowerGridPlus.Patches
 
         // The old ReceivePower charge-efficiency prefix is retired with vanilla ApplyState: the
         // write-back (Core/WriteBack) credits the battery its granted share with the same
-        // efficiency / sub-500 W trickle rule, and no vanilla delivery path calls
+        // charge-cost / sub-500 W trickle rule, and no vanilla delivery path calls
         // Battery.ReceivePower during the tick any more.
 
         [HarmonyReversePatch, HarmonyPatch("get_IsOperable")]

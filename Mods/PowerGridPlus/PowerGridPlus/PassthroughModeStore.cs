@@ -10,16 +10,18 @@ namespace PowerGridPlus
     // 0 or 1. Used for Transformer, Battery, AreaPowerControl, PowerTransmitter,
     // PowerReceiver, and both halves of the rocket power umbilical.
     //
-    // Per-PrefabName defaults:
-    //   - Small Transformer + Reversed + Rocket Small: 1 (logic-transparent out of the box).
-    //   - Other Transformer variants:                  0 (vanilla-opaque).
-    // Per-type defaults (anything without a specific PrefabName override):
-    //   - Battery:           1 (logic-transparent across input / output cable ports).
-    //   - AreaPowerControl:  1 (logic-transparent across input / output cable ports).
-    //   - PowerTransmitter:  1 (logic-transparent across the wireless link to its receiver).
-    //   - PowerReceiver:     1 (logic-transparent across the wireless link to its transmitter).
-    //   - Rocket power umbilical (Male / Female / FemaleSide): 1 (transparent across a docked pair).
-    //   - Everything else:   0.
+    // Defaults for a device with no explicit entry come from the six server-authoritative
+    // per-kind Passthrough Default settings (host values, synced to clients via
+    // PassthroughDefaultsSync):
+    //   - Small Transformer + Reversed + Rocket Small: Small Transformer Passthrough Default.
+    //   - Other Transformer variants:                  Other Transformer Passthrough Default.
+    //   - Battery:                                     Battery Passthrough Default.
+    //   - AreaPowerControl:                            APC Passthrough Default.
+    //   - PowerTransmitter / PowerReceiver:            Power Transmitter Passthrough Default.
+    //   - Rocket power umbilical (Male / Female):      Umbilical Passthrough Default.
+    //   - Everything else:                             0.
+    // Once a device's mode is written (IC10, logic writer, or restore from the side-car),
+    // the stored per-device value wins over the default.
     //
     // Persistence: PassthroughSideCar reads / writes a sidecar XML inside the save
     // ZIP. PassthroughSaveLoadPatches restores state in Thing.OnFinishedLoad for
@@ -51,14 +53,15 @@ namespace PowerGridPlus
                 case "StructureTransformerSmall":
                 case "StructureTransformerSmallReversed":
                 case "StructureRocketTransformerSmall":
-                    return 1;
+                    return PassthroughDefaultsSync.EffectiveSmallTransformer ? 1 : 0;
             }
-            if (thing is Battery) return 1;
-            if (thing is AreaPowerControl) return 1;
-            if (thing is PowerTransmitter) return 1;
-            if (thing is PowerReceiver) return 1;
-            if (thing is RocketPowerUmbilicalMale) return 1;
-            if (thing is RocketPowerUmbilicalFemale) return 1;
+            if (thing is Transformer) return PassthroughDefaultsSync.EffectiveOtherTransformer ? 1 : 0;
+            if (thing is Battery) return PassthroughDefaultsSync.EffectiveBattery ? 1 : 0;
+            if (thing is AreaPowerControl) return PassthroughDefaultsSync.EffectiveApc ? 1 : 0;
+            if (thing is PowerTransmitter) return PassthroughDefaultsSync.EffectivePowerTransmitter ? 1 : 0;
+            if (thing is PowerReceiver) return PassthroughDefaultsSync.EffectivePowerTransmitter ? 1 : 0;
+            if (thing is RocketPowerUmbilicalMale) return PassthroughDefaultsSync.EffectiveUmbilical ? 1 : 0;
+            if (thing is RocketPowerUmbilicalFemale) return PassthroughDefaultsSync.EffectiveUmbilical ? 1 : 0;
             return 0;
         }
 

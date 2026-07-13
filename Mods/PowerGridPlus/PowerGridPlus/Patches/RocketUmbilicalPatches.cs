@@ -20,13 +20,12 @@ namespace PowerGridPlus.Patches
     ///     grid-facing halves and are direction-agnostic; the allocator models each half as a
     ///     buffered store (UmbilicalAdapter in SegAdapters.cs), never the crossing itself.
     ///
-    ///     <para>Rate caps: when <c>EnableRocketUmbilicalLimits</c> is on, charge demand caps at
-    ///     RocketUmbilicalChargeRate and discharge at RocketUmbilicalDischargeRate (both further
-    ///     capped by the cable tier cap). When off, vanilla full-PowerMaximum-per-tick behaviour
-    ///     applies. The elastic share caps (SoftSupply/SoftDemandShareCache, written by
-    ///     PowerAllocator) apply regardless, mirroring batteries.</para>
+    ///     <para>Rate caps: charge demand caps at RocketUmbilicalChargeRate and discharge at
+    ///     RocketUmbilicalDischargeRate (both further capped by the cable tier cap). The elastic
+    ///     share caps (SoftSupply/SoftDemandShareCache, written by PowerAllocator) apply on top,
+    ///     mirroring batteries.</para>
     ///
-    ///     <para>LogicTypes (master-toggle gated): MaxChargeSpeed / MaxDischargeSpeed report the
+    ///     <para>LogicTypes: MaxChargeSpeed / MaxDischargeSpeed report the
     ///     configured caps (cable-capped); ChargeSpeed / DischargeSpeed report the live allocator
     ///     shares. The Male declares its own CanLogicRead (patched directly); the Female declares no
     ///     logic methods, so its exposure rides the Device-base declarations with an instance filter
@@ -84,11 +83,10 @@ namespace PowerGridPlus.Patches
             // half is outside this tick's roster (errored, or enrolled with no headroom), and its
             // cell got no grant, so bill 0 charge instead of vanilla's full-headroom fallback (an
             // unmodelled draw no advertise funds): symmetric with the transformer / APC / battery
-            // "not in the roster -> report 0" convention. The rate cap stays as a belt when the
-            // limits master is on (a one-tick-stale share could otherwise outrun a lowered cap).
+            // "not in the roster -> report 0" convention. The rate cap stays as a belt (a
+            // one-tick-stale share could otherwise outrun a lowered cap).
             float charge = SoftDemandShareCache.TryGetShare(umbilical.ReferenceId, out var share) ? share : 0f;
-            if (Settings.EnableRocketUmbilicalLimits.Value)
-                charge = Mathf.Min(charge, ChargeCap(umbilical));
+            charge = Mathf.Min(charge, ChargeCap(umbilical));
             result = Mathf.Min(result, ownDraw + charge);
         }
 
@@ -96,8 +94,7 @@ namespace PowerGridPlus.Patches
         {
             result = DeviceOutputSanitizer.Sanitize(result, umbilical, generated: true);
             if (result <= 0f) return;
-            if (Settings.EnableRocketUmbilicalLimits.Value)
-                result = Mathf.Min(result, DischargeCap(umbilical));
+            result = Mathf.Min(result, DischargeCap(umbilical));
             result = Mathf.Min(result, SoftSupplyShareCache.GetShare(umbilical.ReferenceId));
         }
 
@@ -124,7 +121,7 @@ namespace PowerGridPlus.Patches
         // tick) and stays untouched.
 
         // ------------------------------------------------------------------
-        // LogicType exposure (gated on EnableRocketUmbilicalLimits).
+        // LogicType exposure.
         // ------------------------------------------------------------------
 
         private static bool IsSoftPowerLogicType(LogicType logicType)
@@ -157,7 +154,7 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix, HarmonyPatch(typeof(RocketPowerUmbilicalMale), nameof(RocketPowerUmbilicalMale.CanLogicRead))]
         public static void MaleCanRead(LogicType logicType, ref bool __result)
         {
-            if (Settings.EnableRocketUmbilicalLimits.Value && IsSoftPowerLogicType(logicType))
+            if (IsSoftPowerLogicType(logicType))
                 __result = true;
         }
 
@@ -165,7 +162,7 @@ namespace PowerGridPlus.Patches
         public static void DeviceCanRead(Device __instance, LogicType logicType, ref bool __result)
         {
             if (!(__instance is RocketPowerUmbilicalFemale)) return;
-            if (Settings.EnableRocketUmbilicalLimits.Value && IsSoftPowerLogicType(logicType))
+            if (IsSoftPowerLogicType(logicType))
                 __result = true;
         }
 
@@ -175,7 +172,6 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix, HarmonyPatch(typeof(Device), nameof(Device.GetLogicValue), typeof(LogicType))]
         public static void DeviceGetValue(Device __instance, LogicType logicType, ref double __result)
         {
-            if (!Settings.EnableRocketUmbilicalLimits.Value) return;
             if (!(__instance is ElectricalInputOutput umbilical)) return;
             if (!(__instance is RocketPowerUmbilicalMale) && !(__instance is RocketPowerUmbilicalFemale)) return;
             if (TryGetSoftPowerValue(umbilical, logicType, out var value))

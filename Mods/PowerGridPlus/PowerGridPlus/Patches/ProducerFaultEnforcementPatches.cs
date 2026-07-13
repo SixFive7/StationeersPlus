@@ -9,10 +9,11 @@ namespace PowerGridPlus.Patches
 {
     /// <summary>
     ///     Zeroes a producer's generated power while it is in VARIABLE_VOLTAGE_FAULT lockout, so the
-    ///     faulted producer visibly stops generating (POWER.md §8.5). Replaces the central
-    ///     CalculateState producer-zero that lived in the deleted PowerGridTick: with the vanilla
-    ///     PowerTick running OBSERVE and ENFORCE, enforcement moves to per-class GetGeneratedPower
-    ///     postfixes.
+    ///     faulted producer visibly stops generating (POWER.md §8.5). Enforcement lives in
+    ///     per-class GetGeneratedPower postfixes because the method is the single choke point every
+    ///     reader shares: the atomic tick's boundary read (Core/GridSnapshot) and any main-thread
+    ///     caller see the same zeroed advertise. Producers that fault AFTER the snapshot is taken
+    ///     are zeroed in the snapshot rows instead (AtomicElectricityTickPatch).
     ///
     ///     <para>Patch targets: every producer class DECLARES its own GetGeneratedPower override
     ///     (verified, Research/GameSystems/PowerSegmentingDevices.md "GetGeneratedPower override
@@ -27,8 +28,9 @@ namespace PowerGridPlus.Patches
     {
         public static IEnumerable<MethodBase> TargetMethods()
         {
-            // The eight declaring producer classes (0.2.6228.27061 override map). WindTurbineGenerator
-            // lives in the bare Objects namespace; the rest are Assets.Scripts.Objects.Electrical.
+            // The eight declaring producer classes (the override map cited in the class doc).
+            // WindTurbineGenerator lives in the bare Objects namespace; the rest are
+            // Assets.Scripts.Objects.Electrical.
             yield return AccessTools.Method(typeof(SolarPanel), nameof(SolarPanel.GetGeneratedPower));
             yield return AccessTools.Method(typeof(global::Objects.WindTurbineGenerator), "GetGeneratedPower");
             yield return AccessTools.Method(typeof(RadioscopicThermalGenerator), nameof(RadioscopicThermalGenerator.GetGeneratedPower));
