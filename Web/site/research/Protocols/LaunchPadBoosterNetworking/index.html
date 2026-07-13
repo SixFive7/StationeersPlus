@@ -5340,6 +5340,8 @@
       
         
       
+        
+      
     
     
     
@@ -5790,6 +5792,34 @@
     
   
     InputHelpers.GetCameraForwardGrid (construction-cursor placement raycast)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/HarmonyBaseCallDetourMultiFire/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Harmony base-call detour multi-fire on override chains
   
 
     
@@ -7172,6 +7202,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rocketbinarywriter-rocketbinaryreader-the-vanilla-primitive-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8298,6 +8339,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rocketbinarywriter-rocketbinaryreader-the-vanilla-primitive-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8408,14 +8460,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-28.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (7)</summary>
+          <summary><strong>Sources</strong> (8)</summary>
           <ul>
             
               <li><code>Mods/PowerTransmitterPlus/RESEARCH.md:676-692</code></li>
@@ -8432,17 +8488,23 @@
             
               <li><code>{'BepInEx/plugins/StationeersLaunchPad/LaunchPadBooster.dll :': 'LaunchPadBooster.Networking.ConnectionState'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 274266-274519 (RocketBinaryReader, complete), 274520-274839 (RocketBinaryWriter, complete), 272552 (namespace Assets.Scripts.Networking)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (5)</summary>
+          <summary><strong>Related pages</strong> (7)</summary>
           <ul>
             
               <li><code>../GameSystems/NetworkRoles.md</code></li>
             
               <li><code>../Patterns/SinglePlayerNetworkRole.md</code></li>
+            
+              <li><code>../Patterns/BinaryStreamSafety.md</code></li>
+            
+              <li><code>../Patterns/Float16Quantization.md</code></li>
             
               <li><code>./PowerTransmitterPlusNetworking.md</code></li>
             
@@ -8669,6 +8731,32 @@
 <li>LaunchPadBooster length-prefixes each mod's section (SectionedWriter / Reader), so a schema change in one mod does not desync neighbours. Field write order in <code>SerializeJoinSuffix</code> MUST match read order in <code>DeserializeJoinSuffix</code>.</li>
 </ul>
 <p>Why this and not a <code>NetworkManager.PlayerConnected</code> broadcast: that hook fires BEFORE the joiner is added to <code>NetworkBase.Clients</code>, so an <code>INetworkMessage.SendAll</code> from a <code>PlayerConnected</code> postfix reaches existing clients but never the new joiner. PowerTransmitterPlus used the <code>PlayerConnected</code> rebroadcast through v1.6.x and removed it in v1.7.0 in favour of <code>IJoinSuffixSerializer</code> for exactly this reason. The established split: live <code>SendAll</code> for runtime changes to already-connected clients, <code>IJoinSuffixSerializer</code> for the initial snapshot to a joiner.</p>
+<h2 id="rocketbinarywriter-rocketbinaryreader-the-vanilla-primitive-surface">RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface<a class="headerlink" href="#rocketbinarywriter-rocketbinaryreader-the-vanilla-primitive-surface" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>Every serializer hook on this page (<code>IJoinValidator.SerializeJoinValidate</code> / <code>ProcessJoinValidate</code>, <code>IJoinSuffixSerializer.SerializeJoinSuffix</code> / <code>DeserializeJoinSuffix</code>, and LaunchPadBooster message serialization generally) hands the mod a <code>RocketBinaryWriter</code> or <code>RocketBinaryReader</code>. These are VANILLA game types in <code>Assets.Scripts.Networking</code> (Assembly-CSharp; namespace declaration at 0.2.6403.27689 decompile line 272552), not LaunchPadBooster types:</p>
+<ul>
+<li><code>public class RocketBinaryReader : RocketBinaryCore</code> (274266, spans 274266-274519): wraps a <code>Stream</code>; every multi-byte read goes through <code>ReadExactly</code> (274284), which throws <code>EndOfStreamException</code> on a short read. Reader methods are <code>virtual</code> (subclass hook <code>PostRead</code>, 274275).</li>
+<li><code>public class RocketBinaryWriter : RocketBinaryCore</code> (274520, spans 274520-274839): writes into an <code>ArrayPool&lt;byte&gt;</code>-rented buffer (constructor takes <code>bufferSize</code>, 274549) guarded by <code>Ensure(count)</code> (274560-274566, throws <code>OverflowException("Buffer too small for message.")</code>). Writer methods are plain instance methods (hook <code>PreWrite</code>, 274556).</li>
+</ul>
+<p>Float payloads round-trip through <code>WriteSingle</code> / <code>ReadSingle</code> as 4-byte little-endian IEEE 754 singles, verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">WriteSingle</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="k">value</span><span class="p">)</span><span class="w">                     </span><span class="c1">// RocketBinaryWriter, line 274644</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">Ensure</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">value2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BitConverter</span><span class="p">.</span><span class="n">SingleToInt32Bits</span><span class="p">(</span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="n">BinaryPrimitives</span><span class="p">.</span><span class="n">WriteInt32LittleEndian</span><span class="p">(</span><span class="n">_buffer</span><span class="p">.</span><span class="n">AsSpan</span><span class="p">(</span><span class="n">Position</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">),</span><span class="w"> </span><span class="n">value2</span><span class="p">);</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="n">Position</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="p">}</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">ReadSingle</span><span class="p">()</span><span class="w">                        </span><span class="c1">// RocketBinaryReader, line 274380</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">{</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="n">ReadExactly</span><span class="p">(</span><span class="n">span</span><span class="p">);</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">BitConverter</span><span class="p">.</span><span class="n">Int32BitsToSingle</span><span class="p">(</span><span class="n">BinaryPrimitives</span><span class="p">.</span><span class="n">ReadInt32LittleEndian</span><span class="p">(</span><span class="n">span</span><span class="p">));</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Complete primitive inventory at 0.2.6403.27689 (writer line / reader line): Boolean 274574/274300, Byte 274580/274305, SByte 274586/274315, Bytes 274592/274325, Int32 274602/274338, UInt32 274609/274345, Int16 274616/274352, UInt16 274623/274359, Int64 274630/274366, UInt64 274637/274373, Single 274644/274380, Double 274652/274392, FloatHalf 274715/274387 (half precision via <code>Mathf.FloatToHalf</code> on write and <code>RocketMath.HalfToFloat(ReadUInt16())</code> on read; rounding consequences on <a href="../../Patterns/Float16Quantization/">Float16Quantization</a>), Quaternion 274660/274399 and QuaternionHalf 274668/274404 (the read side renormalizes: <code>.normalized</code>), Colour 274676/274409, AnimationCurve 274684/274414, Vector3 274701/274435 and Vector3Half 274720/274445, Vector3d 274708/274440 (doubles), WorldGrid 274727/274450 (stored as <code>Int16</code> of value/10), Grid3 274734/274455, String 274741/274460 (<code>Int32</code> byte-length prefix + UTF8; writer emits length -1 for null, reader returns <code>string.Empty</code> for -1 or 0 and throws <code>InvalidDataException</code> on other negatives), NetworkUpdateType 274763/274504, MessageType 274568/274279 (a <code>MessageFactory</code> type index byte), Ascii 274799/274509. Writer-side positioning extras: <code>Position</code> / <code>Length</code> properties (274530/274547), <code>Seek(int, SeekOrigin)</code> 274768, <code>SeekZero</code> 274784, <code>SeekEnd</code> 274789, <code>Seek(long, SeekOrigin)</code> 274794, plus buffer lifecycle (<code>ReturnBuffer</code> 274808, <code>Close</code> 274817, <code>Dispose</code> 274823, <code>Reset</code> 274829).</p>
+<p>Mod consequence: a custom payload carrying floats writes <code>writer.WriteSingle(x)</code> on one side and reads <code>x = reader.ReadSingle()</code> on the other for a full 32-bit round trip; reach for the FloatHalf pair only when half-precision rounding is acceptable. Write order must equal read order field for field, and no try-catch goes around the calls (<a href="../../Patterns/BinaryStreamSafety/">BinaryStreamSafety</a>): a swallowed exception leaves the stream position misaligned for every subsequent field.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
@@ -8676,6 +8764,7 @@
 <li>2026-04-20: page created from the Research migration. Primary source F0055 (PowerTransmitterPlus RESEARCH.md:676-692). Additional sources cited: F0025 (SprayPaintPlus RESEARCH.md:211-213), F0029c (SprayPaintPlus RESEARCH.md:149-151), F0312 (PowerTransmitterPlus/DistanceConfigSync.cs:66-72).</li>
 <li>2026-04-23: added "IJoinValidator: custom per-mod join validation" section. Verified against <code>LaunchPadBooster.dll</code> in game version 0.2.6228.27061 by decompilation of <code>IJoinValidator</code>, <code>IModNetworking</code>, <code>ModNetworking.PrepareJoinValidateData</code>, <code>ModNetworking</code> <code>VerifyPlayer</code> / <code>VerifyPlayerRequest</code> Harmony postfixes, and <code>ConnectionState.DoJoinValidateModCustom</code>. Finding: validator fires only on remote client-join exchanges; does NOT fire for host-own-world load or single-player.</li>
 <li>2026-05-28: added "IJoinSuffixSerializer: join-time state snapshot to a joining client". Verified from PowerTransmitterPlus <code>Plugin.cs:260-348</code> (implements <code>IJoinSuffixSerializer</code>; <code>SerializeJoinSuffix</code> / <code>DeserializeJoinSuffix</code> ship the auto-aim cache + seven config values) and <code>DistanceConfigSync.cs:9-23</code>, cross-referenced with <code>./PlayerConnectedThingFindTiming.md</code>. Documents the host <code>PackageJoinData</code> / client <code>ProcessJoinData</code>-after-<code>ProcessThings</code> invocation points, the remote-join-only gating, and why it replaced the v1.6.x <code>PlayerConnected</code> rebroadcast (which fires before the joiner is in <code>NetworkBase.Clients</code>). Additive (the page previously documented only <code>IJoinValidator</code>, with <code>IJoinPrefixSerializer</code> noted out of scope); no existing claim contradicted, so no fresh validator.</li>
+<li>2026-07-14: added "RocketBinaryWriter / RocketBinaryReader: the vanilla primitive surface" (game version 0.2.6403.27689), from the PowerGridPlus fault-hover session's float-payload check. Both classes read in full from the 0.2.6403.27689 decompile: <code>RocketBinaryReader : RocketBinaryCore</code> 274266-274519 (Stream-backed, <code>ReadExactly</code> 274284, virtual methods, <code>PostRead</code> hook 274275) and <code>RocketBinaryWriter : RocketBinaryCore</code> 274520-274839 (ArrayPool buffer, <code>Ensure</code> 274560-274566, <code>PreWrite</code> hook 274556); namespace <code>Assets.Scripts.Networking</code> confirmed at 272552. <code>WriteSingle</code> (274644-274650) and <code>ReadSingle</code> (274380-274385) quoted verbatim: 4-byte little-endian IEEE 754 via <code>BitConverter.SingleToInt32Bits</code> / <code>Int32BitsToSingle</code>, confirming full-precision float payloads for custom network messages (the FloatHalf pair at 274715 / 274387 remains the only half-precision path). Full primitive inventory recorded with paired line references. Additive; no existing claim contradicted (the page previously used these types in verbatim LaunchPadBooster excerpts without documenting the game-side surface). Top-level <code>verified_in</code> bumped to 0.2.6403.27689 for this section; earlier sections keep their 0.2.6228.27061 stamps and were not re-read this pass.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
