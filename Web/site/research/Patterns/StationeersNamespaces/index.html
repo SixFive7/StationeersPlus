@@ -8423,6 +8423,11 @@
 <td>(Most Logic types ARE in Motherboards, just not the chip)</td>
 </tr>
 <tr>
+<td><code>GameState</code> (enum)</td>
+<td><code>Assets.Scripts.GridSystem</code></td>
+<td>Not <code>Assets.Scripts</code> (where <code>GameManager</code> lives; decompile 290777 under the 290052 namespace)</td>
+</tr>
+<tr>
 <td><code>PowerTransmitterVisualiser</code></td>
 <td>global namespace</td>
 <td>NOT <code>Assets.Scripts.Objects.Electrical</code> despite the dish being there</td>
@@ -8450,6 +8455,9 @@
 <li>F0388: <code>Consumable</code> namespace note from SprayPaintPlus code comment.</li>
 </ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-07-14: added the GameState enum row (Assets.Scripts.GridSystem, decompile 290777; hit while a new file using GameManager.GameState failed to resolve GameState with only the Assets.Scripts using). Additive.</li>
+</ul>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <ul>
