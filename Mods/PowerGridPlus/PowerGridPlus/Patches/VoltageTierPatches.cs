@@ -229,15 +229,48 @@ namespace PowerGridPlus.Patches
         ///     coalesced the event's multiple firings per mutation.
         /// </summary>
         [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), MethodType.Constructor)]
-        public static void CableNetwork_Ctor_Postfix() => VoltageTierEnforcer.RequestRecheck();
+        public static void CableNetwork_Ctor_Postfix(CableNetwork __instance)
+        {
+            VoltageTierEnforcer.InvalidateNet(__instance.ReferenceId);
+            VoltageTierEnforcer.RequestRecheck();
+        }
 
         [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), MethodType.Constructor, typeof(long))]
-        public static void CableNetwork_CtorFromId_Postfix() => VoltageTierEnforcer.RequestRecheck();
+        public static void CableNetwork_CtorFromId_Postfix(CableNetwork __instance)
+        {
+            // The id-carrying constructor resurrects a SAVED network id (Cable.DeserializeSave), so a
+            // cached verdict from an earlier life of that id must not survive into this one.
+            VoltageTierEnforcer.InvalidateNet(__instance.ReferenceId);
+            VoltageTierEnforcer.RequestRecheck();
+        }
 
         [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), MethodType.Constructor, typeof(Cable))]
-        public static void CableNetwork_CtorFromCable_Postfix() => VoltageTierEnforcer.RequestRecheck();
+        public static void CableNetwork_CtorFromCable_Postfix(CableNetwork __instance)
+        {
+            VoltageTierEnforcer.InvalidateNet(__instance.ReferenceId);
+            VoltageTierEnforcer.RequestRecheck();
+        }
 
         [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), nameof(CableNetwork.Add), typeof(Cable))]
-        public static void CableNetwork_Add_Postfix() => VoltageTierEnforcer.RequestRecheck();
+        public static void CableNetwork_Add_Postfix(CableNetwork __instance)
+        {
+            VoltageTierEnforcer.InvalidateNet(__instance.ReferenceId);
+            VoltageTierEnforcer.RequestRecheck();
+        }
+
+        // Removal cannot make a uniform network mixed, but destroying a SEATED cable clears its cell
+        // and can orphan a co-located theft victim on an UNNAMEABLE other network (the single-slot
+        // cell hides it). Two consequences: the eviction is CACHE-WIDE (only a full eviction
+        // guarantees that network's StackedTheft flag is recomputed), and a recheck IS scheduled,
+        // because the orphan's network is typically device-less and the per-tick backstop never sees
+        // device-less nets (GridSnapshot skips DeviceList.Count == 0); the coalesced main-thread
+        // recheck over AllCableNetworks is the only eye that can find it. Removals are rare, so this
+        // is one lazy recompute wave per topology change, not a per-tick cost.
+        [HarmonyPostfix, HarmonyPatch(typeof(CableNetwork), nameof(CableNetwork.Remove), typeof(Cable))]
+        public static void CableNetwork_Remove_Postfix()
+        {
+            VoltageTierEnforcer.InvalidateAll();
+            VoltageTierEnforcer.RequestRecheck();
+        }
     }
 }

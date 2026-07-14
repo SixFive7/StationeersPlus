@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using Assets.Scripts;
 using Assets.Scripts.GridSystem;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -11,6 +13,7 @@ using Assets.Scripts.Objects.Pipes;
 using HarmonyLib;
 using Objects;
 using Objects.Rockets;
+using UnityEngine;
 
 namespace PowerGridPlus
 {
@@ -423,11 +426,13 @@ namespace PowerGridPlus
                 return false;
 
             Cable victim = null;
+            Cable.Type highestType = Cable.Type.normal;
+            bool mixed = false;
+            List<(Cable keep, Cable remove)> stacks = null;
             lock (network.CableList)
             {
                 Cable.Type? firstType = null;
-                bool mixed = false;
-                float lowestRating = float.MaxValue;
+                int highestRank = 0;
 
                 foreach (var cable in network.CableList)
                 {
@@ -439,12 +444,68 @@ namespace PowerGridPlus
                     else if (cable.CableType != firstType.Value)
                         mixed = true;
 
-                    if (cable.MaxVoltage < lowestRating)
+                    int rank = TierRank(cable.CableType);
+                    if (rank > highestRank)
+                    {
+                        highestRank = rank;
+                        highestType = cable.CableType;
+                    }
+
+                    // Stacked-theft scan, from the victim's side: a member cable whose own cell seats a
+                    // DIFFERENT cable was stacked over by a cursor-less print (the victim's SmallCell
+                    // back-pointer survives the overwrite; Research/GameClasses/SmallCell.md). The
+                    // seated thief may belong to another network entirely; the pair is repairable
+                    // either way. Only the unseated side reports, so each pair lands exactly once.
+                    // A NULL seat is the thief-destroyed-while-seated aftermath (the reference-equality
+                    // cell clear emptied the slot): an orphaned ghost, repaired by a plain re-seat
+                    // (remove == null in the pair). Multi-cell straight variants carry the back-pointer
+                    // of their LAST cell only, a documented limitation.
+                    if (cable.IsBeingDestroyed)
+                        continue;
+                    var seated = cable.SmallCell != null ? cable.SmallCell.Cable : null;
+                    if (cable.SmallCell != null && seated == null)
+                    {
+                        (stacks ?? (stacks = new List<(Cable, Cable)>())).Add((cable, null));
+                    }
+                    else if (seated != null && !ReferenceEquals(seated, cable)
+                        && !seated.IsBeingDestroyed && seated.CableType != cable.CableType)
+                    {
+                        var keep = TierRank(seated.CableType) > TierRank(cable.CableType) ? seated : cable;
+                        var remove = ReferenceEquals(keep, seated) ? cable : seated;
+                        (stacks ?? (stacks = new List<(Cable, Cable)>())).Add((keep, remove));
+                    }
+                }
+            }
+
+            // Pass 1: stacked-cell repair. A stacked pair must NOT be resolved by Break(): destroying
+            // whichever cable sits in the cell slot nulls the slot and orphans the survivor into an
+            // untargetable ghost. Instead: seat the higher-tier cable in the cell FIRST (the removal's
+            // reference-equality clear then leaves it alone), and remove the lower-tier one cleanly,
+            // no rupture wreckage on top of a live cable. Runs even when this network itself is not
+            // mixed (the thief can sit on another net).
+            if (stacks != null)
+            {
+                foreach (var (keep, remove) in stacks)
+                {
+                    if (remove == null) RepairOrphanSeat(keep);
+                    else RepairStackedCell(keep, remove);
+                }
+                return true;   // count changes when the destroys land (and the orphan rebuild mints a
+                               // new network id); the split-pending gate holds the network until then,
+                               // and the next pass burns any residual mixing.
+            }
+
+            if (!mixed)
+                return false;
+
+            lock (network.CableList)
+            {
+                float lowestRating = float.MaxValue;
+                foreach (var cable in network.CableList)
+                {
+                    if (cable != null && cable.MaxVoltage < lowestRating)
                         lowestRating = cable.MaxVoltage;
                 }
-
-                if (!mixed)
-                    return false;
 
                 if (preferVictim != null && preferVictim.CableNetwork == network && preferVictim.MaxVoltage <= lowestRating)
                 {
@@ -486,10 +547,89 @@ namespace PowerGridPlus
                 Plugin.Log?.LogInfo($"Voltage tiers: burning a {victim.CableType} cable to split a mixed-tier network ({network.ReferenceId}).");
                 BurnReasonRegistry.RegisterPending(victim,
                     $"Wrong voltage -- {victim.CableType} cable was bridging into a different cable tier");
+                PlayerConsole.Broadcast(
+                    $"Illegal mixed-tier cable at {Coords(victim)}: burned {TierWord(victim.CableType)} cable joining a {TierWord(highestType)} network");
                 victim.Break();
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        ///     Repair one stacked cell (two different-tier cables at the same grid position). Seat the
+        ///     higher-tier cable in the cell slot first, then destroy the lower-tier one cleanly (no
+        ///     rupture wreckage: wreckage would co-locate with the surviving live cable, the exact
+        ///     corruption the Luna_mixedwire forensics found persisted). With the survivor seated, the
+        ///     removal's reference-equality cell clear is a no-op, so no ghost is created.
+        /// </summary>
+        private static void RepairStackedCell(Cable keep, Cable remove)
+        {
+            if (keep == null || remove == null || remove.IsBeingDestroyed)
+                return;
+            var cell = remove.SmallCell ?? keep.SmallCell;
+            if (cell != null && !ReferenceEquals(cell.Cable, keep))
+            {
+                cell.Add(keep);
+                keep.SmallCell = cell;
+            }
+            Plugin.Log?.LogInfo(
+                $"Voltage tiers: removing a {remove.CableType} cable stacked on a {keep.CableType} cable at {Coords(remove)} (mixed-tier repair).");
+            PlayerConsole.Broadcast(
+                $"Illegal mixed-tier cable at {Coords(remove)}: removed {TierWord(remove.CableType)} cable stacked on a {TierWord(keep.CableType)} cable");
+            OnServer.Destroy(remove);
+        }
+
+        /// <summary>
+        ///     Repair one orphaned ghost: a live cable whose own cell slot is EMPTY (its stacked thief
+        ///     was destroyed while seated, so the reference-equality clear emptied the slot instead of
+        ///     restoring the victim). Grid-invisible cables drop out of every rebuild flood and freeze
+        ///     in a stale network forever. Repair: seat the cable back into the cell the game itself
+        ///     maps for its CURRENT position, then rebuild its network so it merges home. The
+        ///     GetSmallCell identity check makes rocket-carried cables in transit a natural skip:
+        ///     their position maps to no world cell.
+        /// </summary>
+        private static void RepairOrphanSeat(Cable orphan)
+        {
+            if (orphan == null || orphan.IsBeingDestroyed)
+                return;
+            var liveCell = GridController.World.GetSmallCell(orphan.ThingTransformPosition);
+            if (liveCell == null)
+            {
+                Plugin.Log?.LogWarning(
+                    $"Voltage tiers: orphaned {orphan.CableType} cable at {Coords(orphan)} has no mapped grid cell; leaving it (rocket transit or pruned cell).");
+                return;
+            }
+            if (liveCell.Cable != null)
+                return;   // reoccupied meanwhile (or a same-tier stack, which is not this repair's case)
+            liveCell.Add(orphan);
+            orphan.SmallCell = liveCell;
+            Plugin.Log?.LogInfo(
+                $"Voltage tiers: re-seated an orphaned {orphan.CableType} cable at {Coords(orphan)} and rebuilding its network.");
+            PlayerConsole.Broadcast(
+                $"Repaired orphaned {TierWord(orphan.CableType)} cable at {Coords(orphan)}: restored to its grid cell");
+            CableNetwork.RebuildCableNetworkServer(orphan);
+        }
+
+        /// <summary>Player-facing tier word for console lines (plain text, no enum casing).</summary>
+        internal static string TierWord(Cable.Type tier)
+        {
+            switch (tier)
+            {
+                case Cable.Type.superHeavy: return "super heavy";
+                case Cable.Type.heavy: return "heavy";
+                default: return "normal";
+            }
+        }
+
+        /// <summary>
+        ///     Player-facing world-meter coordinates, one decimal, dot separator. World meters is the
+        ///     only coordinate convention the game surfaces to players (the IC10 PositionX/Y/Z values;
+        ///     see Research/GameClasses/Grid3.md); cables sit on jitter-free 0.5 m cell centers.
+        /// </summary>
+        internal static string Coords(Thing thing)
+        {
+            var p = thing.ThingTransformPosition;
+            return string.Format(CultureInfo.InvariantCulture, "({0:0.0}, {1:0.0}, {2:0.0})", p.x, p.y, p.z);
         }
 
         /// <summary>
