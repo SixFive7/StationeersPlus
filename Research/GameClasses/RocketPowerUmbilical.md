@@ -253,7 +253,36 @@ So only the male half carries a data connector; both sockets are power-only (one
 
 The Male declares its own `CanLogicRead`; the Female inherits the `Device` base logic methods (relevant to Harmony targeting: a base-`Device` patch with an `is RocketPowerUmbilicalFemale` filter is required for the Female, while the Male can be patched directly; see [HarmonyInheritedMethods](../Patterns/HarmonyInheritedMethods.md)). The umbilical does NOT carry logic/data across the coupling: `MovePowerToUmbilical` moves energy only, and the two halves sit on independent cable networks. Any logic bridging would have to go through the rocket's own data network, not the umbilical.
 
+## Powered flag: no override, written only by the power tick, gated on for Activate
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+Neither half overrides the `Powered` getter (whole-region check around the class bodies, 158000-158700): both use the base `Thing` flag, whose only vanilla writer is the power tick's `ApplyState` billing. Two gates read it:
+
+The Male's transfer/working gate (158325):
+
+```csharp
+if (Powered && OnOff && Error == 0 && IsOpen)
+```
+
+and the Activate interaction refusal shared by the halves (158444-158452):
+
+```csharp
+if (interactable.Action == InteractableType.Activate)
+{
+    if (!Powered)
+    {
+        return delayedActionInstance.Fail(GameStrings.DeviceNoPower);
+    }
+    if (!OnOff)
+    {
+        return delayedActionInstance.Fail(GameStrings.DeviceNotOn);
+    }
+```
+
+Consequence for mods that retire `ApplyState`: nothing writes an umbilical's `Powered` any more, the flag freezes at its load default (false), and the Activate action refuses forever with "not powered" even on a wired, error-free, switched-on half (observed live 2026-07-14 on a dedicated server). Such a mod must own the flag itself; PowerGridPlus asserts it from the net-liveness verdict of the half's INPUT network (PoweredOwnership carve-out, 2026-07-14), because the halves enroll in its allocator as buffered stores rather than routed segmenters and therefore never appear in its segmenter presentation roster.
+
 ## Verification history
+- 2026-07-14 (second pass, same day): added "Powered flag: no override, written only by the power tick, gated on for Activate" (no Powered getter override on either half; the Male working gate verbatim; the Activate DeviceNoPower/DeviceNotOn refusal ladder verbatim, 158444-158452; the retire-ApplyState consequence). Driving work: diagnosing a wired, ON, error-free Male stuck at Powered=false under PowerGridPlus.
 
 - 2026-07-08: added "Gate table and credit semantics" subsection consolidating the per-half power quartet (game version 0.2.6403.27689; re-read Female 158143-158175, Male 158628-158678, docked crossings 158139 / 158624). Facts made explicit: all four settle methods ignore the `cableNetwork` argument (only the queries are network-keyed), the Female quartet carries no OnOff gate anywhere, the Male's `Error == 1 && OnOff` `GetUsedPower` branch returns the bare quiescent `UsedPower` (158656-158658), and both halves' `ReceivePower` credits are bare clamps into the cell with no `UsedPower` netting (158152 / 158647), so a delivered quiescent component lands as charge (contrast `WallLightBattery.ReceivePower`, which nets it out). Occasion: the PowerGridPlus delivery-seam generalization (the mod funds each half's quiescent as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share). Every claim matches the verbatim bodies already on this page from the 2026-07-02 pass; additive consolidation, no conflict, no fresh validator.
 - 2026-07-02: version-change pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. STRUCTURE CHANGED: there is now an abstract base `RocketPowerUmbilical : ElectricalInputOutput, IUmbilical, ...` (157690) owning `PowerMaximum` (157693), the SINGLE private `_partnerUmbilical` (157695) exposed as `protected PartnerUmbilical` (157727-157741), `_savedPartnerId` (157713), `TransferProgress` (157743-157757), and a `CanTransfer => true` (157719) that the Male HIDES with `new` (158321); `RocketPowerUmbilicalFemale : RocketPowerUmbilical` (157952) and `RocketPowerUmbilicalMale : RocketPowerUmbilical` (158302). Superseded the old per-half-field class model. TRANSFER CHANGED (supersession): the Female now has its own `OnPowerTick` transfer (158110-158118, gated `TransferProgress >= 1f && PartnerValid`) with a Female `MovePowerToUmbilical` (158120-158141) that pulls the partner's headroom out of `RocketNetwork.Batteries` into its own cell and pushes it to the partner via `ReceivePower(null, ...)`; the previous "one-way station -> rocket only" claim is superseded, and the pair now moves power in both directions. Male push path re-verified with formula unchanged (`OnPowerTick` 158511-158518, `MovePowerToUmbilical` 158621-158626). Grid-facing methods re-verified (Male `GetUsedPower` headroom at 158664, `GetGeneratedPower` at 158677; Female 158143-158175 with its no-gate `UsePower` / `ReceivePower`, no-`OnOff` `GetUsedPower`, and Female-partner `GetGeneratedPower` guard at 158170-158173). Added the pool-slot-order-INsensitivity note (the direct `ReceivePower(null, ...)` crossing runs in phase 2, unlike every ledger bridge) and the static-analysis note that a Female push into an off/errored Male is destroyed. The 4900 J prefab `PowerMaximum` figure is prefab-serialized and could not be re-verified from the decompile; moved to Open Questions for an InspectorPlus re-check.

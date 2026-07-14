@@ -177,7 +177,11 @@ public static void Display(string text)
 }
 ```
 
+
+Namespace trap for the recipe above: `ChatMessage` lives in `Assets.Scripts.Networking`, but `NetworkServer` (213543) and its `SendToClients` overloads live in the bare `Assets.Scripts` namespace (the last `namespace` declaration before 213543 is `Assets.Scripts` at 195722), so the send call needs `using Assets.Scripts;` in addition to `using Assets.Scripts.Networking;`. `SendToClients<T>` (213921) defaults both trailing parameters (`channel = NetworkChannel.GeneralTraffic`, `excludeConnectionId = -1L`).
+
 ## Verification history
+- 2026-07-14 (second pass, same day): added the namespace note (NetworkServer and SendToClients in bare Assets.Scripts at 213543/213921 vs ChatMessage in Assets.Scripts.Networking) after a mod build failed to resolve NetworkServer with only the Networking using. Additive.
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
 - 2026-04-20: page created from the Research migration; verbatim content lifted from F0070 (Plans/LLM/RESEARCH.md:9-14).
