@@ -8,6 +8,7 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Objects.Structures;
+using Objects.Rockets;
 using VanillaLandingPadTankConnector = global::Objects.LandingPads.LandingPadTankConnector;
 using VanillaLandingPadPump = global::Objects.Electrical.LandingPadPump;
 using VanillaLandingPadTaxiThreshold = global::Objects.Electrical.LandingPadTaxiThreshold;
@@ -146,7 +147,13 @@ namespace PowerGridPlus
             if (typeof(PowerGeneratorPipe).IsAssignableFrom(t)) return true;   // + GasFuelGenerator
             if (typeof(StirlingEngine).IsAssignableFrom(t)) return true;
             if (typeof(UnPoweredDoor).IsAssignableFrom(t)) return true;
-            if (typeof(ElevatorShaft).IsAssignableFrom(t)) return true;        // + ElevatorLevel
+            // ElevatorShaft / ElevatorLevel are deliberately NOT exempt (the original exemption is
+            // removed 2026-07-14): they are plain Devices with no Powered override and no writer of
+            // their own, so with vanilla ApplyState retired the exemption froze every level's flag at
+            // its load value forever (levels powered before the rearchitecture stayed powered, newer
+            // ones stayed dark; the ElevatorShaftNetwork aggregate requires a CABLED level with
+            // Powered=true, so frozen-false levels dead-locked whole elevators). The shaft-network
+            // aggregate and the carriage sync only READ the flag, so the sweep owns it safely.
             if (typeof(VanillaLandingPadTankConnector).IsAssignableFrom(t)) return true;
             if (typeof(VanillaLandingPadPump).IsAssignableFrom(t)) return true;
             if (typeof(VanillaLandingPadTaxiThreshold).IsAssignableFrom(t)) return true;
@@ -192,11 +199,29 @@ namespace PowerGridPlus
                         var row = nr.Rows[i];
                         var device = row.Device;
                         if (device == null) continue;
-                        // Single-owner rule: a multi-net device is swept only by its primary
-                        // network, mirroring the base AllowSetPower semantics.
-                        if (device.PowerCableNetwork != net) continue;
+                        if (device is RocketPowerUmbilical umbilicalHalf)
+                        {
+                            // Umbilical halves are IsSegmenter rows the presentation roster does NOT
+                            // carry (they enroll in the allocator as buffered stores, not routed
+                            // segs), and vanilla ApplyState, their old Powered writer, is retired:
+                            // without this carve-out NOTHING writes their Powered flag and the
+                            // vanilla working gate (Powered && OnOff && Error == 0) can never pass
+                            // (found live 2026-07-14: a wired, switched-on, error-free Male stuck at
+                            // Powered=false with the connect action refusing "not powered"). Own
+                            // them here as plain devices on their INPUT-network row (the charging
+                            // side, the same row the quiescent bill funds), skipping the
+                            // PowerCableNetwork primary test whose port mapping is unreliable for
+                            // the two-port halves.
+                            if (!ReferenceEquals(net, umbilicalHalf.InputNetwork)) continue;
+                        }
+                        else
+                        {
+                            // Single-owner rule: a multi-net device is swept only by its primary
+                            // network, mirroring the base AllowSetPower semantics.
+                            if (device.PowerCableNetwork != net) continue;
+                            if (row.IsSegmenter) continue;     // the presentation roster owns segmenters
+                        }
                         if (!device.HasPowerState) continue;   // PoweredValue write would silently no-op
-                        if (row.IsSegmenter) continue;         // the presentation roster owns segmenters
                         if (IsExemptDevice(device)) continue;
                         if (emergencyPrefabs != null && emergencyPrefabs.Contains(device.PrefabName)) continue;
                         long refId = device.ReferenceId;

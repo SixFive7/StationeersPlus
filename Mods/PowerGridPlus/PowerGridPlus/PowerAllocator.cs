@@ -377,7 +377,13 @@ namespace PowerGridPlus
                     snap = new SegControlSnapshot.Entry { OnOff = eio.OnOff, Error = eio.Error };
                     controlSnapshot[eio.ReferenceId] = snap;
                 }
-                if (!snap.OnOff) continue;
+                // The rocket umbilical Female is OnOff-BLIND in vanilla (her GetUsedPower has no
+                // OnOff gate, the pair's switch is the Male; the QuiescentBill Female branch encodes
+                // the same), so she enrolls regardless of the flag. Dropping her here left a docked
+                // rocket's internal net with zero modeled supply: the net judged DEAD_NOSUPPLY and
+                // the rocket batteries' charge shares were zeroed at publish (found live 2026-07-14,
+                // StructureBatteryMedium 703648 never charging off Female 614953 with a full cell).
+                if (!snap.OnOff && !(eio is RocketPowerUmbilicalFemale)) continue;
 
                 switch (eio)
                 {
