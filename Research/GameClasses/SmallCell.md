@@ -2,18 +2,20 @@
 title: SmallCell
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-19
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-14
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.GridSystem.SmallCell
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.SmallGrid
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 292987-293168 (SmallCell), 207128-207138 (GridController.GetSmallCell), 206820-206840 / 206947+ (DetatchSmallGridStructure / RemoveSmallGridStructure), 206870-206919 (AddSmallGridStructure caller context)
 related:
   - ./Cell.md
   - ./GridController.md
   - ./Structure.md
   - ./Connection.md
   - ./Cable.md
-tags: [terrain, prefab]
+  - ../GameSystems/StructureRegistration.md
+tags: [terrain, prefab, power]
 ---
 
 # SmallCell
@@ -28,9 +30,9 @@ Two parallel grids coexist. The large `Cell` (see `Cell.md`) carries `AllStructu
 A `SmallGrid` structure registers in a `SmallCell`, not in `Cell.AllStructures`. That is why the mod floods pipes and cables through their dedicated `PipeNetwork` / `CableNetwork` objects, and reserves the large-cell BFS for walls and large structures only. A traversal over `SmallGrid` structures that have no network object (ladders) must therefore walk the small grid, not the large-cell `AllStructures` / `NeighborCells` lists.
 
 ## Slots
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-Field cluster on `SmallCell` (decompile lines 274720-274734):
+Field cluster on `SmallCell` (0.2.6403.27689 decompile: class 292987-293168, fields 292989-293003; verbatim-identical to the 0.2.6228.27061 excerpt at old lines 274720-274734):
 
 ```csharp
 public Grid3 SmallGrid;
@@ -43,40 +45,137 @@ public ISmallGridOwner Owner;
 public IRoboticArmRail Rail;
 ```
 
-One occupant per slot. `Other` is the generic `SmallGrid` slot: anything that is not a chute, pipe, device, cable, or rail lands here.
+One occupant per slot. `Other` is the generic `SmallGrid` slot: anything that is not a chute, pipe, device, cable, or rail lands here. There is exactly one `Cable` slot per cell: the grid model has no concept of two cables in one cell (see "Stacked pairs" below for what happens when a validation-bypassing spawn forces it).
 
-## Add dispatch
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+## Add dispatch: plain overwrite, last writer wins
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-`SmallCell.Add(SmallGrid)` routes by concrete type (decompile lines 274831-274864):
+`SmallCell.Add(SmallGrid)` routes by concrete type (0.2.6403.27689 decompile lines 293100-293133; the Cable slot occupant write is 293100-293106), verbatim:
 
 ```csharp
 public void Add(SmallGrid smallGridObjectGrid)
 {
     Cable cable = smallGridObjectGrid as Cable;
-    if ((bool)cable) { Cable = cable; return; }
+    if ((bool)cable)
+    {
+        Cable = cable;
+        return;
+    }
     Chute chute = smallGridObjectGrid as Chute;
-    if ((bool)chute) { Chute = chute; return; }
+    if ((bool)chute)
+    {
+        Chute = chute;
+        return;
+    }
     Pipe pipe = smallGridObjectGrid as Pipe;
-    if ((bool)pipe) { Pipe = pipe; return; }
+    if ((bool)pipe)
+    {
+        Pipe = pipe;
+        return;
+    }
     Device device = smallGridObjectGrid as Device;
     if ((bool)device && device.SmallCollisionType != SmallGridBlock.Covers)
+    {
         Device = device;
+    }
     else if (smallGridObjectGrid is IRoboticArmRail rail)
+    {
         Rail = rail;
+    }
     else
+    {
         Other = smallGridObjectGrid;
+    }
 }
 ```
 
-`RemoveCellObjectReferences(SmallGrid)` (lines 274866-274898) clears whichever slot held the structure and nulls that structure's `SmallCell` back-reference.
+Every slot assignment is a plain overwrite, LAST WRITER WINS: registering a second occupant of the same kind replaces the reference with no error, no check, and no eviction of the old occupant's `SmallCell` back-pointer. The caller is `GridController.AddSmallGridStructure` (206870-206919), which writes the occupant and the `SmallGrid.SmallCell` back-pointer BEFORE invoking `OnRegistered(null)`; there is no occupancy check anywhere in the registration path (`_IsCollision` is cursor-side only). See [StructureRegistration](../GameSystems/StructureRegistration.md) for the full chain.
+
+`RemoveCellObjectReferences(SmallGrid)` clears whichever slot held the structure and nulls that structure's `SmallCell` back-reference; see the dedicated section below for the reference-equality nuance.
 
 ## Lookups: Get&lt;T&gt; by position and by connection
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-The static `SmallCell.Get<T>(Grid3 localPosition)` (lines 274741-274775) fetches the `SmallCell` and returns the first slot (`Chute`, `Pipe`, `Device`, `Cable`, `Rail`, `Other`) that is a `T`. The `Get<T>(Grid3 localPosition, Connection connection)` overload (lines 274777-274805) additionally requires `result.IsConnected(connection)`, so it returns only the occupant that actually has an open end facing the queried connection. `Get<T>(Vector3 worldPosition, ...)` wraps the world-to-local conversion noted above.
+The static `SmallCell.Get<T>(Grid3 localPosition)` (0.2.6403.27689 decompile lines 293005-293079) fetches the `SmallCell` and probes the slots in fixed order `Chute`, `Pipe`, `Device`, `Cable`, `Rail`, `Other`, returning the first slot whose occupant is a `T`. The `Get<T>(Grid3 localPosition, Connection connection)` overload additionally requires `IsConnected(connection)`, so it returns only the occupant that actually has an open end facing the queried connection (this is the overload `FillConnected` uses via `SmallCellRef`). `Get<T>(Vector3 worldPosition, ...)` wraps the world-to-local conversion noted above.
 
 This connection-filtered lookup is the primitive the small-grid network builders use to find the neighbor across each open end.
+
+`GridController.GetSmallCell` (207128-207138), both overloads verbatim:
+
+```csharp
+public SmallCell GetSmallCell(Vector3 worldPosition)
+{
+    Grid3 localGrid = WorldToLocalGrid(worldPosition, SmallGrid.SmallGridSize, SmallGrid.SmallGridOffset);
+    return GetSmallCell(localGrid);
+}
+
+public SmallCell GetSmallCell(Grid3 localGrid)
+{
+    SmallGridCells.TryGetValue(localGrid, out var value);
+    return value;
+}
+```
+
+Because every slot is a plain overwrite (see "Add dispatch" above), all of these lookups return the NEWEST occupant of a slot. For a cable query, `SmallCell.Get<Cable>` and `GetSmallCell(...).Cable` both return whatever single `Cable` reference the cell currently holds, which after an overwrite is the most recently registered one.
+
+## RemoveCellObjectReferences: clears only on reference equality
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`SmallCell.RemoveCellObjectReferences` (293135-293167), verbatim. A slot is cleared only if the departing structure IS the current slot value; a structure whose slot was overwritten by a later occupant no-ops here:
+
+```csharp
+public void RemoveCellObjectReferences(SmallGrid smallGrid)
+{
+    if (smallGrid == Device)
+    {
+        Device.SmallCell = null;
+        Device = null;
+    }
+    if (smallGrid == Chute)
+    {
+        Chute.SmallCell = null;
+        Chute = null;
+    }
+    if (smallGrid == Pipe)
+    {
+        Pipe.SmallCell = null;
+        Pipe = null;
+    }
+    if (smallGrid == Cable)
+    {
+        Cable.SmallCell = null;
+        Cable = null;
+    }
+    if (smallGrid == (SmallGrid)Rail)
+    {
+        Rail.SmallCell = null;
+        Rail = null;
+    }
+    if (smallGrid == Other)
+    {
+        Other.SmallCell = null;
+        Other = null;
+    }
+}
+```
+
+`GridController.RemoveSmallGridStructure` (206947+) inlines the same reference-equality pattern per slot; `DetatchSmallGridStructure` (206820-206840, the rocket-move path) calls `RemoveCellObjectReferences` and then prunes the cell from `SmallGridCells` when `!smallCell.IsValid()`.
+
+## Stacked pairs: two cables in one cell
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+Mechanically possible only via programmatic spawn (or a validation-bypassing caller such as ZoopMod's `UsePrimaryComplete` reflection): registration overwrites `smallCell.Cable` with the second cable. Consequences:
+
+- Lookup: every grid query (`SmallCell.Get<Cable>`, `GetSmallCell(...).Cable`, `FillConnected`) returns the SECOND (most recently registered) cable. The first cable becomes invisible to grid queries while remaining alive: still in `AllStructuresPool`, still in its `CableNetwork.CableList` (so it still conducts and can still burn), still rendered, still in `Referencables`.
+- Network topology: the two stacked cables do NOT merge with each other through the shared cell (`FillConnected` walks cells FACED BY OpenEnds, not the own cell), but both independently connect to the same neighbors, so they typically end up on the same network anyway via shared neighbors; each remains individually in `CableList`.
+- Deconstruction order hazard: removing the SECOND cable clears `smallCell.Cable` to null (reference-equal), even though the first cable still physically occupies the cell; if the cell then has no other occupants it is pruned from `SmallGridCells`. The FIRST cable is left holding a `SmallCell` property that points at a detached (or emptied) cell record: it can no longer be found by any grid lookup, cannot be hovered or deconstructed by grid-based targeting, and its neighbors' `FillConnected` no longer see it, so a later `RebuildNetwork` BFS silently drops it from every network while `Cable.OnDestroy` for OTHER cables never re-links it. Removing the FIRST cable first is harmless to the second (the reference-equality checks no-op).
+- `CableNetwork.Remove`'s unguarded `cable.SmallCell.Device` dereference (271102, see [CableNetwork](./CableNetwork.md)) stays non-null in both removal orders (the property is a stale but non-null reference), so no NullReferenceException arises from stacking alone.
+- Net: the game neither crashes nor repairs; it silently misbehaves (ghost conductor, un-targetable structure, asymmetric removal). A guard mod must therefore refuse or destroy at registration time rather than rely on any vanilla self-healing.
+
+## Multi-cell pieces: the SmallCell back-pointer is the LAST cell
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+For a multi-cell piece such as `StructureCableSuperHeavyStraight10`, `GridController.AddSmallGridStructure` assigns `smallGridObject.SmallCell = smallCell` inside its per-cell loop, so the back-pointer ends up pointing at the LAST cell iterated. `SmallCell` on `SmallGrid` is a single reference, not a list; code that treats it as "the cell of this structure" is only exact for 1-cell pieces. The full set of occupied cell keys comes from `GridBounds.GetLocalSmallGrid(RegisteredPosition, RegisteredRotation)` (one entry for the 1-cell piece; 3/5/10 for the long pieces). This is consistent with the multi-cell-footprint caveat in the ladder-flood section below.
 
 ## SmallGrid registration model
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
@@ -114,8 +213,8 @@ Observed for ladders (InspectorPlus): the registered `SmallCell.SmallGrid` ancho
 
 - 2026-06-19: page created from a small-grid registration decompile pass while scoping ladder flood-painting for Spray Paint Plus. Verbatim content from `Assets.Scripts.GridSystem.SmallCell` (slots, `Add`, `Get<T>`, `RemoveCellObjectReferences`) and `Assets.Scripts.Objects.SmallGrid` (`OpenEnds`, `SmallGridSize` / `SmallGridOffset`, `SmallCell`, `CenterPosition`, `Awake`, `RebuildGridState`), game version 0.2.6228.27061. Additive; new page, no existing content changed.
 - 2026-06-19: added "Small-grid key scale, lookup conversion, and observed ladder registration" from a live InspectorPlus ladder-run capture plus the `GetSmallCell` / `Get<T>` conversion path (`new Grid3(worldPos)` = `Round(world * 10)`, no snapping; decompile 150910-150912, 158148-158150). Corrected the ladder-run consequence to key-stepping (verified working in-game) in place of the earlier unverified `OpenEnds`-walk suggestion. Resolved the prior open question on stacked-ladder small-cell pitch (2 m = 20 key units). Game version 0.2.6228.27061.
+- 2026-07-14: re-verified and extended against the 0.2.6403.27689 decompile during the mixed-tier cable network guard research pass. Re-verified verbatim-identical with new line refs: field cluster (292989-293003), `Add` dispatch (293100-293133), `Get<T>` internals (293005-293079), `RemoveCellObjectReferences` (293135-293167). Extended: `Add` overwrite semantics made explicit (plain overwrite, last writer wins; caller `AddSmallGridStructure` 206870-206919 writes cell occupant + back-pointer before `OnRegistered(null)`; no occupancy check in the registration path), `GridController.GetSmallCell` verbatim (207128-207138), `RemoveCellObjectReferences` promoted to its own section with the full verbatim and the reference-equality-only clearing nuance (`RemoveSmallGridStructure` 206947+ inlines the same pattern; `DetatchSmallGridStructure` 206820-206840 prunes the cell when `!IsValid()`), new "Stacked pairs: two cables in one cell" section (grid-invisible older cable, no self-merge through the shared cell, deconstruction order hazard, no NRE from stacking alone, silent misbehavior overall), new "Multi-cell pieces" section (`SmallGrid.SmallCell` back-pointer ends as the LAST occupied cell for pieces like `StructureCableSuperHeavyStraight10`). Resolved the DualRegister open question (removed): `GridController.Register` (206469-206486) shows a `SmallGrid` structure always goes through `AddSmallGridStructure`, and ONLY when `DualRegister` is true does it fall through to `AddGridStructure` + `AddFaceReference` + `UpdateAirState` (the large-grid registration); non-DualRegister small grids live only in `SmallCell`. Full chain on [StructureRegistration](../GameSystems/StructureRegistration.md). No prior claim contradicted; the 0.2.6228 line refs in the sections above were superseded by 0.2.6403 refs where the section was re-verified.
 
 ## Open questions
 
-- Whether a `SmallGrid` structure is ALSO added to the large `Cell.AllStructures` (the `DualRegister` flag hints some small grids dual-register) or lives only in `SmallCell` is not confirmed here. The ladder-flood design does not depend on it (it walks the small grid regardless), but a definitive answer would let a reader reason about both grids.
 - The exact size and direction of one ladder's multi-cell small-grid footprint (how many cells, anchored which way) is inferred from the flood's need to skip the seed's own cells, not read from the registration code directly. The 2 m stacked-ladder pitch (20 key units) and the `Position.y * 10 + 5` anchor are confirmed from live captures.
