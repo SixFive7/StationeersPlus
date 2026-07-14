@@ -148,7 +148,7 @@ A mod that wants `LogicOnOffButton`-style flashing on a device outside `LogicUni
 
 ## Verification history
 
-- 2026-06-02: page created. Sourced from Agent 5's PowerGridPlus Transformer Priority + Shedding research turn ([`.work/2026-06-02-pgp-priority-shedding/DEVIATIONS.md`](../../.work/2026-06-02-pgp-priority-shedding/DEVIATIONS.md)). Decompile lines verified against `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`.
+- 2026-06-02: page created. Sourced from Agent 5's PowerGridPlus transformer-priority research turn (session scratch under `.work/`, since removed). Decompile lines verified against `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`.
 
 ## Open questions
 

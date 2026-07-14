@@ -14,7 +14,7 @@ tags: [power, logic]
 
 # Power producer logic-read surfaces
 
-Which power-producer classes are logic-readable, i.e. declare a device-specific `CanLogicRead` / `GetLogicValue` override (a data surface an IC10 / Logic Reader can address), versus those that only inherit the universal base logic types. Relevant to any mod that adds a read-only `LogicType` to producers (PowerGridPlus's `VariableVoltageFault` is the worked example): a Harmony postfix attaches to the method the runtime type actually dispatches to, so a class with no override resolves (via `AccessTools`) to a shared base method that fires for every device and must be instance-filtered, while a class with its own override is patched in isolation.
+Which power-producer classes are logic-readable, i.e. declare a device-specific `CanLogicRead` / `GetLogicValue` override (a data surface an IC10 / Logic Reader can address), versus those that only inherit the universal base logic types. Relevant to any mod that adds a read-only `LogicType` to producers (PowerGridPlus's `CurrentMismatchFault` is the worked example): a Harmony postfix attaches to the method the runtime type actually dispatches to, so a class with no override resolves (via `AccessTools`) to a shared base method that fires for every device and must be instance-filtered, while a class with its own override is patched in isolation.
 
 ## Per-class override status
 <!-- verified: 0.2.6228.27061 @ 2026-06-14 -->

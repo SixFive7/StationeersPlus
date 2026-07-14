@@ -43,7 +43,7 @@ For a Harmony patch on `SwitchOnOff.RefreshColorState` that needs to filter by p
 
 Plus `_currentColorState` (a `SwitchColorState` enum: `Off`, `On`, `OnPowered`, `Error`, declared L138358 in the same namespace) and `IsOn` (cached `parentThing.OnOff`).
 
-The four materials are baked at prefab-author time: on Stationeers Luna transformers, the `off` and `on` slots typically use a flat-coloured material with no emission, while `onPowered` carries an `_EmissionMap` texture (a green glowing decal) that produces the visible green LED. A mod that writes the `_EmissionColor` property on the `onPowered` material has its tint MULTIPLIED by the emission map texture sample at each pixel; the texture's green channel dominates and the tint is barely visible. This is why a naive "tint the LED orange when shed" approach against the live material produces the same green glow regardless of the colour written.
+The four materials are baked at prefab-author time: on Stationeers Luna transformers, the `off` and `on` slots typically use a flat-coloured material with no emission, while `onPowered` carries an `_EmissionMap` texture (a green glowing decal) that produces the visible green LED. A mod that writes the `_EmissionColor` property on the `onPowered` material has its tint MULTIPLIED by the emission map texture sample at each pixel; the texture's green channel dominates and the tint is barely visible. This is why a naive "tint the LED orange during a fault" approach against the live material produces the same green glow regardless of the colour written.
 
 ## RefreshState fan-out
 <!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
@@ -100,19 +100,19 @@ protected virtual void RefreshColorState(bool skipAnim)
 Key observations for any mod that wants to override the LED colour:
 
 - **Full material swap, not property write.** `switchRenderer.material = <slot>` replaces the entire material reference, blowing away any prior MPB or sharedMaterial-instance state from the previous frame. A mod that mutates the live material is wiped on the next state transition.
-- **Only on state CHANGE.** The swap is gated on `switchColorState != _currentColorState`. Between transitions the material reference is stable, so a mod that REPLACES `switchRenderer.sharedMaterial` (or `material`) once per shed-enter survives until the next genuine OnOff / Powered / Error transition. This is the override window.
-- **Error path is separate.** Error doesn't swap to a single material; it kicks off a `ErrorAnimation` UniTask (the 250 ms flash documented under "4 materials" notes in earlier research) that paints `error[i]` materials in a loop. Cancelling the token (via `CancelErrorAnimation`) stops the animation; a Harmony prefix that returns false from `RefreshColorState` ALSO needs to call `CancelErrorAnimation` if it might transition the parent into an Error state mid-shed.
+- **Only on state CHANGE.** The swap is gated on `switchColorState != _currentColorState`. Between transitions the material reference is stable, so a mod that REPLACES `switchRenderer.sharedMaterial` (or `material`) once per lockout entry survives until the next genuine OnOff / Powered / Error transition. This is the override window.
+- **Error path is separate.** Error doesn't swap to a single material; it kicks off a `ErrorAnimation` UniTask (the 250 ms flash documented under "4 materials" notes in earlier research) that paints `error[i]` materials in a loop. Cancelling the token (via `CancelErrorAnimation`) stops the animation; a Harmony prefix that returns false from `RefreshColorState` ALSO needs to call `CancelErrorAnimation` if it might transition the parent into an Error state mid-lockout.
 
 ## Mod override strategy (verified pattern)
 <!-- verified: 0.2.6228.27061 @ 2026-06-03 -->
 
-The pattern PowerGridPlus uses to paint the LED orange during a shed lockout:
+The pattern PowerGridPlus uses to paint the LED during a fault lockout (orange for the deprioritization lockout, red for the other faults):
 
-1. **Harmony prefix on `RefreshColorState`** that returns false when the parent is a target Thing in the special state (here: `parentThing is Transformer && BrownoutRegistry.IsShedding(refId, currentTick)`). This stops vanilla from swapping back to the on/off/onPowered material while the mod is painting.
-2. **A companion MonoBehaviour on the parent Thing's GameObject** that, on shed-enter, swaps `switchRenderer.sharedMaterial = customOrangeInstance`. The runtime material is a clone of the prefab's original sharedMaterial with `_EmissionMap` cleared (so the baked green texture doesn't multiply against the orange) and the `_EMISSION` shader keyword enabled. The orange `_EmissionColor` is then animated per frame.
-3. **On shed-exit**, restore `switchRenderer.sharedMaterial = originalSharedMaterial` (cached at Init). The Harmony prefix stops short-circuiting, vanilla's next `RefreshColorState` call resumes the normal On/Off/OnPowered swap.
+1. **Harmony prefix on `RefreshColorState`** that returns false when the parent is a target Thing in the special state (in the shipped code: `FaultHover.ActiveFault(refId, currentTick) != Kind.None` inside `SwitchOnOffFaultPatches`). This stops vanilla from swapping back to the on/off/onPowered material while the mod is painting.
+2. **A companion MonoBehaviour on the parent Thing's GameObject** that, on lockout entry, swaps `switchRenderer.sharedMaterial = customFlashInstance`. The runtime material is a clone of the prefab's original sharedMaterial with `_EmissionMap` cleared (so the baked green texture doesn't multiply against the flash colour) and the `_EMISSION` shader keyword enabled. The flash `_EmissionColor` is then animated per frame.
+3. **On lockout exit**, restore `switchRenderer.sharedMaterial = originalSharedMaterial` (cached at Init). The Harmony prefix stops short-circuiting, vanilla's next `RefreshColorState` call resumes the normal On/Off/OnPowered swap.
 
-The prefix is mandatory: without it, the FIRST OnOff or Powered transition during shed (e.g. the player toggling the button mid-shed, or the grid hiccupping the powered state) restores vanilla's material in step 1's place and the orange disappears until the next shed-enter.
+The prefix is mandatory: without it, the FIRST OnOff or Powered transition during a lockout (e.g. the player toggling the button mid-lockout, or the grid hiccupping the powered state) restores vanilla's material in step 1's place and the flash disappears until the next lockout entry.
 
 Per-property writes against the `on` / `onPowered` materials don't work for the green-LED case because of the baked `_EmissionMap`. Per-renderer `MaterialPropertyBlock` writes against `_EmissionColor` also don't survive the multiplication by the emission texture. The full material swap is the only path that bypasses both.
 
