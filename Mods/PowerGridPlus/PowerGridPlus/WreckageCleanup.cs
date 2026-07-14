@@ -10,22 +10,35 @@ using UnityEngine;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     One-shot load-time wreckage sweep (POWER.md decision 32): remove burnt-cable wreckage
-    ///     (<c>CableRuptured : SmallGrid</c>, the *Burnt prefabs Break() leaves behind) that shares a
-    ///     small-grid cell with a LIVE cable of any tier or with OTHER wreckage. Both shapes are
-    ///     corruption artifacts, not legitimate burn feedback: pre-guard blueprint prints stamped
-    ///     cables into occupied cells and the old enforcement Break()ed stacked cells, leaving
-    ///     wreckage lying on top of live wiring (the Luna_mixedwire census found exactly this,
-    ///     including cells the player later rebuilt through). A LONE wreckage piece in its own cell
-    ///     stays: that is the game's normal "a cable burned here" cue the player clears by hand.
+    ///     One-shot load-time cleanup sweep (POWER.md decision 32 + its 2026-07-15 extension). Two
+    ///     jobs, one pass over AllThings:
     ///
-    ///     Wreckage is not a <c>Cable</c>, so it occupies no cable slot and is invisible to the
-    ///     network model: removing it can never change electrical state, which is why this sweep is
-    ///     unconditionally safe. Runs once per world LOAD (armed by FaultRegistryLoadPatches; fresh
-    ///     worlds have no wreckage), host-only, marshalled to the main thread; destroys replicate to
-    ///     clients through the normal channel. Matching keys on the anchor position in rounded
-    ///     decimeters (cable positions serialize jitter-free on 0.5 m cell centers; multi-cell burnt
-    ///     variants match on their anchor only, the same documented limitation the stack repair has).
+    ///     WRECKAGE: remove burnt-cable wreckage (<c>CableRuptured : SmallGrid</c>, the *Burnt
+    ///     prefabs Break() leaves behind) that shares a small-grid cell with a LIVE cable of any
+    ///     tier or with OTHER wreckage. Both shapes are corruption artifacts, not legitimate burn
+    ///     feedback: pre-guard blueprint prints stamped cables into occupied cells and the old
+    ///     enforcement Break()ed stacked cells, leaving wreckage lying on top of live wiring (the
+    ///     Luna_mixedwire census found exactly this, including cells the player later rebuilt
+    ///     through). A LONE wreckage piece in its own cell stays: that is the game's normal "a
+    ///     cable burned here" cue the player clears by hand. Wreckage is not a <c>Cable</c>, so it
+    ///     occupies no cable slot and is invisible to the network model: removing it can never
+    ///     change electrical state.
+    ///
+    ///     SAME-TIER DUPLICATES: collapse two or more live cables of the SAME tier sharing one cell
+    ///     (a blueprint-print artifact: the meshes overlap exactly so the player cannot see the
+    ///     twin, vanilla occupancy makes the shape unbuildable by hand, and a vanilla same-tier
+    ///     replace never persists both to disk). The cable the grid actually seats is kept (it is
+    ///     the authoritative one; the twin is a grid-invisible ghost); with no seated member the
+    ///     lowest ReferenceId wins for determinism. Without this, the ghost survives every load and
+    ///     resurrects through the orphan re-seat repair when its visible twin is later deconstructed
+    ///     or burned. DIFFERENT-tier stacks are deliberately not handled here: the tier enforcer's
+    ///     stacked-theft repair seats the higher tier within the first ticks after load.
+    ///
+    ///     Runs once per world LOAD (armed by FaultRegistryLoadPatches; fresh worlds have no
+    ///     corruption), host-only, marshalled to the main thread; destroys replicate to clients
+    ///     through the normal channel. Matching keys on the anchor position in rounded decimeters
+    ///     (cable positions serialize jitter-free on 0.5 m cell centers; multi-cell variants match
+    ///     on their anchor only, the same documented limitation the stack repair has).
     ///
     ///     Player messaging: one plain-text console line per removed piece up to a small cap, then a
     ///     single remainder line, so a heavily corrupted save cannot spam the console.
@@ -57,7 +70,7 @@ namespace PowerGridPlus
             if (!GameManager.RunSimulation || GameManager.GameState != GameState.Running) return;
 
             var wrecksByCell = new Dictionary<(int x, int y, int z), List<CableRuptured>>();
-            var liveCableCells = new HashSet<(int x, int y, int z)>();
+            var cablesByCell = new Dictionary<(int x, int y, int z), List<Cable>>();
             OcclusionManager.AllThings.ForEach(t =>
             {
                 if (t == null || t.IsBeingDestroyed) return;
@@ -70,7 +83,10 @@ namespace PowerGridPlus
                 }
                 else if (t is Cable cable)
                 {
-                    liveCableCells.Add(Key(cable.ThingTransformPosition));
+                    var key = Key(cable.ThingTransformPosition);
+                    if (!cablesByCell.TryGetValue(key, out var list))
+                        cablesByCell[key] = list = new List<Cable>(1);
+                    list.Add(cable);
                 }
             });
 
@@ -78,7 +94,7 @@ namespace PowerGridPlus
             int announced = 0;
             foreach (var pair in wrecksByCell)
             {
-                bool overLive = liveCableCells.Contains(pair.Key);
+                bool overLive = cablesByCell.ContainsKey(pair.Key);
                 if (!overLive && pair.Value.Count < 2) continue;   // lone wreckage: legitimate cue, keep
                 foreach (var wreck in pair.Value)
                 {
@@ -96,9 +112,56 @@ namespace PowerGridPlus
                     removed++;
                 }
             }
+
+            foreach (var pair in cablesByCell)
+            {
+                var cell = pair.Value;
+                if (cell.Count < 2) continue;
+                for (int i = 0; i < cell.Count; i++)
+                {
+                    var first = cell[i];
+                    if (first == null || first.IsBeingDestroyed) continue;
+                    List<Cable> group = null;
+                    for (int j = i + 1; j < cell.Count; j++)
+                    {
+                        var other = cell[j];
+                        if (other == null || other.IsBeingDestroyed) continue;
+                        if (other.CableType != first.CableType) continue;
+                        (group ?? (group = new List<Cable> { first })).Add(other);
+                        cell[j] = null;   // consumed into this group; never anchors a group of its own
+                    }
+                    if (group == null) continue;
+                    Cable keeper = null;
+                    foreach (var c in group)
+                        if (c.SmallCell != null && ReferenceEquals(c.SmallCell.Cable, c)) { keeper = c; break; }
+                    if (keeper == null)
+                    {
+                        // No member holds the seat (a different-tier thief may; the enforcer's
+                        // repair owns that conflict). Lowest ReferenceId wins for determinism.
+                        keeper = group[0];
+                        foreach (var c in group)
+                            if (c.ReferenceId < keeper.ReferenceId) keeper = c;
+                    }
+                    foreach (var c in group)
+                    {
+                        if (ReferenceEquals(c, keeper)) continue;
+                        Plugin.Log?.LogInfo(
+                            $"[PowerGridPlus] Load cleanup: removing hidden duplicate {c.CableType} cable at {VoltageTier.Coords(c)} (stacked with an identical cable).");
+                        if (announced < AnnounceCap)
+                        {
+                            PlayerConsole.Broadcast(
+                                $"Cleaned up a hidden duplicate {VoltageTier.TierWord(c.CableType)} cable at {VoltageTier.Coords(c)}: it was stacked with an identical cable");
+                            announced++;
+                        }
+                        OnServer.Destroy(c);
+                        removed++;
+                    }
+                }
+            }
+
             if (removed > announced)
                 PlayerConsole.Broadcast(
-                    $"Cleaned up {removed - announced} more burnt cable wreckage pieces stacked with live wiring");
+                    $"Cleaned up {removed - announced} more stacked cables or wreckage pieces");
         }
 
         private static (int, int, int) Key(Vector3 p)
