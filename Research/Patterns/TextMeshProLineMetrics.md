@@ -105,10 +105,28 @@ H = E.font.faceInfo.lineHeight * (E.fontSize / E.font.faceInfo.pointSize * E.fon
 
 emitted as a plain-number `<line-height=H>` (invariant culture; TMP's `ConvertToFloat` expects a dot decimal). The first two terms are E's natural advance; the subtraction pre-cancels T's own spacing term, which the driven branch adds back at render time. T's em scale uses T's component `fontSize` regardless of any `<size>` span in the string (6183), which is why the subtraction uses `T.fontSize`, not the size-tag value.
 
-Shipped user: `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerHoverErrorPatches.cs` (`FaultButtonTooltipPatches.BlockOpenTags`), reading both components at runtime through `InventoryManager.Instance` (Assembly-CSharp 286106) `-> TooltipRef` (285975) `-> TooltipTitle` / `TooltipExtended` (253976 / 253982), paired with an absolute `<size=E.fontSize>` span so glyph size and line advance match together.
+Shipped user: `Mods/PowerGridPlus/PowerGridPlus/Patches/FaultButtonTooltipPatches.cs` (`FaultButtonTooltipPatches.BlockOpenTags`), reading both components at runtime through `InventoryManager.Instance` (Assembly-CSharp 286106) `-> TooltipRef` (285975) `-> TooltipTitle` / `TooltipExtended` (253976 / 253982), paired with an absolute `<size=E.fontSize>` span so glyph size and line advance match together.
+
+## Auto-size mutates m_fontSize while rendered
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+When `m_enableAutoSizing` is true, the text-fitting loop mutates `m_fontSize` itself between `m_fontSizeMin` and `m_fontSizeMax` across `GenerateTextMesh` iterations: the overflow branches shrink it (3363, 3482, 3530, retry gate 3620) and the underfill branch grows it back toward the max (`m_enableAutoSizing && num4 > 0.051f && m_fontSize < m_fontSizeMax && m_AutoSizeIterationCount < m_AutoSizeMaxIterationCount`, 4002; entry gates 2856 / 6128). Consequence: the public `fontSize` property of a rendered auto-sized component reads the FITTED size for the currently displayed content, not a stable configured value, and the fitted value changes with content length. A mod reading `fontSize` to mirror another component's glyph size must either confirm `enableAutoSizing` is false on the source component or read it while the reference content is rendered.
+
+## The game tooltip rows' serialized values
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+The cursor tooltip's Title and Extended rows (the `Tooltip` fields `TooltipTitle` / `TooltipExtended`, GameObjects `ItemTitle` / `InfoExtended`) ship with these serialized TextMeshProUGUI values. Verified via InspectorPlus on 2026-07-14 in game version 0.2.6403.27689, live while a body tooltip rendered content in both rows. Request: types=[TextMeshProUGUI], fields=[text, fontSize, enableAutoSizing, fontSizeMin, fontSizeMax, lineSpacing, paragraphSpacing], maxDepth=1.
+
+| Row | GameObject | fontSize | enableAutoSizing | fontSizeMin | fontSizeMax | lineSpacing | paragraphSpacing |
+|---|---|---|---|---|---|---|---|
+| `TooltipTitle` | `ItemTitle` | 24 | false | 18 | 72 | 30 | 0 |
+| `TooltipExtended` | `InfoExtended` | 18 | false | 18 | 72 | 30 | 50 |
+
+Auto-sizing is OFF on both rows, so `fontSize` is the literal rendered point size and the advance formulas above apply with these constants directly. Note `paragraphSpacing` differs per row (0 vs 50): explicit `\n` breaks in Extended content advance by the paragraph term on top of the line term, so a cross-component advance match must use the per-row values, not assume symmetry.
 
 ## Verification history
 
+- 2026-07-14 (second pass, same day): added "Auto-size mutates m_fontSize while rendered" (decompile lines 2856, 3363, 3482, 3530, 3620, 4002, 6128 re-read from the same Unity.TextMeshPro decompile) and "The game tooltip rows' serialized values" (InspectorPlus live read on a connected client, request pattern cited in the section). Also corrected the shipped-user file path (the class moved to Patches/FaultButtonTooltipPatches.cs in the fault-terminology rollout). Driving work: diagnosing a residual glyph-size mismatch between the PowerGridPlus button and casing fault hovers before hardcoding the tooltip metric constants.
 - 2026-07-14: page created. All quoted bodies read verbatim from `.work/decomp/0.2.6403.27689/Unity.TextMeshPro.decompiled.cs`, a fresh ilspycmd decompile of the shipped `Unity.TextMeshPro.dll` produced this session. Driving work: matching the PowerGridPlus button-tooltip Title-box line spacing to the casing tooltip (in-game feedback that the block lines sat too far apart after the font-size match). Additive (new page); the TMP-default facts on [StationpediaDescriptionRendering](./StationpediaDescriptionRendering.md) are not contradicted.
 
 ## Open questions
