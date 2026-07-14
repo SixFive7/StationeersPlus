@@ -61,6 +61,7 @@ namespace PowerGridPlus.Patches
                 LedgerAdoption.RunSweepIfPending();
                 LedgerAdoption.AuditTickBoundary(currentTick);
                 SaveLoadSelfCheck.RunIfPending(currentTick);
+                WreckageCleanup.RunOnceAfterLoad();
                 RegistryHygiene.MaybeRun(currentTick);
                 EmergencyLightToggleQueue.Drain();
 

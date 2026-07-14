@@ -33,6 +33,7 @@ namespace PowerGridPlus.Patches
             LedgerAdoption.Arm();
             SaveLoadSelfCheck.Arm();
             LoadBoundary.Arm();
+            WreckageCleanup.Arm();
             // The electricity-tick counter is relative (lockout = currentTick + 120); clearing the
             // registries is sufficient, no counter reset needed.
         }
