@@ -16,48 +16,48 @@ Companion to POWER.md. Lists every code change, file affected, validation step, 
 > (split-landed detected by cable-count change). Tier detection runs on the worker thread (per-tick
 > backstop) plus a main-thread `CableNetwork.OnNetworkChanged` subscription (immediate, robust to
 > modded/future build paths); the burn itself runs on the main thread so the split lands before the
-> next tick. The allocator now defers durable shed/overload lockouts on a burn-pending network
+> next tick. The allocator now defers durable deprioritization/overload lockouts on a burn-pending network
 > (Option C), and the §5.7 generator-overflow burn marks its network pending too. Built green and
 > dedi-verified (Luna mixed-tier injection on network 429366: one main-thread burn, correct victim,
 > clean split, no spurious lockout, no regression). Full design + verification in POWER_DEVIATIONS.md
 > P1; spec text updated in POWER.md §3 and §4.3.
 
-A first implementation pass ran on 2026-06-09/10. The foundation plus the two fault subsystems (CYCLE_FAULT and producer-isolation/VVF) landed and were dedicated-server-tested on the Luna save; the larger core-math rework remained and was completed by pass 2 (see the banner above). The developer reviewed pass 1 and locked the decisions below.
+A first implementation pass ran on 2026-06-09/10. The foundation plus the two fault subsystems (CYCLE_FAULT and producer-isolation/CURRENT_MISMATCH_FAULT) landed and were dedicated-server-tested on the Luna save; the larger core-math rework remained and was completed by pass 2 (see the banner above). The developer reviewed pass 1 and locked the decisions below.
 
 **Implement ALL of it. Do NOT defer the large or risky parts — the developer was explicit about this.** Build and test after each step. Where a phase says "deferred" further down in this file, it is no longer deferred: it is required.
 
 ### Resolved decisions (locked)
 
-- **D1 -> single architecture (option b).** Move to ONE inner-tick path: run vanilla `PowerTick.Initialise / CalculateState / ApplyState` in atomic Phases 1 and 3, NOT the injected `PowerGridTick` subclass. Deliver every PowerGridPlus behaviour through device-method postfixes plus the atomic Phase 1.5. Relocate `PowerGridTick`'s current responsibilities first -- wrong-tier cable burn (-> Phase 1.5a), the generator-overflow cable-burn rule (POWER.md §5.7), the vanilla recursive-provider belt-and-braces -- then DELETE `Power/PowerGridTick.cs` and the `PowerTickPatches` routing prefixes. **Retest every moved feature** (voltage tiers, cable burn, battery/APC caps, shed/overload, logic passthrough). This reverses pass-1 deviation D1, where `PowerGridTick` was kept and built on additively.
+- **D1 -> single architecture (option b).** Move to ONE inner-tick path: run vanilla `PowerTick.Initialise / CalculateState / ApplyState` in atomic Phases 1 and 3, NOT the injected `PowerGridTick` subclass. Deliver every PowerGridPlus behaviour through device-method postfixes plus the atomic Phase 1.5. Relocate `PowerGridTick`'s current responsibilities first -- wrong-tier cable burn (-> Phase 1.5a), the generator-overflow cable-burn rule (POWER.md §5.7), the vanilla recursive-provider belt-and-braces -- then DELETE `Power/PowerGridTick.cs` and the `PowerTickPatches` routing prefixes. **Retest every moved feature** (voltage tiers, cable burn, battery/APC caps, deprioritization/overload, logic passthrough). This reverses pass-1 deviation D1, where `PowerGridTick` was kept and built on additively.
 - **D2 -> non-mutating cable cap (option b).** Do NOT rewrite `Cable.MaxVoltage`. Remove `CableMaxApplier`'s field mutation and the cable branch of `RateApplierLoadPatches`. Add a helper (e.g. `CableMax.ForTier(Cable)`) returning the configured per-tier watt cap (0 = unlimited -> `float.MaxValue`), and route EVERY cable-cap read through it: the battery/APC headroom formulas, the §5.7 generator-overflow check, AND vanilla's own cable-burn check (it must be patched, because under D1=b vanilla `PowerTick` reads `cable.MaxVoltage` directly). No save contamination; removing the mod reverts cables to vanilla ratings. **Mention this in the README**: cable watt caps are enforced at runtime by the mod, not baked into the save. (APC `BatteryChargeRate` is also a per-instance field; keep `ApcRateApplier` OR move it to the same helper pattern -- pick one and be consistent.)
 - **D3 -> cable defaults 5000 / 100000 / 0, all configurable.** Normal `5000`, heavy **`100000`** (true vanilla -- correct the spec's wrong 50000), super-heavy **`0` = unlimited**. These are the existing `CableNormalMaxWatts` / `CableHeavyMaxWatts` / `CableSuperHeavyMaxWatts` settings; only the heavy default changes.
-- **D4 -> distinct failure colours (option a).** SHED = orange `#ffa500`; OVERLOAD / CYCLE_FAULT / VARIABLE_VOLTAGE_FAULT = red `#ff2626`. Precedence CYCLE > VVF > OVERLOAD > SHED. Done for transformers in pass 1; extend to all devices under D7. Resolves the spec's self-contradiction on colour.
+- **D4 -> distinct failure colours (option a).** DEPRIORITIZED = orange `#ffa500`; OVERLOAD / CYCLE_FAULT / CURRENT_MISMATCH_FAULT = red `#ff2626`. Precedence CYCLE > CURRENT-MISMATCH > OVERLOAD > DEPRIORITIZED. Done for transformers in pass 1; extend to all devices under D7. Resolves the spec's self-contradiction on colour.
 - **D5 -> directed-SCC cycle detection (option a).** Keep the directed multigraph + Tarjan SCC (`CycleGraphBuilder`), NOT the spec's undirected bipartite DFS. The undirected model false-positives on parallel same-direction transformers / batteries; directed-SCC verified 0 false positives on the 199-segmenter Luna grid. Already implemented. Update POWER.md §4.2.5 wording to match.
-- **D6 -> VVF fault+zero, PLUS a generic cable-burn fallback (option a + fallback).** KNOWN producer classes (the `ProducerClassifier` list) fault and stop generating (reversible, no cable burn); button-bearing ones flash, solar/wind/RTG are hover-only. ADDITIONALLY: a producer-LIKE device that is NOT in our known list -- a new vanilla class in a future game version, or a modded producer we have not classified -- falls back to the spec's original cable-burn handling, so it is still caught rather than silently ignored. Detect "producer-like but unknown" via the game's power-generator marker interface (candidate: `IPowerGenerator`, which the vanilla producers implement -- verify it covers all of them, see `Research/GameSystems/PowerSegmentingDevices.md`) minus our known-class set: such a device on a faulting network burns the adjacent cable with a clear reason. Document the classifier + the fallback.
-- **D7 -> flash + hover on every faultable device (option a).** Generalize `BrownoutFlashBehaviour` from `Transformer` to any `Device` with an `InteractableType.OnOff`, and `TransformerFlashAttachPatches` to attach it to Battery / AreaPowerControl / PowerTransmitter / PowerReceiver / RocketPowerUmbilicalMale plus button-bearing producers (coal / gas / solid-fuel / stirling). Add the hover-countdown lines (shed / overload / cycle / VVF) to all of them, and hover-only lines on solar / wind / RTG / RocketPowerUmbilicalFemale (no button). Colour follows D4 precedence.
-- **D8 -> implement everything, do not defer.** Every "deferred" item in POWER_DEVIATIONS.md is required: allocator per-input-network priority + joint shed/overload fixed-point iteration (Phase 4/5); the IC10 `Setting`-vanilla revert and the allocator reading `Setting` not `OutputMaximum` (Phase 5.3 / 0.2.7.3); the elastic-supply discharge + surplus distribution walk that populates `SoftSupplyShareCache` / `SoftDemandShareCache` (Phase 0.2.5 allocator side / 7); `SoftDemandHeadroomCalculator` (Phase 2); the soft supply/demand `GetGeneratedPower` / `GetUsedPower` postfixes (Phase 0.2.5 / 3); PT/PR transformer surrogates (Phase 6); `BurnReasonSideCar` (Phase 0.3); RocketUmbilical logic + rate-cap patches (Phase 0.2.7.5b); full-snapshot MP sync + `FaultRegistryJoinSnapshotMessage` join handshake (Phase 1.8 / 1.9); the VVF LogicType read on producer classes; README / About.xml / CHANGELOG / RESEARCH.md updates (Phase 10); and the version bump + release (Phase 12).
-- **Producer-isolation is ALWAYS-ON (no toggle).** The `EnableProducerIsolation` setting added in pass 1 was removed per the developer. On the Luna save it faults ~108 SolarPanels because 8 `WallLightBattery` lights share 4 solar networks with no transformer (verified via `[PGP-VVF-DIAG]`). That is correct firing; the developer accepts it (most panels on that save are wired correctly behind transformers). Keep the one-shot `[PGP-VVF-DIAG]` BepInEx-log line that reports the producer + rigid-consumer class breakdown.
+- **D6 -> current-mismatch fault+zero, PLUS a generic cable-burn fallback (option a + fallback).** KNOWN producer classes (the `ProducerClassifier` list) fault and stop generating (reversible, no cable burn); button-bearing ones flash, solar/wind/RTG are hover-only. ADDITIONALLY: a producer-LIKE device that is NOT in our known list -- a new vanilla class in a future game version, or a modded producer we have not classified -- falls back to the spec's original cable-burn handling, so it is still caught rather than silently ignored. Detect "producer-like but unknown" via the game's power-generator marker interface (candidate: `IPowerGenerator`, which the vanilla producers implement -- verify it covers all of them, see `Research/GameSystems/PowerSegmentingDevices.md`) minus our known-class set: such a device on a faulting network burns the adjacent cable with a clear reason. Document the classifier + the fallback.
+- **D7 -> flash + hover on every faultable device (option a).** Generalize `FaultFlashBehaviour` from `Transformer` to any `Device` with an `InteractableType.OnOff`, and `TransformerFlashAttachPatches` to attach it to Battery / AreaPowerControl / PowerTransmitter / PowerReceiver / RocketPowerUmbilicalMale plus button-bearing producers (coal / gas / solid-fuel / stirling). Add the hover-countdown lines (deprioritized / overload / cycle / current-mismatch) to all of them, and hover-only lines on solar / wind / RTG / RocketPowerUmbilicalFemale (no button). Colour follows D4 precedence.
+- **D8 -> implement everything, do not defer.** Every "deferred" item in POWER_DEVIATIONS.md is required: allocator per-input-network priority + joint deprioritization/overload fixed-point iteration (Phase 4/5); the IC10 `Setting`-vanilla revert and the allocator reading `Setting` not `OutputMaximum` (Phase 5.3 / 0.2.7.3); the elastic-supply discharge + surplus distribution walk that populates `SoftSupplyShareCache` / `SoftDemandShareCache` (Phase 0.2.5 allocator side / 7); `SoftDemandHeadroomCalculator` (Phase 2); the soft supply/demand `GetGeneratedPower` / `GetUsedPower` postfixes (Phase 0.2.5 / 3); PT/PR transformer surrogates (Phase 6); `BurnReasonSideCar` (Phase 0.3); RocketUmbilical logic + rate-cap patches (Phase 0.2.7.5b); full-snapshot multiplayer sync + join handshake (Phase 1.8 / 1.9; both shipped as the per-tick `FaultRegistrySnapshotMessage` full snapshot); the CurrentMismatchFault LogicType read on producer classes; README / About.xml / CHANGELOG / RESEARCH.md updates (Phase 10); and the version bump + release (Phase 12).
+- **Producer-isolation is ALWAYS-ON (no toggle).** The `EnableProducerIsolation` setting added in pass 1 was removed per the developer. On the Luna save it faults ~108 SolarPanels because 8 `WallLightBattery` lights share 4 solar networks with no transformer (verified via `[PGP-CURRENT-MISMATCH-DIAG]`). That is correct firing; the developer accepts it (most panels on that save are wired correctly behind transformers). Keep the one-shot `[PGP-CURRENT-MISMATCH-DIAG]` BepInEx-log line that reports the producer + rigid-consumer class breakdown.
 
 ### New requirements from this session
 
 - **Emergency-light target list (new setting).** `EnableEmergencyLights` currently applies to the hardcoded `StructureWallLightBattery` prefab only. Add a server setting -- a comma-separated prefab-name list (same shape as `ExtraHeavyCableDevices`, default `StructureWallLightBattery`) -- naming which light prefabs get the emergency-backup behaviour, so the operator can add other / modded battery lights or restrict the set. `WallLightBatteryPrefabPatch` (the Mode-interactable add) and `WallLightBatteryEmergencyTickPatch` (the toggle postfix) must iterate the configured list instead of the single hardcoded name. Note: the tick postfix targets `WallLightBattery.OnPowerTick`; if the list can name non-`WallLightBattery` classes, that needs a base-class hook or per-class patches -- scope it when implementing.
-- **`[PGP-VVF-DIAG]` log location** (informational, no change requested): it is BepInEx `LogOutput.log`, NOT the in-game console. The in-game surface for fault reasons is the device hover text (delivered by D7).
+- **`[PGP-CURRENT-MISMATCH-DIAG]` log location** (informational, no change requested): it is BepInEx `LogOutput.log`, NOT the in-game console. The in-game surface for fault reasons is the device hover text (delivered by D7).
 
 ### What pass-1 already landed (build-verified + dedi-tested on Luna)
 
-Full list in POWER_DEVIATIONS.md. Summary: settings cleanup (removed `EnableVoltageTiers` / `EnableRecursiveNetworkLimits` / `EnableUnlimitedSuperHeavyCables`); cable-max settings + appliers (to be REWORKED per D2/D3); `ApcBatteryDischargeRate` + applier + registry; client-lockout fix; flash-colour split (transformers only so far); the CYCLE_FAULT subsystem (directed-SCC `CycleGraphBuilder`, `SegmentingDeviceRegistry`, `CycleFaultRegistry`, enforcement on all 7 segmenter classes, `CycleFaultStateMessage`, `LogicType.CycleFault`, OFF-reset); the VVF producer-isolation subsystem (`ProducerClassifier`, `VariableVoltageFaultDetector`, registry, enforcement via `CalculateState_New`, message; now always-on); fault-registry clear-on-load; battery LogicType repurpose removal + the 6 new LogicTypes (6581-6586); Stationpedia transformer footer cleanup; burn-reason hover Structure-target fix; the `SoftSupplyShareCache` / `SoftDemandShareCache` files (inert until the elastic pass). `ScenarioRunner` gained `pgp-fault-state-probe`.
+Full list in POWER_DEVIATIONS.md. Summary: settings cleanup (removed `EnableVoltageTiers` / `EnableRecursiveNetworkLimits` / `EnableUnlimitedSuperHeavyCables`); cable-max settings + appliers (to be REWORKED per D2/D3); `ApcBatteryDischargeRate` + applier + registry; client-lockout fix; flash-colour split (transformers only so far); the CYCLE_FAULT subsystem (directed-SCC `CycleGraphBuilder`, `SegmentingDeviceRegistry`, `CycleFaultRegistry`, enforcement on all 7 segmenter classes, the per-registry fault-state sync (since merged into the per-tick `FaultRegistrySnapshotMessage` full snapshot), `LogicType.CycleFault`, OFF-reset); the current-mismatch producer-isolation subsystem (`ProducerClassifier`, `CurrentMismatchFaultDetector`, registry, enforcement via `CalculateState_New`, message; now always-on); fault-registry clear-on-load; battery LogicType repurpose removal + the 6 new LogicTypes (6581-6586); Stationpedia transformer footer cleanup; burn-reason hover Structure-target fix; the `SoftSupplyShareCache` / `SoftDemandShareCache` files (inert until the elastic pass). `ScenarioRunner` gained `pgp-fault-state-probe`.
 
 ## Phase 0 — Pre-refactor safety fixes (independent of the spec)
 
 These land BEFORE Phase 1 because they fix existing bugs that compound with the larger refactor or that the user explicitly requested as standalone fixes. All low-risk, small-blast-radius.
 
-### 0.1 Fix latent client-side `IsLockedOut` -> `IsShedding` bug
+### 0.1 Fix latent client-side `IsLockedOut` -> `IsDeprioritized` bug
 
-File: `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerExploitPatches.cs:59-66`. The current code checks `BrownoutRegistry.IsLockedOut(refId, tick)` on the client side. On clients `_lockoutUntilTick` is always empty (host-side only), so the check always returns false; the client computes vanilla output for a transformer the host has shed, producing one tick of "Powered" downstream of the broadcast.
+File: `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerExploitPatches.cs:59-66`. The current code checks `DeprioritizedRegistry.IsLockedOut(refId, tick)` on the client side. On clients `_lockoutUntilTick` is always empty (host-side only), so the check always returns false; the client computes vanilla output for a transformer the host has deprioritized, producing one tick of "Powered" downstream of the broadcast.
 
-- Change `IsLockedOut(refId, tick)` to `IsShedding(refId, tick)`. The `IsShedding` method already returns the client-mirror state when called on a client peer (see `BrownoutRegistry.cs:98-106`).
+- Change `IsLockedOut(refId, tick)` to `IsDeprioritized(refId, tick)`. The `IsDeprioritized` method already returns the client-mirror state when called on a client peer (see `DeprioritizedRegistry.cs:98-106`).
 - Same fix on `OverloadRegistry`: `IsLockedOut` -> `IsOverloaded`.
-- Validation: dedicated server + 1 client. Force a shed via IC10 priority rewrite. Confirm client's transformer goes to 0 W on the same tick as the host's broadcast (no one-tick lag).
+- Validation: dedicated server + 1 client. Force a deprioritization via IC10 priority rewrite. Confirm client's transformer goes to 0 W on the same tick as the host's broadcast (no one-tick lag).
 
 ### 0.2 Fix the broken burn-reason hover-tooltip injection (virtual-dispatch trap)
 
@@ -109,11 +109,11 @@ Five per-class targets (each shorts the chain at its own body):
 For PowerGridPlus's two hover concerns:
 
 - **Burn-reason hover on `CableRuptured`** (Phase 0.2): target #3 (`Structure.GetPassiveTooltip`). Filter `__instance is CableRuptured`.
-- **VariableVoltageFault hover on SolarPanel / WindTurbine / RTG** (Phase 1.6.5): target #1 (catches Wind and RTG) AND target #5 (catches Solar). Filter by class in each Postfix.
+- **CurrentMismatchFault hover on SolarPanel / WindTurbine / RTG** (Phase 1.6.5): target #1 (catches Wind and RTG) AND target #5 (catches Solar). Filter by class in each Postfix.
 
 For modded producer coverage: target #1 catches any modded class extending `Device` / `Electrical` / `DeviceInputOutput` etc. without its own `GetPassiveTooltip` override. A modded class that DOES override needs its own per-class patch; unavoidable in C# virtual model.
 
-**Multi-condition precedence (decision locked)**: each Postfix target above MUST apply this precedence when more than one fault registry has the same `ReferenceId` locked at the same tick: `CYCLE_FAULT > VARIABLE_VOLTAGE_FAULT > OVERLOAD > SHED`. Emit exactly ONE fault line per hover, the highest-precedence current fault. No stacking, no "(Shedding ... 60s) (Overloaded ... 60s)" double-line. The same precedence governs the flash colour decision in `BrownoutFlashBehaviour` / `OverloadFlashBehaviour` / `CycleFaultFlashBehaviour` / `VariableVoltageFaultFlashBehaviour`: the highest-precedence currently-active fault picks the colour. Document this in each Postfix file's header so a future agent who reads only one file still sees the rule.
+**Multi-condition precedence (decision locked)**: each Postfix target above MUST apply this precedence when more than one fault registry has the same `ReferenceId` locked at the same tick: `CYCLE_FAULT > CURRENT_MISMATCH_FAULT > OVERLOAD > DEPRIORITIZED`. Emit exactly ONE fault line per hover, the highest-precedence current fault. No stacking, no "Deprioritized fault" plus "Device overloaded fault" double-line. The same precedence governs the flash colour decision in `FaultFlashBehaviour` (the single flash behaviour covering every fault): the highest-precedence currently-active fault picks the colour. Document this in each Postfix file's header so a future agent who reads only one file still sees the rule.
 
 Per-class inheritance reference:
 
@@ -138,7 +138,7 @@ Per-class inheritance reference:
 Validation probes:
 - `pgp-burn-reason-hover-fires-probe`: burn a cable (any reason). Hover the wreckage. Assert text contains `Burned: ...` line. Before fix: fails. After fix: passes.
 - `pgp-burn-reason-hover-with-interactable-probe`: same scenario where the wreckage has a deconstruct interactable. Check whether the SetValuesForInteractable clobber happens. If yes, secondary patch needed.
-- `pgp-producer-hover-fires-probe`: trigger solar VARIABLE_VOLTAGE_FAULT, hover the solar panel. Assert fault line appears. Verifies the hover patch correctly targets `SolarPanel.GetPassiveTooltip` rather than the (overridden) `Thing.GetPassiveTooltip`.
+- `pgp-producer-hover-fires-probe`: trigger solar CURRENT_MISMATCH_FAULT, hover the solar panel. Assert fault line appears. Verifies the hover patch correctly targets `SolarPanel.GetPassiveTooltip` rather than the (overridden) `Thing.GetPassiveTooltip`.
 
 ### 0.2.5 Critical: SoftSupplyShareCache + supply-side postfixes (closes the partial-power gap)
 
@@ -162,7 +162,7 @@ Mirrors the soft-demand cache plumbing already specced in Phase 3.
 - File: `Mods/PowerGridPlus/PowerGridPlus/TransformerAllocator.cs`. At end of the elastic-supply pass (POWER.md §7.3), write per-device shares into `SoftSupplyShareCache.SetShare(refId, share)`.
 - Validation:
   - `pgp-battery-supply-cap-postfix-probe`: battery on N with PowerStored = 100, no rate cap. Rigid load 200 on N. Tick. Phase 3 reads `Battery.GetGeneratedPower(N) = 100` from cache (the elastic decision was "deliver 100 W to fill what's possible"), Required = 200. Vanilla path: would have read raw PowerStored which equals 100 anyway in this contrived case. Useful probe shape: PowerStored = 5000, but elastic share = 100 (because the elastic algorithm decided 100 is enough or cap-limited). Assert `GetGeneratedPower(N)` returns 100, NOT 5000.
-  - `pgp-battery-empty-no-partial-probe`: battery on N with PowerStored = 50, rigid load 200. Elastic algorithm computes effective_discharge = 50 (stored-limited). SoftSupplyShareCache[B] = 50. Phase 3: Potential = 50, Required = 200. With the safety-net retained (§8.0.0.2): vanilla `_powerRatio = 0.25`. Devices partial-power. UNLESS POWERTODO Phase 5 adds a Battery-as-segmenting-device shed that catches this case and zeroes the battery instead. Verify which option ships first; without Phase 5, the safety net catches this; with Phase 5, the battery enters SHED (or some new "BATTERY_DEPLETED" fault).
+  - `pgp-battery-empty-no-partial-probe`: battery on N with PowerStored = 50, rigid load 200. Elastic algorithm computes effective_discharge = 50 (stored-limited). SoftSupplyShareCache[B] = 50. Phase 3: Potential = 50, Required = 200. With the safety-net retained (§8.0.0.2): vanilla `_powerRatio = 0.25`. Devices partial-power. UNLESS POWERTODO Phase 5 adds a Battery-as-segmenting-device deprioritization that catches this case and zeroes the battery instead. Verify which option ships first; without Phase 5, the safety net catches this; with Phase 5, the battery enters DEPRIORITIZED (or some new "BATTERY_DEPLETED" fault).
   - `pgp-apc-supply-cap-postfix-probe`: APC on output net N with insufficient internal cell + cable cap. Verify `AreaPowerControl.GetGeneratedPower(N)` returns the elastic-decided share.
 
 ### 0.2.7 LogicType refactor + Stationpedia documentation sync
@@ -180,7 +180,7 @@ Rationale: per the Q11 architectural invariant (see Phase 0.2.7.10 below), setti
 
 - File: `Mods/PowerGridPlus/PowerGridPlus/LogicTypeRegistry.cs`. Add entries (Name + ushort + Description) for:
   - `CycleFault = 6581` — `(read-only) 1 when this device is in CYCLE_FAULT lockout (part of a closed power loop). Auto-clears after 60 s.`
-  - `VariableVoltageFault = 6582` — `(read-only) 1 when this producer is in VARIABLE_VOLTAGE_FAULT lockout (wired to anything other than producers or transformers). Auto-clears after 60 s.`
+  - `CurrentMismatchFault = 6582` -- `(read-only) 1 when this producer is in CURRENT_MISMATCH_FAULT lockout (wired to anything other than producers or transformers). Auto-clears after 60 s.`
   - `MaxChargeSpeed = 6583` — `(read-only) Configured per-prefab charge rate cap in Watts.`
   - `MaxDischargeSpeed = 6584` — `(read-only) Configured per-prefab discharge rate cap in Watts.`
   - `ChargeSpeed = 6585` — `(read-only) Actual charge rate this tick in Watts, after elastic-supply allocation.`
@@ -201,13 +201,13 @@ Rationale: per the Q11 architectural invariant (see Phase 0.2.7.10 below), setti
 - File: `Mods/PowerGridPlus/PowerGridPlus/StationpediaPatches.cs:119-144`. Rewrite the transformer footer to reflect:
   - `Setting` is the active throttle (vanilla writable from IC10, `[0, OutputMaximum]`); default init `Setting = OutputMaximum`. NOT redirected.
   - In-world knob writes Priority. Labeller tool writes Priority. Other in-world writers redirect to Priority.
-  - All allocator and shed/overload formulas use `Setting` (not OutputMaximum directly).
-  - VVF, CycleFault, Shedding, Overloaded LogicTypes available.
+  - All allocator and deprioritization/overload formulas use `Setting` (not OutputMaximum directly).
+  - CurrentMismatchFault, CycleFault, DeprioritizedFault, DeviceOverloadedFault LogicTypes available.
 - Verify there is no leftover "Setting reads return OutputMaximum, writes redirect to Priority" wording.
 
 ### 0.2.7.3b Priority value range: zero = lowest, no upper cap
 
-Decision locked: Priority accepts non-negative integers with no upper cap. `Priority = 0` is the lowest possible priority (the device is still allocated, just last). It is NOT a sentinel meaning "disabled" or "always shed". Allocator sort: lowest priority sheds first, ties broken by demand DESC then ReferenceId ASC.
+Decision locked: Priority accepts non-negative integers with no upper cap. `Priority = 0` is the lowest possible priority (the device is still allocated, just last). It is NOT a sentinel meaning "disabled" or "always deprioritized". Allocator sort: lowest priority is deprioritized first, ties broken by demand DESC then ReferenceId ASC.
 
 - In-world knob writes: clamp at 0 on the low end. Negative input (only reachable via IC10 `s` write) clamps to 0. No max-cap clamp; any positive integer is accepted.
 - Labeller tool writes: same validation -- clamp at 0, no upper cap.
@@ -216,7 +216,7 @@ Decision locked: Priority accepts non-negative integers with no upper cap. `Prio
 - File: any knob-handler patch (`KnobInteractablePatch` or equivalent). Same clamp.
 - File: any Labeller tool patch. Same clamp.
 - Validation:
-  - `pgp-priority-zero-lowest-probe`: T1 with Priority = 0, T2 with Priority = 100 on the same input net. Force shed cascade. Assert T1 sheds first (lower priority sheds first).
+  - `pgp-priority-zero-lowest-probe`: T1 with Priority = 0, T2 with Priority = 100 on the same input net. Force a deprioritization cascade. Assert T1 is deprioritized first (lower priority is deprioritized first).
   - `pgp-priority-no-upper-cap-probe`: write `s Priority 999999` via IC10. Assert stored value is 999999 (no clamp). Allocator sort treats it as highest priority.
   - `pgp-priority-negative-clamp-probe`: write `s Priority -50` via IC10. Assert stored value is 0 (clamped from below).
   - `pgp-priority-labeller-clamp-probe`: use the Labeller tool to set Priority to -10. Assert stored value is 0.
@@ -251,12 +251,12 @@ Implementation:
   - `DischargeSpeed` -> `SoftSupplyShareCache.GetShare(__instance.ReferenceId)`, default 0.
 - New file: `Mods/PowerGridPlus/PowerGridPlus/Patches/RocketUmbilicalRateCapPatches.cs`. Same pattern as `StationaryBatteryPatches`: Postfix on `GetUsedPower` / `GetGeneratedPower` to clamp the vanilla "full PowerMaximum per tick" behaviour down to the configured rate cap. Bypassed when `EnableRocketUmbilicalLimits = false`.
 - Add new entries to `StationpediaPatches.GetDescriptionFooter` for prefab names `StructureRocketPowerUmbilicalMale` / `StructureRocketPowerUmbilicalFemale` (verify exact prefab names via InspectorPlus probe). Footer includes the same four-LogicType wording, the soft-power explanation (see 0.2.7.9), and a note that the master toggle controls participation.
-- **Female has no OnOff button (decision locked)**: the Female side gets ONLY a `GetPassiveTooltip` postfix that surfaces the fault hover text + countdown (hover-only fault visual, same as Solar / Wind / RTG). Extend the universal-base `Thing.GetPassiveTooltip` postfix in Phase 1.6.5 to also recognise `RocketPowerUmbilicalFemale`. NO material-color hook, NO LED indicator, NO panel-switch swap, NO other visual on the Female. Male keeps the on-button flash path via `BrownoutFlashBehaviour` attached to its OnOff button.
-- **Female idle hover (Q10 carry-over, decision locked)**: when the Female is NOT in any fault state, the hover text is exactly what vanilla provides (whatever `RocketPowerUmbilicalFemale.GetPassiveTooltip` returns natively after the `ElectricalInputOutput` base + any docking-state text). PGP injects NO text on the Female when no fault is active. The Female's fault-line append is gated on `IsShedding || IsOverloaded || IsCycleFaulted || IsVariableVoltageFaulted` returning true for the Female's ReferenceId at the current tick; otherwise the Postfix is a no-op pass-through. Idle hover = vanilla-only.
+- **Female has no OnOff button (decision locked)**: the Female side gets ONLY a `GetPassiveTooltip` postfix that surfaces the fault hover text + countdown (hover-only fault visual, same as Solar / Wind / RTG). Extend the universal-base `Thing.GetPassiveTooltip` postfix in Phase 1.6.5 to also recognise `RocketPowerUmbilicalFemale`. NO material-color hook, NO LED indicator, NO panel-switch swap, NO other visual on the Female. Male keeps the on-button flash path via `FaultFlashBehaviour` attached to its OnOff button.
+- **Female idle hover (Q10 carry-over, decision locked)**: when the Female is NOT in any fault state, the hover text is exactly what vanilla provides (whatever `RocketPowerUmbilicalFemale.GetPassiveTooltip` returns natively after the `ElectricalInputOutput` base + any docking-state text). PGP injects NO text on the Female when no fault is active. The Female's fault-line append is gated on `IsDeprioritized || IsOverloaded || IsCycleFaulted || IsCurrentMismatchFaulted` returning true for the Female's ReferenceId at the current tick; otherwise the Postfix is a no-op pass-through. Idle hover = vanilla-only.
 - Validation:
   - `pgp-rocket-umbilical-rate-cap-probe`: dock a rocket. Probe the RocketUmbilical Female's `GetGeneratedPower` and confirm it caps at `Settings.RocketUmbilicalDischargeRate.Value` regardless of how much PowerStored it holds.
   - `pgp-rocket-umbilical-toggle-off-probe`: set `EnableRocketUmbilicalLimits = false`. Reload. Confirm vanilla behaviour (full PowerMaximum per tick) and that the four LogicTypes are not exposed.
-  - `pgp-rocket-umbilical-female-hover-fault-probe`: force a SHED on the umbilical pair (cut upstream supply). Hover the Female: text shows `(Shedding: Insufficient upstream supply! Xs)` with countdown. Hover the Male: button flashes orange + same hover text.
+  - `pgp-rocket-umbilical-female-hover-fault-probe`: force a DEPRIORITIZED fault on the umbilical pair (cut upstream supply). Hover the Female: text shows `On - Deprioritized fault: 42.17s` with countdown. Hover the Male: button flashes orange + same hover text.
 
 ### 0.2.7.9 Soft-power system explanation (cross-device Stationpedia text)
 
@@ -295,7 +295,7 @@ Walk every footer string in `StationpediaPatches.cs` for references to removed c
 
 ### 0.2.7.8 Validation
 
-- `pgp-stationpedia-logictypes-registered-probe`: after load, walk the Stationpedia logic-types page list and assert every new LogicType (CycleFault, VariableVoltageFault, MaxChargeSpeed, MaxDischargeSpeed, ChargeSpeed, DischargeSpeed) appears with the correct name + description.
+- `pgp-stationpedia-logictypes-registered-probe`: after load, walk the Stationpedia logic-types page list and assert every new LogicType (CycleFault, CurrentMismatchFault, MaxChargeSpeed, MaxDischargeSpeed, ChargeSpeed, DischargeSpeed) appears with the correct name + description.
 - `pgp-stationpedia-footers-current-probe`: assert each device's Stationpedia entry contains the post-refactor wording (no stale "Setting redirect" text, etc.).
 
 ### 0.2.7.10 Settings-immutable-mid-session architectural invariant (Q11)
@@ -339,16 +339,16 @@ Goal: per-instance burned-cable reasons survive save/load via the established `P
 
 ### 0.4 Fault registries are in-memory only (NOT serialized)
 
-Decision locked: CYCLE_FAULT, VARIABLE_VOLTAGE_FAULT, OVERLOAD, SHED registries are transient runtime state. They are NOT serialized to the save side-car and they DO NOT persist across world load. The registries clear on world load; the first tick after load recomputes any active faults from current topology.
+Decision locked: CYCLE_FAULT, CURRENT_MISMATCH_FAULT, OVERLOAD, DEPRIORITIZED registries are transient runtime state. They are NOT serialized to the save side-car and they DO NOT persist across world load. The registries clear on world load; the first tick after load recomputes any active faults from current topology.
 
-- Files: `BrownoutRegistry.cs`, `OverloadRegistry.cs`, `CycleFaultRegistry.cs` (Phase 1.7), `VariableVoltageFaultRegistry.cs` (Phase 1.6.5). Each registry's `_lockoutUntilTick` dict starts empty at every world load. No save-side-car path exists for any of them. No XML schema, no serializer, no Harmony patch on `SaveHelper.Save` for these dicts.
+- Files: `DeprioritizedRegistry.cs`, `OverloadRegistry.cs`, `CycleFaultRegistry.cs` (Phase 1.7), `CurrentMismatchFaultRegistry.cs` (Phase 1.6.5). Each registry's `_lockoutUntilTick` dict starts empty at every world load. No save-side-car path exists for any of them. No XML schema, no serializer, no Harmony patch on `SaveHelper.Save` for these dicts.
 - Contrast with `BurnReasonSideCar` (Phase 0.3): burn reasons DO persist because the burned cable wreckage itself persists. The fault registries are conceptually different: the fault is a transient lockout, not a permanent state of a permanent entity.
 - Implementation note: every registry exposes `ClearAll()`. Wire `ClearAll()` into a Harmony Postfix on `XmlSaveLoad.LoadWorld` (the same patch site as the burn-reason load) so that re-loading a world wipes any leftover in-memory state from a prior session. Avoids surprises when a host hot-swaps saves without restarting the game.
-- First-tick recompute applies the FULL 60s lockout (120 ticks) to any rediscovered violation. NO grace period, NO shortened first-load duration. A save written with an active cycle, overload, or producer-isolation condition produces a fresh full-duration CYCLE_FAULT / OVERLOAD / VARIABLE_VOLTAGE_FAULT lockout on the first tick after load. SHED is the same: if the topology still warrants undersupply on first tick, SHED lights up immediately with the full 60s remaining.
+- First-tick recompute applies the FULL 60s lockout (120 ticks) to any rediscovered violation. NO grace period, NO shortened first-load duration. A save written with an active cycle, overload, or producer-isolation condition produces a fresh full-duration CYCLE_FAULT / OVERLOAD / CURRENT_MISMATCH_FAULT lockout on the first tick after load. DEPRIORITIZED is the same: if the topology still warrants undersupply on first tick, DEPRIORITIZED lights up immediately with the full 60s remaining.
 - Validation:
-  - `pgp-fault-registry-not-persisted-probe`: trigger a SHED on a transformer. Save the world. Reload. Assert `BrownoutRegistry.IsShedding(refId, currentTick)` returns false immediately after load. Assert the transformer's on/off button is NOT flashing.
-  - `pgp-fault-registry-recomputes-after-load-probe`: same scenario but the underlying topology still warrants the shed. Save, reload, tick once. Assert the registry re-fires the SHED on the same transformer.
-  - `pgp-fault-registry-hot-swap-probe`: load save A (with active shed). Without exiting to main menu, load save B (no shed). Assert no leftover shed state from A bleeds into B.
+  - `pgp-fault-registry-not-persisted-probe`: trigger a DEPRIORITIZED fault on a transformer. Save the world. Reload. Assert `DeprioritizedRegistry.IsDeprioritized(refId, currentTick)` returns false immediately after load. Assert the transformer's on/off button is NOT flashing.
+  - `pgp-fault-registry-recomputes-after-load-probe`: same scenario but the underlying topology still warrants the deprioritization. Save, reload, tick once. Assert the registry re-fires the DEPRIORITIZED fault on the same transformer.
+  - `pgp-fault-registry-hot-swap-probe`: load save A (with an active deprioritization). Without exiting to main menu, load save B (no deprioritization). Assert no leftover deprioritization state from A bleeds into B.
   - `pgp-fault-registry-full-60s-after-load-probe`: build a save with an active cycle (two transformers in a loop, both currently CYCLE_FAULT'd with 30s remaining). Save. Reload. Tick once. Assert both transformers carry CYCLE_FAULT with 60s remaining (NOT 30s, NOT 0s, NOT a grace-period reduction). Verifies the first-tick recompute applies full lockout duration.
 
 ## Phase 1 — Cleanup of dead toggles and code
@@ -416,18 +416,18 @@ Vanilla's `PowerTick.CheckForRecursiveProviders` calls `_networkTraversalRecord.
   - Build a save with two transformers A1 and A2 on the same input network, both with separate downstream cycles back to the input network through disjoint chains. Vanilla unfixed: one of the two cycles may not be detected on a given tick. PowerGridPlus fixed: both detected within one tick, both cables marked breakable.
   - Headless test: instantiate a `PowerTick`, populate `InputOutputDevices` with two synthetic anchors, run `CheckForRecursiveProviders`, assert both anchors got an independent walk (instrument via reflection peeking at `_networkTraversalRecord` count between iterations).
 
-### 1.6.5 Producer-isolation check (Phase 1.5b: VARIABLE_VOLTAGE_FAULT and cable-burn fallback)
+### 1.6.5 Producer-isolation check (Phase 1.5b: CURRENT_MISMATCH_FAULT and cable-burn fallback)
 
-Goal: implement the §8.5 producer-isolation rule. Producers on a network with a rigid consumer trigger VARIABLE_VOLTAGE_FAULT on the producer (if it has an OnOff button) or cable burn (if not).
+Goal: implement the §8.5 producer-isolation rule. Producers on a network with a rigid consumer trigger CURRENT_MISMATCH_FAULT on the producer (if it has an OnOff button) or cable burn (if not).
 
-- New file: `Mods/PowerGridPlus/PowerGridPlus/VariableVoltageFaultRegistry.cs`. Parallel to BrownoutRegistry / OverloadRegistry / CycleFaultRegistry. Same API shape (NoteVariableVoltageFault, IsVariableVoltageFaulted, ClearLockout, ClearAll, client mirror dict).
+- New file: `Mods/PowerGridPlus/PowerGridPlus/CurrentMismatchFaultRegistry.cs`. Parallel to DeprioritizedRegistry / OverloadRegistry / CycleFaultRegistry. Same API shape (NoteCurrentMismatchFault, IsCurrentMismatchFaulted, ClearLockout, ClearAll, client mirror dict).
 - New file: `Mods/PowerGridPlus/PowerGridPlus/ProducerClassifier.cs`. Static utility:
   - `bool IsProducer(Device d)`: returns true if d is one of SolarPanel, WindTurbineGenerator, PowerGeneratorPipe, GasFuelGenerator, PowerGeneratorSlot, SolidFuelGenerator, StirlingEngine, RadioscopicThermalGenerator (and inheritance chain).
   - `bool IsFlashableProducer(Device d)`: returns true if d has an InteractableType.OnOff (PowerGeneratorPipe, GasFuelGenerator, PowerGeneratorSlot, SolidFuelGenerator, StirlingEngine). False for SolarPanel, WindTurbineGenerator, RadioscopicThermalGenerator.
   - `bool IsRigidConsumer(Device d)`: returns true if d is neither a segmenting device nor a producer AND has `GetUsedPower(net) > 0`. Segmenting devices (Transformer / Battery / APC / PT / PR / RocketUmbilicalMale / RocketUmbilicalFemale / PowerConnection) explicitly do NOT count as rigid consumers for this check.
-  - Producer-only network rule (decision locked): a cable network containing ONLY producers (e.g. SolarPanel wired to SolarPanel with no other device on the same network) is a valid idle configuration. The `hasProducer && hasRigid` predicate in the Phase 1.5b walk already guarantees no VVF fires when there is no rigid consumer to violate the rule. Two producers wired together with no other device = no VVF, no warning, no cable burn. Document this explicitly to head off "should we warn the player?" speculation.
-  - Faulted-transformer-as-isolator rule (decision locked): the producer-isolation check considers any Transformer (including small / reversed variants) on the same network as satisfying isolation, REGARDLESS of the transformer's CYCLE_FAULT state. Solar wired to a faulted T1 passes the isolation check; no new VVF fires on the solar. The player traces power flow to discover T1's fault via T1's own visual feedback (red flash on T1's button + hover countdown). PGP does NOT cascade a producer-isolation fault onto a producer whose only fault path is "the transformer that isolates me is currently faulted."
-  - Only-Transformer-isolates rule (Q1 strengthening, decision locked): ONLY `Transformer` (and the small / reversed transformer variants) on the same cable network counts as "isolation" between a producer and rigid consumers. Other segmenting devices DO NOT satisfy isolation: `Battery`, `AreaPowerControl`, `PowerTransmitter`, `PowerReceiver`, `RocketPowerUmbilicalMale`, `RocketPowerUmbilicalFemale`, `PowerConnection` are all transparent to the rule. So a network containing `SolarPanel + Battery + Light` still triggers VVF on the solar; the battery does NOT suppress it. Implementation: the Phase 1.5b walk's `hasProducer && hasRigid` check already produces this outcome because rigid consumers (Light) are still counted. To make this explicit, add a `hasTransformer` flag set during the per-network walk; the VVF fires only when `hasProducer && hasRigid && !hasTransformer`. The transformer presence ALONE silences VVF; battery/APC/PT/PR/etc. presence does NOT. Document this as the canonical rule in `ProducerClassifier`.
+  - Producer-only network rule (decision locked): a cable network containing ONLY producers (e.g. SolarPanel wired to SolarPanel with no other device on the same network) is a valid idle configuration. The `hasProducer && hasRigid` predicate in the Phase 1.5b walk already guarantees no current-mismatch fault fires when there is no rigid consumer to violate the rule. Two producers wired together with no other device = no current-mismatch fault, no warning, no cable burn. Document this explicitly to head off "should we warn the player?" speculation.
+  - Faulted-transformer-as-isolator rule (decision locked): the producer-isolation check considers any Transformer (including small / reversed variants) on the same network as satisfying isolation, REGARDLESS of the transformer's CYCLE_FAULT state. Solar wired to a faulted T1 passes the isolation check; no new current-mismatch fault fires on the solar. The player traces power flow to discover T1's fault via T1's own visual feedback (red flash on T1's button + hover countdown). PGP does NOT cascade a producer-isolation fault onto a producer whose only fault path is "the transformer that isolates me is currently faulted."
+  - Only-Transformer-isolates rule (Q1 strengthening, decision locked): ONLY `Transformer` (and the small / reversed transformer variants) on the same cable network counts as "isolation" between a producer and rigid consumers. Other segmenting devices DO NOT satisfy isolation: `Battery`, `AreaPowerControl`, `PowerTransmitter`, `PowerReceiver`, `RocketPowerUmbilicalMale`, `RocketPowerUmbilicalFemale`, `PowerConnection` are all transparent to the rule. So a network containing `SolarPanel + Battery + Light` still triggers the current-mismatch fault on the solar; the battery does NOT suppress it. Implementation: the Phase 1.5b walk's `hasProducer && hasRigid` check already produces this outcome because rigid consumers (Light) are still counted. To make this explicit, add a `hasTransformer` flag set during the per-network walk; the current-mismatch fault fires only when `hasProducer && hasRigid && !hasTransformer`. The transformer presence ALONE silences the current-mismatch fault; battery/APC/PT/PR/etc. presence does NOT. Document this as the canonical rule in `ProducerClassifier`.
 - File: `Mods/PowerGridPlus/PowerGridPlus/Patches/AtomicElectricityTickPatch.cs`. After Phase 1.5a (cycle-fault detection), add Phase 1.5b:
   ```csharp
   // Phase 1.5b: producer-isolation check.
@@ -450,7 +450,7 @@ Goal: implement the §8.5 producer-isolation rule. Producers on a network with a
               : string.Join(", ", violatorList);
           foreach (var p in producers) {
               if (ProducerClassifier.IsFlashableProducer(p)) {
-                  VariableVoltageFaultRegistry.NoteVariableVoltageFault(p.ReferenceId, currentTick, violatorNames);
+                  CurrentMismatchFaultRegistry.NoteCurrentMismatchFault(p.ReferenceId, currentTick, violatorNames);
               } else {
                   // Cable-burn fallback.
                   var cable = FindCableAdjacent(rigid.First(), net);   // adjacent to any rigid consumer
@@ -463,15 +463,15 @@ Goal: implement the §8.5 producer-isolation rule. Producers on a network with a
       }
   });
   ```
-- File: `Patterns/Logic/LogicTypeNumbers.cs`. Append `public const ushort VariableVoltageFault = 6582;`. Update `Patterns/Logic/README.md` and bump "Next free slot" to 6583.
-- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/VariableVoltageFaultLogicPatches.cs` (new). Postfixes on flashable-producer classes to expose `LogicType.VariableVoltageFault` read returning `VariableVoltageFaultRegistry.IsVariableVoltageFaulted(ReferenceId, currentTick) ? 1 : 0`.
-- File: `Mods/PowerGridPlus/PowerGridPlus/VariableVoltageFaultStateMessage.cs` (new). Host-to-clients FULL snapshot per tick (per Phase 1.8 Q5 carry-over). Carries `(refId, remainingTicks, violatorNames)` tuples. Parallel to ShedStateMessage / OverloadStateMessage / CycleFaultStateMessage.
-- File: `Mods/PowerGridPlus/PowerGridPlus/VariableVoltageFaultFlashBehaviour.cs` (new). Subclass or sibling of BrownoutFlashBehaviour with `FlashColour = Color(1f, 0.15f, 0.15f)` (red, same as overload + cycle-fault).
-- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerFlashAttachPatches.cs`. Rename internal `_transformer` to `_device`. Extend attach logic to GasFuelGenerator, PowerGeneratorPipe, SolidFuelGenerator, StirlingEngine. NOT attached to SolarPanel, WindTurbineGenerator, RadioscopicThermalGenerator (no OnOff button); see VariableVoltageFaultHoverPatches below for those.
-- New file: `Mods/PowerGridPlus/PowerGridPlus/Patches/VariableVoltageFaultHoverPatches.cs`. Universal-base Harmony Postfix on `Thing.GetPassiveTooltip(Collider)`. Pattern:
+- File: `Patterns/Logic/LogicTypeNumbers.cs`. Append `public const ushort CurrentMismatchFault = 6582;`. Update `Patterns/Logic/README.md` and bump "Next free slot" to 6583.
+- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/CurrentMismatchFaultLogicPatches.cs` (new). Postfixes on flashable-producer classes to expose `LogicType.CurrentMismatchFault` read returning `CurrentMismatchFaultRegistry.IsCurrentMismatchFaulted(ReferenceId, currentTick) ? 1 : 0`.
+- File: `Mods/PowerGridPlus/PowerGridPlus/CurrentMismatchFaultStateMessage.cs` (new). Host-to-clients FULL snapshot per tick (per Phase 1.8 Q5 carry-over). Carries `(refId, remainingTicks, violatorNames)` tuples. Parallel to the per-registry state messages for the other faults (all since merged into the single per-tick `FaultRegistrySnapshotMessage` full snapshot).
+- File: `Mods/PowerGridPlus/PowerGridPlus/CurrentMismatchFaultFlashBehaviour.cs` (new). Subclass or sibling of FaultFlashBehaviour with `FlashColour = Color(1f, 0.15f, 0.15f)` (red, same as overload + cycle-fault).
+- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerFlashAttachPatches.cs`. Rename internal `_transformer` to `_device`. Extend attach logic to GasFuelGenerator, PowerGeneratorPipe, SolidFuelGenerator, StirlingEngine. NOT attached to SolarPanel, WindTurbineGenerator, RadioscopicThermalGenerator (no OnOff button); see CurrentMismatchFaultHoverPatches below for those.
+- New file: `Mods/PowerGridPlus/PowerGridPlus/Patches/CurrentMismatchFaultHoverPatches.cs`. Universal-base Harmony Postfix on `Thing.GetPassiveTooltip(Collider)`. Pattern:
   ```csharp
   [HarmonyPatch(typeof(Thing), nameof(Thing.GetPassiveTooltip))]
-  public static class VariableVoltageFaultHoverPatches {
+  public static class CurrentMismatchFaultHoverPatches {
       [HarmonyPostfix]
       public static void Postfix(Thing __instance, ref PassiveTooltip __result) {
           if (__instance == null) return;
@@ -480,8 +480,8 @@ Goal: implement the §8.5 producer-isolation rule. Producers on a network with a
               case SolarPanel _:
               case WindTurbineGenerator _:
               case RadioscopicThermalGenerator _:
-                  if (VariableVoltageFaultRegistry.TryGetFault(__instance.ReferenceId, tick, out float secondsLeft, out string violatorName)) {
-                      string line = $"<color=#ff2626>(Variable Voltage Fault: connected to {violatorName} without transformer. {secondsLeft.ToString("0.00", CultureInfo.CurrentCulture)}s)</color>";
+                  if (CurrentMismatchFaultRegistry.TryGetFault(__instance.ReferenceId, tick, out float secondsLeft, out string violatorName)) {
+                      string line = $"<color=#ff2626>(Current mismatch fault: connected to {violatorName} without transformer. {secondsLeft.ToString("0.00", CultureInfo.CurrentCulture)}s)</color>";
                       var prefix = string.IsNullOrEmpty(__result.Extended) ? string.Empty : (__result.Extended + "\n");
                       __result.Extended = prefix + line;
                   }
@@ -492,17 +492,17 @@ Goal: implement the §8.5 producer-isolation rule. Producers on a network with a
   ```
   Per-frame poll cadence via `WorldCursor.Idle()` makes the countdown tick smoothly.
 
-- Violator-naming rule (decision locked): when the Phase 1.5b producer-isolation walk fires a VVF on a producer, record the violator(s) -- the rigid-consumer class names that triggered the rule -- onto the registry entry. Rule choice: record ALL rigid violator class names on the same network, deduplicated, comma-separated (limit 3 names + "..." if more). Rationale: a network with a coal-genny producer plus four lights plus a door is most diagnostically helpful when the hover names all of them so the player can scan the obvious offender. Single-violator case stays clean ("Light"). The class-name string is the unqualified C# type name (`Light`, `ArcFurnace`, `KitchenStove`, `LogicReader`, etc.); strip any "Structure" prefix and any vanilla-namespace noise.
-- `VariableVoltageFaultRegistry`: extend the entry record to carry `string violatorNames` alongside the existing `int lockoutUntilTick`. `TryGetFault(refId, tick, out float secondsLeft, out string violatorNames)` returns both. Fault-emitter sites (Phase 1.5b producer-isolation walk) supply the violator string at `NoteVariableVoltageFault` time; carries through to all hover patches.
-- Flashable-producer hover (the on-button-flash producers: coal, gas, stirling, etc.) uses the same `Variable Voltage Fault: connected to {violatorName} without transformer. {seconds}s` line via their respective per-class GetPassiveTooltip postfixes. Single source-of-truth string format across hover and flash producers.
-- `VariableVoltageFaultRegistry`: add `TryGetFault(refId, tick, out float secondsLeft, out string violatorNames)` returning `true` and computing `secondsLeft = (lockoutUntilTick - tick) * 0.5f` if locked (float, not int -- gives sub-second granularity for smooth countdown), else `false`. The format string is `secondsLeft.ToString("0.00", CultureInfo.CurrentCulture)` so the decimal separator follows the player's culture (`.` in en-US, `,` in de-DE, etc.). Apply the same format string in every fault-line emission site (Brownout, Overload, CycleFault, VariableVoltageFault hover Postfixes). The Brownout / Overload / CycleFault `TryGetFault` equivalents do not need the `violatorNames` out-param (those faults are per-device self-contained).
-- Hover-only producers (SolarPanel, WindTurbineGenerator, RTG) get their `GetGeneratedPower(net)` postfixed via a separate small patch in `VariableVoltageFaultEnforcementPatches.cs`: when the registry has the device locked, return 0. So the device visibly stops producing AND the hover line explains why.
+- Violator-naming rule (decision locked): when the Phase 1.5b producer-isolation walk fires a current-mismatch fault on a producer, record the violator(s) -- the rigid-consumer class names that triggered the rule -- onto the registry entry. Rule choice: record ALL rigid violator class names on the same network, deduplicated, comma-separated (limit 3 names + "..." if more). Rationale: a network with a coal-genny producer plus four lights plus a door is most diagnostically helpful when the hover names all of them so the player can scan the obvious offender. Single-violator case stays clean ("Light"). The class-name string is the unqualified C# type name (`Light`, `ArcFurnace`, `KitchenStove`, `LogicReader`, etc.); strip any "Structure" prefix and any vanilla-namespace noise.
+- `CurrentMismatchFaultRegistry`: extend the entry record to carry `string violatorNames` alongside the existing `int lockoutUntilTick`. `TryGetFault(refId, tick, out float secondsLeft, out string violatorNames)` returns both. Fault-emitter sites (Phase 1.5b producer-isolation walk) supply the violator string at `NoteCurrentMismatchFault` time; carries through to all hover patches.
+- Flashable-producer hover (the on-button-flash producers: coal, gas, stirling, etc.) uses the same `Current mismatch fault: connected to {violatorName} without transformer. {seconds}s` line via their respective per-class GetPassiveTooltip postfixes. Single source-of-truth string format across hover and flash producers.
+- `CurrentMismatchFaultRegistry`: add `TryGetFault(refId, tick, out float secondsLeft, out string violatorNames)` returning `true` and computing `secondsLeft = (lockoutUntilTick - tick) * 0.5f` if locked (float, not int -- gives sub-second granularity for smooth countdown), else `false`. The format string is `secondsLeft.ToString("0.00", CultureInfo.CurrentCulture)` so the decimal separator follows the player's culture (`.` in en-US, `,` in de-DE, etc.). Apply the same format string in every fault-line emission site (Deprioritized, Overload, CycleFault, CurrentMismatchFault hover Postfixes). The Deprioritized / Overload / CycleFault `TryGetFault` equivalents do not need the `violatorNames` out-param (those faults are per-device self-contained).
+- Hover-only producers (SolarPanel, WindTurbineGenerator, RTG) get their `GetGeneratedPower(net)` postfixed via a separate small patch in `CurrentMismatchFaultEnforcementPatches.cs`: when the registry has the device locked, return 0. So the device visibly stops producing AND the hover line explains why.
 - Validation probes (added to POWERTODO §9.4 below):
-  - `pgp-producer-isolation-coal-and-light-probe`: coal generator + light directly on the same network. Tick. Assert coal enters VariableVoltageFaultRegistry (it has OnOff). Assert RED flash on coal's button. Assert hover "(Variable Voltage Fault: connected to Light without transformer. 60.00s)" per Decision M wording.
-  - `pgp-producer-isolation-solar-and-light-probe`: solar panel + light directly on the same network. Tick. Assert NO VariableVoltageFault entry (solar has no OnOff). Assert one cable burns. Assert CableRuptured's hover text contains "Power producing devices can only connect to a transformer (adjacent Light)" per Decision M violator-naming rule.
+  - `pgp-producer-isolation-coal-and-light-probe`: coal generator + light directly on the same network. Tick. Assert coal enters CurrentMismatchFaultRegistry (it has OnOff). Assert RED flash on coal's button. Assert hover "(Current mismatch fault: connected to Light without transformer. 60.00s)" per Decision M wording.
+  - `pgp-producer-isolation-solar-and-light-probe`: solar panel + light directly on the same network. Tick. Assert NO CurrentMismatchFault entry (solar has no OnOff). Assert one cable burns. Assert CableRuptured's hover text contains "Power producing devices can only connect to a transformer (adjacent Light)" per Decision M violator-naming rule.
   - `pgp-producer-isolation-no-rigid-no-fault-probe`: solar panel connected only to a transformer (no rigid consumers on the solar's network). Tick. Assert NO fault, NO burn.
   - `pgp-producer-isolation-with-battery-no-rigid-probe`: solar panel + battery on the same network with NO rigid consumers. Assert NO fault, NO burn (producer-only-network rule per Decision G; battery presence is irrelevant when no rigid load present).
-  - `pgp-producer-isolation-battery-does-not-isolate-probe`: solar + battery + light (rigid present). Assert VVF / burn fires per Q1: Battery does NOT satisfy isolation.
+  - `pgp-producer-isolation-battery-does-not-isolate-probe`: solar + battery + light (rigid present). Assert current-mismatch fault / burn fires per Q1: Battery does NOT satisfy isolation.
   - `pgp-producer-isolation-rtg-and-machine-probe`: RTG + arc furnace on the same network. Assert one cable burns adjacent to the arc furnace. Burn-reason text names the violator (ArcFurnace).
 
 ### 1.7 Atomic flow Phase 1.5: wrong-tier cable burn (1.5a) then pre-allocator cycle-fault detection (1.5b)
@@ -523,7 +523,7 @@ Implementation order in `AtomicElectricityTickPatch`:
 
 **Phase 1.5b: NO cables burn from cycles. Cable burn is reserved for direct-generator overflow per POWER.md §5.7 and wrong-tier junctions per Phase 1.5a.**
 
-- File: `Mods/PowerGridPlus/PowerGridPlus/CycleFaultRegistry.cs` (new). Parallel to BrownoutRegistry/OverloadRegistry. API:
+- File: `Mods/PowerGridPlus/PowerGridPlus/CycleFaultRegistry.cs` (new). Parallel to DeprioritizedRegistry/OverloadRegistry. API:
   - `static Dictionary<long, int> _lockoutUntilTick`. Keyed by `ReferenceId` of the segmenting device. Value = `currentTick + 120` (literal 120, the cooldown is 60 seconds at the 2 Hz electricity tick). Decision locked: do NOT derive 120 from any `TickRate` / `TicksPerSecond` constant; use the literal. // Assumes 2 Hz electricity tick. If game tick rate changes, review.
   - `static void NoteCycleFault(long refId, int currentTick)`.
   - `static bool IsCycleFaulted(long refId, int tick)`.
@@ -574,12 +574,12 @@ Implementation order in `AtomicElectricityTickPatch`:
     - `pgp-cycle-skip-flicker-probe`: place + destroy a cable every tick on one component. Measure Phase 1.5b cost. Assert DFS DOES run every tick on that affected component (and only that component).
     - `pgp-cycle-skip-unrelated-change-probe`: large stable grid plus one isolated unrelated cable being placed every tick. Assert Phase 1.5b skips the stable components and only DFS-walks the affected component.
 - File: `Mods/PowerGridPlus/PowerGridPlus/SegmentingDeviceRegistry.cs` (new). Static registry that enumerates every concrete segmenting device on the map: Transformer, Battery, AreaPowerControl, PowerTransmitter, PowerReceiver, RocketPowerUmbilicalFemale, RocketPowerUmbilicalMale, PowerConnection. Built at scene-load and maintained on device add/remove. MP determinism: the registry exposes `AllSegmentingDevices` as an `IEnumerable<Device>` sorted by `ReferenceId ASC`. `CycleGraphBuilder` MUST iterate via this sorted enumeration (do NOT iterate via dictionary or hashset enumeration order). Same key the allocator mandates per POWER.md §8.0.1.
-- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/CycleFaultEnforcementPatches.cs` (new). Postfixes on `GetGeneratedPower` and `GetUsedPower` of every segmenting device class. When `CycleFaultRegistry.IsCycleFaulted(__instance.ReferenceId, currentTick)` returns true, set `__result = 0`. Same shape as the shed / overload zero-out patches. Uniformity requirement (Q2 carry-over, decision locked): Phase 1.7 and Phase 1.7.5 MUST treat all SEVEN segmenter classes uniformly for CYCLE_FAULT eligibility: `Transformer`, `Battery` (StationaryBattery + StationBatteryLarge), `AreaPowerControl`, `PowerTransmitter`, `PowerReceiver`, `RocketPowerUmbilicalMale`, `RocketPowerUmbilicalFemale`. All seven can enter CYCLE_FAULT, all seven get the per-class zero-out Postfix, all seven contribute to the graph build, all seven have the same 60s lockout window and OFF-as-reset behaviour. Do NOT special-case any of them; do NOT exempt any class from cycle detection. PowerConnection (the dynamic-generator coupler) appears in `SegmentingDeviceRegistry` for graph-build completeness but does not have an OnOff button or per-class hover, so its CYCLE_FAULT entry is silent (no flash, no hover); it still contributes to the topology and dissolves cycles correctly.
+- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/CycleFaultEnforcementPatches.cs` (new). Postfixes on `GetGeneratedPower` and `GetUsedPower` of every segmenting device class. When `CycleFaultRegistry.IsCycleFaulted(__instance.ReferenceId, currentTick)` returns true, set `__result = 0`. Same shape as the deprioritized / overload zero-out patches. Uniformity requirement (Q2 carry-over, decision locked): Phase 1.7 and Phase 1.7.5 MUST treat all SEVEN segmenter classes uniformly for CYCLE_FAULT eligibility: `Transformer`, `Battery` (StationaryBattery + StationBatteryLarge), `AreaPowerControl`, `PowerTransmitter`, `PowerReceiver`, `RocketPowerUmbilicalMale`, `RocketPowerUmbilicalFemale`. All seven can enter CYCLE_FAULT, all seven get the per-class zero-out Postfix, all seven contribute to the graph build, all seven have the same 60s lockout window and OFF-as-reset behaviour. Do NOT special-case any of them; do NOT exempt any class from cycle detection. PowerConnection (the dynamic-generator coupler) appears in `SegmentingDeviceRegistry` for graph-build completeness but does not have an OnOff button or per-class hover, so its CYCLE_FAULT entry is silent (no flash, no hover); it still contributes to the topology and dissolves cycles correctly.
 - File: `Patterns/Logic/LogicTypeNumbers.cs`. Append `public const ushort CycleFault = 6581;`. Update `Patterns/Logic/README.md` table: add row "CycleFault | 6581 | PowerGridPlus | Read-only. Set to 1 while a transformer is in cycle-fault lockout."; bump "Next free slot" from 6581 to 6582.
 - File: `Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerPriorityLogicPatches.cs`. Extend `CanLogicReadPatch` and `GetLogicValuePatch` to also handle `LogicTypeNumbers.CycleFault` (reads from `CycleFaultRegistry.IsCycleFaulted`).
 - File: `Mods/PowerGridPlus/PowerGridPlus/CycleFaultStateMessage.cs` (new). Network message carrying the FULL `CycleFaultRegistry` snapshot per tick (per Phase 1.8 Q5 carry-over). Sent host -> clients each tick when the registry is non-empty; zero-byte when empty. Client-side: atomic replace of mirror dict on receive.
-- File: `Mods/PowerGridPlus/PowerGridPlus/CycleFaultFlashBehaviour.cs` (new). Subclass or sibling of `BrownoutFlashBehaviour` with `FlashColour = Color(1f, 0.15f, 0.15f)` (red, same as OverloadFlashBehaviour).
-- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/SwitchOnOffShedPatches.cs`. Extend the OFF-as-reset logic: when `OnOff == false` AND (`shed || overload || cycle_fault`) is active, clear all three registries for the device.
+- File: `Mods/PowerGridPlus/PowerGridPlus/CycleFaultFlashBehaviour.cs` (new). Subclass or sibling of `FaultFlashBehaviour` with `FlashColour = Color(1f, 0.15f, 0.15f)` (red, same as OverloadFlashBehaviour).
+- File: `Mods/PowerGridPlus/PowerGridPlus/Patches/SwitchOnOffFaultPatches.cs`. Extend the OFF-as-reset logic: when `OnOff == false` AND (`deprioritized || overload || cycle_fault`) is active, clear all three registries for the device.
 - Validation:
   - `pgp-cycle-fault-marks-all-devices-probe`: build a cycle through T1, T2, T3 (three transformers in a ring). Tick once. Assert ALL THREE enter `CycleFaultRegistry`, NOT just one. Assert no cable burns.
   - `pgp-cycle-fault-mixed-devices-probe`: cycle through T1, APC, Battery (mixed segmenting devices). Assert all three are in `CycleFaultRegistry`.
@@ -601,38 +601,38 @@ Skip-while-faulted optimization (required for correctness AND performance):
   - **Mode A: full-graph cycle discovery.** The walk visits faulted segmenters normally and recurses through their other side. This is necessary so that new non-faulted participants joining an existing cycle get newly faulted as the loop persists or grows; the existing fault timers on already-faulted members are NOT affected by Mode A's visits (a re-`NoteCycleFault` on an already-locked refId is a no-op until lockout expiry).
   - **Mode B: "is the original loop still here" check.** A separate pass that DOES treat faulted segmenters as non-conducting edges. Used to decide whether the cycle is still topologically present so that we do NOT extend timers on the original loop members beyond their natural 60s expiry. If Mode B reports the original loop is gone (e.g. a member was OFF-as-reset or its cable was deconstructed), do not re-note CYCLE_FAULT on the remaining originals.
   - The dual-mode walk applies the rule "skip-while-faulted means original-loop check only, not new-cycle discovery." Document this in `CycleGraphBuilder` header comments.
-- Producer-isolation walk (Phase 1.6.5) skips producers that are already in VARIABLE_VOLTAGE_FAULT. Continue past them when scanning the producer list per network. Avoids re-noting the same fault every tick during the lockout.
-- Shed/overload allocator math (Phase 5) treats faulted devices as supplying 0 and capacity 0. This already falls out of the existing per-device zero-out postfixes (`CycleFaultEnforcementPatches`, `BatterySupplyCapPatch` etc. with the registry check), so faulted devices naturally drop out of allocation math without a separate skip pass. Document this as an invariant the implementation relies on; do NOT remove the per-device zero-out postfixes thinking the allocator pre-filter is enough.
+- Producer-isolation walk (Phase 1.6.5) skips producers that are already in CURRENT_MISMATCH_FAULT. Continue past them when scanning the producer list per network. Avoids re-noting the same fault every tick during the lockout.
+- Deprioritization/overload allocator math (Phase 5) treats faulted devices as supplying 0 and capacity 0. This already falls out of the existing per-device zero-out postfixes (`CycleFaultEnforcementPatches`, `BatterySupplyCapPatch` etc. with the registry check), so faulted devices naturally drop out of allocation math without a separate skip pass. Document this as an invariant the implementation relies on; do NOT remove the per-device zero-out postfixes thinking the allocator pre-filter is enough.
 
-Logic-passthrough invariant (decision locked): a segmenter's logic-passthrough behaviour is SOLELY configured by the `LogicPassthrough` LogicType value (or the per-class server master toggle such as `EnableAreaPowerControlLogicPassthrough`). Fault state (CYCLE_FAULT / VARIABLE_VOLTAGE_FAULT / OVERLOAD / SHED) does NOT affect logic passthrough. A faulted segmenter still bridges logic reads / writes across its input and output sides if `LogicPassthrough = 1`. OnOff state ALSO does not affect logic passthrough (a powered-off transformer with `LogicPassthrough = 1` still passes logic). The power lane and the logic lane are independent. Do NOT add any task that says "faulted segmenters stop being logic-passthrough bridges"; that behaviour was considered and rejected.
+Logic-passthrough invariant (decision locked): a segmenter's logic-passthrough behaviour is SOLELY configured by the `LogicPassthrough` LogicType value (or the per-class server master toggle such as `EnableAreaPowerControlLogicPassthrough`). Fault state (CYCLE_FAULT / CURRENT_MISMATCH_FAULT / OVERLOAD / DEPRIORITIZED) does NOT affect logic passthrough. A faulted segmenter still bridges logic reads / writes across its input and output sides if `LogicPassthrough = 1`. OnOff state ALSO does not affect logic passthrough (a powered-off transformer with `LogicPassthrough = 1` still passes logic). The power lane and the logic lane are independent. Do NOT add any task that says "faulted segmenters stop being logic-passthrough bridges"; that behaviour was considered and rejected.
 
 Validation:
-- `pgp-fault-timer-full-window-probe`: trigger SHED at tick T. Clear the underlying undersupply at tick T+10. Assert the SHED stays locked until tick T+120 (60s). The fault does NOT auto-clear when the underlying condition resolves; only OFF-as-reset clears early.
+- `pgp-fault-timer-full-window-probe`: trigger DEPRIORITIZED at tick T. Clear the underlying undersupply at tick T+10. Assert the DEPRIORITIZED fault stays locked until tick T+120 (60s). The fault does NOT auto-clear when the underlying condition resolves; only OFF-as-reset clears early.
 - `pgp-cycle-fault-skip-during-lockout-probe`: trigger CYCLE_FAULT on T1. Verify Phase 1.5's cycle DFS during the next 119 ticks does NOT re-walk the now-empty loop (which would still appear "loopy" if T1 contributed normally). Confirms the DFS treats T1 as non-conducting.
-- `pgp-producer-isolation-skip-during-lockout-probe`: trigger VVF on a coal generator. Verify Phase 1.5b's producer scan during the lockout window does NOT re-add it to the registry every tick.
+- `pgp-producer-isolation-skip-during-lockout-probe`: trigger a current-mismatch fault on a coal generator. Verify Phase 1.5b's producer scan during the lockout window does NOT re-add it to the registry every tick.
 
 ### 1.8 MP sync semantics for fault registries (Q5 carry-over)
 
-Decision locked: every fault registry (`BrownoutRegistry`, `OverloadRegistry`, `CycleFaultRegistry`, `VariableVoltageFaultRegistry`) uses the same MP sync rule:
+Decision locked: every fault registry (`DeprioritizedRegistry`, `OverloadRegistry`, `CycleFaultRegistry`, `CurrentMismatchFaultRegistry`) uses the same MP sync rule:
 - Per-tick FULL registry snapshot sent host -> clients when the registry is non-empty.
 - NO sync when the registry is empty (zero-byte tick).
 - The "full snapshot" carries every active `(ReferenceId, remainingTicks)` pair; clients overwrite their mirror dict on receive. No diff'ing, no delta encoding. Cost is bounded by the active-fault count, which is small in steady state.
-- The per-tick full sync replaces any earlier "diff broadcast" language in `CycleFaultStateMessage` / `OverloadStateMessage` / `VariableVoltageFaultStateMessage`. Diff'ing was rejected because of state-divergence risk when a client misses a delta packet; full-snapshot is self-healing.
-- ShedStateMessage already uses this pattern; the other three follow suit.
+- The per-tick full sync replaces any earlier "diff broadcast" language in `CycleFaultStateMessage` / `OverloadStateMessage` / `CurrentMismatchFaultStateMessage`. Diff'ing was rejected because of state-divergence risk when a client misses a delta packet; full-snapshot is self-healing.
+- The deprioritized-fault state message already uses this pattern; the other three follow suit.
 
 Implementation:
 - Each `*StateMessage` carries `List<(long refId, int remainingTicks)>`. Wire to BepInEx ZeroTier-style message routing (or whatever the project's MP layer uses).
 - Host-side: at end of each Phase 2 tick, if any registry is non-empty, send its full snapshot to all connected clients.
-- Client-side: on receive, atomically replace the mirror dict with the snapshot. The `IsShedding / IsOverloaded / IsCycleFaulted / IsVariableVoltageFaulted` reads compute `remainingTicks > 0` against the current tick.
+- Client-side: on receive, atomically replace the mirror dict with the snapshot. The `IsDeprioritized / IsOverloaded / IsCycleFaulted / IsCurrentMismatchFaulted` reads compute `remainingTicks > 0` against the current tick.
 
 Probes:
-- `pgp-mp-fault-sync-nonempty-probe`: dedi + 1 client. Trigger SHED on a transformer. Assert ShedStateMessage payload contains the transformer's refId + remainingTicks. Assert client mirror dict updates same tick.
+- `pgp-mp-fault-sync-nonempty-probe`: dedi + 1 client. Trigger DEPRIORITIZED on a transformer. Assert the deprioritized-fault state message payload contains the transformer's refId + remainingTicks. Assert client mirror dict updates same tick.
 - `pgp-mp-fault-sync-empty-probe`: dedi + 1 client. No active faults. Assert NO message sent (zero network traffic per tick on the fault-sync channel).
 - `pgp-mp-fault-sync-self-healing-probe`: dedi + 1 client. Simulate a dropped packet at tick T. At tick T+1 the full snapshot arrives; assert client mirror is fully consistent regardless of T's loss.
 
 ### 1.9 MP join handshake for fault registries (Q6 carry-over)
 
-Decision locked: when a client joins, the host sends a one-shot HANDSHAKE message containing the current fault-registry state for all four registries (Shed, Overload, CycleFault, VVF). Each entry carries `(ReferenceId, remainingTicks)`. The client populates its mirror dicts so the visual state (flash colour + hover countdown) reflects the in-progress faults immediately on join, NOT only after the next per-tick sync.
+Decision locked: when a client joins, the host sends a one-shot HANDSHAKE message containing the current fault-registry state for all four registries (Deprioritized, Overload, CycleFault, CurrentMismatch). Each entry carries `(ReferenceId, remainingTicks)`. The client populates its mirror dicts so the visual state (flash colour + hover countdown) reflects the in-progress faults immediately on join, NOT only after the next per-tick sync.
 
 Implementation:
 - `FaultRegistryJoinSnapshotMessage` (new). Serialises all four registry contents.
@@ -640,7 +640,7 @@ Implementation:
 - Client populates mirror dicts before first visual frame; flash + hover read correct state immediately.
 
 Probes:
-- `pgp-mp-join-mid-shed-handshake-probe`: host has T1 in SHED with 30s remaining when client joins. Client receives handshake. Assert T1 button is flashing orange on client AND hover countdown reads ~30s, not 60s.
+- `pgp-mp-join-mid-deprioritization-handshake-probe`: host has T1 in DEPRIORITIZED with 30s remaining when client joins. Client receives handshake. Assert T1 button is flashing orange on client AND hover countdown reads ~30s, not 60s.
 - `pgp-mp-join-no-fault-handshake-probe`: host has empty registries when client joins. Assert handshake payload is empty / 4 empty lists. No client visual fault state.
 
 ### 1.3 Verify `PowerGridTick.cs` and `PowerTickPatches.cs` cleanup
@@ -725,7 +725,7 @@ Goal: replace global `CompareForAllocation` with a sort that groups transformers
 - File: `Mods/PowerGridPlus/PowerGridPlus/TransformerAllocator.cs`.
 - Replace the single sorted list of contributors with `Dictionary<long, List<Transformer>>` keyed by input network RefId.
 - Within each list, sort by `(Priority DESC, subtreeRigidDemand DESC, RefId ASC)` — note that "demand DESC" is the new tiebreak from the spec; today's code uses RefId ASC as the only tiebreak.
-- The shed cascade then walks each group independently (no cross-group priority comparison).
+- The deprioritization cascade then walks each group independently (no cross-group priority comparison).
 
 ### 4.2 Update `CompareForAllocation` or its callers
 
@@ -733,49 +733,49 @@ Goal: replace global `CompareForAllocation` with a sort that groups transformers
 
 ### 4.3 Validation
 
-- Scenario: `pgp-priority-per-network-probe`. Create a save where T1 (priority 200, on Grid) and T2 (priority 100, on a Mid-net deeper down) coexist. Force undersupply. Assert that T2 shed-eligibility is decided ONLY against T2's siblings on Mid-net, not against T1 on Grid.
+- Scenario: `pgp-priority-per-network-probe`. Create a save where T1 (priority 200, on Grid) and T2 (priority 100, on a Mid-net deeper down) coexist. Force undersupply. Assert that T2 deprioritization-eligibility is decided ONLY against T2's siblings on Mid-net, not against T1 on Grid.
 
-## Phase 5 — Joint shed + overload fixed-point iteration
+## Phase 5 -- Joint deprioritization + overload fixed-point iteration
 
-Goal: implement the §8.0 joint shed + overload algorithm. Each transformer's operational state is binary (ON or LOCKED-OUT). The iteration converges in at most N rounds where N is the segmenting-device count.
+Goal: implement the §8.0 joint deprioritization + overload algorithm. Each transformer's operational state is binary (ON or LOCKED-OUT). The iteration converges in at most N rounds where N is the segmenting-device count.
 
 ### 5.0 Iteration loop in `TransformerAllocator.RunAtomic`
 
 - File: `Mods/PowerGridPlus/PowerGridPlus/TransformerAllocator.cs`. The `RunAtomic` body becomes a fixed-point loop:
   ```csharp
-  var sheds = new HashSet<long>();
+  var deprioritized = new HashSet<long>();
   var overloads = new HashSet<long>();
   for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
-      var (newSheds, newOverloads) = EvaluateOneRound(sheds, overloads);
-      if (newSheds.SetEquals(sheds) && newOverloads.SetEquals(overloads)) break;
-      sheds = newSheds; overloads = newOverloads;
+      var (newDeprioritized, newOverloads) = EvaluateOneRound(deprioritized, overloads);
+      if (newDeprioritized.SetEquals(deprioritized) && newOverloads.SetEquals(overloads)) break;
+      deprioritized = newDeprioritized; overloads = newOverloads;
   }
-  CommitToRegistries(sheds, overloads);
+  CommitToRegistries(deprioritized, overloads);
   ```
 - `MAX_ITERATIONS = 2 * segmentingDeviceCount + 4` (slack for safety).
-- `EvaluateOneRound` runs two sub-passes per round: shed evaluation (bottom-up, per §8.0 step 1) and overload evaluation (top-down, per §8.0 step 2), each adding to the result sets.
+- `EvaluateOneRound` runs two sub-passes per round: deprioritization evaluation (bottom-up, per §8.0 step 1) and overload evaluation (top-down, per §8.0 step 2), each adding to the result sets.
 - **Determinism (POWER.md §8.0.1)**: iteration order within a sub-pass is by `(depth ASC, priority DESC, ReferenceId ASC)` — INTEGER-ONLY. No float (demand) enters the sort key.
 - If a magnitude tiebreaker is genuinely needed for sibling selection within the same `(depth, priority)`, quantise demand to int Watts before entering the key: `int demandWatts = (int)Math.Floor(actual_demand_float); key = (depth ASC, priority DESC, demandWatts DESC, ReferenceId ASC)`. The cast erases ulp-level float divergence between peers.
-- Also fix the existing latent bug at `TransformerExploitPatches.cs:59-66`: change client-side `IsLockedOut` check to `IsShedding` so clients honour the host's broadcast during their own Phase 1/3 walks (sub-agent finding, separate from Phase 2 but related).
-- Replace dictionary iteration in OVERLOAD/SHED Phase C with explicit `OrderBy(pair.Key)` walks (`TransformerAllocator.cs:124, 262`). The keys are `long` network ids; sorting is cheap; future runtime changes to dictionary iteration order won't break MP determinism.
+- Also fix the existing latent bug at `TransformerExploitPatches.cs:59-66`: change client-side `IsLockedOut` check to `IsDeprioritized` so clients honour the host's broadcast during their own Phase 1/3 walks (sub-agent finding, separate from Phase 2 but related).
+- Replace dictionary iteration in OVERLOAD/DEPRIORITIZED Phase C with explicit `OrderBy(pair.Key)` walks (`TransformerAllocator.cs:124, 262`). The keys are `long` network ids; sorting is cheap; future runtime changes to dictionary iteration order won't break MP determinism.
 - Headless MP determinism probe (POWER.md §8.0.1):
-  - `pgp-mp-determinism-replay-probe`: run a save twice with the same binary, dump `(ReferenceId, depth, priority, BitConverter.SingleToInt32Bits(demand))` per transformer per Phase 2 entry, plus the final shed/overload sets. Assert byte-for-byte equality between runs.
-  - `pgp-mp-determinism-dual-peer-probe`: dedi server + 1 client. Dump per-tick state from both peers. Force a shed via IC10 priority rewrite. Capture 60 ticks. Assert host and client dumps match byte-for-byte (the integer-only key makes this achievable; the demand bits may or may not match but never feed into a sort decision).
+  - `pgp-mp-determinism-replay-probe`: run a save twice with the same binary, dump `(ReferenceId, depth, priority, BitConverter.SingleToInt32Bits(demand))` per transformer per Phase 2 entry, plus the final deprioritization/overload sets. Assert byte-for-byte equality between runs.
+  - `pgp-mp-determinism-dual-peer-probe`: dedi server + 1 client. Dump per-tick state from both peers. Force a deprioritization via IC10 priority rewrite. Capture 60 ticks. Assert host and client dumps match byte-for-byte (the integer-only key makes this achievable; the demand bits may or may not match but never feed into a sort decision).
 
 ### 5.1 `subtreeRigidDemand` precompute
 
 (Same as before, but now sub-numbered.) Inside `EvaluateOneRound`, after gathering contributors, run the recursive walk:
 
-- Algorithm: depth-first from leaves. Leaf transformer's subtree demand = `OutputNetwork`'s rigid demand (after soft exclusion). Non-leaf transformer's subtree demand = `OutputNetwork`'s rigid demand + sum of children transformers' `subtreeRigidDemand` (excluding shed/overloaded children, who contribute 0).
+- Algorithm: depth-first from leaves. Leaf transformer's subtree demand = `OutputNetwork`'s rigid demand (after soft exclusion). Non-leaf transformer's subtree demand = `OutputNetwork`'s rigid demand + sum of children transformers' `subtreeRigidDemand` (excluding deprioritized/overloaded children, who contribute 0).
 - Cache per round: `Dictionary<long, float>` keyed by `ReferenceId`.
 
-### 5.2 Bottom-up shed evaluation (per round)
+### 5.2 Bottom-up deprioritization evaluation (per round)
 
 Visit segmenting devices in depth-descending order. For each, check input network availability:
 
 - `device_input_need = actual_throughput + UsedPower` where `actual_throughput = min(effective_cap, downstream_demand_with_current_state)`.
 - Input net rigid supply ceiling = `generators + battery_discharge_effective_caps + supplying_transformers_not_in_state` (excluding self).
-- If ceiling < sum of siblings' input needs at this level, sort siblings by `(priority ASC, subtreeRigidDemand DESC, ReferenceId ASC)` and add the first to SHED. Recompute. Repeat until fit, or until all shed-eligible siblings are in SHED.
+- If ceiling < sum of siblings' input needs at this level, sort siblings by `(priority ASC, subtreeRigidDemand DESC, ReferenceId ASC)` and add the first to DEPRIORITIZED. Recompute. Repeat until fit, or until all deprioritization-eligible siblings are in DEPRIORITIZED.
 
 ### 5.3 Top-down overload evaluation (per round)
 
@@ -788,7 +788,7 @@ Visit segmenting devices in depth-ascending order. For each ON device:
 ### 5.4 Convergence and commit
 
 - Loop terminates when no state change in one round.
-- After loop, write final `sheds` to `BrownoutRegistry`, `overloads` to `OverloadRegistry`. Set lockout = `currentTick + 120` for each new entry. Literal 120 (60 seconds at 2 Hz tick); do not derive from a tick-rate variable. // Assumes 2 Hz electricity tick. If game tick rate changes, review.
+- After loop, write final `deprioritized` to `DeprioritizedRegistry`, `overloads` to `OverloadRegistry`. Set lockout = `currentTick + 120` for each new entry. Literal 120 (60 seconds at 2 Hz tick); do not derive from a tick-rate variable. // Assumes 2 Hz electricity tick. If game tick rate changes, review.
 - Existing locked entries (from prior ticks) carry forward; they are not re-evaluated until their lockout expires.
 
 ### 5.5 Depth computation
@@ -797,16 +797,16 @@ Visit segmenting devices in depth-ascending order. For each ON device:
 
 ### 5.6 Validation
 
-- `pgp-shed-overload-cascade-probe`: T1 (max 500) and T2 (max 500) parallel on output net with rigid demand 900. T1 input net loses supply (forced). Round 1: T1 sheds. Round 2: T2 overloads (alone can't supply 900). Both registered within one tick. Assert.
-- `pgp-iteration-convergence-probe`: build a topology where shed cascade triggers 5 layers of consequential sheds and overloads. Assert convergence in <= 2N rounds. Assert no oscillation.
-- `pgp-no-throttled-state-probe`: T1 in a configuration that vanilla would "throttle" (input cable limits T1 to 200 W of its 500 W max). PowerGridPlus must SHED T1 instead of throttling. Assert `actual_throughput == 0` (not 200).
-- `pgp-binary-state-probe`: enumerate every segmenting device after Phase 2. Assert each is exactly one of {ON, SHED, OVERLOAD}. Assert no "partial" states.
-- `pgp-shed-triggers-overload-probe`: paired transformers feeding a shared output. Force one to shed; assert the other goes to OVERLOAD in the same tick (not next tick).
-- `pgp-overload-triggers-shed-probe`: an overload that reduces downstream demand to where a previously-shed transformer could now be ON. Assert this DOES NOT happen (state can only grow, not shrink, within a round).
+- `pgp-deprioritization-overload-cascade-probe`: T1 (max 500) and T2 (max 500) parallel on output net with rigid demand 900. T1 input net loses supply (forced). Round 1: T1 is deprioritized. Round 2: T2 overloads (alone can't supply 900). Both registered within one tick. Assert.
+- `pgp-iteration-convergence-probe`: build a topology where the deprioritization cascade triggers 5 layers of consequential deprioritizations and overloads. Assert convergence in <= 2N rounds. Assert no oscillation.
+- `pgp-no-throttled-state-probe`: T1 in a configuration that vanilla would "throttle" (input cable limits T1 to 200 W of its 500 W max). PowerGridPlus must DEPRIORITIZE T1 instead of throttling. Assert `actual_throughput == 0` (not 200).
+- `pgp-binary-state-probe`: enumerate every segmenting device after Phase 2. Assert each is exactly one of {ON, DEPRIORITIZED, OVERLOAD}. Assert no "partial" states.
+- `pgp-deprioritization-triggers-overload-probe`: paired transformers feeding a shared output. Force one to be deprioritized; assert the other goes to OVERLOAD in the same tick (not next tick).
+- `pgp-overload-triggers-deprioritization-probe`: an overload that reduces downstream demand to where a previously-deprioritized transformer could now be ON. Assert this DOES NOT happen (state can only grow, not shrink, within a round).
 
 ## Phase 5old — `subtreeRigidDemand` precompute and bottom-up cascade (historical)
 
-Goal: each transformer carries an aggregate rigid demand summing its whole downstream. Shed decisions cascade leaf-first.
+Goal: each transformer carries an aggregate rigid demand summing its whole downstream. Deprioritization decisions cascade leaf-first.
 
 ### 5.1 Precompute pass
 
@@ -818,9 +818,9 @@ Goal: each transformer carries an aggregate rigid demand summing its whole downs
 
 - After precompute, group transformers by depth (root = depth 0, increasing downstream). Walk from highest depth (deepest) upward.
 - At each depth level, for each input network at that level, check whether siblings' summed subtree demands fit the input's budget.
-- If fit: no sheds. Move up.
-- If not fit: sort siblings by (Priority ASC, subtreeRigidDemand DESC, RefId ASC) — note ASC priority because we shed lowest first. Shed siblings one-by-one. After each shed, the shed sibling's subtreeRigidDemand drops to 0. Recompute the level's claim. Stop when fit.
-- Propagate the shed effect: as transformers shed, their parents' subtreeRigidDemand (already cached) decreases. Update parents' cached values for the next level up.
+- If fit: no deprioritizations. Move up.
+- If not fit: sort siblings by (Priority ASC, subtreeRigidDemand DESC, RefId ASC) -- note ASC priority because we deprioritize lowest first. Deprioritize siblings one-by-one. After each deprioritization, the deprioritized sibling's subtreeRigidDemand drops to 0. Recompute the level's claim. Stop when fit.
+- Propagate the deprioritization effect: as transformers are deprioritized, their parents' subtreeRigidDemand (already cached) decreases. Update parents' cached values for the next level up.
 
 ### 5.3 Depth computation
 
@@ -830,12 +830,12 @@ Goal: each transformer carries an aggregate rigid demand summing its whole downs
 
 ### 5.4 Validation
 
-- Scenario: `pgp-leaf-cascade-probe`. Save with multi-level chain (3 deep). Force undersupply at the root. Assert that the deepest-level lowest-priority subnet sheds first; only escalates upward if deeper sheds insufficient.
+- Scenario: `pgp-leaf-cascade-probe`. Save with multi-level chain (3 deep). Force undersupply at the root. Assert that the deepest-level lowest-priority subnet is deprioritized first; only escalates upward if deeper deprioritizations insufficient.
 - Scenario: `pgp-cascade-edge-cases-probe`. Test:
   - Single-level grid (no cascade).
-  - Two-level chain where leaf shed is sufficient.
-  - Three-level chain where leaf + mid shed is needed.
-  - Three-level chain where root shed is unavoidable (lowest-priority root, all leaves are higher-priority).
+  - Two-level chain where leaf deprioritization is sufficient.
+  - Three-level chain where leaf + mid deprioritization is needed.
+  - Three-level chain where root deprioritization is unavoidable (lowest-priority root, all leaves are higher-priority).
   - Same-priority siblings tiebreak by demand.
 
 ## Phase 6 — Power transmitters as transformers
@@ -861,22 +861,22 @@ Goal: PT/PR pairs participate in the allocator identically to wired transformers
 - Replace `List<Transformer> contributors` with `List<ITransformerLike> contributors` where `ITransformerLike` is an interface implemented by both `Transformer` and `TransformerSurrogate`.
 - All allocator math uses the interface; concrete-type checks are minimised.
 
-### 6.4 Shed enforcement for PT
+### 6.4 Deprioritization enforcement for PT
 
-- New file: `Mods/PowerGridPlus/PowerGridPlus/Patches/PowerTransmitterShedPatches.cs`.
-- Late-priority Postfix on `PowerTransmitter.GetGeneratedPower`: when `BrownoutRegistry` or `OverloadRegistry` has the PT.ReferenceId locked out, set `__result = 0`. Harmony priority MUST be late (lower than PowerTransmitterPlus's `DistanceCostPatches.GeneratedPowerNoDistanceDeratePatch`) so PowerTransmitterPlus computes its distance-loss number first and our lockout overrides last.
+- New file: `Mods/PowerGridPlus/PowerGridPlus/Patches/PowerTransmitterDeprioritizedPatches.cs`.
+- Late-priority Postfix on `PowerTransmitter.GetGeneratedPower`: when `DeprioritizedRegistry` or `OverloadRegistry` has the PT.ReferenceId locked out, set `__result = 0`. Harmony priority MUST be late (lower than PowerTransmitterPlus's `DistanceCostPatches.GeneratedPowerNoDistanceDeratePatch`) so PowerTransmitterPlus computes its distance-loss number first and our lockout overrides last.
 - No patch on `PowerTransmitter.UsePower` or `PowerTransmitter.ReceivePower`. PowerTransmitterPlus's bookkeeping (`UsePowerInflateDebtPatch`, `ReceivePowerVisualizerFixPatch`) must run unchanged. A locked-out PT's `_powerProvided` should reach 0 naturally because no source drains it on the wireless side after `GetGeneratedPower` returns 0.
 - No patch on `PowerReceiver.GetGeneratedPower` either; the PR has its own wireless tick semantics tied to the PT's `_powerProvided`, and zeroing the PT at the source naturally zeroes the PR at the destination.
 - Document in code that this is intentionally the ONLY per-device PT/PR patch PowerGridPlus owns.
 
 ### 6.5 Flash on transmitter button
 
-- `TransformerFlashAttachPatches.cs`: extend to also attach `BrownoutFlashBehaviour` to PowerTransmitters at registration.
+- `TransformerFlashAttachPatches.cs`: extend to also attach `FaultFlashBehaviour` to PowerTransmitters at registration.
 - The flash behaviour's renderer discovery already walks the `InteractableType.OnOff` `Interactable`; should work for transmitters without changes.
 
 ### 6.6 Validation
 
-- Scenario: `pgp-transmitter-shed-probe`. Build a linked PT/PR pair feeding a subnet. Force input undersupply. Assert that the PT's button flashes orange and PR generates 0 during lockout.
+- Scenario: `pgp-transmitter-deprioritization-probe`. Build a linked PT/PR pair feeding a subnet. Force input undersupply. Assert that the PT's button flashes orange and PR generates 0 during lockout.
 - Scenario: `pgp-transmitter-distance-efficiency-probe`. Build a linked PT/PR pair at known distance. With PowerTransmitterPlus loaded, verify that `Anchor.GetGeneratedPower(Anchor.OutputNetwork)` returns the PowerTransmitterPlus distance-derated value (matching `1/(1 + k*d_km)` math). Without PowerTransmitterPlus, verify the vanilla `PowerLossOverDistance` curve value. The allocator's surrogate `EffectiveCap` should match whichever is active without any branch.
 - Scenario: `pgp-transmitter-pgp-compat-probe`. With PowerTransmitterPlus loaded and the atomic tick running, perform a known-good distance-loss test from PowerTransmitterPlus's RESEARCH.md ("source_draw = 2000, delivered = 1000, efficiency 0.5 at k=5, distance=200m") and confirm the same numbers reproduce. Failure indicates a Phase 1/Phase 3 double-call interaction with PowerTransmitterPlus's stateful Postfixes.
 
@@ -916,13 +916,13 @@ Goal: distribute surplus to soft-demand devices via single-pass priority-blind p
 
 ### 7.1 Surplus aggregation
 
-- After the shed cascade decides every shed, compute per-network surplus: `rigidSupply − rigidDemand`. Cache.
-- Compute per-non-shed-transformer propagated request: sum of soft requests below, scaled by efficiency if PT/PR, capped by OutputMaximum × efficiency.
+- After the deprioritization cascade decides every deprioritization, compute per-network surplus: `rigidSupply - rigidDemand`. Cache.
+- Compute per-non-deprioritized-transformer propagated request: sum of soft requests below, scaled by efficiency if PT/PR, capped by OutputMaximum × efficiency.
 - Walk bottom-up; each transformer's propagated request includes its descendants' requests.
 
 ### 7.2 Surplus allocation walk
 
-- For each network, compute total request = local soft requests + sum of propagated requests from non-shed children.
+- For each network, compute total request = local soft requests + sum of propagated requests from non-deprioritized children.
 - If sum ≤ surplus: each gets full. If sum > surplus: each gets `request × (surplus / sum)`.
 - For propagated children: their share recursively splits among their descendants by the same rule.
 - Write each leaf soft-demand device's allocated share into `SoftDemandShareCache`.
@@ -937,8 +937,8 @@ Goal: distribute surplus to soft-demand devices via single-pass priority-blind p
 ### 7.4 Validation
 
 - Scenario: `pgp-surplus-proportional-probe`. Set up two batteries on the same subnet with different requested shares. Surplus < total request. Assert each gets `(request / total_request) × surplus`.
-- Scenario: `pgp-surplus-via-non-shed-transformer-probe`. Battery behind a non-shed transformer. Surplus passes through, allocates to battery.
-- Scenario: `pgp-surplus-blocked-by-shed-probe`. Battery behind a shed transformer. Surplus does NOT reach the battery (the path is closed). Battery receives 0.
+- Scenario: `pgp-surplus-via-non-deprioritized-transformer-probe`. Battery behind a non-deprioritized transformer. Surplus passes through, allocates to battery.
+- Scenario: `pgp-surplus-blocked-by-deprioritization-probe`. Battery behind a deprioritized transformer. Surplus does NOT reach the battery (the path is closed). Battery receives 0.
 
 ## Phase 8 — Issue 1 and 2 verifications
 
@@ -946,13 +946,13 @@ Already implemented today (2026-06-07). Adding probes:
 
 ### 8.1 `pgp-off-as-reset-probe`
 
-- Set a synthetic shed on a sample transformer. Verify `IsLockedOut = true`.
+- Set a synthetic deprioritization on a sample transformer. Verify `IsLockedOut = true`.
 - Set `transformer.OnOff = false`. Invoke `SwitchOnOff.RefreshColorState` (directly, headless).
-- Assert: `BrownoutRegistry.IsLockedOut(refId) == false`. Assert: `_lockoutUntilTick` dict has no entry for refId.
+- Assert: `DeprioritizedRegistry.IsLockedOut(refId) == false`. Assert: `_lockoutUntilTick` dict has no entry for refId.
 
 ### 8.2 `pgp-button-color-after-off-probe`
 
-- Set a synthetic shed. Set `OnOff = false`. Wait one tick. Force exit (clear shed).
+- Set a synthetic deprioritization. Set `OnOff = false`. Wait one tick. Force exit (clear the deprioritization).
 - Assert: the SwitchOnOff's switchRenderer material is the OFF-state material (not the cached ON-state).
 - Requires inspecting material identity; may need reflection on SwitchOnOff's `off` / `on` / `onPowered` material fields.
 
@@ -960,10 +960,10 @@ Already implemented today (2026-06-07). Adding probes:
 
 ### 9.1 Update probes for new API
 
-- `pgp-priority-shedding-probe` (the big PSP probe in Dispatcher.cs): heavily uses removed API (`NoteShortfall`, `GetAllocatedSupply`, `InvalidateAll`, `TrimCache`). Either delete or rewrite end-to-end for the new architecture.
-- `pgp-priority-shedding-topology-probe`: same. Delete or rewrite.
-- `pgp-priority-shedding-network-breakdown-probe`: same.
-- `pgp-priority-shedding-hover-probe` P3: stale (tests Thing.GetPassiveTooltip which we no longer patch). Delete this probe-step; rely on OP P7 for hover validation.
+- `pgp-priority-deprioritization-probe` (the big priority-deprioritization probe in Dispatcher.cs): heavily uses removed API (`NoteShortfall`, `GetAllocatedSupply`, `InvalidateAll`, `TrimCache`). Either delete or rewrite end-to-end for the new architecture.
+- `pgp-priority-deprioritization-topology-probe`: same. Delete or rewrite.
+- `pgp-priority-deprioritization-network-breakdown-probe`: same.
+- `pgp-priority-deprioritization-hover-probe` P3: stale (tests Thing.GetPassiveTooltip which we no longer patch). Delete this probe-step; rely on OP P7 for hover validation.
 
 ### 9.2 Add the new probes from sections 3-7 above
 
@@ -971,12 +971,12 @@ Already implemented today (2026-06-07). Adding probes:
 - `pgp-priority-per-network-probe`
 - `pgp-leaf-cascade-probe`
 - `pgp-cascade-edge-cases-probe`
-- `pgp-transmitter-shed-probe`
+- `pgp-transmitter-deprioritization-probe`
 - `pgp-transmitter-distance-efficiency-probe`
 - `pgp-transmitter-pgp-compat-probe`
 - `pgp-surplus-proportional-probe`
-- `pgp-surplus-via-non-shed-transformer-probe`
-- `pgp-surplus-blocked-by-shed-probe`
+- `pgp-surplus-via-non-deprioritized-transformer-probe`
+- `pgp-surplus-blocked-by-deprioritization-probe`
 - `pgp-off-as-reset-probe`
 - `pgp-button-color-after-off-probe`
 - `pgp-cable-max-settings-probe` (Phase 1.5)
@@ -1021,11 +1021,11 @@ Probes that verify the invariants listed in POWER.md §17. Each invariant should
 
 - `pgp-watts-only-units-probe`: snapshot network values via InspectorPlus during a tick. Assert all `Potential`, `Required`, `Consumed`, `cable.MaxVoltage` are scalar Watts numbers; no unit conversion code paths exist.
 
-#### Failure colour: orange shed, red overload (POWER.md §11)
+#### Failure colour: orange deprioritized, red overload (POWER.md §11)
 
-- `pgp-failure-colour-shed-probe`: force a shed. Snapshot the on/off button's renderer material via InspectorPlus. Assert emission colour matches `Color(1f, 0.55f, 0f)` orange band.
+- `pgp-failure-colour-deprioritized-probe`: force a deprioritization. Snapshot the on/off button's renderer material via InspectorPlus. Assert emission colour matches `Color(1f, 0.55f, 0f)` orange band.
 - `pgp-failure-colour-overload-probe`: force an overload. Assert emission colour matches `Color(1f, 0.15f, 0.15f)` red band (NOT orange).
-- `pgp-failure-colour-co-occurrence-probe`: force both shed and overload on one transformer. Assert RED flash (overload precedence). Assert hover text shows the overload message first then shed second. Assert `Shedding == 1 AND Overloaded == 1` via IC10.
+- `pgp-failure-colour-co-occurrence-probe`: force both deprioritization and overload on one transformer. Assert RED flash (overload precedence). Assert hover text shows the overload message first then the deprioritized message second. Assert `DeprioritizedFault == 1 AND DeviceOverloadedFault == 1` via IC10.
 
 #### Overload per-transformer hit-max trigger (POWER.md §8.4)
 
@@ -1046,9 +1046,9 @@ Probes that verify the invariants listed in POWER.md §17. Each invariant should
 - `pgp-battery-discharge-fills-shortfall-probe`: output network with rigid 1000 W, generator supply 600 W, battery (discharge cap 500, stored 5000). Assert battery discharges exactly 400 W (the shortfall), not its 500 W cap.
 - `pgp-battery-no-discharge-when-supplied-probe`: rigid 1000, generator 1500, battery available. Assert battery discharge = 0 (no need).
 - `pgp-multi-battery-discharge-split-probe`: two batteries on same output net, discharge caps 500 and 300, shortfall 600. Assert proportional split: 500*(600/800)=375, 300*(600/800)=225. Both within cap.
-- `pgp-battery-discharge-cap-reallocates-probe`: same as above but shortfall 1000. Naive proportional says 625/375 but the 300-cap battery overflows. After reallocation: 500 cap (saturated) + 300 cap (saturated) + 200 unmet rigid. Assert both batteries at their caps, 200 W rigid still unmet (which then triggers shed/overload).
+- `pgp-battery-discharge-cap-reallocates-probe`: same as above but shortfall 1000. Naive proportional says 625/375 but the 300-cap battery overflows. After reallocation: 500 cap (saturated) + 300 cap (saturated) + 200 unmet rigid. Assert both batteries at their caps, 200 W rigid still unmet (which then triggers deprioritization/overload).
 - `pgp-battery-stored-energy-cap-probe` (POWER.md §7.3): battery A discharge rate 200 stored 1000; battery B discharge rate 200 stored 19; shortfall 300 W. effective_A = min(200, 1000) = 200, effective_B = min(200, 19) = 19. effective_total = 219 < 300, each delivers effective: A = 200, B = 19. Residue 81 unmet. Assert A NOT throttled to 150 (equal share) just because B is low.
-- `pgp-battery-failsafe-probe` (POWER.md §7.3.1): topology `N0 (generator) -> T1 -> N1 (lights + battery B input) -> B output -> N2 (lights)`. Force T1 to SHED. Assert N1 lights go dark. Assert N2 lights stay lit (B discharges from Output side). Assert B's PowerStored decreases at the expected rate.
+- `pgp-battery-failsafe-probe` (POWER.md §7.3.1): topology `N0 (generator) -> T1 -> N1 (lights + battery B input) -> B output -> N2 (lights)`. Force T1 into DEPRIORITIZED. Assert N1 lights go dark. Assert N2 lights stay lit (B discharges from Output side). Assert B's PowerStored decreases at the expected rate.
 
 #### Cable burn rule: transformer-overload, not cable-burn (POWER.md §5.7)
 
@@ -1062,36 +1062,36 @@ Probes that verify the invariants listed in POWER.md §17. Each invariant should
 
 The vanilla brownout case is eliminated. Probes verify the new producer-isolation rule:
 
-- `pgp-producer-isolation-solar-light-hover-probe`: solar panel directly on a network with a light. Tick. Assert solar enters `VariableVoltageFaultRegistry`. Assert NO cable burns. Hover the solar panel: text appended with `(Variable Voltage Fault: connected to Light without transformer. 60.00s)` per Decision M wording. Countdown ticks down each second.
+- `pgp-producer-isolation-solar-light-hover-probe`: solar panel directly on a network with a light. Tick. Assert solar enters `CurrentMismatchFaultRegistry`. Assert NO cable burns. Hover the solar panel: text appended with `(Current mismatch fault: connected to Light without transformer. 60.00s)` per Decision M wording. Countdown ticks down each second.
 - `pgp-producer-isolation-wind-machine-hover-probe`: wind turbine directly on a network with an arc furnace. Tick. Wind enters registry. Hover the turbine: blank vanilla tooltip now contains the fault line + countdown.
 - `pgp-producer-isolation-rtg-light-hover-probe`: RTG directly on a network with a light. Tick. RTG enters registry. Hover the RTG: fault line + countdown.
-- `pgp-producer-isolation-coal-light-fault-probe`: coal generator directly on a network with a light. Tick. Assert coal genny enters `VariableVoltageFaultRegistry`. Assert red flash on coal's button. Assert hover `(Variable Voltage Fault: connected to Light without transformer. 60.00s)` per Decision M wording, then countdown.
-- `pgp-producer-isolation-valid-config-no-fault-probe`: solar -> transformer -> light cluster. Tick. Assert NO VariableVoltageFault, NO cable burn. Vanilla power flow normal.
+- `pgp-producer-isolation-coal-light-fault-probe`: coal generator directly on a network with a light. Tick. Assert coal genny enters `CurrentMismatchFaultRegistry`. Assert red flash on coal's button. Assert hover `(Current mismatch fault: connected to Light without transformer. 60.00s)` per Decision M wording, then countdown.
+- `pgp-producer-isolation-valid-config-no-fault-probe`: solar -> transformer -> light cluster. Tick. Assert NO CurrentMismatchFault, NO cable burn. Vanilla power flow normal.
 - `pgp-producer-isolation-with-battery-no-rigid-no-fault-probe`: solar + battery on the same network with NO rigid loads. Assert NO fault, NO burn (producer-only-network rule per Decision G).
 - `pgp-producer-isolation-with-apc-no-rigid-no-fault-probe`: same with APC as the only segmenter and NO rigid loads. Assert no fault, NO burn.
-- `pgp-producer-isolation-battery-does-not-isolate-probe` (NEW per Q1): solar + battery + light on the same cable network (rigid load PRESENT). Battery does NOT satisfy isolation per Decision Q1. Assert VVF fires on solar; cable burns adjacent to light (or VVF on coal if substituted). Battery presence does not silence the rule.
-- `pgp-producer-isolation-apc-does-not-isolate-probe` (NEW per Q1): solar + APC + light on the same cable network. Assert VVF fires; APC does not satisfy isolation.
+- `pgp-producer-isolation-battery-does-not-isolate-probe` (NEW per Q1): solar + battery + light on the same cable network (rigid load PRESENT). Battery does NOT satisfy isolation per Decision Q1. Assert the current-mismatch fault fires on solar; cable burns adjacent to light (or the current-mismatch fault on coal if substituted). Battery presence does not silence the rule.
+- `pgp-producer-isolation-apc-does-not-isolate-probe` (NEW per Q1): solar + APC + light on the same cable network. Assert the current-mismatch fault fires; APC does not satisfy isolation.
 - `pgp-producer-isolation-rtg-and-machine-burn-probe`: RTG + arc furnace on the same network. Assert cable burns adjacent to the furnace. Hover text contains `(adjacent RadioscopicThermalGenerator)`.
-- `pgp-producer-isolation-multiple-rigid-probe`: coal + light + IC10 chip + door (multiple rigid devices). One VariableVoltageFault on coal (per producer, not per rigid). One fault entry; many rigid devices visibly de-powered as a consequence.
-- `pgp-producer-isolation-multiple-producers-probe`: coal + solar + light on one network. Both producers fault (coal via VariableVoltageFaultRegistry, solar via cable burn). Both reasons surface.
-- `pgp-producer-isolation-mp-broadcast-probe`: dedicated server + 1 client. Force producer fault. Assert client receives VariableVoltageFaultStateMessage and sees red flash on the producer within one tick of broadcast.
+- `pgp-producer-isolation-multiple-rigid-probe`: coal + light + IC10 chip + door (multiple rigid devices). One CurrentMismatchFault on coal (per producer, not per rigid). One fault entry; many rigid devices visibly de-powered as a consequence.
+- `pgp-producer-isolation-multiple-producers-probe`: coal + solar + light on one network. Both producers fault (coal via CurrentMismatchFaultRegistry, solar via cable burn). Both reasons surface.
+- `pgp-producer-isolation-mp-broadcast-probe`: dedicated server + 1 client. Force producer fault. Assert client receives CurrentMismatchFaultStateMessage and sees red flash on the producer within one tick of broadcast.
 
 #### Fault countdown hover (POWER.md §11.2)
 
-- `pgp-fault-countdown-shed-probe`: trigger SHED at tick T. Poll hover at tick T+0, T+2 (1s), T+4 (2s), ... T+118 (59s). Assert displayed `{n}s` decrements from 60 to 0.
+- `pgp-fault-countdown-deprioritized-probe`: trigger DEPRIORITIZED at tick T. Poll hover at tick T+0, T+2 (1s), T+4 (2s), ... T+118 (59s). Assert displayed `{n}s` decrements from 60 to 0.
 - `pgp-fault-countdown-overload-probe`: same with OVERLOAD.
 - `pgp-fault-countdown-cycle-fault-probe`: same with CYCLE_FAULT.
-- `pgp-fault-countdown-producer-fault-probe`: same with VARIABLE_VOLTAGE_FAULT.
-- `pgp-fault-countdown-off-reset-probe`: trigger SHED at T. At T+10 (5s), toggle OFF. Hover poll at T+12 (6s): assert NO fault prefix at all (registry cleared, countdown gone).
+- `pgp-fault-countdown-producer-fault-probe`: same with CURRENT_MISMATCH_FAULT.
+- `pgp-fault-countdown-off-reset-probe`: trigger DEPRIORITIZED at T. At T+10 (5s), toggle OFF. Hover poll at T+12 (6s): assert NO fault prefix at all (registry cleared, countdown gone).
 
 #### Flash visuals on every segmenting device (POWER.md §11.4)
 
-- `pgp-flash-on-battery-probe`: force SHED on a battery via its input network being undersupplied. Assert ORANGE flash on the battery's on/off button. Hover text "(Shedding: ...60s)".
+- `pgp-flash-on-battery-probe`: force DEPRIORITIZED on a battery via its input network being undersupplied. Assert ORANGE flash on the battery's on/off button. Hover text "On - Deprioritized fault: 42.17s".
 - `pgp-flash-on-apc-probe`: same with APC.
 - `pgp-flash-on-transmitter-probe`: same with PT (linked to PR).
 - `pgp-flash-on-receiver-probe`: same with PR (linked from PT). The PR has its own on/off button so it flashes independently.
-- `pgp-flash-on-rocket-umbilical-probe`: dock a rocket, force a shed on the umbilical pair. Both M and F flash.
-- `pgp-flash-on-coal-genny-probe`: force VARIABLE_VOLTAGE_FAULT on a coal generator. Assert RED flash.
+- `pgp-flash-on-rocket-umbilical-probe`: dock a rocket, force a deprioritization on the umbilical pair. Both M and F flash.
+- `pgp-flash-on-coal-genny-probe`: force CURRENT_MISMATCH_FAULT on a coal generator. Assert RED flash.
 - `pgp-flash-on-stirling-probe`: same with stirling.
 - `pgp-flash-on-gas-genny-probe`: same with gas fuel generator.
 - `pgp-no-flash-on-solar-probe`: solar panel can never enter a flashable state (no OnOff button). Force the producer-isolation scenario and verify the cable burns instead (no flash anywhere).
@@ -1100,7 +1100,7 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 
 #### Segmenting devices: full coverage (POWER.md §5.0)
 
-- `pgp-segmentation-rocket-umbilical-probe`: dock a rocket with `RocketPowerUmbilicalMale`. The umbilical's male + female pair should be treated as level boundaries by the cascade (each holds InputNetwork + OutputNetwork). Force a shed upstream of the umbilical and verify the cascade walks through the umbilical bridge.
+- `pgp-segmentation-rocket-umbilical-probe`: dock a rocket with `RocketPowerUmbilicalMale`. The umbilical's male + female pair should be treated as level boundaries by the cascade (each holds InputNetwork + OutputNetwork). Force a deprioritization upstream of the umbilical and verify the cascade walks through the umbilical bridge.
 - `pgp-segmentation-power-connection-probe`: `PowerConnection` (dynamic-generator coupler) is not `ElectricalInputOutput` but holds two networks. Verify it appears in the cascade's segmenting device list.
 - `pgp-segmentation-exhaustive-probe`: enumerate every device on the map; assert that the set of "two-network devices" matches exactly the eight classes listed in POWER.md §5.0 (Transformer, Battery, AreaPowerControl, PowerTransmitter, PowerReceiver, RocketPowerUmbilicalMale, RocketPowerUmbilicalFemale, PowerConnection).
 
@@ -1139,7 +1139,7 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 
 ### 10.2 Update `Mods/PowerGridPlus/README.md`
 
-- Player-facing feature description: shed cascade, surplus to batteries, OFF-as-reset, voltage tier permanence, cycle burn permanence.
+- Player-facing feature description: deprioritization cascade, surplus to batteries, OFF-as-reset, voltage tier permanence, cycle burn permanence.
 - Settings section: remove the dead toggles.
 - Recursive/looped networks wording (decision locked, Phase 1.2): the existing README.md line "Recursive and looped power networks are allowed. The vanilla check that force-burns cables in such layouts is off by default; re-enable it in settings" MUST be REPLACED. The new wording describes CYCLE_FAULT behaviour: loops put their segmenting devices (transformers / APCs / batteries / PT/PR pairs / rocket umbilicals) into CYCLE_FAULT for 60 seconds; cables are NOT burned by PowerGridPlus for loops. Vanilla's cable-burn check still runs unsuppressed as a belt-and-braces backstop, but the primary handling is the CYCLE_FAULT lockout on the segmenting devices, so player-facing copy describes the lockout as the expected behaviour.
 - Settings table row for "Enable Recursive Network Limits" MUST be removed entirely (the setting is gone per Phase 1.2).
@@ -1158,9 +1158,9 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 ### 10.5 Update `PLAYTEST.md`
 
 - Add manual-test items for the in-game player to verify:
-  - OFF on a shed transformer clears the orange flash immediately.
-  - ON re-engages; shed re-fires if conditions still warrant.
-  - Solar undersupply with multiple subnets sheds the lowest priority subnet first.
+  - OFF on a deprioritized transformer clears the orange flash immediately.
+  - ON re-engages; the deprioritization re-fires if conditions still warrant.
+  - Solar undersupply with multiple subnets deprioritizes the lowest priority subnet first.
   - Battery in a subnet behind a transformer charges at residual rate when grid has slack.
   - Cycle build burns a cable.
   - Mixed voltage tier connection burns the lower-tier cable.
@@ -1170,13 +1170,13 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 ### 11.1 Manual MP playtest
 
 - Start dedi with the new build. Connect two clients.
-- Force a shed via the allocator. Verify both clients see the orange flash on the same transformer.
+- Force a deprioritization via the allocator. Verify both clients see the orange flash on the same transformer.
 - Toggle OFF on one client. Verify both clients see the flash stop and the button material change.
-- Toggle ON. Verify both clients see the shed re-fire if conditions still warrant.
+- Toggle ON. Verify both clients see the deprioritization re-fire if conditions still warrant.
 
 ### 11.2 Join-suffix snapshot test
 
-- Have a client join mid-shed. Verify the freshly-joining client sees the active shed/overload state correctly.
+- Have a client join mid-deprioritization. Verify the freshly-joining client sees the active deprioritization/overload state correctly.
 
 ## Phase 12 — Release prep
 
@@ -1203,7 +1203,7 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 - **PT/PR efficiency source.** Resolved: read `PowerTransmitter.GetGeneratedPower(WirelessOutputNetwork)` at runtime. Vanilla's `PowerLossOverDistance` curve and PowerTransmitterPlus's `MicrowaveEfficiency` formula both feed into this single live value. No model-aware branch in PowerGridPlus. See POWER.md §6.3.
 - **PT/PR Harmony patches.** Resolved: PowerTransmitterPlus fully compatible with the atomic tick. The atomic Prefix replaces only the outer scheduler; per-device PT/PR methods still run via Phase 1/3 `CalculateState`/`ApplyState`. PowerGridPlus adds ONE late-priority Postfix on `PowerTransmitter.GetGeneratedPower` for the lockout override; nothing else.
 - **Battery anatomy.** Resolved: stationary batteries are `ElectricalInputOutput` (dual-terminal). Charge on Input, discharge on Output, simultaneous in-tick allowed (no `_powerProvided` interlock). APCs are dual-terminal too but their `_powerProvided` makes per-tick charge/discharge in-tick exclusive. Short-circuit (both terminals on same network) caught by vanilla `IsOperable`.
-- **Failure colour.** Resolved: same orange for shed and overload. Only the hover text differs.
+- **Failure colour.** Resolved: same orange for deprioritization and overload. Only the hover text differs.
 - **Overload granularity.** Resolved: option (b) per-transformer hit-max. A transformer trips when `actual_throughput == OutputMaximum AND output network has unmet rigid demand`. Cable-throttled transformers running below their OutputMaximum do NOT trip even if downstream is short.
 - **Headroom formula.** Resolved: `effective_cap = min(OutputMaximum, InputCable.MaxVoltage, OutputCable.MaxVoltage) - UsedPower`. Actual throughput further bounded by downstream draw. See POWER.md §5.5.
 - **Cable max per tier.** Resolved: server-authoritative settings `CableNormalMaxWatts` / `CableHeavyMaxWatts` / `CableSuperHeavyMaxWatts` with `0` meaning unlimited (normalised internally to `float.MaxValue`). Mod-load patches per-prefab `MaxVoltage` so vanilla cable-burn and PowerGridPlus headroom formula read the same number. See POWER.md §5.6.
@@ -1219,10 +1219,10 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 - **Battery elastic supply algorithm.** `effective_discharge_i = min(DischargeRateCap_i, PowerStored_i)`. Proportional by effective_cap. A high-rate battery is not throttled to a "fair share" just because a low-stored sibling can't carry its share.
 - **APC discharge cap.** Add new `ApcBatteryDischargeRate` setting (default 1000 W). PowerGridPlus rewrites vanilla `AreaPowerControl.BatteryChargeRate` to the configured value at mod load (so vanilla code paths align). Discharge cap is PowerGridPlus-only (vanilla has no field for it).
 - **Battery failsafe.** A battery's discharge to its OUTPUT network is independent of any state on its INPUT network. The dual-terminal model makes this automatic; no special-case code.
-- **Transformer state is binary.** No "throttled" intermediate state. A transformer is ON, SHED, or OVERLOAD. The single-tick joint fixed-point iteration (§8.0 in POWER.md, Phase 5 in POWERTODO) converges shed and overload together.
+- **Transformer state is binary.** No "throttled" intermediate state. A transformer is ON, DEPRIORITIZED, or OVERLOAD. The single-tick joint fixed-point iteration (§8.0 in POWER.md, Phase 5 in POWERTODO) converges deprioritization and overload together.
 - **Cable burn rule.** Generator-only overflow burns the cable (vanilla). Transformer/battery overflow trips upstream segmenting devices into OVERLOAD. Cable burning from transformer overdraw is eliminated.
 - **Cycle burn timing.** Pre-allocator (Phase 1.5 in POWERTODO). Only powered loops burn. Unpowered cycles persist silently until current flows through them.
-- **Failure colour.** Shed = orange, Overload = red (distinct).
+- **Failure colour.** Deprioritized = orange, Overload = red (distinct).
 
 ### Still open
 
@@ -1236,7 +1236,7 @@ The vanilla brownout case is eliminated. Probes verify the new producer-isolatio
 
 5. **MorePowerMod detection.** Assembly is `MorePowerMod`; type is presumably `StationBatteryNuclear` in the `Assets.Scripts.Objects.Pipes` namespace. Verify in their published mod (Workshop ID) when implementing Phase 3.4.
 
-6. **Backward-compatibility for saves with shed-state at save time.** Shed state is transient (lockouts clear on load). No save format change. But verify by saving mid-shed and loading.
+6. **Backward-compatibility for saves with deprioritized-state at save time.** Deprioritized state is transient (lockouts clear on load). No save format change. But verify by saving mid-deprioritization and loading.
 
 7. **RocketPowerUmbilical and PowerConnection treatment.** These are segmenting devices but rarely encountered. Do we need special handling beyond "treat as transformer in the cascade"? Specifically: the umbilical pair (Male/Female) is across a dock boundary; the cascade should not try to traverse before the rocket is docked. PowerConnection is a generator coupler; should it participate in the cascade as a transformer or be excluded?
 

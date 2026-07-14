@@ -4,7 +4,8 @@ namespace PowerGridPlus
 {
     /// <summary>
     ///     Registry hygiene sweep: every 600 ticks (about 5 minutes at the 2 Hz power tick), prune
-    ///     the four fault registries (Brownout / Overload / CycleFault / VariableVoltageFault) and
+    ///     the five fault registries (Deprioritized / Overload / CableOverload / CycleFault /
+    ///     CurrentMismatchFault) and
     ///     the PoweredOwnership quarantine of entries that can no longer matter: EXPIRED lockouts
     ///     (the IsLockedOut read path self-cleans, but an entry nobody queries again leaks forever;
     ///     e.g. a device that faulted once and then idled out of every roster) and entries for
@@ -58,10 +59,11 @@ namespace PowerGridPlus
             SweepsRun++;
 
             int expired = 0, destroyed = 0, e, d;
-            BrownoutRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
+            DeprioritizedRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
             OverloadRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
+            CableOverloadRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
             CycleFaultRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
-            VariableVoltageFaultRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
+            CurrentMismatchFaultRegistry.PruneStale(currentTick, out e, out d); expired += e; destroyed += d;
             destroyed += PoweredOwnership.PruneDestroyedQuarantine();
 
             ExpiredPruned += expired;

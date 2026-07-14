@@ -11,12 +11,12 @@ namespace PowerGridPlus
     ///     PROTECT (producer-isolation) walk (POWER.md §8.5, strict-literal). A power producer may only
     ///     connect to a transformer or to other producers; a producer that shares a cable network with
     ///     ANY other device (a consumer, a battery, an APC, a dish, an umbilical, anything that is
-    ///     neither a producer nor a Transformer) enters VARIABLE_VOLTAGE_FAULT and stops generating
+    ///     neither a producer nor a Transformer) enters CURRENT_MISMATCH_FAULT and stops generating
     ///     (ProducerFaultEnforcementPatches). A Transformer on the net is allowed but exempts nothing:
     ///     the foreign devices themselves are the violation (full-strict, user decision 2026-07-12).
     ///
     ///     <para>The fault is a NETWORK property handled with the same network-level commit as the
-    ///     elastic-overload retry (§8.4.1): <c>VariableVoltageFaultRegistry</c> stays per-device (each
+    ///     elastic-overload retry (§8.4.1): <c>CurrentMismatchFaultRegistry</c> stays per-device (each
     ///     producer flashes / hovers / snapshots independently), but the commit is network-level with a
     ///     RETRY before any reset.</para>
     ///
@@ -31,7 +31,7 @@ namespace PowerGridPlus
     ///       <item>RECOVER: if the candidate net no longer violates (the foreign devices are gone, or
     ///       no active producer is left) the whole producer cohort's locks are CLEARED.</item>
     ///       <item>RESET: if it still violates, every active producer is stamped to ONE shared fresh
-    ///       expiry (<c>NoteVariableVoltageFault</c> re-stamps currentTick + LockoutDurationTicks, so
+    ///       expiry (<c>NoteCurrentMismatchFault</c> re-stamps currentTick + LockoutDurationTicks, so
     ///       the cohort is phase-synced and a buttonless producer re-arms together with the buttoned
     ///       one that retried it).</item>
     ///     </list>
@@ -44,13 +44,13 @@ namespace PowerGridPlus
     ///     a cable. The flash vs hover-only distinction is purely visual. Unclassified producer-like
     ///     devices outside the known class list still fall back to the destructive cable burn.</para>
     /// </summary>
-    internal static class VariableVoltageFaultDetector
+    internal static class CurrentMismatchFaultDetector
     {
         // One-shot diagnostic: on the first tick that produces any fault, log a tally of the producer
         // classes faulted and the rigid-consumer classes that triggered it.
         private static bool _diagLogged;
 
-        // Networks where OffAsResetSweep cleared a producer's VVF lock this tick (the toggle edge).
+        // Networks where OffAsResetSweep cleared a producer's CURRENT-MISMATCH lock this tick (the toggle edge).
         // Populated by the sweep, drained at the start of Run in PROTECT -- both on the same
         // power-tick worker thread, sequentially within the tick. The lock guards against any
         // future re-ordering. A flagged net gets a cohort-wide retry even when nothing is newly
@@ -74,7 +74,7 @@ namespace PowerGridPlus
             }
         }
 
-        // Returns the number of producers whose VVF lock state CHANGED this tick (faulted or
+        // Returns the number of producers whose CURRENT-MISMATCH lock state CHANGED this tick (faulted or
         // recovered), so the caller can decide whether a re-observe is needed before the allocator.
         internal static int Run(int currentTick, Core.GridSnapshot snap)
         {
@@ -147,12 +147,12 @@ namespace PowerGridPlus
                 if (violating)
                 {
                     for (int i = 0; i < activeProducers.Count; i++)
-                        if (!VariableVoltageFaultRegistry.IsLockedOut(activeProducers[i].ReferenceId, currentTick))
+                        if (!CurrentMismatchFaultRegistry.IsLockedOut(activeProducers[i].ReferenceId, currentTick))
                         { hasNewlyViolating = true; break; }
                 }
                 bool hasLockedProducer = false;
                 for (int i = 0; i < allProducers.Count; i++)
-                    if (VariableVoltageFaultRegistry.IsLockedOut(allProducers[i].RefId, currentTick))
+                    if (CurrentMismatchFaultRegistry.IsLockedOut(allProducers[i].RefId, currentTick))
                     { hasLockedProducer = true; break; }
 
                 // Commit candidate (mirrors §8.4.1). A stable all-locked violating net is excluded
@@ -168,8 +168,8 @@ namespace PowerGridPlus
                         for (int i = 0; i < allProducers.Count; i++)
                         {
                             long id = allProducers[i].RefId;
-                            if (VariableVoltageFaultRegistry.IsLockedOut(id, currentTick)) changed++;
-                            VariableVoltageFaultRegistry.ClearLockout(id);
+                            if (CurrentMismatchFaultRegistry.IsLockedOut(id, currentTick)) changed++;
+                            CurrentMismatchFaultRegistry.ClearLockout(id);
                         }
                     }
                     else
@@ -181,8 +181,8 @@ namespace PowerGridPlus
                         for (int i = 0; i < activeProducers.Count; i++)
                         {
                             long id = activeProducers[i].ReferenceId;
-                            if (!VariableVoltageFaultRegistry.IsLockedOut(id, currentTick)) changed++;
-                            VariableVoltageFaultRegistry.NoteVariableVoltageFault(id, currentTick, violatorNames);
+                            if (!CurrentMismatchFaultRegistry.IsLockedOut(id, currentTick)) changed++;
+                            CurrentMismatchFaultRegistry.NoteCurrentMismatchFault(id, currentTick, violatorNames);
                         }
                         for (int i = 0; i < allProducers.Count; i++)
                         {
@@ -190,9 +190,9 @@ namespace PowerGridPlus
                             // Row-captured activity: the same sample the cohort was built from,
                             // never a second live read.
                             if (!p.IsActiveProducer
-                                && VariableVoltageFaultRegistry.IsLockedOut(p.RefId, currentTick))
+                                && CurrentMismatchFaultRegistry.IsLockedOut(p.RefId, currentTick))
                             {
-                                VariableVoltageFaultRegistry.ClearLockout(p.RefId);
+                                CurrentMismatchFaultRegistry.ClearLockout(p.RefId);
                                 changed++;
                             }
                         }
@@ -200,7 +200,7 @@ namespace PowerGridPlus
                 }
 
                 // Diagnostics + the unknown-producer cable-burn fallback run whenever the net is
-                // violating, independent of the VVF commit (unknown producers are handled by burning a
+                // violating, independent of the CURRENT-MISMATCH commit (unknown producers are handled by burning a
                 // cable, not by a lock).
                 if (!violating) continue;
 
@@ -232,24 +232,28 @@ namespace PowerGridPlus
             if (diag && faultingNets > 0)
             {
                 _diagLogged = true;
-                Plugin.Log?.LogInfo($"[PGP-VVF-DIAG] producer-isolation faulted across {faultingNets} network(s). " +
+                Plugin.Log?.LogInfo($"[PGP-CURRENT-MISMATCH-DIAG] producer-isolation faulted across {faultingNets} network(s). " +
                                     $"Producers faulted by class: {Format(producerTally)}. " +
                                     $"Foreign devices that triggered it (the 'also on the network' devices): {Format(violatorTally)}.");
             }
             return changed;
         }
 
-        // Distinct foreign-device class names for the hover line, comma-separated, capped at 3 + "...".
+        // Distinct foreign-device class names for the hover block, newline-joined so
+        // FaultHover.ViolatorLines renders one red name per line, capped at three names; the
+        // overflow beyond three is carried as a final "+N" marker token that renders as the grey
+        // "and N more" line (locked template). Class names never contain '\n' or start with '+',
+        // so the marker cannot collide with a real name.
         private static string BuildViolatorNames(List<Device> foreign)
         {
             var violatorList = foreign
                 .Select(r => CleanTypeName(r.GetType().Name))
                 .Distinct()
-                .Take(4)
                 .ToList();
-            return violatorList.Count > 3
-                ? string.Join(", ", violatorList.Take(3)) + ", ..."
-                : string.Join(", ", violatorList);
+            if (violatorList.Count <= 3)
+                return string.Join("\n", violatorList);
+            return string.Join("\n", violatorList.Take(3))
+                + "\n+" + (violatorList.Count - 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private static void Tally(Dictionary<string, int> d, string key)

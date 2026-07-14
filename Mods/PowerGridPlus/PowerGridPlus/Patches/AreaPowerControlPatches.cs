@@ -104,9 +104,9 @@ namespace PowerGridPlus.Patches
                     // an enrolled APC publishes TotalPull >= quiescent whenever it was granted
                     // anything, idle healthy = (0, quiescent), conducting = throughput +
                     // quiescent), so a positive published pull means an upstream advertise funds
-                    // the draw. All-zero totals are the inactive-contributor contract (shed /
+                    // the draw. All-zero totals are the inactive-contributor contract (deprioritized /
                     // overloaded / cycle-locked): bill 0 like the transformer does, instead of a
-                    // vanilla quiescent nobody funds (the shed-APC residual of the 160/150
+                    // vanilla quiescent nobody funds (the deprioritized-APC residual of the 160/150
                     // finding). A cache MISS (roster-absent: errored, short-circuited, just
                     // placed) also bills 0; vanilla would bill the quiescent there, a deliberate
                     // deviation consistent with the errored-transformer 0-bill. On an unmet net

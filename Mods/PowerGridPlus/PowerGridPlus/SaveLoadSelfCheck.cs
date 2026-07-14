@@ -65,10 +65,11 @@ namespace PowerGridPlus
             _pending = false;
             Ran = true;
 
-            int faultEntries = BrownoutRegistry.LockoutCount
+            int faultEntries = DeprioritizedRegistry.LockoutCount
                                + OverloadRegistry.LockoutCount
+                               + CableOverloadRegistry.LockoutCount
                                + CycleFaultRegistry.LockoutCount
-                               + VariableVoltageFaultRegistry.LockoutCount;
+                               + CurrentMismatchFaultRegistry.LockoutCount;
             PriorityLoaded = PrioritySideCar.LoadedPriorities?.Count ?? 0;
             PriorityRestored = _prioritiesRestored;
             bool sweepRan = LedgerAdoption.SweepHasRun;

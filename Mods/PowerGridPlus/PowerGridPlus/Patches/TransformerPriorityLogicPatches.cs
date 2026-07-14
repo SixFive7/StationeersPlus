@@ -8,9 +8,9 @@ using LaunchPadBooster.Networking;
 namespace PowerGridPlus.Patches
 {
     // Wires the writable LogicType.Priority slot and the read-only fault slots
-    // (Shedding / Overloaded / CycleFault) on Transformer. All four slots are
-    // always active (the Priority + Shedding system and overload protection have
-    // no toggles).
+    // (DeprioritizedFault / DeviceOverloadedFault / CableOverloadedFault /
+    // CycleFault) on Transformer. All five slots are always active (the Priority +
+    // Deprioritization system and overload protection have no toggles).
     //
     // LogicType.Setting and LogicType.Ratio are PURE VANILLA (POWER.md §5.3 /
     // §17.36): IC10 reads return the live Setting; IC10 writes update Setting,
@@ -19,12 +19,17 @@ namespace PowerGridPlus.Patches
     // (TransformerLabellerPatches) write Priority instead of Setting.
     //
     // Slot behaviour:
-    //   - CanLogicRead:   Priority, Shedding, Overloaded, CycleFault => true.
-    //   - CanLogicWrite:  Priority => true. Shedding / Overloaded / CycleFault
-    //                     => false (read-only).
+    //   - CanLogicRead:   Priority, DeprioritizedFault, DeviceOverloadedFault,
+    //                     CableOverloadedFault, CycleFault => true.
+    //   - CanLogicWrite:  Priority => true. DeprioritizedFault / DeviceOverloadedFault /
+    //                     CableOverloadedFault / CycleFault => false (read-only).
     //   - GetLogicValue:  Priority => PriorityStore.GetPriority(__instance).
-    //                     Shedding / Overloaded / CycleFault => 1 while the
+    //                     DeprioritizedFault / DeviceOverloadedFault /
+    //                     CableOverloadedFault / CycleFault => 1 while the
     //                     transformer is in the matching lockout, 0 otherwise.
+    //                     DeviceOverloadedFault covers only the capacity lockout
+    //                     (OverloadRegistry); CableOverloadedFault covers only
+    //                     the cable-overflow lockout (CableOverloadRegistry).
     //   - SetLogicValue:  Priority writes go through PriorityStore + broadcast
     //                     PriorityMessage to clients (clamped >= 0, no upper cap).
     //                     Writes to the read-only slots are silently dropped.
@@ -39,8 +44,9 @@ namespace PowerGridPlus.Patches
         public static bool CanLogicReadPatch(LogicType logicType, ref bool __result)
         {
             if (logicType == LogicTypeRegistry.Priority
-                || logicType == LogicTypeRegistry.Shedding
-                || logicType == LogicTypeRegistry.Overloaded
+                || logicType == LogicTypeRegistry.DeprioritizedFault
+                || logicType == LogicTypeRegistry.DeviceOverloadedFault
+                || logicType == LogicTypeRegistry.CableOverloadedFault
                 || logicType == LogicTypeRegistry.CycleFault)
             {
                 __result = true;
@@ -57,8 +63,9 @@ namespace PowerGridPlus.Patches
                 __result = true;
                 return false;
             }
-            if (logicType == LogicTypeRegistry.Shedding
-                || logicType == LogicTypeRegistry.Overloaded
+            if (logicType == LogicTypeRegistry.DeprioritizedFault
+                || logicType == LogicTypeRegistry.DeviceOverloadedFault
+                || logicType == LogicTypeRegistry.CableOverloadedFault
                 || logicType == LogicTypeRegistry.CycleFault)
             {
                 __result = false;     // read-only
@@ -75,15 +82,21 @@ namespace PowerGridPlus.Patches
                 __result = PriorityStore.GetPriority(__instance.ReferenceId);
                 return false;
             }
-            if (logicType == LogicTypeRegistry.Shedding)
+            if (logicType == LogicTypeRegistry.DeprioritizedFault)
             {
-                __result = BrownoutRegistry.IsShedding(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
+                __result = DeprioritizedRegistry.IsDeprioritized(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
                     ? 1.0 : 0.0;
                 return false;
             }
-            if (logicType == LogicTypeRegistry.Overloaded)
+            if (logicType == LogicTypeRegistry.DeviceOverloadedFault)
             {
                 __result = OverloadRegistry.IsOverloaded(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
+                    ? 1.0 : 0.0;
+                return false;
+            }
+            if (logicType == LogicTypeRegistry.CableOverloadedFault)
+            {
+                __result = CableOverloadRegistry.IsCableOverloaded(__instance.ReferenceId, ElectricityTickCounter.CurrentTick)
                     ? 1.0 : 0.0;
                 return false;
             }
@@ -109,9 +122,11 @@ namespace PowerGridPlus.Patches
                 return false;
             }
 
-            // Shedding / Overloaded / CycleFault are read-only; silently swallow any write.
-            if (logicType == LogicTypeRegistry.Shedding
-                || logicType == LogicTypeRegistry.Overloaded
+            // DeprioritizedFault / DeviceOverloadedFault / CableOverloadedFault /
+            // CycleFault are read-only; silently swallow any write.
+            if (logicType == LogicTypeRegistry.DeprioritizedFault
+                || logicType == LogicTypeRegistry.DeviceOverloadedFault
+                || logicType == LogicTypeRegistry.CableOverloadedFault
                 || logicType == LogicTypeRegistry.CycleFault)
                 return false;
 

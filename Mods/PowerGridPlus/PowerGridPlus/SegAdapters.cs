@@ -30,7 +30,7 @@ namespace PowerGridPlus
     /// <summary>
     ///     A bridge device's per-tick PHYSICAL description: everything the allocator's GATHER phase
     ///     consumes about the device, produced by its <see cref="ISegAdapter"/>. Deliberately carries
-    ///     no allocator policy -- priority, lockout state, and shed bookkeeping are attached by GATHER
+    ///     no allocator policy -- priority, lockout state, and deprioritization bookkeeping are attached by GATHER
     ///     (PowerAllocator) on top of this description.
     ///
     ///     <para>Routed fields. <see cref="EffectiveCapacity"/> is carried pre-computed (rather than
@@ -56,7 +56,7 @@ namespace PowerGridPlus
         public float Quiescent;                // the device's (pair's) own idle draw, billed once per tick when it conducts
         public bool QuiescentAlwaysOn;         // vanilla bills the quiescent whenever the device is ON (APC), not only when it conducts
         public long PartnerRefId;              // second half of a pair whose own fault state also locks the seg (0 = none)
-        public bool StepUp;                    // steps a lower tier up to a higher one: never sheds (§5.2)
+        public bool StepUp;                    // steps a lower tier up to a higher one: never deprioritized (§5.2)
 
         // --- Buffered ---
         public bool HasSoft;                   // cell charge side present this tick
@@ -128,7 +128,7 @@ namespace PowerGridPlus
 
         /// <summary>
         ///     Step-up classification (§5.2): the contributor lifts a lower cable tier onto a higher
-        ///     one, so shedding it can never relieve its input network. Unknown tiers are not step-up.
+        ///     one, so deprioritizing it can never relieve its input network. Unknown tiers are not step-up.
         /// </summary>
         internal static bool IsStepUp(CableNetwork inNet, CableNetwork outNet)
         {

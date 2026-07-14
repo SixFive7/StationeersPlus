@@ -12,7 +12,7 @@ namespace PowerGridPlus
     ///     Classifies devices for the producer-isolation rule (POWER.md §8.5, strict-literal): a power
     ///     producer may only connect to a transformer or to other producers. If a producer shares a cable
     ///     network with any device that is neither a producer nor a Transformer, it is faulted
-    ///     (VARIABLE_VOLTAGE_FAULT).
+    ///     (CURRENT_MISMATCH_FAULT).
     ///
     ///     <para>"Producer" = the game's generator classes. "Flashable producer" = a producer with an OnOff
     ///     button that can host a red flash; the rest (SolarPanel, both wind turbines, RTG) are hover-only.
@@ -42,7 +42,7 @@ namespace PowerGridPlus
         // The PowerConnector is a buttonless dock that forwards a docked portable generator's power
         // (Research/GameSystems/PowerProducerOnOffState.md). It is a source only while a generator is
         // docked AND producing. Read the generator's RAW PowerGenerated, not the connector's
-        // GetGeneratedPower (the VARIABLE_VOLTAGE_FAULT enforcement postfix zeroes that, so gating on
+        // GetGeneratedPower (the CURRENT_MISMATCH_FAULT enforcement postfix zeroes that, so gating on
         // it would oscillate). PowerGenerated is already gated on the generator's OnOff && Powered, so
         // an off / unfuelled / absent generator reports 0. Worker-thread safe: managed reference
         // check (is null), never the Unity (bool)/==null native operator.
@@ -53,7 +53,7 @@ namespace PowerGridPlus
         }
 
         // The form of "producer" the isolation rule actually faults (POWER.md §8.5): a producer feeds
-        // unregulated voltage only while it is an ACTIVE source right now. This is the VVF analog of
+        // unregulated voltage only while it is an ACTIVE source right now. This is the CURRENT-MISMATCH analog of
         // the elastic-overload "ON cohort" (§8.4.1).
         //   - PowerConnector: a docked generator is delivering (the dock is a transparent proxy).
         //   - a producer with an on/off button (gas / solid / stirling): it is switched ON.

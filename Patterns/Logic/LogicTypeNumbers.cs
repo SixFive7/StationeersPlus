@@ -16,6 +16,14 @@
 //      mod bands (see Patterns/Logic/README.md).
 //   4. Update Patterns/Logic/README.md's table in the same commit as any new
 //      entry here.
+//
+// Renaming an entry keeps its value (the value is the persisted identity) but
+// changes the IC10-visible constant name, which breaks scripts written against
+// the old name; only rename entries that have not shipped in a published mod
+// build. The 2026-07-14 fault renames (Shedding -> DeprioritizedFault,
+// Overloaded -> DeviceOverloadedFault, VariableVoltageFault ->
+// CurrentMismatchFault, CableOverloaded -> CableOverloadedFault) happened
+// pre-publication of those names.
 
 namespace StationeersPlus.Shared
 {
@@ -32,15 +40,16 @@ namespace StationeersPlus.Shared
         // ---------------- PowerGridPlus (6577- ) --------------------------
         public const ushort LogicPassthroughMode      = 6577;
         public const ushort Priority                  = 6578;
-        public const ushort Shedding                  = 6579;
-        public const ushort Overloaded                = 6580;
+        public const ushort DeprioritizedFault        = 6579;
+        public const ushort DeviceOverloadedFault     = 6580;
         public const ushort CycleFault                = 6581;
-        public const ushort VariableVoltageFault      = 6582;
+        public const ushort CurrentMismatchFault      = 6582;
         public const ushort MaxChargeSpeed            = 6583;
         public const ushort MaxDischargeSpeed         = 6584;
         public const ushort ChargeSpeed               = 6585;
         public const ushort DischargeSpeed            = 6586;
+        public const ushort CableOverloadedFault      = 6587;
 
-        // Next free slot: 6587.
+        // Next free slot: 6588.
     }
 }

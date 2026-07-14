@@ -8,7 +8,7 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Exposes the read-only <c>LogicType.VariableVoltageFault</c> on every VVF-capable producer that
+    ///     Exposes the read-only <c>LogicType.CurrentMismatchFault</c> on every CURRENT-MISMATCH-capable producer that
     ///     has a device-specific logic surface (POWER.md §8.7 / deviation P10). The exposed set is
     ///     <see cref="ProducerClassifier.IsProducer"/> minus the two producers that declare no logic
     ///     surface: <c>PowerConnector</c> (a dynamic-generator dock) and <c>RadioscopicThermalGenerator</c>
@@ -22,13 +22,13 @@ namespace PowerGridPlus.Patches
     ///     type, so a future game version that gives e.g. GasFuelGenerator its own override does not
     ///     silently drop the read. For producers that do NOT declare their own logic methods the resolved
     ///     target is a shared base (e.g. <c>Device</c>), so a per-instance <see cref="ProducerVvfLogic.IsExposed"/>
-    ///     filter keeps the VVF read from leaking onto non-producers (and onto the excluded
+    ///     filter keeps the CURRENT-MISMATCH read from leaking onto non-producers (and onto the excluded
     ///     PowerConnector). Patching a shared base with an instance filter is the same pattern the rocket
     ///     umbilical Female and the logic-passthrough patches already use.</para>
     /// </summary>
     internal static class ProducerVvfLogic
     {
-        // Concrete producer types whose logic methods carry the VariableVoltageFault read. Resolved by
+        // Concrete producer types whose logic methods carry the CurrentMismatchFault read. Resolved by
         // name across loaded assemblies (no compile-time coupling to per-class namespaces); a name that
         // does not resolve is skipped. Base classes AND concrete subclasses are listed so the patch
         // follows a future override (e.g. GasFuelGenerator) instead of staying on the base.
@@ -58,7 +58,7 @@ namespace PowerGridPlus.Patches
             }
         }
 
-        // The VVF read acts only for an exposed producer: every IsProducer device except PowerConnector.
+        // The CURRENT-MISMATCH read acts only for an exposed producer: every IsProducer device except PowerConnector.
         // Required because a target resolved to a shared base method (for producers that do not override)
         // would otherwise fire for unrelated devices.
         internal static bool IsExposed(object instance)
@@ -74,7 +74,7 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix]
         public static void Postfix(object __instance, LogicType logicType, ref bool __result)
         {
-            if (logicType == LogicTypeRegistry.VariableVoltageFault && ProducerVvfLogic.IsExposed(__instance))
+            if (logicType == LogicTypeRegistry.CurrentMismatchFault && ProducerVvfLogic.IsExposed(__instance))
                 __result = true;
         }
     }
@@ -87,9 +87,9 @@ namespace PowerGridPlus.Patches
         [HarmonyPostfix]
         public static void Postfix(object __instance, LogicType logicType, ref double __result)
         {
-            if (logicType != LogicTypeRegistry.VariableVoltageFault) return;
+            if (logicType != LogicTypeRegistry.CurrentMismatchFault) return;
             if (!(__instance is Device d) || !ProducerVvfLogic.IsExposed(d)) return;
-            __result = VariableVoltageFaultRegistry.IsVariableVoltageFaulted(
+            __result = CurrentMismatchFaultRegistry.IsCurrentMismatchFaulted(
                 d.ReferenceId, ElectricityTickCounter.CurrentTick) ? 1.0 : 0.0;
         }
     }

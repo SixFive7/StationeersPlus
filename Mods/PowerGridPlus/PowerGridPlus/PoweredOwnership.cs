@@ -21,7 +21,7 @@ namespace PowerGridPlus
     ///     net is powered; a device on a DEAD net (or switched off) is dark; a device's own draw,
     ///     however spiky or random, cannot flicker it. This kills the whole per-device depower
     ///     class (the fabricator print-start reboot) structurally: either the subnet can carry
-    ///     the load (stays LIVE, everyone powered) or its segmenter sheds / overloads and the
+    ///     the load (stays LIVE, everyone powered) or its segmenter is deprioritized / overloads and the
     ///     subnet goes dark AS A UNIT, which is the mod's stated contract.
     ///
     ///     <para><b>How it owns the flag (B + D1 edition).</b> Vanilla ApplyState is retired, so no

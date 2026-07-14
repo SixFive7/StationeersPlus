@@ -29,21 +29,24 @@ Append at the next free slot. Increments of 1. Compact packing - a mod may have 
 | 6575 | PowerTransmitterPlus | MicrowaveAutoAimTarget | R / W | Target Thing.ReferenceId. Set 0 to disable. |
 | 6576 | PowerTransmitterPlus | MicrowaveLinkedPartner | R | Linked partner's ReferenceId, or 0 when unlinked. |
 | 6577 | PowerGridPlus | LogicPassthroughMode | R / W | 0 = vanilla logic-opaque transformer, 1 = logic-transparent. |
-| 6578 | PowerGridPlus | Priority | R / W | Per-transformer dispatch priority (int >= 0, default 100). Strict-priority allocation: highest priority gets first dibs on input-network supply; lower-priority transformers get the leftover. A transformer that cannot get its share of the input sheds for 60 seconds. |
-| 6579 | PowerGridPlus | Shedding | R | Returns 1 when the transformer is currently shed (upstream-side protection: input cannot supply enough), 0 otherwise. Read-only. Server-derived; replicated to clients. |
-| 6580 | PowerGridPlus | Overloaded | R | Returns 1 when the transformer is currently in overload protection (downstream-side protection: output network demands more than the transformer can deliver), 0 otherwise. Read-only. Server-derived; replicated to clients. |
+| 6578 | PowerGridPlus | Priority | R / W | Per-transformer dispatch priority (int >= 0, default 100). Strict-priority allocation: highest priority gets first dibs on input-network supply; lower-priority transformers get the leftover. A transformer that cannot get its share of the input is deprioritized (turned off) for 60 seconds. |
+| 6579 | PowerGridPlus | DeprioritizedFault | R | Returns 1 while the device is in deprioritized lockout (upstream-side protection: the input network cannot supply this device's share, so higher-priority siblings were served first), 0 otherwise. Read-only. Server-derived; replicated to clients. Renamed from `Shedding` 2026-07-14, value unchanged. |
+| 6580 | PowerGridPlus | DeviceOverloadedFault | R | Returns 1 while the device is in device-overload lockout (downstream-side protection: the output network demands more than the device can deliver), 0 otherwise. Read-only. Server-derived; replicated to clients. Renamed from `Overloaded` 2026-07-14, value unchanged. |
 | 6581 | PowerGridPlus | CycleFault | R | Returns 1 while the device is in CYCLE_FAULT lockout (it is part of a closed power loop). Auto-clears after 60 s. Read-only. Server-derived; replicated to clients. |
-| 6582 | PowerGridPlus | VariableVoltageFault | R | Returns 1 while the producer is in VARIABLE_VOLTAGE_FAULT lockout (a power producer wired to anything other than producers or a transformer). Auto-clears after 60 s. Read-only. Server-derived; replicated to clients. |
+| 6582 | PowerGridPlus | CurrentMismatchFault | R | Returns 1 while the producer is in CURRENT_MISMATCH_FAULT lockout (a power producer wired to anything other than producers or a transformer). Auto-clears after 60 s. Read-only. Server-derived; replicated to clients. Renamed from `VariableVoltageFault` 2026-07-14, value unchanged. |
 | 6583 | PowerGridPlus | MaxChargeSpeed | R | Configured per-prefab charge-rate cap in Watts (battery / APC / rocket umbilical). Read-only. |
 | 6584 | PowerGridPlus | MaxDischargeSpeed | R | Configured per-prefab discharge-rate cap in Watts (battery / APC / rocket umbilical). Read-only. |
 | 6585 | PowerGridPlus | ChargeSpeed | R | Actual charge rate this tick in Watts, after elastic-supply allocation. Read-only. |
 | 6586 | PowerGridPlus | DischargeSpeed | R | Actual discharge rate this tick in Watts, after elastic-supply allocation. Read-only. |
+| 6587 | PowerGridPlus | CableOverloadedFault | R | Returns 1 while the device is in CABLE_OVERLOADED lockout (its cable network cannot carry the demanded flow; the suppliers go offline instead of burning the weakest cable). Auto-clears after 60 s. Read-only. Server-derived; replicated to clients. Renamed from `CableOverloaded` 2026-07-14, value unchanged. |
 
-**Next free slot: 6587.**
+**Next free slot: 6588.**
+
+Renaming an entry keeps its value (the value is the persisted identity in saves and multiplayer sync) but changes the IC10-visible constant name, which breaks scripts written against the old name. Only rename entries that have not shipped in a published mod build; note the rename and date in the row.
 
 ## Rules for adding a new entry
 
-1. Pick the next free integer in the table above (currently `6578`). Do not skip; do not pick from a "preferred band" - the catalogue is one flat list.
+1. Pick the next free integer in the table above (currently `6588`). Do not skip; do not pick from a "preferred band" - the catalogue is one flat list.
 2. Add a `public const ushort` to [`LogicTypeNumbers.cs`](LogicTypeNumbers.cs) in the correct mod section. Append a new section header if it is the first entry for a mod.
 3. Update the table above with the value, mod, name, read/write, and a one-line description.
 4. Update the "Next free slot" line above.

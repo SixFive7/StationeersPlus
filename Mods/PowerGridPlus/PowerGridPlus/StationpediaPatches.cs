@@ -139,7 +139,7 @@ namespace PowerGridPlus
                 "Producer isolation: a power producer (solar, wind, RTG, the gas / coal / stirling generators, " +
                 "the small turbine, or a portable generator on a power connector) may share a cable network ONLY " +
                 "with other producers and transformers. Wired straight to a machine or any other consumer with no " +
-                "transformer between them, it enters Variable Voltage Fault and stops generating until a transformer " +
+                "transformer between them, it enters Current Mismatch Fault and stops generating until a transformer " +
                 "is added. This includes the common early-game portable-generator-to-machines setup: route it " +
                 "through a transformer.\n" +
                 "The fault is reversible (clears the instant a transformer is added, or the device is toggled off " +
@@ -173,7 +173,7 @@ namespace PowerGridPlus
                 "(server config \"Rocket Umbilical Charge Rate\") and discharge at " +
                 $"{FormatWatts(Settings.RocketUmbilicalDischargeRate.Value)} (\"Rocket Umbilical Discharge Rate\"), " +
                 "each further capped by the respective cable tier.\n" +
-                "Segmenting device: participates in the shed / overload / cycle-fault system like a battery. The Male " +
+                "Segmenting device: participates in the deprioritization / overload / cycle-fault system like a battery. The Male " +
                 "half flashes its button on a fault; the Female half has no button and reports faults via hover text only.\n" +
                 "IC10: read-only MaxChargeSpeed / MaxDischargeSpeed (configured caps) and ChargeSpeed / DischargeSpeed " +
                 "(live allocated rates) on both halves." +
@@ -213,16 +213,21 @@ namespace PowerGridPlus
                 "strictly by Priority among those siblings. The highest-priority transformer gets first dibs up to " +
                 "its Setting; the leftover goes to the next priority, and so on. Priority comparisons are local to " +
                 "each input network.\n" +
-                "Shedding: a transformer that cannot get its share of the input network sheds for 60 seconds " +
-                "(contributes 0 to the output network, flashes its on / off button orange, hover shows the cause " +
-                "with a live countdown), then re-engages automatically. Lowest priority sheds first.\n" +
-                "Overload: a transformer delivering at its Setting cap while downstream demand stays unmet enters " +
-                "overload (red flash, hover countdown), contributes 0 for 60 seconds, then re-engages.\n" +
+                "Deprioritization: a transformer that cannot get its share of the input network is deprioritized " +
+                "for 60 seconds (contributes 0 to the output network, flashes its on / off button orange, hover " +
+                "shows the cause with a live countdown), then re-engages automatically. Lowest priority drops first.\n" +
+                "Device overload: a transformer delivering at its Setting cap while downstream demand stays " +
+                "unmet enters device overload (red flash, hover countdown with the draw and cap in Watts), " +
+                "contributes 0 for 60 seconds, then re-engages.\n" +
+                "Cable overload: when the transformers could deliver the flow but the output network's weakest cable " +
+                "cannot carry it, the suppliers enter cable overload instead of burning the cable (red flash, hover " +
+                "countdown with the flow and the cable rating in Watts), contribute 0 for 60 seconds, then re-engage.\n" +
                 "Cycle fault: a transformer that forms a closed power loop with other segmenting devices enters " +
                 "cycle fault (red flash), contributes 0 for 60 seconds. No cable is burned for loops.\n" +
                 "Toggling the device off clears any fault instantly (off-as-reset); toggling back on re-evaluates.\n" +
-                "IC10: Setting / Maximum / Ratio are pure vanilla. Priority is read / write. Read-only Shedding / " +
-                "Overloaded / CycleFault return 1 while the transformer is in the matching lockout, 0 otherwise.";
+                "IC10: Setting / Maximum / Ratio are pure vanilla. Priority is read / write. Read-only " +
+                "DeprioritizedFault / DeviceOverloadedFault / CableOverloadedFault / CycleFault return 1 while " +
+                "the transformer is in the matching lockout, 0 otherwise.";
         }
 
         private static string BuildApcFooter()
@@ -236,7 +241,7 @@ namespace PowerGridPlus
                 "(server config \"APC Battery Discharge Rate\"), and only to fill the output network's shortfall, never more.\n" +
                 "Output: capped at the output cable's tier rating. A single APC cannot supply more than its output cable physically carries.\n" +
                 "Cable tier: input and output cables must be the same tier; mismatched cables burn at the junction when power flows.\n" +
-                "Faults: participates in the shed / overload / cycle-fault system as a segmenting device (button flash + hover countdown).\n" +
+                "Faults: participates in the deprioritization / overload / cycle-fault system as a segmenting device (button flash + hover countdown).\n" +
                 "IC10: read-only MaxChargeSpeed / MaxDischargeSpeed (configured caps) and ChargeSpeed / DischargeSpeed (live allocated rates).\n" +
                 "Bug fix: the vanilla idle-leak is closed. Battery does not slowly drain when nothing is connected downstream." +
                 SoftPowerParagraph;
@@ -258,7 +263,7 @@ namespace PowerGridPlus
                 $"Full discharge takes about {dischargeTime} of wall-clock time at the cap.\n" +
                 "Both caps are per-device, further bounded by the respective cable's tier rating. " +
                 "Cable tier: belongs on heavy cable.\n" +
-                "Faults: participates in the shed / overload / cycle-fault system as a segmenting device " +
+                "Faults: participates in the deprioritization / overload / cycle-fault system as a segmenting device " +
                 "(button flash + hover countdown; off-as-reset applies).\n" +
                 "IC10: read-only MaxChargeSpeed / MaxDischargeSpeed (the caps above) and ChargeSpeed / " +
                 "DischargeSpeed (live allocated rates). The previous Import Quantity / Export Quantity " +

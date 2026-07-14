@@ -22,8 +22,8 @@ namespace PowerGridPlus
     ///     transition, so steady state causes zero per-tick traffic.</para>
     ///
     ///     <para>Healthy (published by PowerAllocator at the end of ALLOCATE): enrolled in this
-    ///     tick's roster, carrying no fault (not cycle-faulted / shed-locked / overload-locked /
-    ///     shed / overloaded this tick; segmenters are never VVF candidates, that registry only
+    ///     tick's roster, carrying no fault (not cycle-faulted / deprioritization-locked / overload-locked /
+    ///     deprioritized / overloaded this tick; segmenters are never CURRENT-MISMATCH candidates, that registry only
     ///     holds producers), and either conducting flow (TotalThrough &gt; 0) or idle on an input
     ///     network that has effective supply and no unmet rigid demand. An idle segmenter on a
     ///     DARK input network (night-time solar feed) is deliberately NOT healthy: vanilla
@@ -82,7 +82,7 @@ namespace PowerGridPlus
         ///     Write-back tail: assert BOTH Powered edges on every rostered segmenter from its
         ///     health verdict. With vanilla ApplyState retired (POWER.md §0 decision 24 stage 3)
         ///     nothing else writes a segmenter's Powered any more, so this owns the false edge too:
-        ///     healthy presents powered, unhealthy (dark input, shed, overloaded, cycle-locked)
+        ///     healthy presents powered, unhealthy (dark input, deprioritized, overloaded, cycle-locked)
         ///     presents dark, matching the §10.6 presentation policy exactly. SetPowerFromThread
         ///     marshals the interactable write to the main thread as vanilla did; edges only fire
         ///     on an actual transition, so steady state causes no per-tick traffic.

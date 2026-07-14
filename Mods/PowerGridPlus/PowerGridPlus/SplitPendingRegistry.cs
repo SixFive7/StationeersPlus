@@ -13,7 +13,7 @@ namespace PowerGridPlus
     ///       still in flight. This replaces the old fixed 4-tick burn cooldown with a state-based gate:
     ///       there is no magic-number timer.</item>
     ///       <item><see cref="PowerAllocator"/> defers committing durable fault lockouts on an in-flight
-    ///       network, so a shed / overload decision is never made against a merged topology that is
+    ///       network, so a deprioritization / overload decision is never made against a merged topology that is
     ///       about to split (POWER.md Option C).</item>
     ///     </list>
     ///

@@ -10,7 +10,7 @@ using UnityEngine;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     ALLOCATE of the atomic tick: the joint shed / overload / elastic-supply allocator
+    ///     ALLOCATE of the atomic tick: the joint deprioritization / overload / elastic-supply allocator
     ///     (POWER.md §8.0 / §7.3). Replaces the former transformer-only TransformerAllocator with
     ///     a model that covers every segmenting device class (§8.0.0.1): Transformer, AreaPowerControl,
     ///     linked PowerTransmitter/PowerReceiver pairs (modelled as one contributor anchored on the PT,
@@ -19,7 +19,7 @@ namespace PowerGridPlus
     ///
     ///     Two flow classes ride ONE demand vector through the same backward/forward sweep:
     ///       - RIGID: ordinary consumer demand plus the contributor pulls that serve it. Drives every
-    ///         fault decision (shed, structural overload, supply overload).
+    ///         fault decision (deprioritization, structural overload, supply overload).
     ///       - SOFT: storage charge (battery / APC cell / umbilical). Propagates leaf-to-source through
     ///         the same splitter as rigid but capped at each contributor's headroom left after rigid
     ///         (soft never displaces rigid capacity), and is granted forward per net from a three-rung
@@ -27,7 +27,7 @@ namespace PowerGridPlus
     ///         contributor inflow after rigid is served), the soft inflow arriving through suppliers,
     ///         and LAST the net's elastic leftover (eligible discharge capacity the rigid settlement
     ///         did not consume), which is what makes battery-to-battery transfer possible. Unmet soft
-    ///         desire is silently clamped: never a shed, never an overload, never a lockout, never a
+    ///         desire is silently clamped: never a deprioritization, never an overload, never a lockout, never a
     ///         dead-input cue.
     ///
     ///     Per tick:
@@ -38,30 +38,31 @@ namespace PowerGridPlus
     ///          wireless pair / APC) each yield one Seg, and the Buffered adapter (rocket umbilical)
     ///          yields its cell's soft charge request + elastic discharge capacity instead of a Seg.
     ///          GATHER attaches allocator POLICY on top of the description: priority, lockout state,
-    ///          and the shed/overload bookkeeping.
+    ///          and the deprioritization/overload bookkeeping.
     ///       2. Order: topological (Kahn) order over conducting contributor edges, so every network is
     ///          processed after all the networks that feed it. Cycle members are already CYCLE_FAULTed by
     ///          PROTECT (cycle detection) and conduct 0, so the live graph is a DAG.
     ///       3. Fixed-point loop (max 2N+4 rounds, §8.0). OVERLOAD is grow-only / sticky (cleared once at
-    ///          loop entry, then committed for the tick); only SHED is re-decided each round. Each round:
+    ///          loop entry, then committed for the tick); only DEPRIORITIZED is re-decided each round. Each round:
     ///          a. backward desire (leaf -> source): each network's residual rigid need (rigid + deeper
     ///             pulls - generators - elastic availability) splits greedily over its suppliers in
     ///             (priority DESC, ReferenceId ASC) order, capped per-device at effective cap; then the
     ///             network's soft desire (local charge requests + deeper soft pulls) splits over the same
     ///             suppliers with the same priority-tier-first proportional splitter, capped per-device
     ///             at (EffCap - rigid desired throughput);
-    ///          b. structural overload, evaluated BEFORE shed (§8.4 hit-max: a contributor at its
+    ///          b. structural overload, evaluated BEFORE deprioritization (§8.4 hit-max: a contributor at its
     ///             Setting-like cap with unmet downstream rigid demand -- RIGID ONLY), so a structurally-
-    ///             overloaded device surfaces as OVERLOAD, not shed (CYCLE > VVF > OVERLOAD > SHED);
-    ///          c. forward supply + re-decided shed per input network: when consumer RIGID claims exceed
-    ///             the input budget, victims shed WHOLE by tier-major best-fit-decreasing selection
-    ///             (SelectShedVictims: lowest priority tier first; within a tier the smallest single
+    ///             overloaded device surfaces as OVERLOAD, not deprioritized (CYCLE > CURRENT-MISMATCH > CABLE-OVERLOADED >
+    ///             DEVICE-OVERLOADED > DEPRIORITIZED);
+    ///          c. forward supply + re-decided deprioritization per input network: when consumer RIGID claims exceed
+    ///             the input budget, victims are deprioritized WHOLE by tier-major best-fit-decreasing selection
+    ///             (SelectDeprioritizationVictims: lowest priority tier first; within a tier the smallest single
     ///             claim that covers the remaining deficit, else largest-first; ties by ReferenceId);
-    ///             step-up transformers never shed (§5.2); a dead input (no supply at all) defers
+    ///             step-up transformers are never deprioritized (§5.2); a dead input (no supply at all) defers
     ///             instead of cycling 60-second lockouts. After the rigid grants, soft is granted from the
     ///             net's firm residual (plus soft inflow arriving through its suppliers), proportionally
     ///             over local charge requests and consumer soft pulls, capped by the weakest cable's
-    ///             remaining headroom; a shed / locked / overloaded contributor gets zero soft, and a
+    ///             remaining headroom; a deprioritized / locked / overloaded contributor gets zero soft, and a
     ///             store owned by an unbillable contributor raises no charge desire and gets no grant
     ///             (SoftOwnerBillable: the lockout enforcement zeroes the owner's vanilla bill, so a
     ///             grant could never be billed or delivered; the 464386 finding);
@@ -72,9 +73,9 @@ namespace PowerGridPlus
     ///             cable).
     ///          After the loop, the lockout commits, the dead-input rebuild, and the shortfall
     ///          census (all of which read the deciding state), a STRANDED-INFLOW CLAWBACK runs on
-    ///          ticks that shed anything. The deciding rounds keep shed contributors' desires
-    ///          visible so shedding stays re-decidable, which can leave inflow committed for a
-    ///          consumer the same forward pass shed (billed upstream, consumed by nobody). The
+    ///          ticks that deprioritized anything. The deciding rounds keep deprioritized contributors'
+    ///          desires visible so deprioritization stays re-decidable, which can leave inflow committed
+    ///          for a consumer the same forward pass deprioritized (billed upstream, consumed by nobody). The
     ///          clawback walks leaf to source and, on every network whose total committed inflow
     ///          (rigid plus soft) exceeds its total consumption (served demand, granted pulls,
     ///          charge, soft pulls; soft counts because the soft stage funds charge from the
@@ -134,8 +135,8 @@ namespace PowerGridPlus
             public float InputDrawFactor;  // input-side draw per unit Throughput (PT-pair distance overhead m, §8.4.2); 0 treated as 1
             public int Priority;
             public int Depth;
-            public bool StepUp;            // never sheds (§5.2)
-            public bool Locked;            // cycle-faulted or in a prior-tick shed/overload window: conducts 0, not re-decided
+            public bool StepUp;            // never deprioritized (§5.2)
+            public bool Locked;            // cycle-faulted or in a prior-tick deprioritization/overload window: conducts 0, not re-decided
             // Presentation identity (Stage 3): the enumerated bridge device, its pair partner
             // (linked receiver, 0/null when none), consumed by the Powered-presentation and
             // ledger-settle publish tail. References live for this tick's publish only.
@@ -143,12 +144,30 @@ namespace PowerGridPlus
             public ElectricalInputOutput AnchorDevice;
             public ElectricalInputOutput PartnerDevice;
             // The Net model this seg delivers onto, resolved when rosters are registered. Consumed
-            // by the leaf-first shed protection (a seg whose output net still feeds ACTIVE child
-            // segs is a hop and never a shed victim; POWER.md §0 decision 24 stage 4).
+            // by the leaf-first victim protection (a seg whose output net still feeds ACTIVE child
+            // segs is a hop and never a deprioritization victim; POWER.md §0 decision 24 stage 4).
             public Net OutNetModel;
             // per-round:
-            public bool Shed;
+            public bool Deprioritized;
+            // Deprioritization hover payload (locked template "Needs D while U competes for S
+            // upstream"), captured at the victim-mark site inside the deciding forward sweep:
+            // the victim's own rigid pull, the input net's total rigid want that round, and the
+            // supply that net could raise. Not cleared with the flag: a 2-cycle union re-mark
+            // reuses the values from the round that last marked the seg.
+            public float DeprioritizedNeedsW;
+            public float DeprioritizedUpstreamDemandW;
+            public float DeprioritizedUpstreamSupplyW;
             public bool Overloaded;
+            // Overload KIND bit + hover payload. Overloaded keeps meaning "offline this tick" for
+            // BOTH overload kinds (the solve reads only Overloaded); CableOverloaded routes the
+            // publish to CableOverloadRegistry (5.7 cable overflow) instead of OverloadRegistry
+            // (8.4 capacity hit-max). The payload pair is captured at the detection site that first
+            // trips the seg (overload is grow-only, so the first detector owns the entry): rule 1
+            // writes (net rigid desire, combined deliverable cap); rule 3 writes (flow, weakest
+            // cable cap).
+            public bool CableOverloaded;
+            public float OverloadValueW;
+            public float OverloadCapW;
             public float Throughput;       // committed RIGID passthrough this round
             public float Pull;             // the rigid demand presented on InNet (Throughput * m + UsedPower when granted)
             // Backward desire pass scratch: what this contributor WANTS to pass assuming its input can
@@ -172,7 +191,14 @@ namespace PowerGridPlus
             public CableNetwork OutNet;
             public float EffDischarge;     // min(rate cap, cable cap, stored)
             public bool Locked;
-            public bool Overloaded;        // per-round (elastic hit-max analog)
+            public bool Overloaded;        // per-round (elastic hit-max analog); covers both overload kinds for the solve
+            // Overload KIND bit + hover payload, same contract as Seg: CableOverloaded routes the
+            // commit to CableOverloadRegistry with the (flow, weakest cable cap) pair captured at
+            // the rule 3 site; a capacity (rule 2) elastic gets its shared payload at the cohort
+            // commit instead, so these fields stay zero for it.
+            public bool CableOverloaded;
+            public float OverloadValueW;
+            public float OverloadCapW;
             public float Share;            // final delivered share (rigid share + soft top-up)
             public byte Kind;              // store kind (ChargeDeliveryAudit.Kind*) for the discharge-delivery audit
             public ElectricalInputOutput Owner;   // the store device, consumed by the write-back plan
@@ -187,11 +213,11 @@ namespace PowerGridPlus
             public float Share;
             public byte Kind;              // ChargeDeliveryAudit store kind (battery / APC cell / umbilical)
             // Billability links (the 464386 finding): CycleFaultEnforcementPatches zeroes a
-            // locked / shed / overloaded owner's vanilla bill at Priority.Last, so a share
+            // locked / deprioritized / overloaded owner's vanilla bill at Priority.Last, so a share
             // granted to a store whose owner cannot bill can never be billed or delivered and
             // strands as granted-but-uncredited. GATHER never enrolls a store whose owner is
             // registry-locked; these references let the per-round SoftOwnerBillable gate cover
-            // the owner that sheds / overloads INSIDE the deciding loop.
+            // the owner that is deprioritized / overloads INSIDE the deciding loop.
             public Seg OwnerSeg;           // the APC's routed seg (null for battery / umbilical stores)
             public Elastic OwnerElastic;   // the store's own discharge half this tick (null when absent)
             public ElectricalInputOutput Owner;   // the store device, consumed by the write-back plan
@@ -215,14 +241,14 @@ namespace PowerGridPlus
             public readonly List<Soft> Softs = new List<Soft>();
             // The local charge desire is recomputed per round from billable owners only
             // (BillableSoftRequestLocal); no static per-tick sum is kept, so a store whose owner
-            // sheds / overloads inside the deciding loop stops sizing upstream soft inflow.
+            // is deprioritized / overloads inside the deciding loop stops sizing upstream soft inflow.
             // per-round:
             public float Unmet;
             public float PullsGranted;
             public float InflowCommitted;
             public float RigidServed;
             // Backward desire pass scratch: total power demanded on this network assuming nothing is
-            // shed (rigid + every non-locked, non-overloaded consumer's desired pull), and the soft
+            // deprioritized (rigid + every non-locked, non-overloaded consumer's desired pull), and the soft
             // analog (local charge requests + every active consumer's soft desired pull).
             public float DesiredDemand;
             public float SoftDesire;
@@ -264,7 +290,7 @@ namespace PowerGridPlus
 
             // Per-network rigid demand + generator supply, consumed from the tick's GridSnapshot
             // (the single boundary read; POWER.md §0 decision 24). The umbilical quiescent bill and
-            // the demand-model reconstruction already happened in the snapshot builder; VVF-locked
+            // the demand-model reconstruction already happened in the snapshot builder; CURRENT-MISMATCH-locked
             // producers were zeroed in place after PROTECT (ZeroFaultedProducers), so faulted solar
             // contributes no supply here. This method performs no vanilla topology or demand reads.
             var gridSnap = Core.GridSnapshot.Current;
@@ -303,8 +329,9 @@ namespace PowerGridPlus
             bool IsPowerLocked(long refId)
             {
                 return CycleFaultRegistry.IsCycleFaulted(refId, currentTick)
-                    || BrownoutRegistry.IsLockedOut(refId, currentTick)
-                    || OverloadRegistry.IsLockedOut(refId, currentTick);
+                    || DeprioritizedRegistry.IsLockedOut(refId, currentTick)
+                    || OverloadRegistry.IsLockedOut(refId, currentTick)
+                    || CableOverloadRegistry.IsLockedOut(refId, currentTick);
             }
 
             // Attach allocator POLICY to an adapter's physical description (SegAdapters.cs):
@@ -405,7 +432,7 @@ namespace PowerGridPlus
                             // raise a charge request: a granted share could never be billed or
                             // delivered and would strand as granted-but-uncredited for the whole
                             // lockout window (the 464386 finding: exactly 120 zero-credit ticks
-                            // under a dawn lockout). Same-tick shed / overload decided inside the
+                            // under a dawn lockout). Same-tick deprioritization / overload decided inside the
                             // loop is covered by the SoftOwnerBillable gate via the owner links.
                             if (!cell.IsCharged && !seg.Locked)
                             {
@@ -547,24 +574,24 @@ namespace PowerGridPlus
             }
 
             // ----------------------------------------------------------------
-            // 3. DECIDE: shed / overload fixed point. Backward/forward sweep iterated to a fixed point.
-            //    Overload is evaluated BEFORE shed each round and is GROW-ONLY (sticky: cleared only at
-            //    loop entry, then reset only by the 60 s timeout or a player turn-off); ONLY SHED is
-            //    re-decided each round against the settled state. So an unnecessary shed cannot freeze for
+            // 3. DECIDE: deprioritization / overload fixed point. Backward/forward sweep iterated to a fixed point.
+            //    Overload is evaluated BEFORE deprioritization each round and is GROW-ONLY (sticky: cleared only at
+            //    loop entry, then reset only by the 60 s timeout or a player turn-off); ONLY DEPRIORITIZED is
+            //    re-decided each round against the settled state. So an unnecessary deprioritization cannot freeze for
             //    60 s once another device's overload frees the budget (the 2c case), and a transformer that
-            //    structurally cannot serve its downstream surfaces as OVERLOAD, not shed. Throughputs are
+            //    structurally cannot serve its downstream surfaces as OVERLOAD, not deprioritized. Throughputs are
             //    exact (no headroom). Convergence is bounded (2N+4 rounds);
             //    the per-net field values it leaves (Unmet / InflowCommitted / PullsGranted / RigidServed /
             //    SoftGrantedLocal / SoftPullsGranted / Throughput / SoftThrough) feed the dead-input
             //    cue, the lockout commits, and the shortfall census below; the stranded-inflow
-            //    clawback then removes shed-orphaned surplus before the elastic-share / publish /
+            //    clawback then removes deprioritization-orphaned surplus before the elastic-share / publish /
             //    conservation tail reads them.
             // ----------------------------------------------------------------
             RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList);
 
             // Dead-input cue (POWER.md §8.3): a contributor whose input network has NO effective supply
-            // (no generators, no upstream inflow, no live battery -- the same totalAvail the shed pass
-            // uses) idles instead of shedding. Flag those that are actively trying to pass power
+            // (no generators, no upstream inflow, no live battery -- the same totalAvail the deprioritization
+            // pass uses) idles instead of being deprioritized. Flag those that are actively trying to pass power
             // downstream for a steady "no upstream supply" hover. NOT a lockout: no 60 s timer, no flash,
             // instant recovery when the input is powered. Rebuilt from the converged state every tick.
             DeadInputRegistry.BeginServerPass();
@@ -585,7 +612,7 @@ namespace PowerGridPlus
             // Commit new lockouts. Option C: a network with a cable burn in flight (a tier burn queued
             // this tick, or a §5.7 generator-overflow burn issued last tick whose split has not landed)
             // is about to re-partition, so its merged-topology supply/demand math is not the topology
-            // the lockout would apply to. Defer committing NEW shed / overload lockouts for such a
+            // the lockout would apply to. Defer committing NEW deprioritization / overload lockouts for such a
             // network until the split lands (SplitPendingRegistry clears it). Existing lockouts
             // (seg.Locked) still enforce; the network still distributes power via vanilla ENFORCE.
             // ----------------------------------------------------------------
@@ -593,8 +620,21 @@ namespace PowerGridPlus
             {
                 if (seg.Locked) continue;   // prior-tick lockout carries; timer untouched
                 if (SegNetPending(seg)) continue;
-                if (seg.Shed) BrownoutRegistry.NoteShed(seg.RefId, currentTick);
-                if (seg.Overloaded) OverloadRegistry.NoteOverload(seg.RefId, currentTick);
+                if (seg.Deprioritized) DeprioritizedRegistry.NoteDeprioritized(seg.RefId, currentTick,
+                    seg.DeprioritizedNeedsW, seg.DeprioritizedUpstreamDemandW, seg.DeprioritizedUpstreamSupplyW);
+                if (seg.Overloaded)
+                {
+                    // Kind routing: the cable-overflow trip (rule 3) and the capacity trip (rule 1)
+                    // publish into separate registries so the hover, the flash resolution, and the
+                    // IC10 slots can name the specific cause. The payload pair captured at the
+                    // detection site rides into the entry.
+                    if (seg.CableOverloaded)
+                        CableOverloadRegistry.NoteCableOverload(seg.RefId, currentTick,
+                            seg.OverloadValueW, seg.OverloadCapW);
+                    else
+                        OverloadRegistry.NoteOverload(seg.RefId, currentTick,
+                            seg.OverloadValueW, seg.OverloadCapW);
+                }
             }
             // Elastic overload commit: NETWORK-LEVEL RETRY, then reset (POWER.md §8.4.1). A net with a
             // newly overloaded elastic is a candidate. Its "overload cohort" is every elastic on the net
@@ -610,28 +650,50 @@ namespace PowerGridPlus
             // branch re-triggers next tick. Split-pending nets defer (Option C). Transformers keep their
             // per-device §8.4 timer (the culprit transformer is genuinely device-specific; this is a
             // network property).
+            //
+            // KIND SPLIT: only the capacity family (rule 2, elastic hit-max) forms cohorts here. A
+            // cable-overflow (rule 3) elastic commits per device into CableOverloadRegistry with the
+            // (flow, weakest cable cap) payload from its detection site; the network retry is
+            // meaningless for it because re-engaging the store cannot raise the cable's rating.
             var elasticOverloadNets = new HashSet<long>();
             foreach (var e in elastics)
             {
                 if (!e.Overloaded || e.OutNet == null) continue;
                 if (SplitPendingRegistry.IsPending(e.OutNet.ReferenceId)) continue;
+                if (e.CableOverloaded)
+                {
+                    CableOverloadRegistry.NoteCableOverload(e.RefId, currentTick,
+                        e.OverloadValueW, e.OverloadCapW);
+                    continue;
+                }
                 elasticOverloadNets.Add(e.OutNet.ReferenceId);
             }
+            bool InCapacityCohort(Elastic e, long netRef)
+                => e.OutNet != null && e.OutNet.ReferenceId == netRef
+                   && ((e.Overloaded && !e.CableOverloaded)
+                       || OverloadRegistry.IsOverloaded(e.RefId, currentTick));
             foreach (long netRef in elasticOverloadNets)
             {
                 if (!nets.TryGetValue(netRef, out var n)) continue;
                 float cohortDischarge = 0f;
                 foreach (var e in elastics)
-                    if (e.OutNet != null && e.OutNet.ReferenceId == netRef
-                        && (e.Overloaded || OverloadRegistry.IsOverloaded(e.RefId, currentTick)))
+                    if (InCapacityCohort(e, netRef))
                         cohortDischarge += e.EffDischarge;
                 bool recover = cohortDischarge >= n.Unmet - Eps;   // cohort can jointly cover the load -> retry succeeds
+                // Shared hover payload for a still-short cohort: the net's total rigid want against
+                // the pool max with the cohort re-engaged. Computed at this commit (the deciding
+                // site for the elastic capacity fault) so every cohort member shows one consistent
+                // pair; AvailableElastic excludes the cohort itself (locked or flagged), so adding
+                // cohortDischarge does not double-count.
+                float liveSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n);
+                float cohortValueW = liveSupply + n.Unmet;
+                float cohortCapW = liveSupply + cohortDischarge;
                 foreach (var e in elastics)
                 {
-                    if (e.OutNet == null || e.OutNet.ReferenceId != netRef) continue;
-                    if (!(e.Overloaded || OverloadRegistry.IsOverloaded(e.RefId, currentTick))) continue;
+                    if (!InCapacityCohort(e, netRef)) continue;
                     if (recover) OverloadRegistry.ClearLockout(e.RefId);          // recovered: no reset, rejoin next tick
-                    else OverloadRegistry.NoteOverload(e.RefId, currentTick);     // still short: arm + phase-sync
+                    else OverloadRegistry.NoteOverload(e.RefId, currentTick,      // still short: arm + phase-sync
+                        cohortValueW, cohortCapW);
                 }
             }
 
@@ -639,7 +701,7 @@ namespace PowerGridPlus
             // end-of-tick RIGID state for the regression census (ShortfallDiagnostics: Served /
             // Dry / Throttled / Deadlock, ClassifyNetShortfall below). Pure read-over of the
             // DECIDING per-net / per-seg fields, deliberately taken BEFORE the stranded-inflow
-            // clawback below, so the census describes exactly the state the shed / overload
+            // clawback below, so the census describes exactly the state the deprioritization / overload
             // decisions were taken against (and stays tick-for-tick comparable across builds).
             // Swapped by volatile reference exactly like the Powered-presentation snapshots; a
             // net absent from the map was outside allocator scope this tick (the census reads
@@ -665,14 +727,14 @@ namespace PowerGridPlus
             ShortfallDiagnostics.PublishRatioScope(ratioScope);
 
             // ----------------------------------------------------------------
-            // STRANDED-INFLOW CLAWBACK. The deciding rounds keep shed contributors' desires
-            // visible (DesireActive ignores Shed) so shedding stays re-decidable. The converged
+            // STRANDED-INFLOW CLAWBACK. The deciding rounds keep deprioritized contributors' desires
+            // visible (DesireActive ignores Deprioritized) so deprioritization stays re-decidable. The converged
             // state can therefore carry inflow committed for a consumer the same forward pass
-            // shed: billed upstream, consumed by nobody (the net-487688 conservation bug). Undo
+            // deprioritized: billed upstream, consumed by nobody (the net-487688 conservation bug). Undo
             // exactly that surplus and nothing else: walk leaf -> source; on every network whose
             // total committed inflow exceeds its total consumption, take the surplus back from
             // its active suppliers in reverse grant order (the tail of the sequential grant loop
-            // is what funded the shed claims), shrinking each seg's published throughput and
+            // is what funded the deprioritized claims), shrinking each seg's published throughput and
             // pull consistently; the pull reduction lands on the supplier's input network before
             // that network is visited, so the surplus propagates upstream in one pass. No
             // re-split and no re-grant (a full settle re-pass was tried and re-granted the freed
@@ -695,10 +757,10 @@ namespace PowerGridPlus
             // shares are sized later from the final shortfall (zero on any surplus net), so
             // neither enters the strand.
             // ----------------------------------------------------------------
-            bool anyShed = false;
+            bool anyDeprioritized = false;
             foreach (var seg in segs)
-                if (seg.Shed) { anyShed = true; break; }
-            if (anyShed)
+                if (seg.Deprioritized) { anyDeprioritized = true; break; }
+            if (anyDeprioritized)
             {
                 foreach (var n in netsDeepFirst)
                 {
@@ -906,7 +968,7 @@ namespace PowerGridPlus
             // kind is what guarantees a granted soft flow has a carrier on both terminals of its
             // segment: a battery charging behind a transformer or wireless pair sees the charge
             // advertised downstream AND billed upstream in the same tick. Inactive contributors
-            // (shed / overloaded / cycle-faulted) carry all-zero totals, so they report 0 both ways.
+            // (deprioritized / overloaded / cycle-faulted) carry all-zero totals, so they report 0 both ways.
             foreach (var seg in segs)
             {
                 float totalThrough = seg.Throughput + seg.SoftThrough;
@@ -955,8 +1017,8 @@ namespace PowerGridPlus
             }
 
             // Powered presentation + ledger-settle roster, swapped atomically like the share
-            // caches. HEALTHY = enrolled this tick, carrying no fault (not locked / shed /
-            // overloaded; segmenters are never VVF candidates), and either conducting flow or
+            // caches. HEALTHY = enrolled this tick, carrying no fault (not locked / deprioritized /
+            // overloaded; segmenters are never CURRENT-MISMATCH candidates), and either conducting flow or
             // sitting idle on an input network that has effective supply with its rigid demand
             // met. With vanilla ApplyState retired, PoweredPresentation.ReconcileEnforceTail is
             // the ONLY writer of a segmenter's Powered flag and asserts both edges from this
@@ -1074,16 +1136,16 @@ namespace PowerGridPlus
 
         // =====================================================================
         // ALLOCATOR: topological backward-demand / forward-supply
-        // sweep, iterated to a fixed point with RE-DECIDABLE shed + overload.
+        // sweep, iterated to a fixed point with RE-DECIDABLE deprioritization + overload.
         // Computes each contributor's exact in-tick throughput (no headroom) and
-        // avoids the 60-second freeze of a shed that another device's overload
+        // avoids the 60-second freeze of a deprioritization that another device's overload
         // would have relieved (the 2c case).
         // =====================================================================
 
         // A contributor is eligible to DESIRE power (backward pass) when it is not locked and not
-        // overloaded. Shed is deliberately IGNORED here: the forward pass re-decides shedding every
-        // round, so a previously-shed contributor must still present its desired pull to be reconsidered.
-        // The inflow this can leave committed toward a still-shed consumer at the final state is
+        // overloaded. Deprioritized is deliberately IGNORED here: the forward pass re-decides deprioritization
+        // every round, so a previously-deprioritized contributor must still present its desired pull to be
+        // reconsidered. The inflow this can leave committed toward a still-deprioritized consumer at the final state is
         // removed after the loop by the stranded-inflow clawback in RunAtomic, not by changing this gate.
         private static bool DesireActive(Seg s) => !s.Locked && !s.Overloaded;
 
@@ -1141,10 +1203,10 @@ namespace PowerGridPlus
         }
 
         // The iterated fixed point. Each round: backward desire sweep, forward supply sweep (which
-        // RE-DECIDES shedding against the settled upstream supply), then the overload pass (which
-        // RE-DECIDES overload against the post-shed demand). Forward-before-overload means a shed that
-        // relieves an over-demanded network is honoured the same round, killing the shed<->overload
-        // 2-cycle. Converges when the (shed, overload) sets stop changing. Bounded by 2N+4 rounds (the
+        // RE-DECIDES deprioritization against the settled upstream supply), then the overload pass (which
+        // RE-DECIDES overload against the post-deprioritization demand). Forward-before-overload means a
+        // deprioritization that relieves an over-demanded network is honoured the same round, killing the
+        // deprioritization<->overload 2-cycle. Converges when the (deprioritized, overload) sets stop changing. Bounded by 2N+4 rounds (the
         // hard cap; N = segmenter count): a tick that exhausts the bound keeps the last settled state
         // (internally consistent, safe) and logs the throttled warning below. A detected 2-cycle
         // resolves to the safe union of the two states, then settles throughputs.
@@ -1158,57 +1220,73 @@ namespace PowerGridPlus
         private static void RunAllocationLoop(List<Net> topo, List<Net> topoRev, List<Seg> segs,
             List<Elastic> elastics, List<Net> netList)
         {
-            // Clean slate once per tick. Within the loop SHED is re-decided every round (ForwardSupplyAndShed
+            // Clean slate once per tick. Within the loop DEPRIORITIZED is re-decided every round (ForwardSupplyAndDeprioritize
             // clears it); OVERLOAD only ever GROWS (sticky: committed on detection, reset only by the 60 s
-            // timeout or a player turn-off), so it is cleared here once and never inside a round.
-            foreach (var seg in segs) { seg.Shed = false; seg.Overloaded = false; }
-            foreach (var e in elastics) e.Overloaded = false;
+            // timeout or a player turn-off), so it is cleared here once and never inside a round. The
+            // overload kind bit and payload pair travel with the flag: written by the detector that
+            // first trips the device, cleared only here.
+            foreach (var seg in segs)
+            {
+                seg.Deprioritized = false;
+                seg.Overloaded = false;
+                seg.CableOverloaded = false;
+                seg.OverloadValueW = 0f;
+                seg.OverloadCapW = 0f;
+            }
+            foreach (var e in elastics)
+            {
+                e.Overloaded = false;
+                e.CableOverloaded = false;
+                e.OverloadValueW = 0f;
+                e.OverloadCapW = 0f;
+            }
 
             int maxRounds = 2 * segs.Count + 4;
-            HashSet<long> prevShed = null, prevOver = null, prevEl = null;
-            HashSet<long> prev2Shed = null, prev2Over = null, prev2El = null;
+            HashSet<long> prevDeprioritized = null, prevOver = null, prevEl = null;
+            HashSet<long> prev2Deprioritized = null, prev2Over = null, prev2El = null;
             bool converged = false;
 
             for (int round = 0; round < maxRounds; round++)
             {
                 BackwardDesirePass(topoRev);
-                // Overload is evaluated BEFORE shed and is grow-only (precedence CYCLE > VVF > OVERLOAD >
-                // SHED, POWER.md decision 3). Only SHED is re-decidable within a tick: a transformer that
-                // structurally cannot serve its downstream is diagnosed as OVERLOAD here, before the shed
-                // pass could mislabel it as input-starved. The structural rule is desire-based (pre-shed);
+                // Overload is evaluated BEFORE deprioritization and is grow-only (precedence CYCLE > CURRENT-MISMATCH >
+                // CABLE-OVERLOADED > DEVICE-OVERLOADED > DEPRIORITIZED, POWER.md decision 3). Only DEPRIORITIZED is
+                // re-decidable within a tick: a transformer that
+                // structurally cannot serve its downstream is diagnosed as OVERLOAD here, before the deprioritization
+                // pass could mislabel it as input-starved. The structural rule is desire-based (pre-deprioritization);
                 // the supply rules (elastic / cable) need the forward pass's Unmet, so they run after it.
                 DetectStructuralOverload(netList, segs);
-                ForwardSupplyAndShed(topo, segs, settleOnly: false);
+                ForwardSupplyAndDeprioritize(topo, segs, settleOnly: false);
                 DetectSupplyOverload(netList, elastics);
 
-                var curShed = CollectFlagged(segs, shed: true);
-                var curOver = CollectFlagged(segs, shed: false);
+                var curDeprioritized = CollectFlagged(segs, deprioritized: true);
+                var curOver = CollectFlagged(segs, deprioritized: false);
                 var curEl = CollectFlaggedElastic(elastics);
 
-                if (prevShed != null && curShed.SetEquals(prevShed)
+                if (prevDeprioritized != null && curDeprioritized.SetEquals(prevDeprioritized)
                     && curOver.SetEquals(prevOver) && curEl.SetEquals(prevEl))
                 {
                     converged = true;
                     break;
                 }
-                if (prev2Shed != null && curShed.SetEquals(prev2Shed)
+                if (prev2Deprioritized != null && curDeprioritized.SetEquals(prev2Deprioritized)
                     && curOver.SetEquals(prev2Over) && curEl.SetEquals(prev2El))
                 {
                     // 2-cycle between two states: OR the intermediate state's flags in (safe superset,
                     // never under-protective), then settle throughputs without re-deciding.
                     foreach (var seg in segs)
                     {
-                        if (prevShed.Contains(seg.RefId)) seg.Shed = true;
+                        if (prevDeprioritized.Contains(seg.RefId)) seg.Deprioritized = true;
                         if (prevOver.Contains(seg.RefId)) seg.Overloaded = true;
                     }
                     foreach (var e in elastics) if (prevEl.Contains(e.RefId)) e.Overloaded = true;
                     BackwardDesirePass(topoRev);
-                    ForwardSupplyAndShed(topo, segs, settleOnly: true);
+                    ForwardSupplyAndDeprioritize(topo, segs, settleOnly: true);
                     converged = true;
                     break;
                 }
-                prev2Shed = prevShed; prev2Over = prevOver; prev2El = prevEl;
-                prevShed = curShed; prevOver = curOver; prevEl = curEl;
+                prev2Deprioritized = prevDeprioritized; prev2Over = prevOver; prev2El = prevEl;
+                prevDeprioritized = curDeprioritized; prevOver = curOver; prevEl = curEl;
             }
 
             if (!converged)
@@ -1256,11 +1334,12 @@ namespace PowerGridPlus
                         ? c.DesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f) + c.UsedPower
                         : (DesireActive(c) && c.QuiescentAlwaysOn ? c.UsedPower : 0f);
                     pulls += c.DesiredPull;
-                    // Soft gates on IsActive, NOT DesireActive: rigid must keep a shed contributor's
-                    // claim visible so the forward pass can re-decide the shed, but soft never drives
-                    // a shed, so a shed contributor's charge desire must NOT size its suppliers --
-                    // the delivered soft would strand on this net (billed upstream, consumed by
-                    // nobody). An un-shed next round restores the desire one round later.
+                    // Soft gates on IsActive, NOT DesireActive: rigid must keep a deprioritized
+                    // contributor's claim visible so the forward pass can re-decide the
+                    // deprioritization, but soft never drives a deprioritization, so a deprioritized
+                    // contributor's charge desire must NOT size its suppliers -- the delivered soft
+                    // would strand on this net (billed upstream, consumed by nobody). A contributor
+                    // released from deprioritization next round restores the desire one round later.
                     c.SoftDesiredPull = (IsActive(c) && c.SoftDesiredThroughput > 0f)
                         ? c.SoftDesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f)
                           + (c.DesiredPull > 0f ? 0f : c.UsedPower)
@@ -1339,24 +1418,24 @@ namespace PowerGridPlus
 
         // Forward supply sweep (source -> leaf). For each network in topo order (so every supplier's
         // actual throughput is already finalized), compute the supply actually reaching it and distribute
-        // to its consumers highest-priority-first. When deciding (settleOnly == false) shedding is RE-
-        // DECIDED here: if the active consumers' desired RIGID pulls exceed the budget the network can
-        // pass, victims shed (whole, never partial) per the tier-major best-fit rule in
-        // SelectShedVictims until the rest fit; a network with
-        // no supply at all (avail <= Eps) sheds nothing (dead-input idle). settleOnly == true keeps the
-        // current shed/overload flags and only recomputes throughputs + per-net fields (used to settle a
+        // to its consumers highest-priority-first. When deciding (settleOnly == false) deprioritization is
+        // RE-DECIDED here: if the active consumers' desired RIGID pulls exceed the budget the network can
+        // pass, victims are deprioritized (whole, never partial) per the tier-major best-fit rule in
+        // SelectDeprioritizationVictims until the rest fit; a network with
+        // no supply at all (avail <= Eps) deprioritizes nothing (dead-input idle). settleOnly == true keeps the
+        // current deprioritized/overload flags and only recomputes throughputs + per-net fields (used to settle a
         // 2-cycle). After the rigid grants, SOFT (storage charge) is granted per net from the firm
-        // residual: shed decisions, budgets, and Unmet never see the soft class.
+        // residual: deprioritization decisions, budgets, and Unmet never see the soft class.
 
-        // Caller-side scratch for the shed selector's candidate tuples. Power-worker only; the
+        // Caller-side scratch for the victim selector's candidate tuples. Power-worker only; the
         // selector itself keeps no state, so its purity / re-entrancy is unaffected by this buffer.
-        private static readonly List<(long refId, int priority, float claim, bool stepUp)> _shedCandidateBuffer
+        private static readonly List<(long refId, int priority, float claim, bool stepUp)> _victimCandidateBuffer
             = new List<(long refId, int priority, float claim, bool stepUp)>();
 
-        // Leaf-first shed protection: true while this seg's output net feeds at least one other
-        // ACTIVE (unlocked, unoverloaded, unshed) seg, i.e. the seg is a mid-chain hop. Evaluated
-        // fresh inside every deciding round, so a hop becomes sheddable the round after its whole
-        // subtree went dark, and only then.
+        // Leaf-first victim protection: true while this seg's output net feeds at least one other
+        // ACTIVE (unlocked, unoverloaded, not deprioritized) seg, i.e. the seg is a mid-chain hop.
+        // Evaluated fresh inside every deciding round, so a hop becomes eligible for deprioritization
+        // the round after its whole subtree went dark, and only then.
         private static bool FeedsActiveSeg(Seg c)
         {
             var outNet = c.OutNetModel;
@@ -1370,7 +1449,7 @@ namespace PowerGridPlus
             return false;
         }
 
-        private static void ForwardSupplyAndShed(List<Net> topo, List<Seg> segs, bool settleOnly)
+        private static void ForwardSupplyAndDeprioritize(List<Net> topo, List<Seg> segs, bool settleOnly)
         {
             foreach (var seg in segs)
             {
@@ -1378,7 +1457,7 @@ namespace PowerGridPlus
                 seg.Pull = 0f;
                 seg.SoftThrough = 0f;
                 seg.SoftPull = 0f;
-                if (!settleOnly) seg.Shed = false;
+                if (!settleOnly) seg.Deprioritized = false;
             }
 
             foreach (var n in topo)
@@ -1397,33 +1476,46 @@ namespace PowerGridPlus
                 {
                     float claims = 0f;
                     foreach (var c in n.Consumers)
-                        if (!c.Locked && !c.Overloaded && !c.Shed) claims += c.DesiredPull;
+                        if (!c.Locked && !c.Overloaded && !c.Deprioritized) claims += c.DesiredPull;
                     if (claims > budget + Eps)
                     {
                         // Victim CHOICE is delegated to the pure selector (tier-major best-fit,
                         // POWER.md 8.3 / 8.3.3); this block only feeds it the live candidates and
-                        // marks the returned set whole. Locked / overloaded / already-shed segs
+                        // marks the returned set whole. Locked / overloaded / already-deprioritized segs
                         // never enter (live per-round gates); the step-up and tiny-claim gates are
-                        // policy and live inside SelectShedVictims. If the selector runs out of
-                        // sheddable candidates the residual deficit is accepted as-is, exactly as
+                        // policy and live inside SelectDeprioritizationVictims. If the selector runs out of
+                        // eligible candidates the residual deficit is accepted as-is, exactly as
                         // the old walk's null-victim break did.
-                        _shedCandidateBuffer.Clear();
+                        _victimCandidateBuffer.Clear();
                         foreach (var c in n.Consumers)
-                            if (!c.Locked && !c.Overloaded && !c.Shed)
-                                // Leaf-first shedding (POWER.md §0 decision 24 stage 4): a seg whose
+                            if (!c.Locked && !c.Overloaded && !c.Deprioritized)
+                                // Leaf-first deprioritization (POWER.md §0 decision 24 stage 4): a seg whose
                                 // output net still feeds ACTIVE child segs is a HOP and is protected
                                 // exactly like a step-up (partial grant, never a victim), so the
                                 // deficit forwards downstream until it reaches segs feeding leaf
-                                // nets. As children shed across rounds, their parent stops being a
-                                // hop and becomes eligible: sheds escalate leaf-to-trunk, and a
-                                // no-practical-load trunk chain never sheds at all.
-                                _shedCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp || FeedsActiveSeg(c)));
-                        var victims = SelectShedVictims(_shedCandidateBuffer, claims - budget);
+                                // nets. As children are deprioritized across rounds, their parent
+                                // stops being a hop and becomes eligible: deprioritization escalates
+                                // leaf-to-trunk, and a no-practical-load trunk chain is never
+                                // deprioritized at all.
+                                _victimCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp || FeedsActiveSeg(c)));
+                        var victims = SelectDeprioritizationVictims(_victimCandidateBuffer, claims - budget);
                         for (int vi = 0; vi < victims.Count; vi++)
                         {
                             long refId = victims[vi];
                             foreach (var c in n.Consumers)
-                                if (c.RefId == refId) { c.Shed = true; break; }
+                                if (c.RefId == refId)
+                                {
+                                    c.Deprioritized = true;
+                                    // Hover payload for the locked "Needs D while U competes for
+                                    // S upstream" line: the victim's own rigid pull, the net's
+                                    // total rigid want this round (local rigid loads + every
+                                    // active contributor claim, the same terms the deficit above
+                                    // is made of), and the supply the net could actually raise.
+                                    c.DeprioritizedNeedsW = c.DesiredPull;
+                                    c.DeprioritizedUpstreamDemandW = n.RigidDemand + claims;
+                                    c.DeprioritizedUpstreamSupplyW = avail;
+                                    break;
+                                }
                         }
                     }
                 }
@@ -1460,16 +1552,16 @@ namespace PowerGridPlus
                 // battery-to-battery transfer). Capped by the weakest cable's remaining headroom
                 // so a charge grant cannot push a network past its tier rating. Granted
                 // proportionally over local charge requests and active consumers' soft pulls; a
-                // shed / locked / overloaded consumer gets zero soft. Note: if any rigid pull on
+                // deprioritized / locked / overloaded consumer gets zero soft. Note: if any rigid pull on
                 // this net was only partially granted, the firm residual is necessarily zero, so a
                 // firm-funded soft grant here implies every rigid pull was granted whole.
                 //
-                // Fixed-point safety: soft never enters budgets, shed victim selection, overload
+                // Fixed-point safety: soft never enters budgets, victim selection, overload
                 // detection, or the dead-input cue (all rigid-only, §9.6), so funding soft from
                 // elastic leftover cannot create a new decision-oscillation mode. The leftover is a
                 // pure function of this round's rigid settlement (RigidDemand, survivorPull,
                 // firmIn, elasticCap), and none of those inputs is touched by the soft stage; the
-                // loop's convergence test stays the (shed, overload, elastic-overload) sets.
+                // loop's convergence test stays the (deprioritized, overload, elastic-overload) sets.
                 float softLocal = firmIn - n.RigidDemand - survivorPull;
                 if (softLocal < 0f) softLocal = 0f;
                 float softInflow = 0f;
@@ -1508,7 +1600,7 @@ namespace PowerGridPlus
                     // owner's vanilla bill at ENFORCE, so a share granted here could never be
                     // billed or delivered and would strand as granted-but-uncredited (the
                     // 464386 finding). GATHER already refuses registry-locked owners; this gate
-                    // covers the owner that sheds / overloads inside the deciding loop, and the
+                    // covers the owner that is deprioritized / overloads inside the deciding loop, and the
                     // billable-desire sums above stop upstream soft inflow from being sized for
                     // it, so nothing strands billed-but-unconsumed either.
                     s.Share = SoftOwnerBillable(s) ? s.Request * softRatio : 0f;
@@ -1552,7 +1644,7 @@ namespace PowerGridPlus
         }
 
         // Overload pass (re-decidable). Three rules, recomputed fresh from the settled state each round:
-        //   1. Per-network capacity hit-max (§8.4): a network whose post-shed demand exceeds gen + elastic
+        //   1. Per-network capacity hit-max (§8.4): a network whose post-deprioritization demand exceeds gen + elastic
         //      + suppliers-at-their-caps overloads its SETTING-limited suppliers (downstream demand truly
         //      exceeds what the transformers can deliver). Suppliers are counted at EffCap even when already
         //      overloaded, so the condition keeps re-detecting them (an overloaded supplier contributes 0,
@@ -1563,10 +1655,10 @@ namespace PowerGridPlus
         //   3. §5.7 cable overflow: flow above the weakest cable cap with generators alone under it trips
         //      every supplier + elastic on the network (transformer/battery overflow does not burn cable).
         // Structural overload (rule 1): a network whose demand exceeds gen + elastic + its Setting-limited
-        // suppliers' caps overloads those suppliers. Runs BEFORE the shed pass so a transformer that
+        // suppliers' caps overloads those suppliers. Runs BEFORE the deprioritization pass so a transformer that
         // structurally cannot serve its downstream is diagnosed as OVERLOAD (the higher-precedence fault)
-        // instead of getting shed first and mislabeled input-starved. GROW-ONLY: never clears within a tick,
-        // so the overload commits even if a same-tick shed in its subnetwork would have removed the condition
+        // instead of getting deprioritized first and mislabeled input-starved. GROW-ONLY: never clears within a tick,
+        // so the overload commits even if a same-tick deprioritization in its subnetwork would have removed the condition
         // (desired: overload is the structural signal the player must act on). Desire-based, no forward
         // dependency, so it is safe to run before the forward pass.
         private static void DetectStructuralOverload(List<Net> netList, List<Seg> segs)
@@ -1578,21 +1670,28 @@ namespace PowerGridPlus
                     if (IsActive(c)) demand += c.DesiredPull;
                 float cap = n.GenSupply + AvailableElastic(n);
                 foreach (var s in n.Suppliers)
-                    if (!s.Locked && !s.Shed) cap += s.EffCap;
+                    if (!s.Locked && !s.Deprioritized) cap += s.EffCap;
                 if (demand <= cap + Eps) continue;
                 foreach (var s in n.Suppliers)
                 {
-                    if (s.Locked || s.Shed || s.Overloaded) continue;
+                    if (s.Locked || s.Deprioritized || s.Overloaded) continue;
                     if (s.CapSetting >= float.MaxValue) continue;   // APC: no throughput rating to hit
                     if (s.CapSetting > s.CableCap) continue;        // cable-limited (rule 3), not Setting-limited
                     s.Overloaded = true;                            // includes input-limited PT pairs (taken offline)
+                    // Fault-1 hover payload: the net's rigid desire against the combined deliverable
+                    // cap, the exact locals of this rule. Net-level numbers, shared by every supplier
+                    // the rule flags on this net.
+                    s.OverloadValueW = demand;
+                    s.OverloadCapW = cap;
                 }
             }
         }
 
         // Supply overload (rules 2 and 3): elastic hit-max and the §5.7 cable overflow. Both read the forward
-        // pass's Unmet / PullsGranted, so they run AFTER ForwardSupplyAndShed. GROW-ONLY, like the structural
-        // pass: never cleared within a tick.
+        // pass's Unmet / PullsGranted, so they run AFTER ForwardSupplyAndDeprioritize. GROW-ONLY, like the structural
+        // pass: never cleared within a tick. Rule 2 stays in the capacity fault family (OverloadRegistry;
+        // the cohort commit in RunAtomic computes its shared payload); rule 3 is the CABLE fault kind
+        // (CableOverloadRegistry) and stamps the kind bit plus the (flow, weakest cable cap) payload here.
         private static void DetectSupplyOverload(List<Net> netList, List<Elastic> elastics)
         {
             foreach (var n in netList)   // rule 2: elastic hit-max
@@ -1610,19 +1709,28 @@ namespace PowerGridPlus
                 if (flow <= cableCap || n.GenSupply > cableCap) continue;
                 foreach (var s in n.Suppliers)
                 {
-                    if (s.Locked || s.Shed || s.Overloaded) continue;
+                    if (s.Locked || s.Deprioritized || s.Overloaded) continue;
                     s.Overloaded = true;
+                    s.CableOverloaded = true;
+                    s.OverloadValueW = flow;
+                    s.OverloadCapW = cableCap;
                 }
                 foreach (var e in n.Elastics)
-                    if (!e.Locked && !e.Overloaded) e.Overloaded = true;
+                {
+                    if (e.Locked || e.Overloaded) continue;
+                    e.Overloaded = true;
+                    e.CableOverloaded = true;
+                    e.OverloadValueW = flow;
+                    e.OverloadCapW = cableCap;
+                }
             }
         }
 
-        private static HashSet<long> CollectFlagged(List<Seg> segs, bool shed)
+        private static HashSet<long> CollectFlagged(List<Seg> segs, bool deprioritized)
         {
             var set = new HashSet<long>();
             foreach (var seg in segs)
-                if (shed ? seg.Shed : seg.Overloaded) set.Add(seg.RefId);
+                if (deprioritized ? seg.Deprioritized : seg.Overloaded) set.Add(seg.RefId);
             return set;
         }
 
@@ -1641,10 +1749,10 @@ namespace PowerGridPlus
             return total;
         }
 
-        private static bool IsActive(Seg seg) => !seg.Locked && !seg.Shed && !seg.Overloaded;
+        private static bool IsActive(Seg seg) => !seg.Locked && !seg.Deprioritized && !seg.Overloaded;
 
         // A local store's charge grant is billable only while its OWNER can bill this round:
-        // the APC's routed seg active (not locked / shed / overloaded), and the store's own
+        // the APC's routed seg active (not locked / deprioritized / overloaded), and the store's own
         // discharge half not elastic-overloaded (the cohort commit stamps the registry in the
         // same tick, which zeroes the owner's vanilla bill via CycleFaultEnforcementPatches).
         // GATHER never enrolls registry-locked owners, so this gate exists for the in-loop
@@ -1672,7 +1780,7 @@ namespace PowerGridPlus
 
         // End-of-tick shortfall class for one allocator net (the ShortfallDiagnostics byte values),
         // derived entirely from the converged state: Unmet / GenSupply / InflowCommitted /
-        // RigidServed / PullsGranted per net, Locked / Shed / Overloaded / EffCap / Throughput /
+        // RigidServed / PullsGranted per net, Locked / Deprioritized / Overloaded / EffCap / Throughput /
         // SoftThrough per seg. Diagnostics only; decides nothing. Decision ladder:
         //   Served    - no unmet rigid demand.
         //   Deadlock  - unmet while the allocator's own accounting says supply existed: an ACTIVE
@@ -1685,7 +1793,7 @@ namespace PowerGridPlus
         //               masked by an unrelated closed valve on the same net (e.g. a tripped
         //               battery next to a deadlocked transformer feed).
         //   Throttled - unmet, and some feed valve is deliberately closed: a supplier seg that is
-        //               lockout-locked / shed / overloaded or has zero effective capacity
+        //               lockout-locked / deprioritized / overloaded or has zero effective capacity
         //               (Setting=0 "firewall", rate-limited to zero), or a locked / overloaded
         //               elastic on the net. Wins over Dry when both apply (a closed valve makes
         //               the upstream state moot; honest darkness either way).
@@ -1708,7 +1816,7 @@ namespace PowerGridPlus
             }
 
             foreach (var s in n.Suppliers)
-                if (s.Locked || s.Shed || s.Overloaded || s.EffCap <= Eps)
+                if (s.Locked || s.Deprioritized || s.Overloaded || s.EffCap <= Eps)
                     return ShortfallDiagnostics.Throttled;
             foreach (var e in n.Elastics)
                 if (e.Locked || e.Overloaded)
@@ -1724,36 +1832,36 @@ namespace PowerGridPlus
             return a.RefId.CompareTo(b.RefId);
         }
 
-        // Shed victim selection (POWER.md §8.3 / §8.3.3): tier-major best-fit-decreasing, the
+        // Deprioritized victim selection (POWER.md §8.3 / §8.3.3): tier-major best-fit-decreasing, the
         // deliberate policy that replaced the flat (priority ASC, ReferenceId ASC) walk. In order:
         //
-        //   1. Tiers go priority ASC: the lowest tier sheds first, and selection moves to the next
+        //   1. Tiers go priority ASC: the lowest tier is deprioritized first, and selection moves to the next
         //      tier only when the current tier is exhausted with deficit remaining.
         //   2. Within the tier, against the remaining deficit D (whole Watts):
-        //      a. if any candidate's quantised claim covers D alone, shed the SMALLEST such claim
+        //      a. if any candidate's quantised claim covers D alone, deprioritize the SMALLEST such claim
         //         (tie: lowest ReferenceId) and stop: the deficit is covered;
-        //      b. else shed the LARGEST claim (tie: lowest ReferenceId), subtract it from D, and
+        //      b. else deprioritize the LARGEST claim (tie: lowest ReferenceId), subtract it from D, and
         //         repeat within the tier.
         //   3. Step-up contributors are never candidates (§5.2), and a claim at or below Eps has
-        //      nothing worth reclaiming. Locked / overloaded / already-shed segs are the CALLER's
+        //      nothing worth reclaiming. Locked / overloaded / already-deprioritized segs are the CALLER's
         //      gates (live per-round state, not policy), as is the dead-input carveout (§8.3.1).
         //
         // Worked §8.3.3 example: same-tier claims 500 / 1000 / 2000, deficit 1000 -> exactly the
-        // 1000 W device sheds (the old walk shed the 500 then the 1000: two victims where one
-        // sufficed).
+        // 1000 W device is deprioritized (the old walk deprioritized the 500 then the 1000: two
+        // victims where one sufficed).
         //
         // Quantisation (§8.0.1 / §8.0.5 determinism): float claims floor to whole Watts
         // ((int)Math.Floor); the float deficit rounds UP after the allocator's Eps tolerance
         // ((int)Math.Ceiling(deficit - Eps)). Floor-claims plus ceil-deficit guarantees the
-        // selected set restores claims <= budget + Eps in float terms (an under-shed here would
+        // selected set restores claims <= budget + Eps in float terms (an under-deprioritization here would
         // leave Unmet > Eps and spuriously trip the elastic hit-max, §8.4 rule 2); the cost is at
         // most one extra small victim when sub-Watt fractions straddle a whole-Watt boundary.
         // Every comparison is integer / ReferenceId only, so the result is a pure deterministic
         // function of (candidates, deficit): input order is irrelevant (sorted internally), no
         // live-net or Unity state, no statics, re-entrant. ScenarioRunner's
-        // pgp-shed-victim-fixture scenario reflection-invokes this exact method with synthetic
-        // candidate sets; keep the name and signature stable.
-        internal static List<long> SelectShedVictims(
+        // pgp-deprioritization-victim-fixture scenario reflection-invokes this exact method with
+        // synthetic candidate sets; keep the name and signature stable.
+        internal static List<long> SelectDeprioritizationVictims(
             IReadOnlyList<(long refId, int priority, float claim, bool stepUp)> candidates,
             float deficit)
         {
@@ -1767,7 +1875,7 @@ namespace PowerGridPlus
             for (int i = 0; i < candidates.Count; i++)
             {
                 var c = candidates[i];
-                if (c.stepUp) continue;        // never sheds (§5.2)
+                if (c.stepUp) continue;        // never deprioritized (§5.2)
                 if (c.claim <= Eps) continue;  // nothing to reclaim
                 int claim = c.claim >= int.MaxValue ? int.MaxValue : (int)Math.Floor(c.claim);
                 pool.Add((c.priority, claim, c.refId));
@@ -1821,43 +1929,45 @@ namespace PowerGridPlus
         // clears client mirrors immediately), then goes silent.
         // -------------------------------------------------------------------
 
-        private static bool _shedWasNonEmpty;
+        private static bool _deprioritizedWasNonEmpty;
         private static bool _overloadWasNonEmpty;
         private static bool _cycleWasNonEmpty;
-        private static bool _vvfWasNonEmpty;
+        private static bool _currentMismatchWasNonEmpty;
         private static bool _deadInputWasNonEmpty;
+        private static bool _cableOverloadWasNonEmpty;
 
         internal static void SyncFaultSnapshots(int currentTick)
         {
             if (!Assets.Scripts.Networking.NetworkManager.IsActive) return;
             if (!Assets.Scripts.Networking.NetworkManager.IsServer) return;
 
-            SendPlain(FaultRegistrySnapshotMessage.KindShed,
-                BrownoutRegistry.SnapshotRemaining(currentTick), ref _shedWasNonEmpty);
-            SendPlain(FaultRegistrySnapshotMessage.KindOverload,
+            SendDeprioritized(DeprioritizedRegistry.SnapshotRemaining(currentTick), ref _deprioritizedWasNonEmpty);
+            SendWithWattPayload(FaultRegistrySnapshotMessage.KindDeviceOverload,
                 OverloadRegistry.SnapshotRemaining(currentTick), ref _overloadWasNonEmpty);
             SendPlain(FaultRegistrySnapshotMessage.KindCycleFault,
                 CycleFaultRegistry.SnapshotRemaining(currentTick), ref _cycleWasNonEmpty);
             SendPlain(FaultRegistrySnapshotMessage.KindDeadInput,
                 DeadInputRegistry.SnapshotRemaining(), ref _deadInputWasNonEmpty);
+            SendWithWattPayload(FaultRegistrySnapshotMessage.KindCableOverload,
+                CableOverloadRegistry.SnapshotRemaining(currentTick), ref _cableOverloadWasNonEmpty);
 
-            var vvf = new List<KeyValuePair<long, int>>();
+            var currentMismatch = new List<KeyValuePair<long, int>>();
             var violators = new List<string>();
-            foreach (var (refId, remaining, names) in VariableVoltageFaultRegistry.SnapshotRemaining(currentTick))
+            foreach (var (refId, remaining, names) in CurrentMismatchFaultRegistry.SnapshotRemaining(currentTick))
             {
-                vvf.Add(new KeyValuePair<long, int>(refId, remaining));
+                currentMismatch.Add(new KeyValuePair<long, int>(refId, remaining));
                 violators.Add(names);
             }
-            if (vvf.Count > 0 || _vvfWasNonEmpty)
+            if (currentMismatch.Count > 0 || _currentMismatchWasNonEmpty)
             {
                 new FaultRegistrySnapshotMessage
                 {
-                    Kind = FaultRegistrySnapshotMessage.KindVariableVoltage,
-                    Entries = vvf,
+                    Kind = FaultRegistrySnapshotMessage.KindCurrentMismatch,
+                    Entries = currentMismatch,
                     Violators = violators,
                 }.SendAll(0L);
             }
-            _vvfWasNonEmpty = vvf.Count > 0;
+            _currentMismatchWasNonEmpty = currentMismatch.Count > 0;
         }
 
         private static void SendPlain(byte kind, IEnumerable<KeyValuePair<long, int>> snapshot, ref bool wasNonEmpty)
@@ -1866,6 +1976,67 @@ namespace PowerGridPlus
             foreach (var pair in snapshot) entries.Add(pair);
             if (entries.Count > 0 || wasNonEmpty)
                 new FaultRegistrySnapshotMessage { Kind = kind, Entries = entries }.SendAll(0L);
+            wasNonEmpty = entries.Count > 0;
+        }
+
+        // The two overload registries carry a per-entry (valueW, capW) float pair alongside the
+        // remaining ticks; the message serialises the pair for these kinds (the CURRENT-MISMATCH violator-names
+        // precedent, numeric edition).
+        private static void SendWithWattPayload(byte kind,
+            IEnumerable<(long refId, int remainingTicks, float valueW, float capW)> snapshot,
+            ref bool wasNonEmpty)
+        {
+            var entries = new List<KeyValuePair<long, int>>();
+            var values = new List<float>();
+            var caps = new List<float>();
+            foreach (var (refId, remaining, valueW, capW) in snapshot)
+            {
+                entries.Add(new KeyValuePair<long, int>(refId, remaining));
+                values.Add(valueW);
+                caps.Add(capW);
+            }
+            if (entries.Count > 0 || wasNonEmpty)
+            {
+                new FaultRegistrySnapshotMessage
+                {
+                    Kind = kind,
+                    Entries = entries,
+                    PayloadValuesW = values,
+                    PayloadCapsW = caps,
+                }.SendAll(0L);
+            }
+            wasNonEmpty = entries.Count > 0;
+        }
+
+        // The deprioritized registry carries the locked hover triple (needs, upstream demand,
+        // upstream supply) alongside the remaining ticks; the message serialises all three for
+        // KindDeprioritized.
+        private static void SendDeprioritized(
+            IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)> snapshot,
+            ref bool wasNonEmpty)
+        {
+            var entries = new List<KeyValuePair<long, int>>();
+            var needs = new List<float>();
+            var upstreamDemand = new List<float>();
+            var upstreamSupply = new List<float>();
+            foreach (var (refId, remaining, needsW, upstreamDemandW, upstreamSupplyW) in snapshot)
+            {
+                entries.Add(new KeyValuePair<long, int>(refId, remaining));
+                needs.Add(needsW);
+                upstreamDemand.Add(upstreamDemandW);
+                upstreamSupply.Add(upstreamSupplyW);
+            }
+            if (entries.Count > 0 || wasNonEmpty)
+            {
+                new FaultRegistrySnapshotMessage
+                {
+                    Kind = FaultRegistrySnapshotMessage.KindDeprioritized,
+                    Entries = entries,
+                    PayloadNeedsW = needs,
+                    PayloadUpstreamDemandW = upstreamDemand,
+                    PayloadUpstreamSupplyW = upstreamSupply,
+                }.SendAll(0L);
+            }
             wasNonEmpty = entries.Count > 0;
         }
     }

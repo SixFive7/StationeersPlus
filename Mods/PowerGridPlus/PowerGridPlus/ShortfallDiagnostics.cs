@@ -15,7 +15,7 @@ namespace PowerGridPlus
     ///       draws from an input net that retained no undelivered supply. Source-side shortage
     ///       (dead-input chains, unaimed solar islands). Honest darkness.</item>
     ///       <item><see cref="Throttled"/> (2): unmet, and some feed valve is deliberately closed:
-    ///       a supplier seg that is lockout-locked / shed / overloaded or has zero effective
+    ///       a supplier seg that is lockout-locked / deprioritized / overloaded or has zero effective
     ///       capacity (Setting=0 "firewall", rate-limited to zero), or a locked / overloaded
     ///       elastic on the net. Honest darkness (the player or a fault closed the valve).</item>
     ///       <item><see cref="Deadlock"/> (3): unmet any other way, notably: an open supplier had

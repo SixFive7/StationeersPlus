@@ -18,7 +18,7 @@ namespace PowerGridPlus
     ///        pending entry by cell and stores the reason on the wreckage instance via
     ///        <see cref="Attach"/> (a <see cref="ConditionalWeakTable{TKey,TValue}"/> sidecar, so GC
     ///        cleans up automatically when the wreckage is destroyed or unloaded).
-    ///     3. <see cref="Patches.BurnReasonPatches.Thing_GetPassiveTooltip_Postfix"/> appends the reason
+    ///     3. <see cref="Patches.BurnReasonPatches.Structure_GetPassiveTooltip_Postfix"/> appends the reason
     ///        to the wreckage's hover tooltip (<see cref="PassiveTooltip.Extended"/>).
     ///
     ///     Threading: the power tick runs on UniTask worker threads, so multiple worker threads can

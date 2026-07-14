@@ -23,7 +23,7 @@ needed, revisited. Pass-1 deviations that the locked decisions resolved are gone
 for the old file.
 
 Status summary: every POWERTODO phase is implemented. Build is green at v0.2.0. Dedicated-server
-verified on the Luna save (full baseline: no exceptions over 108+ ticks, zero false shed / overload /
+verified on the Luna save (full baseline: no exceptions over 108+ ticks, zero false deprioritization / overload /
 cycle faults across 168 segmenters, the expected vvf=108 producer-isolation set) plus a synthetic
 forced-overload scenario (transformer Setting throttled to 100 W via save edit -> per-device hit-max
 OVERLOAD fired, the subnet went dark cleanly with no partial power). Client-only visuals and
@@ -68,7 +68,7 @@ What changed:
   1 tick on a healthy server and self-extends only while the server is genuinely frame-starved; no fixed
   timer.
 - **C -- the allocator defers durable decisions on burn-pending networks.** `PowerAllocator` skips
-  committing new shed / overload lockouts for any contributor whose input or output network is pending, so
+  committing new deprioritization / overload lockouts for any contributor whose input or output network is pending, so
   a 60 s lockout is never committed against a merged topology that is about to split. The §5.7
   generator-overflow burn marks its network pending too (and skips if a burn is already in flight), so the
   same deferral covers it from the tick after it fires.
@@ -76,9 +76,9 @@ What changed:
 Verified on the dedicated server (Luna, save-edited mixed-tier junction: one heavy straight cable on
 network 429366 flipped to normal): the burn fired exactly once on the main thread, correctly picked the
 normal (lower-tier) cable, the split landed and resolved the mismatch (no re-burn, no cascade), the fault
-registry stayed `shed=0 overload=0 cycle=0` on the affected network through the burn (Option C), and no
+registry stayed `deprioritized=0 overload=0 cycle=0` on the affected network through the burn (Option C), and no
 exceptions fired. Baseline (clean Luna) was an exact match to the pass-2 baseline (segmenters=168,
-shed=0 overload=0 cycle=0 vvf=108), confirming no regression from the per-tick `OnNetworkChanged` /
+deprioritized=0 overload=0 cycle=0 currentMismatch=108), confirming no regression from the per-tick `OnNetworkChanged` /
 worker-sweep / allocator-gate machinery.
 
 Choices made, for review:
@@ -174,7 +174,7 @@ in-game alert so a broken modded device is impossible to miss. Implemented:
   named, not spam). Trivially switchable to literal every-tick if preferred.
 
 Host-only (the tick runs on the simulating peer; a dedicated server logs to its server console). Verified:
-built green; clean-Luna baseline unchanged (segmenters=168, shed=0 overload=0 cycle=0 vvf=108) with zero
+built green; clean-Luna baseline unchanged (segmenters=168, deprioritized=0 overload=0 cycle=0 currentMismatch=108) with zero
 spurious sanitizations and zero exceptions -- the finite-checks are transparent for normal values. The
 actual firing (a broken device gets clamped + named in-game) needs a deliberately-broken device and is
 queued in `Mods/PowerGridPlus/PLAYTEST.md`.
@@ -196,8 +196,10 @@ pointing at (`FaultHover.OverloadClause`):
 - `PowerTransmitter` / `PowerReceiver`: `This power link cannot carry the downstream demand!`
 - any other overload-capable device: `Downstream demand exceeds this device's limit!` (generic fallback)
 
-The hovered `Thing` is threaded into `FaultHover.TryGetLine` from both hover patches (body tooltip
-`FaultHoverPatches`, OnOff-button contextual name `TransformerHoverErrorPatches`). No new data crosses the
+The hovered `Thing` is threaded into the hover renderer from both hover patches (body tooltip
+`FaultHoverPatches`, button title box `FaultButtonTooltipPatches`); since the 2026-07-14 naming lock the
+per-device titles (`Battery overloaded fault` etc.) carry the per-device wording and
+`FaultHover.TryGetMergedBlock` is the single renderer (the clause set above is the historical wording). No new data crosses the
 wire: the clause is chosen locally from the instance the client is hovering, while the fault kind and
 countdown still come from the synced fault registries. §11.1 was updated to match, and the stale
 transformer-only quote in the `Enable Transformer Overload Protection` setting description (`Settings.cs`)
@@ -229,27 +231,27 @@ individually-too-weak-but-jointly-sufficient bank always re-arms together instea
 it the net is all-recovered or all-locked). Spec'd in POWER.md §8.4.1. Build green at v0.2.0; a two-battery jointly-sufficient recovery test (including
 the toggle-one-battery desync path) is queued in `Mods/PowerGridPlus/PLAYTEST.md`.
 
-### P6. PT/PR pair OVERLOAD vs SHED: now routed by the binding constraint (RESOLVED 2026-06-15, reworked)
+### P6. PT/PR pair OVERLOAD vs DEPRIORITIZED: now routed by the binding constraint (RESOLVED 2026-06-15, reworked)
 
 The pair's Setting-equivalent is the live `PT.GetGeneratedPower(wireless)` read (§6.3), which is already
 input-supply-limited. The deliverable cap therefore collapsed two different bottlenecks, the link's own
 rated transfer cap and the input network's `PotentialLoad`, into one number, so a pair held down by a
 starving input could trip OVERLOAD ("this link cannot carry the demand") where the root cause was upstream
-and SHED ("insufficient upstream supply") was the more useful diagnosis. A re-analysis against the current
+and DEPRIORITIZED ("insufficient upstream supply") was the more useful diagnosis. A re-analysis against the current
 code (adversarial agent + verification) confirmed the corner case was still live and that §8.4.2 (P6.1) did
 NOT close it: P6.1's `delivered * m` modelling and `inCableCap / m` bound act only on the input-draw and
-input-cable paths (they push long PowerTransmitterPlus links toward SHED), but they never touch the overload
+input-cable paths (they push long PowerTransmitterPlus links toward DEPRIORITIZED), but they never touch the overload
 trigger's use of `liveCap`, and are inert in exactly the regime the corner case describes (input affordable
 for `delivered * m`).
 
 Reviewed and REWORKED (developer chose to distinguish the two bottlenecks). The allocator now carries a
 `Seg.InputLimited` flag for a PT/PR pair, true when `liveCap >= InputNetwork.PotentialLoad - Eps` (the
 deliverable equals the input potential, so the SOURCE binds, not the link's rating). In the §8.4 hit-max
-pass, an input-limited pair routes its shortfall to SHED (`seg.Shed`, `BrownoutRegistry`) instead of
+pass, an input-limited pair routes its shortfall to DEPRIORITIZED (`seg.Deprioritized`, `DeprioritizedRegistry`) instead of
 OVERLOAD; a pair bound by its own rated cap still OVERLOADS. Both take the pair offline (no-partial-power);
 only the diagnosis / registry differ. No cross-mod rated-cap read was needed: PowerTransmitterPlus applies
 no output-side loss, so `liveCap == PotentialLoad` exactly when input-limited (under an unlimited cap every
-shortfall is a SHED, the link is never the rating bottleneck), and a long vanilla link whose distance loss
+shortfall is a DEPRIORITIZED, the link is never the rating bottleneck), and a long vanilla link whose distance loss
 pulls `liveCap` below `PotentialLoad` reads as link-limited (OVERLOAD), which is truthful since the loss is
 the link's own. Spec'd in POWER.md §8.4 / §8.4.2. Build green at v0.2.0; queued in `Mods/PowerGridPlus/PLAYTEST.md`.
 
@@ -260,7 +262,7 @@ PowerTransmitterPlus does not derate a microwave link's delivered power for dist
 TRANSMITTER's input-side draw to `delivered * m`, where `m = 1 + k * distance_km` (k default 5). The
 allocator modelled the PT/PR pair's input-network pull as `throughput + ~20 W` quiescent, blind to `m`
 (it read the quiescent `pt.UsedPower` field, not the inflated `pt.GetUsedPower(InputNetwork)` method). So a
-long link feeding a constrained source network was under-counted by ~m: the allocator shed nothing, vanilla
+long link feeding a constrained source network was under-counted by ~m: the allocator deprioritized nothing, vanilla
 Phase 3 then computed `_powerRatio < 1` on the input network and brown-outs every rigid device on it, the
 no-partial-power invariant defeated on the transmitter's input side. The input cable could also burn
 unprotected (the cable check used `throughput`, not `throughput * m`).
@@ -278,11 +280,11 @@ updated; durable `PowerReceiver` internals were curated to `Research/GameClasses
 ### P7. Dead-input deferral kept + no-upstream-supply cue (RESOLVED 2026-06-14)
 
 A contributor whose input network has no supply at all (no generators, no storage, no inflow) idles instead
-of cycling 60-second sheds forever. Reviewed and KEPT: it avoids a permanent orange strobe on unpowered
-branches and gives instant recovery when the input is powered (no lockout to wait out), and SHED semantically
+of cycling 60-second deprioritization lockouts forever. Reviewed and KEPT: it avoids a permanent orange strobe on unpowered
+branches and gives instant recovery when the input is powered (no lockout to wait out), and DEPRIORITIZED semantically
 means "lost a priority contest for scarce supply," which a zero-supply input is not.
 
-Added per the review: a steady, neutral-grey `(No upstream supply)` hover cue on dead-input contributors that
+Added per the review: a steady, neutral-grey `No upstream supply` info block (over `The input network carries no power`) on dead-input contributors that
 are trying to pass power downstream, so the player gets a signal without the strobe or the recovery delay. It
 is an INFO cue, not a fault: lowest hover precedence (a real fault on the same device wins), no flash, no 60 s
 timer. Recomputed every tick from the converged allocator state (`DeadInputRegistry`), and mirrored to clients
@@ -292,7 +294,7 @@ and do not receive it. Spec'd in POWER.md §8.3.1. Build green at v0.2.0; queued
 
 ### P8. Parallel-supplier demand split: priority-tiered, proportional within a tier (RESOLVED 2026-06-14)
 
-§8 specified the shed victim order and the §8.4 trigger but not how a met demand divides across parallel
+§8 specified the deprioritization victim order and the §8.4 trigger but not how a met demand divides across parallel
 suppliers (transformers / APCs / PT pairs) feeding one output network. Pass 1 implemented a flat greedy fill
 by (priority DESC, RefId ASC), each supplier taking min(EffCap, remaining), so equal-priority suppliers did
 NOT share (the lowest-RefId one carried the load to its cap first).
@@ -321,11 +323,11 @@ from `ApcCellDischargeCache`. `SoftSupplyShareCache` stays bundled (the `GetGene
 described cell behaviour, so it needed no change. Spec'd in POWER.md §7.3 / the LogicType table. Build green
 at v0.2.0; queued in `Mods/PowerGridPlus/PLAYTEST.md`.
 
-### P10. VVF LogicType exposure: widened to all producers (except PowerConnector) + inheritance hardened (RESOLVED 2026-06-14)
+### P10. CurrentMismatchFault LogicType exposure: widened to all producers (except PowerConnector) + inheritance hardened (RESOLVED 2026-06-14)
 
-Pass 1 exposed `VariableVoltageFault` only on the flash-capable producers (PowerGeneratorPipe / GasFuelGenerator,
+Pass 1 exposed `CurrentMismatchFault` only on the flash-capable producers (PowerGeneratorPipe / GasFuelGenerator,
 SolidFuelGenerator, StirlingEngine), per §8.7's narrow rationale, narrower than §19's table (which listed the
-wider Solar / Wind / RTG / Coal / Gas / Stirling set) and narrower than the VVF DETECTION set. It also had a
+wider Solar / Wind / RTG / Coal / Gas / Stirling set) and narrower than the current-mismatch DETECTION set. It also had a
 silent-break risk: the patch sat on PowerGeneratorPipe and covered GasFuelGenerator only by inheritance.
 
 Reviewed and reworked (options 2 + 3 per the developer). Exposure WIDENED to every `ProducerClassifier.IsProducer`
@@ -335,7 +337,7 @@ solid-fuel / stirling. Excluded are the two producers that declare no logic surf
 with no normal data port). A decompile pass during review confirmed which producers override `CanLogicRead`
 (curated to `Research/GameSystems/PowerProducerLogicReadability.md`): wind and the small turbine expose
 `PowerGeneration`, solar its tracking logic; RTG and PowerConnector declare none. (An earlier draft of this
-rework listed RTG as exposed; corrected here, RTG can ENTER VVF but is hover-only since it cannot be logic-read.)
+rework listed RTG as exposed; corrected here, RTG can ENTER CURRENT_MISMATCH_FAULT but is hover-only since it cannot be logic-read.)
 And
 HARDENED: each producer's actual runtime `CanLogicRead` / `GetLogicValue` is resolved via `AccessTools`, so a
 future game version that gives e.g. GasFuelGenerator its own override is followed instead of silently dropped;
@@ -351,12 +353,12 @@ under D6, the unknown-producer fallback would BURN a cable next to them, whereas
 fault+zero.
 
 Reviewed and KEPT: producer-isolation applies uniformly, so the classic early-game "portable generator on a
-power connector wired straight to machines" setup trips VARIABLE_VOLTAGE_FAULT until a transformer is added,
+power connector wired straight to machines" setup trips CURRENT_MISMATCH_FAULT until a transformer is added,
 consistent with the mod's central mechanic (the alternative, exempting PowerConnector, would punch a hole in
 the voltage-tier model by letting an unregulated producer reach consumers directly). The fault only fires when
 something is actually docked and generating; an empty connector does nothing. Documented per the review: §8.5's
 producer list reconciled to include both (it still correctly excludes the DIFFERENT vestigial `PowerConnection`
-class), the README VVF note now names the portable generator and small turbine, and a new producer-isolation
+class), the README current-mismatch note now names the portable generator and small turbine, and a new producer-isolation
 Stationpedia footer (auto-attached to every producer prefab discovered via `ProducerClassifier.IsProducer`)
 explains the rule and the portable-generator-needs-a-transformer point. Build green at v0.2.0; queued in
 `Mods/PowerGridPlus/PLAYTEST.md`.
@@ -368,7 +370,7 @@ the original note claimed buttonless producers "report OnOff true in practice." 
 adversarial agents (two opposing advocates + an independent judge) overturned that premise: `Thing.OnOff`
 is false whenever the prefab carries no `InteractableType.OnOff` interactable (`HasOnOffState`, set from
 the `Interactables` list in `Thing.CacheStates`), so every buttonless producer reports `OnOff == false`
-permanently and was swept every tick, freezing its VVF countdown at ~60 s.
+permanently and was swept every tick, freezing its current-mismatch countdown at ~60 s.
 
 A first rework gated the sweep on `HasOnOffState && !OnOff`. A re-review then found a deeper hole: the
 producer-isolation detector decided "is this a producer" by CLASS (`ProducerClassifier.IsProducer`), not
@@ -388,17 +390,17 @@ connector's enforcement-zeroed `GetGeneratedPower`, which would oscillate); a bu
 rule, like a `Transformer`. This fixes the empty/off-connector false fault and makes per-device OFF-as-reset
 work for the buttoned producers.
 
-2. **Network-level commit (mirrors the elastic-overload retry, §8.4.1).** VVF stays per-producer in the
+2. **Network-level commit (mirrors the elastic-overload retry, §8.4.1).** CURRENT_MISMATCH_FAULT stays per-producer in the
 registry but is committed per network with RETRY before RESET and a shared synced expiry. A net is a candidate
 when an active producer NEWLY violates this tick, or a toggle requested a retry (`OffAsResetSweep` flags the net
-via `VariableVoltageFaultDetector.RequestRetry` when it clears a producer's lock). Recover (no longer violating)
+via `CurrentMismatchFaultDetector.RequestRetry` when it clears a producer's lock). Recover (no longer violating)
 clears the whole producer cohort; reset (still violating) stamps every active producer to one shared fresh
 expiry. A stable all-locked net is not a candidate, so its synced timer counts down (the frozen-countdown fix).
 This gives the buttonless producers a manual retry they otherwise lack: toggling any buttoned producer on the
 net clears the buttonless ones too, which then resolve (if the wiring is now fixed) or re-fault on a fresh
 synced timer. Like overload there is no free auto-recovery: a fix with no interaction clears at the 60 s expiry.
 
-Files: `ProducerClassifier` (`IsActiveProducer` / `ConnectorIsDelivering`), `VariableVoltageFaultDetector` (the
+Files: `ProducerClassifier` (`IsActiveProducer` / `ConnectorIsDelivering`), `CurrentMismatchFaultDetector` (the
 commit + `RequestRetry`), `OffAsResetSweep` (connector delivery-gate + flag-the-net on clear). Spec'd in POWER.md
 §8.5 + §10.3. Game internals curated to `Research/GameSystems/PowerProducerOnOffState.md` (per-producer OnOff,
 the PowerConnector pass-through) and `Research/GameClasses/Device.md` (`Has*State` from the Interactables list,
@@ -424,9 +426,10 @@ Reviewed and reworked (developer chose keep-and-surface, not migrate). Three pie
 2. Every newly built transformer defaults `Setting = OutputMaximum` (already implemented, `TransformerSettingInitPatch`
 on `Thing.OnRegistered`, before `DeserializeSave`, so loaded transformers keep their saved value).
 3. Any transformer with `Setting != OutputMaximum` (generalised from the original `Setting = 0` case) shows a
-neutral info hover line on BOTH the case and the on/off button: `Throttled to {set} W of {max} W by a custom
-IC10 "Setting" value. The dial sets priority.` (`TransformerThrottleHover`, stacked into `FaultHoverPatches` and
-`TransformerHoverErrorPatches`, muted amber, no flash / no countdown, stacks below any fault line). The saved
+neutral info block on BOTH the case and the on/off button title box: an amber `Throttled` title over
+`Limited to {set} of {max} by the IC10 Setting value` and `The dial sets priority instead of power`
+(`TransformerThrottleHover` feeding the merged block, no flash / no countdown; since the 2026-07-14
+naming lock the info block is suppressed while any fault is active). The saved
 Setting is still honoured (NOT migrated, so a deliberate `Setting = 0` disable persists); the warning just makes
 the throttle discoverable and the IC10/rebuild fix obvious. Spec'd in POWER.md §5.3. Build green at v0.2.0;
 queued in `Mods/PowerGridPlus/PLAYTEST.md`.
@@ -482,20 +485,20 @@ byte replaces all four per-transition diff messages outright; transitions are im
 deltas. One sync model, one source of truth, no diff-vs-snapshot divergence risk.
 
 Reviewed and kept; the only action was reconciling §13 (it still described the deleted diff path, the
-`_clientShedding` dicts, "four registries", the renamed `ProducerFaultRegistry`, and claimed the empty
+`_clientShedding` dicts, "four registries", a stale registry name, and claimed the empty
 packet was suppressed entirely and the legacy diff path remained). Rewrote §13, the §8 phase-output line,
-and the two `LogicType.Shedding` / `Overloaded` table rows (they said "replicated via ShedStateMessage /
+and the two `LogicType.DeprioritizedFault` / `DeviceOverloadedFault` table rows (they said "replicated via ShedStateMessage /
 OverloadStateMessage").
 
-Folded-in check (per the developer's request, confirming the just-extended VVF is synced): the snapshot
-now carries FIVE kinds, shed (0), overload (1), cycle (2), variable-voltage (3), dead-input (4). The VVF
-network commit (§8.5) rides `KindVariableVoltage` with violator names; because the commit stamps a cohort
+Folded-in check (per the developer's request, confirming the just-extended current-mismatch fault is synced): the snapshot
+now carries FIVE kinds, deprioritized (0), device-overload (1), cycle (2), current-mismatch (3), dead-input (4). The current-mismatch
+network commit (§8.5) rides `KindCurrentMismatch` with violator names; because the commit stamps a cohort
 to ONE shared expiry, every member carries the same remaining-tick count, so clients render the cohort's
 countdowns ticking down together (no per-client desync) with no new sync mechanism. The dead-input cue
 (P7) rides `KindDeadInput` as a 2-tick keep-alive TTL on the per-tick heartbeat; it is intentionally NOT
 in the mid-cooldown join handshake (no countdown to resume; the first heartbeat refreshes it within a
 tick). The join handshake covers the four countdown registries only. No mod-code change was needed, the
-VVF rework was already fully and correctly folded into the unified sync.
+current-mismatch rework was already fully and correctly folded into the unified sync.
 
 ### P17. Producer isolation aligned to the strict-literal spec (RESOLVED 2026-07-12)
 
@@ -503,7 +506,7 @@ A silent code-spec divergence, found during the 2026-07-12 audit round and close
 "go full strict" decision. POWER.md §8.5 has always been strict-literal (a producer's network may
 contain ONLY producers and `Transformer` instances; everything else, batteries and the other segmenter
 classes included, is a violator; a Transformer's presence exempts nothing). The implementation lagged:
-`VariableVoltageFaultDetector.Run` exempted the whole net whenever ANY `Transformer` was present
+`CurrentMismatchFaultDetector.Run` exempted the whole net whenever ANY `Transformer` was present
 (`violating = hasActiveProducer && hasRigid && !hasTransformer`) and only counted DRAWING rigid
 consumers (`ProducerClassifier.IsRigidConsumer`, gated on `GetUsedPower > 0`) as violators, so
 solar + battery + transformer on one bus passed, and an idle consumer on a producer bus passed.
@@ -518,7 +521,7 @@ the §8.5 Recover text no longer claims adding a transformer recovers a net. Con
 worlds: buses that passed under the lag (generator + battery sharing a net with a transformer) fault
 at load until rewired; the Medium transformer's {heavy, heavy} tier map keeps
 generators -> Medium transformer -> battery bank legal. CHANGELOG + README carry the player-facing
-warning; the fault-on-load sweep is queued in PLAYTEST.md. The 108-producer Luna VVF baseline recorded
+warning; the fault-on-load sweep is queued in PLAYTEST.md. The 108-producer Luna current-mismatch baseline recorded
 in this file's status summary predates this change and will read higher on the next run.
 
 ## Verification gaps (implemented, not yet observed)
@@ -528,13 +531,13 @@ in this file's status summary predates this change and will read higher on the n
 A headless ScenarioRunner campaign (new `pgp-pt-*` scenarios against the clean Downloads `Luna.save`;
 full log `.work/2026-06-16-pgp-playtest/results.md`) closed most of the data/logic gaps. NOW VERIFIED
 headlessly: fault hover line CONTENT + exact hex colors + precedence (P4 per-device overload clauses,
-P7 dead-input cue, P13 throttle, shed/cycle/vvf strings); P9 APC cell-only DischargeSpeed; P10 VVF
+P7 dead-input cue, P13 throttle, deprioritized/cycle/current-mismatch strings); P9 APC cell-only DischargeSpeed; P10 current-mismatch
 logic exposure (solar + solid generator) and non-exposure on transformers/connector; P12 OnOff table +
 active-source gate + OFF-as-reset (driven via `OffAsResetSweep.Run` after OnOff=false); P11 isolation
 fires on 108 of 1024 solar with 916 regulated-and-not-faulted; P3 `DeviceOutputSanitizer` NaN/Inf clamp;
 P6.1 `PowerTransmitterPlusInterop.SourceDrawMultiplier` cross-mod read (m up to 2.545); flash component
 attach + color constants; the custom LogicType reads. P5/P6/P8 decision LOGIC is code-verified and the
-OUTCOME is observable (P6 routes to Brownout-vs-Overload registry; P5 stamps a shared synced expiry; P8
+OUTCOME is observable (P6 routes to Deprioritized-vs-Overload registry; P5 stamps a shared synced expiry; P8
 `PowerActual` reflects per-transformer delivered watts), but the FIRING on built topology stays a client
 check.
 
@@ -542,7 +545,7 @@ check.
 reported `attachedCount=0`). Root cause was NOT timing/cell drift as first suspected: `BurnReasonPatches`
 was missing its class-level `[HarmonyPatch]`, so `PatchAll` silently skipped all three of its patches
 (the `CableRuptured.OnRegistered` consume, the `Structure.GetPassiveTooltip` "Burned:" line, the Tooltip
-re-apply) -- the same trap that once hid `TransformerHoverErrorPatches`. Added the attribute; re-verified
+re-apply) -- the same trap that once hid `FaultButtonTooltipPatches`. Added the attribute; re-verified
 on the load-time tier burn: the wreckage registers at the burned cell, `consumeHit=True`,
 `attachedCount=1`, `GetAttached` returns "Wrong voltage...". This fixes both the live and load-time burn
 paths. The on-screen wreckage hover + the BurnReasonSideCar round-trip remain client checks but are now
@@ -557,7 +560,7 @@ eyes-on pulse confirm remains a client check.
 ### Irreducible client residue (in `Mods/PowerGridPlus/PLAYTEST.md`, grouped to minimize reloads)
 
 - Visible flash pulse + countdown smoothness/locale (Update-driven; headless has no LateUpdate).
-- The FIRING of P5 two-battery synced recovery, P6 PT shed-vs-overload, P6.1 source-side no-dim, P8
+- The FIRING of P5 two-battery synced recovery, P6 PT deprioritized-vs-overload, P6.1 source-side no-dim, P8
   proportional split, and cycle-fault on built anti-parallel transformers.
 - Client-side mirror, join handshake mid-fault, OFF-as-reset from a client, and all 2-peer sync
   (the in-process serializer/state-machine paths are verified; only the live transport is not).

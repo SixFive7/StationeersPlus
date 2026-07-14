@@ -261,7 +261,7 @@ namespace PowerGridPlus.Core
                 {
                     var row = nr.Rows[i];
                     if (row.IsSegmenter || row.Generated <= 0f) continue;
-                    if (!VariableVoltageFaultRegistry.IsLockedOut(row.RefId, tick)) continue;
+                    if (!CurrentMismatchFaultRegistry.IsLockedOut(row.RefId, tick)) continue;
                     nr.GenSupply -= row.Generated;
                     if (nr.GenSupply < 0f) nr.GenSupply = 0f;
                     nr.PotentialSum -= row.Generated;

@@ -27,7 +27,7 @@ namespace PowerGridPlus
     ///       the segment in the same tick.</item>
     ///     </list>
     ///
-    ///     <para>Inactive contributors (shed / overloaded / cycle-faulted this tick) get (0, 0). The APC
+    ///     <para>Inactive contributors (deprioritized / overloaded / cycle-faulted this tick) get (0, 0). The APC
     ///     entry exists for surface uniformity; the APC billing patches read
     ///     <see cref="ApcPassthroughCache"/> / <see cref="SoftSupplyShareCache"/> instead.</para>
     ///

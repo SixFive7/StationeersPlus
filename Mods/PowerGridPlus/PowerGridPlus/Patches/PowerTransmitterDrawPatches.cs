@@ -17,7 +17,7 @@ namespace PowerGridPlus.Patches
     ///     leaves the input network short by the one-tick demand change -- the same flicker the APC had
     ///     on net 503288. This prefix reports the fresh pull the allocator cached in
     ///     <see cref="TransformerSupplyCache"/> (keyed by the transmitter's ReferenceId, which is the
-    ///     PT-pair seg's RefId). An inactive pair (shed / overloaded / cycle-faulted) caches a pull of 0,
+    ///     PT-pair seg's RefId). An inactive pair (deprioritized / overloaded / cycle-faulted) caches a pull of 0,
     ///     so it draws nothing.</para>
     ///
     ///     <para>Only the transmitter bills the pair's input cable draw; a pure receiver's
@@ -58,10 +58,10 @@ namespace PowerGridPlus.Patches
         ///     distance overhead (delivered * m). Left ungoverned the receiver re-emits that inflated figure, so
         ///     the pair delivers more than it was granted -- phantom power on the receiver net, and a
         ///     <c>_powerProvided</c> debt the source can never pay down (it ran away on every long link, seeded by
-        ///     ungated delivery during a startup/shed transient). The allocator's exact output-side delivery is
+        ///     ungated delivery during a startup/deprioritization transient). The allocator's exact output-side delivery is
         ///     <c>seg.Throughput</c>, cached in <see cref="TransformerSupplyCache"/> by the transmitter's
         ///     ReferenceId. Clamp the advertised delivery to it so delivery follows the grant and the debt cannot
-        ///     be seeded; a shed / inactive pair caches a throughput of 0 and so delivers 0. Last-priority postfix:
+        ///     be seeded; a deprioritized / inactive pair caches a throughput of 0 and so delivers 0. Last-priority postfix:
         ///     the final word over the PowerTransmitterPlus prefix, consistent with the cycle-fault zeroing postfix.
         /// </summary>
         [HarmonyPostfix, HarmonyPatch(nameof(PowerTransmitter.GetGeneratedPower)), HarmonyPriority(Priority.Last)]

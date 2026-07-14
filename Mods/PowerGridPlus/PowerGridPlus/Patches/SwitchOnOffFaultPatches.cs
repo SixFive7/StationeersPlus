@@ -12,7 +12,7 @@ namespace PowerGridPlus.Patches
     // flash (the FlashAttachPatches set):
     //
     //   1. While the parent device is in a fault lockout, the vanilla body is skipped (return
-    //      false) so BrownoutFlashBehaviour's emissive material swap is not overwritten on the next
+    //      false) so FaultFlashBehaviour's emissive material swap is not overwritten on the next
     //      on/off/error state transition (decompile L138462-138497: RefreshColorState does a full
     //      material swap).
     //
@@ -22,7 +22,7 @@ namespace PowerGridPlus.Patches
     //      still holds, the lockout re-fires instantly. Returning true lets vanilla apply the
     //      off-state material so the button stops flashing.
     [HarmonyPatch(typeof(VanillaSwitchOnOff))]
-    public static class SwitchOnOffShedPatches
+    public static class SwitchOnOffFaultPatches
     {
         [HarmonyPrefix, HarmonyPatch("RefreshColorState")]
         public static bool RefreshColorState_Prefix(VanillaSwitchOnOff __instance)
@@ -40,10 +40,11 @@ namespace PowerGridPlus.Patches
             {
                 // OFF-as-reset: clear every lockout on this device (both host dicts and client
                 // mirrors; the per-tick snapshot sync propagates the cleared state to other peers).
-                BrownoutRegistry.ClearLockout(faultRefId);
+                DeprioritizedRegistry.ClearLockout(faultRefId);
                 OverloadRegistry.ClearLockout(faultRefId);
+                CableOverloadRegistry.ClearLockout(faultRefId);
                 CycleFaultRegistry.ClearLockout(faultRefId);
-                VariableVoltageFaultRegistry.ClearLockout(faultRefId);
+                CurrentMismatchFaultRegistry.ClearLockout(faultRefId);
                 return true;   // vanilla applies the off-state material
             }
 

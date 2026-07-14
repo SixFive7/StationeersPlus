@@ -100,9 +100,9 @@ namespace PowerGridPlus.Patches
             int p = PriorityStore.GetPriority(transformer.ReferenceId);
             AppendRawStateMessage(dai, $"Priority <color=green>{p}</color>");
             AppendRawStateMessage(dai, $"Throughput <color=green>{(float)transformer.Setting:0} W</color> of {transformer.OutputMaximum:0} W (IC10 Setting)");
-            if (BrownoutRegistry.IsShedding(transformer.ReferenceId, ElectricityTickCounter.CurrentTick))
+            if (DeprioritizedRegistry.IsDeprioritized(transformer.ReferenceId, ElectricityTickCounter.CurrentTick))
             {
-                AppendRawStateMessage(dai, "<color=#ffa500>Shedding: insufficient upstream supply this tick</color>");
+                AppendRawStateMessage(dai, "<color=#ffa500>Deprioritized fault: insufficient upstream supply</color>");
             }
             AppendRawStateMessage(dai, "Hold <color=yellow>Alt</color> for fine adjustment");
         }

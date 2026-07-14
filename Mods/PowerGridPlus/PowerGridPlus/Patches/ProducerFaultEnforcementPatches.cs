@@ -8,7 +8,7 @@ using HarmonyLib;
 namespace PowerGridPlus.Patches
 {
     /// <summary>
-    ///     Zeroes a producer's generated power while it is in VARIABLE_VOLTAGE_FAULT lockout, so the
+    ///     Zeroes a producer's generated power while it is in CURRENT_MISMATCH_FAULT lockout, so the
     ///     faulted producer visibly stops generating (POWER.md §8.5). Enforcement lives in
     ///     per-class GetGeneratedPower postfixes because the method is the single choke point every
     ///     reader shares: the atomic tick's boundary read (Core/GridSnapshot) and any main-thread
@@ -48,7 +48,7 @@ namespace PowerGridPlus.Patches
             // past the early-out below). Covers all eight producer classes.
             __result = DeviceOutputSanitizer.Sanitize(__result, __instance, generated: true);
             if (__result <= 0f) return;
-            if (VariableVoltageFaultRegistry.IsVariableVoltageFaulted(
+            if (CurrentMismatchFaultRegistry.IsCurrentMismatchFaulted(
                     __instance.ReferenceId, ElectricityTickCounter.CurrentTick))
             {
                 __result = 0f;

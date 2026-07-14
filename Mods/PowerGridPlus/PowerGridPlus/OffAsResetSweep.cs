@@ -12,7 +12,7 @@ namespace PowerGridPlus
     ///     means the device actually HAS an on/off control and it is currently off
     ///     (<c>HasOnOffState &amp;&amp; !OnOff</c>). A buttonless device reports <c>OnOff == false</c>
     ///     permanently (the absence of an on/off concept, not an OFF gesture), so it is NOT swept; this
-    ///     keeps a buttonless producer's VARIABLE_VOLTAGE_FAULT counting down on its own timer instead
+    ///     keeps a buttonless producer's CURRENT_MISMATCH_FAULT counting down on its own timer instead
     ///     of being cleared-and-re-noted every tick (which would freeze the hover countdown).
     ///
     ///     <para>The Power Connector is the one special case: it is a buttonless dock that forwards a
@@ -21,15 +21,15 @@ namespace PowerGridPlus
     ///     generator is off / out of fuel), via <see cref="ProducerClassifier.ConnectorIsDelivering"/>.</para>
     ///
     ///     <para>Network-level retry (POWER.md §8.5, mirrors the elastic-overload commit §8.4.1): when
-    ///     this sweep clears a producer that was in VARIABLE_VOLTAGE_FAULT (the toggle edge -- it was
+    ///     this sweep clears a producer that was in CURRENT_MISMATCH_FAULT (the toggle edge -- it was
     ///     locked, now switched off), it flags that producer's cable network via
-    ///     <see cref="VariableVoltageFaultDetector.RequestRetry"/>. The detector then re-evaluates the
+    ///     <see cref="CurrentMismatchFaultDetector.RequestRetry"/>. The detector then re-evaluates the
     ///     WHOLE producer cohort on that net this tick, so the buttonless producers on it (which have
     ///     no button of their own) clear too and either resolve (if the wiring is now fixed) or
     ///     re-fault on one shared synced timer. Toggling a buttoned producer off is therefore a
     ///     network-level retry for every producer sharing its network.</para>
     ///
-    ///     <para>The client-side SwitchOnOffShedPatches clear is visual-only (it runs in the rendering
+    ///     <para>The client-side SwitchOnOffFaultPatches clear is visual-only (it runs in the rendering
     ///     path, which a headless dedicated server never executes); this sweep is the authoritative
     ///     clear. When the player toggles back ON, the next allocator / detector pass re-decides; a
     ///     persisting condition re-fires the lockout instantly.</para>
@@ -46,10 +46,11 @@ namespace PowerGridPlus
         internal static void Run(int currentTick)
         {
             _scratch.Clear();
-            foreach (var id in BrownoutRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
+            foreach (var id in DeprioritizedRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
             foreach (var id in OverloadRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
+            foreach (var id in CableOverloadRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
             foreach (var id in CycleFaultRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
-            foreach (var id in VariableVoltageFaultRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
+            foreach (var id in CurrentMismatchFaultRegistry.CurrentlyLockedOut(currentTick)) _scratch.Add(id);
             if (_scratch.Count == 0) return;
 
             for (int i = 0; i < _scratch.Count; i++)
@@ -58,19 +59,20 @@ namespace PowerGridPlus
                 if (!(Thing.Find(refId) is Device device)) continue;
                 if (!ResetEligible(device)) continue;
 
-                // Clearing a VVF lock here is the toggle edge (the device was locked, now switched
+                // Clearing a CURRENT-MISMATCH lock here is the toggle edge (the device was locked, now switched
                 // off / not delivering); flag its network so the detector runs a cohort-wide retry.
-                bool wasVvfLocked = VariableVoltageFaultRegistry.IsLockedOut(refId, currentTick);
+                bool wasVvfLocked = CurrentMismatchFaultRegistry.IsLockedOut(refId, currentTick);
 
-                BrownoutRegistry.ClearLockout(refId);
+                DeprioritizedRegistry.ClearLockout(refId);
                 OverloadRegistry.ClearLockout(refId);
+                CableOverloadRegistry.ClearLockout(refId);
                 CycleFaultRegistry.ClearLockout(refId);
-                VariableVoltageFaultRegistry.ClearLockout(refId);
+                CurrentMismatchFaultRegistry.ClearLockout(refId);
 
                 if (wasVvfLocked)
                 {
                     var net = device.PowerCable?.CableNetwork;
-                    if (net != null) VariableVoltageFaultDetector.RequestRetry(net.ReferenceId);
+                    if (net != null) CurrentMismatchFaultDetector.RequestRetry(net.ReferenceId);
                 }
             }
         }

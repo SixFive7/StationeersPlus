@@ -5,7 +5,7 @@ using Assets.Scripts.Objects;
 namespace PowerGridPlus
 {
     // CYCLE_FAULT lockout state machine for segmenting devices (POWER.md §4.5).
-    // Parallel API to OverloadRegistry and BrownoutRegistry: same shape, same
+    // Parallel API to OverloadRegistry and DeprioritizedRegistry: same shape, same
     // lockout duration constant, separate dictionary so each protection mode is
     // independently observable and the hover error can name the specific cause.
     //
@@ -14,7 +14,7 @@ namespace PowerGridPlus
     // contributes 0 on both terminals for the lockout window, dissolving the
     // loop without burning a cable.
     //
-    // Client mirror model identical to BrownoutRegistry: per-tick full snapshots
+    // Client mirror model identical to DeprioritizedRegistry: per-tick full snapshots
     // carry remaining ticks; the client stores expiry against MonotonicClock.
     //
     // Persistence: not persisted. Cross-network state, follows the device.
@@ -128,7 +128,7 @@ namespace PowerGridPlus
         }
 
         // Registry hygiene (RegistryHygiene sweep): remove host entries whose lockout expired or
-        // whose device no longer exists. Same shape and safety notes as BrownoutRegistry.PruneStale.
+        // whose device no longer exists. Same shape and safety notes as DeprioritizedRegistry.PruneStale.
         internal static void PruneStale(int currentTick, out int expired, out int destroyed)
         {
             expired = 0;

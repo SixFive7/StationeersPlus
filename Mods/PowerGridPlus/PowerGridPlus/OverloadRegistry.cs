@@ -4,60 +4,86 @@ using Assets.Scripts.Objects;
 
 namespace PowerGridPlus
 {
-    // Overload (downstream-side protection) lockout state machine for segmenting
-    // devices and elastic suppliers. Parallel API to BrownoutRegistry: same shape,
-    // same lockout duration, separate dictionary so the protection modes are
-    // independently observable and the hover error can name the specific cause.
+    // Overload (downstream-side capacity protection) lockout state machine for
+    // segmenting devices and elastic suppliers. Parallel API to DeprioritizedRegistry:
+    // same shape, same lockout duration, separate dictionary so the protection
+    // modes are independently observable and the hover error can name the
+    // specific cause.
     //
-    // A device enters overload per POWER.md §8.4 (delivering at its Setting-like
-    // cap with unmet downstream rigid demand), the elastic analog (a storage
-    // device at its full effective discharge with rigid demand still unmet), or
-    // the §5.7 cable-overflow rule. Detection is per-tick atomic in ALLOCATE;
-    // lockout fires instantly (no tolerance counter).
+    // This registry carries the CAPACITY overload family only: the POWER.md 8.4
+    // hit-max rule (a Setting-limited supplier whose output network's rigid
+    // desire exceeds the suppliers' combined deliverable cap) and its elastic
+    // analog (a storage bank at full effective discharge with rigid demand still
+    // unmet). The 5.7 cable-overflow rule publishes into CableOverloadRegistry
+    // instead, so the two overload kinds stay independently observable.
+    // Detection is per-tick atomic in ALLOCATE; lockout fires instantly (no
+    // tolerance counter).
     //
-    // Client mirror model identical to BrownoutRegistry: per-tick full snapshots
-    // carry remaining ticks; the client stores expiry against MonotonicClock.
+    // Each entry additionally records the rigid draw that tripped the rule
+    // (ValueW) and the combined deliverable cap the rule computed (CapW) so the
+    // hover can show the numbers; the payload rides the per-tick snapshots and
+    // the join suffix (the CurrentMismatchFaultRegistry violator-names
+    // precedent).
+    //
+    // Client mirror model identical to DeprioritizedRegistry: per-tick full snapshots
+    // carry remaining ticks + payload; the client stores expiry against
+    // MonotonicClock.
     //
     // Persistence: not persisted. Cross-network state, follows the device.
     internal static class OverloadRegistry
     {
-        internal const int LockoutDurationTicks = BrownoutRegistry.LockoutDurationTicks;
+        internal const int LockoutDurationTicks = DeprioritizedRegistry.LockoutDurationTicks;
 
-        private static readonly ConcurrentDictionary<long, int> _lockoutUntilTick =
-            new ConcurrentDictionary<long, int>();
+        private struct HostEntry
+        {
+            public int UntilTick;
+            public float ValueW;
+            public float CapW;
+        }
 
-        private static readonly ConcurrentDictionary<long, long> _clientExpiryMs =
-            new ConcurrentDictionary<long, long>();
+        private struct ClientEntry
+        {
+            public long ExpiryMs;
+            public float ValueW;
+            public float CapW;
+        }
+
+        private static readonly ConcurrentDictionary<long, HostEntry> _lockoutUntilTick =
+            new ConcurrentDictionary<long, HostEntry>();
+
+        private static readonly ConcurrentDictionary<long, ClientEntry> _clientExpiry =
+            new ConcurrentDictionary<long, ClientEntry>();
 
         private static bool IsClientPeer =>
             Assets.Scripts.Networking.NetworkManager.IsActive
             && !Assets.Scripts.Networking.NetworkManager.IsServer;
 
-        internal static void ReplaceClientSnapshot(List<KeyValuePair<long, int>> remainingTicksByRef)
+        internal static void ReplaceClientSnapshot(List<(long refId, int remainingTicks, float valueW, float capW)> entries)
         {
-            _clientExpiryMs.Clear();
+            _clientExpiry.Clear();
             long now = MonotonicClock.NowMs;
-            for (int i = 0; i < remainingTicksByRef.Count; i++)
+            for (int i = 0; i < entries.Count; i++)
             {
-                var pair = remainingTicksByRef[i];
-                if (pair.Value <= 0) continue;
-                _clientExpiryMs[pair.Key] = now + pair.Value * 500L;
+                var (refId, remaining, valueW, capW) = entries[i];
+                if (remaining <= 0) continue;
+                _clientExpiry[refId] = new ClientEntry
+                {
+                    ExpiryMs = now + remaining * 500L,
+                    ValueW = valueW,
+                    CapW = capW,
+                };
             }
         }
 
-        internal static void SetClientOverloaded(long referenceId, bool overloaded)
-        {
-            if (overloaded) _clientExpiryMs[referenceId] = MonotonicClock.NowMs + LockoutDurationTicks * 500L;
-            else _clientExpiryMs.TryRemove(referenceId, out _);
-        }
-
-        internal static IEnumerable<KeyValuePair<long, int>> SnapshotRemaining(int currentTick)
+        // Host snapshot for the per-tick full sync and the join suffix:
+        // (refId, remainingTicks, valueW, capW).
+        internal static IEnumerable<(long refId, int remainingTicks, float valueW, float capW)> SnapshotRemaining(int currentTick)
         {
             foreach (var pair in _lockoutUntilTick)
             {
-                int remaining = pair.Value - currentTick;
+                int remaining = pair.Value.UntilTick - currentTick;
                 if (remaining > 0)
-                    yield return new KeyValuePair<long, int>(pair.Key, remaining);
+                    yield return (pair.Key, remaining, pair.Value.ValueW, pair.Value.CapW);
             }
         }
 
@@ -65,15 +91,15 @@ namespace PowerGridPlus
         {
             foreach (var pair in _lockoutUntilTick)
             {
-                if (pair.Value > currentTick)
+                if (pair.Value.UntilTick > currentTick)
                     yield return pair.Key;
             }
         }
 
         internal static bool IsLockedOut(long referenceId, int currentTick)
         {
-            if (!_lockoutUntilTick.TryGetValue(referenceId, out var until)) return false;
-            if (currentTick < until) return true;
+            if (!_lockoutUntilTick.TryGetValue(referenceId, out var entry)) return false;
+            if (currentTick < entry.UntilTick) return true;
             _lockoutUntilTick.TryRemove(referenceId, out _);
             return false;
         }
@@ -84,54 +110,73 @@ namespace PowerGridPlus
             return IsLockedOut(thing.ReferenceId, currentTick);
         }
 
-        internal static void NoteOverload(long referenceId, int currentTick)
+        internal static void NoteOverload(long referenceId, int currentTick, float valueW, float capW)
         {
-            _lockoutUntilTick[referenceId] = currentTick + LockoutDurationTicks;
+            _lockoutUntilTick[referenceId] = new HostEntry
+            {
+                UntilTick = currentTick + LockoutDurationTicks,
+                ValueW = valueW,
+                CapW = capW,
+            };
         }
 
         internal static bool IsOverloaded(long referenceId, int currentTick)
         {
             if (IsClientPeer)
-                return _clientExpiryMs.TryGetValue(referenceId, out var expiry) && expiry > MonotonicClock.NowMs;
+                return _clientExpiry.TryGetValue(referenceId, out var entry) && entry.ExpiryMs > MonotonicClock.NowMs;
             return IsLockedOut(referenceId, currentTick);
         }
 
-        internal static bool TryGetSecondsLeft(long referenceId, int currentTick, out float secondsLeft)
+        // Remaining seconds + the (value, cap) payload for the hover lines, peer-aware.
+        internal static bool TryGetFault(long referenceId, int currentTick,
+            out float secondsLeft, out float valueW, out float capW)
         {
             if (IsClientPeer)
             {
-                if (_clientExpiryMs.TryGetValue(referenceId, out var expiry))
+                if (_clientExpiry.TryGetValue(referenceId, out var entry))
                 {
-                    long left = expiry - MonotonicClock.NowMs;
-                    if (left > 0) { secondsLeft = left / 1000f; return true; }
+                    long left = entry.ExpiryMs - MonotonicClock.NowMs;
+                    if (left > 0)
+                    {
+                        secondsLeft = left / 1000f;
+                        valueW = entry.ValueW;
+                        capW = entry.CapW;
+                        return true;
+                    }
                 }
                 secondsLeft = 0f;
+                valueW = 0f;
+                capW = 0f;
                 return false;
             }
-            if (_lockoutUntilTick.TryGetValue(referenceId, out var until) && until > currentTick)
+            if (_lockoutUntilTick.TryGetValue(referenceId, out var host) && host.UntilTick > currentTick)
             {
-                secondsLeft = ElectricityTickCounter.SmoothSeconds(until - currentTick);
+                secondsLeft = ElectricityTickCounter.SmoothSeconds(host.UntilTick - currentTick);
+                valueW = host.ValueW;
+                capW = host.CapW;
                 return true;
             }
             secondsLeft = 0f;
+            valueW = 0f;
+            capW = 0f;
             return false;
         }
 
         internal static int LockoutCount => _lockoutUntilTick.Count;
 
         // Registry hygiene (RegistryHygiene sweep): remove host entries whose lockout expired or
-        // whose device no longer exists. Same shape and safety notes as BrownoutRegistry.PruneStale.
+        // whose device no longer exists. Same shape and safety notes as DeprioritizedRegistry.PruneStale.
         internal static void PruneStale(int currentTick, out int expired, out int destroyed)
         {
             expired = 0;
             destroyed = 0;
             foreach (var pair in _lockoutUntilTick)
             {
-                if (pair.Value <= currentTick)
+                if (pair.Value.UntilTick <= currentTick)
                 {
                     if (_lockoutUntilTick.TryRemove(pair.Key, out _)) expired++;
                 }
-                else if (Assets.Scripts.Objects.Thing.Find(pair.Key) is null)
+                else if (Thing.Find(pair.Key) is null)
                 {
                     if (_lockoutUntilTick.TryRemove(pair.Key, out _)) destroyed++;
                 }
@@ -141,13 +186,13 @@ namespace PowerGridPlus
         internal static void ClearAll()
         {
             _lockoutUntilTick.Clear();
-            _clientExpiryMs.Clear();
+            _clientExpiry.Clear();
         }
 
         internal static void ClearLockout(long referenceId)
         {
             _lockoutUntilTick.TryRemove(referenceId, out _);
-            _clientExpiryMs.TryRemove(referenceId, out _);
+            _clientExpiry.TryRemove(referenceId, out _);
         }
     }
 }

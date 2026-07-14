@@ -8,7 +8,7 @@ namespace PowerGridPlus
     ///     server-authoritative: in multiplayer the host's values apply for everyone.
     ///
     ///     Always on, with no toggle: per-prefab battery rate limits, transformer priority +
-    ///     shedding, transformer overload protection, rocket umbilical rate limits and the four
+    ///     deprioritization, transformer overload protection, rocket umbilical rate limits and the four
     ///     soft-power logic values, the allocator conservation check, mod-owned consumer Powered
     ///     (vanilla on/off coupling from the tick snapshot; the IC10 Power logic value serves net
     ///     liveness instead), the plain-consumer delivery shim, and logic passthrough for every
@@ -56,7 +56,7 @@ namespace PowerGridPlus
 
         // --- Server - Transformers ---
         // The transformer free-power exploit mitigation (fresh-pull billing), the Priority +
-        // Shedding system, and overload protection are always on (no toggles).
+        // Deprioritization system, and overload protection are always on (no toggles).
         internal static ConfigEntry<bool> EnableTransformerLogicAdditions;
         internal static ConfigEntry<bool> SmallTransformerPassthroughDefault;
         internal static ConfigEntry<bool> OtherTransformerPassthroughDefault;

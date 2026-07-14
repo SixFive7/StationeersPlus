@@ -4,7 +4,7 @@ using Objects.Rockets;
 
 namespace PowerGridPlus.Patches
 {
-    // Attaches a BrownoutFlashBehaviour to every device whose on/off button can flash a fault
+    // Attaches a FaultFlashBehaviour to every device whose on/off button can flash a fault
     // colour (POWER.md §11.4): the six button-bearing segmenting devices (Transformer, Battery,
     // AreaPowerControl, PowerTransmitter, PowerReceiver, RocketPowerUmbilicalMale) and the
     // button-bearing producers (PowerGeneratorPipe covers GasFuelGenerator, PowerGeneratorSlot
@@ -43,9 +43,9 @@ namespace PowerGridPlus.Patches
         {
             if (!WantsFlash(__instance)) return;
             if (__instance.gameObject == null) return;
-            var existing = __instance.GetComponent<BrownoutFlashBehaviour>();
+            var existing = __instance.GetComponent<FaultFlashBehaviour>();
             if (existing != null) return;
-            var behaviour = __instance.gameObject.AddComponent<BrownoutFlashBehaviour>();
+            var behaviour = __instance.gameObject.AddComponent<FaultFlashBehaviour>();
             behaviour.Init(__instance);
         }
     }

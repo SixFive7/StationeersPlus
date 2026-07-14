@@ -29,10 +29,11 @@ namespace PowerGridPlus.Core
             if (Interlocked.CompareExchange(ref _armed, 0, 1) != 1) return;
 
             // Fault lockouts are transient by design; they recompute from live topology.
-            BrownoutRegistry.ClearAll();
+            DeprioritizedRegistry.ClearAll();
             OverloadRegistry.ClearAll();
+            CableOverloadRegistry.ClearAll();
             CycleFaultRegistry.ClearAll();
-            VariableVoltageFaultRegistry.ClearAll();
+            CurrentMismatchFaultRegistry.ClearAll();
             DeadInputRegistry.ClearAll();
 
             // Burn/split machinery (the burn-reason registry itself is cleared IMMEDIATELY at load,

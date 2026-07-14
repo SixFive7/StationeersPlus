@@ -17,17 +17,17 @@ namespace PowerGridPlus
         internal const ushort PriorityValue = LogicTypeNumbers.Priority;
         internal static readonly LogicType Priority = (LogicType)PriorityValue;
 
-        internal const ushort SheddingValue = LogicTypeNumbers.Shedding;
-        internal static readonly LogicType Shedding = (LogicType)SheddingValue;
+        internal const ushort DeprioritizedFaultValue = LogicTypeNumbers.DeprioritizedFault;
+        internal static readonly LogicType DeprioritizedFault = (LogicType)DeprioritizedFaultValue;
 
-        internal const ushort OverloadedValue = LogicTypeNumbers.Overloaded;
-        internal static readonly LogicType Overloaded = (LogicType)OverloadedValue;
+        internal const ushort DeviceOverloadedFaultValue = LogicTypeNumbers.DeviceOverloadedFault;
+        internal static readonly LogicType DeviceOverloadedFault = (LogicType)DeviceOverloadedFaultValue;
 
         internal const ushort CycleFaultValue = LogicTypeNumbers.CycleFault;
         internal static readonly LogicType CycleFault = (LogicType)CycleFaultValue;
 
-        internal const ushort VariableVoltageFaultValue = LogicTypeNumbers.VariableVoltageFault;
-        internal static readonly LogicType VariableVoltageFault = (LogicType)VariableVoltageFaultValue;
+        internal const ushort CurrentMismatchFaultValue = LogicTypeNumbers.CurrentMismatchFault;
+        internal static readonly LogicType CurrentMismatchFault = (LogicType)CurrentMismatchFaultValue;
 
         internal const ushort MaxChargeSpeedValue = LogicTypeNumbers.MaxChargeSpeed;
         internal static readonly LogicType MaxChargeSpeed = (LogicType)MaxChargeSpeedValue;
@@ -40,6 +40,9 @@ namespace PowerGridPlus
 
         internal const ushort DischargeSpeedValue = LogicTypeNumbers.DischargeSpeed;
         internal static readonly LogicType DischargeSpeed = (LogicType)DischargeSpeedValue;
+
+        internal const ushort CableOverloadedFaultValue = LogicTypeNumbers.CableOverloadedFault;
+        internal static readonly LogicType CableOverloadedFault = (LogicType)CableOverloadedFaultValue;
 
         internal class CustomLogicType
         {
@@ -61,19 +64,19 @@ namespace PowerGridPlus
             {
                 Name = "Priority",
                 Value = PriorityValue,
-                Description = "Writable. Per-transformer dispatch priority (non-negative integer, default 100). When transformers compete for limited supply on the same input cable network, the highest-priority transformer gets first dibs; the leftover goes to the next priority. A transformer that cannot get its share of the input network sheds (turns off, flashes its on/off button orange, surfaces a hover error) for 60 seconds, then re-engages automatically. The in-world knob and the Labeller write Priority; IC10 Setting writes are redirected here too. Persists across save / load.",
+                Description = "Writable. Per-transformer dispatch priority (non-negative integer, default 100). When transformers compete for limited supply on the same input cable network, the highest-priority transformer gets first dibs; the leftover goes to the next priority. A transformer that cannot get its share of the input network is deprioritized (turns off, flashes its on/off button orange, surfaces a hover explanation) for 60 seconds, then re-engages automatically. The in-world knob and the Labeller write Priority; IC10 Setting writes are redirected here too. Persists across save / load.",
             },
             new CustomLogicType
             {
-                Name = "Shedding",
-                Value = SheddingValue,
-                Description = "Read-only. Returns 1 when the transformer is currently in shed lockout (upstream-side protection: input cable network cannot supply the transformer's share), 0 otherwise. Server-derived; the value clears automatically when the 60-second lockout window elapses. Read this from an IC10 chip or logic reader to drive downstream alerts (siren, LED) when a low-priority sub-network drops.",
+                Name = "DeprioritizedFault",
+                Value = DeprioritizedFaultValue,
+                Description = "Read-only. Returns 1 while the device is in deprioritized lockout (upstream-side protection: the input cable network cannot supply this device's share, so higher-priority siblings were served first), 0 otherwise. Server-derived; the value clears automatically when the 60-second lockout window elapses. Read this from an IC10 chip or logic reader to drive downstream alerts (siren, LED) when a low-priority sub-network drops.",
             },
             new CustomLogicType
             {
-                Name = "Overloaded",
-                Value = OverloadedValue,
-                Description = "Read-only. Returns 1 when the transformer is currently in overload lockout (downstream-side protection: output cable network demands more than the transformer can deliver), 0 otherwise. Server-derived; the value clears automatically when the 60-second lockout window elapses. Read this from an IC10 chip or logic reader to drive downstream alerts when a sub-network is dropped due to over-current.",
+                Name = "DeviceOverloadedFault",
+                Value = DeviceOverloadedFaultValue,
+                Description = "Read-only. Returns 1 while the device is in device-overload lockout (downstream-side protection: the output cable network demands more than this device can deliver), 0 otherwise. A lockout caused by the cable network's rating instead of the device's capacity reports via CableOverloadedFault, not here. Server-derived; the value clears automatically when the 60-second lockout window elapses. Read this from an IC10 chip or logic reader to drive downstream alerts when a sub-network is dropped due to over-current.",
             },
             new CustomLogicType
             {
@@ -83,9 +86,9 @@ namespace PowerGridPlus
             },
             new CustomLogicType
             {
-                Name = "VariableVoltageFault",
-                Value = VariableVoltageFaultValue,
-                Description = "Read-only. Returns 1 while this power producer is in variable-voltage-fault lockout: it is wired to a rigid consumer without a transformer in between. Power producers must connect to a transformer (or only to other producers). Auto-clears after 60 seconds. Producers without an on/off button (solar panels, wind turbines, RTGs) cannot be faulted this way; their cable is burned instead. Server-derived; replicated to clients.",
+                Name = "CurrentMismatchFault",
+                Value = CurrentMismatchFaultValue,
+                Description = "Read-only. Returns 1 while this power producer is in current-mismatch lockout: its generator DC is wired into the AC grid with no transformer in between. Power producers must connect to a transformer (or only to other producers). Auto-clears after 60 seconds. Producers without an on/off button (solar panels, wind turbines, RTGs) cannot be faulted this way; their cable is burned instead. Server-derived; replicated to clients.",
             },
             new CustomLogicType
             {
@@ -110,6 +113,12 @@ namespace PowerGridPlus
                 Name = "DischargeSpeed",
                 Value = DischargeSpeedValue,
                 Description = "Read-only. The ACTUAL discharge rate this tick in Watts, after Power Grid Plus allocates the output network's shortfall. Stays at 0 while generators or upstream transformers cover downstream demand; approaches MaxDischargeSpeed when this device alone must cover the shortfall. This is by design (the elastic soft-power system).",
+            },
+            new CustomLogicType
+            {
+                Name = "CableOverloadedFault",
+                Value = CableOverloadedFaultValue,
+                Description = "Read-only. Returns 1 while the device is locked out because its cable network cannot carry the demanded flow (the flow would exceed the weakest cable's rating, so the device goes offline instead of burning the cable), 0 otherwise. A lockout caused by the device's own capacity reports via DeviceOverloadedFault, not here. Server-derived; the value clears automatically when the 60-second lockout window elapses.",
             },
         };
 

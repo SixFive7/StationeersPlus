@@ -7,7 +7,7 @@ namespace PowerGridPlus
     ///     Steady "no upstream supply" cue for a contributor (transformer / APC / PT pair) whose INPUT
     ///     network has no effective supply at all (POWER.md §8.3 dead-input carveout). This is NOT a
     ///     fault lockout: there is no 60 s timer, no flash, no orange/red colour. A dead-input
-    ///     contributor idles (it is not shed), so it recovers the instant its input is powered. The
+    ///     contributor idles (it is not deprioritized), so it recovers the instant its input is powered. The
     ///     allocator rebuilds the server set every tick from the converged state; the cue is purely a
     ///     hover hint.
     ///

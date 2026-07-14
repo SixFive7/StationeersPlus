@@ -18,7 +18,7 @@ namespace PowerGridPlus.Patches
     //                     predicate; the PowerDeviceList lazy getter is never touched) plus the
     //                     single boundary read of every device's demand / output / control.
     //   2. PROTECT        tier enforcement, cycle detection, producer isolation, the OFF-as-reset
-    //                     sweep; all fed from the snapshot. Newly VVF-locked producers are zeroed
+    //                     sweep; all fed from the snapshot. Newly CURRENT-MISMATCH-locked producers are zeroed
     //                     IN the snapshot (no second observation pass).
     //   3. ALLOCATE       PowerAllocator.RunAtomic consumes the snapshot, converges, publishes the
     //                     presentation caches and the write-back plan.
@@ -73,7 +73,7 @@ namespace PowerGridPlus.Patches
                 var cycleFaulted = CycleGraphBuilder.FindCycleFaultedSegmenters(snap);
                 foreach (long refId in cycleFaulted)
                     CycleFaultRegistry.NoteCycleFault(refId, currentTick);
-                int newVvf = VariableVoltageFaultDetector.Run(currentTick, snap);
+                int newVvf = CurrentMismatchFaultDetector.Run(currentTick, snap);
                 if (newVvf > 0 || cycleFaulted.Count > 0)
                 {
                     // Newly locked producers stop supplying THIS tick: zero their table rows in

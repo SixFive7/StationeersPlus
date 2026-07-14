@@ -14,7 +14,7 @@ namespace PowerGridPlus
     ///     A net that fails the first term is DEAD_UNMET (demand the allocator could not fund:
     ///     generation-short root nets, the step-up and cable-limited partial-delivery carve-outs);
     ///     a net that fails the second is DEAD_NOSUPPLY (nothing energized feeds it: night-time
-    ///     solar islands, Served-by-vacuity idle nets, nets behind a shed / locked feed). The
+    ///     solar islands, Served-by-vacuity idle nets, nets behind a deprioritized / locked feed). The
     ///     supply term is the same expression the dead-input cue and the presentation health gate
     ///     already use. A DEAD net receives nothing at the settlement layer by construction (the
     ///     write-back plan, the published caches, and the audit grants are all dead-zeroed), so
@@ -25,9 +25,9 @@ namespace PowerGridPlus
     ///     demand is work-dependent (a satellite dish that drops to idle draw when its contact is
     ///     lost, a furnace that self-switched off) collapses its demand as soon as it goes dark,
     ///     reads Served next tick, re-powers, re-raises demand, and flaps at 2 Hz. 60 s matches
-    ///     the mod's shed / overload lockout cadence, so a genuinely undersized net strobes at the
+    ///     the mod's deprioritization / overload lockout cadence, so a genuinely undersized net strobes at the
     ///     same player-legible rhythm as every other fault. DEAD_NOSUPPLY deliberately does NOT
-    ///     hold: supply-side recovery (sunrise, a battery cohort re-arming, a shed lockout
+    ///     hold: supply-side recovery (sunrise, a battery cohort re-arming, a deprioritization lockout
     ///     expiring) must re-power the net the tick it returns.</para>
     ///
     ///     <para><b>Unclassified</b> (a net id absent from the map) is not dead. The verdict map is

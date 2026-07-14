@@ -7,7 +7,7 @@ namespace PowerGridPlus.Patches
 {
     /// <summary>
     ///     Zeroes a segmenting device's power contribution on BOTH terminals while it is in ANY power
-    ///     fault lockout -- CYCLE_FAULT (POWER.md §4.5), SHED, or OVERLOAD (§8.0.0.1: every segmenting
+    ///     fault lockout -- CYCLE_FAULT (POWER.md §4.5), DEPRIORITIZED, or OVERLOAD (§8.0.0.1: every segmenting
     ///     device class needs the lockout zero, not just Transformer). Postfixes
     ///     <c>GetGeneratedPower</c> and <c>GetUsedPower</c> on each of the seven concrete segmenting
     ///     classes; the base virtual is overridden per class so each override needs its own patch.
@@ -16,8 +16,8 @@ namespace PowerGridPlus.Patches
     ///
     ///     <para>This is uniform across all seven classes (POWERTODO 1.7 Q2): no class is exempt. The
     ///     RocketPowerUmbilicalFemale has no OnOff button but still zeroes its power when faulted; its
-    ///     fault is surfaced by hover text only. The shed / overload checks use the client-aware reads
-    ///     (IsShedding / IsOverloaded) so a client peer mirrors the host's zero on the same tick. This
+    ///     fault is surfaced by hover text only. The deprioritization / overload checks use the client-aware reads
+    ///     (IsDeprioritized / IsOverloaded) so a client peer mirrors the host's zero on the same tick. This
     ///     postfix also delivers the PT/PR pair lockout enforcement (POWER.md §6.4): the registries key
     ///     the pair on the PT's ReferenceId, so the PT zeroes here and the PR side goes quiet because
     ///     nothing feeds its wireless input.</para>
@@ -30,8 +30,9 @@ namespace PowerGridPlus.Patches
             if (result == 0f) return;
             int tick = ElectricityTickCounter.CurrentTick;
             if (CycleFaultRegistry.IsCycleFaulted(referenceId, tick)
-                || BrownoutRegistry.IsShedding(referenceId, tick)
-                || OverloadRegistry.IsOverloaded(referenceId, tick))
+                || DeprioritizedRegistry.IsDeprioritized(referenceId, tick)
+                || OverloadRegistry.IsOverloaded(referenceId, tick)
+                || CableOverloadRegistry.IsCableOverloaded(referenceId, tick))
                 result = 0f;
         }
 

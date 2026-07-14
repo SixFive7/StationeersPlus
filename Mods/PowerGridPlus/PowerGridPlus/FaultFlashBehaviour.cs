@@ -33,25 +33,26 @@ namespace PowerGridPlus
     // forces Unity to instantiate a per-renderer copy, which we cache so the
     // shared base material is not mutated.
     //
-    // Multiplayer: state is read from BrownoutRegistry, which is host-authoritative
-    // and replicated to clients via ShedStateMessage. The client's Update reads
-    // BrownoutRegistry.IsShedding which falls back to the client-replicated
+    // Multiplayer: state is read from DeprioritizedRegistry, which is host-authoritative
+    // and replicated to clients via FaultRegistrySnapshotMessage. The client's Update reads
+    // DeprioritizedRegistry.IsDeprioritized which falls back to the client-replicated
     // dictionary on non-server peers.
-    public class BrownoutFlashBehaviour : MonoBehaviour
+    public class FaultFlashBehaviour : MonoBehaviour
     {
         private const float FlashHz = 2f;
-        // Failure-colour split (POWER.md §11): SHED flashes orange (upstream undersupply),
-        // every other fault (OVERLOAD, CYCLE_FAULT, VARIABLE_VOLTAGE_FAULT) flashes red. The
-        // highest-precedence active fault picks the colour (CYCLE > VVF > OVERLOAD > SHED), and
-        // because all non-shed faults are red the resolver only needs a red-vs-orange decision.
-        internal static readonly Color OrangeFlashColor = new Color(1f, 165f / 255f, 0f);   // #ffa500 shed (matches the §0 decision and the hover orange)
-        internal static readonly Color RedFlashColor = new Color(1f, 0.15f, 0.15f);   // #ff2626 overload/cycle/vvf
+        // Failure-colour split (POWER.md §11): DEPRIORITIZED flashes orange (upstream undersupply),
+        // every other fault (CABLE_OVERLOADED, DEVICE_OVERLOADED, CYCLE_FAULT,
+        // CURRENT_MISMATCH_FAULT) flashes red. The highest-precedence active fault picks the
+        // colour (CYCLE > CURRENT-MISMATCH > CABLE-OVERLOADED > DEVICE-OVERLOADED > DEPRIORITIZED), and because
+        // all non-deprioritized faults are red the resolver only needs a red-vs-orange decision.
+        internal static readonly Color OrangeFlashColor = new Color(1f, 165f / 255f, 0f);   // #ffa500 deprioritized (matches the §0 decision and the hover orange)
+        internal static readonly Color RedFlashColor = new Color(1f, 0.15f, 0.15f);   // #ff2626 both overload kinds/cycle/current-mismatch
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_Color");
 
         // Set to true to dump renderer/material state into the log on every
-        // shed-state transition (entry and exit). Leave false in committed code;
-        // flip via reflection (`BrownoutFlashBehaviour.DiagnosticEnabled = true`)
+        // deprioritized-state transition (entry and exit). Leave false in committed code;
+        // flip via reflection (`FaultFlashBehaviour.DiagnosticEnabled = true`)
         // from a probe scenario when triaging a paint mismatch.
         internal static bool DiagnosticEnabled = false;
 
@@ -153,7 +154,7 @@ namespace PowerGridPlus
                 if (_renderers[i] == null) continue;
                 // Reading .material here intentionally instantiates the per-renderer copy
                 // (Unity's documented behavior). The cached baseline lets us restore the
-                // emission color on shed-exit; the instantiated material is harmless.
+                // emission color on deprioritization exit; the instantiated material is harmless.
                 var mat = _renderers[i].material;
                 if (mat == null) continue;
                 _originalEmissionColors[i] = mat.HasProperty(EmissionColorId)
@@ -168,17 +169,17 @@ namespace PowerGridPlus
             _diagnosticLogged = true;
             if (_renderers == null || _renderers.Length == 0)
             {
-                Plugin.Log?.LogWarning($"BrownoutFlashBehaviour on {_device?.GetType().Name} ref={_device?.ReferenceId} prefab={_device?.PrefabName}: no MeshRenderer discovered for on/off button. Flash will not be visible. Hierarchy may need explicit InteractableType.OnOff Interactable or a renderer with Button/Switch/OnOff in its name.");
+                Plugin.Log?.LogWarning($"FaultFlashBehaviour on {_device?.GetType().Name} ref={_device?.ReferenceId} prefab={_device?.PrefabName}: no MeshRenderer discovered for on/off button. Flash will not be visible. Hierarchy may need explicit InteractableType.OnOff Interactable or a renderer with Button/Switch/OnOff in its name.");
                 return;
             }
             var names = string.Join(", ", _renderers.Where(r => r != null).Select(r => r.gameObject.name));
-            Plugin.Log?.LogDebug($"BrownoutFlashBehaviour on {_device?.GetType().Name} ref={_device?.ReferenceId} prefab={_device?.PrefabName}: discovered {_renderers.Length} renderer(s) -> {names}");
+            Plugin.Log?.LogDebug($"FaultFlashBehaviour on {_device?.GetType().Name} ref={_device?.ReferenceId} prefab={_device?.PrefabName}: discovered {_renderers.Length} renderer(s) -> {names}");
         }
 
         // LateUpdate (not Update) so the flash paint runs AFTER LogicOnOffButton's
         // state-driven material change. Without this, the OnOff state machine
         // overwrites our per-frame MPB write and the LED stays at its state
-        // colour (green for On, red for Off) regardless of shed state.
+        // colour (green for On, red for Off) regardless of deprioritized state.
         private void LateUpdate()
         {
             UpdateBody();
@@ -189,12 +190,12 @@ namespace PowerGridPlus
             if (_device == null || _renderers == null || _renderers.Length == 0) return;
 
             int tick = ElectricityTickCounter.CurrentTick;
-            // Highest-precedence active fault picks the colour (CYCLE > VVF > OVERLOAD > SHED,
-            // POWER.md §11.5): every non-shed fault is red, shed is orange. The hover text
-            // distinguishes the precise cause for the player.
+            // Highest-precedence active fault picks the colour (CYCLE > CURRENT-MISMATCH > CABLE-OVERLOADED >
+            // DEVICE-OVERLOADED > DEPRIORITIZED, POWER.md §11.5): every non-deprioritized fault is red,
+            // deprioritized is orange. The hover text distinguishes the precise cause for the player.
             var fault = FaultHover.ActiveFault(_faultRefId, tick);
             bool flashing = fault != FaultHover.Kind.None;
-            Color faultColor = fault == FaultHover.Kind.Shed ? OrangeFlashColor : RedFlashColor;
+            Color faultColor = fault == FaultHover.Kind.Deprioritized ? OrangeFlashColor : RedFlashColor;
 
             if (DiagnosticEnabled && flashing && !_transitionLogged)
             {
@@ -216,15 +217,15 @@ namespace PowerGridPlus
                     // button's material reflects the CURRENT (OnOff, Powered,
                     // HasPowerState, Error) tuple, not the material we cached
                     // at Init time. Without this, a transformer that the
-                    // player turned OFF during the shed shows the cached ON-
-                    // state material after the shed clears -- visually
+                    // player turned OFF during the deprioritization shows the cached ON-
+                    // state material after the deprioritization clears -- visually
                     // inconsistent with OnOff=false.
                     ForceVanillaRefresh();
                 }
                 return;
             }
 
-            // Lazy-initialise the runtime orange material clones on first shed.
+            // Lazy-initialise the runtime orange material clones on the first deprioritization.
             EnsureFlashMaterials();
 
             // Sinusoidal pulse at 2 Hz between black and FlashColor. Multiplied by 2 so the
@@ -240,9 +241,9 @@ namespace PowerGridPlus
             // materials carry a baked `_EmissionMap` texture that drives the
             // green glow regardless of `_EmissionColor`. Instead, swap each
             // renderer's material to a runtime orange-emissive instance for the
-            // duration of the shed. The companion patch in SwitchOnOffShedPatches
+            // duration of the deprioritization. The companion patch in SwitchOnOffFaultPatches
             // suppresses vanilla RefreshColorState while the parent transformer
-            // is shedding, so this swap is not overwritten on state transition.
+            // is deprioritized, so this swap is not overwritten on state transition.
             for (int i = 0; i < _renderers.Length; i++)
             {
                 var r = _renderers[i];
@@ -261,7 +262,7 @@ namespace PowerGridPlus
             _wasFlashing = true;
         }
 
-        // Cached original sharedMaterials so we can restore them on shed exit.
+        // Cached original sharedMaterials so we can restore them on deprioritization exit.
         private Material[] _originalSharedMats;
         // Runtime orange-emissive Material instances created at Init; one per renderer.
         private Material[] _orangeFlashMats;
@@ -338,7 +339,7 @@ namespace PowerGridPlus
                 var s = switches[i];
                 if (s == null) continue;
                 try { RefreshColorStateMethod.Invoke(s, RefreshColorStateArgs); }
-                catch (System.Exception e) { Plugin.Log?.LogWarning($"[BFB] RefreshColorState invoke failed for ref={_device.ReferenceId}: {e.Message}"); }
+                catch (System.Exception e) { Plugin.Log?.LogWarning($"[FaultFlash] RefreshColorState invoke failed for ref={_device.ReferenceId}: {e.Message}"); }
             }
         }
 
@@ -355,17 +356,17 @@ namespace PowerGridPlus
                 var dev = _device as Assets.Scripts.Objects.Pipes.Device;
                 bool onOff = dev != null && dev.OnOff;
                 int error = dev != null ? dev.Error : -1;
-                Plugin.Log?.LogInfo($"[BFB-DIAG] {transition} ref={refId} OnOff={onOff} Error={error} renderers={_renderers.Length}");
+                Plugin.Log?.LogInfo($"[FaultFlash-DIAG] {transition} ref={refId} OnOff={onOff} Error={error} renderers={_renderers.Length}");
                 // Also walk the Switch hierarchy and dump every MonoBehaviour
                 // so we can identify what's competing for the LED renderer.
-                if (transition == "ENTER_SHED" && _renderers.Length > 0)
+                if (transition == "ENTER_FLASH" && _renderers.Length > 0)
                 {
                     DumpHierarchyComponents();
                 }
                 for (int i = 0; i < _renderers.Length; i++)
                 {
                     var r = _renderers[i];
-                    if (r == null) { Plugin.Log?.LogInfo($"[BFB-DIAG]   [{i}] <null>"); continue; }
+                    if (r == null) { Plugin.Log?.LogInfo($"[FaultFlash-DIAG]   [{i}] <null>"); continue; }
                     var go = r.gameObject;
                     string path = BuildHierarchyPath(go != null ? go.transform : null);
                     var mat = r.sharedMaterial;
@@ -373,13 +374,13 @@ namespace PowerGridPlus
                     bool hasEmKw = mat != null && mat.IsKeywordEnabled("_EMISSION");
                     Color emColor = (mat != null && mat.HasProperty(EmissionColorId)) ? mat.GetColor(EmissionColorId) : Color.magenta;
                     Color baseColor = (mat != null && mat.HasProperty(BaseColorId)) ? mat.GetColor(BaseColorId) : Color.magenta;
-                    Plugin.Log?.LogInfo($"[BFB-DIAG]   [{i}] name={go?.name} path={path} mat={matName} _EMISSION={hasEmKw} _EmissionColor=({emColor.r:F2},{emColor.g:F2},{emColor.b:F2}) _Color=({baseColor.r:F2},{baseColor.g:F2},{baseColor.b:F2})");
+                    Plugin.Log?.LogInfo($"[FaultFlash-DIAG]   [{i}] name={go?.name} path={path} mat={matName} _EMISSION={hasEmKw} _EmissionColor=({emColor.r:F2},{emColor.g:F2},{emColor.b:F2}) _Color=({baseColor.r:F2},{baseColor.g:F2},{baseColor.b:F2})");
                     DumpShaderProperties(mat, i);
                 }
             }
             catch (System.Exception e)
             {
-                Plugin.Log?.LogWarning($"[BFB-DIAG] dump threw: {e.Message}");
+                Plugin.Log?.LogWarning($"[FaultFlash-DIAG] dump threw: {e.Message}");
             }
         }
 
@@ -417,12 +418,12 @@ namespace PowerGridPlus
                 if (root == null && _renderers[0] != null) root = _renderers[0].transform;
                 if (root == null) return;
 
-                Plugin.Log?.LogInfo($"[BFB-HIER] root path={BuildHierarchyPath(root)}");
+                Plugin.Log?.LogInfo($"[FaultFlash-HIER] root path={BuildHierarchyPath(root)}");
                 WalkAndDump(root, 0);
             }
             catch (System.Exception e)
             {
-                Plugin.Log?.LogWarning($"[BFB-HIER] dump threw: {e.Message}");
+                Plugin.Log?.LogWarning($"[FaultFlash-HIER] dump threw: {e.Message}");
             }
         }
 
@@ -444,7 +445,7 @@ namespace PowerGridPlus
             }
             var anim = t.GetComponent<Animator>();
             string animInfo = anim != null ? $"Animator runtimeController={anim.runtimeAnimatorController?.name ?? "<null>"}" : "no-Animator";
-            Plugin.Log?.LogInfo($"[BFB-HIER]{indent}{t.name} components=[{compNames}] {mpbInfo} {animInfo}");
+            Plugin.Log?.LogInfo($"[FaultFlash-HIER]{indent}{t.name} components=[{compNames}] {mpbInfo} {animInfo}");
             for (int i = 0; i < t.childCount; i++)
             {
                 WalkAndDump(t.GetChild(i), depth + 1);
@@ -458,10 +459,10 @@ namespace PowerGridPlus
                 var shader = mat?.shader;
                 if (shader == null)
                 {
-                    Plugin.Log?.LogInfo($"[BFB-DIAG]   [{rendererIdx}] shader=<null>");
+                    Plugin.Log?.LogInfo($"[FaultFlash-DIAG]   [{rendererIdx}] shader=<null>");
                     return;
                 }
-                Plugin.Log?.LogInfo($"[BFB-DIAG]   [{rendererIdx}] shader.name={shader.name} propertyCount={shader.GetPropertyCount()}");
+                Plugin.Log?.LogInfo($"[FaultFlash-DIAG]   [{rendererIdx}] shader.name={shader.name} propertyCount={shader.GetPropertyCount()}");
                 int n = shader.GetPropertyCount();
                 for (int k = 0; k < n; k++)
                 {
@@ -477,12 +478,12 @@ namespace PowerGridPlus
                     {
                         detail = $" val={mat.GetFloat(pname):F3}";
                     }
-                    Plugin.Log?.LogInfo($"[BFB-DIAG]   [{rendererIdx}]   prop[{k}]={pname} type={ptype}{detail}");
+                    Plugin.Log?.LogInfo($"[FaultFlash-DIAG]   [{rendererIdx}]   prop[{k}]={pname} type={ptype}{detail}");
                 }
             }
             catch (System.Exception e)
             {
-                Plugin.Log?.LogWarning($"[BFB-DIAG] DumpShaderProperties threw: {e.Message}");
+                Plugin.Log?.LogWarning($"[FaultFlash-DIAG] DumpShaderProperties threw: {e.Message}");
             }
         }
     }
