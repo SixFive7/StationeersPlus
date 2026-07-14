@@ -6799,6 +6799,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#character-spacing-also-scales-by-the-component-font-size-and-the-cspace-cancel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Character spacing also scales by the COMPONENT font size, and the cspace cancel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8236,6 +8247,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#character-spacing-also-scales-by-the-component-font-size-and-the-cspace-cancel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Character spacing also scales by the COMPONENT font size, and the cspace cancel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8528,14 +8550,27 @@
 <li>The Title-to-Extended first-baseline distance (serialized prefab layout, not text) measured 28.6 Title-local units, so the Title-row driven form is <code>&lt;line-height=21.4&gt;</code>.</li>
 </ul>
 <p>Re-extraction recipe when a game update re-tunes the tooltip prefab: re-run the two InspectorPlus probes above while a body tooltip renders content in both rows, recompute the two line-height values with the formulas on this page, and re-measure the first-baseline distance either from <code>textInfo.lineInfo[0].baseline</code> of each row transformed to a common space or from a temporary runtime capture like the 2026-07-14 one-shot.</p>
+<h2 id="character-spacing-also-scales-by-the-component-font-size-and-the-cspace-cancel">Character spacing also scales by the COMPONENT font size, and the cspace cancel<a class="headerlink" href="#character-spacing-also-scales-by-the-component-font-size-and-the-cspace-cancel" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>The per-character x-advance (GenerateTextMesh, 3812) is:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>m_xAdvance += ((metrics.horizontalAdvance * num58 + tMP_GlyphValueRecord.m_XAdvance) * num2
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>            + (m_currentFontAsset.normalSpacingOffset + num26 + num8) * num3 + m_cSpacing)
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>            * (1f - m_charWidthAdjDelta);
+</span></code></pre></div>
+<p>where <code>num2</code> is the glyph scale built from <code>m_currentFontSize</code> (the <code>&lt;size&gt;</code>-tag-affected size, via <code>num24</code> at 3157), <code>num26 = m_characterSpacing</code> (3188), <code>num8</code> is the bold-style spacing (0 for Normal style, declared 2926), and <code>num3 = m_fontSize * 0.01f * (m_isOrthographic ? 1f : 0.1f)</code> (2912): the COMPONENT font size, computed once per render pass before the character loop, exactly like the line-height em scale (6183). Consequence: a <code>&lt;size&gt;</code> span rendered inside a component with a larger <code>fontSize</code> draws identical glyphs but tracks WIDER, by <code>(normalSpacingOffset + characterSpacing) * (componentSize - spanSize) * 0.01</code> per character. On the game tooltip rows (both <code>characterSpacing</code> 10) an 18-point span inside the 24-point Title row tracks 0.6 units per character wider than the same text in the 18-point Extended row, which reads as a larger font at a glance (the PowerGridPlus button-vs-casing fault hover, screenshots 2026-07-14).</p>
+<p>The <code>&lt;cspace&gt;</code> tag is the cancel: <code>m_cSpacing</code> is added RAW per character (unscaled by <code>num3</code> or <code>num2</code>; only the <code>(1 - m_charWidthAdjDelta)</code> factor applies). Tag parse (27265-27281): a plain number stores the value directly in the orthographic case (<code>m_cSpacing = num3 * 1f</code>, 27273; the <code>num3</code> there is the parsed literal); a <code>FontUnits</code> suffix multiplies by <code>m_currentFontSize</code> (27276); percentages are rejected. The closing <code>&lt;/cspace&gt;</code> (27283-27294) subtracts the trailing character's <code>m_cSpacing</code> back off <code>m_xAdvance</code> and zeroes it, and <code>m_cSpacing</code> also resets at every render pass start (2955), so nothing leaks. So <code>&lt;cspace=-0.6&gt;text&lt;/cspace&gt;</code> around the 18-point span inside the 24-point component restores the Extended row's tracking exactly, modulo <code>normalSpacingOffset * 0.06</code> per character if the font asset's <code>normalSpacingOffset</code> is nonzero (TextMeshPro default 0; <code>font_english</code>'s live value is unverified: <code>TMP_FontAsset</code> instances are not reachable through InspectorPlus on the headless dedicated server, which returned zero objects for <code>types=[TMP_FontAsset]</code> on 2026-07-14, so the probe needs a graphical client).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-14 (fourth pass, same day): added "Character spacing also scales by the COMPONENT font size, and the cspace cancel" (advance formula 3812, num3 definition 2912, characterSpacing 3188, bold-spacing slot 2926, cspace tag parse 27265-27294, per-pass reset 2955; all re-read from the same Unity.TextMeshPro decompile). Driving work: the PowerGridPlus button fault block tracked visibly wider than the casing block despite identical glyph size; the cspace cancel now ships hardcoded. Open question added for font_english's normalSpacingOffset.</li>
 <li>2026-07-14 (third pass, same day): extended "The game tooltip rows' serialized values" with the style / material / scale identity probe (font_english, RBBook SDF Material, Normal/Regular, characterSpacing 10, equal lossyScale), the derived cross-row constants (25.2 block advance, 21.4 first gap, face ratio 1.0 for font_english), and the re-extraction recipe. Driving work: hardcoding the PowerGridPlus button-tooltip composition tags from a live extraction and retiring the runtime reads.</li>
 <li>2026-07-14 (second pass, same day): added "Auto-size mutates m_fontSize while rendered" (decompile lines 2856, 3363, 3482, 3530, 3620, 4002, 6128 re-read from the same Unity.TextMeshPro decompile) and "The game tooltip rows' serialized values" (InspectorPlus live read on a connected client, request pattern cited in the section). Also corrected the shipped-user file path (the class moved to Patches/FaultButtonTooltipPatches.cs in the fault-terminology rollout). Driving work: diagnosing a residual glyph-size mismatch between the PowerGridPlus button and casing fault hovers before hardcoding the tooltip metric constants.</li>
 <li>2026-07-14: page created. All quoted bodies read verbatim from <code>.work/decomp/0.2.6403.27689/Unity.TextMeshPro.decompiled.cs</code>, a fresh ilspycmd decompile of the shipped <code>Unity.TextMeshPro.dll</code> produced this session. Driving work: matching the PowerGridPlus button-tooltip Title-box line spacing to the casing tooltip (in-game feedback that the block lines sat too far apart after the font-size match). Additive (new page); the TMP-default facts on <a href="../StationpediaDescriptionRendering/">StationpediaDescriptionRendering</a> are not contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li><code>font_english</code>'s <code>normalSpacingOffset</code> is assumed 0 (the TextMeshPro default). It shifts the cspace cancel by <code>normalSpacingOffset * 0.06</code> per character in the tooltip case. Verify with an InspectorPlus probe on a graphical client (<code>types=[TMP_FontAsset]</code>, <code>fields=[normalSpacingOffset]</code>); the headless dedicated server cannot resolve TMP_FontAsset instances.</li>
+</ul>
 
 
 
