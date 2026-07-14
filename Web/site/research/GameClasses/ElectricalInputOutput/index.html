@@ -5579,6 +5579,8 @@
       
         
       
+        
+      
     
     
     
@@ -6897,6 +6899,34 @@
     
   
     Sub-component grafting from a vanilla prefab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/TextMeshProLineMetrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TextMeshProLineMetrics
   
 
     
@@ -8569,7 +8599,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (10)</summary>
+          <summary><strong>Related pages</strong> (11)</summary>
           <ul>
             
               <li><code>./Device.md</code></li>
@@ -8591,6 +8621,8 @@
               <li><code>../GameSystems/KeyBinding.md</code></li>
             
               <li><code>../Patterns/HarmonyBaseCallDetourMultiFire.md</code></li>
+            
+              <li><code>../Patterns/TextMeshProLineMetrics.md</code></li>
             
           </ul>
         </details>
@@ -9195,7 +9227,7 @@
 </span></code></pre></div>
 <p>An empty <code>Title</code> (<code>_hasTitle</code>, 254311) hides the tooltip's name box entirely (in the on-screen button-hover layout this is the boxed thing name beside the action text, observed in-game during the PowerGridPlus button-tooltip layout work), and an empty <code>State</code> (<code>_hasState</code>, 254312) hides the state row the same way. There is no action-row entry in this block; the action-side elements hang off <code>flag</code> (254330 / 254341 / 254363-254369). Emptying <code>Title</code> alone cannot hide the panel while an action line is present: <code>DrawTooltip</code> (254389) forces <code>TooltipMode.Hidden</code> only when Title, State, Action, and Extended are ALL empty.</p>
 <p>Mod consequence: a Harmony postfix on <code>Tooltip.SetValuesForInteractable</code> (subsection below) that sets <code>tooltip.Title = string.Empty</code> suppresses the name box for exactly that hover poll and nothing else. It is self-restoring because the struct is rebuilt from scratch on every poll (full replacement at 254415, fresh struct at 287926, <code>Idle</code> re-polls per frame at 239679-239721), and the postfix runs after the <code>SwitchTitleForTooltip</code> title write (254429-254432), so the emptied Title wins for that poll and vanishes with it.</p>
-<p>The Title row renders mod markup untouched: <code>SetUpToolTip</code> copies <code>Title</code> verbatim (254301) with no color wrap (the 254319 wrap is Action-only), and the property setter (254102-254121) writes the TextMeshPro text directly (<code>TooltipTitle.text = _title;</code>, 254119), so <code>\n</code> breaks and explicit <code>&lt;color&gt;</code> / <code>&lt;align&gt;</code> tags in a mod-written Title render as authored, with un-tagged spans keeping the name box's prefab styling. Code puts no size constraint on the row: <code>TooltipTitle</code> has exactly two code references in Assembly-CSharp (the field declaration 253976 and that setter write 254119; the only other grep hits for the substring are the unrelated <code>GameString PlayerStatsTooltipTitle</code>, 284402 / 104449), and the assembly contains no <code>ContentSizeFitter</code> at all (whole-file census, 0 hits), so whether the name box background grows vertically for a multi-line Title is decided by serialized prefab layout, invisible in the decompile. In-game check (2026-07-14, PowerGridPlus merged-layout playtest, game version 0.2.6403.27689): the box DOES accommodate a three-line Title (all three lines rendered inside the background), and the Title row's effective font size is visibly larger than the Extended row's (identical markup rendered larger in the name box than on the casing tooltip), so a composition that wants casing-sized lines inside the Title needs an absolute <code>&lt;size=N&gt;</code> span with N read at runtime from <code>TooltipExtended.fontSize</code> via <code>InventoryManager.Instance</code> (static field, 286106) <code>.TooltipRef</code> (285975) <code>.TooltipExtended</code> (253982).</p>
+<p>The Title row renders mod markup untouched: <code>SetUpToolTip</code> copies <code>Title</code> verbatim (254301) with no color wrap (the 254319 wrap is Action-only), and the property setter (254102-254121) writes the TextMeshPro text directly (<code>TooltipTitle.text = _title;</code>, 254119), so <code>\n</code> breaks and explicit <code>&lt;color&gt;</code> / <code>&lt;align&gt;</code> tags in a mod-written Title render as authored, with un-tagged spans keeping the name box's prefab styling. Code puts no size constraint on the row: <code>TooltipTitle</code> has exactly two code references in Assembly-CSharp (the field declaration 253976 and that setter write 254119; the only other grep hits for the substring are the unrelated <code>GameString PlayerStatsTooltipTitle</code>, 284402 / 104449), and the assembly contains no <code>ContentSizeFitter</code> at all (whole-file census, 0 hits), so whether the name box background grows vertically for a multi-line Title is decided by serialized prefab layout, invisible in the decompile. In-game check (2026-07-14, PowerGridPlus merged-layout playtest, game version 0.2.6403.27689): the box DOES accommodate a three-line Title (all three lines rendered inside the background), and the Title row's effective font size is visibly larger than the Extended row's (identical markup rendered larger in the name box than on the casing tooltip), so a composition that wants casing-sized lines inside the Title needs an absolute <code>&lt;size=N&gt;</code> span with N read at runtime from <code>TooltipExtended.fontSize</code> via <code>InventoryManager.Instance</code> (static field, 286106) <code>.TooltipRef</code> (285975) <code>.TooltipExtended</code> (253982). Matching the casing row's LINE ADVANCE too needs a driven <code>&lt;line-height&gt;</code> on top of the size span; the verified TextMeshPro advance math and tag semantics live on <a href="../../Patterns/TextMeshProLineMetrics/">TextMeshProLineMetrics</a>.</p>
 <h3 id="setvaluesforinteractable-an-interactable-hover-replaces-the-struct">SetValuesForInteractable: an interactable hover REPLACES the struct<a class="headerlink" href="#setvaluesforinteractable-an-interactable-hover-replaces-the-struct" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
