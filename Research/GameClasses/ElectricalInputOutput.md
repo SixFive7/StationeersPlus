@@ -9,6 +9,7 @@ sources:
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 373755-373933 (ElectricalInputOutput class, fields, IsPowerProvider/IsPowerInputOutput, IsOperable, AvailablePower/CurrentLoad/PotentialLoad, CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork), 349623 (Device.MaxProviderRecursionIterations), 350691 (Device.IsProviderToDevice base)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 394930-395006 (CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork, OnRemoveCableNetwork), 390636-390998 (AreaPowerControl NoPower / CheckPower / AllowSetPower), 391963-391969 (Battery.CheckPower)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 395008-395023 (GetPassiveTooltip), 371547-371557 (Device.GetPassiveTooltip), 314440-314465 (Structure.GetPassiveTooltip), 319731-319739 (Thing.GetPassiveTooltip / GetPassiveUITooltip), 390800-390826 (AreaPowerControl.GetPassiveTooltip / GetContextualName), 424598-424993 (Transformer negative census), 307029-307155 (PassiveUITooltip + PassiveTooltip structs), 253966-254375 (Tooltip UI class), 287864-287869 + 285975 (InventoryManager.NormalModeThing + TooltipRef), 239691-239721 (InputMouse route)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 44018/44086/44166/44282 (KeyMap.MouseControl = LeftAlt), 201299-201391 (MouseModeController), 239369 + 239462-239484 + 239647-239677 (InputMouse class / SetMouseControl / Update gate), 239679-239759 (InputMouse.Idle), 287864-287987 (NormalModeThing display gate), 254408-254433 (Tooltip.SetValuesForInteractable), 307109-307129 (PassiveTooltip DelayedActionInstance constructor), 250399-250428 + 250451 + 250633 + 250640 (#008AE6 census)
 related:
   - ./Device.md
   - ./Transformer.md
@@ -16,6 +17,9 @@ related:
   - ./AreaPowerControl.md
   - ./WirelessPower.md
   - ./PowerTick.md
+  - ./Thing.md
+  - ./UniversalPage.md
+  - ../GameSystems/KeyBinding.md
   - ../Patterns/HarmonyBaseCallDetourMultiFire.md
 tags: [power, network, ui]
 ---
@@ -342,6 +346,106 @@ Method-name census over the class spans in the 0.2.6403.27689 decompile ("none" 
 
 Mod consequence: a Harmony postfix that annotates the BODY hover of a `Transformer` or `Battery` must attach to `ElectricalInputOutput.GetPassiveTooltip`, the override that actually runs. Attaching at more than one level of this chain makes the postfix fire once per patched level per poll, because the derived overrides call `base.GetPassiveTooltip` and Harmony detours base calls too; see [HarmonyBaseCallDetourMultiFire](../Patterns/HarmonyBaseCallDetourMultiFire.md) for the trap and the shipped depth-guard mitigation.
 
+## Display routes: the ALT mouse-control gate vs the crosshair poll
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+The two call sites named in the section above sit on two different input routes, and they gate a returned `PassiveTooltip` differently. Which route polls is decided by mouse-control mode, whose default key is ALT.
+
+**The ALT identity.** The default key map binds `KeyMap.MouseControl` to left ALT (both the legacy field and the rebindable key-list entry):
+
+```csharp
+KeyMap.MouseControl = KeyCode.LeftAlt;                    // line 44018
+KeyMap._MouseControl.AssignKey(KeyCode.LeftAlt);          // line 44086
+```
+
+It is registered as a rebindable binding (`AddKey("MouseControl", KeyMap.MouseControl, controlsGroup4)`, 44166) and re-read from saved bindings (`KeyMap.MouseControl = GetKey("MouseControl")`, 44282); see [KeyBinding](../GameSystems/KeyBinding.md) for the key-map system. The static `MouseModeController` (201299) defines `public static bool AltKeyDown => KeyManager.GetButton(KeyMap.MouseControl);` (201313). Its `Check()` (201335) unlocks the cursor while the key is held:
+
+```csharp
+if (AltKeyDown)
+{
+    SetState(locked: false);                              // lines 201347-201351
+    return;
+}
+```
+
+and `SetState` (201363) forwards every lock transition to the mouse layer: `InputMouse.SetMouseControl(!locked);` (201375). `InputMouse.SetMouseControl(true)` (239462-239484) sets the public static flag `IsMouseControl = true` (239466). Open ImGui windows with `MouseControlMode` reach the same flag through `CheckInputState` (111158-111175), so "mouse-control mode" is slightly broader than "ALT held", but ALT is the standard in-game trigger.
+
+**Route 1 (ALT): `InputMouse.Idle` displays the struct unconditionally.** `InputMouse : UserInterfaceBase` (class 239369) runs its world-mouse state machine only in mouse-control mode; `Update` (239647) returns early otherwise:
+
+```csharp
+private void Update()                                     // line 239647
+{
+    if (GameManager.IsBatchMode || !IsMouseControl || InputWindowBase.IsInputWindow || Stationpedia.IsOpenAndLocked || CursorManager.Instance.BlockCursorRaycast || WorldManager.IsGamePaused)
+    {
+        return;
+    }
+    // ... slot-display and drag handling ...
+    switch (WorldMode)
+    {
+    case WorldMouseMode.Idle:
+        Idle();                                           // line 239665
+        break;
+    // ... Click / Drag / DragSlot ...
+```
+
+`Idle()` (239679-239759) raycasts under the free cursor and hands whatever `GetPassiveTooltip` returned straight to the HUD:
+
+```csharp
+private void Idle()                                       // line 239679
+{
+    PassiveTooltip passiveTooltip = default(PassiveTooltip);
+    DraggedThing = null;
+    if (Physics.Raycast(CameraController.CurrentCamera.ScreenPointToRay(Input.mousePosition), out var hitInfo, MaxInteractDistance, CursorManager.Instance.CursorHitMask))
+    {
+        CursorTransform = hitInfo.transform;
+        CursorThing = Thing.Find(hitInfo.collider);
+        CursorItem = CursorThing as Assets.Scripts.Objects.Item;
+        Interactable interactable = null;
+        if (CursorThing != null && !IsMouseOverUi)
+        {
+            passiveTooltip = CursorThing.GetPassiveTooltip(hitInfo.collider);     // line 239691
+            interactable = CursorThing.GetInteractable(hitInfo.collider);         // line 239692
+            // ... selection color / cursor handling, 239693-239715 ...
+            if (interactable != null)
+            {
+                Tooltip.SetValuesForInteractable(ref passiveTooltip, CursorThing, interactable);   // line 239718
+            }
+            passiveTooltip.FollowMouseMovement = true;
+            InventoryManager.Instance.TooltipRef.HandleToolTipDisplay(passiveTooltip);             // line 239721
+        }
+```
+
+No field of the struct is inspected before display on this route: an empty `Title` with a non-empty `Extended` still reaches `HandleToolTipDisplay` (239721), whose `_hasExtended` gate (see the struct section below) then makes the panel visible. The one substitution: when the hit collider maps to an `Interactable` (`GetInteractable`, a strict dictionary lookup, see [Thing](./Thing.md)), `SetValuesForInteractable` (239716-239719) REPLACES the struct with the interactable's action preview first (see the SetValuesForInteractable subsection below).
+
+**Route 2 (no ALT): `InventoryManager.NormalModeThing` is Title-gated for body hovers.** The crosshair poll is `NormalModeThing` (287864). It evaluates both tooltip forms up front (null-collider 287868, target-collider 287869; quoted in the section above), dry-runs `AttackWith` / `InteractWith` / `DragInto` for the action previews (287871-287895), then displays through a three-branch gate:
+
+1. **Action branch** (287898): `if ((item != null && !item.IsChild) || interactable != null || delayedActionInstance != null || delayedActionInstance3 != null)`. Anything actionable under the crosshair (pickup-able item, interactable, attackable target, draggable Human) shows an action tooltip built from the preview `DelayedActionInstance` plus `SetValuesForInteractable`, not the raw `GetPassiveTooltip` struct (sub-branches 287917-287958). One sub-case does use the passive struct: a plain item with no interactable or attack action displays the null-collider form after `SetColorForItemAction` (287954-287957), without a Title check.
+2. **Collider branch** (287963): displays the target-collider form only when its `Title` is non-empty.
+3. **Body branch** (287968-287981): displays the null-collider form only when ITS `Title` is non-empty (plus not-self checks), and sets `TooltipRef.Mode = TooltipMode.ActionLast` first.
+
+```csharp
+else if (!cursorPassiveTooltip2.Title.Equals(string.Empty))           // line 287963
+{
+    TooltipRef.HandleToolTipDisplay(cursorPassiveTooltip2);
+    CursorManager.ClearLastSelectionId();
+}
+else
+{
+    CursorManager.SetSelectionVisibility(isVisible: false);
+    CursorManager.ClearLastSelectionId();
+    if (cursorPassiveTooltip.Title != string.Empty && CursorManager.CursorThing.RootParent != Parent && !IsLookingAtParent())   // line 287972
+    {
+        TooltipRef.Mode = TooltipMode.ActionLast;                     // line 287974
+        TooltipRef.HandleToolTipDisplay(cursorPassiveTooltip);
+        // ...
+    }
+}
+```
+
+Branch 2 is the branch that renders this class's port labels on the plain crosshair: the port override (395008) fills `Title` with `InterfaceStrings.ConnectionInput` / `ConnectionOutput`, and connection colliders are not interactable colliders, so branch 1 does not intercept. Branch 3 is how the APC body readout displays without ALT: `AreaPowerControl.GetPassiveTooltip` fills `Title` / `Extended` only for the null-collider form (390800-390810, section above), so branch 2's collider form stays empty and branch 3 fires in `ActionLast` mode.
+
+Mod consequence: a `GetPassiveTooltip` postfix on a Structure/Device that fills only `Extended` (leaving `Title` empty) renders ONLY in ALT mouse-control hover; the plain crosshair drops it at both Title gates (287963 / 287972). Filling `Title` (typically with `DisplayName`) makes the crosshair display it too: via branch 2 when the collider form carries the Title, via branch 3 (`ActionLast`) when only the null-collider form does. This is why the PowerGridPlus fault-hover block fills `Title` alongside `Extended` (`Mods/PowerGridPlus/PowerGridPlus/Patches/FaultHoverPatches.cs`).
+
 ## PassiveTooltip: the struct and its TextMeshPro render path
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
@@ -399,7 +503,7 @@ public struct PassiveTooltip                     // line 307045
 }
 ```
 
-Two further constructors exist (from a `Thing.DelayedActionInstance`, 307109-307129; full-argument, 307131-307149) plus `Populate(Connection end) => end.Populate(this)` (307151-307154). Do not confuse it with `PassiveUITooltip` (307029), the two-field readonly struct returned by `Thing.GetPassiveUITooltip`.
+Two further constructors exist (from a `Thing.DelayedActionInstance`, 307109-307129, quoted in the SetValuesForInteractable subsection below; full-argument, 307131-307149) plus `Populate(Connection end) => end.Populate(this)` (307151-307154). Do not confuse it with `PassiveUITooltip` (307029), the two-field readonly struct returned by `Thing.GetPassiveUITooltip`.
 
 Every HUD hover path lands the struct in `Assets.Scripts.UI.Tooltip : UserInterfaceBase` (class 253966), held as `public Tooltip TooltipRef;` on `InventoryManager` (285975). The display fields are TextMeshPro components (253976-253982):
 
@@ -439,8 +543,81 @@ So the `Extended` string is rendered by a `TextMeshProUGUI`, which parses `\n` l
 
 Visibility gating: `_hasExtended = !string.IsNullOrEmpty(_extended) && _extended.Length > 0;` (254314) feeds both the panel-visible decision (`flag2` at 254331 ORs `_hasExtended` in) and `ExtendedRenderer.SetVisible(_hasExtended)` (254350), so appending a non-empty `Extended` to an otherwise empty tooltip makes the panel appear. Caveat: `HandleToolTipDisplay` returns early when the player's active hand holds a `Tablet` (254325-254328), so body tooltips are suppressed while a tablet is out.
 
+### SetValuesForInteractable: an interactable hover REPLACES the struct
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+When the hovered collider maps to an `Interactable` (via `Thing.GetInteractable(Collider)`, see [Thing](./Thing.md)), both display routes call `Tooltip.SetValuesForInteractable`, which dry-runs the click (`InteractWith(..., doAction: false)`) and, when that preview returns a `DelayedActionInstance`, throws away the incoming struct and rebuilds it. Verbatim (254408-254433):
+
+```csharp
+public static void SetValuesForInteractable(ref PassiveTooltip tooltip, Thing CursorThing, Interactable interactable)   // line 254408
+{
+    Interaction interaction = new Interaction(InventoryManager.Parent, InventoryManager.ActiveHandSlot, CursorThing, KeyManager.GetButton(KeyMap.QuantityModifier));
+    Thing.DelayedActionInstance delayedActionInstance = null;
+    delayedActionInstance = ((!CursorThing.PreventInteraction(out var failResult, interactable, interaction)) ? CursorThing.InteractWith(interactable, interaction, doAction: false) : failResult);
+    if (delayedActionInstance != null)
+    {
+        tooltip = new PassiveTooltip(delayedActionInstance, string.Empty, CursorThing);     // line 254415: full-struct replacement
+        if ((delayedActionInstance != null && delayedActionInstance.IsDisabled) || !CursorThing.AllowInteraction)
+        {
+            tooltip.color = UnityEngine.Color.red;
+        }
+        else if (InventoryManager.WillStackFromInteractable(interactable))
+        {
+            tooltip.color = UnityEngine.Color.yellow;
+        }
+        else
+        {
+            tooltip.color = ((delayedActionInstance.Duration > 0f) ? UnityEngine.Color.yellow : UnityEngine.Color.green);
+        }
+    }
+    if (delayedActionInstance != null && delayedActionInstance.SwitchTitleForTooltip)
+    {
+        tooltip.Title = interactable.ContextualName;                                        // line 254431
+    }
+}
+```
+
+The replacement constructor `PassiveTooltip(Thing.DelayedActionInstance actionInstance, string actionOverride, Thing cursorThing)` maps the action preview onto the struct fields. Verbatim (307109-307129):
+
+```csharp
+public PassiveTooltip(Thing.DelayedActionInstance actionInstance, string actionOverride, Thing cursorThing)   // line 307109
+{
+    string title = ((actionInstance.OverrideTitle != string.Empty) ? actionInstance.OverrideTitle : cursorThing.DisplayName);   // line 307111
+    string action = (string.IsNullOrEmpty(actionOverride) ? actionInstance.ActionMessage : actionOverride);
+    Title = title;
+    Action = action;
+    State = actionInstance.GetStateMessage();                          // line 307115
+    Extended = actionInstance.GetExtendedText();                       // line 307116
+    RepairString = string.Empty;
+    DeconstructString = string.Empty;
+    ConstructString = string.Empty;
+    PlacementString = string.Empty;
+    ShowRotate = false;
+    ShowScroll = false;
+    ShowConstructionRotate = false;
+    ShowAction = true;
+    FollowMouseMovement = false;
+    color = actionInstance.color;
+    Slider = actionInstance.Slider;
+    BuildStateIndexMessage = string.Empty;
+}
+```
+
+So on a button/switch hover: `Title` is the action's `OverrideTitle` (or the Thing's `DisplayName` when unset), `Action` is the `ActionMessage` (which `Thing.InteractWith` seeds from `interactable.ContextualName`; see [Thing](./Thing.md) for the action-word semantics), `State` is `GetStateMessage()`, and `Extended` is `GetExtendedText()` FROM THE ACTION INSTANCE, not from the Thing's passive tooltip. Anything a `GetPassiveTooltip` patch wrote is discarded on interactable hovers; a mod that wants its lines on the button hover too must also cover the `InteractWith` / `GetContextualName` side (PowerGridPlus does both: `FaultHoverPatches` fills the passive struct, `TransformerHoverErrorPatches` covers the on/off-button hover).
+
+### #008AE6: the informational blue vanilla UI text uses
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`#008AE6` occurs exactly four times in the 0.2.6403.27689 decompile, all as UI text color markup, making it the vanilla informational-blue accent to match when coloring tooltip or Stationpedia lines:
+
+- `StationSuitProperties` (class 250399, constructor 250413-250428) colors the cold-side minimums of the suit readouts with it: `RocketMath.KelvinToCelsius(suitBase.MinCoolantTemperatureK).ToStringPrefix("°C", "#008AE6")` (250418) and `suitBase.SuitConvectionData.MinimumTemperatureC.ToStringPrefix("°C", "#008AE6")` (250421), against `"red"` / `"green"` / `"orange"` for the hot-side and operating values on the adjacent lines. (The decompile file renders the degree sign in these literals as an encoding artifact; restored to `°C` here.)
+- `UniversalPage : UserInterfaceBase` (class 250451, the Stationpedia page renderer, see [UniversalPage](./UniversalPage.md)) uses it for every hyperlink: `private const string LINK_COLOR_FORMAT = "<link={0}><color=#008AE6>{1}</color></link>";` (250633), plus the identical inline format string in `CheckAndSetTextElement` (250640).
+
+PowerGridPlus adopts the same hex for the informational (non-fault) value in its hover blocks (`Mods/PowerGridPlus/PowerGridPlus/FaultHover.cs`, `CapBlue`).
+
 ## Verification history
 
+- 2026-07-14 (third pass, same day): added "Display routes: the ALT mouse-control gate vs the crosshair poll" and, under the PassiveTooltip section, the subsections "SetValuesForInteractable: an interactable hover REPLACES the struct" and "#008AE6: the informational blue vanilla UI text uses" (game version 0.2.6403.27689, all bodies re-read verbatim from the decompile). New anchors: `KeyMap.MouseControl = KeyCode.LeftAlt` (44018 legacy field, 44086 key-list assign, 44166 AddKey registration, 44282 saved-bindings re-read); `MouseModeController` (201299) with `AltKeyDown` (201313), the `Check()` ALT unlock (201347-201351), and `SetState -> InputMouse.SetMouseControl(!locked)` (201375); `InputMouse.SetMouseControl` (239462-239484, `IsMouseControl` write 239466); the `InputMouse.Update` mouse-control gate (239647-239652); `Idle` (239679-239759: `GetPassiveTooltip` 239691, `GetInteractable` 239692, `SetValuesForInteractable` 239716-239719, unconditional `HandleToolTipDisplay` 239721, no Title gate); `InventoryManager.NormalModeThing` three-branch display gate (action branch 287898 with sub-branches 287917-287958, Title-gated collider branch 287963, Title-gated body branch 287972 with `TooltipMode.ActionLast` 287974); `Tooltip.SetValuesForInteractable` (254408-254433, struct replacement 254415, `SwitchTitleForTooltip` title swap 254429-254432); the `PassiveTooltip(DelayedActionInstance, string, Thing)` constructor (307109-307129: Title = OverrideTitle or DisplayName, State = GetStateMessage, Extended = GetExtendedText); `#008AE6` census (exactly 4 occurrences: `StationSuitProperties` 250418/250421, `UniversalPage` `LINK_COLOR_FORMAT` 250633 plus inline 250640). Additive; completes the render-path story from earlier today. No prior claim on this page contradicted; the earlier statement that the APC charge readout ships only through the null-collider poll is now explained mechanically by the body branch (287972, ActionLast). Thing-level members referenced here (`GetInteractable`, `InteractWith`, `GetContextualName`, `GetExtendedText`) are quoted in full on [Thing](./Thing.md), curated in the same pass.
 - 2026-07-14 (later the same day): the cross-page flag at the end of the entry below is RESOLVED. A Rule 3 fresh validator confirmed against the 0.2.6403.27689 decompile that `CableRuptured : SmallGrid` (392848) declares no `GetPassiveTooltip` (full body 392848-392881) and that a wreckage body hover dispatches to `Structure.GetPassiveTooltip` (314440), with `Thing.GetPassiveTooltip` (319731) reached only by the no-damage / no-build-tooltip fall-through. [Cable](./Cable.md)'s Wreckage section is corrected and restamped to 0.2.6403.27689; its patch recommendation now targets `Structure.GetPassiveTooltip`, matching this page and the shipped `Mods/PowerGridPlus/PowerGridPlus/Patches/BurnReasonPatches.cs`. The "conflict protocol pending" note below no longer applies.
 - 2026-07-14: added "GetPassiveTooltip: body-hover tooltip resolution chain" (with the override census) and "PassiveTooltip: the struct and its TextMeshPro render path" (game version 0.2.6403.27689), from the PowerGridPlus fault-hover work. All bodies read verbatim from the 0.2.6403.27689 decompile: ElectricalInputOutput override 395008-395023 (port labels only, tail base call), Device 371547-371557 (open-end labels, tail base call), Structure 314440-314465 (damage/build tooltip; healthy structures fall through to base), Thing 319731-319734 (returns the all-empty `new PassiveTooltip(true)`), AreaPowerControl 390800-390810 (both paths call base; the charge readout ships via the null-collider poll only); negative census for Transformer (no `GetPassiveTooltip`, no `GetContextualName` anywhere in 424598-424993) and the family table. Render path: PassiveTooltip struct 307045-307155, InputMouse route 239691/239721, InventoryManager.NormalModeThing 287868-287869 with `TooltipRef` 285975, Tooltip class 253966 with `TooltipExtended` TextMeshProUGUI 253982, SetUpToolTip 254298-254320 (Extended copy 254305, Action color-wrap 254319), Extended setter 254144-254163 (`TooltipExtended.text` write 254161), visibility gates 254314/254331/254350, tablet early-out 254325. Additive; no prior content on this page contradicted. Cross-page flag (not edited here, conflict protocol pending): [Cable](./Cable.md)'s CableRuptured section (stamped 0.2.6228.27061) states the wreckage inherits "the base `Thing.GetPassiveTooltip`"; at 0.2.6403.27689 the dispatch target for any SmallGrid subclass without its own override is `Structure.GetPassiveTooltip` (314440), with Thing's base only reached by fall-through.
 - 2026-07-02: added "CheckPower: event-driven un-power outside the tick" and restamped "CheckConnections" against the 0.2.6403.27689 decompile. `CheckConnections` verbatim-unchanged at 394930-394936; NEW at 0.2.6403.27689: `OnRemoveCableNetwork` (394993-395006) nulls the matching `InputNetwork` / `OutputNetwork` before `CheckConnections` + `CheckPower` (the 0.2.6228 version had no such null-out; consequence documented on [PowerReceiver](./PowerReceiver.md)). CheckPower facts: base virtual at 394945-394951 (`RunSimulation && InputNetwork == null && Powered` -> `OnServer.Interact(InteractPowered, 0)`), call sites `OnAddCableNetwork` 394985-394991 / `OnRemoveCableNetwork` 394993-395006; `AreaPowerControl.CheckPower` override 390983-390989 gated on `NoPower` (390636-390650: no/empty cell AND (no input net OR `PotentialLoad <= 0`)) with extra call sites on OnOff interaction and battery-cell insert/remove; `Battery.CheckPower` override 391963-391969 re-syncs `InteractPowered.State` to the computed `Powered`; the handheld `PowerTool` `CheckPower` family (virtual ~353114, `SensorLenses` override 354109) flagged as unrelated. Additive plus one supersession-by-game-change (the OnRemoveCableNetwork null-out); no fresh validator needed. Driving work: Powered-semantics stage of the power rearchitecture session. Sections not re-read this pass (class header/fields, IsOperable, load accessors, IsProviderToDevice body, submergeable block) keep their 0.2.6228.27061 stamps; `IsProviderToDevice` was spot-checked shape-identical at 394953+.

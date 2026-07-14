@@ -2,19 +2,24 @@
 title: Thing
 type: GameClasses
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-06-20
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-14
 sources:
   - Plans/RepairPrototype/plan.md:373-383
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 320193-320201 + 320203 (GetInteractable overloads), 321491-321541 (InteractWith), 319699-319725 (GetContextualName), 320726-320753 (GetExtendedText), 285745-285813 (ActionStrings), 318249 (OnOff), 317241 (HasOnOffState)
 related:
   - ./Structure.md
   - ./Entity.md
   - ./ColorSwatch.md
   - ./OnServer.md
+  - ./Interactable.md
+  - ./Device.md
+  - ./ElectricalInputOutput.md
+  - ./SprayGun.md
   - ../GameSystems/DamageState.md
   - ../GameSystems/Explosions.md
-tags: [prefab, slots]
+tags: [prefab, slots, ui]
 ---
 
 # Thing
@@ -173,7 +178,7 @@ These two Materials are independent and commonly differ. For the Ladder specific
 
 ### Per-spawn-path behavior
 
-- **Console `spawn <prefabName> [amount]`** (`Util.Commands.ThingCommand.Execute` case `"spawn"`, decompile line 139-170): calls `OnServer.SpawnDynamicThingMaxStack(humanRefId, prefabName)`. `OnServer.SpawnDynamicThingMaxStack` (line 675-735) does `Prefab.Find<DynamicThing>(prefabName)` and `Create<DynamicThing>` — silently fails if `prefabName` resolves to a non-DynamicThing prefab (e.g. typing `/spawn Ladder` finds nothing because `Ladder` is a `Structure`). When it succeeds it spawns the DynamicThing (e.g. `KitLadder`) with `CustomColor == GameManager.GetColorSwatch(KitLadder.PaintableMaterial)` and never layers a `SetCustomColor`. Result: kit-color, NOT structure-color. The user sees the kit in-hand with its printer default.
+- **Console `spawn <prefabName> [amount]`** (`Util.Commands.ThingCommand.Execute` case `"spawn"`, decompile line 139-170): calls `OnServer.SpawnDynamicThingMaxStack(humanRefId, prefabName)`. `OnServer.SpawnDynamicThingMaxStack` (line 675-735) does `Prefab.Find<DynamicThing>(prefabName)` and `Create<DynamicThing>`; it silently fails if `prefabName` resolves to a non-DynamicThing prefab (e.g. typing `/spawn Ladder` finds nothing because `Ladder` is a `Structure`). When it succeeds it spawns the DynamicThing (e.g. `KitLadder`) with `CustomColor == GameManager.GetColorSwatch(KitLadder.PaintableMaterial)` and never layers a `SetCustomColor`. Result: kit-color, NOT structure-color. The user sees the kit in-hand with its printer default.
 - **Creative menu (inventory `+` button)** (`Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu` line 196 → `InventoryManager.SpawnDynamicThing(ICreativeSpawnable)` line 937-947): the method checks `prefab is DynamicThing` before forwarding to `SpawnDynamicThingMaxStack`. Only `DynamicThing`s are registered into the menu in the first place (`Prefab.RegisterExisting` and `WorldManager.RegisterThing` both gate on `is DynamicThing` before calling `ImguiCreativeSpawnMenu.AddDynamicItem`, decompile lines 116842 and 268759). Same outcome as console: kit is spawned with its own Awake default.
 - **Creative menu (authoring placement, Authoring Tool wand)** (`Assets.Scripts.Inventory.InventoryManager.UsePrimary` line 2334/2338 → `OnServer.UseItemPrimaryAuthoring` / `UseItemPrimary` line 938-956): when `ActiveHand.Slot.Occupant is AuthoringTool`, the server substitutes `Prefab.Find<Constructor>(spawnPrefab.SpawnId)` for the in-hand tool and calls `OnUsePrimary(..., authoringMode: true)`. This reaches `Constructor.Construct` (decompile line 23-34) which creates a `CreateStructureInstance(BuildStructure, ..., steamId)` with default `CustomColor == -1`, then IF `PaintableMaterial != null && CustomColor.Normal != null` (on the Constructor kit prefab; the kit has just been instantiated with Awake defaults and its `CustomColor` is the kit's own swatch), overwrites `createStructureInstance.CustomColor = CustomColor.Index` (the kit's color index). `SpawnConstruct` calls `Thing.Create<Structure>(BuildStructure, ...)` (Awake sets the Structure's CustomColor to the Structure's Awake default, e.g. orange-ladder), then `Structure.SetStructureData(..., instance.CustomColor)` (decompile line 2239-2248), which applies `SetCustomColor(kitColorIndex)` only if `kitColorIndex >= 0 && PaintableMaterial != null && kitColorIndex != CustomColor.Index`. **Net result: the Structure's runtime CustomColor is the KIT's default color, not the Structure's default color, whenever the kit has a `PaintableMaterial`.** This is why a Ladder placed via the creative menu (authoring click) comes out yellow, not orange.
 - **Normal player build (kit in hand)** (`Item.OnUsePrimary` on a `Constructor` / `MultiConstructor` during `authoringMode == false`): same path as creative authoring; the player's in-hand kit runs `Constructor.Construct` → `SpawnConstruct`. The built Structure inherits the kit's `CustomColor`, which equals the kit prefab's Awake default if the kit was printed-and-untouched, or whatever paint has been applied to the kit in inventory since.
@@ -246,7 +251,7 @@ int AsBuiltColorIndex(Thing target)
 
 Caveats:
 
-- `ElectronicReader.GetAllConstructors(Thing)` keys by `PrefabHash`. It works on either a prefab or a live instance — both share the hash.
+- `ElectronicReader.GetAllConstructors(Thing)` keys by `PrefabHash`. It works on either a prefab or a live instance; both share the hash.
 - When a Structure has multiple constructor kits (modded parallel kits, or a `MultiConstructor` that builds the same Structure as one option among many), the list carries all of them. The kits' `PaintableMaterial`s may disagree. The helper above picks `[0]` which is registration order; a user-visible eyedropper probably wants the first `Constructor` over any `MultiConstructor`, since a MultiConstructor's color represents the selector-kit itself, not any one of its N outputs. A production implementation should iterate, prefer a `Constructor` match, and fall back to the first `MultiConstructor` if that is all that exists.
 - For Structures that no kit builds (console-spawned-via-mod, hand-placed by a dev tool, or `SpawnData` content), `GetAllConstructors` returns `null` and the fallback to `target.PaintableMaterial` is the best approximation.
 
@@ -331,6 +336,172 @@ private static Action<Thing> _destroyOutOfBounds = delegate(Thing thing)
 };
 ```
 
+## Interaction and hover surface: GetInteractable, InteractWith, GetContextualName, GetExtendedText
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`Thing` declares the base click-and-hover surface every prefab inherits. The members below are what the HUD polls every frame while the cursor rests on a Thing; see [ElectricalInputOutput](./ElectricalInputOutput.md) for the full tooltip render path and its two display routes (ALT mouse-control vs crosshair), and [Interactable](./Interactable.md) for the `Interaction` struct and the `OnServer.Interact` state funnel these methods feed. All line references are the 0.2.6403.27689 decompile.
+
+### GetInteractable(Collider): strict dictionary lookup, no fallback
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+```csharp
+public Interactable GetInteractable(Collider selectedCollider)        // line 320193
+{
+    if (_interactableColliderLookup == null)
+    {
+        return null;
+    }
+    _interactableColliderLookup.TryGetValue(selectedCollider, out var value);
+    return value;
+}
+```
+
+The collider-to-interactable map is a plain `TryGetValue`: a collider that is not a registered interactable collider (device body meshes, `Connection` open-end colliders, damage colliders) returns null, with no proximity or parent fallback. Both HUD display routes call this with the hit collider to decide "button hover" vs "body hover", so body hovers are exactly the hovers where this returns null. An overload `GetInteractable(InteractableType action)` (320203) resolves by axis instead ([Device](./Device.md) uses it in the switch-color plumbing).
+
+### InteractWith: the per-click handler doubles as the hover preview
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`Thing.InteractWith(Interactable, Interaction, bool doAction = true)` is the base implementation subclasses override (Transformer buttons, LogicMirror, PipeIgniter, etc.). The HUD calls it with `doAction: false` on every hover frame to build the tooltip preview (`Tooltip.SetValuesForInteractable`, see [ElectricalInputOutput](./ElectricalInputOutput.md)); the click calls it with `doAction: true`. Full body (321491-321541):
+
+```csharp
+public virtual DelayedActionInstance InteractWith(Interactable interactable, Interaction interaction, bool doAction = true)   // line 321491
+{
+    DelayedActionInstance delayedActionInstance = new DelayedActionInstance
+    {
+        Duration = 0f,
+        ActionMessage = interactable.ContextualName                    // line 321496
+    };
+    if (interactable.Slot != null)
+    {
+        if (interactable.Slot.Type != Slot.Class.None)
+        {
+            delayedActionInstance.ExtendedMessage = GameStrings.TypeOfSlot.AsString(Localization.GetName(interactable.Slot)) + "\n";
+        }
+        Slot sourceSlot = interaction.SourceSlot;
+        if (sourceSlot != null && sourceSlot.IsNotEmpty() && interaction.SourceSlot.Get().TryInteractWithSlotOccupant(interactable, out var actionInstance, doAction))
+        {
+            return actionInstance;
+        }
+        return HandleSwitch(interaction, interactable.Slot.SlotIndex, delayedActionInstance, doAction);
+    }
+    switch (interactable.Action)
+    {
+    case InteractableType.Open:
+        if (!doAction)
+        {
+            return delayedActionInstance.Succeed();
+        }
+        OnServer.Interact(interactable, (interactable.State != 1) ? 1 : 0);       // line 321518
+        return delayedActionInstance.Succeed();
+    case InteractableType.OnOff:
+        if (!doAction)
+        {
+            if (Error == 1)
+            {
+                delayedActionInstance.AppendStateMessage(GameStrings.ThingCurrentlyFlashingError);   // line 321525
+            }
+            return delayedActionInstance.Succeed();
+        }
+        OnServer.Interact(interactable, (!OnOff) ? 1 : 0);                        // line 321529
+        return delayedActionInstance.Succeed();
+    case InteractableType.Lock:
+        if (!doAction)
+        {
+            return delayedActionInstance.Succeed();
+        }
+        OnServer.Interact(interactable, (interactable.State != 1) ? 1 : 0);       // line 321536
+        return delayedActionInstance.Succeed();
+    default:
+        return delayedActionInstance.Fail();                                      // line 321539
+    }
+}
+```
+
+Load-bearing details:
+
+- `ActionMessage` is seeded from `interactable.ContextualName` (321496), which is `Parent.GetContextualName(this)`; the leading word on every button hover comes from the method in the next subsection.
+- Slot-backed interactables short-circuit into slot-occupant interaction or `HandleSwitch` before the type switch (321498-321510).
+- The `OnOff` hover preview (`doAction == false`) appends `GameStrings.ThingCurrentlyFlashingError` to the tooltip State line when `Error == 1` (321523-321526). This is the vanilla "device is error-flashing" hint on the switch hover.
+- The `OnOff` click writes the INVERSE of the current property: `OnServer.Interact(interactable, (!OnOff) ? 1 : 0);` (321529). `Open` and `Lock` instead invert the interactable's own `State` (321518, 321536).
+- Any other `InteractableType` reaching the base returns `delayedActionInstance.Fail()` (321539).
+
+### GetContextualName: the leading word is the available ACTION, not the current state
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+```csharp
+public virtual string GetContextualName(Interactable interactable)     // line 319699
+{
+    switch (interactable.Action)
+    {
+    case InteractableType.Open:
+        if (!IsOpen)
+        {
+            return ActionStrings.Open;
+        }
+        return ActionStrings.Close;
+    case InteractableType.OnOff:                                       // line 319709
+        if (!OnOff)
+        {
+            return ActionStrings.On;
+        }
+        return ActionStrings.Off;
+    case InteractableType.Activate:
+        return (Activate == 0) ? GameStrings.Activate : GameStrings.Deactivate;
+    case InteractableType.Mode:
+    {
+        string arg = ((interactable.State == 0) ? ModeStrings[1] : ModeStrings[0]);
+        return GameStrings.InteractableAction.AsString(arg);
+    }
+    default:
+        return interactable.DisplayName;
+    }
+}
+```
+
+For an on/off button the returned word is the action a click would perform, not the state: a switched-OFF device shows "On", a switched-ON device shows "Off". The same action-word convention holds for `Open` ("Open" when closed, "Close" when open) and `Activate`. Reading the word as the current state inverts reality; UI or mod text that wants the state word must map from `OnOff` itself.
+
+`ActionStrings` (class 285747, namespace `Assets.Scripts.Inventory` opening at 285745) holds the bare localized words as static string properties: `Off => Localization.GetAction(334568355)` (285807), `On => Localization.GetAction(-1674441366)` (285809). State words also exist in the same class (`Opened` 285803, `Closed` 285805, `Powered` 285811, `Unpowered` 285813) but `GetContextualName` does not use them.
+
+In-repo consumers: SprayPaintPlus relabels the word per class via a `GetContextualName` postfix (see [SprayGun](./SprayGun.md), which carries the 0.2.6228 excerpt of this same body); PowerGridPlus's `TransformerHoverErrorPatches` swaps the word for the switch-state word (`OnOff ? ActionStrings.On : ActionStrings.Off`) only while it is showing a lockout fault line, precisely because the vanilla word is the action.
+
+### GetExtendedText: the burning / damage / pickup lines
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+```csharp
+public virtual StringBuilder GetExtendedText()                         // line 320726
+{
+    StringBuilder stringBuilder = new StringBuilder();
+    if (IsBurning)
+    {
+        stringBuilder.AppendLine(GameStrings.CurrentlyOnFire.DisplayString);
+    }
+    if (IsBroken)
+    {
+        stringBuilder.AppendLine(GameStrings.IsDestroyed.DisplayString);
+    }
+    else if (DamageState.TotalRounded > 0)
+    {
+        if (DamageState.DecayRounded == DamageState.TotalRounded)
+        {
+            stringBuilder.AppendLine(GameStrings.ThingDamageIsAt.AsString(GameStrings.DamageTypeDecay, DamageState.DecayRounded.ToStringPercent(GetDamageColor())));
+        }
+        else
+        {
+            AddDamageString(stringBuilder);
+        }
+    }
+    if (!CanPickup)
+    {
+        stringBuilder.AppendLine(GameStrings.CannotBePickedUpRightNow.DisplayString);
+    }
+    return stringBuilder;
+}
+```
+
+Returns a `StringBuilder` (callers append to it or `.ToString()` it: `Structure.GetPassiveTooltip` and `AreaPowerControl.GetPassiveTooltip` both do `Extended = GetExtendedText().ToString()`, see [ElectricalInputOutput](./ElectricalInputOutput.md)). A healthy, pickup-able, non-burning Thing returns an empty builder. The damage percent is colored via `GetDamageColor()` (the helper directly above, returning color-name strings such as `"yellow"` / `"green"`); `AddDamageString` (320755) formats the mixed damage line.
+
+Related state anchors at 0.2.6403.27689: the `OnOff` virtual property is at 318249 and the `[ReadOnly] public bool HasOnOffState` flag at 317241; the full state-property story (animator-backed getters, per-frame caches, `CacheStates` as the sole `Has*State` writer) lives on [Device](./Device.md).
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-29 -->
 
@@ -339,9 +510,10 @@ private static Action<Thing> _destroyOutOfBounds = delegate(Thing thing)
 - 2026-04-22: added "Initial CustomColor by spawn path" and "Printer-default color lookup" sections. Additive; no existing content changed. Sources: `Thing.Awake` lines 3619-3748 (CustomColor initializer at 3745-3748), `Thing.Create<T>` line ~2320, `GameManager.GetColorSwatch(Material)` line 539-554, `GameManager.GetColorIndex(Material)` line 467, `Util.Commands.ThingCommand.Execute` `"spawn"` case, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu.SpawnDynamicThing` line 196, `Assets.Scripts.Inventory.InventoryManager.SpawnDynamicThing` line 937-952, `OnServer.SpawnDynamicThingMaxStack` line 675-735, `Assets.Scripts.Objects.Electrical.SimpleFabricatorBase.SpawnCreatedItems` line 894-908, `Assets.Scripts.Objects.Constructor.Construct` / `SpawnConstruct`, `Assets.Scripts.Objects.MultiConstructor.Construct`, `Assets.Scripts.Objects.Items.DynamicThingConstructor.OnUseItem`, `Assets.Scripts.Objects.Structure.SetStructureData` line 2239-2247. All in game version 0.2.6228.27061. No conflict with existing content.
 - 2026-04-28: added "PrefabName and PrefabHash visual-variant identity" section after a SprayPaintPlus bug report ("wall painting spills across visual wall variants"). Additive; no existing content contradicted. Sources: `Assets.Scripts.Objects.Thing` fields at decompile line 297860-297865 (`[Header("Thing")] [ReadOnly] public string PrefabName; [ReadOnly] public int PrefabHash;`), in game version 0.2.6228.27061.
 - 2026-04-29: added "Delete(Thing sourceItem) and the destruction entry points" section (and "Enumerating Things near a point" subsection) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: `Thing.Delete`, `DynamicThing.Delete`, `Thing.AttackWith` / `Structure.AttackWith`, `DestroyThingRequest`, `Thing.Find(Collider)` / `Thing._colliderLookup`, `OcclusionManager.AllThings` / `Register` / `Deregister`, `WorldManager.DeleteOutOfBoundsObjects` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
-- 2026-04-22: refined "Initial CustomColor by spawn path" and rewrote "Printer-default color lookup" after user reported a yellow-kit-vs-orange-structure color asymmetry on a placed Ladder. Prior opening sentence "console/creative/fabricator/constructor all end at the same default" was misleading: it was true that Awake sets a default, but omitted that the Constructor path always re-overwrites that default with the KIT's color (not the target Structure's), and it failed to note that no vanilla path lets a raw Structure reach the world without going through a kit. Additions: (a) new subsection "Kit / Structure color asymmetry" explaining the two PaintableMaterial slots on a built structure, (b) new subsection "Per-spawn-path behavior" with the Authoring Tool / placement-click path (`OnServer.UseItemPrimaryAuthoring` line 948-956 substitutes `Prefab.Find<Constructor>(spawnPrefab.SpawnId)` for the held `AuthoringTool`), (c) documentation of the `_constructKitLookup` reverse-lookup registered in `Prefab.OnLoad` line 244-247 and read via `ElectronicReader.GetAllConstructors(Thing)` line 642-646, (d) rewrote `PrinterDefaultColorIndex` into a kit-aware `AsBuiltColorIndex` helper. No verified claim was removed — the `Constructor` bullet at original line 120 already carried the `instance.CustomColor` detail correctly; this pass promotes that detail to the top of the section and adds the reverse-lookup primitive. No fresh validator required: refinement/addition, not contradiction of previously-verified claims. Sources additionally consulted: `Constructor.Construct` line 23-34, `MultiConstructor.Construct` line 47-61, `CreateStructureInstance(Structure, Grid3, Quaternion, ulong, int = -1)` ctor line 35-43, `Structure.SetStructureData` line 2239-2248, `OnServer.UseItemPrimary` / `UseItemPrimaryAuthoring` line 938-956, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu` line 58-64 + 166-200, `InventoryManager.SpawnDynamicThing(ICreativeSpawnable)` line 937-947, `Prefab.OnLoad` kit-registration line 244-247, `ElectronicReader._constructKitLookup` line 89 and `GetAllConstructors` line 642-646, `ElectronicReader.AddToLookup(IConstructionKit)` line 529-539 and 599-614, `DynamicThingConstructor.OnUseItem` at game-DLL line ~323731. All in game version 0.2.6228.27061.
+- 2026-04-22: refined "Initial CustomColor by spawn path" and rewrote "Printer-default color lookup" after user reported a yellow-kit-vs-orange-structure color asymmetry on a placed Ladder. Prior opening sentence "console/creative/fabricator/constructor all end at the same default" was misleading: it was true that Awake sets a default, but omitted that the Constructor path always re-overwrites that default with the KIT's color (not the target Structure's), and it failed to note that no vanilla path lets a raw Structure reach the world without going through a kit. Additions: (a) new subsection "Kit / Structure color asymmetry" explaining the two PaintableMaterial slots on a built structure, (b) new subsection "Per-spawn-path behavior" with the Authoring Tool / placement-click path (`OnServer.UseItemPrimaryAuthoring` line 948-956 substitutes `Prefab.Find<Constructor>(spawnPrefab.SpawnId)` for the held `AuthoringTool`), (c) documentation of the `_constructKitLookup` reverse-lookup registered in `Prefab.OnLoad` line 244-247 and read via `ElectronicReader.GetAllConstructors(Thing)` line 642-646, (d) rewrote `PrinterDefaultColorIndex` into a kit-aware `AsBuiltColorIndex` helper. No verified claim was removed -- the `Constructor` bullet at original line 120 already carried the `instance.CustomColor` detail correctly; this pass promotes that detail to the top of the section and adds the reverse-lookup primitive. No fresh validator required: refinement/addition, not contradiction of previously-verified claims. Sources additionally consulted: `Constructor.Construct` line 23-34, `MultiConstructor.Construct` line 47-61, `CreateStructureInstance(Structure, Grid3, Quaternion, ulong, int = -1)` ctor line 35-43, `Structure.SetStructureData` line 2239-2248, `OnServer.UseItemPrimary` / `UseItemPrimaryAuthoring` line 938-956, `Assets.Scripts.UI.ImGuiUi.ImguiCreativeSpawnMenu` line 58-64 + 166-200, `InventoryManager.SpawnDynamicThing(ICreativeSpawnable)` line 937-947, `Prefab.OnLoad` kit-registration line 244-247, `ElectronicReader._constructKitLookup` line 89 and `GetAllConstructors` line 642-646, `ElectronicReader.AddToLookup(IConstructionKit)` line 529-539 and 599-614, `DynamicThingConstructor.OnUseItem` at game-DLL line ~323731. All in game version 0.2.6228.27061.
 - 2026-06-20: added "CustomColorMapping build rule (which renderers recolor)" section. Additive; no existing content changed (the "CustomColor field and IsPaintable gate" section described `IsPaintable` and `SetCustomColor`'s swap loop, but not the Awake-time rule that decides which renderers populate `_customMaterials`). Source: `Thing.Awake` `_customMaterials` build at decompile line 301261-301284 (the `material == PaintableMaterial || material.mainTexture is Texture2DArray` inclusion test), game version 0.2.6228.27061. Worked example (the steel-frame Corner/Side shapes made paintable by copying `PaintableMaterial`) cross-checked live on the dedicated server via the ScenarioRunner `paintable-prefab-dump` probe: `StructureFrameCorner` and `StructureFrameSide` flip to `PaintableMaterialSet=True` after the load-time assignment, all four steel-frame shapes report `renderMode=Standard`. No fresh validator required: additive, no contradiction of previously-verified claims.
 - 2026-06-20: extended the "CustomColorMapping build rule" section with a "Structures build the recolor set per build state" subsection while answering a SprayPaintPlus savegame-removal-safety question. Documents `Structure.Awake`'s per-`BuildState` `_customMaterials` build (decompile 295943-295980, same `== PaintableMaterial || Texture2DArray` rule) and `Structure.SetCustomColor`'s Standard-forwards / Batched-throws dispatch (line 295933-295941), and spells out the removal-safe consequence (a runtime `PaintableMaterial` assignment is never serialized; a vanilla `CustomColorIndex` is reapplied via the Texture2DArray branch on load even without the mod). Additive; consistent with the existing `./Structure.md` `SetCustomColor` coverage. No fresh validator required.
+- 2026-07-14: added "Interaction and hover surface" section (game version 0.2.6403.27689, all bodies read verbatim from the 0.2.6403.27689 decompile): `GetInteractable(Collider)` strict `TryGetValue` lookup with no fallback (320193-320201; `InteractableType` overload 320203), the full `InteractWith` base body (321491-321541) including the `doAction: false` hover-preview contract, the OnOff error-flash state append (`GameStrings.ThingCurrentlyFlashingError`, 321523-321526) and the inverse-of-`OnOff` write (321529), `GetContextualName` (319699-319725) with the action-word (not state-word) semantics and the `ActionStrings` anchors (class 285747 in `Assets.Scripts.Inventory`, `Off` 285807, `On` 285809, state words `Opened`/`Closed`/`Powered`/`Unpowered` 285803-285813), and `GetExtendedText` (320726-320753, `AddDamageString` 320755). Also recorded the 0.2.6403.27689 anchors for `OnOff` (318249) and `HasOnOffState` (317241), whose full semantics live on [Device](./Device.md). Additive; consistent with the earlier 0.2.6228 excerpts on [SprayGun](./SprayGun.md) (`InteractWith` old line 302420, `GetContextualName` old line 300637; both bodies unchanged apart from line drift) and with [Device](./Device.md)'s state-property section. Occasion: the PowerGridPlus tooltip-pipeline curation pass, alongside the display-route sections added to [ElectricalInputOutput](./ElectricalInputOutput.md) the same day. Bumped frontmatter verified_in / verified_at; added the `ui` tag.
 
 ## Open questions
 

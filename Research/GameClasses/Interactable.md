@@ -14,6 +14,7 @@ sources:
   - Investigated for the PowerTransmitterPlus beam on/off fix (hooking dish switch state changes on all peers).
 related:
   - ./Device.md
+  - ./Thing.md
   - ./WirelessPower.md
   - ../GameSystems/LightSources.md
   - ../GameSystems/NetworkUpdateFlags.md
@@ -612,6 +613,8 @@ public readonly struct InteractionInstance(Thing thing, InteractableType action,
 Same file, similar name, different role: `Interaction` is a per-click value, `InteractionInstance` is an enqueued state-write request. Do not confuse them in a Harmony patch signature.
 
 Practical use: to drive `Transformer.InteractWith` headlessly from a probe (e.g. ScenarioRunner verifying knob increment behaviour without a connected player), pass `new Interaction(null, null, transformer, altKey)` plus a real `Interactable` lifted from `transformer.Interactables` matching the desired `Action` (Button1 / Button2). All four `Interaction` fields are nullable references except `AltKey`; passing nulls for `SourceThing` / `SourceSlot` / `DestinationThing` is safe because `Transformer.InteractWith` only reads `AltKey`.
+
+The base `Thing.InteractWith(Interactable, Interaction, bool)` body that consumes this struct (slot delegation, the Open / OnOff / Lock switch, and the `doAction: false` hover-preview contract) is quoted in full on [Thing](./Thing.md).
 
 ## Verification history
 
