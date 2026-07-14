@@ -8493,10 +8493,12 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (5)</summary>
+          <summary><strong>Related pages</strong> (6)</summary>
           <ul>
             
               <li><code>./Device.md</code></li>
+            
+              <li><code>./Thing.md</code></li>
             
               <li><code>./WirelessPower.md</code></li>
             
@@ -9040,6 +9042,7 @@
 </span></code></pre></div>
 <p>Same file, similar name, different role: <code>Interaction</code> is a per-click value, <code>InteractionInstance</code> is an enqueued state-write request. Do not confuse them in a Harmony patch signature.</p>
 <p>Practical use: to drive <code>Transformer.InteractWith</code> headlessly from a probe (e.g. ScenarioRunner verifying knob increment behaviour without a connected player), pass <code>new Interaction(null, null, transformer, altKey)</code> plus a real <code>Interactable</code> lifted from <code>transformer.Interactables</code> matching the desired <code>Action</code> (Button1 / Button2). All four <code>Interaction</code> fields are nullable references except <code>AltKey</code>; passing nulls for <code>SourceThing</code> / <code>SourceSlot</code> / <code>DestinationThing</code> is safe because <code>Transformer.InteractWith</code> only reads <code>AltKey</code>.</p>
+<p>The base <code>Thing.InteractWith(Interactable, Interaction, bool)</code> body that consumes this struct (slot delegation, the Open / OnOff / Lock switch, and the <code>doAction: false</code> hover-preview contract) is quoted in full on <a href="../Thing/">Thing</a>.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-07-07: added "Queue drain timing" subsection under the OnServer.Interact section (game version 0.2.6403.27689). Re-verified the <code>OnServer.Interact(Interactable, int, bool)</code> excerpt verbatim-unchanged at the new refs (39690-39723; worker enqueue 39696-39703) and read the full drain chain directly: <code>QueuedInteractions</code> declaration (304374), <code>DoQueuedInteractions</code> (304777-304785), <code>InteractionInstance</code> readonly struct (304799), the re-entry overloads <code>Interact(InteractionInstance)</code> (39685-39688) -&gt; <code>Interact(Thing, InteractableType, int, bool)</code> (39664-39683, re-resolves the Interactable by <code>Action</code> scan), and the drain driver <code>GameManager.Update</code> (205154-205170) gated on <code>IsInitialized &amp;&amp; !WorldManager.IsGamePaused &amp;&amp; RunSimulation</code>. New durable consequence: worker-issued interactions land within one main-thread frame, not within the issuing tick, so tick-atomic state changes need a mod-owned queue drained at a tick boundary (PowerGridPlus emergency-light toggle queue). Occasion: PowerGridPlus partial-power forensics. Additive; the existing 0.2.6228 description of the enqueue/drain pair (which did not name the drain driver) was confirmed, not changed. Bumped frontmatter verified_in / verified_at.</li>
