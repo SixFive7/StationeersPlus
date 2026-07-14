@@ -6777,6 +6777,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#auto-size-mutates-m_fontsize-while-rendered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-size mutates m_fontSize while rendered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-game-tooltip-rows-serialized-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The game tooltip rows' serialized values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8192,6 +8214,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#auto-size-mutates-m_fontsize-while-rendered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-size mutates m_fontSize while rendered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-game-tooltip-rows-serialized-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The game tooltip rows' serialized values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8431,9 +8475,55 @@
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  - (T.lineSpacing + T.paragraphSpacing) * T.fontSize * 0.01
 </span></code></pre></div>
 <p>emitted as a plain-number <code>&lt;line-height=H&gt;</code> (invariant culture; TMP's <code>ConvertToFloat</code> expects a dot decimal). The first two terms are E's natural advance; the subtraction pre-cancels T's own spacing term, which the driven branch adds back at render time. T's em scale uses T's component <code>fontSize</code> regardless of any <code>&lt;size&gt;</code> span in the string (6183), which is why the subtraction uses <code>T.fontSize</code>, not the size-tag value.</p>
-<p>Shipped user: <code>Mods/PowerGridPlus/PowerGridPlus/Patches/TransformerHoverErrorPatches.cs</code> (<code>FaultButtonTooltipPatches.BlockOpenTags</code>), reading both components at runtime through <code>InventoryManager.Instance</code> (Assembly-CSharp 286106) <code>-&gt; TooltipRef</code> (285975) <code>-&gt; TooltipTitle</code> / <code>TooltipExtended</code> (253976 / 253982), paired with an absolute <code>&lt;size=E.fontSize&gt;</code> span so glyph size and line advance match together.</p>
+<p>Shipped user: <code>Mods/PowerGridPlus/PowerGridPlus/Patches/FaultButtonTooltipPatches.cs</code> (<code>FaultButtonTooltipPatches.BlockOpenTags</code>), reading both components at runtime through <code>InventoryManager.Instance</code> (Assembly-CSharp 286106) <code>-&gt; TooltipRef</code> (285975) <code>-&gt; TooltipTitle</code> / <code>TooltipExtended</code> (253976 / 253982), paired with an absolute <code>&lt;size=E.fontSize&gt;</code> span so glyph size and line advance match together.</p>
+<h2 id="auto-size-mutates-m_fontsize-while-rendered">Auto-size mutates m_fontSize while rendered<a class="headerlink" href="#auto-size-mutates-m_fontsize-while-rendered" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>When <code>m_enableAutoSizing</code> is true, the text-fitting loop mutates <code>m_fontSize</code> itself between <code>m_fontSizeMin</code> and <code>m_fontSizeMax</code> across <code>GenerateTextMesh</code> iterations: the overflow branches shrink it (3363, 3482, 3530, retry gate 3620) and the underfill branch grows it back toward the max (<code>m_enableAutoSizing &amp;&amp; num4 &gt; 0.051f &amp;&amp; m_fontSize &lt; m_fontSizeMax &amp;&amp; m_AutoSizeIterationCount &lt; m_AutoSizeMaxIterationCount</code>, 4002; entry gates 2856 / 6128). Consequence: the public <code>fontSize</code> property of a rendered auto-sized component reads the FITTED size for the currently displayed content, not a stable configured value, and the fitted value changes with content length. A mod reading <code>fontSize</code> to mirror another component's glyph size must either confirm <code>enableAutoSizing</code> is false on the source component or read it while the reference content is rendered.</p>
+<h2 id="the-game-tooltip-rows-serialized-values">The game tooltip rows' serialized values<a class="headerlink" href="#the-game-tooltip-rows-serialized-values" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>The cursor tooltip's Title and Extended rows (the <code>Tooltip</code> fields <code>TooltipTitle</code> / <code>TooltipExtended</code>, GameObjects <code>ItemTitle</code> / <code>InfoExtended</code>) ship with these serialized TextMeshProUGUI values. Verified via InspectorPlus on 2026-07-14 in game version 0.2.6403.27689, live while a body tooltip rendered content in both rows. Request: types=[TextMeshProUGUI], fields=[text, fontSize, enableAutoSizing, fontSizeMin, fontSizeMax, lineSpacing, paragraphSpacing], maxDepth=1.</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>GameObject</th>
+<th>fontSize</th>
+<th>enableAutoSizing</th>
+<th>fontSizeMin</th>
+<th>fontSizeMax</th>
+<th>lineSpacing</th>
+<th>paragraphSpacing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TooltipTitle</code></td>
+<td><code>ItemTitle</code></td>
+<td>24</td>
+<td>false</td>
+<td>18</td>
+<td>72</td>
+<td>30</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>TooltipExtended</code></td>
+<td><code>InfoExtended</code></td>
+<td>18</td>
+<td>false</td>
+<td>18</td>
+<td>72</td>
+<td>30</td>
+<td>50</td>
+</tr>
+</tbody>
+</table>
+<p>Auto-sizing is OFF on both rows, so <code>fontSize</code> is the literal rendered point size and the advance formulas above apply with these constants directly. Note <code>paragraphSpacing</code> differs per row (0 vs 50): explicit <code>\n</code> breaks in Extended content advance by the paragraph term on top of the line term, so a cross-component advance match must use the per-row values, not assume symmetry.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-14 (second pass, same day): added "Auto-size mutates m_fontSize while rendered" (decompile lines 2856, 3363, 3482, 3530, 3620, 4002, 6128 re-read from the same Unity.TextMeshPro decompile) and "The game tooltip rows' serialized values" (InspectorPlus live read on a connected client, request pattern cited in the section). Also corrected the shipped-user file path (the class moved to Patches/FaultButtonTooltipPatches.cs in the fault-terminology rollout). Driving work: diagnosing a residual glyph-size mismatch between the PowerGridPlus button and casing fault hovers before hardcoding the tooltip metric constants.</li>
 <li>2026-07-14: page created. All quoted bodies read verbatim from <code>.work/decomp/0.2.6403.27689/Unity.TextMeshPro.decompiled.cs</code>, a fresh ilspycmd decompile of the shipped <code>Unity.TextMeshPro.dll</code> produced this session. Driving work: matching the PowerGridPlus button-tooltip Title-box line spacing to the casing tooltip (in-game feedback that the block lines sat too far apart after the font-size match). Additive (new page); the TMP-default facts on <a href="../StationpediaDescriptionRendering/">StationpediaDescriptionRendering</a> are not contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
