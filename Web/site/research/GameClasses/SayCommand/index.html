@@ -3683,6 +3683,8 @@
       
         
       
+        
+      
     
     
     
@@ -5189,6 +5191,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../GameSystems/StructureRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
         
   
@@ -5338,6 +5368,8 @@
   
     
     
+      
+        
       
         
       
@@ -5641,6 +5673,34 @@
     
   
     BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BlueprintModPlacement
   
 
     
@@ -8292,14 +8352,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>Plans/LLM/RESEARCH.md:49-66</code></li>
@@ -8308,17 +8372,21 @@
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Util.Commands.SayCommand'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 101709-101766 (SayCommand)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
               <li><code>./ChatMessage.md</code></li>
             
               <li><code>./Human.md</code></li>
+            
+              <li><code>../GameSystems/ChatBroadcast.md</code></li>
             
           </ul>
         </details>
@@ -8351,22 +8419,52 @@
 <h1 id="saycommand">SayCommand<a class="headerlink" href="#saycommand" title="Permanent link">&para;</a></h1>
 <p>Vanilla game class at <code>Util.Commands.SayCommand</code>. Implements the <code>say</code> console command and is the canonical demonstration of the server-side chat-send pattern.</p>
 <h2 id="server-side-send-pattern">Server-side send pattern<a class="headerlink" href="#server-side-send-pattern" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p>Source: F0072.</p>
+<p>Source: F0072; re-verified against the 0.2.6403.27689 decompile (<code>SayCommand</code> at lines 101709-101766).</p>
 <p><strong>Namespace:</strong> <code>Util.Commands</code></p>
-<p>The <code>say</code> console command demonstrates the server-side send pattern:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ChatMessage</span><span class="w"> </span><span class="n">chatMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ChatMessage</span>
+<p>The <code>say</code> console command demonstrates the server-side send pattern. Verbatim core (<code>Say</code>, 0.2.6403.27689); a listen-server host now gets a <code>" (Host)"</code> suffix appended to its display name:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Say</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">input</span><span class="p">)</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">ChatText</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="p">,</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="n">DisplayName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s">&quot;Server&quot;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">LocalHuman</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">,</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">HumanId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">LocalHuman</span><span class="p">.</span><span class="n">ReferenceId</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">};</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1">// On dedicated server (IsServer &amp;&amp; IsBatchMode):</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">chatMessage</span><span class="p">.</span><span class="n">PrintToConsole</span><span class="p">();</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">NetworkServer</span><span class="p">.</span><span class="n">SendToClients</span><span class="p">(</span><span class="n">chatMessage</span><span class="p">,</span><span class="w"> </span><span class="n">NetworkChannel</span><span class="p">.</span><span class="n">GeneralTraffic</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1L</span><span class="p">);</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">input</span><span class="p">))</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="n">ChatMessage</span><span class="w"> </span><span class="n">chatMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ChatMessage</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">            </span><span class="n">ChatText</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">            </span><span class="n">DisplayName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s">&quot;Server&quot;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">LocalHuman</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">),</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">            </span><span class="n">HumanId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Human</span><span class="p">.</span><span class="n">LocalHuman</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">)</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">        </span><span class="p">};</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsServer</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">GameManager</span><span class="p">.</span><span class="n">IsBatchMode</span><span class="p">)</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">            </span><span class="n">chatMessage</span><span class="p">.</span><span class="n">DisplayName</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s">&quot; (Host)&quot;</span><span class="p">;</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">Human</span><span class="p">.</span><span class="n">LocalHuman</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">input</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="s">&quot;hi&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">input</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">))</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">            </span><span class="n">input</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="s">&quot;wave&quot;</span><span class="p">);</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">            </span><span class="n">NetworkClient</span><span class="p">.</span><span class="n">SendToServer</span><span class="p">(</span><span class="n">chatMessage</span><span class="p">);</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsServer</span><span class="p">)</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">            </span><span class="n">chatMessage</span><span class="p">.</span><span class="n">PrintToConsole</span><span class="p">();</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">            </span><span class="n">NetworkServer</span><span class="p">.</span><span class="n">SendToClients</span><span class="p">(</span><span class="n">chatMessage</span><span class="p">,</span><span class="w"> </span><span class="n">NetworkChannel</span><span class="p">.</span><span class="n">GeneralTraffic</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1L</span><span class="p">);</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">        </span><span class="k">else</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">            </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Unable to send message.&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">suppressStacktrace</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Key detail: on a dedicated server (<code>GameManager.IsBatchMode</code>), there is no <code>Human.LocalHuman</code>. The code uses <code>HumanId = -1</code> and <code>DisplayName = "Server"</code>. The bot follows this same pattern.</p>
+<p>Key details:</p>
+<ul>
+<li>On a dedicated server (<code>GameManager.IsBatchMode</code>), there is no <code>Human.LocalHuman</code>. The code uses <code>HumanId = -1</code> and <code>DisplayName = "Server"</code>. The bot follows this same pattern.</li>
+<li>The command itself is registered <code>CommandScope.MultiplayerOnly</code> (101717); the underlying APIs (<code>ChatMessage</code>, <code>PrintToConsole</code>, <code>SendToClients</code>) are NOT scope-gated and work from a mod in any mode. In single-player (no network session) both <code>IsServer</code> and <code>IsClient</code> are false, so vanilla <code>Say</code> hits the error branch; a mod should call <code>PrintToConsole()</code> alone (or just <code>ConsoleWindow.Print</code>) in that case.</li>
+<li><code>SayCommand.HelpText</code> (101711): "Sends a chat message to all connected players. Multiplayer only; the host appears tagged as '(Host)'."</li>
+<li>The full broadcast recipe, <code>ChatMessage.Process</code> on the receiving client, and the console rendering constraints (plain text only) are on <a href="../../GameSystems/ChatBroadcast/">ChatBroadcast</a>.</li>
+</ul>
 <h3 id="sendbotmessage-class-comment-f0379">SendBotMessage class comment (F0379)<a class="headerlink" href="#sendbotmessage-class-comment-f0379" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8374,10 +8472,11 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Sends a chat message as the bot. Must run on the main thread. Follows the same pattern as SayCommand.Say() for server/batch mode: construct a ChatMessage, print to server console, broadcast to clients.
 </span></code></pre></div>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0072, F0379. No conflicts.</li>
+<li>2026-07-14: re-verified against the 0.2.6403.27689 decompile (<code>SayCommand</code> 101709-101766) during the mixed-tier cable network guard research pass. The F0072 pattern stands; replaced the paraphrased snippet with the full verbatim <code>Say</code> body. New at this version relative to the old excerpt: the <code>" (Host)"</code> display-name suffix for a non-batch listen-server host, the explicit <code>CommandScope.MultiplayerOnly</code> registration (101717), the <code>HelpText</code> string (101711), and the single-player note (both <code>IsServer</code> and <code>IsClient</code> false with no network session, so a mod calls <code>PrintToConsole()</code> alone). Cross-linked <a href="../../GameSystems/ChatBroadcast/">ChatBroadcast</a> for the receiving-side <code>Process</code> and the console rendering constraints.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

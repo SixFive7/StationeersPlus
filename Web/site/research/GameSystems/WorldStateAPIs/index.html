@@ -3586,6 +3586,8 @@
       
         
       
+        
+      
     
     
     
@@ -5092,6 +5094,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../StructureRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../StunStateMachine/" class="md-nav__link">
         
   
@@ -5275,6 +5305,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#player-facing-position-convention-logictypepositionxyz-in-world-meters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Player-facing position convention: LogicType.PositionX/Y/Z in world meters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5321,6 +5362,8 @@
   
     
     
+      
+        
       
         
       
@@ -5624,6 +5667,34 @@
     
   
     BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BlueprintModPlacement
   
 
     
@@ -8148,6 +8219,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#player-facing-position-convention-logictypepositionxyz-in-world-meters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Player-facing position convention: LogicType.PositionX/Y/Z in world meters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8258,29 +8340,37 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (2)</summary>
           <ul>
             
               <li><code>Plans/RepairPrototype/plan.md:398-421</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 308886-308891 (LogicType.PositionX/Y/Z)'}</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>../GameClasses/Thing.md</code></li>
             
               <li><code>../GameClasses/Device.md</code></li>
+            
+              <li><code>../GameClasses/Grid3.md</code></li>
             
               <li><code>./DamageState.md</code></li>
             
@@ -8327,11 +8417,16 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 <p><code>AtmosphericsManager.AllAtmospheres</code> static collection (may contain nulls). <code>atmosphere.Temperature</code> Kelvin, <code>PressureGassesAndLiquidsInPa</code>, <code>.Room</code> (has <code>RoomId</code>), <code>thing.WorldAtmosphere</code>. <code>CableNetwork.AllCableNetworks</code>, <code>PipeNetwork.AllPipeNetworks</code>, <code>network.DeviceList</code>, <code>.CableList</code>, <code>.FuseList</code>. Logic: <code>device.GetLogicValue(LogicType)</code> / <code>SetLogicValue(LogicType, double)</code>, <code>CanLogicRead/CanLogicWrite</code>. Existing LogicType values reusable: <code>On</code>, <code>Mode</code>, <code>Setting</code>, <code>Power</code>, <code>PowerActual</code>, <code>Ratio</code>, <code>Quantity</code>, <code>Temperature</code>, <code>Pressure</code>, <code>Error</code>, <code>Lock</code>. Game state guards: <code>!GameManager.IsServer</code>, <code>WorldManager.IsPaused</code>, <code>WorldManager.Instance.GameMode != GameMode.Survival</code>.</p>
+<h2 id="player-facing-position-convention-logictypepositionxyz-in-world-meters">Player-facing position convention: LogicType.PositionX/Y/Z in world meters<a class="headerlink" href="#player-facing-position-convention-logictypepositionxyz-in-world-meters" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>A device answering <code>LogicType.PositionX/Y/Z</code> returns <code>base.Position.x</code> / <code>.y</code> / <code>.z</code> (verbatim <code>case LogicType.PositionX: return base.Position.x;</code> at 0.2.6403.27689 decompile 308886-308891), i.e. raw world meters. IC10 players, autopilot scripts, and community tooling therefore treat "coordinates" as world meters; a mod that prints a position to players should format world meters (e.g. <code>$"({pos.x:F1}, {pos.y:F1}, {pos.z:F1})"</code>), not <code>Grid3</code> decimeter integers. No vanilla position-to-text formatter exists. Full coordinate-system math (decimeter <code>Grid3</code>, small-grid cell keys, snap formulas) is on <a href="../../GameClasses/Grid3/">Grid3</a>.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0229f (Plans/RepairPrototype/plan.md:398-421).</li>
+<li>2026-07-14: added the "Player-facing position convention" section (<code>LogicType.PositionX/Y/Z</code> returns <code>base.Position</code> components in world meters, decompile 308886-308891 at 0.2.6403.27689; no vanilla position-to-text formatter) from the mixed-tier cable network guard research pass. Additive; the quick-reference section keeps its 0.2.6228.27061 stamp (not re-read this pass). Cross-linked <a href="../../GameClasses/Grid3/">Grid3</a>.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

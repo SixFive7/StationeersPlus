@@ -18,7 +18,7 @@
         <link rel="prev" href="../StationpediaSearch/">
       
       
-        <link rel="next" href="../StunStateMachine/">
+        <link rel="next" href="../StructureRegistration/">
       
       
         
@@ -3586,6 +3586,8 @@
       
         
       
+        
+      
     
     
     
@@ -5157,6 +5159,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#smallgridcanconstruct-the-cursor-time-occupancy-chain-and-the-same-tier-stacking-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmallGrid.CanConstruct: the cursor-time occupancy chain, and the same-tier stacking gap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-gate-is-client-side-preview-only-not-server-authoritative" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5193,6 +5206,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StructureRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -5354,6 +5395,8 @@
   
     
     
+      
+        
       
         
       
@@ -5657,6 +5700,34 @@
     
   
     BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BlueprintModPlacement
   
 
     
@@ -8203,6 +8274,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#smallgridcanconstruct-the-cursor-time-occupancy-chain-and-the-same-tier-stacking-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmallGrid.CanConstruct: the cursor-time occupancy chain, and the same-tier stacking gap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-gate-is-client-side-preview-only-not-server-authoritative" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8324,19 +8406,25 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-31.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Inventory.InventoryManager (placement preview), Assets.Scripts.Objects.Structure / Cable / Device (CanConstruct), Assets.Scripts.Objects.Constructor (SpawnConstruct), CanConstructInfo'}</code></li>
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines ~270692-270760 (placement preview loop), 276780-276796 (CanConstructInfo), 276940-276953 (Constructor.SpawnConstruct), 371598-371645 (Cable.CanConstruct / CanReplace)'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 288665-288726 (placement preview loop), 312645-312728 (SmallGrid._IsCollision / CanConstruct), 314919-314941 (Structure.CanConstruct), 392588-392694 (Cable._IsCollision / CanConstruct / CanReplace / WillMergeWhenPlaced)'}</code></li>
             
               <li><code>Plans/PowerGridPlus/PLAN.md (phase 3 research)</code></li>
             
@@ -8345,7 +8433,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (6)</summary>
           <ul>
             
               <li><code>../GameClasses/Cable.md</code></li>
@@ -8355,6 +8443,10 @@
               <li><code>../GameClasses/MultiMergeConstructor.md</code></li>
             
               <li><code>../GameClasses/AllowedRotations.md</code></li>
+            
+              <li><code>../GameClasses/SmallCell.md</code></li>
+            
+              <li><code>./StructureRegistration.md</code></li>
             
           </ul>
         </details>
@@ -8380,38 +8472,50 @@
 <h1 id="structure-placement-validation-canconstruct-canreplace">Structure placement validation (CanConstruct / CanReplace)<a class="headerlink" href="#structure-placement-validation-canconstruct-canreplace" title="Permanent link">&para;</a></h1>
 <p>How the game decides whether a structure may be placed at the cursor, and where a mod can hook to reject a placement with a player-visible message.</p>
 <h2 id="the-placement-preview-loop-calls-canconstruct-every-frame">The placement-preview loop calls CanConstruct() every frame<a class="headerlink" href="#the-placement-preview-loop-calls-canconstruct-every-frame" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p>In <code>InventoryManager</code>'s placement-preview path (the per-frame loop that updates the build cursor), after positioning the cursor selection box:</p>
+<p>In <code>InventoryManager</code>'s placement-preview path (the per-frame loop that updates the build cursor), after positioning the cursor selection box. Verbatim head at 0.2.6403.27689 (288665-288726); both arms AND into <code>flag2</code>, which gates the primary click and <code>UsePrimaryComplete()</code>:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">CanConstructInfo</span><span class="w"> </span><span class="n">canConstructInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ConstructionCursor</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">();</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">canConstructInfo</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">)</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">{</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="p">))</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s">&quot;\n&quot;</span><span class="p">;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">ref</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="p">;</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;color=red&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">canConstructInfo</span><span class="p">.</span><span class="n">ErrorMessage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;/color&gt;&quot;</span><span class="p">;</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">flag2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flag2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">canConstructInfo</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">;</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">IsAuthoringMode</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ConstructionCursor</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">IGridMergeable</span><span class="w"> </span><span class="n">gridMergeable</span><span class="p">)</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">{</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Item</span><span class="w"> </span><span class="n">inactiveHandItem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Parent</span><span class="p">.</span><span class="n">Slots</span><span class="p">[</span><span class="n">InactiveHand</span><span class="p">.</span><span class="n">SlotId</span><span class="p">].</span><span class="n">Occupant</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Item</span><span class="p">;</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="n">CanConstructInfo</span><span class="w"> </span><span class="n">canConstructInfo2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gridMergeable</span><span class="p">.</span><span class="n">CanReplace</span><span class="p">(</span><span class="n">multiConstructor</span><span class="p">,</span><span class="w"> </span><span class="n">inactiveHandItem</span><span class="p">);</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">canConstructInfo2</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">)</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="k">ref</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">state2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="p">;</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="n">state2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;color=red&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">canConstructInfo2</span><span class="p">.</span><span class="n">ErrorMessage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;/color&gt;&quot;</span><span class="p">;</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="n">flag2</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="n">canConstructInfo2</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">;</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="p">}</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="p">...</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">KeyManager</span><span class="p">.</span><span class="n">GetMouseDown</span><span class="p">(</span><span class="s">&quot;Primary&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">flag2</span><span class="p">)</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="p">{</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="p">...</span><span class="w"> </span><span class="n">begin</span><span class="w"> </span><span class="n">placement</span><span class="w"> </span><span class="p">(</span><span class="n">UsePrimaryComplete</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">WaitUntilDone</span><span class="p">)</span><span class="w"> </span><span class="p">...</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="p">}</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Color</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">flag2</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Color</span><span class="p">.</span><span class="n">green</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Color</span><span class="p">.</span><span class="n">red</span><span class="p">);</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s">&quot;\n&quot;</span><span class="p">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="k">ref</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="p">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;color=red&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">canConstructInfo</span><span class="p">.</span><span class="n">ErrorMessage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;/color&gt;&quot;</span><span class="p">;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">}</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">flag2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flag2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">canConstructInfo</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">IsAuthoringMode</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ConstructionCursor</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">IGridMergeable</span><span class="w"> </span><span class="n">gridMergeable</span><span class="p">)</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">{</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Item</span><span class="w"> </span><span class="n">inactiveHandItem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Parent</span><span class="p">.</span><span class="n">Slots</span><span class="p">[</span><span class="n">InactiveHand</span><span class="p">.</span><span class="n">SlotId</span><span class="p">].</span><span class="n">Occupant</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Item</span><span class="p">;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="n">CanConstructInfo</span><span class="w"> </span><span class="n">canConstructInfo2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gridMergeable</span><span class="p">.</span><span class="n">CanReplace</span><span class="p">(</span><span class="n">multiConstructor</span><span class="p">,</span><span class="w"> </span><span class="n">inactiveHandItem</span><span class="p">);</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag2</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">canConstructInfo2</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">)</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="k">ref</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">state2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">tooltip</span><span class="p">.</span><span class="n">State</span><span class="p">;</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="n">state2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;color=red&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">canConstructInfo2</span><span class="p">.</span><span class="n">ErrorMessage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&lt;/color&gt;&quot;</span><span class="p">;</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="n">flag2</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="n">canConstructInfo2</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">;</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="p">}</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="p">...</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">KeyManager</span><span class="p">.</span><span class="n">GetMouseDown</span><span class="p">(</span><span class="s">&quot;Primary&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">flag2</span><span class="p">)</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="p">{</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="n">_usePrimaryPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_cursorPosition</span><span class="p">;</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">    </span><span class="n">_usePrimaryRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ConstructionCursor</span><span class="p">.</span><span class="n">ThingTransform</span><span class="p">.</span><span class="n">rotation</span><span class="p">;</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ConstructionCursor</span><span class="p">.</span><span class="n">BuildPlacementTime</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">        </span><span class="n">ActionCoroutine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">StartCoroutine</span><span class="p">(</span><span class="n">WaitUntilDone</span><span class="p">(</span><span class="n">UsePrimaryComplete</span><span class="p">,</span><span class="w"> </span><span class="n">ConstructionCursor</span><span class="p">.</span><span class="n">BuildPlacementTime</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">num</span><span class="p">,</span><span class="w"> </span><span class="n">ConstructionCursor</span><span class="p">));</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">        </span><span class="n">UsePrimaryComplete</span><span class="p">();</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">    </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>So a placement is allowed only when <code>CanConstruct()</code> returns <code>CanConstruct == true</code> AND (for <code>IGridMergeable</code> cursors, e.g. cables/pipes) <code>CanReplace(...)</code> returns <code>CanConstruct == true</code>. A false result writes <code>ErrorMessage</code> (red) into the cursor tooltip and tints the ghost red. This is the clean hook point for build-time rejection.</p>
+<p>(The <code>&lt;color=red&gt;</code> markup here renders correctly because the cursor tooltip is a TextMeshPro surface; the F3 console is ImGui and does NOT render such tags, see <a href="../ChatBroadcast/">ChatBroadcast</a>, "Rendering constraints".)</p>
 <h2 id="canconstructinfo">CanConstructInfo<a class="headerlink" href="#canconstructinfo" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
 
@@ -8491,28 +8595,123 @@
 </span></code></pre></div>
 <p>So a cable merge that <code>_IsCollision</code> rejects has <code>CanConstruct().CanConstruct == false</code>, while <code>CanReplace(...).CanConstruct == true</code>. (<code>BlockMergeWithOtherCables</code> is also read by <code>Cable.WillMergeWhenPlaced</code>, a separate method that fires the <code>Cable.OnMerge</code> event; it is not part of <code>CanReplace</code>'s return path.)</p>
 <p><strong>Consequence.</strong> The interactive placement loop checks both (<code>flag2 = CanConstruct &amp;&amp; (mergeable ? CanReplace : true)</code>), so it blocks both families. Code that re-runs only one check does not: <code>CanReplace</code> alone blocks pipes but passes cables; <code>CanConstruct</code> alone blocks cables (when <code>_IsCollision</code> rejects) but passes pipes. To reproduce the interactive gate, run both. Whether a same-type cable merge is actually rejected by <code>_IsCollision</code> further depends on the runtime <code>BlockMergeWithOtherCables</code> value on the cable prefabs, a serialized field that is not visible in the decompiled C#.</p>
-<h2 id="the-gate-is-client-side-preview-only-not-server-authoritative">The gate is client-side preview only, not server-authoritative<a class="headerlink" href="#the-gate-is-client-side-preview-only-not-server-authoritative" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<h2 id="smallgridcanconstruct-the-cursor-time-occupancy-chain-and-the-same-tier-stacking-gap">SmallGrid.CanConstruct: the cursor-time occupancy chain, and the same-tier stacking gap<a class="headerlink" href="#smallgridcanconstruct-the-cursor-time-occupancy-chain-and-the-same-tier-stacking-gap" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Structure</span><span class="w"> </span><span class="nf">SpawnConstruct</span><span class="p">(</span><span class="n">CreateStructureInstance</span><span class="w"> </span><span class="n">instance</span><span class="p">)</span><span class="w">   </span><span class="c1">// on Constructor</span>
+<p><code>SmallGrid.CanConstruct</code> (0.2.6403.27689 decompile 312669-312728), verbatim. This is the occupancy half of the cursor gate for cables/pipes/chutes: it walks the ghost's cells and consults <code>_IsCollision</code> per occupant slot:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="w"> </span><span class="nf">CanConstruct</span><span class="p">()</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="n">Structure</span><span class="w"> </span><span class="n">structure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">.</span><span class="n">Create</span><span class="o">&lt;</span><span class="n">Structure</span><span class="o">&gt;</span><span class="p">(</span><span class="n">instance</span><span class="p">.</span><span class="n">Prefab</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">WorldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">WorldRotation</span><span class="p">,</span><span class="w"> </span><span class="mi">0L</span><span class="p">);</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="n">structure</span><span class="p">.</span><span class="n">SetStructureData</span><span class="p">(</span><span class="n">instance</span><span class="p">.</span><span class="n">LocalRotation</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">LocalGrid</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">CustomColor</span><span class="p">);</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">structure</span><span class="p">;</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">        </span><span class="k">new</span><span class="w"> </span><span class="nf">ConstructionCreationMessage</span><span class="p">(</span><span class="n">instance</span><span class="p">).</span><span class="n">SendToServer</span><span class="p">();</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">}</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">Grid3</span><span class="p">[]</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Grid3</span><span class="p">[])</span><span class="n">GridBounds</span><span class="p">.</span><span class="n">GetLocalSmallGrid</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">,</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformRotation</span><span class="p">);</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">array</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">smallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetSmallCell</span><span class="p">(</span><span class="n">localGrid</span><span class="p">);</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">IRocketInternals</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">StrictlyInternal</span><span class="p">:</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="p">(</span><span class="n">smallCell</span><span class="o">?.</span><span class="n">Owner</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">RocketNetwork</span><span class="p">))</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">CannotPlaceOutsideRocket</span><span class="p">);</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="o">?.</span><span class="n">Owner</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">this</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">IRocketInternals</span><span class="p">)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">            </span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">(</span><span class="n">localGrid</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">localGrid</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">SmallGridSize</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">,</span><span class="w"> </span><span class="n">localGrid</span><span class="p">.</span><span class="n">z</span><span class="p">);</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">            </span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">(</span><span class="n">localGrid</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">localGrid</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">SmallGridSize</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">,</span><span class="w"> </span><span class="n">localGrid</span><span class="p">.</span><span class="n">z</span><span class="p">);</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">            </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">smallCell2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetSmallCell</span><span class="p">(</span><span class="n">localGrid2</span><span class="p">);</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">            </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">smallCell3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetSmallCell</span><span class="p">(</span><span class="n">localGrid3</span><span class="p">);</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell2</span><span class="o">?.</span><span class="n">Owner</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">smallCell3</span><span class="o">?.</span><span class="n">Owner</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementConnectingNeedsFuselage</span><span class="p">.</span><span class="n">DisplayString</span><span class="p">);</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Cable</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_IsCollision</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Cable</span><span class="p">))</span>
+</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementBlockedBySmallGrid</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Cable</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">));</span>
+</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Device</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_IsCollision</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Device</span><span class="p">))</span>
+</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementBlockedBySmallGrid</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Device</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">));</span>
+</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Pipe</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_IsCollision</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Pipe</span><span class="p">))</span>
+</span><span id="__span-6-34"><a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-35"><a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementBlockedBySmallGrid</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Pipe</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">));</span>
+</span><span id="__span-6-36"><a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-37"><a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Chute</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_IsCollision</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Chute</span><span class="p">))</span>
+</span><span id="__span-6-38"><a id="__codelineno-6-38" name="__codelineno-6-38" href="#__codelineno-6-38"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-39"><a id="__codelineno-6-39" name="__codelineno-6-39" href="#__codelineno-6-39"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementBlockedBySmallGrid</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Chute</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">));</span>
+</span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-41"><a id="__codelineno-6-41" name="__codelineno-6-41" href="#__codelineno-6-41"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Rail</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_IsCollision</span><span class="p">((</span><span class="n">SmallGrid</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Rail</span><span class="p">))</span>
+</span><span id="__span-6-42"><a id="__codelineno-6-42" name="__codelineno-6-42" href="#__codelineno-6-42"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-43"><a id="__codelineno-6-43" name="__codelineno-6-43" href="#__codelineno-6-43"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementBlockedBySmallGrid</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Rail</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">));</span>
+</span><span id="__span-6-44"><a id="__codelineno-6-44" name="__codelineno-6-44" href="#__codelineno-6-44"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-45"><a id="__codelineno-6-45" name="__codelineno-6-45" href="#__codelineno-6-45"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Other</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">_IsCollision</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Other</span><span class="p">))</span>
+</span><span id="__span-6-46"><a id="__codelineno-6-46" name="__codelineno-6-46" href="#__codelineno-6-46"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-47"><a id="__codelineno-6-47" name="__codelineno-6-47" href="#__codelineno-6-47"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementBlockedBySmallGrid</span><span class="p">.</span><span class="n">AsString</span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Other</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">));</span>
+</span><span id="__span-6-48"><a id="__codelineno-6-48" name="__codelineno-6-48" href="#__codelineno-6-48"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-49"><a id="__codelineno-6-49" name="__codelineno-6-49" href="#__codelineno-6-49"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Owner</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Owner</span><span class="p">.</span><span class="n">IsCollision</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">smallCell</span><span class="p">.</span><span class="n">SmallGrid</span><span class="p">))</span>
+</span><span id="__span-6-50"><a id="__codelineno-6-50" name="__codelineno-6-50" href="#__codelineno-6-50"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-6-51"><a id="__codelineno-6-51" name="__codelineno-6-51" href="#__codelineno-6-51"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">InvalidPlacement</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">PlacementConnectingNeedsFuselage</span><span class="p">.</span><span class="n">DisplayString</span><span class="p">);</span>
+</span><span id="__span-6-52"><a id="__codelineno-6-52" name="__codelineno-6-52" href="#__codelineno-6-52"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-6-53"><a id="__codelineno-6-53" name="__codelineno-6-53" href="#__codelineno-6-53"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-54"><a id="__codelineno-6-54" name="__codelineno-6-54" href="#__codelineno-6-54"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-55"><a id="__codelineno-6-55" name="__codelineno-6-55" href="#__codelineno-6-55"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">DualRegister</span><span class="p">)</span>
+</span><span id="__span-6-56"><a id="__codelineno-6-56" name="__codelineno-6-56" href="#__codelineno-6-56"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-57"><a id="__codelineno-6-57" name="__codelineno-6-57" href="#__codelineno-6-57"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">CanConstructInfo</span><span class="p">.</span><span class="n">ValidPlacement</span><span class="p">;</span>
+</span><span id="__span-6-58"><a id="__codelineno-6-58" name="__codelineno-6-58" href="#__codelineno-6-58"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-59"><a id="__codelineno-6-59" name="__codelineno-6-59" href="#__codelineno-6-59"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">CanConstruct</span><span class="p">();</span>
+</span><span id="__span-6-60"><a id="__codelineno-6-60" name="__codelineno-6-60" href="#__codelineno-6-60"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(Cables are not <code>DualRegister</code>, so <code>Structure.CanConstruct</code> (314919-314941, large-grid <code>Cell</code> occupancy via <code>CanConstructCell</code>) never runs for them.)</p>
+<p>The <code>SmallGrid._IsCollision</code> base + helper (312645-312667):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsPipeEndCollision</span><span class="p">(</span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGrid</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Connection</span><span class="w"> </span><span class="n">openEnd</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">OpenEnds</span><span class="p">)</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Connection</span><span class="w"> </span><span class="n">openEnd2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">smallGrid</span><span class="p">.</span><span class="n">OpenEnds</span><span class="p">)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">openEnd</span><span class="p">.</span><span class="n">Transform</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">openEnd2</span><span class="p">.</span><span class="n">Transform</span><span class="p">.</span><span class="n">position</span><span class="p">).</span><span class="n">sqrMagnitude</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0.010000001f</span><span class="p">)</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="p">}</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="k">protected</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">_IsCollision</span><span class="p">(</span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGrid</span><span class="p">)</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="p">{</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">smallGrid</span><span class="p">.</span><span class="n">SmallCollisionType</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">SmallCollisionType</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">SmallGridBlock</span><span class="p">.</span><span class="n">None</span><span class="p">)</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">IsPipeEndCollision</span><span class="p">(</span><span class="n">smallGrid</span><span class="p">);</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>0.2.6403.27689 line refs for the cable-family overrides (full verbatim bodies on <a href="../../GameClasses/Cable/">Cable</a>): <code>Cable._IsCollision</code> 392588-392603, <code>Cable.CanConstruct</code> 392625-392632 (umbilical check then base), <code>Cable.CanReplace</code> 392634-392672, <code>Cable.WillMergeWhenPlaced</code> 392674-392694.</p>
+<p><strong>The same-tier stacking gap.</strong> For a cable ghost over an existing SAME-tier cable (neither <code>BlockMergeWithOtherCables</code> flag set), <code>Cable._IsCollision</code> returns false, so <code>SmallGrid.CanConstruct</code> PASSES. The thing that still blocks the click is the second arm of the cursor gate, <code>IGridMergeable.CanReplace</code>, which demands the merge tool. For a DIFFERENT-tier cable, <code>_IsCollision</code> returns true and <code>CanConstruct</code> fails with <code>PlacementBlockedBySmallGrid</code>. Consequence: a programmatic caller that honors <code>CanConstruct</code> but skips <code>CanReplace</code> can still stack same-tier cables into one cell; the registration path itself has NO occupancy check of any kind (<code>_IsCollision</code> call-site census and the register chain on <a href="../StructureRegistration/">StructureRegistration</a>), and the resulting stacked-pair misbehavior is on <a href="../../GameClasses/SmallCell/">SmallCell</a>. Code that re-validates a planned placement must run BOTH arms to reproduce the interactive gate (consistent with the per-family section above).</p>
+<h2 id="the-gate-is-client-side-preview-only-not-server-authoritative">The gate is client-side preview only, not server-authoritative<a class="headerlink" href="#the-gate-is-client-side-preview-only-not-server-authoritative" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Structure</span><span class="w"> </span><span class="nf">SpawnConstruct</span><span class="p">(</span><span class="n">CreateStructureInstance</span><span class="w"> </span><span class="n">instance</span><span class="p">)</span><span class="w">   </span><span class="c1">// on Constructor</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">        </span><span class="n">Structure</span><span class="w"> </span><span class="n">structure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">.</span><span class="n">Create</span><span class="o">&lt;</span><span class="n">Structure</span><span class="o">&gt;</span><span class="p">(</span><span class="n">instance</span><span class="p">.</span><span class="n">Prefab</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">WorldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">WorldRotation</span><span class="p">,</span><span class="w"> </span><span class="mi">0L</span><span class="p">);</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="n">structure</span><span class="p">.</span><span class="n">SetStructureData</span><span class="p">(</span><span class="n">instance</span><span class="p">.</span><span class="n">LocalRotation</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">OwnerClientId</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">LocalGrid</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">CustomColor</span><span class="p">);</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">structure</span><span class="p">;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">        </span><span class="k">new</span><span class="w"> </span><span class="nf">ConstructionCreationMessage</span><span class="p">(</span><span class="n">instance</span><span class="p">).</span><span class="n">SendToServer</span><span class="p">();</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><code>SpawnConstruct</code> (server side, <code>GameManager.RunSimulation</code>) does NOT re-run <code>CanConstruct</code>; it just <code>Thing.Create</code>s the structure. So a <code>CanConstruct</code>/<code>CanReplace</code> postfix stops a vanilla/modded client from triggering placement and gives a clear message, but it is not anti-cheat against a hand-crafted <code>ConstructionCreationMessage</code>. That is fine for a balance / lore restriction; for a hard rule, add a server-side check (e.g. in an <code>OnRegistered</code> postfix that severs / errors the structure) as well.</p>
+<p>Re-confirmed at 0.2.6403.27689: the whole <code>Thing.Create</code> -&gt; <code>Register</code> -&gt; <code>AddSmallGridStructure</code> chain contains no <code>CanConstruct</code>, no <code>_IsCollision</code>, no occupancy test of any kind (call-site census on <a href="../StructureRegistration/">StructureRegistration</a>; registration-time interception options on <a href="../../GameClasses/Cable/">Cable</a>, "Registration-time guard").</p>
 <p>(Authoring mode bypasses item cost but, per <a href="../../GameClasses/Constructor/">Constructor</a>, not the placement gates -- and the placement loop above explicitly skips the <code>IGridMergeable.CanReplace</code> branch only when <code>IsAuthoringMode</code>.)</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
 <li>2026-05-12: page created. Sourced from a phase 3 research dive (planned mod "Power Grid Plus") into <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> lines ~270692-270760, 276780-276796, 276940-276953, 371598-371645; verbatim excerpts of the placement-preview <code>CanConstruct</code>/<code>CanReplace</code> block, <code>CanConstructInfo</code>, <code>Constructor.SpawnConstruct</code>, and <code>Cable.CanConstruct</code>/<code>CanReplace</code>. Consistent with <a href="../../GameClasses/Constructor/">Constructor</a> ("authoring mode bypasses item-cost only, NOT placement gates") and <a href="../../GameClasses/AllowedRotations/">AllowedRotations</a> (the same loop auto-corrects the cursor face).</li>
 <li>2026-05-31: added "Which method blocks a merge depends on the family" section. Sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> <code>Piping._IsCollision</code> (363943-363954), <code>Piping.CanReplace</code> (363956-, the <code>DontAllowMergingWithWrench</code> branch at 363974-363977), <code>Cable._IsCollision</code> (371561-371576), <code>Cable.CanReplace</code> (371607-371645), and the field declarations <code>Piping.DontAllowMergingWithWrench</code> (363936) / <code>Cable.BlockMergeWithOtherCables</code> (371306). Finding: the merge-block is in <code>CanReplace</code> for pipes but in <code>_IsCollision</code> (via <code>CanConstruct</code>) for cables, so a mod re-checking only one method catches one family. Surfaced while validating a ZoopMod upstream fix for the long-variant merge crash (see <a href="../../GameClasses/MultiMergeConstructor/">MultiMergeConstructor</a>).</li>
+<li>2026-07-14: refreshed against the 0.2.6403.27689 decompile during the mixed-tier cable network guard research pass. Restamped "The placement-preview loop" with the 0.2.6403 verbatim head (288665-288726, now including the primary-click gate that runs <code>UsePrimaryComplete</code> / <code>WaitUntilDone</code>) and noted the tooltip's <code>&lt;color=red&gt;</code> renders because the cursor tooltip is TextMeshPro, unlike the ImGui console. Added the "SmallGrid.CanConstruct: the cursor-time occupancy chain, and the same-tier stacking gap" section: <code>SmallGrid.CanConstruct</code> verbatim (312669-312728), <code>SmallGrid._IsCollision</code> + <code>IsPipeEndCollision</code> verbatim (312645-312667), the non-DualRegister note (<code>Structure.CanConstruct</code> 314919-314941 never runs for cables), refreshed 0.2.6403 line refs for the cable-family methods (<code>_IsCollision</code> 392588-392603, <code>CanConstruct</code> 392625-392632, <code>CanReplace</code> 392634-392672, <code>WillMergeWhenPlaced</code> 392674-392694), and the same-tier stacking gap: same-tier cable-over-cable passes <code>CanConstruct</code> (the click is blocked only by the <code>CanReplace</code> merge-tool arm in <code>InventoryManager</code>), so a programmatic caller honoring <code>CanConstruct</code> but skipping <code>CanReplace</code> can still stack same-tier cables. Restamped "The gate is client-side preview only" with the 0.2.6403 re-confirmation that the Create -&gt; Register chain performs no occupancy re-validation (census on <a href="../StructureRegistration/">StructureRegistration</a>). The per-family merge-block section keeps its 0.2.6228.27061 stamp (the pipe half was not re-read this pass; the cable half's re-verified refs live in the new section). No prior claim contradicted: the new same-tier note covers the no-merge-tool case, which is disjoint from the 2026-05-31 finding that <code>CanReplace</code> passes cables WITH the tool.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
@@ -8572,13 +8771,13 @@
         
         
           
-          <a href="../StunStateMachine/" class="md-footer__link md-footer__link--next" aria-label="Next: StunStateMachine">
+          <a href="../StructureRegistration/" class="md-footer__link md-footer__link--next" aria-label="Next: StructureRegistration">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                StunStateMachine
+                StructureRegistration
               </div>
             </div>
             <div class="md-footer__button md-icon">

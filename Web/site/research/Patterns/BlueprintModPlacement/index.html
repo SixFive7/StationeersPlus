@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameClasses/Battery/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/Patterns/BlueprintModPlacement/">
       
       
-        <link rel="prev" href="../Atmosphere/">
+        <link rel="prev" href="../BinaryStreamSafety/">
       
       
-        <link rel="next" href="../Cable/">
+        <link rel="next" href="../ClientDisconnectedPrefix/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Battery (station-mounted) - StationeersPlus</title>
+        <title>BlueprintModPlacement - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#battery-station-mounted" class="md-skip">
+        <a href="#blueprintmodplacement" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Battery (station-mounted)
+              BlueprintModPlacement
             
           </span>
         </div>
@@ -585,10 +585,8 @@
                 
   
   
-    
   
   
-  
     
     
       
@@ -787,11 +785,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
         
           
           <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
@@ -812,7 +810,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -830,7 +828,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AdvancedTablet/" class="md-nav__link">
+      <a href="../../GameClasses/AdvancedTablet/" class="md-nav__link">
         
   
   
@@ -858,7 +856,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AllowedRotations/" class="md-nav__link">
+      <a href="../../GameClasses/AllowedRotations/" class="md-nav__link">
         
   
   
@@ -886,7 +884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../AreaPowerControl/" class="md-nav__link">
+      <a href="../../GameClasses/AreaPowerControl/" class="md-nav__link">
         
   
   
@@ -914,7 +912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Atmosphere/" class="md-nav__link">
+      <a href="../../GameClasses/Atmosphere/" class="md-nav__link">
         
   
   
@@ -939,37 +937,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Battery (station-mounted)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../GameClasses/Battery/" class="md-nav__link">
         
   
   
@@ -985,164 +956,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#charge-state-ladder" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Charge state ladder
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#display-mode-renderer-count-material" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Display: Mode -&gt; renderer count + material
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#critical-mode-flashing-coroutine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Critical-mode flashing coroutine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#class-hierarchy-electricalinputoutput-two-cable-networks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Class hierarchy: ElectricalInputOutput (two cable networks)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Class hierarchy: ElectricalInputOutput (two cable networks)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#batterypowerdelta-is-sign-reversed-relative-to-batterycellpowerdelta" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Battery.PowerDelta is SIGN-REVERSED relative to BatteryCell.PowerDelta
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#powermaximum-default-and-vanilla-prefab-variants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PowerMaximum default and vanilla prefab variants
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#power-tick-method-bodies-vanilla-rate-behaviour" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Power-tick method bodies (vanilla rate behaviour)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#self-drain-in-onatmospherictick-never-billed-to-the-network" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Self-drain in OnAtmosphericTick: never billed to the network
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#subclassing-notes-for-mods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Subclassing notes for mods
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rocket-internal-variant-same-class-prefab-distinguished" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rocket-internal variant (same class, prefab-distinguished)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1155,7 +968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cable/" class="md-nav__link">
+      <a href="../../GameClasses/Cable/" class="md-nav__link">
         
   
   
@@ -1183,7 +996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CableNetwork/" class="md-nav__link">
+      <a href="../../GameClasses/CableNetwork/" class="md-nav__link">
         
   
   
@@ -1211,7 +1024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CameraController/" class="md-nav__link">
+      <a href="../../GameClasses/CameraController/" class="md-nav__link">
         
   
   
@@ -1239,7 +1052,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cartridge/" class="md-nav__link">
+      <a href="../../GameClasses/Cartridge/" class="md-nav__link">
         
   
   
@@ -1267,7 +1080,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cell/" class="md-nav__link">
+      <a href="../../GameClasses/Cell/" class="md-nav__link">
         
   
   
@@ -1295,7 +1108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ChatCanvas/" class="md-nav__link">
+      <a href="../../GameClasses/ChatCanvas/" class="md-nav__link">
         
   
   
@@ -1323,7 +1136,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ChatMessage/" class="md-nav__link">
+      <a href="../../GameClasses/ChatMessage/" class="md-nav__link">
         
   
   
@@ -1351,7 +1164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ChatStatusMessage/" class="md-nav__link">
+      <a href="../../GameClasses/ChatStatusMessage/" class="md-nav__link">
         
   
   
@@ -1379,7 +1192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Cladding/" class="md-nav__link">
+      <a href="../../GameClasses/Cladding/" class="md-nav__link">
         
   
   
@@ -1407,7 +1220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ColorSwatch/" class="md-nav__link">
+      <a href="../../GameClasses/ColorSwatch/" class="md-nav__link">
         
   
   
@@ -1435,7 +1248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CombustionDeepMiner/" class="md-nav__link">
+      <a href="../../GameClasses/CombustionDeepMiner/" class="md-nav__link">
         
   
   
@@ -1463,7 +1276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ConfigCartridge/" class="md-nav__link">
+      <a href="../../GameClasses/ConfigCartridge/" class="md-nav__link">
         
   
   
@@ -1491,7 +1304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Connection/" class="md-nav__link">
+      <a href="../../GameClasses/Connection/" class="md-nav__link">
         
   
   
@@ -1519,7 +1332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ConnectionRole/" class="md-nav__link">
+      <a href="../../GameClasses/ConnectionRole/" class="md-nav__link">
         
   
   
@@ -1547,7 +1360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Constructor/" class="md-nav__link">
+      <a href="../../GameClasses/Constructor/" class="md-nav__link">
         
   
   
@@ -1575,7 +1388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CreateStructureInstance/" class="md-nav__link">
+      <a href="../../GameClasses/CreateStructureInstance/" class="md-nav__link">
         
   
   
@@ -1603,7 +1416,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CursorManager/" class="md-nav__link">
+      <a href="../../GameClasses/CursorManager/" class="md-nav__link">
         
   
   
@@ -1631,7 +1444,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CustomScrollPanel/" class="md-nav__link">
+      <a href="../../GameClasses/CustomScrollPanel/" class="md-nav__link">
         
   
   
@@ -1659,7 +1472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Device/" class="md-nav__link">
+      <a href="../../GameClasses/Device/" class="md-nav__link">
         
   
   
@@ -1687,7 +1500,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../DoorAirPass/" class="md-nav__link">
+      <a href="../../GameClasses/DoorAirPass/" class="md-nav__link">
         
   
   
@@ -1715,7 +1528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ElectricalInputOutput/" class="md-nav__link">
+      <a href="../../GameClasses/ElectricalInputOutput/" class="md-nav__link">
         
   
   
@@ -1743,7 +1556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ElectricityManager/" class="md-nav__link">
+      <a href="../../GameClasses/ElectricityManager/" class="md-nav__link">
         
   
   
@@ -1771,7 +1584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Elevator/" class="md-nav__link">
+      <a href="../../GameClasses/Elevator/" class="md-nav__link">
         
   
   
@@ -1799,7 +1612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Entity/" class="md-nav__link">
+      <a href="../../GameClasses/Entity/" class="md-nav__link">
         
   
   
@@ -1827,7 +1640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../GameManager/" class="md-nav__link">
+      <a href="../../GameClasses/GameManager/" class="md-nav__link">
         
   
   
@@ -1855,7 +1668,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Grid3/" class="md-nav__link">
+      <a href="../../GameClasses/Grid3/" class="md-nav__link">
         
   
   
@@ -1883,7 +1696,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../GridController/" class="md-nav__link">
+      <a href="../../GameClasses/GridController/" class="md-nav__link">
         
   
   
@@ -1911,7 +1724,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Gyroscope/" class="md-nav__link">
+      <a href="../../GameClasses/Gyroscope/" class="md-nav__link">
         
   
   
@@ -1939,7 +1752,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../HelmetBattery/" class="md-nav__link">
+      <a href="../../GameClasses/HelmetBattery/" class="md-nav__link">
         
   
   
@@ -1967,7 +1780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../HelpLinkHandler/" class="md-nav__link">
+      <a href="../../GameClasses/HelpLinkHandler/" class="md-nav__link">
         
   
   
@@ -1995,7 +1808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Human/" class="md-nav__link">
+      <a href="../../GameClasses/Human/" class="md-nav__link">
         
   
   
@@ -2023,7 +1836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ILifeSuspender/" class="md-nav__link">
+      <a href="../../GameClasses/ILifeSuspender/" class="md-nav__link">
         
   
   
@@ -2051,7 +1864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ISprayer/" class="md-nav__link">
+      <a href="../../GameClasses/ISprayer/" class="md-nav__link">
         
   
   
@@ -2079,7 +1892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Interactable/" class="md-nav__link">
+      <a href="../../GameClasses/Interactable/" class="md-nav__link">
         
   
   
@@ -2107,7 +1920,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../InventoryManager/" class="md-nav__link">
+      <a href="../../GameClasses/InventoryManager/" class="md-nav__link">
         
   
   
@@ -2135,7 +1948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../InventoryWindow/" class="md-nav__link">
+      <a href="../../GameClasses/InventoryWindow/" class="md-nav__link">
         
   
   
@@ -2163,7 +1976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ItemKitLinearRail/" class="md-nav__link">
+      <a href="../../GameClasses/ItemKitLinearRail/" class="md-nav__link">
         
   
   
@@ -2191,7 +2004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LanderCapsule/" class="md-nav__link">
+      <a href="../../GameClasses/LanderCapsule/" class="md-nav__link">
         
   
   
@@ -2219,7 +2032,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Layers/" class="md-nav__link">
+      <a href="../../GameClasses/Layers/" class="md-nav__link">
         
   
   
@@ -2247,7 +2060,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicMirror/" class="md-nav__link">
+      <a href="../../GameClasses/LogicMirror/" class="md-nav__link">
         
   
   
@@ -2275,7 +2088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicOnOffButton/" class="md-nav__link">
+      <a href="../../GameClasses/LogicOnOffButton/" class="md-nav__link">
         
   
   
@@ -2303,7 +2116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicTransmitter/" class="md-nav__link">
+      <a href="../../GameClasses/LogicTransmitter/" class="md-nav__link">
         
   
   
@@ -2331,7 +2144,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LogicUnitBase/" class="md-nav__link">
+      <a href="../../GameClasses/LogicUnitBase/" class="md-nav__link">
         
   
   
@@ -2359,7 +2172,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Motherboard/" class="md-nav__link">
+      <a href="../../GameClasses/Motherboard/" class="md-nav__link">
         
   
   
@@ -2387,7 +2200,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../MotionSensor/" class="md-nav__link">
+      <a href="../../GameClasses/MotionSensor/" class="md-nav__link">
         
   
   
@@ -2415,7 +2228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../MultiConstructor/" class="md-nav__link">
+      <a href="../../GameClasses/MultiConstructor/" class="md-nav__link">
         
   
   
@@ -2443,7 +2256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../MultiMergeConstructor/" class="md-nav__link">
+      <a href="../../GameClasses/MultiMergeConstructor/" class="md-nav__link">
         
   
   
@@ -2471,7 +2284,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../NetworkChannel/" class="md-nav__link">
+      <a href="../../GameClasses/NetworkChannel/" class="md-nav__link">
         
   
   
@@ -2499,7 +2312,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../NetworkManager/" class="md-nav__link">
+      <a href="../../GameClasses/NetworkManager/" class="md-nav__link">
         
   
   
@@ -2527,7 +2340,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../NetworkType/" class="md-nav__link">
+      <a href="../../GameClasses/NetworkType/" class="md-nav__link">
         
   
   
@@ -2555,7 +2368,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../OnServer/" class="md-nav__link">
+      <a href="../../GameClasses/OnServer/" class="md-nav__link">
         
   
   
@@ -2583,7 +2396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../OrbitalSimulation/" class="md-nav__link">
+      <a href="../../GameClasses/OrbitalSimulation/" class="md-nav__link">
         
   
   
@@ -2611,7 +2424,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PipeIgniter/" class="md-nav__link">
+      <a href="../../GameClasses/PipeIgniter/" class="md-nav__link">
         
   
   
@@ -2639,7 +2452,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerReceiver/" class="md-nav__link">
+      <a href="../../GameClasses/PowerReceiver/" class="md-nav__link">
         
   
   
@@ -2667,7 +2480,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTick/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTick/" class="md-nav__link">
         
   
   
@@ -2695,7 +2508,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTransmitter/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTransmitter/" class="md-nav__link">
         
   
   
@@ -2723,7 +2536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTransmitterOmni/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTransmitterOmni/" class="md-nav__link">
         
   
   
@@ -2751,7 +2564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PowerTransmitterVisualiser/" class="md-nav__link">
+      <a href="../../GameClasses/PowerTransmitterVisualiser/" class="md-nav__link">
         
   
   
@@ -2779,7 +2592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../PoweredVent/" class="md-nav__link">
+      <a href="../../GameClasses/PoweredVent/" class="md-nav__link">
         
   
   
@@ -2807,7 +2620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ProximitySensor/" class="md-nav__link">
+      <a href="../../GameClasses/ProximitySensor/" class="md-nav__link">
         
   
   
@@ -2835,7 +2648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RoboticArmDock/" class="md-nav__link">
+      <a href="../../GameClasses/RoboticArmDock/" class="md-nav__link">
         
   
   
@@ -2863,7 +2676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RoboticArmRail/" class="md-nav__link">
+      <a href="../../GameClasses/RoboticArmRail/" class="md-nav__link">
         
   
   
@@ -2891,7 +2704,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RocketPowerUmbilical/" class="md-nav__link">
+      <a href="../../GameClasses/RocketPowerUmbilical/" class="md-nav__link">
         
   
   
@@ -2919,7 +2732,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Room/" class="md-nav__link">
+      <a href="../../GameClasses/Room/" class="md-nav__link">
         
   
   
@@ -2947,7 +2760,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RoomController/" class="md-nav__link">
+      <a href="../../GameClasses/RoomController/" class="md-nav__link">
         
   
   
@@ -2975,7 +2788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../RotatableBehaviour/" class="md-nav__link">
+      <a href="../../GameClasses/RotatableBehaviour/" class="md-nav__link">
         
   
   
@@ -3003,7 +2816,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SayCommand/" class="md-nav__link">
+      <a href="../../GameClasses/SayCommand/" class="md-nav__link">
         
   
   
@@ -3031,7 +2844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Sensor/" class="md-nav__link">
+      <a href="../../GameClasses/Sensor/" class="md-nav__link">
         
   
   
@@ -3059,7 +2872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SensorLenses/" class="md-nav__link">
+      <a href="../../GameClasses/SensorLenses/" class="md-nav__link">
         
   
   
@@ -3087,7 +2900,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Silo/" class="md-nav__link">
+      <a href="../../GameClasses/Silo/" class="md-nav__link">
         
   
   
@@ -3115,7 +2928,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Sleeper/" class="md-nav__link">
+      <a href="../../GameClasses/Sleeper/" class="md-nav__link">
         
   
   
@@ -3143,7 +2956,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SmallCell/" class="md-nav__link">
+      <a href="../../GameClasses/SmallCell/" class="md-nav__link">
         
   
   
@@ -3171,7 +2984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SolarPanel/" class="md-nav__link">
+      <a href="../../GameClasses/SolarPanel/" class="md-nav__link">
         
   
   
@@ -3199,7 +3012,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SprayCan/" class="md-nav__link">
+      <a href="../../GameClasses/SprayCan/" class="md-nav__link">
         
   
   
@@ -3227,7 +3040,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SprayGun/" class="md-nav__link">
+      <a href="../../GameClasses/SprayGun/" class="md-nav__link">
         
   
   
@@ -3255,7 +3068,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Stackable/" class="md-nav__link">
+      <a href="../../GameClasses/Stackable/" class="md-nav__link">
         
   
   
@@ -3283,7 +3096,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Stairs/" class="md-nav__link">
+      <a href="../../GameClasses/Stairs/" class="md-nav__link">
         
   
   
@@ -3311,7 +3124,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Stationpedia/" class="md-nav__link">
+      <a href="../../GameClasses/Stationpedia/" class="md-nav__link">
         
   
   
@@ -3339,7 +3152,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../StationpediaPage/" class="md-nav__link">
+      <a href="../../GameClasses/StationpediaPage/" class="md-nav__link">
         
   
   
@@ -3367,7 +3180,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Structure/" class="md-nav__link">
+      <a href="../../GameClasses/Structure/" class="md-nav__link">
         
   
   
@@ -3395,7 +3208,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../SwitchOnOff/" class="md-nav__link">
+      <a href="../../GameClasses/SwitchOnOff/" class="md-nav__link">
         
   
   
@@ -3423,7 +3236,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Thing/" class="md-nav__link">
+      <a href="../../GameClasses/Thing/" class="md-nav__link">
         
   
   
@@ -3451,7 +3264,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ThingRenderer/" class="md-nav__link">
+      <a href="../../GameClasses/ThingRenderer/" class="md-nav__link">
         
   
   
@@ -3479,7 +3292,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Transformer/" class="md-nav__link">
+      <a href="../../GameClasses/Transformer/" class="md-nav__link">
         
   
   
@@ -3507,7 +3320,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../UniversalPage/" class="md-nav__link">
+      <a href="../../GameClasses/UniversalPage/" class="md-nav__link">
         
   
   
@@ -3535,7 +3348,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../Wall/" class="md-nav__link">
+      <a href="../../GameClasses/Wall/" class="md-nav__link">
         
   
   
@@ -3563,7 +3376,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../WeatherEvent/" class="md-nav__link">
+      <a href="../../GameClasses/WeatherEvent/" class="md-nav__link">
         
   
   
@@ -3591,7 +3404,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../WindTurbineGenerator/" class="md-nav__link">
+      <a href="../../GameClasses/WindTurbineGenerator/" class="md-nav__link">
         
   
   
@@ -3619,7 +3432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../WirelessPower/" class="md-nav__link">
+      <a href="../../GameClasses/WirelessPower/" class="md-nav__link">
         
   
   
@@ -5452,8 +5265,10 @@
                 
   
   
+    
   
   
+  
     
     
       
@@ -5570,11 +5385,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked>
         
           
           <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
@@ -5595,7 +5410,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -5613,7 +5428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AboutXmlWorkshopHandleParse/" class="md-nav__link">
+      <a href="../AboutXmlWorkshopHandleParse/" class="md-nav__link">
         
   
   
@@ -5641,7 +5456,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AccessToolsRecipes/" class="md-nav__link">
+      <a href="../AccessToolsRecipes/" class="md-nav__link">
         
   
   
@@ -5669,7 +5484,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AsyncEnumerator472/" class="md-nav__link">
+      <a href="../AsyncEnumerator472/" class="md-nav__link">
         
   
   
@@ -5697,7 +5512,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/AsyncHarmonyTrap/" class="md-nav__link">
+      <a href="../AsyncHarmonyTrap/" class="md-nav__link">
         
   
   
@@ -5725,7 +5540,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/BestEffortIntegration/" class="md-nav__link">
+      <a href="../BestEffortIntegration/" class="md-nav__link">
         
   
   
@@ -5753,7 +5568,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/BinaryStreamSafety/" class="md-nav__link">
+      <a href="../BinaryStreamSafety/" class="md-nav__link">
         
   
   
@@ -5778,10 +5593,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BlueprintModPlacement
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -5797,6 +5639,186 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#placement-call-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Placement call chain
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Placement call chain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#game-side-continuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Game-side continuation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coroutine-staggering-and-placement-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coroutine staggering and placement order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paste-placement-math" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paste placement math
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-bpcopy-captures-what-an-entry-replays" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What bpcopy captures (what an entry replays)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#libconstruct-board-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LibConstruct board structures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#occupancy-zero-checks-in-the-paste-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Occupancy: zero checks in the paste path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-handling-in-the-print-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure handling in the print loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#materials-deanamicmatter-cost-economy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Materials: DeanamicMatter cost economy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing-and-multiplayer-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timing and multiplayer protocol
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#harmony-patch-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Harmony patch inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guard-relevant-facts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guard-relevant facts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -5809,7 +5831,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ClientDisconnectedPrefix/" class="md-nav__link">
+      <a href="../ClientDisconnectedPrefix/" class="md-nav__link">
         
   
   
@@ -5837,7 +5859,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ConditionalWeakTableCache/" class="md-nav__link">
+      <a href="../ConditionalWeakTableCache/" class="md-nav__link">
         
   
   
@@ -5865,7 +5887,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ConflictDetection/" class="md-nav__link">
+      <a href="../ConflictDetection/" class="md-nav__link">
         
   
   
@@ -5893,7 +5915,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/CursorAdjacencyLookup/" class="md-nav__link">
+      <a href="../CursorAdjacencyLookup/" class="md-nav__link">
         
   
   
@@ -5921,7 +5943,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/CustomLogicValueInjection/" class="md-nav__link">
+      <a href="../CustomLogicValueInjection/" class="md-nav__link">
         
   
   
@@ -5949,7 +5971,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/FileSystemWatcherMainThread/" class="md-nav__link">
+      <a href="../FileSystemWatcherMainThread/" class="md-nav__link">
         
   
   
@@ -5977,7 +5999,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/Float16Quantization/" class="md-nav__link">
+      <a href="../Float16Quantization/" class="md-nav__link">
         
   
   
@@ -6005,7 +6027,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/GameLoggingSinks/" class="md-nav__link">
+      <a href="../GameLoggingSinks/" class="md-nav__link">
         
   
   
@@ -6033,7 +6055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/GetCameraForwardGrid/" class="md-nav__link">
+      <a href="../GetCameraForwardGrid/" class="md-nav__link">
         
   
   
@@ -6061,7 +6083,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyBaseCallDetourMultiFire/" class="md-nav__link">
+      <a href="../HarmonyBaseCallDetourMultiFire/" class="md-nav__link">
         
   
   
@@ -6089,7 +6111,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyFieldOrProperty/" class="md-nav__link">
+      <a href="../HarmonyFieldOrProperty/" class="md-nav__link">
         
   
   
@@ -6117,7 +6139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyInheritedMethods/" class="md-nav__link">
+      <a href="../HarmonyInheritedMethods/" class="md-nav__link">
         
   
   
@@ -6145,7 +6167,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
+      <a href="../HarmonyLogicableInheritedMethodTrap/" class="md-nav__link">
         
   
   
@@ -6173,7 +6195,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyPatchOrdering/" class="md-nav__link">
+      <a href="../HarmonyPatchOrdering/" class="md-nav__link">
         
   
   
@@ -6201,7 +6223,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyPatchTypes/" class="md-nav__link">
+      <a href="../HarmonyPatchTypes/" class="md-nav__link">
         
   
   
@@ -6229,7 +6251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/HarmonyPrefixReturnBool/" class="md-nav__link">
+      <a href="../HarmonyPrefixReturnBool/" class="md-nav__link">
         
   
   
@@ -6257,7 +6279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ILRepackPerModCopy/" class="md-nav__link">
+      <a href="../ILRepackPerModCopy/" class="md-nav__link">
         
   
   
@@ -6285,7 +6307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/InGameConsoleOutput/" class="md-nav__link">
+      <a href="../InGameConsoleOutput/" class="md-nav__link">
         
   
   
@@ -6313,7 +6335,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/InventoryAutoEquip/" class="md-nav__link">
+      <a href="../InventoryAutoEquip/" class="md-nav__link">
         
   
   
@@ -6341,7 +6363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/LogicTypeRegistration/" class="md-nav__link">
+      <a href="../LogicTypeRegistration/" class="md-nav__link">
         
   
   
@@ -6369,7 +6391,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/LogicableInitializeAppend/" class="md-nav__link">
+      <a href="../LogicableInitializeAppend/" class="md-nav__link">
         
   
   
@@ -6397,7 +6419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/MainThreadDispatcher/" class="md-nav__link">
+      <a href="../MainThreadDispatcher/" class="md-nav__link">
         
   
   
@@ -6425,7 +6447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ModLogicTypeRegistration/" class="md-nav__link">
+      <a href="../ModLogicTypeRegistration/" class="md-nav__link">
         
   
   
@@ -6453,7 +6475,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/MultiplayerStateMutation/" class="md-nav__link">
+      <a href="../MultiplayerStateMutation/" class="md-nav__link">
         
   
   
@@ -6481,7 +6503,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PeriodicProcessing/" class="md-nav__link">
+      <a href="../PeriodicProcessing/" class="md-nav__link">
         
   
   
@@ -6509,7 +6531,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PooledSpanEnumeration/" class="md-nav__link">
+      <a href="../PooledSpanEnumeration/" class="md-nav__link">
         
   
   
@@ -6537,7 +6559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/PrefabCloning/" class="md-nav__link">
+      <a href="../PrefabCloning/" class="md-nav__link">
         
   
   
@@ -6565,7 +6587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ProtectedMethodPublicAPIBypass/" class="md-nav__link">
+      <a href="../ProtectedMethodPublicAPIBypass/" class="md-nav__link">
         
   
   
@@ -6593,7 +6615,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SaveDataIsinstInheritance/" class="md-nav__link">
+      <a href="../SaveDataIsinstInheritance/" class="md-nav__link">
         
   
   
@@ -6621,7 +6643,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SaveLoadOrdering/" class="md-nav__link">
+      <a href="../SaveLoadOrdering/" class="md-nav__link">
         
   
   
@@ -6649,7 +6671,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ServerAuthoritativeSimulation/" class="md-nav__link">
+      <a href="../ServerAuthoritativeSimulation/" class="md-nav__link">
         
   
   
@@ -6677,7 +6699,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SinglePlayerNetworkRole/" class="md-nav__link">
+      <a href="../SinglePlayerNetworkRole/" class="md-nav__link">
         
   
   
@@ -6705,7 +6727,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SlotInsertionBlock/" class="md-nav__link">
+      <a href="../SlotInsertionBlock/" class="md-nav__link">
         
   
   
@@ -6733,7 +6755,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SlotTypeIconLookup/" class="md-nav__link">
+      <a href="../SlotTypeIconLookup/" class="md-nav__link">
         
   
   
@@ -6761,7 +6783,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StaleModReferenceJitCrash/" class="md-nav__link">
+      <a href="../StaleModReferenceJitCrash/" class="md-nav__link">
         
   
   
@@ -6789,7 +6811,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
+      <a href="../StationeersLaunchPadSettingsGrouping/" class="md-nav__link">
         
   
   
@@ -6817,7 +6839,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationeersModdingGotchas/" class="md-nav__link">
+      <a href="../StationeersModdingGotchas/" class="md-nav__link">
         
   
   
@@ -6845,7 +6867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationeersNamespaces/" class="md-nav__link">
+      <a href="../StationeersNamespaces/" class="md-nav__link">
         
   
   
@@ -6873,7 +6895,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/StationpediaDescriptionRendering/" class="md-nav__link">
+      <a href="../StationpediaDescriptionRendering/" class="md-nav__link">
         
   
   
@@ -6901,7 +6923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/SubcomponentGrafting/" class="md-nav__link">
+      <a href="../SubcomponentGrafting/" class="md-nav__link">
         
   
   
@@ -6929,7 +6951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/TextMeshProLineMetrics/" class="md-nav__link">
+      <a href="../TextMeshProLineMetrics/" class="md-nav__link">
         
   
   
@@ -6957,7 +6979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/ThingEnumerationOffMainThread/" class="md-nav__link">
+      <a href="../ThingEnumerationOffMainThread/" class="md-nav__link">
         
   
   
@@ -6985,7 +7007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/UniTaskDelaySignatureDrift/" class="md-nav__link">
+      <a href="../UniTaskDelaySignatureDrift/" class="md-nav__link">
         
   
   
@@ -7013,7 +7035,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/UnityFakeNull/" class="md-nav__link">
+      <a href="../UnityFakeNull/" class="md-nav__link">
         
   
   
@@ -7041,7 +7063,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/UnityMaterialPerInstance/" class="md-nav__link">
+      <a href="../UnityMaterialPerInstance/" class="md-nav__link">
         
   
   
@@ -7069,7 +7091,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../Patterns/WorldSpacePreviewRendering/" class="md-nav__link">
+      <a href="../WorldSpacePreviewRendering/" class="md-nav__link">
         
   
   
@@ -8302,55 +8324,66 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#charge-state-ladder" class="md-nav__link">
+  <a href="#placement-call-chain" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Charge state ladder
+        Placement call chain
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#display-mode-renderer-count-material" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Display: Mode -&gt; renderer count + material
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#critical-mode-flashing-coroutine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Critical-mode flashing coroutine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#class-hierarchy-electricalinputoutput-two-cable-networks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Class hierarchy: ElectricalInputOutput (two cable networks)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Class hierarchy: ElectricalInputOutput (two cable networks)">
+    <nav class="md-nav" aria-label="Placement call chain">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#batterypowerdelta-is-sign-reversed-relative-to-batterycellpowerdelta" class="md-nav__link">
+  <a href="#game-side-continuation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Battery.PowerDelta is SIGN-REVERSED relative to BatteryCell.PowerDelta
+        Game-side continuation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coroutine-staggering-and-placement-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coroutine staggering and placement order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paste-placement-math" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paste placement math
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-bpcopy-captures-what-an-entry-replays" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What bpcopy captures (what an entry replays)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#libconstruct-board-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LibConstruct board structures
       
     </span>
   </a>
@@ -8363,10 +8396,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#powermaximum-default-and-vanilla-prefab-variants" class="md-nav__link">
+  <a href="#occupancy-zero-checks-in-the-paste-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PowerMaximum default and vanilla prefab variants
+        Occupancy: zero checks in the paste path
       
     </span>
   </a>
@@ -8374,10 +8407,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#power-tick-method-bodies-vanilla-rate-behaviour" class="md-nav__link">
+  <a href="#failure-handling-in-the-print-loop" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Power-tick method bodies (vanilla rate behaviour)
+        Failure handling in the print loop
       
     </span>
   </a>
@@ -8385,10 +8418,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#self-drain-in-onatmospherictick-never-billed-to-the-network" class="md-nav__link">
+  <a href="#materials-deanamicmatter-cost-economy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Self-drain in OnAtmosphericTick: never billed to the network
+        Materials: DeanamicMatter cost economy
       
     </span>
   </a>
@@ -8396,10 +8429,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#subclassing-notes-for-mods" class="md-nav__link">
+  <a href="#timing-and-multiplayer-protocol" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Subclassing notes for mods
+        Timing and multiplayer protocol
       
     </span>
   </a>
@@ -8407,10 +8440,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rocket-internal-variant-same-class-prefab-distinguished" class="md-nav__link">
+  <a href="#harmony-patch-inventory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rocket-internal variant (same class, prefab-distinguished)
+        Harmony patch inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guard-relevant-facts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guard-relevant facts
       
     </span>
   </a>
@@ -8500,10 +8544,10 @@
     
     
       <li class="md-path__item">
-        <a href="../AdvancedTablet/" class="md-path__link">
+        <a href="../AboutXmlWorkshopHandleParse/" class="md-path__link">
           
   <span class="md-ellipsis">
-    GameClasses
+    Patterns
   </span>
 
         </a>
@@ -8522,45 +8566,37 @@
     <aside class="research-meta" markdown>
       
         <p class="research-meta-type">
-          <strong>Category:</strong> GameClasses
+          <strong>Category:</strong> Patterns
         </p>
       
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-07.
+           on 2026-07-14.
         </p>
       
-      
-        <p class="research-meta-created">
-          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
-        </p>
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
-              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Electrical.Battery'}</code></li>
+              <li><code>Steam Workshop item 3672138641 (BlueprintMod v1.6.3), BlueprintMod.dll</code></li>
             
-              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 391662-392217 (Battery), 340551 (BatteryCell.PowerDelta)'}</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/BlueprintMod.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (1)</summary>
           <ul>
             
-              <li><code>./HelmetBattery.md</code></li>
-            
-              <li><code>./ElectricalInputOutput.md</code></li>
-            
-              <li><code>./AreaPowerControl.md</code></li>
-            
-              <li><code>./PowerTick.md</code></li>
+              <li><code>../GameClasses/Cable.md</code></li>
             
           </ul>
         </details>
@@ -8576,7 +8612,7 @@
       
       
       
-        <span class="md-tag">power</span>
+        <span class="md-tag">harmony</span>
       
     
       
@@ -8590,449 +8626,228 @@
 
 
 
-<h1 id="battery-station-mounted">Battery (station-mounted)<a class="headerlink" href="#battery-station-mounted" title="Permanent link">&para;</a></h1>
-<p>Vanilla <code>Assets.Scripts.Objects.Electrical.Battery</code>. Base class for the wall / floor station batteries (and what third-party mods like MorePowerMod's <code>StationBatteryNuclear</code> inherit from). Drives the on-prefab "charge bar" display: a stack of segment renderers whose count and material are recomputed from the current charge ratio every power tick.</p>
-<p>Distinct from <code>Assets.Scripts.Objects.Items.BatteryCell</code> (the handheld cell, see <code>HelmetBattery.md</code>). The two classes share the same charge-state ladder verbatim but <code>Battery</code> adds the segment-bar display and a flashing-critical coroutine that <code>BatteryCell</code> does not have.</p>
-<h2 id="charge-state-ladder">Charge state ladder<a class="headerlink" href="#charge-state-ladder" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<h1 id="blueprintmodplacement">BlueprintModPlacement<a class="headerlink" href="#blueprintmodplacement" title="Permanent link">&para;</a></h1>
+<p>BlueprintMod ("Copy, paste, save and load groups of structures as blueprints", Steam Workshop item 3672138641, v1.6.3, author JXSN (JacksonTheMaster)) is a third-party StationeersLaunchPad plugin, shipped as the single assembly BlueprintMod.dll, that prints saved groups of structures into a running world. This page documents its placement internals because that placement path performs no occupancy checks at all: on 2026-07-13 it printed normal-tier power cables into an existing super-heavy cable mainline in a player world, merging mixed cable tiers in a state vanilla construction can never produce, and bypassing both the vanilla cursor-time checks and a <code>Cable.CanConstruct</code> Harmony postfix guard. The facts below feed the mixed-tier prevention design for PowerGridPlus.</p>
+<p>Mod identity and analysis basis:</p>
+<ul>
+<li>Exactly one assembly, <code>BlueprintMod.dll</code> (183,296 bytes, file date 2026-03-30), at the Workshop item root. The rest of the item is asset bundles (<code>StandaloneWindows/blueprintmod.assets</code>, <code>.scenes</code>), <code>GameData/*.xml</code> recipe additions, and <code>About/</code>.</li>
+<li>Version 1.6.3 per About.xml and the <code>BlueprintMod.ModVersion</code> constant (line 4699).</li>
+<li>StationeersLaunchPad plugin: About.xml tag <code>StationeersLaunchPad</code>, plus an <code>About/stationeersmods</code> marker file. Entry point is the StationeersMods-style <code>BlueprintMod.OnLoaded(List&lt;GameObject&gt; prefabs, ConfigFile config)</code> MonoBehaviour method (line 4721). Uses LaunchPadBooster (<code>new Mod("BlueprintMod", "1.6.3")</code>, line 4707; <code>MOD.SetVersionCheck</code> requires major.minor match, lines 4763-4768).</li>
+<li>Decompile analyzed: <code>.work/decomp/0.2.6403.27689/BlueprintMod.decompiled.cs</code> (9,852 lines, ilspycmd 10.0.0.8330). All line numbers on this page refer to that file unless marked <code>[Assembly-CSharp]</code>, which refers to <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code> (game version 0.2.6403.27689).</li>
+<li>Decompile artifact note: ilspycmd 10.0.0.8330 appended its own update notice as the last two lines of the output file (lines 9851-9852: "You are not using the latest version of the tool, please update."). Code content ends at line 9850. Harmless but worth knowing when the file tail looks odd.</li>
+<li>Player-facing surface: chat console commands (<code>pos1</code>, <code>pos2</code>, <code>bpcopy</code>, <code>bppaste</code>, <code>bpsave</code>, <code>bpload</code>, <code>bplist</code>, <code>bpdelete</code>, <code>bpundo</code>, <code>bpguidelines</code>, <code>copyguidelines</code>, <code>bpworkshop</code>, <code>bpworkshoplist</code>, <code>bpworkshopload</code>, <code>bppreview</code>; registered lines 4812-4826) plus two craftable motherboards with custom UI: MotherboardDBCU (copy unit) and MotherboardDBPU (paste unit). Both UI paths funnel into the same BlueprintCommands code.</li>
+</ul>
+<h2 id="placement-call-chain">Placement call chain<a class="headerlink" href="#placement-call-chain" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p><code>OnPowerTick()</code> recomputes <code>_batteryState</code> from <code>num = _powerStored / PowerMaximum</code> (verbatim):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnPowerTick</span><span class="p">()</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnPowerTick</span><span class="p">();</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_destroyed</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_powerStored</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">;</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">Empty</span><span class="p">;</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.999f</span><span class="p">)</span><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">Full</span><span class="p">;</span><span class="w">     </span><span class="p">}</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.75f</span><span class="p">)</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">High</span><span class="p">;</span><span class="w">     </span><span class="p">}</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.5f</span><span class="p">)</span><span class="w">     </span><span class="p">{</span><span class="w"> </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">Medium</span><span class="p">;</span><span class="w">   </span><span class="p">}</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.25f</span><span class="p">)</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">Low</span><span class="p">;</span><span class="w">      </span><span class="p">}</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">)</span><span class="w">     </span><span class="p">{</span><span class="w"> </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">VeryLow</span><span class="p">;</span><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="n">_batteryState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BatteryCellState</span><span class="p">.</span><span class="n">Critical</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">        </span><span class="c1">// num == 0 keeps the initial Empty assignment</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="p">...</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">}</span>
+<p>Call chain, host/singleplayer:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>bppaste  -&gt; BlueprintCommands.Paste(args)                        line 3274
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>         -&gt; GameManager.RunSimulation check                      line 3308
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>         -&gt; BlueprintCommands.StartStaggeredPaste(...)           line 3320
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>         -&gt; coroutine RunLocalStaggeredPaste(...)                line 3437 (started line 3373)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>         -&gt; ExecutePasteStaggered(...)                           line 3466
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>         -&gt; CreateSingleEntry(entry, worldPos, worldRot)         line 3557
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>         -&gt; OnServer.Create&lt;Thing&gt;(entry.PrefabName, worldPos, worldRot)   line 3562
 </span></code></pre></div>
-<p>Resulting threshold table (identical to <code>BatteryCell.UpdateBatteryState</code>; see <code>HelmetBattery.md</code> for the enum and the <code>IsEmpty / IsCritical / IsLow / IsCharged</code> companion predicates):</p>
-<table>
-<thead>
-<tr>
-<th>Charge ratio (<code>PowerStored / PowerMaximum</code>)</th>
-<th><code>BatteryCellState</code></th>
-<th><code>Mode</code></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>num == 0</code></td>
-<td><code>Empty</code></td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>0 &lt; num &lt; 0.1</code></td>
-<td><code>Critical</code></td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>0.1  &lt;= num &lt; 0.25</code></td>
-<td><code>VeryLow</code></td>
-<td>2</td>
-</tr>
-<tr>
-<td><code>0.25 &lt;= num &lt; 0.5</code></td>
-<td><code>Low</code></td>
-<td>3</td>
-</tr>
-<tr>
-<td><code>0.5  &lt;= num &lt; 0.75</code></td>
-<td><code>Medium</code></td>
-<td>4</td>
-</tr>
-<tr>
-<td><code>0.75 &lt;= num &lt; 0.999</code></td>
-<td><code>High</code></td>
-<td>5</td>
-</tr>
-<tr>
-<td><code>num &gt;= 0.999</code></td>
-<td><code>Full</code></td>
-<td>6</td>
-</tr>
-</tbody>
-</table>
-<p><code>Powered =&gt; _batteryState != BatteryCellState.Empty</code> (any non-zero charge powers the device, including the <code>Critical</code> band).</p>
-<h2 id="display-mode-renderer-count-material">Display: Mode -&gt; renderer count + material<a class="headerlink" href="#display-mode-renderer-count-material" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
-
-<p>The on-prefab segment bar is driven by <code>RefreshAnimState</code> -&gt; <code>SetRenderersState(int numberToEnable, Material material)</code>. Both the count of segments lit AND the material applied to them come from <code>Mode</code>:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">RefreshAnimState</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">skipAnimation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">)</span>
+<p>The MotherboardDBPU UI path converges on the same functions: <code>DBPUMotherboardUI.OnPaste</code> (line 8315) calls <code>BlueprintCommands.StartStaggeredPaste</code> when <code>GameManager.RunSimulation</code> (line 8373) or <code>BlueprintNetwork.SendPasteRequest</code> otherwise (line 8383).</p>
+<p>The single placement call, verbatim (lines 3557-3567):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Thing</span><span class="w"> </span><span class="nf">CreateSingleEntry</span><span class="p">(</span><span class="n">BlueprintEntry</span><span class="w"> </span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPos</span><span class="p">,</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">worldRot</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">RefreshAnimState</span><span class="p">(</span><span class="n">skipAnimation</span><span class="p">);</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">Mode</span><span class="p">)</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">0</span><span class="p">:</span><span class="w"> </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// Empty</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_flashingTask</span><span class="p">.</span><span class="n">Status</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">UniTaskStatus</span><span class="p">.</span><span class="n">Pending</span><span class="p">)</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">            </span><span class="n">_flashingTask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FlashingDisplay</span><span class="p">();</span><span class="w">                       </span><span class="c1">// Critical (blink)</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="k">break</span><span class="p">;</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// VeryLow</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// Low</span>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// Medium</span>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">5</span><span class="p">:</span><span class="w"> </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// High</span>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="mi">6</span><span class="p">:</span><span class="w"> </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"> </span><span class="c1">// Full</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="p">}</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">OnServer</span><span class="p">.</span><span class="n">Create</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">(</span><span class="n">entry</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">,</span><span class="w"> </span><span class="n">worldPos</span><span class="p">,</span><span class="w"> </span><span class="n">worldRot</span><span class="p">);</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">Object</span><span class="p">)(</span><span class="kt">object</span><span class="p">)</span><span class="n">val</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="n">Object</span><span class="p">)</span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="n">Debug</span><span class="p">.</span><span class="n">LogWarning</span><span class="p">((</span><span class="kt">object</span><span class="p">)</span><span class="s">$&quot;[BlueprintMod] Failed to create &#39;{entry.PrefabName}&#39; at {worldPos}&quot;</span><span class="p">);</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="p">}</span>
 </span></code></pre></div>
-<p><code>SetRenderersState</code> activates the first <code>numberToEnable</code> entries of <code>displayRenderers[]</code> and assigns <code>material</code> to each:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">SetRenderersState</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">numberToEnable</span><span class="p">,</span><span class="w"> </span><span class="n">Material</span><span class="w"> </span><span class="n">material</span><span class="p">)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">displayRenderers</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">displayRenderers</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">num</span><span class="o">--</span><span class="p">)</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="n">MeshRenderer</span><span class="w"> </span><span class="n">meshRenderer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">displayRenderers</span><span class="p">[</span><span class="n">num</span><span class="p">];</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">meshRenderer</span><span class="p">)</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">            </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">IsStructureCompleted</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">numberToEnable</span><span class="p">;</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">            </span><span class="n">meshRenderer</span><span class="p">.</span><span class="n">gameObject</span><span class="p">.</span><span class="n">SetActive</span><span class="p">(</span><span class="n">flag</span><span class="p">);</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="n">meshRenderer</span><span class="p">.</span><span class="n">material</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">material</span><span class="p">;</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+<p>After creation it applies cosmetic and logic state: <code>OnServer.SetCustomColor</code> (line 3570), <code>Structure.UpdateBuildStateAndVisualizer(entry.BuildState, 0)</code> (line 3577), <code>OnServer.SetCustomName</code> (line 3584), <code>ProgrammableChip.SetSourceCode</code> + <code>SendUpdate</code> (lines 3598-3599), <code>Thing.OnOff</code> (line 3611), <code>Thing.Mode</code> (line 3622), <code>ILogicable.SetLogicValue(LogicType 12 and 72)</code> (lines 3638, 3642), and <code>RestoreSlotContents</code> (line 3653) which spawns slot items via <code>OnServer.Create&lt;DynamicThing&gt;(slot.PrefabName, val)</code> (line 4104).</p>
+<p>So the answer to "which API": <code>OnServer.Create&lt;Thing&gt;(prefabName, position, rotation)</code>, the raw server-side spawn API. It is NOT <code>Structure/Constructor.SpawnConstruct</code>, NOT <code>OnServer.Construct</code>, NOT <code>UseMultiConstructor</code>, and not a bare Unity Instantiate; the game API does the Instantiate plus registration internally.</p>
+<h3 id="game-side-continuation">Game-side continuation<a class="headerlink" href="#game-side-continuation" title="Permanent link">&para;</a></h3>
+<p><code>[Assembly-CSharp]</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>OnServer.Create&lt;T&gt;(string, Vector3, Quaternion)      line 39856
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  -&gt; OnServer.Create&lt;T&gt;(Thing prefab, Vector3, Quaternion)  line 39866
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>     -&gt; Thing.Create&lt;T&gt;(prefab, position, rotation, 0L)     line 318983
 </span></code></pre></div>
-<p>Mapping (segment count and material slot per <code>Mode</code>):</p>
-<table>
-<thead>
-<tr>
-<th><code>Mode</code></th>
-<th>State</th>
-<th>Segments lit</th>
-<th>Material slot</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>0</td>
-<td>Empty</td>
-<td>0</td>
-<td><code>displayModeMaterials[0]</code> (none lit)</td>
-</tr>
-<tr>
-<td>1</td>
-<td>Critical</td>
-<td>1 (blinking)</td>
-<td>toggles <code>displayModeMaterials[1]</code> and <code>[0]</code> every 250ms</td>
-</tr>
-<tr>
-<td>2</td>
-<td>VeryLow</td>
-<td>1</td>
-<td><code>displayModeMaterials[2]</code></td>
-</tr>
-<tr>
-<td>3</td>
-<td>Low</td>
-<td>2</td>
-<td><code>displayModeMaterials[3]</code></td>
-</tr>
-<tr>
-<td>4</td>
-<td>Medium</td>
-<td>3</td>
-<td><code>displayModeMaterials[4]</code></td>
-</tr>
-<tr>
-<td>5</td>
-<td>High</td>
-<td>4</td>
-<td><code>displayModeMaterials[5]</code></td>
-</tr>
-<tr>
-<td>6</td>
-<td>Full</td>
-<td>5</td>
-<td><code>displayModeMaterials[6]</code></td>
-</tr>
-</tbody>
-</table>
-<p>The actual color of each <code>displayModeMaterials[i]</code> is set in the prefab (Unity inspector / <code>sharedassets</code>), not in code. Visually, vanilla station batteries show the bar as red at low Modes, orange at Medium, and green at High / Full; the exact RGB lives in the prefab material array, not here.</p>
-<p><code>OnOff == false</code> short-circuits to "all segments off" regardless of <code>Mode</code>. The <code>IsStructureCompleted</code> guard inside <code>SetRenderersState</code> keeps the bar dark while the prefab is mid-build.</p>
-<h2 id="critical-mode-flashing-coroutine">Critical-mode flashing coroutine<a class="headerlink" href="#critical-mode-flashing-coroutine" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<p><code>Thing.Create&lt;T&gt;</code> verbatim core <code>[Assembly-CSharp]</code> (lines 318993-319031):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Prefab</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">prefab</span><span class="p">.</span><span class="n">PrefabHash</span><span class="p">);</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">Thing</span><span class="w"> </span><span class="n">thing2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Object</span><span class="p">.</span><span class="n">Instantiate</span><span class="p">(</span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">worldRotation</span><span class="p">);</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="p">...</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">referenceId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">{</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Referencable</span><span class="p">.</span><span class="n">RegisterNew</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span><span class="w">          </span><span class="c1">// line 319004</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsServer</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="p">...</span><span class="w"> </span><span class="n">NewToSend</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span><span class="w">                    </span><span class="c1">// line 319019, spawn message to clients</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="p">...</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="p">{</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">OcclusionManager</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span><span class="w">                </span><span class="c1">// line 319030</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Referencable.RegisterNew</code> triggers <code>Structure.OnAssignedReference</code> <code>[Assembly-CSharp]</code> (lines 314182-314207), which snaps the transform to the grid and registers with the grid controller:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnAssignedReference</span><span class="p">()</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnAssignedReference</span><span class="p">();</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="n">Direction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ThingTransform</span><span class="p">.</span><span class="n">rotation</span><span class="p">;</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="n">RegisteredLocalGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">);</span><span class="w">    </span><span class="c1">// line 314186</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RegisteredLocalGrid</span><span class="p">.</span><span class="n">ToVector3</span><span class="p">();</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p">...</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="n">GridController</span><span class="p">.</span><span class="n">World</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="k">this</span><span class="p">);</span><span class="w">                             </span><span class="c1">// line 314204</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>GridController.Register(Structure)</code> <code>[Assembly-CSharp]</code> (line 206469) routes SmallGrid derivatives (cables, pipes, chutes) to <code>AddSmallGridStructure</code> (line 206870), which does get-or-create per cell and then <code>smallCell.Add(smallGridObject)</code> (lines 206880 and 206885) with no occupancy validation, then fires <code>OnRegistered(null)</code> (line 206899) and neighbor <code>OnGridPlaced</code> callbacks (lines 206914-206944).</p>
+<h3 id="coroutine-staggering-and-placement-order">Coroutine staggering and placement order<a class="headerlink" href="#coroutine-staggering-and-placement-order" title="Permanent link">&para;</a></h3>
+<p>Entries are sorted bottom-up by world Y before placement (line 3476), with LibConstruct board structures reordered to follow their host (lines 3477-3504). Placement is batched across frames on a fixed time budget, one entry per step: <code>ComputePasteDuration(int structureCount) =&gt; Mathf.Clamp(structureCount * 0.15f, 2f, 30f)</code> (lines 3315-3318); <code>delay = duration / (count - 1)</code> (line 3506); after each entry <code>yield return new WaitForSeconds(delay)</code> (lines 3549-3552). Small blueprints stretch to the 2 s minimum; large ones cap at 30 s total, so a 1000-entry paste places roughly one structure every 30 ms for 30 seconds.</p>
+<h3 id="paste-placement-math">Paste placement math<a class="headerlink" href="#paste-placement-math" title="Permanent link">&para;</a></h3>
+<p>Paste anchor is the player position snapped to the 2 m large grid with +1/+2/+1 offsets (<code>SnapPlayerToLargeGrid</code>, lines 3971-3979); per-entry world position is the stored relative position rotated by (playerYAngle - CopyYAngle + extraRotY) (lines 3956-3966); the rotation argument is quantized to 90 degree steps (lines 3297-3302). BuildState is replayed via <code>UpdateBuildStateAndVisualizer(entry.BuildState, 0)</code> (line 3577), so partially built structures paste partially built.</p>
+<h3 id="what-bpcopy-captures-what-an-entry-replays">What bpcopy captures (what an entry replays)<a class="headerlink" href="#what-bpcopy-captures-what-an-entry-replays" title="Permanent link">&para;</a></h3>
+<p>Copy (<code>bpcopy</code>, line 3046) iterates <code>Referencable.Referencables</code> (line 3144) filtered by a Pos1/Pos2 bounding box inflated by 1.01 m (lines 3103-3110). It captures PrefabName, relative position, rotation, paint color index, <code>Structure.CurrentBuildStateIndex</code> (line 3172), CustomName, IC10 source code, OnOff, Mode, logic Setting (LogicType 12) and OutputTemperatureSetting (LogicType 72) via <code>CanLogicRead</code>/<code>GetLogicValue</code> (lines 3224-3231), and recursive slot contents except for storage lockers and silos (skip list <code>StoragePrefabNames</code>, line 2634, checked line 3237). Entities are excluded (line 3148); slotted DynamicThings are excluded at top level (lines 3152-3156).</p>
+<h3 id="libconstruct-board-structures">LibConstruct board structures<a class="headerlink" href="#libconstruct-board-structures" title="Permanent link">&para;</a></h3>
+<p><code>LibConstructCompat</code> (line 4384) detects the LibConstructReloaded placement-board API by probing <code>typeof(PlacementBoard)</code> (line 4404). On paste, board-mounted structures are spawned with the same <code>OnServer.Create</code> call and then attached to their host board with <code>PlacementBoard.Register(structure)</code> (line 4528). The incident world also ran LibConstructReloaded (Steam Workshop item 3751750326).</p>
+<h2 id="occupancy-zero-checks-in-the-paste-path">Occupancy: zero checks in the paste path<a class="headerlink" href="#occupancy-zero-checks-in-the-paste-path" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p><code>Mode == 1</code> (Critical, charge in <code>(0, 0.1)</code>) does not call <code>SetRenderersState</code> directly; it kicks off the <code>FlashingDisplay</code> UniTask which toggles the single segment between the Critical material and the Empty material every 250 ms:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">private</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTask</span><span class="w"> </span><span class="nf">FlashingDisplay</span><span class="p">()</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">cancelToken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">.</span><span class="n">GetCancellationTokenOnDestroy</span><span class="p">();</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">Mode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="p">)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="n">Mode</span><span class="p">]);</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span><span class="w"> </span><span class="n">ignoreTimeScale</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">,</span><span class="w"> </span><span class="n">PlayerLoopTiming</span><span class="p">.</span><span class="n">Update</span><span class="p">,</span><span class="w"> </span><span class="n">cancelToken</span><span class="p">);</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cancelToken</span><span class="p">.</span><span class="n">IsCancellationRequested</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Mode</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="n">SetRenderersState</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">displayModeMaterials</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span><span class="w"> </span><span class="n">ignoreTimeScale</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">,</span><span class="w"> </span><span class="n">PlayerLoopTiming</span><span class="p">.</span><span class="n">Update</span><span class="p">,</span><span class="w"> </span><span class="n">cancelToken</span><span class="p">);</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cancelToken</span><span class="p">.</span><span class="n">IsCancellationRequested</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="p">}</span>
+<p>The mod never calls <code>CanConstruct</code>, <code>CanConstructInfo</code>, <code>_IsCollision</code>, <code>CanReplace</code>, or <code>WillMergeWhenPlaced</code>. A full-text grep of the decompile finds zero references to any of them. The only occupancy-adjacent code in the whole assembly is the visual collision preview in <code>BlueprintPreview.RepositionPreviews</code> (line 1364), which tints the hologram red (verbatim, line 1409):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">collisionPreviewEnabled</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">GridController</span><span class="p">.</span><span class="n">World</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">Object</span><span class="p">)(</span><span class="kt">object</span><span class="p">)</span><span class="n">GridController</span><span class="p">.</span><span class="n">World</span><span class="p">.</span><span class="n">GetStructure</span><span class="p">(</span><span class="n">list</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Item1</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="p">(</span><span class="n">Object</span><span class="p">)</span><span class="k">null</span><span class="p">;</span>
 </span></code></pre></div>
-<p>The loop self-exits when <code>Mode</code> leaves Critical or when the device is switched off. The <code>_flashingTask.Status != UniTaskStatus.Pending</code> guard in <code>RefreshAnimState</code> prevents stacking multiple flashers when <code>RefreshAnimState</code> is called repeatedly while still in the Critical band.</p>
-<p>Net effect: a battery dropping into the <code>(0, 10%)</code> band flashes red at 2 Hz; reaching 10% snaps to a steady single segment in the <code>VeryLow</code> material; and the bar fills out segment by segment up to 5 segments at <code>Full</code>.</p>
-<h2 id="class-hierarchy-electricalinputoutput-two-cable-networks">Class hierarchy: ElectricalInputOutput (two cable networks)<a class="headerlink" href="#class-hierarchy-electricalinputoutput-two-cable-networks" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
-
-<p>Decompile line 391662 (0.2.6403.27689; class body ends 392217): <code>public class Battery : ElectricalInputOutput, IRocketInternals, IRocketComponent, IChargable, IReferencable, IEvaluable, IRocketMassContributor</code>.</p>
-<p>Battery inherits <code>ElectricalInputOutput</code>, the same base as <code>Transformer</code> and <code>AreaPowerControl</code>. This means Battery has both <code>InputNetwork</code> and <code>OutputNetwork</code> cable network references at runtime. The <code>ChargeEfficiencyControl</code> patch in PowerGridPlus's <code>StationaryBatteryPatches.cs</code> exercises this via <code>cableNetwork == __instance.InputNetwork</code>. Implication: a station Battery acts as a power bridge with separate cable ports for the input (charging) and output (discharging) sides. Logic-passthrough patches that work for <code>Transformer</code> (bridging device lists across the InputNetwork / OutputNetwork pair) can be applied identically to <code>Battery</code>.</p>
-<h3 id="batterypowerdelta-is-sign-reversed-relative-to-batterycellpowerdelta">Battery.PowerDelta is SIGN-REVERSED relative to BatteryCell.PowerDelta<a class="headerlink" href="#batterypowerdelta-is-sign-reversed-relative-to-batterycellpowerdelta" title="Permanent link">&para;</a></h3>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
-
-<p>The station <code>Battery</code> and the handheld <code>BatteryCell</code> both expose a <code>PowerDelta</code> property, with OPPOSITE signs:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">PowerDelta</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">;</span><span class="w">   </span><span class="c1">// Battery, line 391732: &lt;= 0, &quot;how far past full&quot;</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">PowerDelta</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PowerStored</span><span class="p">;</span><span class="w">   </span><span class="c1">// BatteryCell, line 340551: &gt;= 0, remaining headroom</span>
+<p>and its own config text admits placement is not gated by it (line 4246):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">_collisionPreview</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cfg</span><span class="p">.</span><span class="n">Bind</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;Preview&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CollisionPreviewEnabled&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Tint previews red when the blueprint structure overlaps with an existing structure in the world. Pasting will still be allowed regardless of preview colour.&quot;</span><span class="p">);</span>
 </span></code></pre></div>
-<p><code>AreaPowerControl</code> charges its slot cell with <code>Mathf.Min(Battery.PowerDelta, BatteryChargeRate, powerAdded)</code>, and its <code>Battery</code> property is a <code>BatteryCell</code> (<code>BatterySlot.Get&lt;BatteryCell&gt;()</code>, APC line 390594), so the APC math uses the POSITIVE-headroom <code>BatteryCell</code> form. Any code reaching for the station <code>Battery.PowerDelta</code> expecting "remaining headroom" gets a zero-or-negative number instead; negate it (or use <code>PowerMaximum - PowerStored</code> directly). The station Battery's own power quartet (below) never reads its <code>PowerDelta</code>; it computes headroom inline as <code>Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)</code>.</p>
-<h2 id="powermaximum-default-and-vanilla-prefab-variants">PowerMaximum default and vanilla prefab variants<a class="headerlink" href="#powermaximum-default-and-vanilla-prefab-variants" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
-
-<p><code>Battery</code> declares one storage-capacity field (decompile line 391675 at 0.2.6403.27689):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="na">[Header(&quot;Battery&quot;)]</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">public</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3600000f</span><span class="p">;</span>
+<p>Note the preview check uses <code>GridController.World.GetStructure</code> (large-grid structure lookup); it does not even query the small grid, so a cable-on-cable overlap would not tint red in the preview either.</p>
+<p>Placement happens without any check at line 3562 (<code>OnServer.Create&lt;Thing&gt;</code>), shown in the placement call chain section above.</p>
+<p>Mechanically, how a normal cable lands in a cell already holding a super-heavy cable: the small-grid cell registry stores at most ONE cable reference per cell, and registration overwrites it unconditionally. <code>[Assembly-CSharp]</code> <code>SmallCell</code> fields (lines 292987-293003):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SmallCell</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Grid3</span><span class="w"> </span><span class="n">SmallGrid</span><span class="p">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Chute</span><span class="w"> </span><span class="n">Chute</span><span class="p">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Pipe</span><span class="w"> </span><span class="n">Pipe</span><span class="p">;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Device</span><span class="w"> </span><span class="n">Device</span><span class="p">;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Cable</span><span class="w"> </span><span class="n">Cable</span><span class="p">;</span><span class="w">          </span><span class="c1">// line 292997, single slot</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="p">...</span>
 </span></code></pre></div>
-<p>The literal <code>3600000f</code> is the C# default. Prefabs override this in Unity asset data (the <code>Battery</code> MonoBehaviour serialised on the prefab GameObject), so a single <code>Battery</code> class drives every station battery variant at runtime with its own <code>PowerMaximum</code>.</p>
-<p>Vanilla prefab variants in Stationeers 0.2.6228.27061 (values from <code>rocketstation_Data/StreamingAssets/Language/en.resx</code>; the Stationpedia text labels these "watts" but the underlying field is energy in Joules):</p>
-<table>
-<thead>
-<tr>
-<th>Prefab</th>
-<th><code>PowerMaximum</code> (J)</th>
-<th>Approx. Wh</th>
-<th>Stationpedia key</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>StructureBattery</code> (Station Battery)</td>
-<td>3,600,000</td>
-<td>1,000 (1 kWh)</td>
-<td><code>Thing_StructureBattery_Description</code></td>
-</tr>
-<tr>
-<td><code>StructureBatteryLarge</code> (Station Battery Large)</td>
-<td>9,000,001</td>
-<td>~2,500 (~2.5 kWh)</td>
-<td><code>Thing_StructureBatteryLarge_Description</code></td>
-</tr>
-</tbody>
-</table>
-<p>No vanilla <code>StructureBatteryNuclear</code> exists. The only "nuclear battery" in base game is <code>ItemBatteryCellNuclear</code>, a handheld <code>BatteryCell</code> (see <code>HelmetBattery.md</code>), not a station-mounted <code>Battery</code> prefab. Third-party mods (e.g., MorePowerMod) introduce a <code>StationBatteryNuclear : Battery</code> subclass with its own <code>PowerMaximum</code> override; that is mod content, not vanilla.</p>
-<p>The <code>9000001</code> value is the literal in the en.resx string ("Able to store up to 9000001 watts of power") — the off-by-one (vs a clean 9,000,000) is the actual prefab value, not a typo in this page.</p>
-<h2 id="power-tick-method-bodies-vanilla-rate-behaviour">Power-tick method bodies (vanilla rate behaviour)<a class="headerlink" href="#power-tick-method-bodies-vanilla-rate-behaviour" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
-
-<p><code>Battery</code> overrides all four <code>Device</code> power-tick methods. Verbatim from the 0.2.6403.27689 decompile (<code>UsePower</code> 392144-392150, <code>ReceivePower</code> 392152-392158, <code>GetUsedPower</code> 392160-392171, <code>GetGeneratedPower</code> 392173-392184):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">UsePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Error</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsOperable</span><span class="p">)</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp</span><span class="p">(</span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">powerUsed</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">);</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="p">}</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ReceivePower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">powerAdded</span><span class="p">)</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">{</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Error</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsOperable</span><span class="p">)</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">        </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp</span><span class="p">(</span><span class="n">powerAdded</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">);</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">}</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetUsedPower</span><span class="p">([</span><span class="n">NotNull</span><span class="p">]</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="p">{</span>
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">IsOperable</span><span class="p">)</span>
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
-</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
-</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Clamp</span><span class="p">(</span><span class="n">PowerMaximum</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">,</span><span class="w"> </span><span class="n">PowerMaximum</span><span class="p">);</span>
-</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="p">}</span>
-</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>
-</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGeneratedPower</span><span class="p">(</span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">cableNetwork</span><span class="p">)</span>
-</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="p">{</span>
-</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">cableNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">IsOperable</span><span class="p">)</span>
-</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
-</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
-</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mf">0f</span><span class="p">;</span>
-</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Max</span><span class="p">(</span><span class="n">PowerStored</span><span class="p">,</span><span class="w"> </span><span class="mf">0f</span><span class="p">);</span>
-</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>Each method is side-keyed (<code>InputNetwork</code> for charge, <code>OutputNetwork</code> for discharge), matching the same pattern documented for <code>AreaPowerControl</code> and <code>Transformer</code> (see <code>AreaPowerControl.md</code> "Three power-tick methods, two sides").</p>
-<p>Vanilla rate behaviour, derived from the bodies above:</p>
-<ul>
-<li><strong><code>GetUsedPower(InputNetwork)</code></strong> returns <code>Clamp(PowerMaximum - PowerStored, 0, PowerMaximum)</code>. The full remaining headroom in Joules. No per-tick cap.</li>
-<li><strong><code>GetGeneratedPower(OutputNetwork)</code></strong> returns <code>Max(PowerStored, 0)</code>. The full stored energy in Joules. No per-tick cap.</li>
-<li><strong><code>ReceivePower(InputNetwork, powerAdded)</code></strong> adds <code>powerAdded</code> directly to <code>PowerStored</code>, clamped to <code>[0, PowerMaximum]</code>. No lossy charging.</li>
-<li><strong><code>UsePower(OutputNetwork, powerUsed)</code></strong> subtracts <code>powerUsed</code> directly from <code>PowerStored</code>, clamped to <code>[0, PowerMaximum]</code>.</li>
-</ul>
-<p>Net consequence: a vanilla station Battery is rate-unlimited from the Battery side. The actual charge / discharge wattage observed in-game is capped only by:
-- Upstream <code>PotentialLoad</code> (network supply) on charge.
-- Downstream <code>CurrentLoad</code> (network demand) on discharge.
-- Cable tier carrying capacity of the connected network.</p>
-<p>A fully-charged 3,600,000 J Station Battery can in principle empty itself in a single power tick (0.5 s), supplying ~7.2 MW peak, if downstream demand and the cable network can absorb it. Conversely, an empty battery on a 7.2 MW supply will charge to full in one tick.</p>
-<p>This unbounded-per-tick behaviour is exactly the corner that <code>PowerGridPlus.Patches.StationaryBatteryPatches</code> exists to clamp: it Postfix-patches both <code>GetUsedPower</code> and <code>GetGeneratedPower</code> to cap the returned values at <code>PowerMaximum * Settings.MaxBatteryChargeRate.Value</code> and <code>PowerMaximum * Settings.MaxBatteryDischargeRate.Value</code> respectively. Defaults are 0.002 (charge) and 0.007 (discharge) of <code>PowerMaximum</code> per tick (Settings.cs lines 106, 110).</p>
-<p>Worked numbers under PowerGridPlus defaults (per-tick Joules; tick interval is 500 ms per <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a>):</p>
-<table>
-<thead>
-<tr>
-<th>Prefab</th>
-<th>Charge cap (J/tick = displayed W)</th>
-<th>Discharge cap (J/tick = displayed W)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>StructureBattery</code> (3,600,000 J)</td>
-<td>7,200</td>
-<td>25,200</td>
-</tr>
-<tr>
-<td><code>StructureBatteryLarge</code> (9,000,001 J)</td>
-<td>18,000</td>
-<td>63,000</td>
-</tr>
-</tbody>
-</table>
-<p>These numbers are how the game labels them in Stationpedia / device tooltips (the field value is shown as "W"). The actual wall-clock wattage is the field value divided by the 0.5 s tick interval, i.e. exactly double these numbers (so a 7,200 J/tick charge cap is physically 14,400 W of energy flow over real time). The doubling does NOT appear in the in-game UI and does NOT change which devices a Battery can run on a given tick; reason in the game's units when comparing against a player's observed numbers. See <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a> "Tick interval and the watts-vs-joules-per-tick labelling convention" for the convention.</p>
-<p>The <code>BatteryChargeEfficiency</code> patch on <code>ReceivePower</code> (lines 31-43 of <code>StationaryBatteryPatches.cs</code>) is a separate concern: it multiplies stored energy by <code>Settings.BatteryChargeEfficiency.Value</code> (default 1.0 = lossless) before clamping, with a 500 W trickle-charge bypass.</p>
-<h2 id="self-drain-in-onatmospherictick-never-billed-to-the-network">Self-drain in OnAtmosphericTick: never billed to the network<a class="headerlink" href="#self-drain-in-onatmospherictick-never-billed-to-the-network" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6403.27689 @ 2026-07-07 -->
-
-<p><code>Battery</code> declares two private loss constants (391695 / 391697):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">private</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">LOSS_NORMAL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10f</span><span class="p">;</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">private</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">LOSS_IN_COLD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">50f</span><span class="p">;</span>
-</span></code></pre></div>
-<p>The decompiler inlines <code>const</code> references, so the consuming body shows the literals <code>10f</code> / <code>50f</code> rather than the names. The drain lives in <code>OnAtmosphericTick</code>, verbatim (392186-392207):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnAtmosphericTick</span><span class="p">()</span>
+<p><code>SmallCell.Add</code> verbatim <code>[Assembly-CSharp]</code> (lines 293100-293107):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Add</span><span class="p">(</span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="p">)</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">{</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnAtmosphericTick</span><span class="p">();</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_rocketInternalCellType</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="p">.</span><span class="n">None</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="kt">float</span><span class="p">.</span><span class="n">Epsilon</span><span class="p">)</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">Cable</span><span class="w"> </span><span class="n">cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Cable</span><span class="p">;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">cable</span><span class="p">)</span>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="n">Atmosphere</span><span class="w"> </span><span class="n">atmosphere</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">AtmosphericsController</span><span class="p">.</span><span class="n">CloneGlobalAtmosphere</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="p">,</span><span class="w"> </span><span class="mi">0L</span><span class="p">);</span>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">atmosphere</span><span class="p">.</span><span class="n">IsAboveArmstrong</span><span class="p">())</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">        </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mf">50f</span><span class="p">;</span>
-</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10f</span><span class="p">;</span>
-</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">atmosphere</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">Temperature</span><span class="p">.</span><span class="n">ZeroDegrees</span><span class="p">)</span>
-</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">        </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Max</span><span class="p">(</span><span class="mf">50f</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">TemperatureKelvin</span><span class="p">.</span><span class="n">One</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">atmosphere</span><span class="p">.</span><span class="n">Temperature</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">Chemistry</span><span class="p">.</span><span class="n">Temperature</span><span class="p">.</span><span class="n">ZeroDegrees</span><span class="p">).</span><span class="n">ToFloat</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">atmosphere</span><span class="p">.</span><span class="n">HeatExchangeRatio</span><span class="p">(),</span><span class="w"> </span><span class="n">num</span><span class="p">);</span>
-</span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">    </span><span class="n">PowerStored</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
-</span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">    </span><span class="n">atmosphere</span><span class="p">.</span><span class="n">GasMixture</span><span class="p">.</span><span class="n">AddEnergy</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">MoleEnergy</span><span class="p">(</span><span class="n">num</span><span class="p">));</span>
-</span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="p">}</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="n">Cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cable</span><span class="p">;</span><span class="w">       </span><span class="c1">// line 293105, unconditional overwrite</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="p">}</span>
 </span></code></pre></div>
-<p>Reading the branches:</p>
-<ul>
-<li>Rocket-internal battery prefabs (<code>_rocketInternalCellType != None</code>) and empty stores (<code>PowerStored &lt;= float.Epsilon</code>) do not self-drain at all.</li>
-<li>Below-Armstrong ambient pressure (near-vacuum): flat 50 J per atmospheric tick, and the early return skips the <code>AddEnergy</code> line, so nothing is emitted as heat.</li>
-<li>Atmosphere at or above <code>Chemistry.Temperature.ZeroDegrees</code> (freezing): 10 J per atmospheric tick.</li>
-<li>Atmosphere below freezing: <code>Max(50 * (1 - T / ZeroDegrees) * atmosphere.HeatExchangeRatio(), 10)</code> J, scaling with how far below freezing the gas is and how conductive it is.</li>
-<li>In the atmosphere branches the drained joules are added to the surrounding gas as heat (<code>GasMixture.AddEnergy(new MoleEnergy(num))</code>), so a battery bank measurably warms its room.</li>
-</ul>
-<p>None of this passes through the power tick. The loss is written straight into <code>PowerStored</code> on the ATMOSPHERIC tick path; it never appears in any network's <code>Required</code> (only <code>GetUsedPower</code> feeds <code>Required</code>, and its return is the charge headroom, not a loss term; bodies above). Practical reading: on a grid-connected charging battery the self-drain shows up only indirectly (the headroom <code>PowerMaximum - PowerStored</code> is slightly larger next tick); on a full, off, or disconnected battery it is a pure drain that no wattage display, ledger, or network figure accounts for. During the PowerGridPlus partial-power forensics this is a known vanilla sink to subtract before attributing missing joules to the mod's allocator.</p>
-<h2 id="subclassing-notes-for-mods">Subclassing notes for mods<a class="headerlink" href="#subclassing-notes-for-mods" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-28 -->
+<p>The occupancy denial that would normally prevent this ("grid blocked by structure", <code>CanConstructInfo.InvalidPlacement(GameStrings.GridBlockedByStructure...)</code>, <code>[Assembly-CSharp]</code> line 161150) lives exclusively in the cursor-time CanConstruct path driven by <code>Constructor</code>/<code>ConstructionCursor</code> when a player uses a cable coil. <code>Thing.Create</code> and the <code>GridController.Register</code> chain never execute it. That is also why a <code>Cable.CanConstruct</code> Harmony postfix never fires for BlueprintMod pastes: no construction cursor, no Constructor, no CanConstruct call at all.</p>
+<p>Result in the incident world: the super-heavy cable Thing keeps existing (it is never deregistered), keeps its own CableNetwork membership, and keeps rendering; the mod-spawned normal cable is instantiated at the same coordinates, registered, and steals the <code>SmallCell.Cable</code> pointer. Cell lookups (<code>SmallCell.Get&lt;T&gt;</code>, power network tracing, deconstruct targeting) now resolve to the normal cable, while the super-heavy cable becomes an orphan that is still visible and still referenced by its network. Deregistration is reference-compared (<code>if (smallGridObject == smallCell.Cable)</code>, <code>[Assembly-CSharp]</code> line 206979), so removing the newer cable later nulls the cell without restoring the older one.</p>
+<p>Config surface (BepInEx, <code>BlueprintSettings.Init</code>, lines 4237-4270): <code>Preview/PastePreviewEnabled</code> (true), <code>Preview/CollisionPreviewEnabled</code> (true, visual only), <code>Preview/MaxPreviews</code> (0 = unlimited), <code>Preview/MaxWireframeRenderThreshold</code> (100), <code>General/MaxUndoLevels</code> (20). Nothing gates placement legality.</p>
+<h2 id="failure-handling-in-the-print-loop">Failure handling in the print loop<a class="headerlink" href="#failure-handling-in-the-print-loop" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p>A mod that subclasses <code>Battery</code> (e.g., <code>StationBatteryNuclear : Battery</code> in MorePowerMod) inherits the full state ladder, segment-bar logic, and flashing coroutine for free. Two requirements for the inherited display to actually animate:</p>
-<ul>
-<li>The mod's prefab MUST populate <code>displayRenderers[]</code> and <code>displayModeMaterials[]</code> (length 7, indices 0..6) on the <code>Battery</code> component. Without these, <code>SetRenderersState</code> returns early or assigns null materials and the bar stays dark.</li>
-<li>Patching <code>RefreshAnimState</code> away (e.g. swapping the entire renderer to a single material on <code>PoweredChanged</code>) replaces the segment-count behavior with whatever the override does. MorePowerMod's <code>StationBatteryNuclear.PoweredChanged</code> writes a single solid material to <code>gameObject.GetComponent&lt;MeshRenderer&gt;().materials</code> regardless of <code>Powered</code>, but does NOT touch the <code>displayRenderers[]</code> segment bar, so the inherited 5-segment color ladder still drives the visible charge indicator.</li>
-</ul>
-<h2 id="rocket-internal-variant-same-class-prefab-distinguished">Rocket-internal variant (same class, prefab-distinguished)<a class="headerlink" href="#rocket-internal-variant-same-class-prefab-distinguished" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
-
-<p><code>Battery</code> implements <code>IRocketInternals, IRocketComponent, IRocketMassContributor</code> (class header L370616) and carries the same two <code>[SerializeField]</code> rocket fields as <code>Transformer</code> (decompile L370633-L370637):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="n">RocketInternalCellType</span><span class="w"> </span><span class="n">_rocketInternalCellType</span><span class="p">;</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="na">[SerializeField]</span><span class="w"> </span><span class="k">private</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_strictlyInternal</span><span class="p">;</span>
+<p>One attempt per entry, no retry, no backoff, no abort. Failures increment a counter and the loop continues. Verbatim from <code>ExecutePasteStaggered</code> (lines 3508-3554):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">sorted</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">op</span><span class="p">.</span><span class="n">Cancelled</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="k">yield</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">num7</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sorted</span><span class="p">[</span><span class="n">s</span><span class="p">];</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="n">BlueprintEntry</span><span class="w"> </span><span class="n">blueprintEntry2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">blueprint</span><span class="p">.</span><span class="n">Entries</span><span class="p">[</span><span class="n">num7</span><span class="p">];</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="p">(</span><span class="n">worldPos</span><span class="p">,</span><span class="w"> </span><span class="n">worldRot</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">positions</span><span class="p">[</span><span class="n">num7</span><span class="p">];</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">blueprintEntry2</span><span class="p">.</span><span class="n">BuildState</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">        </span><span class="n">Compat</span><span class="p">.</span><span class="n">ConsoleWindowPrint</span><span class="p">(</span><span class="s">&quot;[BlueprintMod] Skipped loose item: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">blueprintEntry2</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">);</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">        </span><span class="n">op</span><span class="p">.</span><span class="n">Skipped</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">        </span><span class="k">continue</span><span class="p">;</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">    </span><span class="k">try</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">        </span><span class="n">Thing</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CreateSingleEntry</span><span class="p">(</span><span class="n">blueprintEntry2</span><span class="p">,</span><span class="w"> </span><span class="n">worldPos</span><span class="p">,</span><span class="w"> </span><span class="n">worldRot</span><span class="p">);</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">Object</span><span class="p">)(</span><span class="kt">object</span><span class="p">)</span><span class="n">val</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="p">(</span><span class="n">Object</span><span class="p">)</span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">            </span><span class="n">op</span><span class="p">.</span><span class="n">PastedThings</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">val</span><span class="p">);</span>
+</span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">            </span><span class="n">op</span><span class="p">.</span><span class="n">Created</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-9-23"><a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">            </span><span class="p">...</span>
+</span><span id="__span-9-24"><a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-9-25"><a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">        </span><span class="k">else</span>
+</span><span id="__span-9-26"><a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-9-27"><a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="w">            </span><span class="n">op</span><span class="p">.</span><span class="n">Failed</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-9-28"><a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-9-29"><a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-30"><a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a><span class="w">    </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">Exception</span><span class="w"> </span><span class="n">ex</span><span class="p">)</span>
+</span><span id="__span-9-31"><a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-32"><a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a><span class="w">        </span><span class="n">Debug</span><span class="p">.</span><span class="n">LogError</span><span class="p">((</span><span class="kt">object</span><span class="p">)(</span><span class="s">&quot;[BlueprintMod] Error pasting &#39;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;&#39;: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ex</span><span class="p">.</span><span class="n">Message</span><span class="p">));</span>
+</span><span id="__span-9-33"><a id="__codelineno-9-33" name="__codelineno-9-33" href="#__codelineno-9-33"></a><span class="w">        </span><span class="n">op</span><span class="p">.</span><span class="n">Failed</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-9-34"><a id="__codelineno-9-34" name="__codelineno-9-34" href="#__codelineno-9-34"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-35"><a id="__codelineno-9-35" name="__codelineno-9-35" href="#__codelineno-9-35"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">sorted</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">delay</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span>
+</span><span id="__span-9-36"><a id="__codelineno-9-36" name="__codelineno-9-36" href="#__codelineno-9-36"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-9-37"><a id="__codelineno-9-37" name="__codelineno-9-37" href="#__codelineno-9-37"></a><span class="w">        </span><span class="k">yield</span><span class="w"> </span><span class="nf">return</span><span class="w"> </span><span class="p">(</span><span class="kt">object</span><span class="p">)</span><span class="k">new</span><span class="w"> </span><span class="n">WaitForSeconds</span><span class="p">(</span><span class="n">delay</span><span class="p">);</span>
+</span><span id="__span-9-38"><a id="__codelineno-9-38" name="__codelineno-9-38" href="#__codelineno-9-38"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-9-39"><a id="__codelineno-9-39" name="__codelineno-9-39" href="#__codelineno-9-39"></a><span class="p">}</span>
+</span><span id="__span-9-40"><a id="__codelineno-9-40" name="__codelineno-9-40" href="#__codelineno-9-40"></a><span class="n">op</span><span class="p">.</span><span class="n">Complete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
 </span></code></pre></div>
-<p>"Rocket Battery Medium" and the station wall battery are the SAME <code>Battery</code> class; the rocket variant is a separate prefab (<code>_strictlyInternal = true</code>, a non-<code>None</code> <code>_rocketInternalCellType</code>, its own <code>OpenEnds</code>). No <code>RocketBattery</code> subclass exists. A Harmony patch on <code>typeof(Battery)</code> catches both. <code>IRocketMassContributor.MassContribution</code> adds the stored charge to rocket mass (<code>Transformer</code> does not implement this interface).</p>
-<p>The <code>Battery</code>-class prefabs split into TWO families by display name + build kit, despite generic prefab codenames. From <code>english.xml</code> (<code>StreamingAssets/Language</code>) and a Luna rocket save (<code>PrefabName</code> of ref 525400):</p>
-<table>
-<thead>
-<tr>
-<th>Prefab (codename)</th>
-<th>Display name</th>
-<th>Build kit</th>
-<th>Family</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>StructureBattery</code></td>
-<td>Station Battery</td>
-<td>Kit (Battery)</td>
-<td>station</td>
-</tr>
-<tr>
-<td><code>StructureBatteryLarge</code></td>
-<td>Station Battery (Large)</td>
-<td>Kit (Battery)</td>
-<td>station</td>
-</tr>
-<tr>
-<td><code>StructureBatteryMedium</code></td>
-<td>Battery (Medium)</td>
-<td>Kit (Rocket Battery)</td>
-<td><strong>rocket</strong></td>
-</tr>
-<tr>
-<td><code>StructureBatterySmall</code></td>
-<td>Auxiliary Rocket Battery</td>
-<td>Kit (Rocket Battery)</td>
-<td><strong>rocket</strong></td>
-</tr>
-</tbody>
-</table>
-<p>So the "medium rocket battery" IS <code>StructureBatteryMedium</code> (the codename is misleadingly generic; its small sibling is literally "Auxiliary Rocket Battery"). There is no prefab literally named <code>*RocketBattery*</code> -- the rocket batteries ARE <code>StructureBatteryMedium</code> / <code>StructureBatterySmall</code>, distinct from the station wall batteries <code>StructureBattery</code> / <code>StructureBatteryLarge</code>. (Plus the two cell-chargers, and the modded <code>StationBatteryNuclear</code>.) Measured <code>OpenEnds</code> (ScenarioRunner <code>connector-dump</code>):</p>
-<table>
-<thead>
-<tr>
-<th>Prefab</th>
-<th>OpenEnds</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>StructureBattery</code>, <code>StructureBatteryLarge</code> (station)</td>
-<td>3: <code>Data/None</code>, <code>Power/Input</code>, <code>Power/Output</code> (dedicated pure-Data third port)</td>
-</tr>
-<tr>
-<td><code>StructureBatteryMedium</code>, <code>StructureBatterySmall</code> (rocket)</td>
-<td>3: <code>Power/Input</code>, <code>Power/Output</code>, <code>PowerAndData/None</code> (third port is <code>PowerAndData</code>: it carries power as well as data, so it accepts a heavy power cable)</td>
-</tr>
-</tbody>
-</table>
-<p>So the station batteries carry a pure <code>Data</code> third port; the rocket batteries carry a <code>PowerAndData</code> third port. No vanilla battery folds data onto its <code>Power/Input</code> or <code>Power/Output</code> connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its <code>NetworkType</code> (cable type lives on <code>Cable</code>, see <a href="../Cable/">Cable</a>; <code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> + grid coincidence only).</p>
+<p>End-of-paste reporting (lines 3452-3462): prints <code>"Pasted {op.Created} structures."</code> plus <code>" ({op.Skipped} loose Items skipped...)"</code> and <code>" ({op.Failed} failed)"</code> to the console window and fires the <code>OnPasteComplete</code> UI event. The server-side variant reports counts back to the requesting client over the chat protocol: <code>SendChatBroadcast(string.Format(..., "{0}OK{1}{2}{3}{4:F2}", "BP", op.Created, op.Failed, op.Skipped, pasteCost), humanId)</code> (line 798), rendered client-side as <code>"Pasted N structures. ... (M failed)"</code> (lines 873-892).</p>
+<p>Failure surfaces:</p>
+<ul>
+<li>If <code>OnServer.Create</code> returns null, <code>CreateSingleEntry</code> logs a warning and returns null (lines 3563-3567), counted as <code>op.Failed++</code> (line 3541). In practice <code>OnServer.Create&lt;T&gt;</code> never returns null; it throws <code>NullReferenceException</code> when <code>Thing.Create</code> produced nothing (<code>[Assembly-CSharp]</code> lines 39866-39876), and <code>Thing.Create</code> itself throws on a missing prefab (<code>[Assembly-CSharp]</code> lines 318985-318992). Either way the per-entry try/catch (lines 3523-3548) converts it to <code>op.Failed++</code> and moves on.</li>
+<li><code>bpundo</code> while a paste is running cancels it: <code>CancelActivePaste</code> (line 3393) stops the coroutine and destroys everything placed so far via <code>OnServer.Destroy(pastedThing)</code> (line 3415). Completed pastes are undone the same way (<code>Undo</code>, line 3784, destroy loop lines 3804-3818, tolerant of already-destroyed things via <code>!item.IsBeingDestroyed</code> and try/catch).</li>
+</ul>
+<p>Duplicate-paste guard fingerprint is coarse: <code>string.Format("{0}@{1:F1},{2:F1},{3:F1}r{4:F0}", count, pastePos.x, pastePos.y, pastePos.z, rotY)</code> (line 3347). It encodes only entry count, position, and rotation, so pasting a different blueprint with the same entry count at the same spot is also blocked until undo. It also means re-running an identical paste (for example after an external guard refused some pieces) is blocked until <code>bpundo</code>, which conveniently suppresses guard-refusal retry spam even at the player level.</p>
+<h2 id="materials-deanamicmatter-cost-economy">Materials: DeanamicMatter cost economy<a class="headerlink" href="#materials-deanamicmatter-cost-economy" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>Printing costs a mod-specific consumable, DeanamicMatter, unless the world is creative:</p>
+<ul>
+<li>Creative check: <code>DeanamicMatterCost.IsCreativeMode()</code> (line 9379) reads <code>DifficultySetting.Current.Creative</code>, falling back to <code>WorldManager.IsCreative()</code>. Creative pastes are free.</li>
+<li>Cost model: <code>CalculateCost</code> (line 9396) sums per-prefab gram prices over buildable entries only (<code>BuildState &gt;= 0</code>). Prices come from an <code>ExactCosts</code> dictionary (line 9009, about 290 prefabs), then a <code>PrefixCosts</code> prefix table (line 9302; <code>("StructureCableSuperHeavy", 0.2f)</code> line 9304, <code>("StructureCable", 0.1f)</code> line 9305), then a <code>ContainsCosts</code> substring table (line 9363), default 0.5 g (line 9437).</li>
+<li>Deduction is up-front for the WHOLE blueprint, before any placement: host path lines 3352-3366 (<code>TryDeductCost</code>, abort with "Not enough DeanamicMatter" if short); server-on-behalf-of-client path lines 692-709. <code>TryDeductCost</code> (line 9489) drains grams from <code>DeanamicMatter</code> consumable stacks found recursively in the player's slots (<code>FindDeanamicMatter</code>, line 9440).</li>
+<li>Failed placements are NOT refunded per piece. <code>op.Failed</code> has no interaction with cost anywhere; the full blueprint price stays spent even if every entry fails. Refunds happen only for: cancel mid-paste (lines 3427-3434), full undo (host lines 3820-3828, server lines 836-848), or a server paste that ends cancelled (lines 775-782). <code>TryRefundCost</code> (line 9519) refills existing stacks and spawns overflow <code>ItemDeanamicMatter</code> items above the player via <code>OnServer.Create&lt;Thing&gt;("ItemDeanamicMatter", ...)</code> (line 9560).</li>
+<li>DeanamicMatter is itself craftable: <code>GameData/autolathe.xml</code> adds an Autolathe recipe (20 Steel, 5 Silicon, 3 Gold, 2 Solder per unit), <code>AdvancedFurnaceRecipePatch</code> (line 9695, postfix on <code>WorldManager.LoadDataFiles</code>) registers three Advanced Furnace alloy recipes at runtime, and <code>GameData/recycling.xml</code> plus <code>Recycler.AddRecycleRecipe</code> (line 9780) make it recyclable.</li>
+</ul>
+<p>So: materials are a flat gram economy, not kits; charged before placement; per-piece failures lose the grams for those pieces; only cancel/undo refunds. Cost table trivia: a super-heavy cable costs 0.2 g and a normal cable 0.1 g of DeanamicMatter (lines 9304-9305), so the 2026-07-13 incident overwrite was also the cheaper piece stomping the more expensive one.</p>
+<h2 id="timing-and-multiplayer-protocol">Timing and multiplayer protocol<a class="headerlink" href="#timing-and-multiplayer-protocol" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<ul>
+<li>Unity main thread only. The paste is a coroutine started with <code>((MonoBehaviour)BlueprintMod.Instance).StartCoroutine(RunLocalStaggeredPaste(...))</code> (line 3373) or <code>RunServerStaggeredPaste</code> (line 744). No Task/Thread usage in the placement path. The frame-staggering budget math is in the placement call chain section above.</li>
+<li>Host-only execution, gated on <code>GameManager.RunSimulation</code>: command path line 3308, chunk/header/undo handlers lines 567, 608, 804. A client without simulation authority sends the blueprint to the server over the vanilla chat channel: <code>BlueprintNetwork.SendPasteRequest</code> (line 457) gzips the XML, base64s it, splits it into 700-char chunks, and transmits them as <code>ChatMessage</code> traffic prefixed <code>BP</code> (lines 468-478). The server reassembles (<code>HandleChunk</code> line 565, <code>HandleHeader</code> line 606), then <code>TryExecutePaste</code> (line 648) runs the same staggered coroutine server-side (line 744).</li>
+<li>Clients cannot paste at all if the server lacks the mod: a BPPING/BPPONG handshake (up to 3 pings, 10 s apart, lines 426-455) sets <code>ServerHasMod</code>, and <code>SendPasteRequest</code> refuses without it (lines 462-465).</li>
+<li>Chat interception is a Harmony prefix on <code>ChatMessage.Process</code> (attribute line 353, method lines 356-373): any chat text starting with <code>"BP"</code> is consumed by the mod (<code>return false</code>) and routed to <code>BlueprintNetwork.HandleProtocol</code>. Consumed lines are never displayed (lines 361-366); unknown <code>BP...</code> text logs <code>"[BlueprintMod] Unknown protocol"</code> (line 552). Chunk buffers are keyed by <code>humanId:sessionId</code> and expire after 60 s (<code>CleanStaleBuffers</code>, line 1108, swept every 90 s from <code>Update</code>, lines 4848-4852).</li>
+<li>No permission model: any client with the mod installed can paste on any server that has the mod, subject only to DeanamicMatter cost. Undo is per-client (server tracks <code>_clientPastedThings</code> by humanId, line 414); one client cannot undo another client's paste.</li>
+<li>Save load / multiplayer join: nothing is pasted at load or join. At data-file load, the <code>WorldManager.LoadDataFiles</code> postfix registers furnace recipes (line 9694). On joining as a client, up to three BPPING chat messages are emitted from <code>BlueprintMod.Update -&gt; BlueprintNetwork.ClientUpdate</code> (lines 4847, 426-455). Session state (clipboard, undo stack, paste history) resets when the local player disappears (world exit, lines 4841-4845). The undo stack holds live <code>Thing</code> references and is not persisted; a save/load cycle forgets undo history.</li>
+</ul>
+<p>Blueprint storage and transport: XML via <code>XmlSerializer</code> (<code>BlueprintSerializer</code>, lines 5212-5227), one file per blueprint at <code>Application.persistentDataPath/Blueprints/&lt;name&gt;.blueprint</code> (lines 4769, 4145-4147), plus a <code>&lt;name&gt;.previews/</code> folder of JPEG renders (lines 3682-3688). Schema: <code>BlueprintData</code> root <code>Blueprint</code> (line 4870) with Name, Created, GameVersion, ModVersion, Author, BoundsSize, PlayerLocalOffset, CopyYAngle, WorkshopFileHandle, ContainsPlacementBoardStructures, and <code>Entries</code> of <code>BlueprintEntry</code> (line 4935). Network transfer reuses the same XML, gzip plus base64 (lines 1081-1106). Blueprints can also be published to and subscribed from the Steam Workshop as their own items (<code>BlueprintWorkshop</code>, line 1746, including raw <code>SteamAPI_ISteamUGC_*</code> P/Invokes, lines 2151-2176).</p>
+<p>The v1.6.3 changelog (About.xml) confirms known rough edges: paste animation stops early on large blueprints for multiplayer clients, and locker/silo slot contents were newly excluded from copies "to avoid cheating a little bit atleast".</p>
+<h2 id="harmony-patch-inventory">Harmony patch inventory<a class="headerlink" href="#harmony-patch-inventory" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>Harmony id <code>com.blueprintmod.patch</code>, <code>PatchAll</code> at lines 4776-4778. Complete patch list:</p>
+<ul>
+<li><code>ChatMessage.Process</code> prefix (line 353): the <code>BP</code> chat-protocol interception described in the multiplayer section.</li>
+<li>Seven <code>KeyManager</code> prefixes (<code>GetForwardAxis</code>, <code>GetRightAxis</code>, <code>GetAscend</code>, <code>GetDescend</code>, <code>GetButton</code>, <code>GetButtonDown</code>, <code>GetButtonUp</code>, lines 4599-4695) that suppress game input only while a mod UI text field is focused (<code>BlueprintInputGuard.IsTyping</code>, line 4562).</li>
+<li><code>WorldManager.LoadDataFiles</code> postfix (line 9694): registers the Advanced Furnace DeanamicMatter recipes at data-file load.</li>
+<li><code>Stationpedia.PopulateLists</code> postfix (line 9806): adds its five prefabs to a Stationpedia category.</li>
+</ul>
+<p>It patches NOTHING on Cable, Structure, Constructor, InventoryManager, or any placement or occupancy method, so a PowerGridPlus guard on the registration path will not collide with any BlueprintMod patch.</p>
+<h2 id="guard-relevant-facts">Guard-relevant facts<a class="headerlink" href="#guard-relevant-facts" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<ul>
+<li>Every BlueprintMod placement flows through <code>Thing.Create&lt;T&gt;(prefab, pos, rot, referenceId: 0L)</code> and then <code>GridController.Register(Structure)</code>. The save-load and client-join paths use <code>referenceId != 0</code> (<code>Referencable.RegisterAs</code>, <code>[Assembly-CSharp]</code> line 319026) while fresh spawns use <code>RegisterNew</code> (referenceId 0). A registration-time guard can use that distinction to avoid interfering with load and join.</li>
+<li>Vanilla legit construction also ends in <code>Thing.Create</code>/<code>GridController.Register</code> after <code>CanConstruct</code> passes, so a registration-time occupancy guard only fires in states vanilla checks would have prevented (for cables: incoming Cable into a SmallCell whose <code>Cable</code> field is already occupied). Refusing there cannot break normal building.</li>
+<li>A refused placement (the create call throws, returns null, or the guard destroys the thing immediately) costs BlueprintMod exactly one failed entry. There is no retry loop and no spam; the player sees a single aggregate "(N failed)" plus one warning or error log line per refused piece, and the grams already deducted for the refused pieces are not refunded (see the materials section). The coarse duplicate-paste fingerprint additionally blocks re-running the identical paste until <code>bpundo</code>, suppressing retry spam at the player level too.</li>
+<li>Undo interaction with a guard: <code>op.PastedThings</code> only receives non-null results (lines 3526-3528), and the undo destroy loops tolerate missing or destroyed things (lines 3804-3818; line 3806 checks <code>IsBeingDestroyed</code>, try/catch around <code>OnServer.Destroy</code>). If a guard destroys a pasted cable after the fact, a later <code>bpundo</code> does not crash.</li>
+<li>The undo stack holds live <code>Thing</code> references in memory only; it is not persisted, so it is gone after a save/load cycle. Any cleanup that relies on <code>bpundo</code> must happen in the same session as the paste.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
 <ul>
-<li>2026-07-07 (later): added "Self-drain in OnAtmosphericTick: never billed to the network" section (game version 0.2.6403.27689). Verbatim body read at 392186-392207; <code>LOSS_NORMAL = 10f</code> / <code>LOSS_IN_COLD = 50f</code> declarations at 391695 / 391697 (const-inlined by the decompiler, hence the literals in the body). Documents the four branches (rocket-internal and empty stores exempt; vacuum flat 50 J with no heat emission; warm atmosphere 10 J; below-freezing scaled by <code>50 * (1 - T/ZeroDegrees) * HeatExchangeRatio</code> floored at 10 J with the joules added to the gas as heat) and the billing consequence (the drain is written straight into <code>PowerStored</code> on the atmospheric tick; it never enters any network's <code>Required</code>). Occasion: PowerGridPlus partial-power forensics (a known vanilla sink to subtract before blaming the allocator). Additive; no prior claim on this page addressed self-drain.</li>
-<li>2026-07-07: re-confirmed <code>ReceivePower</code> (392152-392158, <code>PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)</code> on the incoming chunk) byte-identical against the 0.2.6403.27689 decompile. Occasion: the PowerGridPlus partial-power sentinel scope derivation; this body is the proof that a charging store is ratio-deprivable (vanilla ApplyState scales the chunk stream before it reaches <code>ReceivePower</code>, so delivered charge = grant times the network ratio), which keeps storage-charging networks inside the sentinel's contract scope. No content change.</li>
-<li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration <code>Battery : ElectricalInputOutput, ...</code> (391662, body ends 392217), <code>PowerMaximum = 3600000f</code> C# default (391675), and the four power-tick bodies verbatim (<code>UsePower</code> 392144-392150, <code>ReceivePower</code> 392152-392158, <code>GetUsedPower</code> full headroom 392160-392171, <code>GetGeneratedPower</code> whole store 392173-392184). ADDED the "PowerDelta is SIGN-REVERSED" subsection: station <code>Battery.PowerDelta =&gt; PowerStored - PowerMaximum</code> (391732) vs <code>BatteryCell.PowerDelta =&gt; PowerMaximum - PowerStored</code> (340551); <code>AreaPowerControl</code> uses the <code>BatteryCell</code> form (its slot <code>Battery</code> property is a <code>BatteryCell</code>, APC line 390594), so code reaching for the station property must account for the reversed sign. Sections on the charge-state ladder, display, flashing coroutine, prefab variants, and rocket-internal fields were not re-read this pass and keep their earlier stamps.</li>
-<li>2026-06-19: corrected the battery-family identification (restamped the section). The 2026-06-18 entry below wrongly said "no rocket-battery prefab exists." Per <code>english.xml</code> (<code>StructureBatteryMedium</code> = "Battery (Medium)", <code>StructureBatterySmall</code> = "Auxiliary Rocket Battery", <code>StructureBattery</code> = "Station Battery", <code>StructureBatteryLarge</code> = "Station Battery (Large)", <code>ItemKitRocketBattery</code> = "Kit (Rocket Battery)", lines 1972 / 5460 / 7423 / 7523 / 8184) and a Luna rocket save (ref 525400 = <code>StructureBatteryMedium</code> at a rocket position), <code>StructureBatteryMedium</code> + <code>StructureBatterySmall</code> are the ROCKET battery line and <code>StructureBattery</code> + <code>StructureBatteryLarge</code> are the STATION line; the prefab codenames are misleadingly generic. Connector data unchanged (rocket batteries: <code>PowerAndData</code> third port; station batteries: pure <code>Data</code> third port). Confirmed via a runtime probe on the rocket save (ref 525400 = <code>StructureBatteryMedium</code>) plus the direct <code>english.xml</code> reads.</li>
-<li>2026-06-18: added "Rocket-internal variant" section (the <code>_rocketInternalCellType</code> / <code>_strictlyInternal</code> serialized fields at L370633-L370637; rocket and station batteries are one class differing by prefab). Connector layouts confirmed the same day by a live <code>Prefab.AllPrefabs</code> dump (ScenarioRunner <code>connector-dump</code>, 0.2.6228.27061): Station + Large batteries have a dedicated pure-<code>Data</code> third port, Medium + Small have a <code>PowerAndData</code> third port, none fold data onto a <code>Power/Input</code>/<code>Power/Output</code> connector. (The "no rocket-battery prefab" claim in this entry was corrected 2026-06-19, above.) Additive; no conflict with existing content.</li>
-<li>2026-05-28: corrected the rate-cap table in "Power-tick method bodies" to use the in-game labelling convention (J/tick is shown as "W" in Stationpedia / tooltips) instead of doubling to wall-clock Watts. Earlier numbers (14,400 W charge / 50,400 W discharge for the Station Battery) were physically correct but inconsistent with what the player sees in-game; updated to 7,200 / 25,200 with a note that the doubling is real-time-physics only. Authoritative convention documented in <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading.md</a>. No factual change to the underlying patches.</li>
-<li>2026-05-26: added two sections: "PowerMaximum default and vanilla prefab variants" (the C# default 3,600,000f at line 370629, the StructureBattery / StructureBatteryLarge prefab values 3,600,000 / 9,000,001 J from en.resx, and the absence of any vanilla <code>StructureBatteryNuclear</code>), and "Power-tick method bodies (vanilla rate behaviour)" (verbatim bodies of <code>UsePower</code> / <code>ReceivePower</code> / <code>GetUsedPower</code> / <code>GetGeneratedPower</code> at lines 371098-371138, the conclusion that vanilla Battery offers full headroom / stored energy each tick with no per-tick rate cap, and the worked PowerGridPlus rate-cap numbers in Joules-per-tick and Watts). Additive content; does not contradict prior sections.</li>
-<li>2026-05-17: added "Class hierarchy: ElectricalInputOutput (two cable networks)" section, sourced from decompile line 370616. Documents that <code>Battery : ElectricalInputOutput, ...</code> mirrors <code>Transformer</code> and <code>AreaPowerControl</code> in having both <code>InputNetwork</code> and <code>OutputNetwork</code> cable references. Implication: PowerGridPlus's logic-passthrough patches (which currently only handle Transformer and APC) can apply identically to Battery to bridge data device lists across the input / output network pair.</li>
-<li>2026-04-28: page created. Verbatim findings from <code>ilspycmd -t Assets.Scripts.Objects.Electrical.Battery</code> against <code>E:/Steam/steamapps/common/Stationeers/rocketstation_Data/Managed/Assembly-CSharp.dll</code> at game version 0.2.6228.27061. Confirms the threshold ladder is identical to <code>BatteryCell.UpdateBatteryState</code> documented on <code>HelmetBattery.md</code>; the new content here is the segment-bar display logic (<code>SetRenderersState</code> segment counts, <code>displayModeMaterials</code> per-Mode lookup, and the <code>FlashingDisplay</code> 2 Hz Critical-mode coroutine). Triggered by a question about MorePowerMod's <code>StationBatteryNuclear</code> inheriting from <code>Battery</code>: when does the prefab's color change as charge drops? Answer is the threshold ladder above; vanilla material colors (red / orange / green) are set in the prefab <code>displayModeMaterials[]</code> array, not in code.</li>
+<li>2026-07-14: page created from a fresh ilspycmd 10.0.0.8330 decompile of the Workshop copy of BlueprintMod v1.6.3 (Steam Workshop item 3672138641, BlueprintMod.dll), cross-read against the game decompile at 0.2.6403.27689. Driving work: mixed-tier cable placement prevention design for PowerGridPlus after the 2026-07-13 incident where a paste merged normal-tier cables into a super-heavy mainline.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<p>None currently.</p>
 
 
 
@@ -9072,7 +8887,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../Atmosphere/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Atmosphere">
+          <a href="../BinaryStreamSafety/" class="md-footer__link md-footer__link--prev" aria-label="Previous: BinaryStreamSafety">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -9082,20 +8897,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Atmosphere
+                BinaryStreamSafety
               </div>
             </div>
           </a>
         
         
           
-          <a href="../Cable/" class="md-footer__link md-footer__link--next" aria-label="Next: Cable">
+          <a href="../ClientDisconnectedPrefix/" class="md-footer__link md-footer__link--next" aria-label="Next: ClientDisconnected cleanup Prefix">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Cable
+                ClientDisconnected cleanup Prefix
               </div>
             </div>
             <div class="md-footer__button md-icon">

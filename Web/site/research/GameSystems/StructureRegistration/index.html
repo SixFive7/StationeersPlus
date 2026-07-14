@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/StationpediaSearch/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/StructureRegistration/">
       
       
-        <link rel="prev" href="../StationpediaPageRendering/">
+        <link rel="prev" href="../StructurePlacementValidation/">
       
       
-        <link rel="next" href="../StructurePlacementValidation/">
+        <link rel="next" href="../StunStateMachine/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>StationpediaSearch - StationeersPlus</title>
+        <title>StructureRegistration - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#stationpediasearch" class="md-skip">
+        <a href="#structureregistration" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              StationpediaSearch
+              StructureRegistration
             
           </span>
         </div>
@@ -5035,37 +5035,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StationpediaSearch
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../StationpediaSearch/" class="md-nav__link">
         
   
   
@@ -5081,87 +5054,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#search-mechanism" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search mechanism
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#search-trigger-chain-onvaluechanged-dosearch" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search trigger chain (onValueChanged -&gt; DoSearch)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Search trigger chain (onValueChanged -&gt; DoSearch)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dosearch-is-async-unitask-cannot-postfix-directly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DoSearch is async UniTask (cannot postfix directly)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -5199,10 +5091,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../StructureRegistration/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -5218,6 +5137,147 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-full-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The full chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#referencableregisternew-vs-registeras" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Referencable.RegisterNew vs RegisterAs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#structureonassignedreference-and-gridcontrollerregister" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structure.OnAssignedReference and GridController.Register
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addsmallgridstructure-grid-writes-happen-before-onregistered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AddSmallGridStructure: grid writes happen BEFORE OnRegistered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-onregistered-tails-what-state-is-valid-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The OnRegistered tails: what state is valid when
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#there-is-no-occupancy-check-at-registration-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        There is NO occupancy check at registration time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rocket-move-path-attachdetatch-do-not-re-run-onregistered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rocket-move path: Attach/Detatch do not re-run OnRegistered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-replication-newtosend-spawn-broadcast-and-deserializenew" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client replication: NewToSend spawn broadcast and DeserializeNew
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threading
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -8225,10 +8285,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#search-mechanism" class="md-nav__link">
+  <a href="#the-full-chain" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search mechanism
+        The full chain
       
     </span>
   </a>
@@ -8236,30 +8296,90 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#search-trigger-chain-onvaluechanged-dosearch" class="md-nav__link">
+  <a href="#referencableregisternew-vs-registeras" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search trigger chain (onValueChanged -&gt; DoSearch)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Search trigger chain (onValueChanged -&gt; DoSearch)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#dosearch-is-async-unitask-cannot-postfix-directly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DoSearch is async UniTask (cannot postfix directly)
+        Referencable.RegisterNew vs RegisterAs
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#structureonassignedreference-and-gridcontrollerregister" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structure.OnAssignedReference and GridController.Register
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#addsmallgridstructure-grid-writes-happen-before-onregistered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AddSmallGridStructure: grid writes happen BEFORE OnRegistered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-onregistered-tails-what-state-is-valid-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The OnRegistered tails: what state is valid when
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#there-is-no-occupancy-check-at-registration-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        There is NO occupancy check at registration time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rocket-move-path-attachdetatch-do-not-re-run-onregistered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rocket-move path: Attach/Detatch do not re-run OnRegistered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-replication-newtosend-spawn-broadcast-and-deserializenew" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client replication: NewToSend spawn broadcast and DeserializeNew
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threading
+      
+    </span>
+  </a>
   
 </li>
       
@@ -8374,21 +8494,17 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (1)</summary>
           <ul>
             
-              <li><code>Plans/StationpediaPlus/PLAN.md:712-788</code></li>
-            
-              <li><code>Plans/StationpediaPlus/PLAN.md:888-907</code></li>
-            
-              <li><code>Plans/StationpediaPlus/PLAN.md:910-924</code></li>
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 318983-319038 (Thing.Create), 37900-37978 (Referencable.RegisterNew / RegisterAs), 314182-314205 (Structure.OnAssignedReference), 206469-206486 (GridController.Register), 206870-206919 (AddSmallGridStructure), 312289-312351 (SmallGrid.OnRegistered), 319758-319773 (Thing.OnRegistered), 317372 / 322270-322287 (NewToSend / Thing.DeserializeNew / SnapTransform), 206783-206840 (AttachSmallGridStructure / DetatchSmallGridStructure)'}</code></li>
             
           </ul>
         </details>
@@ -8398,11 +8514,11 @@
           <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
-              <li><code>./StationpediaPageRendering.md</code></li>
+              <li><code>../GameClasses/Cable.md</code></li>
             
-              <li><code>../GameClasses/Stationpedia.md</code></li>
+              <li><code>../GameClasses/SmallCell.md</code></li>
             
-              <li><code>../GameClasses/StationpediaPage.md</code></li>
+              <li><code>../GameClasses/Structure.md</code></li>
             
           </ul>
         </details>
@@ -8418,88 +8534,388 @@
       
       
       
-        <span class="md-tag">stationpedia</span>
+        <span class="md-tag">network</span>
       
     
       
       
       
       
-        <span class="md-tag">ui</span>
+        <span class="md-tag">prefab</span>
       
     
   </nav>
 
 
 
-<h1 id="stationpediasearch">StationpediaSearch<a class="headerlink" href="#stationpediasearch" title="Permanent link">&para;</a></h1>
-<p>The Stationpedia search pipeline: from the search field's <code>onValueChanged</code> callback through <code>DoSearch</code>'s async UniTask into <code>StationpediaPage.IsRegexMatch</code>. This page documents the trigger chain, the async state-machine split (and why a Postfix on <code>DoSearch</code> cannot filter results), and the <code>IsRegexMatch</code> single-caller fact that makes it the correct filter target.</p>
-<h2 id="search-mechanism">Search mechanism<a class="headerlink" href="#search-mechanism" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h1 id="structureregistration">StructureRegistration<a class="headerlink" href="#structureregistration" title="Permanent link">&para;</a></h1>
+<p>The generic spawn-to-grid chain every placed structure runs through, from <code>Thing.Create&lt;T&gt;</code> to the <code>OnRegistered</code> tails. Cursor builds, programmatic spawns, save load, and multiplayer client spawns all share this chain; only the gates inside individual <code>OnRegistered</code> overrides differ per path. All line numbers below refer to <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>. The small-grid cell record the chain writes into is documented on <a href="../../GameClasses/SmallCell/">SmallCell</a>; the cable-specific merge that runs inside this chain is on <a href="../../GameClasses/Cable/">Cable</a>.</p>
+<h2 id="the-full-chain">The full chain<a class="headerlink" href="#the-full-chain" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p><code>Stationpedia.DoSearch(string hash, string pattern, CancellationTokenSource)</code> at game.cs:230584 is the ONLY path that iterates <code>StationpediaPages</code> for display (search results). Driven by <code>SearchField.onValueChanged</code> → <code>SearchBehaviour</code> → <code>StartSearchCountdown</code> → <code>ClearAndStartSearch</code> → <code>ForceSearch</code> → <code>DoSearch</code>.</p>
-<p><code>DoSearch</code> calls <code>StationpediaPage.IsRegexMatch(hash, pattern)</code> per page at game.cs:230602. This two-argument overload has exactly ONE caller in the entire game assembly (DoSearch). It returns bool indicating a match.</p>
-<p><code>StationpediaPage.IsRegexMatch(string text, string pattern)</code> body at game.cs:233709:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsRegexMatch</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">pattern</span><span class="p">)</span>
+<p><code>Constructor.SpawnConstruct(CreateStructureInstance)</code> (documented on <a href="../../GameClasses/Constructor/">Constructor</a>; the simulation side calls <code>Thing.Create&lt;Structure&gt;</code> + <code>SetStructureData</code>) -&gt; <code>Thing.Create&lt;T&gt;</code> -&gt; <code>Referencable.RegisterNew</code> -&gt; <code>Structure.OnAssignedReference</code> -&gt; <code>GridController.World.Register(this)</code> -&gt; <code>AddSmallGridStructure</code> (grid write) -&gt; <code>&lt;subclass&gt;.OnRegistered(null)</code> -&gt; <code>SmallGrid.OnRegistered</code> -&gt; <code>Structure.OnRegistered</code> -&gt; <code>Thing.OnRegistered</code>.</p>
+<p><code>Thing.Create&lt;T&gt;(Thing prefab, Vector3 worldPosition, Quaternion worldRotation, long referenceId = 0L)</code>, verbatim (318983-319038). The <code>referenceId</code> parameter is the fresh-spawn vs load/join discriminator: <code>0L</code> means "server-side fresh spawn, allocate a new id via <code>RegisterNew</code> and broadcast via <code>NewToSend</code>"; nonzero means "recreate a known thing under an existing id via <code>RegisterAs</code>" (client spawn from the wire, or load paths that carry a saved id):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">Create</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">prefab</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">worldRotation</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">referenceId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="p">{</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">text</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">PrefabHashString</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">Match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">Title</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">Match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">Key</span><span class="p">))</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nf">Match</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">Description</span><span class="p">);</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">}</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">prefab</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">NullReferenceException</span><span class="p">(</span><span class="s">&quot;Parameter prefab is null&quot;</span><span class="p">);</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">prefab</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">T</span><span class="p">))</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">InvalidCastException</span><span class="p">(</span><span class="s">$&quot;{prefab.GetType()} can not be cast to type {typeof(T)}&quot;</span><span class="p">);</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Prefab</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">prefab</span><span class="p">.</span><span class="n">PrefabHash</span><span class="p">);</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Object</span><span class="p">.</span><span class="n">Instantiate</span><span class="p">(</span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">worldRotation</span><span class="p">);</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="n">thing2</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="p">.</span><span class="n">name</span><span class="p">;</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="n">thing2</span><span class="p">.</span><span class="n">PrefabName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thing</span><span class="p">.</span><span class="n">name</span><span class="p">;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="n">thing2</span><span class="p">.</span><span class="n">SetPrefab</span><span class="p">(</span><span class="n">thing</span><span class="p">);</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="n">thing2</span><span class="p">.</span><span class="n">OnStartRender</span><span class="p">();</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">thing2</span><span class="p">.</span><span class="n">IsCursor</span><span class="p">)</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">referenceId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">            </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Referencable</span><span class="p">.</span><span class="n">RegisterNew</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">)</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">                    </span><span class="n">thing2</span><span class="p">.</span><span class="n">InitInternalAtmosphere</span><span class="p">();</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsServer</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">NetworkBase</span><span class="p">.</span><span class="n">Clients</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thing2</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">LanderCapsule</span><span class="p">)</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">                    </span><span class="p">{</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">                        </span><span class="n">NewToSend</span><span class="p">.</span><span class="n">AddToFront</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="w">                    </span><span class="p">}</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">                    </span><span class="k">else</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">                    </span><span class="p">{</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">                        </span><span class="n">NewToSend</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">                    </span><span class="p">}</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">        </span><span class="k">else</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">            </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Referencable</span><span class="p">.</span><span class="n">RegisterAs</span><span class="p">(</span><span class="n">thing2</span><span class="p">,</span><span class="w"> </span><span class="n">referenceId</span><span class="p">);</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">            </span><span class="n">OcclusionManager</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="n">thing2</span><span class="p">);</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thing2</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">T</span><span class="p">)</span>
+</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">T</span><span class="p">)(</span><span class="kt">object</span><span class="p">)((</span><span class="n">thing2</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">T</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">thing2</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="k">null</span><span class="p">);</span>
+</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">NullReferenceException</span><span class="p">();</span>
+</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Truncates at 255 chars for regex matching.</p>
-<p>Separate <code>HelpReference.IsRegexMatch(string pattern)</code> at game.cs:221825 is unrelated (IC10 help panel). Do NOT patch the one-arg overload.</p>
-<p>Why we patch <code>IsRegexMatch</code> and not <code>DoSearch</code> directly: <code>DoSearch</code> is <code>private async UniTask</code>, meaning Harmony patches the state-machine kick-off method, the patch receives the <code>UniTask</code> return before iteration has run. A Postfix on <code>DoSearch</code> can't filter results because the results haven't been materialized at postfix time. <code>IsRegexMatch</code>, by contrast, is a regular synchronous method called from inside the async state machine's <code>MoveNext</code>, and Harmony-patched synchronous methods called from inside an async body ARE redirected correctly. This is why <code>IsRegexMatch</code> is the right lever. Full body of <code>DoSearch</code> (game.cs:230584-230614):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">private</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">UniTask</span><span class="w"> </span><span class="nf">DoSearch</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">hash</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationTokenSource</span><span class="w"> </span><span class="n">cancelToken</span><span class="p">)</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">hash</span><span class="p">))</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="n">ClearPreviousSearch</span><span class="p">();</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="n">NoResultsFromSearchText</span><span class="p">.</span><span class="n">SetActive</span><span class="p">(</span><span class="k">value</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">NoResultsFromSearchText</span><span class="p">.</span><span class="n">SetActive</span><span class="p">(</span><span class="k">value</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">SwitchToThreadPool</span><span class="p">();</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">StationpediaPages</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">searchResultsPerPage</span><span class="p">)</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cancelToken</span><span class="p">.</span><span class="n">IsCancellationRequested</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">StationpediaPages</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Title</span><span class="p">)</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">            </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">StationpediaPages</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Title</span><span class="p">.</span><span class="n">Equals</span><span class="p">(</span><span class="s">&quot;Search&quot;</span><span class="p">)</span>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">            </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">StationpediaPages</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">IsRegexMatch</span><span class="p">(</span><span class="n">hash</span><span class="p">,</span><span class="w"> </span><span class="n">pattern</span><span class="p">))</span>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">            </span><span class="n">StationpediaPage</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_linkIdLookup</span><span class="p">[</span><span class="n">StationpediaPages</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Key</span><span class="p">];</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">            </span><span class="n">SPDAListItem</span><span class="w"> </span><span class="n">insert</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_SPDASearchInserts</span><span class="p">[</span><span class="n">count</span><span class="p">];</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">            </span><span class="n">MakePage</span><span class="p">(</span><span class="n">page</span><span class="p">,</span><span class="w"> </span><span class="n">insert</span><span class="p">).</span><span class="n">Forget</span><span class="p">();</span>
-</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">            </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">Delay</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="n">DelayType</span><span class="p">.</span><span class="n">UnscaledDeltaTime</span><span class="p">);</span>
-</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">            </span><span class="n">count</span><span class="o">++</span><span class="p">;</span>
-</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">        </span><span class="n">i</span><span class="o">--</span><span class="p">;</span>
-</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">UniTask</span><span class="p">.</span><span class="n">SwitchToMainThread</span><span class="p">();</span>
-</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="n">NoResultsFromSearchText</span><span class="p">.</span><span class="n">SetActive</span><span class="p">(</span><span class="n">count</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>Iterates <code>StationpediaPages</code> in reverse, up to <code>searchResultsPerPage</code> (100) results. Note it mutates pre-pooled <code>_SPDASearchInserts</code> in-flight rather than returning a list; patch targets that need to filter the final list would need to trace into <code>MakePage</code> or patch <code>_SPDASearchInserts</code> population, both hairier than patching <code>IsRegexMatch</code>.</p>
-<h2 id="search-trigger-chain-onvaluechanged-dosearch">Search trigger chain (onValueChanged -&gt; DoSearch)<a class="headerlink" href="#search-trigger-chain-onvaluechanged-dosearch" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>Chain: <code>onValueChanged</code> -&gt; <code>SearchBehaviour(text)</code> -&gt; if non-empty, <code>SetPage("Search")</code> + <code>StartSearchCountdown</code> (400ms debounce) -&gt; <code>WaitStartSearch</code> -&gt; <code>ClearAndStartSearch(text)</code> -&gt; <code>ClearPreviousSearch</code> + <code>ForceSearch</code> -&gt; builds regex pattern -&gt; <code>DoSearch(hash, pattern, cancelToken)</code> -&gt; iterates <code>StationpediaPages</code> in reverse, calls <code>IsRegexMatch</code>, <code>MakePage</code> for each hit. Enter-key / submit triggers the same chain via <code>StartSearchNow</code> (zero-delay variant).</p>
-<h3 id="dosearch-is-async-unitask-cannot-postfix-directly">DoSearch is async UniTask (cannot postfix directly)<a class="headerlink" href="#dosearch-is-async-unitask-cannot-postfix-directly" title="Permanent link">&para;</a></h3>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
-<p>Async methods that invoke Harmony-patched code cannot be filtered by patching the async method itself: the compiler's state-machine rewrite leaves only a kick-off stub under the original name, and a Postfix on that stub fires before the body runs. See <a href="../../Patterns/AsyncHarmonyTrap/">../Patterns/AsyncHarmonyTrap.md</a> for the generalized pattern and fix. For Stationpedia search specifically: <code>DoSearch</code> (game.cs:230584) is <code>async UniTask</code> and mutates the pooled <code>_SPDASearchInserts</code> list in-flight, so there is no <code>__result</code> to edit. The mod patches <code>StationpediaPage.IsRegexMatch</code> instead, which is synchronous, returns <code>bool</code>, and has exactly one caller (DoSearch). A Postfix with <code>ref bool __result = false</code> on <code>IsRegexMatch</code> short-circuits the downstream <code>MakePage</code> call.</p>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
-
+<p>Notes on the body:</p>
 <ul>
-<li>2026-04-20: page created from the Research migration; verbatim content lifted from F0208 (primary), F0219f, and F0219g.</li>
-<li>2026-04-20: F0219g section replaced with pointer to Patterns/AsyncHarmonyTrap.md per Phase 6 Pass B recommendation.</li>
+<li>The entire registration chain runs synchronously inside <code>Thing.Create</code> (<code>RegisterNew</code> / <code>RegisterAs</code> call <code>OnAssignedReference</code>, which calls <code>Register</code>, which calls <code>AddSmallGridStructure</code>, which calls <code>OnRegistered</code>). By the time <code>Create</code> returns, the thing is fully registered and on the grid.</li>
+<li>Fresh server spawns are appended to the <code>SyncList&lt;Thing&gt; NewToSend</code> (declared at 317372) when clients are connected; that is the spawn broadcast (see "Client replication" below). <code>LanderCapsule</code> is special-cased to the front of the list.</li>
+<li><code>IsCursor</code> things (placement-preview ghosts) skip registration entirely.</li>
+</ul>
+<h2 id="referencableregisternew-vs-registeras">Referencable.RegisterNew vs RegisterAs<a class="headerlink" href="#referencableregisternew-vs-registeras" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>Referencable.RegisterNew</code> (37900-37938), verbatim. It THROWS on clients, assigns the id under a lock, and calls <code>OnAssignedReference</code> synchronously:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">RegisterNew</span><span class="p">(</span><span class="n">IReferencable</span><span class="w"> </span><span class="n">iReferencable</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Error: Clients should not be assigning a new Reference&quot;</span><span class="p">;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">iReferencable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">            </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;. Client is trying to assign a new reference for &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">iReferencable</span><span class="p">.</span><span class="n">DisplayName</span><span class="p">;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="p">(</span><span class="n">text</span><span class="p">);</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">iReferencable</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">&quot;Can&#39;t register a null IReferencable&quot;</span><span class="p">);</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">iReferencable</span><span class="p">.</span><span class="n">ReferenceId</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0L</span><span class="p">)</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;error trying to register &#39;{iReferencable.DisplayName}&#39; as it already is with &#39;{iReferencable.ReferenceId}&#39;&quot;</span><span class="p">);</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">NextReferenceIdLock</span><span class="p">)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Referencables</span><span class="p">.</span><span class="n">ContainsKey</span><span class="p">(</span><span class="n">NextReferenceId</span><span class="p">))</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">            </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;error trying to register &#39;{iReferencable.DisplayName}&#39; with referenceId of &#39;{NextReferenceId}&#39; as it is already Assigned to: &#39;{Referencables[NextReferenceId].DisplayName}&#39;&quot;</span><span class="p">);</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">        </span><span class="n">iReferencable</span><span class="p">.</span><span class="n">ReferenceId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NextReferenceId</span><span class="p">;</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">        </span><span class="n">NextReferenceId</span><span class="o">++</span><span class="p">;</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="w">    </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">Referencables</span><span class="p">)</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="w">        </span><span class="n">Referencables</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">iReferencable</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">,</span><span class="w"> </span><span class="n">iReferencable</span><span class="p">);</span>
+</span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">    </span><span class="n">iReferencable</span><span class="p">.</span><span class="n">OnAssignedReference</span><span class="p">();</span>
+</span><span id="__span-1-37"><a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">    </span><span class="n">DeferredMessageQueue</span><span class="p">.</span><span class="n">NotifyRegistered</span><span class="p">(</span><span class="n">iReferencable</span><span class="p">.</span><span class="n">ReferenceId</span><span class="p">);</span>
+</span><span id="__span-1-38"><a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-1-39"><a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>RegisterAs(IReferencable thing, long referenceId, bool force = false)</code> (37940-37978) is the <code>referenceId != 0</code> variant used by clients recreating server things (and load paths carrying a saved id); it also calls <code>thing.OnAssignedReference()</code> (at 37974), so the rest of the chain below is identical on both entry paths.</p>
+<h2 id="structureonassignedreference-and-gridcontrollerregister">Structure.OnAssignedReference and GridController.Register<a class="headerlink" href="#structureonassignedreference-and-gridcontrollerregister" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>Structure.OnAssignedReference</code> (314182-314205), verbatim. This is where the transform position is snapped to the <code>Grid3</code> lattice (see <a href="../../GameClasses/Grid3/">Grid3</a>) and <code>RegisteredLocalGrid</code> / <code>BlockingGrids</code> are computed:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnAssignedReference</span><span class="p">()</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnAssignedReference</span><span class="p">();</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">Direction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ThingTransform</span><span class="p">.</span><span class="n">rotation</span><span class="p">;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="n">RegisteredLocalGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">);</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RegisteredLocalGrid</span><span class="p">.</span><span class="n">ToVector3</span><span class="p">();</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">blockingGrids</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">blockingGrids</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="n">BlockingGrids</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">            </span><span class="k">new</span><span class="w"> </span><span class="nf">Grid3</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">)</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="p">};</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">        </span><span class="n">BlockingGrids</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">[</span><span class="n">blockingGrids</span><span class="p">.</span><span class="n">Length</span><span class="p">];</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">blockingGrids</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">            </span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">blockingGrids</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">RotateAround</span><span class="p">(</span><span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">,</span><span class="w"> </span><span class="n">ThingTransform</span><span class="p">.</span><span class="n">rotation</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">transform</span><span class="p">.</span><span class="n">position</span><span class="p">;</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">            </span><span class="n">BlockingGrids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Grid3</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">);</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">    </span><span class="n">GridController</span><span class="p">.</span><span class="n">World</span><span class="p">.</span><span class="n">Register</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>GridController.Register(Structure)</code> (206469-206486), verbatim. Small-grid structures branch to <code>AddSmallGridStructure</code>; only <code>DualRegister</code> small grids fall through to the large-grid registration as well:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Register</span><span class="p">(</span><span class="n">Structure</span><span class="w"> </span><span class="n">structure</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">structure</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LocalToWorld</span><span class="p">(</span><span class="n">structure</span><span class="p">.</span><span class="n">RegisteredLocalGrid</span><span class="p">);</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">structure</span><span class="p">.</span><span class="n">RegisteredPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">structure</span><span class="p">.</span><span class="n">ThingTransformPosition</span><span class="p">;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">structure</span><span class="p">.</span><span class="n">RegisteredRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">structure</span><span class="p">.</span><span class="n">ThingTransformRotation</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">structure</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">SmallGrid</span><span class="p">;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">smallGrid</span><span class="p">)</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="n">AddSmallGridStructure</span><span class="p">(</span><span class="n">smallGrid</span><span class="p">);</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">smallGrid</span><span class="p">.</span><span class="n">DualRegister</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="n">AddGridStructure</span><span class="p">(</span><span class="n">structure</span><span class="p">);</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">AddFaceReference</span><span class="p">(</span><span class="n">structure</span><span class="p">);</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">UpdateAirState</span><span class="p">(</span><span class="n">structure</span><span class="p">);</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="p">}</span>
+</span></code></pre></div>
+<h2 id="addsmallgridstructure-grid-writes-happen-before-onregistered">AddSmallGridStructure: grid writes happen BEFORE OnRegistered<a class="headerlink" href="#addsmallgridstructure-grid-writes-happen-before-onregistered" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>GridController.AddSmallGridStructure(SmallGrid)</code> (206870-206919+), verbatim. The cell writes (<code>smallCell.Add(smallGridObject)</code>, 293100-293106 in <code>SmallCell.Add</code>) and the <code>SmallCell</code> back-pointer assignment happen at 206876-206887, BEFORE <code>OnRegistered(null)</code> is invoked at 206899. <code>OnRegistered</code> receives a NULL <code>Cell</code> for non-DualRegister small-grid structures such as cables:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">AddSmallGridStructure</span><span class="p">(</span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGridObject</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">SmallCell</span><span class="o">&gt;</span><span class="w"> </span><span class="n">list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">SmallCell</span><span class="o">&gt;</span><span class="p">();</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="n">Grid3</span><span class="p">[]</span><span class="w"> </span><span class="n">array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Grid3</span><span class="p">[])</span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">GridBounds</span><span class="p">.</span><span class="n">GetLocalSmallGrid</span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">RegisteredPosition</span><span class="p">,</span><span class="w"> </span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">RegisteredRotation</span><span class="p">);</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Grid3</span><span class="w"> </span><span class="n">grid</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">array</span><span class="p">)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">smallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GetSmallCell</span><span class="p">(</span><span class="n">grid</span><span class="p">);</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">            </span><span class="n">smallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SmallCell</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">            </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">);</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">            </span><span class="n">SmallGridCells</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span><span class="w"> </span><span class="n">smallCell</span><span class="p">);</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">        </span><span class="k">else</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">            </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">);</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">        </span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallCell</span><span class="p">;</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">        </span><span class="n">list</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">smallCell</span><span class="p">);</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span><span class="n">AllStructuresPool</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">);</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">IsUpdateOnServerTick</span><span class="p">)</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">        </span><span class="n">AllServerTickStructures</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">);</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Objects</span><span class="p">.</span><span class="n">Connection</span><span class="w"> </span><span class="n">openEnd</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">OpenEnds</span><span class="p">)</span>
+</span><span id="__span-4-27"><a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-28"><a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">        </span><span class="n">openEnd</span><span class="p">.</span><span class="n">CacheTransformUp</span><span class="p">();</span>
+</span><span id="__span-4-29"><a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-30"><a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="w">    </span><span class="n">smallGridObject</span><span class="p">.</span><span class="n">OnRegistered</span><span class="p">(</span><span class="k">null</span><span class="p">);</span>
+</span><span id="__span-4-31"><a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">list</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">6</span><span class="p">)</span>
+</span><span id="__span-4-32"><a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-33"><a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="w">        </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">SmallCell</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">list</span><span class="p">)</span>
+</span><span id="__span-4-34"><a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-35"><a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">Device</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="n">item</span><span class="p">.</span><span class="n">Device</span><span class="p">.</span><span class="n">IsDoor</span><span class="p">)</span>
+</span><span id="__span-4-36"><a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-4-37"><a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a><span class="w">                </span><span class="n">Cell</span><span class="w"> </span><span class="n">cell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GetCell</span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">Device</span><span class="p">.</span><span class="n">LocalGrid</span><span class="p">);</span>
+</span><span id="__span-4-38"><a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cell</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="n">cell</span><span class="p">.</span><span class="n">Stairs</span><span class="p">)</span>
+</span><span id="__span-4-39"><a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="w">                </span><span class="p">{</span>
+</span><span id="__span-4-40"><a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="w">                    </span><span class="n">GridPathfinder</span><span class="p">.</span><span class="n">DeviceBlockedList</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">Device</span><span class="p">.</span><span class="n">LocalGrid</span><span class="p">);</span>
+</span><span id="__span-4-41"><a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a><span class="w">                </span><span class="p">}</span>
+</span><span id="__span-4-42"><a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-4-43"><a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-44"><a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-45"><a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">SmallCell</span><span class="w"> </span><span class="n">item2</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">list</span><span class="p">)</span>
+</span><span id="__span-4-46"><a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-47"><a id="__codelineno-4-47" name="__codelineno-4-47" href="#__codelineno-4-47"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">item2</span><span class="p">.</span><span class="n">Pipe</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-48"><a id="__codelineno-4-48" name="__codelineno-4-48" href="#__codelineno-4-48"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-49"><a id="__codelineno-4-49" name="__codelineno-4-49" href="#__codelineno-4-49"></a><span class="w">            </span><span class="n">item2</span><span class="p">.</span><span class="n">Pipe</span><span class="p">.</span><span class="n">OnGridPlaced</span><span class="p">(</span><span class="n">smallGridObject</span><span class="p">);</span>
+</span><span id="__span-4-50"><a id="__codelineno-4-50" name="__codelineno-4-50" href="#__codelineno-4-50"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-51"><a id="__codelineno-4-51" name="__codelineno-4-51" href="#__codelineno-4-51"></a><span class="w">        </span><span class="p">...</span>
+</span></code></pre></div>
+<p>(The body continues with the per-cell <code>OnGridPlaced</code> fan-out for the other occupant slots.)</p>
+<p>Ordering facts that matter for hooks:</p>
+<ul>
+<li>The cell occupant writes and the <code>SmallCell</code> back-pointer land BEFORE <code>OnRegistered(null)</code>. Any <code>OnRegistered</code> prefix or postfix already sees the new structure in its own cell(s). This was validated 2026-07-14 against a prior contrary claim; see the Verification history on <a href="../../GameClasses/CableNetwork/">CableNetwork</a>.</li>
+<li>For a multi-cell piece (for example <code>StructureCableSuperHeavyStraight10</code>), <code>smallGridObject.SmallCell</code> ends up pointing at the LAST cell iterated; <code>SmallCell</code> on <code>SmallGrid</code> is a single reference, not a list. See <a href="../../GameClasses/SmallCell/">SmallCell</a>.</li>
+<li><code>OpenEnds</code> get <code>CacheTransformUp()</code> (206895-206898) before <code>OnRegistered</code>, but <code>Connection.Initialize()</code> has NOT yet run at that point (it runs inside <code>SmallGrid.OnRegistered</code>, 312292-312295).</li>
+</ul>
+<h2 id="the-onregistered-tails-what-state-is-valid-when">The OnRegistered tails: what state is valid when<a class="headerlink" href="#the-onregistered-tails-what-state-is-valid-when" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>SmallGrid.OnRegistered</code> (312289-312351), verbatim. This is the neighbor notification pass; the <code>OnGridAdjacentPlaced</code> fan-out is a candidate observation point for mods that want to react to a new neighbor:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnRegistered</span><span class="p">(</span><span class="n">Cell</span><span class="w"> </span><span class="n">cell</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">OnRegistered</span><span class="p">(</span><span class="n">cell</span><span class="p">);</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Connection</span><span class="w"> </span><span class="n">openEnd</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">OpenEnds</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="n">openEnd</span><span class="p">.</span><span class="n">Initialize</span><span class="p">();</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">Loading</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">None</span><span class="p">)</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">WorldGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">WorldGrid</span><span class="p">.</span><span class="n">INVALID</span><span class="p">)</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">NullReferenceException</span><span class="p">(</span><span class="s">&quot;grid for &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">DisplayName</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot; is invalid when registering&quot;</span><span class="p">);</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">SmallCellRef</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="n">SmallCellRef</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">    </span><span class="n">FillConnected</span><span class="p">(</span><span class="n">span</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">SmallCellRef</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span</span><span class="p">;</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">SmallCellRef</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span2</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">span3</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="w">        </span><span class="n">SmallCellRef</span><span class="w"> </span><span class="n">smallCellRef</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span3</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="w">        </span><span class="n">smallCellRef</span><span class="p">.</span><span class="n">Get</span><span class="p">().</span><span class="n">OnNeighborPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-25"><a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-26"><a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">Grid3</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span4</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="n">Grid3</span><span class="p">[</span><span class="mi">6</span><span class="p">];</span>
+</span><span id="__span-5-27"><a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">count2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-5-28"><a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">    </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">PopulateSmallGridNeighbours</span><span class="p">(</span><span class="k">base</span><span class="p">.</span><span class="n">Position</span><span class="p">,</span><span class="w"> </span><span class="n">span4</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">count2</span><span class="p">);</span>
+</span><span id="__span-5-29"><a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">Grid3</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span5</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span4</span><span class="p">;</span>
+</span><span id="__span-5-30"><a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">Grid3</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span6</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span5</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count2</span><span class="p">);</span>
+</span><span id="__span-5-31"><a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">span6</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-5-32"><a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-5-33"><a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="w">        </span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span6</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-5-34"><a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a><span class="w">        </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">smallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="p">.</span><span class="n">GetSmallCell</span><span class="p">(</span><span class="n">localGrid</span><span class="p">);</span>
+</span><span id="__span-5-35"><a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-36"><a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-5-37"><a id="__codelineno-5-37" name="__codelineno-5-37" href="#__codelineno-5-37"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Pipe</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-38"><a id="__codelineno-5-38" name="__codelineno-5-38" href="#__codelineno-5-38"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-39"><a id="__codelineno-5-39" name="__codelineno-5-39" href="#__codelineno-5-39"></a><span class="w">                </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Pipe</span><span class="p">.</span><span class="n">OnGridAdjacentPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-40"><a id="__codelineno-5-40" name="__codelineno-5-40" href="#__codelineno-5-40"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-41"><a id="__codelineno-5-41" name="__codelineno-5-41" href="#__codelineno-5-41"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Cable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-42"><a id="__codelineno-5-42" name="__codelineno-5-42" href="#__codelineno-5-42"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-43"><a id="__codelineno-5-43" name="__codelineno-5-43" href="#__codelineno-5-43"></a><span class="w">                </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Cable</span><span class="p">.</span><span class="n">OnGridAdjacentPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-44"><a id="__codelineno-5-44" name="__codelineno-5-44" href="#__codelineno-5-44"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-45"><a id="__codelineno-5-45" name="__codelineno-5-45" href="#__codelineno-5-45"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Device</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-46"><a id="__codelineno-5-46" name="__codelineno-5-46" href="#__codelineno-5-46"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-47"><a id="__codelineno-5-47" name="__codelineno-5-47" href="#__codelineno-5-47"></a><span class="w">                </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Device</span><span class="p">.</span><span class="n">OnGridAdjacentPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-48"><a id="__codelineno-5-48" name="__codelineno-5-48" href="#__codelineno-5-48"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-49"><a id="__codelineno-5-49" name="__codelineno-5-49" href="#__codelineno-5-49"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Chute</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-50"><a id="__codelineno-5-50" name="__codelineno-5-50" href="#__codelineno-5-50"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-51"><a id="__codelineno-5-51" name="__codelineno-5-51" href="#__codelineno-5-51"></a><span class="w">                </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Chute</span><span class="p">.</span><span class="n">OnGridAdjacentPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-52"><a id="__codelineno-5-52" name="__codelineno-5-52" href="#__codelineno-5-52"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-53"><a id="__codelineno-5-53" name="__codelineno-5-53" href="#__codelineno-5-53"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Other</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-54"><a id="__codelineno-5-54" name="__codelineno-5-54" href="#__codelineno-5-54"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-55"><a id="__codelineno-5-55" name="__codelineno-5-55" href="#__codelineno-5-55"></a><span class="w">                </span><span class="n">smallCell</span><span class="p">.</span><span class="n">Other</span><span class="p">.</span><span class="n">OnGridAdjacentPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-56"><a id="__codelineno-5-56" name="__codelineno-5-56" href="#__codelineno-5-56"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-57"><a id="__codelineno-5-57" name="__codelineno-5-57" href="#__codelineno-5-57"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Rail</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-5-58"><a id="__codelineno-5-58" name="__codelineno-5-58" href="#__codelineno-5-58"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-5-59"><a id="__codelineno-5-59" name="__codelineno-5-59" href="#__codelineno-5-59"></a><span class="w">                </span><span class="p">((</span><span class="n">SmallGrid</span><span class="p">)</span><span class="n">smallCell</span><span class="p">.</span><span class="n">Rail</span><span class="p">).</span><span class="n">OnGridAdjacentPlaced</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-5-60"><a id="__codelineno-5-60" name="__codelineno-5-60" href="#__codelineno-5-60"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-5-61"><a id="__codelineno-5-61" name="__codelineno-5-61" href="#__codelineno-5-61"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-5-62"><a id="__codelineno-5-62" name="__codelineno-5-62" href="#__codelineno-5-62"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-63"><a id="__codelineno-5-63" name="__codelineno-5-63" href="#__codelineno-5-63"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Thing.OnRegistered</code> (319758-319773), verbatim. This is where <code>Cell</code>, <code>Position</code>, and <code>WorldGrid</code> are finalized; for a small-grid structure <code>cell</code> is null:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnRegistered</span><span class="p">(</span><span class="n">Cell</span><span class="w"> </span><span class="n">cell</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">Cell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cell</span><span class="p">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="n">Position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ThingTransformPosition</span><span class="p">;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="n">Rotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ThingTransformRotation</span><span class="p">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">RegisteredPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Position</span><span class="p">;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">RegisteredRotation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Rotation</span><span class="p">;</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="n">WorldGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">WorldGrid</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="n">RenderChange</span><span class="p">(</span><span class="n">setRenderer</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">).</span><span class="n">Forget</span><span class="p">();</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="n">RefreshAnimState</span><span class="p">(</span><span class="n">skipAnimation</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">RoomManager</span><span class="p">.</span><span class="n">ContributingPrefabs</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">PrefabHash</span><span class="p">))</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">        </span><span class="n">RoomManager</span><span class="p">.</span><span class="n">AddRoomContributor</span><span class="p">(</span><span class="n">WorldGrid</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="n">_nameHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">DisplayName</span><span class="p">);</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The intermediate <code>Structure.OnRegistered</code> (315513-315560) writes no <code>SmallCell</code> state either; nothing in the whole <code>OnRegistered</code> chain (SmallGrid 312289-312351, Structure 315513-315560, Thing 319758-319773) touches the cell record. The cell writes belong exclusively to <code>AddSmallGridStructure</code> (above).</p>
+<p>State validity for hook code running inside a subclass <code>OnRegistered</code> body BEFORE its <code>base.OnRegistered(cell)</code> call (the <code>Cable.OnRegistered</code> merge is the canonical example, see <a href="../../GameClasses/Cable/">Cable</a>):</p>
+<ul>
+<li>The Transform exists and is positioned (Instantiate at world position; <code>Register</code> re-snapped <code>ThingTransformPosition</code> at 206471).</li>
+<li><code>RegisteredLocalGrid</code>, <code>RegisteredPosition</code>, <code>RegisteredRotation</code> are set (<code>OnAssignedReference</code> 314186, <code>Register</code> 206471-206473).</li>
+<li>The structure IS in its SmallCell(s), and its <code>SmallCell</code> back-pointer is set (206876-206887).</li>
+<li>OpenEnds have <code>CacheTransformUp()</code> done (206895-206898) but <code>Connection.Initialize()</code> has NOT yet run (that happens in <code>SmallGrid.OnRegistered</code> at 312292-312295).</li>
+<li><code>Thing.Cell</code>, <code>Thing.Position</code>, <code>Thing.WorldGrid</code> are NOT yet set by <code>Thing.OnRegistered</code> (<code>WorldGrid</code> is INVALID until 319765). Any hook logic before <code>base.OnRegistered</code> must use <code>ThingTransformPosition</code> / <code>RegisteredLocalGrid</code>, not <code>Position</code> / <code>WorldGrid</code>.</li>
+</ul>
+<h2 id="there-is-no-occupancy-check-at-registration-time">There is NO occupancy check at registration time<a class="headerlink" href="#there-is-no-occupancy-check-at-registration-time" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>The entire register path (<code>Register</code> 206469 -&gt; <code>AddSmallGridStructure</code> 206870) contains no <code>CanConstruct</code>, no <code>_IsCollision</code>, no occupancy test of any kind. <code>_IsCollision</code> is consulted ONLY from cursor-side code. Whole-file census of <code>_IsCollision(</code> call sites at 0.2.6403.27689: lines 312579-312609 (the wall-mount validity check <code>CanWallMount</code> region), 312693-312713 (<code>SmallGrid.CanConstruct</code>), plus the two overrides (384925, believed to be <code>Piping</code>; 392588, <code>Cable</code>). None is in the registration path. <code>Constructor.SpawnConstruct</code> on the simulation side likewise performs no re-validation (already documented on <a href="../StructurePlacementValidation/">StructurePlacementValidation</a>, re-confirmed at 0.2.6403.27689 by the absence of any check in the Create -&gt; Register chain).</p>
+<p>Consequence: a programmatic spawn (or any validation-bypassing caller) that places a structure into an occupied cell is silently accepted; <code>SmallCell.Add</code> is a plain overwrite of the slot. The failure modes of the resulting stacked pair are documented on <a href="../../GameClasses/SmallCell/">SmallCell</a>, "Stacked pairs".</p>
+<h2 id="rocket-move-path-attachdetatch-do-not-re-run-onregistered">Rocket-move path: Attach/Detatch do not re-run OnRegistered<a class="headerlink" href="#rocket-move-path-attachdetatch-do-not-re-run-onregistered" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>GridController.AttachSmallGridStructure</code> / <code>DetatchSmallGridStructure</code> (206783-206840) are the rocket-move variants of Add/Remove (used when a rocket carrying small-grid structures lands or moves between grid controllers). <code>Attach</code> does NOT call <code>OnRegistered</code>, so an <code>OnRegistered</code> hook does not fire when a rocket carrying cables lands or moves. <code>DetatchSmallGridStructure</code> (206820-206840) calls <code>SmallCell.RemoveCellObjectReferences</code> and then prunes the cell from <code>SmallGridCells</code> when <code>!smallCell.IsValid()</code> (see <a href="../../GameClasses/SmallCell/">SmallCell</a>).</p>
+<h2 id="client-replication-newtosend-spawn-broadcast-and-deserializenew">Client replication: NewToSend spawn broadcast and DeserializeNew<a class="headerlink" href="#client-replication-newtosend-spawn-broadcast-and-deserializenew" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>A fresh server-side spawn reaches remote clients via the <code>SyncList&lt;Thing&gt; NewToSend</code> (declared 317372, appended inside <code>Thing.Create</code> above). The client-side factory is <code>Thing.DeserializeNew</code> (322270-322279), verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">DeserializeNew</span><span class="p">(</span><span class="n">RocketBinaryReader</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">Network</span><span class="p">.</span><span class="n">ReadPackedId</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">referenceId</span><span class="p">);</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">prefabHash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">ReadInt32</span><span class="p">();</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="n">Vector3</span><span class="w"> </span><span class="n">transformPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">ReadVector3</span><span class="p">();</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="n">Quaternion</span><span class="w"> </span><span class="n">quaternion2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">ReadQuaternion</span><span class="p">();</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Create</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="p">(</span><span class="n">prefabHash</span><span class="p">,</span><span class="w"> </span><span class="n">transformPosition</span><span class="p">,</span><span class="w"> </span><span class="n">quaternion2</span><span class="p">,</span><span class="w"> </span><span class="n">referenceId</span><span class="p">);</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="n">thing</span><span class="p">.</span><span class="n">DeserializeOnJoin</span><span class="p">(</span><span class="n">reader</span><span class="p">);</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="n">thing</span><span class="p">.</span><span class="n">SnapTransform</span><span class="p">(</span><span class="n">transformPosition</span><span class="p">,</span><span class="w"> </span><span class="n">quaternion2</span><span class="p">);</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So on a remote client, a newly placed structure arrives as: <code>Thing.DeserializeNew</code> -&gt; <code>Thing.Create</code> (which takes the <code>RegisterAs</code> branch with the server's id; <code>OnAssignedReference</code> -&gt; <code>Register</code> -&gt; <code>AddSmallGridStructure</code> -&gt; <code>OnRegistered</code>, where server-only gates such as <code>GameManager.RunSimulation</code> skip simulation-side work) -&gt; <code>thing.DeserializeOnJoin(reader)</code> (per-type wire payload) -&gt; <code>thing.SnapTransform(...)</code>.</p>
+<p><code>Thing.SnapTransform</code> (322281-322287) re-snaps the position and recomputes <code>WorldGrid</code> after the client-side spawn, so the client's final registered position matches the wire values even if <code>DeserializeOnJoin</code> moved anything.</p>
+<p>Worked example (cable): the client's <code>Cable.OnRegistered</code> merge body is SKIPPED (<code>GameManager.RunSimulation</code> is false on a client), and the client's local network re-merge happens afterwards in <code>Cable.DeserializeOnJoin</code> (GameState is Running at runtime delivery, so the <code>!Joining</code> branch re-merges locally). This matches the "merge is not authoritative" analysis on <a href="../../GameClasses/CableNetwork/">CableNetwork</a>.</p>
+<h2 id="threading">Threading<a class="headerlink" href="#threading" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>The whole chain is main-thread, always: <code>Thing.Create</code> calls <code>UnityEngine.Object.Instantiate</code>, which forces the main thread, and everything downstream (<code>RegisterNew</code> / <code>RegisterAs</code> -&gt; <code>OnAssignedReference</code> -&gt; <code>Register</code> -&gt; <code>AddSmallGridStructure</code> -&gt; <code>OnRegistered</code>) runs synchronously inside it. Higher-level flows that enter the chain, all main-thread:</p>
+<ul>
+<li>Cursor build: <code>Constructor.SpawnConstruct</code> on the simulation side.</li>
+<li>Programmatic spawn: any <code>Thing.Create</code> / <code>OnServer.Create</code>.</li>
+<li>Save load: things created during Loading (<code>GameManager.GameState == GameState.Loading</code>; per-type <code>OnRegistered</code> gates such as the cable merge skip themselves during Loading).</li>
+<li>Multiplayer client spawn: <code>Thing.DeserializeNew</code> -&gt; <code>RegisterAs</code>.</li>
+<li><code>Cable.Break()</code> wreckage spawn: <code>Constructor.SpawnConstruct(instance)</code> inside <code>Break</code>, main thread because <code>Break</code> self-marshals from the worker (see <a href="../../GameClasses/Cable/">Cable</a>).</li>
+</ul>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-07-14: page created. Sourced from the mixed-tier cable network guard research pass against <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>: <code>Thing.Create</code> (318983-319038), <code>Referencable.RegisterNew</code> / <code>RegisterAs</code> (37900-37978), <code>Structure.OnAssignedReference</code> (314182-314205), <code>GridController.Register</code> (206469-206486), <code>AddSmallGridStructure</code> (206870-206919+), <code>SmallGrid.OnRegistered</code> (312289-312351), <code>Thing.OnRegistered</code> (319758-319773), <code>NewToSend</code> (317372), <code>Thing.DeserializeNew</code> (322270-322279), <code>Thing.SnapTransform</code> (322281-322287), <code>AttachSmallGridStructure</code> / <code>DetatchSmallGridStructure</code> (206783-206840), <code>_IsCollision</code> call-site census (312579-312609, 312693-312713, overrides 384925 / 392588). The "cell writes precede OnRegistered" ordering was confirmed by a fresh-validator run resolving a conflicting claim on <a href="../../GameClasses/CableNetwork/">CableNetwork</a> (see that page's Verification history, 2026-07-14).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>The <code>_IsCollision</code> override at decompile line 384925 is believed to be <code>Piping</code> but was not positively identified during the census (the census keyed on call sites, not declarations). Confirm the declaring type on the next pass through the piping family.</li>
+</ul>
 
 
 
@@ -8539,7 +8955,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../StationpediaPageRendering/" class="md-footer__link md-footer__link--prev" aria-label="Previous: StationpediaPageRendering">
+          <a href="../StructurePlacementValidation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Structure placement validation (CanConstruct / CanReplace)">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8549,20 +8965,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                StationpediaPageRendering
+                Structure placement validation (CanConstruct / CanReplace)
               </div>
             </div>
           </a>
         
         
           
-          <a href="../StructurePlacementValidation/" class="md-footer__link md-footer__link--next" aria-label="Next: Structure placement validation (CanConstruct / CanReplace)">
+          <a href="../StunStateMachine/" class="md-footer__link md-footer__link--next" aria-label="Next: StunStateMachine">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Structure placement validation (CanConstruct / CanReplace)
+                StunStateMachine
               </div>
             </div>
             <div class="md-footer__button md-icon">

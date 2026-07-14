@@ -1769,6 +1769,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#integer-decimeters-constructors-converters-snapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integer decimeters: constructors, converters, snapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#small-grid-cell-math-pitch-05-m-with-025-m-offset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Small-grid cell math: pitch 0.5 m with 0.25 m offset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#player-facing-coordinate-convention-world-meters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Player-facing coordinate convention: world meters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3694,6 +3727,8 @@
       
         
       
+        
+      
     
     
     
@@ -5200,6 +5235,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../GameSystems/StructureRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
         
   
@@ -5349,6 +5412,8 @@
   
     
     
+      
+        
       
         
       
@@ -5652,6 +5717,34 @@
     
   
     BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BlueprintModPlacement
   
 
     
@@ -8204,6 +8297,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#integer-decimeters-constructors-converters-snapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integer decimeters: constructors, converters, snapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#small-grid-cell-math-pitch-05-m-with-025-m-offset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Small-grid cell math: pitch 0.5 m with 0.25 m offset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#player-facing-coordinate-convention-world-meters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Player-facing coordinate convention: world meters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8314,14 +8440,18 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (5)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:104-106</code></li>
@@ -8332,12 +8462,14 @@
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Grid3'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 291547-291736 (Grid3 constructors / converters), 230409-230459 (ToGrid / ToGridPosition / GridCenter), 206416-206424 (WorldToLocalGrid / LocalToWorld), 312036-312038 / 292041-292043 (SmallGridSize / SmallGridOffset), 308886-308891 (LogicType.PositionX/Y/Z), 43997 / 44065-44066 (KeyMap F3/F4)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (6)</summary>
           <ul>
             
               <li><code>./Cell.md</code></li>
@@ -8347,6 +8479,10 @@
               <li><code>./Structure.md</code></li>
             
               <li><code>./Wall.md</code></li>
+            
+              <li><code>./SmallCell.md</code></li>
+            
+              <li><code>../GameSystems/StructureRegistration.md</code></li>
             
           </ul>
         </details>
@@ -8377,7 +8513,7 @@
 
 
 <h1 id="grid3">Grid3<a class="headerlink" href="#grid3" title="Permanent link">&para;</a></h1>
-<p>Vanilla game type representing the scaled integer-grid coordinate system used for structure placement and room math. World coordinates are scaled by 10 (<code>Grid3.one</code>), and grid-aligned structures snap to a cell spacing derived from their <code>GridSize</code>.</p>
+<p>Vanilla game type representing the scaled integer-grid coordinate system used for structure placement and room math. World coordinates are scaled by 10 (<code>Grid3.one</code>): a <code>Grid3</code> stores integer DECIMETERS (tenths of a meter). Grid-aligned structures snap to a cell spacing derived from their <code>GridSize</code>.</p>
 <h2 id="scale-and-cell-math">Scale and cell math<a class="headerlink" href="#scale-and-cell-math" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8408,11 +8544,83 @@
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>/// distance and its parity is the checker answer.
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>/// &lt;/summary&gt;
 </span></code></pre></div>
+<h2 id="integer-decimeters-constructors-converters-snapping">Integer decimeters: constructors, converters, snapping<a class="headerlink" href="#integer-decimeters-constructors-converters-snapping" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>Grid3</code> stores integer DECIMETERS (tenths of a meter). Constructors and converters, verbatim at 0.2.6403.27689:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="nf">Grid3</span><span class="p">(</span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">)</span><span class="w">            </span><span class="c1">// line 291547</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Round</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">);</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Round</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">);</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Round</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">);</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">}</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">public</span><span class="w"> </span><span class="nf">Grid3</span><span class="p">(</span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">gridBy</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">gridOffset</span><span class="p">)</span><span class="w">   </span><span class="c1">// line 291590</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">{</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="n">worldPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">.</span><span class="n">GridCenter</span><span class="p">(</span><span class="n">gridBy</span><span class="p">,</span><span class="w"> </span><span class="n">gridOffset</span><span class="p">);</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Round</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">);</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Round</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">);</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Round</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">10f</span><span class="p">);</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="nf">ToVector3</span><span class="p">()</span><span class="w">            </span><span class="c1">// line 291736</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">{</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">Vector3</span><span class="p">((</span><span class="kt">float</span><span class="p">)</span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">z</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">);</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="p">}</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">ToString</span><span class="p">()</span><span class="w">              </span><span class="c1">// line 291731</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="p">{</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">$&quot;Grid3({x}, {y}, {z})&quot;</span><span class="p">;</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Grid snapping, <code>GridCenter</code> extension (230451-230459):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="nf">GridCenter</span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2f</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.5f</span><span class="p">;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">num2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">num</span><span class="p">;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="n">worldPosition</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Round</span><span class="p">((</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">num2</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">num2</span><span class="p">;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="n">worldPosition</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Round</span><span class="p">((</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">num2</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">num2</span><span class="p">;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="n">worldPosition</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mathf</span><span class="p">.</span><span class="n">Round</span><span class="p">((</span><span class="n">worldPosition</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">num2</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">gridSquareSize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">num2</span><span class="p">;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>GridController.WorldToLocalGrid</code> (206416-206419) and <code>LocalToWorld</code> (206421-206424):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="n">Grid3</span><span class="w"> </span><span class="nf">WorldToLocalGrid</span><span class="p">(</span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">gridSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2f</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">gridOffset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0f</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">.</span><span class="n">ToGrid</span><span class="p">(</span><span class="n">gridSize</span><span class="p">,</span><span class="w"> </span><span class="n">gridOffset</span><span class="p">);</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">}</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">public</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="nf">LocalToWorld</span><span class="p">(</span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid</span><span class="p">)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">{</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">localGrid</span><span class="p">.</span><span class="n">ToVector3</span><span class="p">();</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>(<code>ToGrid</code> at 230409-230412 forwards to the <code>(Vector3, float, float)</code> Grid3 constructor; <code>ToGridPosition</code> at 230414-230417 is the unsnapped decimeter conversion.)</p>
+<h2 id="small-grid-cell-math-pitch-05-m-with-025-m-offset">Small-grid cell math: pitch 0.5 m with 0.25 m offset<a class="headerlink" href="#small-grid-cell-math-pitch-05-m-with-025-m-offset" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>Small-grid constants: <code>SmallGrid.SmallGridSize = 0.5f</code>, <code>SmallGrid.SmallGridOffset = 0.25f</code> (statics at 312036-312038; parallel consts at 292041-292043). The default (large) grid is 2 m with 0 offset.</p>
+<ul>
+<li>At registration, <code>GridController.Register</code> snaps: <code>structure.ThingTransformPosition = LocalToWorld(structure.RegisteredLocalGrid)</code> (206471), where <code>RegisteredLocalGrid = new Grid3(ThingTransformPosition)</code> was computed in <code>Structure.OnAssignedReference</code> (314186). So a placed cable's <code>ThingTransformPosition</code> sits exactly on the 0.1 m Grid3 lattice, and for a snapped placement it IS the small-cell center. See <a href="../../GameSystems/StructureRegistration/">StructureRegistration</a>.</li>
+<li>The cable's occupied cell key(s): <code>GridBounds.GetLocalSmallGrid(RegisteredPosition, RegisteredRotation)</code> -&gt; <code>Grid3[]</code> (one entry for the 1-cell piece; &#8535;/10 for the long pieces). Equivalently for a point query: <code>WorldToLocalGrid(worldPos, 0.5f, 0.25f)</code> = snap to the 0.5 m cell center (centers lie on multiples of 0.5 m because offset 0.25 + half-size 0.25 = 0.5), then store as decimeter ints, so cell-key Grid3 components are multiples of 5.</li>
+<li>Round trip for a player-facing message: <code>cable.ThingTransformPosition</code> (world meters) is the number to show; <code>cable.RegisteredLocalGrid.ToVector3()</code> gives the same value. <code>SmallCell.SmallGrid</code> (the cell's own <code>Grid3</code> key; see <a href="../SmallCell/">SmallCell</a>) <code>.ToVector3()</code> gives the cell center in meters.</li>
+</ul>
+<h2 id="player-facing-coordinate-convention-world-meters">Player-facing coordinate convention: world meters<a class="headerlink" href="#player-facing-coordinate-convention-world-meters" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<ul>
+<li>The logic system exposes raw world meters: a device answering <code>LogicType.PositionX/Y/Z</code> returns <code>base.Position.x</code> / <code>.y</code> / <code>.z</code> (verbatim <code>case LogicType.PositionX: return base.Position.x;</code> at 308886-308891). IC10 players, autopilot scripts, and community tooling therefore treat "coordinates" as world meters. <code>Thing.Position</code> is the registered <code>ThingTransformPosition</code> (319761).</li>
+<li>There is no textual coordinate HUD for players in vanilla: F3 toggles the console (<code>KeyMap.ToggleConsole = KeyCode.F3</code>, 43997/44065), F4 toggles the game-info panel (<code>KeyMap.ToggleInfo = KeyCode.F4</code>, 44066; consumer at 287004-287007 <code>SetGameInfoState</code>, the tab menu, no coordinates). Beacons and trackers register with <code>WaypointManager</code> and draw HUD markers with distance, not coordinate text.</li>
+<li>The authoring tool shows "Reference ID: " in an <code>AttackWith</code> tooltip (315158); that is the only vanilla surface printing a <code>ReferenceId</code> for a placed cable, and it prints no coordinates.</li>
+<li>No player-facing world-position-to-text formatter exists in the decompile; <code>Grid3.ToString()</code> ("Grid3(x, y, z)", decimeters) and <code>PrintDebugInfo</code> are developer-facing. A mod should format world meters itself, e.g. <code>$"({pos.x:F1}, {pos.y:F1}, {pos.z:F1})"</code>, matching the <code>LogicType.Position</code> convention (and matching how this repo already reports positions, e.g. the <a href="../CableNetwork/">CableNetwork</a> open question quotes "world position (-1292.0, 206.0, -780.0)").</li>
+<li>Recommendation for a console message: world meters of the subject's <code>ThingTransformPosition</code> with one decimal, optionally plus the display name and tier names. Do not print <code>Grid3</code> raw integers (players cannot map decimeters to anything in-game).</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0016, F0021, F0321. No conflicts.</li>
+<li>2026-07-14: extended with three sections from the mixed-tier cable network guard research pass against the 0.2.6403.27689 decompile: "Integer decimeters" (constructors 291547 / 291590, <code>ToVector3</code> 291736, <code>ToString</code> 291731, <code>GridCenter</code> 230451-230459, <code>WorldToLocalGrid</code> / <code>LocalToWorld</code> 206416-206424, <code>ToGrid</code> / <code>ToGridPosition</code> 230409-230417), "Small-grid cell math" (<code>SmallGridSize</code> 0.5 / <code>SmallGridOffset</code> 0.25 at 312036-312038 and 292041-292043; cell centers on 0.5 m multiples so cell-key components are multiples of 5; a placed cable's <code>ThingTransformPosition</code> IS its grid-snapped world position per <code>Register</code> 206471 + <code>OnAssignedReference</code> 314186), and "Player-facing coordinate convention" (<code>LogicType.PositionX/Y/Z</code> returns <code>base.Position</code> components in world meters, 308886-308891; F3 = console, F4 = info panel without coordinates, beacons draw distance only; the authoring-tool tooltip's "Reference ID: " at 315158 is the only vanilla <code>ReferenceId</code> surface for a placed cable; no vanilla position-to-text formatter exists). The new decimeter semantics confirm and sharpen the existing "scaled by 10" sections; no prior claim contradicted. The pre-existing sections keep their 0.2.6228.27061 stamps (not re-read this pass).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>

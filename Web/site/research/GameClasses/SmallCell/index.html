@@ -3040,10 +3040,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#add-dispatch" class="md-nav__link">
+  <a href="#add-dispatch-plain-overwrite-last-writer-wins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Add dispatch
+        Add dispatch: plain overwrite, last writer wins
       
     </span>
   </a>
@@ -3055,6 +3055,39 @@
     <span class="md-ellipsis">
       
         Lookups: Get&lt;T&gt; by position and by connection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removecellobjectreferences-clears-only-on-reference-equality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveCellObjectReferences: clears only on reference equality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stacked-pairs-two-cables-in-one-cell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stacked pairs: two cables in one cell
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-cell-pieces-the-smallcell-back-pointer-is-the-last-cell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-cell pieces: the SmallCell back-pointer is the LAST cell
       
     </span>
   </a>
@@ -3617,6 +3650,8 @@
   
     
     
+      
+        
       
         
       
@@ -5238,6 +5273,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../GameSystems/StructureRegistration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StructureRegistration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../GameSystems/StunStateMachine/" class="md-nav__link">
         
   
@@ -5387,6 +5450,8 @@
   
     
     
+      
+        
       
         
       
@@ -5690,6 +5755,34 @@
     
   
     BinaryStreamSafety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/BlueprintModPlacement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BlueprintModPlacement
   
 
     
@@ -8225,10 +8318,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#add-dispatch" class="md-nav__link">
+  <a href="#add-dispatch-plain-overwrite-last-writer-wins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Add dispatch
+        Add dispatch: plain overwrite, last writer wins
       
     </span>
   </a>
@@ -8240,6 +8333,39 @@
     <span class="md-ellipsis">
       
         Lookups: Get&lt;T&gt; by position and by connection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removecellobjectreferences-clears-only-on-reference-equality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveCellObjectReferences: clears only on reference equality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stacked-pairs-two-cables-in-one-cell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stacked pairs: two cables in one cell
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-cell-pieces-the-smallcell-back-pointer-is-the-last-cell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-cell pieces: the SmallCell back-pointer is the LAST cell
       
     </span>
   </a>
@@ -8390,26 +8516,32 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-06-19.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-14.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (3)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.GridSystem.SmallCell'}</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.SmallGrid'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 292987-293168 (SmallCell), 207128-207138 (GridController.GetSmallCell), 206820-206840 / 206947+ (DetatchSmallGridStructure / RemoveSmallGridStructure), 206870-206919 (AddSmallGridStructure caller context)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (5)</summary>
+          <summary><strong>Related pages</strong> (6)</summary>
           <ul>
             
               <li><code>./Cell.md</code></li>
@@ -8422,6 +8554,8 @@
             
               <li><code>./Cable.md</code></li>
             
+              <li><code>../GameSystems/StructureRegistration.md</code></li>
+            
           </ul>
         </details>
       
@@ -8431,6 +8565,13 @@
                   
 
   <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">power</span>
+      
     
       
       
@@ -8458,9 +8599,9 @@
 <p>Two parallel grids coexist. The large <code>Cell</code> (see <code>Cell.md</code>) carries <code>AllStructures</code>, the face-keyed <code>Structural</code> map, and a dedicated <code>Stairs Stairs</code> slot; walls and large structures are flooded by SprayPaintPlus through <code>Cell.AllStructures</code> + <code>Cell.NeighborCells</code>. The small grid is keyed at <code>SmallGrid.SmallGridSize = 0.5f</code> with <code>SmallGrid.SmallGridOffset = 0.25f</code>; each <code>SmallCell</code> holds at most one occupant per typed slot. World-to-local conversion for the small grid uses <code>GridController.World.WorldToLocalGrid(worldPosition, SmallGrid.SmallGridSize, SmallGrid.SmallGridOffset)</code> and lookup goes through <code>GridController.World.GetSmallCell(localPosition)</code>.</p>
 <p>A <code>SmallGrid</code> structure registers in a <code>SmallCell</code>, not in <code>Cell.AllStructures</code>. That is why the mod floods pipes and cables through their dedicated <code>PipeNetwork</code> / <code>CableNetwork</code> objects, and reserves the large-cell BFS for walls and large structures only. A traversal over <code>SmallGrid</code> structures that have no network object (ladders) must therefore walk the small grid, not the large-cell <code>AllStructures</code> / <code>NeighborCells</code> lists.</p>
 <h2 id="slots">Slots<a class="headerlink" href="#slots" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p>Field cluster on <code>SmallCell</code> (decompile lines 274720-274734):</p>
+<p>Field cluster on <code>SmallCell</code> (0.2.6403.27689 decompile: class 292987-293168, fields 292989-293003; verbatim-identical to the 0.2.6228.27061 excerpt at old lines 274720-274734):</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="n">Grid3</span><span class="w"> </span><span class="n">SmallGrid</span><span class="p">;</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">public</span><span class="w"> </span><span class="n">Chute</span><span class="w"> </span><span class="n">Chute</span><span class="p">;</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">public</span><span class="w"> </span><span class="n">Pipe</span><span class="w"> </span><span class="n">Pipe</span><span class="p">;</span>
@@ -8470,44 +8611,131 @@
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">public</span><span class="w"> </span><span class="n">ISmallGridOwner</span><span class="w"> </span><span class="n">Owner</span><span class="p">;</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">public</span><span class="w"> </span><span class="n">IRoboticArmRail</span><span class="w"> </span><span class="n">Rail</span><span class="p">;</span>
 </span></code></pre></div>
-<p>One occupant per slot. <code>Other</code> is the generic <code>SmallGrid</code> slot: anything that is not a chute, pipe, device, cable, or rail lands here.</p>
-<h2 id="add-dispatch">Add dispatch<a class="headerlink" href="#add-dispatch" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+<p>One occupant per slot. <code>Other</code> is the generic <code>SmallGrid</code> slot: anything that is not a chute, pipe, device, cable, or rail lands here. There is exactly one <code>Cable</code> slot per cell: the grid model has no concept of two cables in one cell (see "Stacked pairs" below for what happens when a validation-bypassing spawn forces it).</p>
+<h2 id="add-dispatch-plain-overwrite-last-writer-wins">Add dispatch: plain overwrite, last writer wins<a class="headerlink" href="#add-dispatch-plain-overwrite-last-writer-wins" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p><code>SmallCell.Add(SmallGrid)</code> routes by concrete type (decompile lines 274831-274864):</p>
+<p><code>SmallCell.Add(SmallGrid)</code> routes by concrete type (0.2.6403.27689 decompile lines 293100-293133; the Cable slot occupant write is 293100-293106), verbatim:</p>
 <div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Add</span><span class="p">(</span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="p">{</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">Cable</span><span class="w"> </span><span class="n">cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Cable</span><span class="p">;</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">cable</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cable</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">Chute</span><span class="w"> </span><span class="n">chute</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Chute</span><span class="p">;</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">chute</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Chute</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">chute</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="n">Pipe</span><span class="w"> </span><span class="n">pipe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Pipe</span><span class="p">;</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">pipe</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Pipe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pipe</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">Device</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Device</span><span class="p">;</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">device</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">SmallCollisionType</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">SmallGridBlock</span><span class="p">.</span><span class="n">Covers</span><span class="p">)</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="n">Device</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">device</span><span class="p">;</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">IRoboticArmRail</span><span class="w"> </span><span class="n">rail</span><span class="p">)</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="n">Rail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rail</span><span class="p">;</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="k">else</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="n">Other</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="p">;</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="p">}</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">cable</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="n">Cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cable</span><span class="p">;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">Chute</span><span class="w"> </span><span class="n">chute</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Chute</span><span class="p">;</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">chute</span><span class="p">)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">        </span><span class="n">Chute</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">chute</span><span class="p">;</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="n">Pipe</span><span class="w"> </span><span class="n">pipe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Pipe</span><span class="p">;</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">pipe</span><span class="p">)</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">        </span><span class="n">Pipe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pipe</span><span class="p">;</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="n">Device</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Device</span><span class="p">;</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">device</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">SmallCollisionType</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">SmallGridBlock</span><span class="p">.</span><span class="n">Covers</span><span class="p">)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">        </span><span class="n">Device</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">device</span><span class="p">;</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGridObjectGrid</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">IRoboticArmRail</span><span class="w"> </span><span class="n">rail</span><span class="p">)</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">        </span><span class="n">Rail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rail</span><span class="p">;</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="w">        </span><span class="n">Other</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smallGridObjectGrid</span><span class="p">;</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="p">}</span>
 </span></code></pre></div>
-<p><code>RemoveCellObjectReferences(SmallGrid)</code> (lines 274866-274898) clears whichever slot held the structure and nulls that structure's <code>SmallCell</code> back-reference.</p>
+<p>Every slot assignment is a plain overwrite, LAST WRITER WINS: registering a second occupant of the same kind replaces the reference with no error, no check, and no eviction of the old occupant's <code>SmallCell</code> back-pointer. The caller is <code>GridController.AddSmallGridStructure</code> (206870-206919), which writes the occupant and the <code>SmallGrid.SmallCell</code> back-pointer BEFORE invoking <code>OnRegistered(null)</code>; there is no occupancy check anywhere in the registration path (<code>_IsCollision</code> is cursor-side only). See <a href="../../GameSystems/StructureRegistration/">StructureRegistration</a> for the full chain.</p>
+<p><code>RemoveCellObjectReferences(SmallGrid)</code> clears whichever slot held the structure and nulls that structure's <code>SmallCell</code> back-reference; see the dedicated section below for the reference-equality nuance.</p>
 <h2 id="lookups-gett-by-position-and-by-connection">Lookups: Get&lt;T&gt; by position and by connection<a class="headerlink" href="#lookups-gett-by-position-and-by-connection" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
-<p>The static <code>SmallCell.Get&lt;T&gt;(Grid3 localPosition)</code> (lines 274741-274775) fetches the <code>SmallCell</code> and returns the first slot (<code>Chute</code>, <code>Pipe</code>, <code>Device</code>, <code>Cable</code>, <code>Rail</code>, <code>Other</code>) that is a <code>T</code>. The <code>Get&lt;T&gt;(Grid3 localPosition, Connection connection)</code> overload (lines 274777-274805) additionally requires <code>result.IsConnected(connection)</code>, so it returns only the occupant that actually has an open end facing the queried connection. <code>Get&lt;T&gt;(Vector3 worldPosition, ...)</code> wraps the world-to-local conversion noted above.</p>
+<p>The static <code>SmallCell.Get&lt;T&gt;(Grid3 localPosition)</code> (0.2.6403.27689 decompile lines 293005-293079) fetches the <code>SmallCell</code> and probes the slots in fixed order <code>Chute</code>, <code>Pipe</code>, <code>Device</code>, <code>Cable</code>, <code>Rail</code>, <code>Other</code>, returning the first slot whose occupant is a <code>T</code>. The <code>Get&lt;T&gt;(Grid3 localPosition, Connection connection)</code> overload additionally requires <code>IsConnected(connection)</code>, so it returns only the occupant that actually has an open end facing the queried connection (this is the overload <code>FillConnected</code> uses via <code>SmallCellRef</code>). <code>Get&lt;T&gt;(Vector3 worldPosition, ...)</code> wraps the world-to-local conversion noted above.</p>
 <p>This connection-filtered lookup is the primitive the small-grid network builders use to find the neighbor across each open end.</p>
+<p><code>GridController.GetSmallCell</code> (207128-207138), both overloads verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">SmallCell</span><span class="w"> </span><span class="nf">GetSmallCell</span><span class="p">(</span><span class="n">Vector3</span><span class="w"> </span><span class="n">worldPosition</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WorldToLocalGrid</span><span class="p">(</span><span class="n">worldPosition</span><span class="p">,</span><span class="w"> </span><span class="n">SmallGrid</span><span class="p">.</span><span class="n">SmallGridSize</span><span class="p">,</span><span class="w"> </span><span class="n">SmallGrid</span><span class="p">.</span><span class="n">SmallGridOffset</span><span class="p">);</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">GetSmallCell</span><span class="p">(</span><span class="n">localGrid</span><span class="p">);</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">}</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">public</span><span class="w"> </span><span class="n">SmallCell</span><span class="w"> </span><span class="nf">GetSmallCell</span><span class="p">(</span><span class="n">Grid3</span><span class="w"> </span><span class="n">localGrid</span><span class="p">)</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">{</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="n">SmallGridCells</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">localGrid</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Because every slot is a plain overwrite (see "Add dispatch" above), all of these lookups return the NEWEST occupant of a slot. For a cable query, <code>SmallCell.Get&lt;Cable&gt;</code> and <code>GetSmallCell(...).Cable</code> both return whatever single <code>Cable</code> reference the cell currently holds, which after an overwrite is the most recently registered one.</p>
+<h2 id="removecellobjectreferences-clears-only-on-reference-equality">RemoveCellObjectReferences: clears only on reference equality<a class="headerlink" href="#removecellobjectreferences-clears-only-on-reference-equality" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>SmallCell.RemoveCellObjectReferences</code> (293135-293167), verbatim. A slot is cleared only if the departing structure IS the current slot value; a structure whose slot was overwritten by a later occupant no-ops here:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">RemoveCellObjectReferences</span><span class="p">(</span><span class="n">SmallGrid</span><span class="w"> </span><span class="n">smallGrid</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Device</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="n">Device</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="n">Device</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Chute</span><span class="p">)</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="n">Chute</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="n">Chute</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Pipe</span><span class="p">)</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">        </span><span class="n">Pipe</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">        </span><span class="n">Pipe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Cable</span><span class="p">)</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">        </span><span class="n">Cable</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">        </span><span class="n">Cable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="n">SmallGrid</span><span class="p">)</span><span class="n">Rail</span><span class="p">)</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">        </span><span class="n">Rail</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">        </span><span class="n">Rail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallGrid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Other</span><span class="p">)</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">        </span><span class="n">Other</span><span class="p">.</span><span class="n">SmallCell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">        </span><span class="n">Other</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>GridController.RemoveSmallGridStructure</code> (206947+) inlines the same reference-equality pattern per slot; <code>DetatchSmallGridStructure</code> (206820-206840, the rocket-move path) calls <code>RemoveCellObjectReferences</code> and then prunes the cell from <code>SmallGridCells</code> when <code>!smallCell.IsValid()</code>.</p>
+<h2 id="stacked-pairs-two-cables-in-one-cell">Stacked pairs: two cables in one cell<a class="headerlink" href="#stacked-pairs-two-cables-in-one-cell" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>Mechanically possible only via programmatic spawn (or a validation-bypassing caller such as ZoopMod's <code>UsePrimaryComplete</code> reflection): registration overwrites <code>smallCell.Cable</code> with the second cable. Consequences:</p>
+<ul>
+<li>Lookup: every grid query (<code>SmallCell.Get&lt;Cable&gt;</code>, <code>GetSmallCell(...).Cable</code>, <code>FillConnected</code>) returns the SECOND (most recently registered) cable. The first cable becomes invisible to grid queries while remaining alive: still in <code>AllStructuresPool</code>, still in its <code>CableNetwork.CableList</code> (so it still conducts and can still burn), still rendered, still in <code>Referencables</code>.</li>
+<li>Network topology: the two stacked cables do NOT merge with each other through the shared cell (<code>FillConnected</code> walks cells FACED BY OpenEnds, not the own cell), but both independently connect to the same neighbors, so they typically end up on the same network anyway via shared neighbors; each remains individually in <code>CableList</code>.</li>
+<li>Deconstruction order hazard: removing the SECOND cable clears <code>smallCell.Cable</code> to null (reference-equal), even though the first cable still physically occupies the cell; if the cell then has no other occupants it is pruned from <code>SmallGridCells</code>. The FIRST cable is left holding a <code>SmallCell</code> property that points at a detached (or emptied) cell record: it can no longer be found by any grid lookup, cannot be hovered or deconstructed by grid-based targeting, and its neighbors' <code>FillConnected</code> no longer see it, so a later <code>RebuildNetwork</code> BFS silently drops it from every network while <code>Cable.OnDestroy</code> for OTHER cables never re-links it. Removing the FIRST cable first is harmless to the second (the reference-equality checks no-op).</li>
+<li><code>CableNetwork.Remove</code>'s unguarded <code>cable.SmallCell.Device</code> dereference (271102, see <a href="../CableNetwork/">CableNetwork</a>) stays non-null in both removal orders (the property is a stale but non-null reference), so no NullReferenceException arises from stacking alone.</li>
+<li>Net: the game neither crashes nor repairs; it silently misbehaves (ghost conductor, un-targetable structure, asymmetric removal). A guard mod must therefore refuse or destroy at registration time rather than rely on any vanilla self-healing.</li>
+</ul>
+<h2 id="multi-cell-pieces-the-smallcell-back-pointer-is-the-last-cell">Multi-cell pieces: the SmallCell back-pointer is the LAST cell<a class="headerlink" href="#multi-cell-pieces-the-smallcell-back-pointer-is-the-last-cell" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>For a multi-cell piece such as <code>StructureCableSuperHeavyStraight10</code>, <code>GridController.AddSmallGridStructure</code> assigns <code>smallGridObject.SmallCell = smallCell</code> inside its per-cell loop, so the back-pointer ends up pointing at the LAST cell iterated. <code>SmallCell</code> on <code>SmallGrid</code> is a single reference, not a list; code that treats it as "the cell of this structure" is only exact for 1-cell pieces. The full set of occupied cell keys comes from <code>GridBounds.GetLocalSmallGrid(RegisteredPosition, RegisteredRotation)</code> (one entry for the 1-cell piece; &#8535;/10 for the long pieces). This is consistent with the multi-cell-footprint caveat in the ladder-flood section below.</p>
 <h2 id="smallgrid-registration-model">SmallGrid registration model<a class="headerlink" href="#smallgrid-registration-model" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-06-19 -->
 
 <p><code>SmallGrid : Structure, ISmallGrid, ITooltip, IReferencable, IEvaluable</code> (decompile line 293474). Members that drive small-grid connectivity:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Connection</span><span class="o">&gt;</span><span class="w"> </span><span class="n">OpenEnds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Connection</span><span class="o">&gt;</span><span class="p">();</span><span class="w">   </span><span class="c1">// the connection faces</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">SmallGridSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5f</span><span class="p">;</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">SmallGridOffset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.25f</span><span class="p">;</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">public</span><span class="w"> </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">SmallCell</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">                      </span><span class="c1">// back-reference to its cell</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">DualRegister</span><span class="p">;</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">CenterPosition</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">Position</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Forward</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.2f</span><span class="p">;</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Connection</span><span class="o">&gt;</span><span class="w"> </span><span class="n">OpenEnds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">Connection</span><span class="o">&gt;</span><span class="p">();</span><span class="w">   </span><span class="c1">// the connection faces</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">SmallGridSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5f</span><span class="p">;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">SmallGridOffset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.25f</span><span class="p">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">public</span><span class="w"> </span><span class="n">SmallCell</span><span class="w"> </span><span class="n">SmallCell</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">get</span><span class="p">;</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">                      </span><span class="c1">// back-reference to its cell</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">DualRegister</span><span class="p">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">CenterPosition</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">Position</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Forward</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.2f</span><span class="p">;</span>
 </span></code></pre></div>
 <p><code>Awake()</code> validates each <code>OpenEnds</code> entry and flags <code>HasDataConnection</code> for data/power-and-data ends. <code>RebuildGridState()</code> calls <code>SetGrids()</code> on every open end. Connectivity between two small-grid structures is expressed through matching <code>OpenEnds</code> connections resolved via <code>SmallCell.Get&lt;T&gt;(localPosition, connection)</code>. Pipe and cable networks layer a cached <code>Network</code> object on top of this; a bare <code>SmallGrid</code> such as a ladder has open ends but no network object, so its "connected run" exists only as a chain of <code>OpenEnds</code> adjacencies, not a precomputed list.</p>
 <h2 id="ladders-occupy-the-other-slot">Ladders occupy the Other slot<a class="headerlink" href="#ladders-occupy-the-other-slot" title="Permanent link">&para;</a></h2>
@@ -8525,10 +8753,10 @@
 <ul>
 <li>2026-06-19: page created from a small-grid registration decompile pass while scoping ladder flood-painting for Spray Paint Plus. Verbatim content from <code>Assets.Scripts.GridSystem.SmallCell</code> (slots, <code>Add</code>, <code>Get&lt;T&gt;</code>, <code>RemoveCellObjectReferences</code>) and <code>Assets.Scripts.Objects.SmallGrid</code> (<code>OpenEnds</code>, <code>SmallGridSize</code> / <code>SmallGridOffset</code>, <code>SmallCell</code>, <code>CenterPosition</code>, <code>Awake</code>, <code>RebuildGridState</code>), game version 0.2.6228.27061. Additive; new page, no existing content changed.</li>
 <li>2026-06-19: added "Small-grid key scale, lookup conversion, and observed ladder registration" from a live InspectorPlus ladder-run capture plus the <code>GetSmallCell</code> / <code>Get&lt;T&gt;</code> conversion path (<code>new Grid3(worldPos)</code> = <code>Round(world * 10)</code>, no snapping; decompile 150910-150912, 158148-158150). Corrected the ladder-run consequence to key-stepping (verified working in-game) in place of the earlier unverified <code>OpenEnds</code>-walk suggestion. Resolved the prior open question on stacked-ladder small-cell pitch (2 m = 20 key units). Game version 0.2.6228.27061.</li>
+<li>2026-07-14: re-verified and extended against the 0.2.6403.27689 decompile during the mixed-tier cable network guard research pass. Re-verified verbatim-identical with new line refs: field cluster (292989-293003), <code>Add</code> dispatch (293100-293133), <code>Get&lt;T&gt;</code> internals (293005-293079), <code>RemoveCellObjectReferences</code> (293135-293167). Extended: <code>Add</code> overwrite semantics made explicit (plain overwrite, last writer wins; caller <code>AddSmallGridStructure</code> 206870-206919 writes cell occupant + back-pointer before <code>OnRegistered(null)</code>; no occupancy check in the registration path), <code>GridController.GetSmallCell</code> verbatim (207128-207138), <code>RemoveCellObjectReferences</code> promoted to its own section with the full verbatim and the reference-equality-only clearing nuance (<code>RemoveSmallGridStructure</code> 206947+ inlines the same pattern; <code>DetatchSmallGridStructure</code> 206820-206840 prunes the cell when <code>!IsValid()</code>), new "Stacked pairs: two cables in one cell" section (grid-invisible older cable, no self-merge through the shared cell, deconstruction order hazard, no NRE from stacking alone, silent misbehavior overall), new "Multi-cell pieces" section (<code>SmallGrid.SmallCell</code> back-pointer ends as the LAST occupied cell for pieces like <code>StructureCableSuperHeavyStraight10</code>). Resolved the DualRegister open question (removed): <code>GridController.Register</code> (206469-206486) shows a <code>SmallGrid</code> structure always goes through <code>AddSmallGridStructure</code>, and ONLY when <code>DualRegister</code> is true does it fall through to <code>AddGridStructure</code> + <code>AddFaceReference</code> + <code>UpdateAirState</code> (the large-grid registration); non-DualRegister small grids live only in <code>SmallCell</code>. Full chain on <a href="../../GameSystems/StructureRegistration/">StructureRegistration</a>. No prior claim contradicted; the 0.2.6228 line refs in the sections above were superseded by 0.2.6403 refs where the section was re-verified.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Whether a <code>SmallGrid</code> structure is ALSO added to the large <code>Cell.AllStructures</code> (the <code>DualRegister</code> flag hints some small grids dual-register) or lives only in <code>SmallCell</code> is not confirmed here. The ladder-flood design does not depend on it (it walks the small grid regardless), but a definitive answer would let a reader reason about both grids.</li>
 <li>The exact size and direction of one ladder's multi-cell small-grid footprint (how many cells, anchored which way) is inferred from the flood's need to skip the seed's own cells, not read from the registration code directly. The 2 m stacked-ladder pitch (20 key units) and the <code>Position.y * 10 + 5</code> anchor are confirmed from live captures.</li>
 </ul>
 
