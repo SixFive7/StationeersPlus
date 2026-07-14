@@ -125,6 +125,18 @@ namespace ScenarioRunner
                     Scenario_DevicePortDump();
                     return;
 
+                case "pgp-mixedwire-fixture":
+                    Scenario_PgpMixedWireFixture();
+                    return;
+
+                case "pgp-rocket-battery-probe":
+                    Scenario_PgpRocketBatteryProbe();
+                    return;
+
+                case "pgp-mixedwire-survey":
+                    Scenario_PgpMixedWireSurvey();
+                    return;
+
                 case "pgp-passthrough-port-probe":
                     Scenario_PgpPassthroughPortProbe();
                     return;
