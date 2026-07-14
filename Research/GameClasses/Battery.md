@@ -346,8 +346,30 @@ So the "medium rocket battery" IS `StructureBatteryMedium` (the codename is misl
 
 So the station batteries carry a pure `Data` third port; the rocket batteries carry a `PowerAndData` third port. No vanilla battery folds data onto its `Power/Input` or `Power/Output` connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its `NetworkType` (cable type lives on `Cable`, see [Cable](./Cable.md); `SmallGrid.IsConnected` gates on `NetworkType` + grid coincidence only).
 
+## IsOperable: completion and breakage gates on top of the base
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`Battery` overrides `IsOperable` (391754-391764), verbatim:
+
+```csharp
+protected override bool IsOperable
+{
+    get
+    {
+        if (!base.IsStructureCompleted || IsBroken)
+        {
+            return false;
+        }
+        return base.IsOperable;
+    }
+}
+```
+
+So a stationary battery is operable iff it is structure-complete, not broken, and passes the `ElectricalInputOutput` base check (distinct input and output networks). Vanilla gates every battery power surface on this property, which is why PowerGridPlus refuses to enroll an inoperable battery as a store (a granted charge share would strand as granted-but-unbillable).
+
 ## Verification history
 
+- 2026-07-14: added the IsOperable override verbatim (completion + breakage on top of the ElectricalInputOutput base gate; decompile 391754-391764). Driving work: diagnosing a rocket-mounted battery that would not charge (the gate turned out NOT to be the cause; the OnOff-gated umbilical Female enrollment was, see RocketPowerUmbilical.md).
 - 2026-07-07 (later): added "Self-drain in OnAtmosphericTick: never billed to the network" section (game version 0.2.6403.27689). Verbatim body read at 392186-392207; `LOSS_NORMAL = 10f` / `LOSS_IN_COLD = 50f` declarations at 391695 / 391697 (const-inlined by the decompiler, hence the literals in the body). Documents the four branches (rocket-internal and empty stores exempt; vacuum flat 50 J with no heat emission; warm atmosphere 10 J; below-freezing scaled by `50 * (1 - T/ZeroDegrees) * HeatExchangeRatio` floored at 10 J with the joules added to the gas as heat) and the billing consequence (the drain is written straight into `PowerStored` on the atmospheric tick; it never enters any network's `Required`). Occasion: PowerGridPlus partial-power forensics (a known vanilla sink to subtract before blaming the allocator). Additive; no prior claim on this page addressed self-drain.
 - 2026-07-07: re-confirmed `ReceivePower` (392152-392158, `PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)` on the incoming chunk) byte-identical against the 0.2.6403.27689 decompile. Occasion: the PowerGridPlus partial-power sentinel scope derivation; this body is the proof that a charging store is ratio-deprivable (vanilla ApplyState scales the chunk stream before it reaches `ReceivePower`, so delivered charge = grant times the network ratio), which keeps storage-charging networks inside the sentinel's contract scope. No content change.
 - 2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration `Battery : ElectricalInputOutput, ...` (391662, body ends 392217), `PowerMaximum = 3600000f` C# default (391675), and the four power-tick bodies verbatim (`UsePower` 392144-392150, `ReceivePower` 392152-392158, `GetUsedPower` full headroom 392160-392171, `GetGeneratedPower` whole store 392173-392184). ADDED the "PowerDelta is SIGN-REVERSED" subsection: station `Battery.PowerDelta => PowerStored - PowerMaximum` (391732) vs `BatteryCell.PowerDelta => PowerMaximum - PowerStored` (340551); `AreaPowerControl` uses the `BatteryCell` form (its slot `Battery` property is a `BatteryCell`, APC line 390594), so code reaching for the station property must account for the reversed sign. Sections on the charge-state ladder, display, flashing coroutine, prefab variants, and rocket-internal fields were not re-read this pass and keep their earlier stamps.

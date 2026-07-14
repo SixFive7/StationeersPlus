@@ -172,8 +172,38 @@ if (network != null)
 
 The `SetCustomColor` setter on `ElevatorCarrage` is inherited from `DynamicThing` without override; the carriage's motion does not guard the color setter. Confirmed in-game on 2026-05-21 (game version 0.2.6228.27061): a painted carriage keeps its color through vertical motion.
 
+## Power: the shaft-network aggregate reads cabled levels' Powered flags
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`ElevatorShaftNetwork` (395645) aggregates power from its member shafts, verbatim (395673-395695 region):
+
+```csharp
+public int PoweredValue
+{
+    get
+    {
+        ...
+        if (shaft.PoweredValue >= 1 && (object)shaft.PowerCable != null)
+        ...
+    }
+}
+
+public bool Powered
+{
+    get
+    {
+        ...
+        if (shaft.Powered && (object)shaft.PowerCable != null)
+        ...
+    }
+}
+```
+
+The elevator works iff at least one CABLED member shaft (in practice an `ElevatorLevel`, the piece with the power connector) has its Device `Powered` flag true; uncabled mid-shaft pieces never contribute. Critically, `ElevatorShaft : Device` neither overrides the `Powered` getter nor writes the flag anywhere in its own code: the only vanilla writer is the power tick's `ApplyState` billing. A mod that retires `ApplyState` and also exempts the elevator family from its own Powered ownership freezes every level's flag at its load value forever; levels powered before such a change stay powered, newer ones stay dark, and whole elevators dead-lock on the aggregate (observed live 2026-07-14 in PowerGridPlus; fixed by removing the elevator exemption so the ownership sweep asserts cabled levels from the net verdict).
+
 ## Verification history
 
+- 2026-07-14: added the shaft-network power aggregate (Powered / PoweredValue require a CABLED shaft with the flag set, 395673-395695 region) and the no-self-writer fact (ElevatorShaft : Device, no Powered override; ApplyState was the only vanilla writer). Driving work: user report of dark elevators under PowerGridPlus (frozen-flag bug, fixed via PoweredOwnership).
 - 2026-05-18: Initial writeup. Consolidated from two in-session drafts (`ElevatorPaintability.md`, `ElevatorSystem.md`, both unsanctioned and removed in the same change). All claims re-verified against `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`. The "elevators are not paintable" claim from an earlier sub-agent pass was incorrect: it grepped for `PaintableMaterial =` assignments in code, which misses prefab-asset assignments by Unity serialization. In-game verification confirms paintability on all three classes and all known with-cable / without-cable visual variants.
 - 2026-05-21: Resolved the carriage-persistence open question. Developer confirmed in-game (game version 0.2.6228.27061) that a painted `ElevatorCarrage` retains its `CustomColor` through vertical motion. Observed during SprayPaintPlus elevator-paint feature testing.
 
