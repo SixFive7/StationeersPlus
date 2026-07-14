@@ -38,7 +38,7 @@ namespace ScenarioRunner
     //                    [RearchSuite] t=<n> shortfallNets=<deadlockCount> (dry=<a> throttled=<b>
     //                      faulted=<c> offscope=<d> served=<e>)
     //                  A shortfall net is RequiredLoad > PotentialLoad + 0.5. Each one lands in
-    //                  exactly one bucket: faulted = a shed/overload/cycle/VVF registry hit on any
+    //                  exactly one bucket: faulted = a deprioritized/overload/cycle/CURRENT-MISMATCH registry hit on any
     //                  ElectricalInputOutput member (checked first; a net both faulted and
     //                  classified keeps this bucket); otherwise the net joins
     //                  PowerGridPlus.ShortfallDiagnostics.TryClassify (the per-net classification
@@ -171,12 +171,17 @@ namespace ScenarioRunner
             typeof(PowerReceiver).GetField("_powerProvided",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
+        // The five fault registries the shortfall census treats as "faulted" (a net with a
+        // registry-locked member is honest darkness, not a deadlock regression). The overload
+        // split added CableOverloadRegistry as the fifth; without it a cable-overloaded net
+        // would be misclassified into the deadlock bucket.
         private static readonly (string label, string type)[] _rsRegistries =
         {
-            ("shed", "PowerGridPlus.BrownoutRegistry"),
+            ("deprioritized", "PowerGridPlus.DeprioritizedRegistry"),
             ("overload", "PowerGridPlus.OverloadRegistry"),
+            ("cableOverload", "PowerGridPlus.CableOverloadRegistry"),
             ("cycle", "PowerGridPlus.CycleFaultRegistry"),
-            ("vvf", "PowerGridPlus.VariableVoltageFaultRegistry"),
+            ("currentMismatch", "PowerGridPlus.CurrentMismatchFaultRegistry"),
         };
 
         // ---- Delivery-audit state: Phase A fixture results + the live counter window ----
@@ -304,6 +309,21 @@ namespace ScenarioRunner
 
             // Fault registries reachable? Decides whether the shortfall census can exclude faulted nets.
             _rsFaultCheckAvailable = GetModAssembly(PGP_ASSEMBLY)?.GetType(_rsRegistries[0].type) != null;
+
+            // Existence tripwire over ALL five registries (the overload split's
+            // CableOverloadRegistry included): a missing type here means a member locked by
+            // that registry would be misclassified into the deadlock bucket, so shout once.
+            {
+                var pgpAsm = GetModAssembly(PGP_ASSEMBLY);
+                var missing = new List<string>();
+                foreach (var (label, type) in _rsRegistries)
+                    if (pgpAsm?.GetType(type) == null) missing.Add($"{label}({type})");
+                if (missing.Count > 0)
+                    _log?.LogError("[ScenarioRunner] [RearchSuite] fault-registry existence FAIL: missing " +
+                                   string.Join(", ", missing) + "; the shortfall census cannot see these fault kinds.");
+                else
+                    _log?.LogInfo("[ScenarioRunner] [RearchSuite] fault-registry existence OK: all five registries resolve (deprioritized, overload, cableOverload, cycle, currentMismatch).");
+            }
 
             // Resolve the two target batteries by ReferenceId.
             OcclusionManager.AllThings.ForEach(thing =>

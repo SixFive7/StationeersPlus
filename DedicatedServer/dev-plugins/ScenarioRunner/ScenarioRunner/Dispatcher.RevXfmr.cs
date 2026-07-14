@@ -27,7 +27,7 @@ namespace ScenarioRunner
     //     output net ref + cable tier + PotentialLoad + RequiredLoad,
     //     GetGeneratedPower(OutputNetwork), GetUsedPower(InputNetwork),
     //     IsStepUp classification (PGP PowerAllocator reflection),
-    //     shed / overload lockout membership.
+    //     deprioritization / overload lockout membership.
     //
     //   Per network of interest (focus net 492209 + every small-transformer in/out net):
     //     RequiredLoad / CurrentLoad(=Actual) / PotentialLoad / ShortfallLoad,
@@ -38,7 +38,7 @@ namespace ScenarioRunner
     // This discriminates the three candidate causes:
     //   #1 vanilla strict _isPowerMet boundary: _isPowerMet=F & _powerRatio=1 at Potential==Required
     //   #2 _powerProvided undershoot:           _powerRatio fractionally < 1, Potential just under Required
-    //   #3 shed/overload lockout:               GetGen forced 0 -> Potential=0 (would NOT read balanced)
+    //   #3 deprioritization/overload lockout:   GetGen forced 0 -> Potential=0 (would NOT read balanced)
     // and proves the normal-vs-reversed divergence directly (powered=N/N on a normal-fed net,
     // powered=0/M on the reversed-fed focus net).
     internal static partial class Dispatcher
@@ -52,7 +52,7 @@ namespace ScenarioRunner
             // Deliberately does NOT hard-require PowerGridPlus: this same probe is run a
             // second time with PGP DISABLED to compare vanilla vs PGP behaviour on the
             // identical save. When PGP is absent the Rx* helpers degrade gracefully
-            // (class=?, shed/over=False, pgpTick=-1) and we observe pure vanilla power flow.
+            // (class=?, deprioritized/over=False, pgpTick=-1) and we observe pure vanilla power flow.
             // Trace only the first RX_TRACE_TICKS ticks after warmup (the transient lives here),
             // then go quiet so the log does not grow without bound.
             if (_ticksSeen > _delayTicks + RX_TRACE_TICKS) return;
@@ -99,15 +99,18 @@ namespace ScenarioRunner
                 try { if (t.InputNetwork != null) used = t.GetUsedPower(t.InputNetwork); } catch { }
 
                 string cls = RxStepUp(asm, t.InputNetwork, t.OutputNetwork);
-                bool shed = PgpIsLocked(asm, "PowerGridPlus.BrownoutRegistry", t.ReferenceId);
+                bool deprioritized = PgpIsLocked(asm, "PowerGridPlus.DeprioritizedRegistry", t.ReferenceId);
                 bool over = PgpIsLocked(asm, "PowerGridPlus.OverloadRegistry", t.ReferenceId);
+                // The overload split: the cable-overflow half lives in its own registry, so a
+                // transformer taken offline by its cable rating would read over=false here.
+                bool cableOver = PgpIsLocked(asm, "PowerGridPlus.CableOverloadRegistry", t.ReferenceId);
 
                 _log?.LogInfo(
                     $"[ScenarioRunner] RX  XFMR ref={t.ReferenceId} {(reversed ? "REVERSED" : "normal  ")} prefab={prefab} " +
                     $"OnOff={t.OnOff} Err={t.Error} Setting={t.Setting:0.##} OutMax={t.OutputMaximum:0.##} _pwrProvided={pp:0.##} " +
                     $"| in[ref={inRef} tier={RxTier(t.InputConnection)} pot={inPot:0.##}] " +
                     $"out[ref={outRef} tier={RxTier(t.OutputConnection)} pot={outPot:0.##} req={outReq:0.##}] " +
-                    $"| GetGen(out)={gen:0.##} GetUsed(in)={used:0.##} class={cls} shed={shed} over={over}");
+                    $"| GetGen(out)={gen:0.##} GetUsed(in)={used:0.##} class={cls} deprioritized={deprioritized} over={over} cableOver={cableOver}");
             }
 
             // Ensure the focus net is reported even if no small transformer touches it.

@@ -16,8 +16,8 @@ using UnityEngine;
 namespace ScenarioRunner
 {
     // Headless scenarios that extend coverage of the Transformer Priority +
-    // Shedding feature into the surfaces that the original PSP probe (in
-    // Dispatcher.cs) could not reach: the knob-step path, the shed flash
+    // Deprioritization feature into the surfaces that the original PSP probe (in
+    // Dispatcher.cs) could not reach: the knob-step path, the deprioritization flash
     // attach + colour constants, the hover error message, the labeller
     // redirect, the multiplayer code paths (host short-circuit + state
     // machine + join-suffix round-trip), Harmony hook attachment for
@@ -27,13 +27,13 @@ namespace ScenarioRunner
     // lines plus a final "END pass=X fail=Y total=Z" so an agent can grep PASS/FAIL
     // counts off LogOutput.log.
     //
-    // The aggregator scenario "pgp-priority-shedding-all" runs every probe below
+    // The aggregator scenario "pgp-priority-deprioritization-all" runs every probe below
     // on the first scenario tick. Configure via Probe / Scenario in
     // net.scenariorunner.cfg.
     internal static partial class Dispatcher
     {
         // ============================================================
-        // Scenario: pgp-priority-shedding-knob-probe (C-a + C-b)
+        // Scenario: pgp-priority-deprioritization-knob-probe (C-a + C-b)
         // ------------------------------------------------------------
         // Verifies the knob-step computation by directly invoking the
         // patched Transformer.InteractWith logic (with SetKnob nulled out
@@ -42,9 +42,9 @@ namespace ScenarioRunner
         // ============================================================
         private static bool _kbpFired;
 
-        private static void Scenario_PgpPriorityShedingKnobProbe()
+        private static void Scenario_PgpPriorityDeprioritizationKnobProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-knob-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-knob-probe")) return;
             if (_kbpFired) return;
             _kbpFired = true;
 
@@ -146,7 +146,7 @@ namespace ScenarioRunner
                         var hbsField = patchType.GetField("HandleButtonSettingMethod",
                             BindingFlags.NonPublic | BindingFlags.Static);
                         var savedHbs = hbsField?.GetValue(null);
-                        // The Priority + Shedding system is always on (the EnableTransformerShedding
+                        // The Priority + Deprioritization system is always on (the EnableTransformerShedding
                         // master toggle was deleted); InteractWithPatch has no settings gate, so the
                         // button drives below exercise the patched path unconditionally.
                         try
@@ -243,9 +243,9 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-flash-probe (C-c)
+        // Scenario: pgp-priority-deprioritization-flash-probe (C-c)
         // ------------------------------------------------------------
-        // Verifies BrownoutFlashBehaviour attach mechanic + colour
+        // Verifies FaultFlashBehaviour attach mechanic + colour
         // constants. Cannot validate visual rendering headlessly, but
         // can confirm every transformer has the component, the renderer
         // discovery succeeded, the per-fault OrangeFlashColor /
@@ -254,9 +254,9 @@ namespace ScenarioRunner
         // ============================================================
         private static bool _fpFired;
 
-        private static void Scenario_PgpPriorityShedingFlashProbe()
+        private static void Scenario_PgpPriorityDeprioritizationFlashProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-flash-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-flash-probe")) return;
             if (_fpFired) return;
             _fpFired = true;
 
@@ -270,7 +270,7 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] FP no PGP assembly"); return; }
 
-                var flashType = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
+                var flashType = asm.GetType("PowerGridPlus.FaultFlashBehaviour");
                 var attachPatchType = asm.GetType("PowerGridPlus.Patches.TransformerFlashAttachPatches");
                 if (flashType == null || attachPatchType == null)
                 {
@@ -281,11 +281,11 @@ namespace ScenarioRunner
 
                 // ---- P1: flash colour constants ----
                 // The single FlashColor const was split when the flash gained
-                // per-fault colours (FaultHover §11.5 precedence): shed pulses
-                // OrangeFlashColor #ffa500 = (1, 165/255, 0); every non-shed fault
-                // (overload / cycle / variable-voltage) pulses RedFlashColor
+                // per-fault colours (FaultHover §11.5 precedence): the Deprioritized fault pulses
+                // OrangeFlashColor #ffa500 = (1, 165/255, 0); every other fault
+                // (overload / cycle / current-mismatch) pulses RedFlashColor
                 // #ff2626 = (1, 0.15, 0.15). Both are internal static readonly on
-                // BrownoutFlashBehaviour.
+                // FaultFlashBehaviour.
                 var orangeField = flashType.GetField("OrangeFlashColor",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var redField = flashType.GetField("RedFlashColor",
@@ -300,9 +300,9 @@ namespace ScenarioRunner
                     && Math.Abs(red.g - 0.15f) < 0.02f
                     && Math.Abs(red.b - 0.15f) < 0.02f;           // #ff2626 -> (1, 0.149, 0.149)
                 if (orangeOk && redOk)
-                { _log?.LogInfo($"[ScenarioRunner] FP P1 PASS: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) in the shed orange band, RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) matches #ff2626."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] FP P1 PASS: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) in the deprioritized orange band, RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) matches #ff2626."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] FP P1 FAIL: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) (expected #ffa500 shed / #ff2626 non-shed per-fault split)."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] FP P1 FAIL: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) (expected #ffa500 deprioritized / #ff2626 other-fault split)."); failCount++; }
 
                 // ---- P2: FlashHz constant ----
                 var flashHzField = flashType.GetField("FlashHz",
@@ -314,7 +314,7 @@ namespace ScenarioRunner
                 else
                 { _log?.LogError($"[ScenarioRunner] FP P2 FAIL: FlashHz={flashHz}, expected 2."); failCount++; }
 
-                // ---- P3: BrownoutFlashBehaviour attached on every Transformer ----
+                // ---- P3: FaultFlashBehaviour attached on every Transformer ----
                 // Use reflection on the MonoBehaviour.GetComponent path. Safe to
                 // call from the worker thread for managed component lookup; this
                 // does not trigger Unity native instantiation.
@@ -350,7 +350,7 @@ namespace ScenarioRunner
 
                 totalChecks++;
                 if (attachedHits > 0 && attachedMisses == 0)
-                { _log?.LogInfo($"[ScenarioRunner] FP P3 PASS: BrownoutFlashBehaviour attached on all {attachedHits} transformers."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] FP P3 PASS: FaultFlashBehaviour attached on all {attachedHits} transformers."); passCount++; }
                 else
                 { _log?.LogError($"[ScenarioRunner] FP P3 FAIL: attached={attachedHits} missing={attachedMisses} (every transformer should have the component)."); failCount++; }
 
@@ -369,19 +369,19 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-hover-probe (C-d)
+        // Scenario: pgp-priority-deprioritization-hover-probe (C-d)
         // ------------------------------------------------------------
         // Drives the GetPassiveTooltip fault-hover postfix (now
         // FaultHoverPatches.Postfix, attached per-override via
-        // TargetMethods) by forcing a shed state on a sample transformer,
+        // TargetMethods) by forcing a deprioritized state on a sample transformer,
         // calling GetPassiveTooltip, and checking the Extended field for
         // the expected colored text.
         // ============================================================
         private static bool _hpFired;
 
-        private static void Scenario_PgpPriorityShedingHoverProbe()
+        private static void Scenario_PgpPriorityDeprioritizationHoverProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-hover-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-hover-probe")) return;
             if (_hpFired) return;
             _hpFired = true;
 
@@ -395,9 +395,9 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] HP no PGP assembly"); return; }
 
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-                if (brownoutType == null || tickCounterType == null)
+                if (deprioritizedRegistryType == null || tickCounterType == null)
                 {
                     _log?.LogError("[ScenarioRunner] HP FAIL: type lookup failed.");
                     failCount++; return;
@@ -411,11 +411,11 @@ namespace ScenarioRunner
                     return;
                 }
 
-                var clearAll = brownoutType.GetMethod("ClearAll",
+                var clearAll = deprioritizedRegistryType.GetMethod("ClearAll",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var currentTickProp = tickCounterType.GetProperty("CurrentTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var isShedding = brownoutType.GetMethod("IsShedding",
+                var isDeprioritization = deprioritizedRegistryType.GetMethod("IsDeprioritized",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
 
@@ -459,54 +459,55 @@ namespace ScenarioRunner
 
                 int tickNow = (int)(currentTickProp?.GetValue(null) ?? 0);
 
-                // ---- P1: no shed -> Extended should NOT contain shed text ----
+                // ---- P1: no deprioritization -> Extended should NOT contain the fault text ----
                 clearAll?.Invoke(null, null);
                 object ttBaseline = gptOnThing.Invoke(sampleT, gptArgs);
                 string extendedBaseline = ReflectGetExtended(ttBaseline) ?? string.Empty;
-                bool baselineHasShed = extendedBaseline.IndexOf("Shedding", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool baselineHasDeprioritized = extendedBaseline.IndexOf("Deprioritized fault", StringComparison.OrdinalIgnoreCase) >= 0;
                 totalChecks++;
-                if (!baselineHasShed)
-                { _log?.LogInfo("[ScenarioRunner] HP P1 PASS: baseline (no shed) tooltip Extended has no 'Shedding' line."); passCount++; }
+                if (!baselineHasDeprioritized)
+                { _log?.LogInfo("[ScenarioRunner] HP P1 PASS: baseline (no deprioritization) tooltip Extended has no 'Deprioritized fault' line."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P1 FAIL: baseline tooltip already mentions 'Shedding': {Truncate(extendedBaseline, 200)}"); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P1 FAIL: baseline tooltip already mentions 'Deprioritization': {Truncate(extendedBaseline, 200)}"); failCount++; }
 
-                // ---- P2: force shed via single NoteShed (instant lockout) ----
-                var noteShed = brownoutType.GetMethod("NoteShed",
+                // ---- P2: force deprioritization via single NoteDeprioritized (instant lockout) ----
+                var noteDeprioritized = deprioritizedRegistryType.GetMethod("NoteDeprioritized",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                noteShed?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow });
-                bool sheddingNow = (bool)(isShedding?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow }) ?? false);
+                noteDeprioritized?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow });
+                bool sheddingNow = (bool)(isDeprioritization?.Invoke(null, new object[] { sampleT.ReferenceId, tickNow }) ?? false);
                 totalChecks++;
                 if (sheddingNow)
-                { _log?.LogInfo($"[ScenarioRunner] HP P2 PASS: BrownoutRegistry reports IsShedding=true after 1x NoteShed on ref={sampleT.ReferenceId} (instant lockout)."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] HP P2 PASS: DeprioritizedRegistry reports IsDeprioritized=true after 1x NoteDeprioritized on ref={sampleT.ReferenceId} (instant lockout)."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P2 FAIL: IsShedding=false after 1x NoteShed on ref={sampleT.ReferenceId}."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P2 FAIL: IsDeprioritized=false after 1x NoteDeprioritized on ref={sampleT.ReferenceId}."); failCount++; }
 
                 // ---- P3: tooltip via real virtual-dispatch call (the path the game uses) ----
                 int currentTickAtCall = (int)(currentTickProp?.GetValue(null) ?? 0);
-                bool sheddingAtCall = (bool)(isShedding?.Invoke(null, new object[] { sampleT.ReferenceId, currentTickAtCall }) ?? false);
-                _log?.LogInfo($"[ScenarioRunner] HP P3 pre-call: ElectricityTickCounter.CurrentTick={currentTickAtCall} IsShedding(ref,currentTick)={sheddingAtCall}");
-                object ttShed = gptOnThing.Invoke(sampleT, gptArgs);
-                string extendedShed = ReflectGetExtended(ttShed) ?? string.Empty;
-                // Shed line format is owned by FaultHover.TryGetLine (single source of
-                // truth for all fault hovers): "<color=#ffa500>(Shedding: Insufficient
-                // upstream supply! {seconds}s)</color>". The old "Shedding (Priority N)"
-                // wording was dropped in the FaultHover consolidation.
-                bool hasShedLine = extendedShed.IndexOf("(Shedding:", StringComparison.OrdinalIgnoreCase) >= 0;
-                bool hasOrange = extendedShed.IndexOf("#ffa500", StringComparison.OrdinalIgnoreCase) >= 0;
-                bool hasInsufficient = extendedShed.IndexOf("insufficient upstream supply", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool sheddingAtCall = (bool)(isDeprioritization?.Invoke(null, new object[] { sampleT.ReferenceId, currentTickAtCall }) ?? false);
+                _log?.LogInfo($"[ScenarioRunner] HP P3 pre-call: ElectricityTickCounter.CurrentTick={currentTickAtCall} IsDeprioritized(ref,currentTick)={sheddingAtCall}");
+                object ttDeprioritized = gptOnThing.Invoke(sampleT, gptArgs);
+                string extendedDeprioritized = ReflectGetExtended(ttDeprioritized) ?? string.Empty;
+                // Block format is owned by FaultHover.TryGetMergedBlock (single source of truth
+                // for all fault hovers, locked template): line 1 is the merged state-plus-title
+                // line "{On|Off} - Deprioritized fault: {seconds}s" with the title + countdown in
+                // FaultRed #ff2626 (orange is flash-only). The payload-less NoteDeprioritized
+                // used above carries zero needs/upstream numbers, so no diagnostics line renders.
+                bool hasDeprioritizedTitle = extendedDeprioritized.IndexOf("Deprioritized fault:", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool hasRed = extendedDeprioritized.IndexOf("#ff2626", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool noOrange = extendedDeprioritized.IndexOf("#ffa500", StringComparison.OrdinalIgnoreCase) < 0;
                 totalChecks++;
-                if (hasShedLine && hasOrange && hasInsufficient)
-                { _log?.LogInfo($"[ScenarioRunner] HP P3 PASS: tooltip Extended contains '(Shedding:' + '#ffa500' + 'insufficient upstream supply'. len={extendedShed.Length}"); passCount++; }
+                if (hasDeprioritizedTitle && hasRed && noOrange)
+                { _log?.LogInfo($"[ScenarioRunner] HP P3 PASS: tooltip Extended contains the red 'Deprioritized fault:' title and no hover orange. len={extendedDeprioritized.Length}"); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P3 FAIL: hasShedLine={hasShedLine} hasOrange={hasOrange} hasInsufficient={hasInsufficient}. Extended={Truncate(extendedShed, 300)}. (If P3 fails but P3b passes, the postfix logic is correct but virtual dispatch bypasses the patched override -- fix PGP's FaultHoverPatches.TargetMethods to cover the actually-overriding class)."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P3 FAIL: hasDeprioritizedTitle={hasDeprioritizedTitle} hasRed={hasRed} noOrange={noOrange}. Extended={Truncate(extendedDeprioritized, 300)}. (If P3 fails but P3b passes, the postfix logic is correct but virtual dispatch bypasses the patched override -- fix PGP's FaultHoverPatches.TargetMethods to cover the actually-overriding class)."); failCount++; }
 
                 // ---- P3b: postfix logic invoked DIRECTLY with a synthetic baseline PassiveTooltip ----
                 // Decouples postfix-correctness from postfix-reachability so we can tell whether
                 // P3 failure is a logic bug or a virtual-dispatch reachability bug.
                 // The GetPassiveTooltip postfix moved in the rearchitecture: it now lives on
                 // FaultHoverPatches.Postfix (multi-target TargetMethods over the seven overriding
-                // classes); TransformerHoverErrorPatches kept only the GetContextualName postfix.
+                // classes); FaultButtonTooltipPatches kept only the GetContextualName postfix.
                 var postfixType = asm.GetType("PowerGridPlus.Patches.FaultHoverPatches");
                 var postfixMethod = postfixType?.GetMethod("Postfix",
                     BindingFlags.Public | BindingFlags.Static);
@@ -542,25 +543,57 @@ namespace ScenarioRunner
                     object[] pArgs = new object[] { sampleT, ptInst };
                     postfixMethod.Invoke(null, pArgs);
                     string after = ReflectGetExtended(pArgs[1]) ?? string.Empty;
-                    bool hasShed = after.IndexOf("(Shedding:", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool hasDeprioritized = after.IndexOf("Deprioritized fault:", StringComparison.OrdinalIgnoreCase) >= 0;
                     totalChecks++;
-                    if (hasShed)
-                    { _log?.LogInfo($"[ScenarioRunner] HP P3b PASS: postfix invoked directly appends shed line to Extended. len={after.Length}"); passCount++; }
+                    if (hasDeprioritized)
+                    { _log?.LogInfo($"[ScenarioRunner] HP P3b PASS: postfix invoked directly appends the deprioritized block to Extended. len={after.Length}"); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] HP P3b FAIL: postfix-direct invocation did NOT append shed line. after={Truncate(after, 200)}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] HP P3b FAIL: postfix-direct invocation did NOT append the deprioritized block. after={Truncate(after, 200)}"); failCount++; }
                     AfterP3b:;
                 }
 
-                // ---- P4: clear shed -> tooltip back to no-shed state ----
+                // ---- P3c: the locked D/U/S hover payload round-trips the registry and renders ----
+                // The 5-arg NoteDeprioritized carries (needsW, upstreamDemandW, upstreamSupplyW);
+                // TryGetFault must hand the same triple back, and the rendered hover must carry
+                // the locked "Needs D while U competes for S upstream" sentence. The numeric
+                // values are asserted through TryGetFault (exact floats) rather than the
+                // rendered string, which is locale-formatted.
+                var noteDeprioritizedPayload = deprioritizedRegistryType.GetMethod("NoteDeprioritized",
+                    BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int), typeof(float), typeof(float), typeof(float) }, null);
+                var tryGetFault = deprioritizedRegistryType.GetMethod("TryGetFault",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                totalChecks++;
+                if (noteDeprioritizedPayload != null && tryGetFault != null)
+                {
+                    noteDeprioritizedPayload.Invoke(null, new object[] { sampleT.ReferenceId, tickNow, 12000f, 30000f, 20000f });
+                    var tgArgs = new object[] { sampleT.ReferenceId, tickNow, 0f, 0f, 0f, 0f };
+                    bool gotPayload = tryGetFault.Invoke(null, tgArgs) is bool gp && gp;
+                    float needsW = (float)tgArgs[3], upstreamDemandW = (float)tgArgs[4], upstreamSupplyW = (float)tgArgs[5];
+                    object ttPayload = gptOnThing.Invoke(sampleT, gptArgs);
+                    string extendedPayload = ReflectGetExtended(ttPayload) ?? string.Empty;
+                    bool renders = extendedPayload.IndexOf("Needs ", StringComparison.Ordinal) >= 0
+                        && extendedPayload.IndexOf(" competes for ", StringComparison.Ordinal) >= 0
+                        && extendedPayload.IndexOf(" upstream", StringComparison.Ordinal) >= 0;
+                    if (gotPayload && Math.Abs(needsW - 12000f) < 0.5f && Math.Abs(upstreamDemandW - 30000f) < 0.5f
+                        && Math.Abs(upstreamSupplyW - 20000f) < 0.5f && renders)
+                    { _log?.LogInfo("[ScenarioRunner] HP P3c PASS: D/U/S payload (12 kW / 30 kW / 20 kW) round-trips TryGetFault and the hover renders the 'Needs D while U competes for S upstream' line."); passCount++; }
+                    else
+                    { _log?.LogError($"[ScenarioRunner] HP P3c FAIL: got={gotPayload} needs={needsW} upstreamDemand={upstreamDemandW} upstreamSupply={upstreamSupplyW} renders={renders}. Extended={Truncate(extendedPayload, 300)}"); failCount++; }
+                }
+                else
+                { _log?.LogError($"[ScenarioRunner] HP P3c FAIL: 5-arg NoteDeprioritized={noteDeprioritizedPayload != null} TryGetFault={tryGetFault != null} seam missing."); failCount++; }
+
+                // ---- P4: clear the deprioritization -> tooltip back to the fault-free state ----
                 clearAll?.Invoke(null, null);
                 object ttCleared = gptOnThing.Invoke(sampleT, gptArgs);
                 string extendedCleared = ReflectGetExtended(ttCleared) ?? string.Empty;
-                bool hasShedAfterClear = extendedCleared.IndexOf("Shedding", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool hasDeprioritizedAfterClear = extendedCleared.IndexOf("Deprioritized fault", StringComparison.OrdinalIgnoreCase) >= 0;
                 totalChecks++;
-                if (!hasShedAfterClear)
-                { _log?.LogInfo("[ScenarioRunner] HP P4 PASS: after ClearAll, tooltip Extended drops the shed line."); passCount++; }
+                if (!hasDeprioritizedAfterClear)
+                { _log?.LogInfo("[ScenarioRunner] HP P4 PASS: after ClearAll, tooltip Extended drops the 'Deprioritized fault' line."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P4 FAIL: tooltip still mentions Shedding after ClearAll: {Truncate(extendedCleared, 200)}"); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P4 FAIL: tooltip still mentions Deprioritization after ClearAll: {Truncate(extendedCleared, 200)}"); failCount++; }
 
                 _log?.LogInfo($"[ScenarioRunner] HP END pass={passCount} fail={failCount} total={totalChecks}");
             }
@@ -596,7 +629,7 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-labeller-probe (C-e)
+        // Scenario: pgp-priority-deprioritization-labeller-probe (C-e)
         // ------------------------------------------------------------
         // Directly invokes the TransformerLabellerPatches.Set_Prefix and
         // InputSetting_Prefix with synthetic ISetable + LogicType,
@@ -605,9 +638,9 @@ namespace ScenarioRunner
         // ============================================================
         private static bool _lpFired;
 
-        private static void Scenario_PgpPriorityShedingLabellerProbe()
+        private static void Scenario_PgpPriorityDeprioritizationLabellerProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-labeller-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-labeller-probe")) return;
             if (_lpFired) return;
             _lpFired = true;
 
@@ -651,7 +684,7 @@ namespace ScenarioRunner
                     return;
                 }
 
-                // The Priority + Shedding system is always on (the EnableTransformerShedding
+                // The Priority + Deprioritization system is always on (the EnableTransformerShedding
                 // master toggle was deleted); the labeller prefixes have no settings gate, so
                 // the swap logic below is exercised unconditionally.
 
@@ -725,11 +758,11 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-mp-probe (C-f)
+        // Scenario: pgp-priority-deprioritization-mp-probe (C-f)
         // ------------------------------------------------------------
         // Verifies the multiplayer-sync code paths that can be exercised
         // in-process: FaultRegistrySnapshotMessage.Process host
-        // short-circuit, the BrownoutRegistry client-mirror state
+        // short-circuit, the DeprioritizedRegistry client-mirror state
         // machine, and a full SerializeJoinSuffix ->
         // DeserializeJoinSuffix round-trip via a MemoryStream-backed
         // RocketBinaryWriter/Reader.
@@ -740,9 +773,9 @@ namespace ScenarioRunner
         // ============================================================
         private static bool _mpFired;
 
-        private static void Scenario_PgpPriorityShedingMpProbe()
+        private static void Scenario_PgpPriorityDeprioritizationMpProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-mp-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-mp-probe")) return;
             if (_mpFired) return;
             _mpFired = true;
 
@@ -756,51 +789,62 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] MP no PGP assembly"); return; }
 
-                // The per-transition ShedStateMessage / OverloadStateMessage pair was
+                // The per-transition DeprioritizedStateMessage / OverloadStateMessage pair was
                 // replaced by per-tick FULL registry snapshots (POWER.md §13 heartbeat
                 // model): FaultRegistrySnapshotMessage carries (refId, remainingTicks)
                 // entries per registry Kind.
                 var faultMsgType = asm.GetType("PowerGridPlus.FaultRegistrySnapshotMessage");
                 var prioMsgType = asm.GetType("PowerGridPlus.PriorityMessage");
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                if (faultMsgType == null || prioMsgType == null || brownoutType == null || priorityStoreType == null)
+                if (faultMsgType == null || prioMsgType == null || deprioritizedRegistryType == null || priorityStoreType == null)
                 {
-                    _log?.LogError($"[ScenarioRunner] MP FAIL: type lookup FM={faultMsgType != null} PM={prioMsgType != null} BR={brownoutType != null} PS={priorityStoreType != null}.");
+                    _log?.LogError($"[ScenarioRunner] MP FAIL: type lookup FM={faultMsgType != null} PM={prioMsgType != null} DR={deprioritizedRegistryType != null} PS={priorityStoreType != null}.");
                     failCount++; return;
                 }
 
-                var setClientShedding = brownoutType.GetMethod("SetClientShedding",
+                // The per-transition setter died with the heartbeat model; the client mirror is
+                // driven exclusively by ReplaceClientSnapshot (full-state replace, self-healing).
+                // On a HOST the peer-aware IsDeprioritized reads the host lockout dict, so the
+                // client mirror (_clientExpiry, a ClientEntry struct with the MonotonicClock
+                // expiry plus the locked needs/upstream-demand/upstream-supply hover triple) is
+                // asserted directly. The snapshot entry tuple is the registry's own
+                // (long refId, int remainingTicks, float needsW, float upstreamDemandW,
+                // float upstreamSupplyW) shape, built via MakeGenericType so this fixture keeps
+                // compiling if the mod assembly is absent.
+                var replaceClientSnapshot = deprioritizedRegistryType.GetMethod("ReplaceClientSnapshot",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                // ClientIsShedding was folded into the peer-aware IsShedding during the
-                // rearchitecture; on a HOST IsShedding reads the host lockout dict, so
-                // the client mirror (_clientShedding -> _clientExpiryMs, now expiry-
-                // stamped against MonotonicClock) is asserted directly.
-                var clientMirrorField = brownoutType.GetField("_clientExpiryMs",
+                var clientMirrorField = deprioritizedRegistryType.GetField("_clientExpiry",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var clientMirror = clientMirrorField?.GetValue(null) as System.Collections.IDictionary;
+                var snapshotTupleType = typeof(ValueTuple<,,,,>).MakeGenericType(
+                    typeof(long), typeof(int), typeof(float), typeof(float), typeof(float));
+                var snapshotListType = typeof(List<>).MakeGenericType(snapshotTupleType);
 
                 long testRef = 7777777777L;
 
-                // ---- P1: BrownoutRegistry client-mirror state machine ----
-                setClientShedding?.Invoke(null, new object[] { testRef, true });
+                // ---- P1: DeprioritizedRegistry client-mirror state machine ----
+                var oneEntry = (System.Collections.IList)Activator.CreateInstance(snapshotListType);
+                oneEntry.Add(Activator.CreateInstance(snapshotTupleType, testRef, 120, 12000f, 30000f, 20000f));
+                replaceClientSnapshot?.Invoke(null, new object[] { oneEntry });
                 bool after1 = clientMirror != null && clientMirror.Contains(testRef);
-                setClientShedding?.Invoke(null, new object[] { testRef, false });
+                var emptySnapshot = (System.Collections.IList)Activator.CreateInstance(snapshotListType);
+                replaceClientSnapshot?.Invoke(null, new object[] { emptySnapshot });
                 bool after2 = clientMirror != null && clientMirror.Contains(testRef);
                 totalChecks++;
-                if (clientMirror != null && after1 && !after2)
-                { _log?.LogInfo($"[ScenarioRunner] MP P1 PASS: SetClientShedding(true) inserts the _clientExpiryMs mirror entry ({after1}), SetClientShedding(false) removes it ({after2})."); passCount++; }
+                if (replaceClientSnapshot != null && clientMirror != null && after1 && !after2)
+                { _log?.LogInfo($"[ScenarioRunner] MP P1 PASS: ReplaceClientSnapshot with one payload entry inserts the _clientExpiry mirror entry ({after1}), the empty snapshot clears it ({after2})."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] MP P1 FAIL: state machine inconsistent. mirrorDict={clientMirror != null} trueRead={after1} falseRead={after2}."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] MP P1 FAIL: state machine inconsistent. method={replaceClientSnapshot != null} mirrorDict={clientMirror != null} trueRead={after1} falseRead={after2}."); failCount++; }
 
                 // ---- P2: FaultRegistrySnapshotMessage.Process on host short-circuits ----
                 // Host's NetworkManager.IsServer=true, so Process must NOT touch the client mirror.
                 long testRef2 = 8888888888L;
-                setClientShedding?.Invoke(null, new object[] { testRef2, false });    // baseline
+                replaceClientSnapshot?.Invoke(null, new object[] { emptySnapshot });    // baseline
                 var msg = Activator.CreateInstance(faultMsgType);
-                byte kindShed = (byte)(faultMsgType.GetField("KindShed",
+                byte kindDeprioritized = (byte)(faultMsgType.GetField("KindDeprioritized",
                     BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ?? (byte)0);
-                faultMsgType.GetField("Kind")?.SetValue(msg, kindShed);
+                faultMsgType.GetField("Kind")?.SetValue(msg, kindDeprioritized);
                 faultMsgType.GetField("Entries")?.SetValue(msg,
                     new List<KeyValuePair<long, int>> { new KeyValuePair<long, int>(testRef2, 120) });
                 var processMethod = faultMsgType.GetMethod("Process");
@@ -808,12 +852,12 @@ namespace ScenarioRunner
                 bool afterProcess = clientMirror != null && clientMirror.Contains(testRef2);
                 totalChecks++;
                 if (!afterProcess && NetworkManager.IsServer)
-                { _log?.LogInfo($"[ScenarioRunner] MP P2 PASS: FaultRegistrySnapshotMessage(KindShed).Process(0) short-circuited on host (IsServer=true); client mirror untouched."); passCount++; }
+                { _log?.LogInfo($"[ScenarioRunner] MP P2 PASS: FaultRegistrySnapshotMessage(KindDeprioritized).Process(0) short-circuited on host (IsServer=true); client mirror untouched."); passCount++; }
                 else if (afterProcess && !NetworkManager.IsServer)
                 { _log?.LogInfo($"[ScenarioRunner] MP P2 NOTE: running as non-server peer; Process correctly applied the snapshot to the client mirror."); passCount++; }
                 else
                 { _log?.LogError($"[ScenarioRunner] MP P2 FAIL: IsServer={NetworkManager.IsServer} but mirrorTouched={afterProcess}; expected host short-circuit."); failCount++; }
-                setClientShedding?.Invoke(null, new object[] { testRef2, false });    // cleanup
+                replaceClientSnapshot?.Invoke(null, new object[] { emptySnapshot });    // cleanup
 
                 // ---- P3: PriorityMessage.Process host short-circuit (re-verify PSP P8) ----
                 var sampleT = _transformers.FirstOrDefault(x => x != null);
@@ -1135,7 +1179,7 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-saveload-probe (C-g)
+        // Scenario: pgp-priority-deprioritization-saveload-probe (C-g)
         // ------------------------------------------------------------
         // Verifies the save/load Harmony hooks are attached to the
         // expected methods (SaveHelper.Save, XmlSaveLoad.LoadWorld,
@@ -1148,9 +1192,9 @@ namespace ScenarioRunner
         // ============================================================
         private static bool _slpFired;
 
-        private static void Scenario_PgpPriorityShedingSaveLoadProbe()
+        private static void Scenario_PgpPriorityDeprioritizationSaveLoadProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-saveload-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-saveload-probe")) return;
             if (_slpFired) return;
             _slpFired = true;
 
@@ -1312,7 +1356,7 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-topology-probe (cascade + parallel)
+        // Scenario: pgp-priority-deprioritization-topology-probe (cascade + parallel)
         // ------------------------------------------------------------
         // Confirms the atomic PowerAllocator respects topology independence,
         // judged off the per-seg presentation totals it publishes to
@@ -1333,7 +1377,7 @@ namespace ScenarioRunner
         // pump is an ElectricityTick postfix, so this tick's pass already
         // ran), so the probe is phased across three consecutive ticks:
         //   tick 0: arrange the parallel-pair priorities (500 / 100), clear
-        //           shed lockouts.
+        //           deprioritization lockouts.
         //   tick 1: assert P1 (parallel order), P2 (demand cap), P3
         //           (demand-driven bound) off the freshly published totals;
         //           then reset every priority to the default 100 + ClearAll
@@ -1365,9 +1409,9 @@ namespace ScenarioRunner
             catch { return float.NaN; }
         }
 
-        private static void Scenario_PgpPriorityShedingTopologyProbe()
+        private static void Scenario_PgpPriorityDeprioritizationTopologyProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-topology-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-topology-probe")) return;
             if (_tpPhase >= 3) return;
 
             try
@@ -1376,10 +1420,10 @@ namespace ScenarioRunner
                 if (asm == null) { _log?.LogError("[ScenarioRunner] TP no PGP assembly"); _tpPhase = 3; return; }
 
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
 
-                var clearAll = brownoutType?.GetMethod("ClearAll",
+                var clearAll = deprioritizedRegistryType?.GetMethod("ClearAll",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var setPrio = priorityStoreType?.GetMethod("SetPriority",
                     BindingFlags.NonPublic | BindingFlags.Static,
@@ -1529,7 +1573,7 @@ namespace ScenarioRunner
                 }
 
                 // ---- Phase 2 / P4: 418422 + 418423 explicit (the cascade regression case) ----
-                // The 2026-06-02 playtest reported these two parallel transformers mass-shedding
+                // The 2026-06-02 playtest reported these two parallel transformers mass-deprioritizing
                 // with default priorities on Luna. Success is NOT "published > 0" (deferred
                 // standby is legal on a bootstrap tick); it is "NOT in lockout" after a clean
                 // default-priority pass.
@@ -1540,7 +1584,7 @@ namespace ScenarioRunner
                 { _log?.LogWarning("[ScenarioRunner] TP P4 SKIP: neither 418422 nor 418423 present in this save."); _tpPass++; }
                 else
                 {
-                    var isShedding = brownoutType?.GetMethod("IsShedding",
+                    var isDeprioritization = deprioritizedRegistryType?.GetMethod("IsDeprioritized",
                         BindingFlags.NonPublic | BindingFlags.Static,
                         null, new[] { typeof(long), typeof(int) }, null);
                     int tickNow = (int)(currentTickProp?.GetValue(null) ?? 0);
@@ -1553,9 +1597,9 @@ namespace ScenarioRunner
                         float a = TpPublishedOutput(asm, t.ReferenceId);
                         float req = t.OutputNetwork?.RequiredLoad ?? -1f;
                         float pot = t.InputNetwork?.PotentialLoad ?? -1f;
-                        bool shedding = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, tickNow }) ?? false);
-                        if (shedding) ok = false;
-                        verdict += $" ref={t.ReferenceId} OnOff={t.OnOff} publishedOut={a:F0} req={req:F0} pot={pot:F0} OutMax={t.OutputMaximum:F0} shedding={shedding};";
+                        bool deprioritized = (bool)(isDeprioritization?.Invoke(null, new object[] { t.ReferenceId, tickNow }) ?? false);
+                        if (deprioritized) ok = false;
+                        verdict += $" ref={t.ReferenceId} OnOff={t.OnOff} publishedOut={a:F0} req={req:F0} pot={pot:F0} OutMax={t.OutputMaximum:F0} deprioritized={deprioritized};";
                     }
                     if (ok)
                     { _log?.LogInfo($"[ScenarioRunner] TP P4 PASS: 418422/418423 not in lockout under default priorities (cascade fix works).{verdict}"); _tpPass++; }
@@ -1605,12 +1649,12 @@ namespace ScenarioRunner
                 if (asm == null) { _log?.LogError("[ScenarioRunner] PFD no PGP assembly"); return; }
 
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
                 var getPrio = priorityStoreType?.GetMethod("GetPriority",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long) }, null);
-                var isShedding = brownoutType?.GetMethod("IsShedding",
+                var isDeprioritization = deprioritizedRegistryType?.GetMethod("IsDeprioritized",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
                 var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
@@ -1653,7 +1697,7 @@ namespace ScenarioRunner
 
                 if (startNet != null)
                     DumpNetworkAndUpstream(startNet, 0, new HashSet<long>(), currentTick,
-                        asm, getPrio, isShedding);
+                        asm, getPrio, isDeprioritization);
 
                 // Also enumerate every cable network in the world and log those with
                 // PotentialLoad > 0 (= a generator on it that's actually producing).
@@ -1796,7 +1840,7 @@ namespace ScenarioRunner
         }
 
         private static void DumpNetworkAndUpstream(CableNetwork net, int depth, HashSet<long> visited,
-            int currentTick, Assembly asm, MethodInfo getPrio, MethodInfo isShedding)
+            int currentTick, Assembly asm, MethodInfo getPrio, MethodInfo isDeprioritization)
         {
             if (net == null || depth > _pfdMaxHops) return;
             if (visited.Contains(net.ReferenceId)) return;
@@ -1859,13 +1903,13 @@ namespace ScenarioRunner
                 if (t == null) continue;
                 int prio = (int)(getPrio?.Invoke(null, new object[] { t.ReferenceId }) ?? -1);
                 float published = TpPublishedOutput(asm, t.ReferenceId);
-                bool shed = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
+                bool deprioritized = (bool)(isDeprioritization?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                 string role = (t.OutputNetwork == net) ? "OUTPUT" : (t.InputNetwork == net ? "INPUT" : "UNKNOWN");
-                _log?.LogInfo($"[ScenarioRunner] PFD{indent}  T ref={t.ReferenceId} prefab={t.PrefabName} role-on-net={role} OnOff={t.OnOff} Error={t.Error} OutMax={t.OutputMaximum:F0} Prio={prio} publishedOut={published:F0} shed={shed} InNet={t.InputNetwork?.ReferenceId ?? -1} OutNet={t.OutputNetwork?.ReferenceId ?? -1}");
+                _log?.LogInfo($"[ScenarioRunner] PFD{indent}  T ref={t.ReferenceId} prefab={t.PrefabName} role-on-net={role} OnOff={t.OnOff} Error={t.Error} OutMax={t.OutputMaximum:F0} Prio={prio} publishedOut={published:F0} deprioritized={deprioritized} InNet={t.InputNetwork?.ReferenceId ?? -1} OutNet={t.OutputNetwork?.ReferenceId ?? -1}");
                 if (t.OutputNetwork == net && t.InputNetwork != null)
                 {
                     DumpNetworkAndUpstream(t.InputNetwork, depth + 1, visited, currentTick,
-                        asm, getPrio, isShedding);
+                        asm, getPrio, isDeprioritization);
                 }
             }
 
@@ -1882,7 +1926,7 @@ namespace ScenarioRunner
                 _log?.LogInfo($"[ScenarioRunner] PFD{indent}  IO ref={b.ReferenceId} prefab={b.PrefabName} type={b.GetType().Name} role-on-net={brole} OnOff={bon} Error={berr} InNet={b.InputNetwork?.ReferenceId ?? -1} OutNet={b.OutputNetwork?.ReferenceId ?? -1}");
                 if (b.OutputNetwork == net && b.InputNetwork != null)
                     DumpNetworkAndUpstream(b.InputNetwork, depth + 1, visited, currentTick,
-                        asm, getPrio, isShedding);
+                        asm, getPrio, isDeprioritization);
             }
         }
 
@@ -1890,11 +1934,11 @@ namespace ScenarioRunner
         // Scenario: pgp-r1-prepare (R-1 visual-check setup)
         // ------------------------------------------------------------
         // Selects one transformer with positive downstream demand and
-        // pins it to a perpetual shed state: Priority=0 + per-tick
+        // pins it to a perpetual deprioritized state: Priority=0 + per-tick
         // _lockoutUntilTick refresh so the orange flash + hover error
         // persist indefinitely. The developer connects to the dedi,
         // walks to the logged world position, and confirms the visual
-        // behaviour without having to manually trigger the shed loop.
+        // behaviour without having to manually trigger the deprioritization loop.
         // ============================================================
         private static long _r1TargetRef = 0;
         private static Vector3 _r1TargetPos = default;
@@ -1908,24 +1952,24 @@ namespace ScenarioRunner
             if (asm == null) return;
 
             var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-            var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+            var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
             var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-            var flashType = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
-            var hoverPatchType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
+            var flashType = asm.GetType("PowerGridPlus.FaultFlashBehaviour");
+            var hoverPatchType = asm.GetType("PowerGridPlus.Patches.FaultButtonTooltipPatches");
             var setPriorityMethod = priorityStoreType?.GetMethod("SetPriority",
                 BindingFlags.NonPublic | BindingFlags.Static, null,
                 new[] { typeof(Thing), typeof(int) }, null);
             var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
                 BindingFlags.NonPublic | BindingFlags.Static);
-            var lockoutDictField = brownoutType?.GetField("_lockoutUntilTick",
+            var lockoutDictField = deprioritizedRegistryType?.GetField("_lockoutUntilTick",
                 BindingFlags.NonPublic | BindingFlags.Static);
 
             int tickNow = (int)(currentTickProp?.GetValue(null) ?? 0);
 
             if (_r1TargetRef == 0)
             {
-                // Activate the diagnostic flags on first tick so BrownoutFlashBehaviour
-                // and TransformerHoverErrorPatches dump renderer + material + tooltip
+                // Activate the diagnostic flags on first tick so FaultFlashBehaviour
+                // and FaultButtonTooltipPatches dump renderer + material + tooltip
                 // state into the BepInEx log for this session.
                 var bfbDiagField = flashType?.GetField("DiagnosticEnabled",
                     BindingFlags.NonPublic | BindingFlags.Static);
@@ -1972,7 +2016,7 @@ namespace ScenarioRunner
                 _log?.LogInfo($"[ScenarioRunner] R1 PREPARED: ref={_r1TargetRef} prefab={_r1TargetPrefab} pos=({_r1TargetPos.x:F1},{_r1TargetPos.y:F1},{_r1TargetPos.z:F1}) OutputNetwork.RequiredLoad={chosen.OutputNetwork.RequiredLoad:F0} W. Priority pinned to 0; lockout perpetually refreshed.");
             }
 
-            // Per-tick lockout refresh: keep the shed state alive indefinitely
+            // Per-tick lockout refresh: keep the deprioritized state alive indefinitely
             // by writing _lockoutUntilTick = currentTick + 100 every tick.
             var lockoutDict = lockoutDictField?.GetValue(null) as System.Collections.IDictionary;
             if (lockoutDict != null)
@@ -2008,37 +2052,37 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // Scenario: pgp-priority-shedding-all (aggregator)
+        // Scenario: pgp-priority-deprioritization-all (aggregator)
         // ------------------------------------------------------------
         // Runs every probe above in sequence on the first scenario tick.
         // Convenience for capturing every PASS/FAIL in one -Start cycle.
         // ============================================================
-        private static bool _allShedFired;
+        private static bool _allDeprioritizedFired;
 
-        private static void Scenario_PgpPriorityShedingAll()
+        private static void Scenario_PgpPriorityDeprioritizationAll()
         {
             // The topology probe is phased across three ticks (priority writes only land on
             // the next allocator pass), so it is pumped every tick and self-gates; the
             // one-shot probes below run once on the first tick.
-            if (_allShedFired)
+            if (_allDeprioritizedFired)
             {
-                Scenario_PgpPriorityShedingTopologyProbe();
+                Scenario_PgpPriorityDeprioritizationTopologyProbe();
                 return;
             }
-            _allShedFired = true;
-            _log?.LogInfo("[ScenarioRunner] ALL START priority-shedding-all aggregator");
-            Scenario_PgpPriorityShedingKnobProbe();
-            Scenario_PgpPriorityShedingFlashProbe();
-            Scenario_PgpPriorityShedingHoverProbe();
-            Scenario_PgpPriorityShedingLabellerProbe();
-            Scenario_PgpPriorityShedingMpProbe();
-            Scenario_PgpPriorityShedingSaveLoadProbe();
-            Scenario_PgpPriorityShedingTopologyProbe();
+            _allDeprioritizedFired = true;
+            _log?.LogInfo("[ScenarioRunner] ALL START priority-deprioritization-all aggregator");
+            Scenario_PgpPriorityDeprioritizationKnobProbe();
+            Scenario_PgpPriorityDeprioritizationFlashProbe();
+            Scenario_PgpPriorityDeprioritizationHoverProbe();
+            Scenario_PgpPriorityDeprioritizationLabellerProbe();
+            Scenario_PgpPriorityDeprioritizationMpProbe();
+            Scenario_PgpPriorityDeprioritizationSaveLoadProbe();
+            Scenario_PgpPriorityDeprioritizationTopologyProbe();
             // Also include the existing PSP + persist probes so a single -Start covers
             // the entire feature surface.
-            Scenario_PgpPriorityShedingProbe();
-            Scenario_PgpPriorityShedingNetworkBreakdown();
-            _log?.LogInfo("[ScenarioRunner] ALL END priority-shedding-all aggregator (topology probe continues for two more ticks)");
+            Scenario_PgpPriorityDeprioritizationProbe();
+            Scenario_PgpPriorityDeprioritizationNetworkBreakdown();
+            _log?.LogInfo("[ScenarioRunner] ALL END priority-deprioritization-all aggregator (topology probe continues for two more ticks)");
         }
 
         // ============================================================
@@ -2049,10 +2093,10 @@ namespace ScenarioRunner
         //
         // Includes the still-relevant probes from the old suite:
         //   - knob (constants, button1/button2 step compute)
-        //   - flash (BrownoutFlashBehaviour attach, color)
-        //   - hover (Thing.GetContextualName postfix, shed text)
+        //   - flash (FaultFlashBehaviour attach, color)
+        //   - hover (Thing.GetContextualName postfix, Deprioritized fault text)
         //   - labeller (Set / InputSetting redirect)
-        //   - mp (BrownoutRegistry client state, message host short-circuit)
+        //   - mp (DeprioritizedRegistry client state, message host short-circuit)
         //   - saveload (PriorityStore + side-car round-trip)
         //
         // Skips the obsolete probes that depended on the removed allocator
@@ -2063,10 +2107,10 @@ namespace ScenarioRunner
         //   - network-breakdown probe (per-network allocation)
         //
         // Adds the new architecture probes:
-        //   - pgp-atomic-probe (Phase 1/2/3 wiring, shed semantics)
+        //   - pgp-atomic-probe (Phase 1/2/3 wiring, deprioritization semantics)
         //   - pgp-overload-probe (overload registry + LogicType + hover)
         //
-        // And ends with pgp-shed-trace which runs a 30-tick live trace
+        // And ends with pgp-deprioritization-trace which runs a 30-tick live trace
         // against the loaded save -- proves real-world behaviour matches
         // the synthetic probe results.
         // ============================================================
@@ -2078,31 +2122,31 @@ namespace ScenarioRunner
             _log?.LogInfo("[ScenarioRunner] ATOMIC-ALL START");
             Scenario_PgpAtomicProbe();
             Scenario_PgpOverloadProbe();
-            Scenario_PgpPriorityShedingKnobProbe();
-            Scenario_PgpPriorityShedingFlashProbe();
-            Scenario_PgpPriorityShedingHoverProbe();
-            Scenario_PgpPriorityShedingLabellerProbe();
-            Scenario_PgpPriorityShedingMpProbe();
-            Scenario_PgpPriorityShedingSaveLoadProbe();
-            _log?.LogInfo("[ScenarioRunner] ATOMIC-ALL END synthetic probes done; pgp-shed-trace will follow on subsequent ticks");
+            Scenario_PgpPriorityDeprioritizationKnobProbe();
+            Scenario_PgpPriorityDeprioritizationFlashProbe();
+            Scenario_PgpPriorityDeprioritizationHoverProbe();
+            Scenario_PgpPriorityDeprioritizationLabellerProbe();
+            Scenario_PgpPriorityDeprioritizationMpProbe();
+            Scenario_PgpPriorityDeprioritizationSaveLoadProbe();
+            _log?.LogInfo("[ScenarioRunner] ATOMIC-ALL END synthetic probes done; pgp-deprioritization-trace will follow on subsequent ticks");
         }
 
         // ============================================================
-        // Scenario: pgp-shed-trace (regression-triage diagnostic)
+        // Scenario: pgp-deprioritization-trace (regression-triage diagnostic)
         // ------------------------------------------------------------
         // Runs every electricity tick for a window of ticks. On each
         // tick it walks every transformer and dumps state for any
-        // transformer that is in lockout, currently shedding, or has a
+        // transformer that is in lockout, currently deprioritized, or has a
         // non-zero shortfall counter. Also dumps every transformer's
         // input/output net loads, _powerProvided, OutputMaximum, and
         // priority once at tick 0 and once at the end. Goal: catch the
-        // allocator entering the shed branch when it shouldn't.
+        // allocator entering the deprioritization branch when it shouldn't.
         //
         // Output groups:
         //   STR-INIT  one-shot baseline at first observed tick.
         //   STR-TICK  per-tick summary line (counts).
         //   STR-EVT   per-transformer event (entered lockout / left).
-        //   STR-END   final summary: which refs spent most time shed.
+        //   STR-END   final summary: which refs spent most time deprioritized.
         // ============================================================
         private static int _stTickCount = 0;
         private const int _stMaxTicks = 30;
@@ -2132,9 +2176,9 @@ namespace ScenarioRunner
             }
         }
 
-        private static void Scenario_PgpShedTrace()
+        private static void Scenario_PgpDeprioritizedTrace()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-shed-trace")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-deprioritization-trace")) return;
             if (_stTickCount >= _stMaxTicks) return;
 
             try
@@ -2142,26 +2186,26 @@ namespace ScenarioRunner
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] STR no PGP assembly"); _stTickCount = _stMaxTicks; return; }
 
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
                 // TransformerAllocator was renamed to PowerAllocator when storage
                 // charge and the bridge adapters became first-class allocator flows.
                 var allocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-                if (brownoutType == null || allocatorType == null || tickCounterType == null)
+                if (deprioritizedRegistryType == null || allocatorType == null || tickCounterType == null)
                 {
-                    _log?.LogError($"[ScenarioRunner] STR FAIL: type lookup BR={brownoutType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
+                    _log?.LogError($"[ScenarioRunner] STR FAIL: type lookup DR={deprioritizedRegistryType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
                     _stTickCount = _stMaxTicks; return;
                 }
 
-                var lockoutDictField = brownoutType.GetField("_lockoutUntilTick",
+                var lockoutDictField = deprioritizedRegistryType.GetField("_lockoutUntilTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var overloadLockoutDictField = overloadType?.GetField("_lockoutUntilTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var currentTickProp = tickCounterType.GetProperty("CurrentTick",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var isLockedOutMethod = brownoutType.GetMethod("IsLockedOut",
+                var isLockedOutMethod = deprioritizedRegistryType.GetMethod("IsLockedOut",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
                 var getPrioMethod = priorityStoreType?.GetMethod("GetPriority",
@@ -2178,7 +2222,7 @@ namespace ScenarioRunner
                 if (_stStartTick < 0)
                 {
                     _stStartTick = currentTick;
-                    // Shedding and overload protection are always on (the synced master toggles
+                    // Deprioritization and overload protection are always on (the synced master toggles
                     // and their *SettingsSync types were deleted); no effective-state line needed.
                     _log?.LogInfo($"[ScenarioRunner] STR-INIT startTick={currentTick} transformers={_transformers.Count}");
 
@@ -2230,13 +2274,13 @@ namespace ScenarioRunner
                 var lockoutDict = lockoutDictField?.GetValue(null) as System.Collections.IDictionary;
                 var overloadLockoutDict = overloadLockoutDictField?.GetValue(null) as System.Collections.IDictionary;
 
-                int totalShedLocked = 0;
+                int totalDeprioritizedLocked = 0;
                 int totalOverloadLocked = 0;
                 int onCount = 0;
                 int erroredCount = 0;
 
                 // Build this-tick locked sets per registry, count transitions, log events.
-                var thisTickShed = new HashSet<long>();
+                var thisTickDeprioritized = new HashSet<long>();
                 var thisTickOverload = new HashSet<long>();
                 if (lockoutDict != null)
                 {
@@ -2246,8 +2290,8 @@ namespace ScenarioRunner
                         int until = (int)kv.Value;
                         if (until > currentTick)
                         {
-                            thisTickShed.Add(id);
-                            totalShedLocked++;
+                            thisTickDeprioritized.Add(id);
+                            totalDeprioritizedLocked++;
                             if (!_stLockedTickCount.ContainsKey(id)) _stLockedTickCount[id] = 0;
                             _stLockedTickCount[id]++;
                         }
@@ -2269,11 +2313,11 @@ namespace ScenarioRunner
                     }
                 }
 
-                LogEnterEvents(thisTickShed, "SHED", currentTick, getPrioMethod, powerProvidedField);
+                LogEnterEvents(thisTickDeprioritized, "DEPRIORITIZED", currentTick, getPrioMethod, powerProvidedField);
                 LogEnterEvents(thisTickOverload, "OVERLOAD", currentTick, getPrioMethod, powerProvidedField);
 
                 var combinedThisTick = new HashSet<long>();
-                foreach (var id in thisTickShed) combinedThisTick.Add(id);
+                foreach (var id in thisTickDeprioritized) combinedThisTick.Add(id);
                 foreach (var id in thisTickOverload) combinedThisTick.Add(id);
 
                 foreach (var id in _stCurrentlyLocked)
@@ -2293,7 +2337,7 @@ namespace ScenarioRunner
                     if (t.Error == 1) erroredCount++;
                 }
 
-                _log?.LogInfo($"[ScenarioRunner] STR-TICK n={_stTickCount} tick={currentTick} transformers={_transformers.Count} OnOff={onCount} Errored={erroredCount} inShed={totalShedLocked} inOverload={totalOverloadLocked}");
+                _log?.LogInfo($"[ScenarioRunner] STR-TICK n={_stTickCount} tick={currentTick} transformers={_transformers.Count} OnOff={onCount} Errored={erroredCount} inDeprioritized={totalDeprioritizedLocked} inOverload={totalOverloadLocked}");
 
                 _stTickCount++;
 
@@ -2347,12 +2391,12 @@ namespace ScenarioRunner
         // ============================================================
         // Scenario: pgp-atomic-probe
         // ------------------------------------------------------------
-        // Architecture + shed semantics under the new 5-phase atomic flow.
+        // Architecture + deprioritization semantics under the new 5-phase atomic flow.
         //   P1: AtomicElectricityTickPatch attached on ElectricityTick.
         //   P2: Old ElectricityTickPatches is GONE.
-        //   P3: BrownoutRegistry.LockoutDurationTicks = 120 (60 sec).
-        //   P4: BrownoutRegistry.ShortfallTolerance is GONE.
-        //   P5: NoteShed -> instant lockout; IsLockedOut + IsShedding true.
+        //   P3: DeprioritizedRegistry.LockoutDurationTicks = 120 (60 sec).
+        //   P4: DeprioritizedRegistry.ShortfallTolerance is GONE.
+        //   P5: NoteDeprioritized -> instant lockout; IsLockedOut + IsDeprioritized true.
         //   P6: ClearAll drops lockout.
         //   P7: PowerAllocator.RunAtomic exists (TransformerAllocator was
         //       renamed to PowerAllocator in the rearchitecture).
@@ -2370,7 +2414,7 @@ namespace ScenarioRunner
             {
                 _log?.LogInfo("[ScenarioRunner] AP START atomic-probe");
                 var asm = GetModAssembly(PGP_ASSEMBLY);
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 // TransformerAllocator was renamed to PowerAllocator when storage
                 // charge and the bridge adapters became first-class allocator flows.
                 var allocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
@@ -2394,26 +2438,26 @@ namespace ScenarioRunner
 
                 // Loud guard instead of an NRE on the next rename: everything below
                 // dereferences these three types.
-                if (brownoutType == null || allocatorType == null || tickCounterType == null)
+                if (deprioritizedRegistryType == null || allocatorType == null || tickCounterType == null)
                 {
                     total++; fail++;
-                    _log?.LogError($"[ScenarioRunner] AP FAIL: type lookup BR={brownoutType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
+                    _log?.LogError($"[ScenarioRunner] AP FAIL: type lookup DR={deprioritizedRegistryType != null} PA={allocatorType != null} TC={tickCounterType != null}.");
                     _log?.LogInfo($"[ScenarioRunner] AP END pass={pass} fail={fail} total={total}");
                     return;
                 }
 
                 // P3: LockoutDurationTicks = 120.
-                var ldField = brownoutType.GetField("LockoutDurationTicks",
+                var ldField = deprioritizedRegistryType.GetField("LockoutDurationTicks",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 int ld = ldField != null ? (int)ldField.GetValue(null) : -1;
                 total++;
                 if (ld == 120)
-                { _log?.LogInfo($"[ScenarioRunner] AP P3 PASS: BrownoutRegistry.LockoutDurationTicks={ld} (60 sec)."); pass++; }
+                { _log?.LogInfo($"[ScenarioRunner] AP P3 PASS: DeprioritizedRegistry.LockoutDurationTicks={ld} (60 sec)."); pass++; }
                 else
                 { _log?.LogError($"[ScenarioRunner] AP P3 FAIL: LockoutDurationTicks={ld}, expected 120."); fail++; }
 
                 // P4: ShortfallTolerance gone.
-                var stField = brownoutType.GetField("ShortfallTolerance",
+                var stField = deprioritizedRegistryType.GetField("ShortfallTolerance",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 total++;
                 if (stField == null)
@@ -2421,16 +2465,16 @@ namespace ScenarioRunner
                 else
                 { _log?.LogError("[ScenarioRunner] AP P4 FAIL: ShortfallTolerance still present."); fail++; }
 
-                // P5: NoteShed -> instant lockout.
-                var clearAll = brownoutType.GetMethod("ClearAll",
+                // P5: NoteDeprioritized -> instant lockout.
+                var clearAll = deprioritizedRegistryType.GetMethod("ClearAll",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var noteShed = brownoutType.GetMethod("NoteShed",
+                var noteDeprioritized = deprioritizedRegistryType.GetMethod("NoteDeprioritized",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                var isLockedOut = brownoutType.GetMethod("IsLockedOut",
+                var isLockedOut = deprioritizedRegistryType.GetMethod("IsLockedOut",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                var isShedding = brownoutType.GetMethod("IsShedding",
+                var isDeprioritization = deprioritizedRegistryType.GetMethod("IsDeprioritized",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
                 var currentTickProp = tickCounterType.GetProperty("CurrentTick",
@@ -2438,14 +2482,14 @@ namespace ScenarioRunner
                 int tick = (int)(currentTickProp?.GetValue(null) ?? 0);
                 long syntheticRef = 11223344L;
                 clearAll?.Invoke(null, null);
-                noteShed?.Invoke(null, new object[] { syntheticRef, tick });
+                noteDeprioritized?.Invoke(null, new object[] { syntheticRef, tick });
                 bool locked = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
-                bool shedding = (bool)(isShedding?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
+                bool deprioritized = (bool)(isDeprioritization?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
                 total++;
-                if (locked && shedding)
-                { _log?.LogInfo("[ScenarioRunner] AP P5 PASS: single NoteShed -> IsLockedOut=true & IsShedding=true (instant lockout, no tolerance counter)."); pass++; }
+                if (locked && deprioritized)
+                { _log?.LogInfo("[ScenarioRunner] AP P5 PASS: single NoteDeprioritized -> IsLockedOut=true & IsDeprioritized=true (instant lockout, no tolerance counter)."); pass++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] AP P5 FAIL: locked={locked} shedding={shedding}, expected both true."); fail++; }
+                { _log?.LogError($"[ScenarioRunner] AP P5 FAIL: locked={locked} deprioritized={deprioritized}, expected both true."); fail++; }
 
                 // P6: lockout window length verification.
                 bool lockedAtBoundary = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick + 119 }) ?? false);
@@ -2508,11 +2552,11 @@ namespace ScenarioRunner
                 var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
                 var overloadSyncType = asm.GetType("PowerGridPlus.OverloadSettingsSync");
                 // The per-transition OverloadStateMessage was replaced by the per-tick
-                // full-registry FaultRegistrySnapshotMessage (Kind = KindOverload).
+                // full-registry FaultRegistrySnapshotMessage (Kind = KindDeviceOverload).
                 var faultMsgType = asm.GetType("PowerGridPlus.FaultRegistrySnapshotMessage");
                 var logicRegType = asm.GetType("PowerGridPlus.LogicTypeRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
-                var hoverPatchType = asm.GetType("PowerGridPlus.Patches.TransformerHoverErrorPatches");
+                var hoverPatchType = asm.GetType("PowerGridPlus.Patches.FaultButtonTooltipPatches");
 
                 // P1: current type surface. OverloadRegistry + FaultRegistrySnapshotMessage exist;
                 // OverloadSettingsSync must be ABSENT (overload protection is always on; the synced
@@ -2581,7 +2625,7 @@ namespace ScenarioRunner
                 clearAll?.Invoke(null, null);
 
                 // P5: LogicTypeRegistry.Overloaded present.
-                var overloadedLogicField = logicRegType.GetField("Overloaded",
+                var overloadedLogicField = logicRegType.GetField("DeviceOverloadedFault",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 LogicType overloadedLogic = overloadedLogicField != null ? (LogicType)overloadedLogicField.GetValue(null) : default;
                 total++;
@@ -2646,19 +2690,24 @@ namespace ScenarioRunner
                     { _log?.LogError($"[ScenarioRunner] OP P9 FAIL: canR={canR} canW={canW}."); fail++; }
                 }
 
-                // P10: FaultRegistrySnapshotMessage(KindOverload) host short-circuits
-                // Process. ClientIsOverloaded was folded into the peer-aware
-                // IsOverloaded; on a HOST that reads the host lockout dict, so the
-                // client mirror (_clientExpiryMs) is asserted directly.
+                // P10: FaultRegistrySnapshotMessage(KindDeviceOverload) host short-circuits
+                // Process. The per-transition setter died with the heartbeat model; the client
+                // mirror is _clientExpiry (a ClientEntry struct dict carrying the watt payload),
+                // driven only by ReplaceClientSnapshot, so the mirror is asserted directly and
+                // the baseline/cleanup is an empty snapshot replace.
                 long testRef = 33445566L;
-                var setClientOverloaded = overloadType.GetMethod("SetClientOverloaded",
+                var overloadReplaceClient = overloadType.GetMethod("ReplaceClientSnapshot",
                     BindingFlags.NonPublic | BindingFlags.Static);
-                var overloadMirrorField = overloadType.GetField("_clientExpiryMs",
+                var overloadMirrorField = overloadType.GetField("_clientExpiry",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var overloadMirror = overloadMirrorField?.GetValue(null) as System.Collections.IDictionary;
-                setClientOverloaded?.Invoke(null, new object[] { testRef, false });
+                var overloadTupleType = typeof(ValueTuple<,,,>).MakeGenericType(
+                    typeof(long), typeof(int), typeof(float), typeof(float));
+                var overloadEmptySnapshot = (System.Collections.IList)Activator.CreateInstance(
+                    typeof(System.Collections.Generic.List<>).MakeGenericType(overloadTupleType));
+                overloadReplaceClient?.Invoke(null, new object[] { overloadEmptySnapshot });
                 var msg = Activator.CreateInstance(faultMsgType);
-                byte kindOverload = (byte)(faultMsgType.GetField("KindOverload",
+                byte kindOverload = (byte)(faultMsgType.GetField("KindDeviceOverload",
                     BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ?? (byte)1);
                 faultMsgType.GetField("Kind")?.SetValue(msg, kindOverload);
                 faultMsgType.GetField("Entries")?.SetValue(msg,
@@ -2668,11 +2717,11 @@ namespace ScenarioRunner
                 process?.Invoke(msg, new object[] { 0L });
                 bool afterProcess = overloadMirror != null && overloadMirror.Contains(testRef);
                 total++;
-                if (!afterProcess && Assets.Scripts.Networking.NetworkManager.IsServer)
-                { _log?.LogInfo("[ScenarioRunner] OP P10 PASS: FaultRegistrySnapshotMessage(KindOverload).Process(0) short-circuited on host (IsServer=true); client mirror untouched."); pass++; }
+                if (!afterProcess && overloadMirror != null && Assets.Scripts.Networking.NetworkManager.IsServer)
+                { _log?.LogInfo("[ScenarioRunner] OP P10 PASS: FaultRegistrySnapshotMessage(KindDeviceOverload).Process(0) short-circuited on host (IsServer=true); client mirror untouched."); pass++; }
                 else
                 { _log?.LogError($"[ScenarioRunner] OP P10 FAIL: IsServer={Assets.Scripts.Networking.NetworkManager.IsServer} mirrorDict={overloadMirror != null} mirrorTouched={afterProcess}"); fail++; }
-                setClientOverloaded?.Invoke(null, new object[] { testRef, false });
+                overloadReplaceClient?.Invoke(null, new object[] { overloadEmptySnapshot });
 
                 _log?.LogInfo($"[ScenarioRunner] OP END pass={pass} fail={fail} total={total}");
             }

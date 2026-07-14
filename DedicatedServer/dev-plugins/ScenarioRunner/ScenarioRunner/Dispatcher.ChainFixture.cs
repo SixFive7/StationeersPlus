@@ -6,13 +6,13 @@ namespace ScenarioRunner
 {
     // Scenario: pgp-chain-fixture
     //
-    // Synthetic seven-link chain proof of PowerGridPlus's leaf-first shedding policy
+    // Synthetic seven-link chain proof of PowerGridPlus's leaf-first deprioritization policy
     // (POWER.md section 0 decision 24 stage 4) against the mod's flagship topology, driven
     // across dispatcher ticks (one fixture tick per simulation tick). The chain, linear:
     //
     //   link 1: producer net N1 (controlled head-end supply, solar-scale, GenSupply is the
     //           fixture's throttle knob)
-    //   link 2: step-up transformer L2, N1 -> N2 (StepUp flag: never sheds, section 5.2)
+    //   link 2: step-up transformer L2, N1 -> N2 (StepUp flag: never deprioritized, section 5.2)
     //   link 3: wireless transmitter/receiver pair L3, N2 -> N3. Substituted by a
     //           transformer-style hop (multiplier 1, no distance overhead): a synthetic
     //           dish pair is impractical with the fixture toolkit, and the hop-protection
@@ -21,24 +21,24 @@ namespace ScenarioRunner
     //           so its protection comes ONLY from FeedsActiveSeg.
     //   link 4: step-down transformer L4, N3 -> N4 (StepUp=false; FeedsActiveSeg-protected)
     //   link 5: battery bank net N4. The bank is soft-only storage: soft (storage charge)
-    //           never enters budgets, shed victim selection, or overload detection
+    //           never enters budgets, deprioritization victim selection, or overload detection
     //           (POWER.md section 9.6), so the rigid walk ignores it; the link exists so
     //           the trunk crosses a storage net exactly like the flagship base.
     //   link 6: step-up transformer L6, N4 -> N5 (StepUp flag)
     //   link 7: three leaf step-down transformers L7a / L7b / L7c, N5 -> N6a / N6b / N6c,
     //           each feeding a rigid 1000 W consumer, with distinct priorities
-    //           100 / 50 / 10 (lowest priority sheds first).
+    //           100 / 50 / 10 (lowest priority is deprioritized first).
     //
     // What is REAL and what is modelled. The fixture cannot spawn Things, so the chain is
     // a synthetic model, but every decision seam it exercises is the mod's own code via
     // reflection:
-    //   - Victim CHOICE per contended net per round: PowerAllocator.SelectShedVictims
-    //     (the same pure selector pgp-shed-victim-fixture drives).
+    //   - Victim CHOICE per contended net per round: PowerAllocator.SelectDeprioritizationVictims
+    //     (the same pure selector pgp-deprioritization-victim-fixture drives).
     //   - Hop protection per round: PowerAllocator.FeedsActiveSeg, invoked against
-    //     reflection-built mirror Seg/Net instances whose Locked/Shed flags track the
+    //     reflection-built mirror Seg/Net instances whose Locked/Deprioritized flags track the
     //     fixture chain (plus five one-shot predicate checks). If the mirror surface is
     //     unresolvable the fixture counts a FAIL and falls back to its own hop flags.
-    //   - Lockout semantics: the real BrownoutRegistry (NoteShed on a commit, IsLockedOut
+    //   - Lockout semantics: the real DeprioritizedRegistry (NoteDeprioritized on a commit, IsLockedOut
     //     gating the next tick, SnapshotRemaining for the countdown, the expiry boundary,
     //     ClearLockout for cleanup), keyed by the real ElectricityTickCounter.CurrentTick.
     //   - Liveness vocabulary: NetLiveness's Live / DeadUnmet / DeadNoSupply byte
@@ -46,8 +46,8 @@ namespace ScenarioRunner
     //     (Unmet > Eps -> DeadUnmet; supply present -> Live; else DeadNoSupply; the 60 s
     //     DeadUnmet hold is not modelled).
     //   The walk connecting those seams mirrors the documented allocation loop: rounds
-    //   that clear and re-decide shed flags until the shed set is stable, a backward
-    //   desire pass where a locked seg stops desiring but a merely-shed one does not, and
+    //   that clear and re-decide deprioritized flags until the deprioritized set is stable, a backward
+    //   desire pass where a locked seg stops desiring but a merely-deprioritized one does not, and
     //   a source-to-leaf forward pass granting within each net's budget.
     //
     // Tick schedule (t = fixture ticks since start) and assertions:
@@ -55,17 +55,17 @@ namespace ScenarioRunner
     //   t=1..3     PHASE A full supply (3500 W head-end, 3000 W leaf demand): P3 = no
     //              victims, no overload condition, every net Live, all leaves served.
     //   t=4..6     PHASE B zero practical load (consumers off, full supply): P4 = nothing
-    //              sheds or faults; no net ever DeadUnmet (an unloaded chain must never
+    //              deprioritizes or faults; no net ever DeadUnmet (an unloaded chain must never
     //              fault; unloaded trunk nets legitimately read DeadNoSupply).
-    //   t=7..9     PHASE C1 deficit step 1 (2600 W): P5 = exactly L7c (priority 10) sheds
+    //   t=7..9     PHASE C1 deficit step 1 (2600 W): P5 = exactly L7c (priority 10) is deprioritized
     //              on the first deficit tick and enters the real lockout; no further
     //              victims while it is locked out; N6c reads DeadUnmet, N6a/N6b stay
     //              served.
     //   t=10..12   PHASE C2 deficit step 2 (1600 W): P6 = exactly L7b (priority 50).
     //   t=13..15   PHASE C3 deficit step 3 (600 W): P7 = exactly L7a (priority 100); over
     //              the whole run no mid-chain hop (L2 / L3 / L4 / L6) ever appears as a
-    //              shed victim or in the shed registry; once every leaf is locked the
-    //              no-practical-load trunk never sheds and never reads DeadUnmet.
+    //              deprioritization victim or in the deprioritization registry; once every leaf is locked
+    //              the no-practical-load trunk never deprioritizes and never reads DeadUnmet.
     //   t=16..17   PHASE D recovery (supply restored, leaves still locked): P8 = the
     //              registry's remaining-ticks countdown decreases between consecutive
     //              ticks for every locked leaf.
@@ -83,7 +83,7 @@ namespace ScenarioRunner
     //     leafGrants=[a,b,c] verdicts=[...]
     //
     // Synthetic ReferenceIds live in a 99000001xx band no live save reaches; the only
-    // shared mutable state touched is BrownoutRegistry (synthetic refs only, cleaned on
+    // shared mutable state touched is DeprioritizedRegistry (synthetic refs only, cleaned on
     // every exit path). Managed-state reflection only; worker-safe; needs no save (run on
     // any world, including a fresh -New).
     internal static partial class Dispatcher
@@ -121,10 +121,10 @@ namespace ScenarioRunner
             public float EffCap;
             public int Priority;
             public bool StepUp;
-            public bool IsTrunkHop;         // L2 / L3 / L4 / L6: must never shed
+            public bool IsTrunkHop;         // L2 / L3 / L4 / L6: must never be deprioritized
             // per-tick / per-round state
-            public bool Locked;             // real BrownoutRegistry lockout, read at tick start
-            public bool Shed;               // re-decided per round
+            public bool Locked;             // real DeprioritizedRegistry lockout, read at tick start
+            public bool Deprioritized;               // re-decided per round
             public float DesiredPull;
             public float Throughput;
             public object MirrorSeg;        // PowerAllocator+Seg mirror (for FeedsActiveSeg)
@@ -143,14 +143,14 @@ namespace ScenarioRunner
         private static ChainSeg _cfL7a, _cfL7b, _cfL7c;
 
         // Reflection seams.
-        private static MethodInfo _cfSelect;             // PowerAllocator.SelectShedVictims
+        private static MethodInfo _cfSelect;             // PowerAllocator.SelectDeprioritizationVictims
         private static MethodInfo _cfFeedsActiveSeg;     // PowerAllocator.FeedsActiveSeg(Seg)
         private static Type _cfSegType;                  // PowerAllocator+Seg
         private static Type _cfNetType;                  // PowerAllocator+Net
-        private static MethodInfo _cfNoteShed;           // BrownoutRegistry.NoteShed(long, int)
-        private static MethodInfo _cfIsLockedOut;        // BrownoutRegistry.IsLockedOut(long, int)
-        private static MethodInfo _cfSnapshotRemaining;  // BrownoutRegistry.SnapshotRemaining(int)
-        private static MethodInfo _cfClearLockout;       // BrownoutRegistry.ClearLockout(long)
+        private static MethodInfo _cfNoteDeprioritized;           // DeprioritizedRegistry.NoteDeprioritized(long, int)
+        private static MethodInfo _cfIsLockedOut;        // DeprioritizedRegistry.IsLockedOut(long, int)
+        private static MethodInfo _cfSnapshotRemaining;  // DeprioritizedRegistry.SnapshotRemaining(int)
+        private static MethodInfo _cfClearLockout;       // DeprioritizedRegistry.ClearLockout(long)
         private static PropertyInfo _cfCurrentTick;      // ElectricityTickCounter.CurrentTick
         private static byte _cfLive = 1, _cfDeadUnmet = 2, _cfDeadNoSupply = 3;
 
@@ -227,19 +227,19 @@ namespace ScenarioRunner
         {
             var asm = GetModAssembly(PGP_ASSEMBLY);
             var allocatorType = asm?.GetType("PowerGridPlus.PowerAllocator");
-            var brownoutType = asm?.GetType("PowerGridPlus.BrownoutRegistry");
+            var deprioritizedRegistryType = asm?.GetType("PowerGridPlus.DeprioritizedRegistry");
             var tickType = asm?.GetType("PowerGridPlus.ElectricityTickCounter");
             var livenessType = asm?.GetType("PowerGridPlus.NetLiveness");
             const BindingFlags SF = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static;
 
-            _cfSelect = allocatorType?.GetMethod("SelectShedVictims", SF);
+            _cfSelect = allocatorType?.GetMethod("SelectDeprioritizationVictims", SF);
             _cfFeedsActiveSeg = allocatorType?.GetMethod("FeedsActiveSeg", SF);
             _cfSegType = asm?.GetType("PowerGridPlus.PowerAllocator+Seg");
             _cfNetType = asm?.GetType("PowerGridPlus.PowerAllocator+Net");
-            _cfNoteShed = brownoutType?.GetMethod("NoteShed", SF, null, new[] { typeof(long), typeof(int) }, null);
-            _cfIsLockedOut = brownoutType?.GetMethod("IsLockedOut", SF, null, new[] { typeof(long), typeof(int) }, null);
-            _cfSnapshotRemaining = brownoutType?.GetMethod("SnapshotRemaining", SF);
-            _cfClearLockout = brownoutType?.GetMethod("ClearLockout", SF, null, new[] { typeof(long) }, null);
+            _cfNoteDeprioritized = deprioritizedRegistryType?.GetMethod("NoteDeprioritized", SF, null, new[] { typeof(long), typeof(int) }, null);
+            _cfIsLockedOut = deprioritizedRegistryType?.GetMethod("IsLockedOut", SF, null, new[] { typeof(long), typeof(int) }, null);
+            _cfSnapshotRemaining = deprioritizedRegistryType?.GetMethod("SnapshotRemaining", SF);
+            _cfClearLockout = deprioritizedRegistryType?.GetMethod("ClearLockout", SF, null, new[] { typeof(long) }, null);
             _cfCurrentTick = tickType?.GetProperty("CurrentTick", SF);
 
             var liveField = livenessType?.GetField("Live", SF);
@@ -254,10 +254,10 @@ namespace ScenarioRunner
                 livenessOk = _cfLive != _cfDeadUnmet && _cfLive != _cfDeadNoSupply && _cfDeadUnmet != _cfDeadNoSupply;
             }
 
-            bool coreOk = _cfSelect != null && _cfNoteShed != null && _cfIsLockedOut != null
+            bool coreOk = _cfSelect != null && _cfNoteDeprioritized != null && _cfIsLockedOut != null
                           && _cfSnapshotRemaining != null && _cfClearLockout != null && _cfCurrentTick != null;
             ChainCheck("P1", coreOk && livenessOk,
-                $"stable seams resolved: SelectShedVictims={_cfSelect != null} NoteShed={_cfNoteShed != null} " +
+                $"stable seams resolved: SelectDeprioritizationVictims={_cfSelect != null} NoteDeprioritized={_cfNoteDeprioritized != null} " +
                 $"IsLockedOut={_cfIsLockedOut != null} SnapshotRemaining={_cfSnapshotRemaining != null} " +
                 $"ClearLockout={_cfClearLockout != null} CurrentTick={_cfCurrentTick != null} " +
                 $"NetLiveness(Live={_cfLive},DeadUnmet={_cfDeadUnmet},DeadNoSupply={_cfDeadNoSupply} distinct={livenessOk})");
@@ -277,15 +277,15 @@ namespace ScenarioRunner
                 "-> L2(step-up, StepUp flag) -> N2 -> L3(wireless pair SUBSTITUTED by a transformer-style hop, " +
                 "multiplier 1; FeedsActiveSeg-protected, the same mechanism a dish pair rides) -> N3 " +
                 "-> L4(step-down, FeedsActiveSeg-protected) -> N4(battery bank net; the bank is soft-only " +
-                "storage and soft never enters budgets or shed selection, so the rigid walk ignores it) " +
-                "-> L6(step-up, StepUp flag) -> N5 -> L7a(prio 100)/L7b(prio 50)/L7c(prio 10, sheds first) " +
+                "storage and soft never enters budgets or victim selection, so the rigid walk ignores it) " +
+                "-> L6(step-up, StepUp flag) -> N5 -> L7a(prio 100)/L7b(prio 50)/L7c(prio 10, deprioritized first) " +
                 $"-> N6a/N6b/N6c with {CF_LEAF_DEMAND:0} W rigid consumers each. " +
                 $"Leaf caps {CF_LEAF_CAP:0} W, trunk caps {CF_TRUNK_CAP:0} W, multiplier 1, quiescent 0.");
         }
 
         // Five one-shot checks against the real FeedsActiveSeg predicate with mirror
         // Seg/Net instances: a hop is protected while any OTHER consumer of its output net
-        // is active; Shed / Locked / Overloaded children do not protect; the hop itself in
+        // is active; Deprioritized / Locked / Overloaded children do not protect; the hop itself in
         // the list is skipped by the ReferenceEquals guard.
         private static void ChainFixture_CheckFeedsActiveSegPredicate()
         {
@@ -309,10 +309,10 @@ namespace ScenarioRunner
                 bool r1 = ChainFixture_InvokeFeedsActiveSeg(hop);
                 ChainCheck("P2a", r1, $"hop with one active child on its output net is protected (got {r1}).");
 
-                ChainFixture_SetMirror(child, "Shed", true);
+                ChainFixture_SetMirror(child, "Deprioritized", true);
                 bool r2 = ChainFixture_InvokeFeedsActiveSeg(hop);
-                ChainCheck("P2b", !r2, $"a Shed child does not protect the hop (got {r2}).");
-                ChainFixture_SetMirror(child, "Shed", false);
+                ChainCheck("P2b", !r2, $"a Deprioritized child does not protect the hop (got {r2}).");
+                ChainFixture_SetMirror(child, "Deprioritized", false);
 
                 ChainFixture_SetMirror(child, "Locked", true);
                 bool r3 = ChainFixture_InvokeFeedsActiveSeg(hop);
@@ -450,7 +450,7 @@ namespace ScenarioRunner
             // Fallback: the fixture's own hop computation (any other ACTIVE consumer on
             // the seg's output net; matches the predicate semantics checked in P2a-P2e).
             foreach (var child in seg.Out.Consumers)
-                if (!ReferenceEquals(child, seg) && !child.Locked && !child.Shed) return true;
+                if (!ReferenceEquals(child, seg) && !child.Locked && !child.Deprioritized) return true;
             return false;
         }
 
@@ -461,7 +461,7 @@ namespace ScenarioRunner
             {
                 if (s.MirrorSeg == null) continue;
                 ChainFixture_SetMirror(s.MirrorSeg, "Locked", s.Locked);
-                ChainFixture_SetMirror(s.MirrorSeg, "Shed", s.Shed);
+                ChainFixture_SetMirror(s.MirrorSeg, "Deprioritized", s.Deprioritized);
             }
         }
 
@@ -480,15 +480,15 @@ namespace ScenarioRunner
             foreach (var s in _cfSegs)
                 s.Locked = _cfIsLockedOut.Invoke(null, new object[] { s.RefId, tickNow }) is bool b && b;
 
-            // Deciding rounds: clear shed, desire, forward grant + shed, until stable.
+            // Deciding rounds: clear deprioritized flags, desire, forward grant + deprioritize, until stable.
             int maxRounds = 2 * _cfSegs.Count + 4;
-            HashSet<long> prevShed = null;
+            HashSet<long> prevDeprioritized = null;
             for (int round = 0; round < maxRounds; round++)
             {
-                foreach (var s in _cfSegs) s.Shed = false;
+                foreach (var s in _cfSegs) s.Deprioritized = false;
 
                 // Backward desire pass (leaf -> source). A LOCKED seg stops desiring; a
-                // merely-shed one does not (DesireActive semantics), which is why the
+                // merely-deprioritized one does not (DesireActive semantics), which is why the
                 // deciding rounds stay re-decidable.
                 for (int ni = _cfNets.Count - 1; ni >= 0; ni--)
                 {
@@ -502,13 +502,13 @@ namespace ScenarioRunner
 
                 ChainFixture_SyncMirrors();
 
-                // Forward pass (source -> leaf): budget, shed decision via the REAL
+                // Forward pass (source -> leaf): budget, deprioritization decision via the REAL
                 // selector with hop protection, then sequential grants.
                 foreach (var n in _cfNets)
                 {
                     float firmIn = n.GenSupply;
                     foreach (var s in n.Suppliers)
-                        if (!s.Locked && !s.Shed) firmIn += s.Throughput;
+                        if (!s.Locked && !s.Deprioritized) firmIn += s.Throughput;
                     n.FirmIn = firmIn;
 
                     float budget = firmIn - n.RigidDemand;
@@ -518,18 +518,18 @@ namespace ScenarioRunner
                     {
                         float claims = 0f;
                         foreach (var c in n.Consumers)
-                            if (!c.Locked && !c.Shed) claims += c.DesiredPull;
+                            if (!c.Locked && !c.Deprioritized) claims += c.DesiredPull;
                         if (claims > budget + CF_EPS)
                         {
                             var candidates = new List<(long, int, float, bool)>();
                             foreach (var c in n.Consumers)
-                                if (!c.Locked && !c.Shed)
+                                if (!c.Locked && !c.Deprioritized)
                                     candidates.Add((c.RefId, c.Priority, c.DesiredPull, ChainFixture_HopProtected(c)));
                             var victims = (List<long>)_cfSelect.Invoke(null, new object[] { candidates, claims - budget });
                             foreach (long refId in victims)
                             {
                                 foreach (var c in n.Consumers)
-                                    if (c.RefId == refId) { c.Shed = true; break; }
+                                    if (c.RefId == refId) { c.Deprioritized = true; break; }
                             }
                         }
                     }
@@ -537,7 +537,7 @@ namespace ScenarioRunner
                     float remaining = budget;
                     foreach (var c in n.Consumers)
                     {
-                        if (c.Locked || c.Shed) { c.Throughput = 0f; continue; }
+                        if (c.Locked || c.Deprioritized) { c.Throughput = 0f; continue; }
                         float grant = Math.Min(c.DesiredPull, remaining);
                         if (grant < 0f) grant = 0f;
                         c.Throughput = grant;
@@ -546,31 +546,31 @@ namespace ScenarioRunner
 
                     float activeWant = n.RigidDemand;
                     foreach (var c in n.Consumers)
-                        if (!c.Locked && !c.Shed) activeWant += c.DesiredPull;
+                        if (!c.Locked && !c.Deprioritized) activeWant += c.DesiredPull;
                     n.Unmet = Math.Max(0f, activeWant - firmIn);
                 }
 
-                var curShed = new HashSet<long>();
-                foreach (var s in _cfSegs) if (s.Shed) curShed.Add(s.RefId);
-                if (prevShed != null && curShed.SetEquals(prevShed)) break;
-                prevShed = curShed;
+                var curDeprioritized = new HashSet<long>();
+                foreach (var s in _cfSegs) if (s.Deprioritized) curDeprioritized.Add(s.RefId);
+                if (prevDeprioritized != null && curDeprioritized.SetEquals(prevDeprioritized)) break;
+                prevDeprioritized = curDeprioritized;
             }
 
             // Overload condition (POWER.md section 8.4 structural shape): a seg pushing at
             // its capacity with unmet downstream rigid demand. Caps are generous, so any
             // hit is a fixture-visible fault.
             foreach (var s in _cfSegs)
-                if (!s.Locked && !s.Shed && s.DesiredPull >= s.EffCap - CF_EPS && s.Out.Unmet > CF_EPS)
+                if (!s.Locked && !s.Deprioritized && s.DesiredPull >= s.EffCap - CF_EPS && s.Out.Unmet > CF_EPS)
                     _cfOverloadHits++;
 
-            // Commit new sheds into the REAL registry (mirrors the RunAtomic tail).
+            // Commit new deprioritizations into the REAL registry (mirrors the RunAtomic tail).
             foreach (var s in _cfSegs)
             {
-                if (s.Locked || !s.Shed) continue;
-                _cfNoteShed.Invoke(null, new object[] { s.RefId, tickNow });
+                if (s.Locked || !s.Deprioritized) continue;
+                _cfNoteDeprioritized.Invoke(null, new object[] { s.RefId, tickNow });
                 _cfTickVictims.Add(s.RefId);
                 _cfAllVictims.Add(s.RefId);
-                _log?.LogInfo($"[ScenarioRunner] CHAIN shed event t={_cfTick} phase={phase} victim={s.Name} ref={s.RefId} priority={s.Priority} (round-decided, committed to BrownoutRegistry)");
+                _log?.LogInfo($"[ScenarioRunner] CHAIN deprioritization event t={_cfTick} phase={phase} victim={s.Name} ref={s.RefId} priority={s.Priority} (round-decided, committed to DeprioritizedRegistry)");
             }
 
             // Liveness verdicts (NetLiveness formula, fixture-evaluated with the mod's
@@ -636,7 +636,7 @@ namespace ScenarioRunner
             // Victims recorded during this 3-tick phase window (slice of the cumulative
             // list from the phase-start index): exactly the expected leaf, once, and the
             // settled last tick is quiet (the victim is locked out, its desire excluded,
-            // so the survivors fit the throttled budget with no further shedding).
+            // so the survivors fit the throttled budget with no further deprioritization).
             int windowCount = _cfAllVictims.Count - _cfPhaseVictimStart;
             bool exactlyExpected = windowCount == 1
                 && _cfAllVictims[_cfPhaseVictimStart] == expectedVictim.RefId;
@@ -662,7 +662,7 @@ namespace ScenarioRunner
             int windowCount = _cfAllVictims.Count - _cfPhaseVictimStart;
             bool aSeen = windowCount == 1 && _cfAllVictims[_cfPhaseVictimStart] == _cfL7a.RefId;
 
-            // Cumulative: no mid-chain hop ever shed (fixture walk) nor locked out (real
+            // Cumulative: no mid-chain hop ever deprioritized (fixture walk) nor locked out (real
             // registry), across every phase so far.
             bool hopVictim = false;
             foreach (long v in _cfAllVictims)
@@ -674,7 +674,7 @@ namespace ScenarioRunner
                 if (s.IsTrunkHop && _cfIsLockedOut.Invoke(null, new object[] { s.RefId, tickNow }) is bool b && b)
                     hopLocked = true;
 
-            // With every leaf locked the trunk carries no practical load: it must not shed
+            // With every leaf locked the trunk carries no practical load: it must not deprioritize
             // and must not read DeadUnmet (Live at the producer, DeadNoSupply downstream).
             bool trunkUnmet = false;
             foreach (var n in _cfNets)
@@ -682,9 +682,9 @@ namespace ScenarioRunner
                     trunkUnmet = true;
 
             ChainCheck("P7", aSeen && !hopVictim && !hopLocked && !trunkUnmet && _cfTickVictims.Count == 0 && _cfOverloadHits == 0,
-                $"C3 deficit + aftermath: exactly {_cfL7a.Name} shed in the window (windowVictims={windowCount}, match={aSeen}); across ALL phases no mid-chain hop was a shed victim " +
-                $"(hopVictim={hopVictim}) or entered the shed registry (hopLocked={hopLocked}); with every leaf locked the " +
-                $"no-practical-load trunk never reads DeadUnmet ({!trunkUnmet}) and stays shed-free (quiet={_cfTickVictims.Count == 0}); " +
+                $"C3 deficit + aftermath: exactly {_cfL7a.Name} deprioritized in the window (windowVictims={windowCount}, match={aSeen}); across ALL phases no mid-chain hop was a deprioritization victim " +
+                $"(hopVictim={hopVictim}) or entered the deprioritization registry (hopLocked={hopLocked}); with every leaf locked the " +
+                $"no-practical-load trunk never reads DeadUnmet ({!trunkUnmet}) and stays deprioritization-free (quiet={_cfTickVictims.Count == 0}); " +
                 $"overloadHits={_cfOverloadHits} (expect 0).");
         }
 
@@ -697,7 +697,16 @@ namespace ScenarioRunner
                 foreach (var item in snap)
                 {
                     if (item is KeyValuePair<long, int> pair)
-                        result[pair.Key] = pair.Value;
+                    { result[pair.Key] = pair.Value; continue; }
+                    // DeprioritizedRegistry.SnapshotRemaining now yields the hover-payload tuple
+                    // (long refId, int remainingTicks, float needsW, float upstreamDemandW,
+                    // float upstreamSupplyW); the countdown assert only needs the first two.
+                    var itemType = item?.GetType();
+                    var refField = itemType?.GetField("Item1");
+                    var ticksField = itemType?.GetField("Item2");
+                    if (refField != null && ticksField != null
+                        && refField.FieldType == typeof(long) && ticksField.FieldType == typeof(int))
+                        result[(long)refField.GetValue(item)] = (int)ticksField.GetValue(item);
                 }
             }
             return result;
@@ -732,7 +741,7 @@ namespace ScenarioRunner
         {
             // Probe each leaf's expiry with a FUTURE tick argument: locked at (until - 1),
             // released AT until. The released probe also self-cleans the registry entry,
-            // which is exactly the state t=19 needs (un-shed without waiting 60 seconds).
+            // which is exactly the state t=19 needs (released without waiting 60 seconds).
             var remaining = ChainFixture_ReadRemaining();
             int tickNow = ChainFixture_RealTick();
             bool ok = true;

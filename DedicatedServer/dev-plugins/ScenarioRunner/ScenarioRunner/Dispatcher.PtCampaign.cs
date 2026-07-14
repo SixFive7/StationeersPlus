@@ -19,14 +19,14 @@ namespace ScenarioRunner
     //   - pgp-pt-hover-all   : fault hover line content, exact hex colors, the
     //                          per-device-type OVERLOAD clause (P4), the dead-input
     //                          cue (P7), the throttle hover (P13), precedence order.
-    //   - pgp-pt-flash-all   : BrownoutFlashBehaviour attach coverage across every
+    //   - pgp-pt-flash-all   : FaultFlashBehaviour attach coverage across every
     //                          device class, the renamed Orange/Red color constants,
     //                          and which classes are hover-only (no flash renderer).
-    //   - pgp-pt-logic-all   : the custom LogicType reads (Priority/Shedding/
-    //                          Overloaded/CycleFault/VariableVoltageFault on the
+    //   - pgp-pt-logic-all   : the custom LogicType reads (Priority/Deprioritization/
+    //                          Overloaded/CycleFault/CurrentMismatchFault on the
     //                          right devices, MaxCharge/MaxDischarge/Charge/Discharge
     //                          speed on batteries + APCs), incl. P9 (APC DischargeSpeed
-    //                          is cell-only) and P10 (VVF exposed on producers, not
+    //                          is cell-only) and P10 (CURRENT-MISMATCH exposed on producers, not
     //                          leaked onto non-producers).
     //   - pgp-pt-onoff-table : HasOnOffState per producer + DynamicGenerator (P12).
     //   - pgp-pt-synthetic-all : runs all four in one -Start cycle.
@@ -72,15 +72,21 @@ namespace ScenarioRunner
         private static readonly Type[] _sigLongInt = { typeof(long), typeof(int) };
         private static readonly Type[] _sigLong = { typeof(long) };
         private static readonly Type[] _sigLongFloat = { typeof(long), typeof(float) };
+        private static readonly Type[] _sigLongIntFloatFloat = { typeof(long), typeof(int), typeof(float), typeof(float) };
 
-        private static void PgpNoteShed(Assembly asm, long r, int tick) =>
-            PgpInvokeStatic(asm, "PowerGridPlus.BrownoutRegistry", "NoteShed", _sigLongInt, new object[] { r, tick });
-        private static void PgpNoteOverload(Assembly asm, long r, int tick) =>
-            PgpInvokeStatic(asm, "PowerGridPlus.OverloadRegistry", "NoteOverload", _sigLongInt, new object[] { r, tick });
+        private static void PgpNoteDeprioritized(Assembly asm, long r, int tick) =>
+            PgpInvokeStatic(asm, "PowerGridPlus.DeprioritizedRegistry", "NoteDeprioritized", _sigLongInt, new object[] { r, tick });
+        // The overload split gave both overload registries a payload pair (valueW/flowW, capW)
+        // on the note. Synthetic notes default to 0/0, which also keeps the hover single-line
+        // (the watt diagnostics line renders only for a non-zero payload).
+        private static void PgpNoteOverload(Assembly asm, long r, int tick, float valueW = 0f, float capW = 0f) =>
+            PgpInvokeStatic(asm, "PowerGridPlus.OverloadRegistry", "NoteOverload", _sigLongIntFloatFloat, new object[] { r, tick, valueW, capW });
+        private static void PgpNoteCableOverload(Assembly asm, long r, int tick, float flowW = 0f, float capW = 0f) =>
+            PgpInvokeStatic(asm, "PowerGridPlus.CableOverloadRegistry", "NoteCableOverload", _sigLongIntFloatFloat, new object[] { r, tick, flowW, capW });
         private static void PgpNoteCycle(Assembly asm, long r, int tick) =>
             PgpInvokeStatic(asm, "PowerGridPlus.CycleFaultRegistry", "NoteCycleFault", _sigLongInt, new object[] { r, tick });
         private static void PgpNoteVvf(Assembly asm, long r, int tick, string violators) =>
-            PgpInvokeStatic(asm, "PowerGridPlus.VariableVoltageFaultRegistry", "NoteVariableVoltageFault",
+            PgpInvokeStatic(asm, "PowerGridPlus.CurrentMismatchFaultRegistry", "NoteCurrentMismatchFault",
                 new[] { typeof(long), typeof(int), typeof(string) }, new object[] { r, tick, violators });
         private static void PgpMarkDeadInput(Assembly asm, long r) =>
             PgpInvokeStatic(asm, "PowerGridPlus.DeadInputRegistry", "MarkDeadInput", _sigLong, new object[] { r });
@@ -104,8 +110,9 @@ namespace ScenarioRunner
         {
             foreach (var tn in new[]
             {
-                "PowerGridPlus.BrownoutRegistry", "PowerGridPlus.OverloadRegistry",
-                "PowerGridPlus.CycleFaultRegistry", "PowerGridPlus.VariableVoltageFaultRegistry",
+                "PowerGridPlus.DeprioritizedRegistry", "PowerGridPlus.OverloadRegistry",
+                "PowerGridPlus.CableOverloadRegistry",
+                "PowerGridPlus.CycleFaultRegistry", "PowerGridPlus.CurrentMismatchFaultRegistry",
                 "PowerGridPlus.DeadInputRegistry"
             })
                 PgpInvokeStatic(asm, tn, "ClearAll", Type.EmptyTypes, null);
@@ -221,17 +228,20 @@ namespace ScenarioRunner
                 PgpClearAllFaults(asm);
                 int tick = PgpTick(asm);
 
-                // ---- P4: per-device-type OVERLOAD clause ----
-                // (type name -> expected device-specific clause substring)
+                // ---- P4: per-device-type OVERLOAD wording ----
+                // (type name -> expected title). The locked template substitutes the hovered
+                // device's own label into the DeviceOverloadedFault title: Transformer / Link
+                // (the wireless pair) / Battery / APC / Umbilical overloaded fault. Cable-overload
+                // wording is covered by pgp-overload-split-fixture (P4b), not here.
                 var overloadCases = new (string find, string label, string clause)[]
                 {
-                    ("Transformer", "Transformer", "this transformer's limit"),
-                    ("Battery", "Battery", "this battery's discharge rate"),
-                    ("AreaPowerControl", "APC", "this APC's output"),
-                    ("RocketPowerUmbilicalMale", "UmbilicalMale", "this umbilical's discharge rate"),
-                    ("RocketPowerUmbilicalFemale", "UmbilicalFemale", "this umbilical's discharge rate"),
-                    ("PowerTransmitter", "PowerTransmitter", "this power link cannot carry"),
-                    ("PowerReceiver", "PowerReceiver", "this power link cannot carry"),
+                    ("Transformer", "Transformer", "Transformer overloaded fault:"),
+                    ("Battery", "Battery", "Battery overloaded fault:"),
+                    ("AreaPowerControl", "APC", "APC overloaded fault:"),
+                    ("RocketPowerUmbilicalMale", "UmbilicalMale", "Umbilical overloaded fault:"),
+                    ("RocketPowerUmbilicalFemale", "UmbilicalFemale", "Umbilical overloaded fault:"),
+                    ("PowerTransmitter", "PowerTransmitter", "Link overloaded fault:"),
+                    ("PowerReceiver", "PowerReceiver", "Link overloaded fault:"),
                 };
                 foreach (var c in overloadCases)
                 {
@@ -243,53 +253,56 @@ namespace ScenarioRunner
                     string ext = Hover(th);
                     if (HoverThrew(ext)) { _log?.LogInfo($"[ScenarioRunner] PTHOVER P4 {c.label} NOTE: GetPassiveTooltip threw on worker ({ext}); hover content is client-residue for this class. ref={th.ReferenceId}"); note++; continue; }
                     bool red = ext.IndexOf("#ff2626", StringComparison.OrdinalIgnoreCase) >= 0;
-                    bool over = ext.IndexOf("Overloaded:", StringComparison.OrdinalIgnoreCase) >= 0;
                     bool clause = ext.IndexOf(c.clause, StringComparison.OrdinalIgnoreCase) >= 0;
                     total++;
-                    if (red && over && clause) { _log?.LogInfo($"[ScenarioRunner] PTHOVER P4 {c.label} PASS: overload hover names \"{c.clause}\" in red. ref={th.ReferenceId} ({th.GetType().Name})"); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTHOVER P4 {c.label} FAIL: red={red} overloaded={over} clause={clause}. ref={th.ReferenceId} ext={Truncate(ext, 260)}"); fail++; }
+                    if (red && clause) { _log?.LogInfo($"[ScenarioRunner] PTHOVER P4 {c.label} PASS: overload hover titles \"{c.clause}\" in red. ref={th.ReferenceId} ({th.GetType().Name})"); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTHOVER P4 {c.label} FAIL: red={red} clause={clause}. ref={th.ReferenceId} ext={Truncate(ext, 260)}"); fail++; }
                 }
                 PgpClearAllFaults(asm);
 
-                // ---- SHED string + orange ----
+                // ---- DEPRIORITIZED title (red; orange is flash-only under the locked template) ----
                 var xf = FirstThingAssignableTo("Transformer");
                 if (xf != null)
                 {
                     PgpClearAllFaults(asm);
-                    PgpNoteShed(asm, xf.ReferenceId, tick);
+                    PgpNoteDeprioritized(asm, xf.ReferenceId, tick);
                     string ext = Hover(xf);
                     total++;
-                    if (!HoverThrew(ext) && ext.Contains("#ffa500") && ext.IndexOf("Shedding: Insufficient upstream supply!", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { _log?.LogInfo("[ScenarioRunner] PTHOVER SHED PASS: orange + 'Shedding: Insufficient upstream supply!'"); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTHOVER SHED FAIL: ext={Truncate(ext, 220)}"); fail++; }
+                    if (!HoverThrew(ext) && ext.Contains("#ff2626") && !ext.Contains("#ffa500")
+                        && ext.IndexOf("Deprioritized fault:", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { _log?.LogInfo("[ScenarioRunner] PTHOVER DEPRIORITIZED PASS: red 'Deprioritized fault:' title, no hover orange (orange is flash-only)."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTHOVER DEPRIORITIZED FAIL: ext={Truncate(ext, 220)}"); fail++; }
 
-                    // ---- CYCLE string + red ----
+                    // ---- CYCLE title + loop clause ----
                     PgpClearAllFaults(asm);
                     PgpNoteCycle(asm, xf.ReferenceId, tick);
                     ext = Hover(xf);
                     total++;
-                    if (!HoverThrew(ext) && ext.Contains("#ff2626") && ext.IndexOf("Cycle Fault: This device is part of a loop!", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { _log?.LogInfo("[ScenarioRunner] PTHOVER CYCLE PASS: red + 'Cycle Fault: This device is part of a loop!'"); pass++; }
+                    if (!HoverThrew(ext) && ext.Contains("#ff2626")
+                        && ext.IndexOf("Cycle fault:", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("part of a power loop", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { _log?.LogInfo("[ScenarioRunner] PTHOVER CYCLE PASS: red 'Cycle fault:' title + 'This device is part of a power loop'."); pass++; }
                     else { _log?.LogError($"[ScenarioRunner] PTHOVER CYCLE FAIL: ext={Truncate(ext, 220)}"); fail++; }
 
-                    // ---- precedence: all four faults -> CYCLE wins (highest) ----
+                    // ---- precedence: all five faults -> CYCLE wins (highest) ----
                     PgpClearAllFaults(asm);
-                    PgpNoteShed(asm, xf.ReferenceId, tick);
+                    PgpNoteDeprioritized(asm, xf.ReferenceId, tick);
                     PgpNoteOverload(asm, xf.ReferenceId, tick);
+                    PgpNoteCableOverload(asm, xf.ReferenceId, tick);
                     PgpNoteCycle(asm, xf.ReferenceId, tick);
                     PgpNoteVvf(asm, xf.ReferenceId, tick, "TestConsumer");
                     ext = Hover(xf);
                     total++;
                     bool cycleWins = !HoverThrew(ext)
-                        && ext.IndexOf("Cycle Fault", StringComparison.OrdinalIgnoreCase) >= 0
-                        && ext.IndexOf("Shedding", StringComparison.OrdinalIgnoreCase) < 0
-                        && ext.IndexOf("Overloaded", StringComparison.OrdinalIgnoreCase) < 0;
-                    if (cycleWins) { _log?.LogInfo("[ScenarioRunner] PTHOVER PRECEDENCE PASS: all 4 faults active -> only the Cycle Fault line shows (CYCLE > VVF > OVERLOAD > SHED)."); pass++; }
+                        && ext.IndexOf("Cycle fault", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("Deprioritized fault", StringComparison.OrdinalIgnoreCase) < 0
+                        && ext.IndexOf("overloaded fault", StringComparison.OrdinalIgnoreCase) < 0;
+                    if (cycleWins) { _log?.LogInfo("[ScenarioRunner] PTHOVER PRECEDENCE PASS: all 5 faults active -> only the Cycle Fault line shows (CYCLE > CURRENT-MISMATCH > CABLE-OVERLOADED > DEVICE-OVERLOADED > DEPRIORITIZED)."); pass++; }
                     else { _log?.LogError($"[ScenarioRunner] PTHOVER PRECEDENCE FAIL: ext={Truncate(ext, 260)}"); fail++; }
                     PgpClearAllFaults(asm);
                 }
 
-                // ---- VVF string (read a real faulted producer if present, else force) ----
+                // ---- CURRENT-MISMATCH string (read a real faulted producer if present, else force) ----
                 var solar = FirstThing("SolarPanel");
                 if (solar != null)
                 {
@@ -297,10 +310,10 @@ namespace ScenarioRunner
                     PgpNoteVvf(asm, solar.ReferenceId, tick, "a consumer");
                     string ext = Hover(solar);
                     total++;
-                    if (!HoverThrew(ext) && ext.Contains("#ff2626") && ext.IndexOf("Variable Voltage Fault", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf("without transformer", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { _log?.LogInfo($"[ScenarioRunner] PTHOVER VVF PASS: live solar VVF hover red + 'Variable Voltage Fault...without transformer'. ref={solar.ReferenceId}"); pass++; }
-                    else if (HoverThrew(ext)) { _log?.LogInfo($"[ScenarioRunner] PTHOVER VVF NOTE: solar GetPassiveTooltip threw on worker ({ext}); client-residue. ref={solar.ReferenceId}"); note++; total--; }
-                    else { _log?.LogError($"[ScenarioRunner] PTHOVER VVF FAIL: ext={Truncate(ext, 260)}"); fail++; }
+                    if (!HoverThrew(ext) && ext.Contains("#ff2626") && ext.IndexOf("Current mismatch fault", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf("cannot feed the AC grid", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { _log?.LogInfo($"[ScenarioRunner] PTHOVER CURRENT-MISMATCH PASS: live solar hover red + 'Current mismatch fault' + 'Generator DC cannot feed the AC grid without a transformer'. ref={solar.ReferenceId}"); pass++; }
+                    else if (HoverThrew(ext)) { _log?.LogInfo($"[ScenarioRunner] PTHOVER CURRENT-MISMATCH NOTE: solar GetPassiveTooltip threw on worker ({ext}); client-residue. ref={solar.ReferenceId}"); note++; total--; }
+                    else { _log?.LogError($"[ScenarioRunner] PTHOVER CURRENT-MISMATCH FAIL: ext={Truncate(ext, 260)}"); fail++; }
                 }
 
                 // ---- P7: dead-input cue (grey, no countdown, no flash color) ----
@@ -311,9 +324,10 @@ namespace ScenarioRunner
                     string ext = Hover(xf);
                     total++;
                     bool grey = !HoverThrew(ext) && ext.Contains("#9aa0a6");
-                    bool cue = !HoverThrew(ext) && ext.IndexOf("No upstream supply", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool cue = !HoverThrew(ext) && ext.IndexOf("No upstream supply", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("carries no power", StringComparison.OrdinalIgnoreCase) >= 0;
                     bool noFlashColor = !HoverThrew(ext) && !ext.Contains("#ff2626") && !ext.Contains("#ffa500");
-                    if (grey && cue && noFlashColor) { _log?.LogInfo("[ScenarioRunner] PTHOVER P7 PASS: dead-input shows grey '(No upstream supply)' with no fault color/countdown."); pass++; }
+                    if (grey && cue && noFlashColor) { _log?.LogInfo("[ScenarioRunner] PTHOVER P7 PASS: dead-input shows the grey 'No upstream supply' block with no fault color/countdown."); pass++; }
                     else { _log?.LogError($"[ScenarioRunner] PTHOVER P7 FAIL: grey={grey} cue={cue} noFlashColor={noFlashColor} ext={Truncate(ext, 220)}"); fail++; }
 
                     // P7 precedence: a real fault wins over the dead-input cue.
@@ -321,7 +335,7 @@ namespace ScenarioRunner
                     ext = Hover(xf);
                     total++;
                     bool faultWins = !HoverThrew(ext)
-                        && ext.IndexOf("Overloaded", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("overloaded fault", StringComparison.OrdinalIgnoreCase) >= 0
                         && ext.IndexOf("No upstream supply", StringComparison.OrdinalIgnoreCase) < 0;
                     if (faultWins) { _log?.LogInfo("[ScenarioRunner] PTHOVER P7-prec PASS: a real fault (overload) takes precedence over the dead-input cue."); pass++; }
                     else { _log?.LogError($"[ScenarioRunner] PTHOVER P7-prec FAIL: ext={Truncate(ext, 220)}"); fail++; }
@@ -346,8 +360,10 @@ namespace ScenarioRunner
                         t.Setting = Math.Max(0.0, t.OutputMaximum - 2000.0);
                         string ext = Hover(t);
                         total++;
-                        if (!HoverThrew(ext) && ext.Contains("#d9a441") && ext.IndexOf("Throttled to", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf("The dial sets priority", StringComparison.OrdinalIgnoreCase) >= 0)
-                        { _log?.LogInfo($"[ScenarioRunner] PTHOVER P13 PASS (synthetic Setting): amber throttle line shown. ref={t.ReferenceId}"); pass++; }
+                        if (!HoverThrew(ext) && ext.Contains("#d9a441") && ext.IndexOf("Throttled", StringComparison.OrdinalIgnoreCase) >= 0
+                            && ext.IndexOf("Limited to", StringComparison.OrdinalIgnoreCase) >= 0
+                            && ext.IndexOf("The dial sets priority instead of power", StringComparison.OrdinalIgnoreCase) >= 0)
+                        { _log?.LogInfo($"[ScenarioRunner] PTHOVER P13 PASS (synthetic Setting): amber Throttled block with 'Limited to' + dial note shown. ref={t.ReferenceId}"); pass++; }
                         else { _log?.LogError($"[ScenarioRunner] PTHOVER P13 FAIL: ext={Truncate(ext, 260)}"); fail++; }
                         t.Setting = saved;
                     }
@@ -356,18 +372,23 @@ namespace ScenarioRunner
                 {
                     string ext = Hover(throttled);
                     total++;
-                    if (!HoverThrew(ext) && ext.Contains("#d9a441") && ext.IndexOf("Throttled to", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf("The dial sets priority", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { _log?.LogInfo($"[ScenarioRunner] PTHOVER P13 PASS (saved Setting={((Transformer)throttled).Setting:0}/{((Transformer)throttled).OutputMaximum:0}): amber throttle line shown. ref={throttled.ReferenceId}"); pass++; }
+                    if (!HoverThrew(ext) && ext.Contains("#d9a441") && ext.IndexOf("Throttled", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("Limited to", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("The dial sets priority instead of power", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { _log?.LogInfo($"[ScenarioRunner] PTHOVER P13 PASS (saved Setting={((Transformer)throttled).Setting:0}/{((Transformer)throttled).OutputMaximum:0}): amber Throttled block shown. ref={throttled.ReferenceId}"); pass++; }
                     else { _log?.LogError($"[ScenarioRunner] PTHOVER P13 FAIL: ext={Truncate(ext, 260)}"); fail++; }
 
-                    // P13 stacks below a fault: force overload on the throttled transformer -> both lines.
+                    // P13 precedence (locked template: ONE block per hover, faults outrank the
+                    // throttle note): force overload on the throttled transformer -> only the
+                    // overload block shows, the amber Throttled block is suppressed.
                     PgpClearAllFaults(asm);
                     PgpNoteOverload(asm, throttled.ReferenceId, tick);
                     ext = Hover(throttled);
                     total++;
-                    if (!HoverThrew(ext) && ext.IndexOf("Overloaded", StringComparison.OrdinalIgnoreCase) >= 0 && ext.IndexOf("Throttled to", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { _log?.LogInfo("[ScenarioRunner] PTHOVER P13-stack PASS: overloaded + throttled transformer shows BOTH the red overload line and the amber throttle line."); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTHOVER P13-stack FAIL: ext={Truncate(ext, 260)}"); fail++; }
+                    if (!HoverThrew(ext) && ext.IndexOf("overloaded fault", StringComparison.OrdinalIgnoreCase) >= 0
+                        && ext.IndexOf("Limited to", StringComparison.OrdinalIgnoreCase) < 0)
+                    { _log?.LogInfo("[ScenarioRunner] PTHOVER P13-prec PASS: overloaded + throttled transformer shows ONLY the red overload block (throttle note suppressed by precedence)."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTHOVER P13-prec FAIL: ext={Truncate(ext, 260)}"); fail++; }
                     PgpClearAllFaults(asm);
                 }
 
@@ -382,7 +403,7 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // pgp-pt-flash-all  (BrownoutFlashBehaviour attach coverage)
+        // pgp-pt-flash-all  (FaultFlashBehaviour attach coverage)
         // ============================================================
         private static bool _ptFlashFired;
 
@@ -397,8 +418,8 @@ namespace ScenarioRunner
             _log?.LogInfo("[ScenarioRunner] PTFLASH START");
             try
             {
-                var flashType = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
-                if (flashType == null) { _log?.LogError("[ScenarioRunner] PTFLASH FAIL: BrownoutFlashBehaviour type not found."); return; }
+                var flashType = asm.GetType("PowerGridPlus.FaultFlashBehaviour");
+                if (flashType == null) { _log?.LogError("[ScenarioRunner] PTFLASH FAIL: FaultFlashBehaviour type not found."); return; }
 
                 // ---- color constants (renamed Orange/Red in the P5/P6 rework) ----
                 Color orange = ReadColorField(flashType, "OrangeFlashColor");
@@ -406,11 +427,11 @@ namespace ScenarioRunner
                 float hz = ReadFloatField(flashType, "FlashHz");
                 total++;
                 if (Math.Abs(orange.r - 1f) < 0.02f && orange.g >= 0.4f && orange.g <= 0.7f && orange.b < 0.02f)
-                { _log?.LogInfo($"[ScenarioRunner] PTFLASH ORANGE PASS: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) (#ffa500 band, SHED)."); pass++; }
+                { _log?.LogInfo($"[ScenarioRunner] PTFLASH ORANGE PASS: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2}) (#ffa500 band, DEPRIORITIZED)."); pass++; }
                 else { _log?.LogError($"[ScenarioRunner] PTFLASH ORANGE FAIL: OrangeFlashColor=({orange.r:F2},{orange.g:F2},{orange.b:F2})."); fail++; }
                 total++;
                 if (Math.Abs(red.r - 1f) < 0.02f && red.g < 0.3f && red.b < 0.3f)
-                { _log?.LogInfo($"[ScenarioRunner] PTFLASH RED PASS: RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) (#ff2626 band, OVERLOAD/CYCLE/VVF)."); pass++; }
+                { _log?.LogInfo($"[ScenarioRunner] PTFLASH RED PASS: RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2}) (#ff2626 band, OVERLOAD/CYCLE/CURRENT-MISMATCH)."); pass++; }
                 else { _log?.LogError($"[ScenarioRunner] PTFLASH RED FAIL: RedFlashColor=({red.r:F2},{red.g:F2},{red.b:F2})."); fail++; }
                 total++;
                 if (Math.Abs(hz - 2f) < 0.01f) { _log?.LogInfo($"[ScenarioRunner] PTFLASH HZ PASS: FlashHz={hz}."); pass++; }
@@ -438,7 +459,7 @@ namespace ScenarioRunner
                         else { _log?.LogInfo($"[ScenarioRunner] PTFLASH attach {cn} PASS*: component attached but 0 renderers (flash will NOT visibly render on this prefab; hover still works). ref={th.ReferenceId} -- known gap, surface in residue."); }
                         pass++;
                     }
-                    else { _log?.LogError($"[ScenarioRunner] PTFLASH attach {cn} FAIL: no BrownoutFlashBehaviour component. ref={th.ReferenceId}"); fail++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFLASH attach {cn} FAIL: no FaultFlashBehaviour component. ref={th.ReferenceId}"); fail++; }
                 }
 
                 // ---- classes that should be hover-only (NO flash component) ----
@@ -454,7 +475,7 @@ namespace ScenarioRunner
                     try { beh = th.GetComponent(flashType); } catch { }
                     total++;
                     if (beh == null) { _log?.LogInfo($"[ScenarioRunner] PTFLASH hover-only {cn} PASS: no flash component (hover-only by design). ref={th.ReferenceId}"); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTFLASH hover-only {cn} FAIL: unexpectedly has BrownoutFlashBehaviour. ref={th.ReferenceId}"); fail++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFLASH hover-only {cn} FAIL: unexpectedly has FaultFlashBehaviour. ref={th.ReferenceId}"); fail++; }
                 }
 
                 _log?.LogInfo($"[ScenarioRunner] PTFLASH END pass={pass} fail={fail} note={note} total={total}");
@@ -477,7 +498,7 @@ namespace ScenarioRunner
         }
 
         // ============================================================
-        // pgp-pt-logic-all  (custom LogicType reads; P9 APC cell-only; P10 VVF)
+        // pgp-pt-logic-all  (custom LogicType reads; P9 APC cell-only; P10 CURRENT-MISMATCH)
         // ============================================================
         private static bool _ptLogicFired;
 
@@ -493,10 +514,10 @@ namespace ScenarioRunner
             try
             {
                 var Priority = PgpLogic(asm, "Priority");
-                var Shedding = PgpLogic(asm, "Shedding");
-                var Overloaded = PgpLogic(asm, "Overloaded");
+                var Deprioritization = PgpLogic(asm, "DeprioritizedFault");
+                var Overloaded = PgpLogic(asm, "DeviceOverloadedFault");
                 var CycleFault = PgpLogic(asm, "CycleFault");
-                var Vvf = PgpLogic(asm, "VariableVoltageFault");
+                var Vvf = PgpLogic(asm, "CurrentMismatchFault");
                 var MaxCharge = PgpLogic(asm, "MaxChargeSpeed");
                 var MaxDischarge = PgpLogic(asm, "MaxDischargeSpeed");
                 var ChargeSpeed = PgpLogic(asm, "ChargeSpeed");
@@ -510,20 +531,20 @@ namespace ScenarioRunner
                     PgpClearAllFaults(asm);
                     // read surface
                     total++;
-                    if (CanRead(xf, Priority) && CanWrite(xf, Priority) && CanRead(xf, Shedding) && !CanWrite(xf, Shedding))
-                    { _log?.LogInfo("[ScenarioRunner] PTLOGIC XF-surface PASS: CanRead(Priority)=T CanWrite(Priority)=T CanRead(Shedding)=T CanWrite(Shedding)=F."); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-surface FAIL: rP={CanRead(xf, Priority)} wP={CanWrite(xf, Priority)} rS={CanRead(xf, Shedding)} wS={CanWrite(xf, Shedding)}."); fail++; }
+                    if (CanRead(xf, Priority) && CanWrite(xf, Priority) && CanRead(xf, Deprioritization) && !CanWrite(xf, Deprioritization))
+                    { _log?.LogInfo("[ScenarioRunner] PTLOGIC XF-surface PASS: CanRead(Priority)=T CanWrite(Priority)=T CanRead(Deprioritization)=T CanWrite(Deprioritization)=F."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-surface FAIL: rP={CanRead(xf, Priority)} wP={CanWrite(xf, Priority)} rS={CanRead(xf, Deprioritization)} wS={CanWrite(xf, Deprioritization)}."); fail++; }
 
                     // baseline 0
                     total++;
-                    if (Math.Abs(Lv(xf, Shedding)) < 0.5 && Math.Abs(Lv(xf, Overloaded)) < 0.5 && Math.Abs(Lv(xf, CycleFault)) < 0.5)
-                    { _log?.LogInfo("[ScenarioRunner] PTLOGIC XF-baseline PASS: Shedding/Overloaded/CycleFault all read 0 with no fault."); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-baseline FAIL: S={Lv(xf, Shedding)} O={Lv(xf, Overloaded)} C={Lv(xf, CycleFault)}."); fail++; }
+                    if (Math.Abs(Lv(xf, Deprioritization)) < 0.5 && Math.Abs(Lv(xf, Overloaded)) < 0.5 && Math.Abs(Lv(xf, CycleFault)) < 0.5)
+                    { _log?.LogInfo("[ScenarioRunner] PTLOGIC XF-baseline PASS: Deprioritization/Overloaded/CycleFault all read 0 with no fault."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-baseline FAIL: S={Lv(xf, Deprioritization)} O={Lv(xf, Overloaded)} C={Lv(xf, CycleFault)}."); fail++; }
 
-                    PgpNoteShed(asm, xf.ReferenceId, tick);
+                    PgpNoteDeprioritized(asm, xf.ReferenceId, tick);
                     total++;
-                    if (Lv(xf, Shedding) >= 0.5) { _log?.LogInfo("[ScenarioRunner] PTLOGIC XF-Shedding PASS: reads 1 while shed."); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-Shedding FAIL: {Lv(xf, Shedding)}."); fail++; }
+                    if (Lv(xf, Deprioritization) >= 0.5) { _log?.LogInfo("[ScenarioRunner] PTLOGIC XF-Deprioritization PASS: reads 1 while deprioritized."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-Deprioritization FAIL: {Lv(xf, Deprioritization)}."); fail++; }
                     PgpClearAllFaults(asm);
 
                     PgpNoteOverload(asm, xf.ReferenceId, tick);
@@ -538,13 +559,13 @@ namespace ScenarioRunner
                     else { _log?.LogError($"[ScenarioRunner] PTLOGIC XF-CycleFault FAIL: {Lv(xf, CycleFault)}."); fail++; }
                     PgpClearAllFaults(asm);
 
-                    // P10 negative: VVF must NOT be readable on a transformer (non-producer).
+                    // P10 negative: CURRENT-MISMATCH must NOT be readable on a transformer (non-producer).
                     total++;
-                    if (!CanRead(xf, Vvf)) { _log?.LogInfo("[ScenarioRunner] PTLOGIC P10-neg PASS: CanRead(VariableVoltageFault) is FALSE on a transformer (not leaked onto non-producers)."); pass++; }
-                    else { _log?.LogError("[ScenarioRunner] PTLOGIC P10-neg FAIL: transformer reports CanRead(VVF)=true."); fail++; }
+                    if (!CanRead(xf, Vvf)) { _log?.LogInfo("[ScenarioRunner] PTLOGIC P10-neg PASS: CanRead(CurrentMismatchFault) is FALSE on a transformer (not leaked onto non-producers)."); pass++; }
+                    else { _log?.LogError("[ScenarioRunner] PTLOGIC P10-neg FAIL: transformer reports CanRead(CURRENT-MISMATCH)=true."); fail++; }
                 }
 
-                // ---- P10: VVF exposed on producers ----
+                // ---- P10: CURRENT-MISMATCH exposed on producers ----
                 var producerNames = new[] { "SolarPanel", "WindTurbineGenerator", "LargeWindTurbineGenerator", "TurbineGenerator", "GasFuelGenerator", "SolidFuelGenerator", "StirlingEngine", "PowerGeneratorPipe", "PowerGeneratorSlot" };
                 foreach (var pn in producerNames)
                 {
@@ -552,14 +573,14 @@ namespace ScenarioRunner
                     if (th == null) continue;
                     bool canRead = CanRead(th, Vvf);
                     total++;
-                    if (canRead) { _log?.LogInfo($"[ScenarioRunner] PTLOGIC P10 {pn} PASS: CanRead(VariableVoltageFault)=true. ref={th.ReferenceId}"); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC P10 {pn} FAIL: CanRead(VVF)=false on a producer. ref={th.ReferenceId}"); fail++; }
+                    if (canRead) { _log?.LogInfo($"[ScenarioRunner] PTLOGIC P10 {pn} PASS: CanRead(CurrentMismatchFault)=true. ref={th.ReferenceId}"); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC P10 {pn} FAIL: CanRead(CURRENT-MISMATCH)=false on a producer. ref={th.ReferenceId}"); fail++; }
 
-                    // if it's actually in VVF (force it), the value reads 1.
+                    // if it's actually in CURRENT-MISMATCH (force it), the value reads 1.
                     PgpClearAllFaults(asm);
                     PgpNoteVvf(asm, th.ReferenceId, tick, "TestConsumer");
                     total++;
-                    if (Lv(th, Vvf) >= 0.5) { _log?.LogInfo($"[ScenarioRunner] PTLOGIC P10 {pn}-val PASS: GetLogicValue(VVF)=1 while faulted."); pass++; }
+                    if (Lv(th, Vvf) >= 0.5) { _log?.LogInfo($"[ScenarioRunner] PTLOGIC P10 {pn}-val PASS: GetLogicValue(CURRENT-MISMATCH)=1 while faulted."); pass++; }
                     else { _log?.LogError($"[ScenarioRunner] PTLOGIC P10 {pn}-val FAIL: {Lv(th, Vvf)} while faulted."); fail++; }
                     PgpClearAllFaults(asm);
                 }
@@ -569,8 +590,8 @@ namespace ScenarioRunner
                     var th = FirstThing(pn);
                     if (th == null) continue;
                     total++;
-                    if (!CanRead(th, Vvf)) { _log?.LogInfo($"[ScenarioRunner] PTLOGIC P10-excl {pn} PASS: CanRead(VVF)=false (no logic surface, hover-only)."); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC P10-excl {pn} FAIL: unexpectedly exposes VVF read. ref={th.ReferenceId}"); fail++; }
+                    if (!CanRead(th, Vvf)) { _log?.LogInfo($"[ScenarioRunner] PTLOGIC P10-excl {pn} PASS: CanRead(CURRENT-MISMATCH)=false (no logic surface, hover-only)."); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTLOGIC P10-excl {pn} FAIL: unexpectedly exposes CURRENT-MISMATCH read. ref={th.ReferenceId}"); fail++; }
                 }
 
                 // ---- Battery charge/discharge speed reads ----
@@ -796,20 +817,20 @@ namespace ScenarioRunner
                     else { _log?.LogError($"[ScenarioRunner] PTTOPO connector-gate FAIL: active={active} deliv={deliv}."); fail++; }
                 }
 
-                // (b) OFF-as-reset (P12): force a shed, toggle OnOff=false, sweep, expect cleared.
+                // (b) OFF-as-reset (P12): force a deprioritization, toggle OnOff=false, sweep, expect cleared.
                 if (_transformers.Count == 0) RebuildCaches();
                 var xf = _transformers.FirstOrDefault(x => x != null);
                 if (xf != null)
                 {
                     PgpClearAllFaults(asm);
-                    PgpNoteShed(asm, xf.ReferenceId, tick);
-                    bool before = PgpIsLocked(asm, "PowerGridPlus.BrownoutRegistry", xf.ReferenceId);
+                    PgpNoteDeprioritized(asm, xf.ReferenceId, tick);
+                    bool before = PgpIsLocked(asm, "PowerGridPlus.DeprioritizedRegistry", xf.ReferenceId);
                     if (TrySetOnOff(xf, false))
                     {
                         PgpInvokeStatic(asm, "PowerGridPlus.OffAsResetSweep", "Run", new[] { typeof(int) }, new object[] { tick });
-                        bool after = PgpIsLocked(asm, "PowerGridPlus.BrownoutRegistry", xf.ReferenceId);
+                        bool after = PgpIsLocked(asm, "PowerGridPlus.DeprioritizedRegistry", xf.ReferenceId);
                         total++;
-                        if (before && !after) { _log?.LogInfo("[ScenarioRunner] PTTOPO OFF-reset PASS: shed cleared by OffAsResetSweep after OnOff=false."); pass++; }
+                        if (before && !after) { _log?.LogInfo("[ScenarioRunner] PTTOPO OFF-reset PASS: deprioritization cleared by OffAsResetSweep after OnOff=false."); pass++; }
                         else { _log?.LogError($"[ScenarioRunner] PTTOPO OFF-reset FAIL: before={before} after={after}."); fail++; }
                         TrySetOnOff(xf, true);
                     }
@@ -823,7 +844,7 @@ namespace ScenarioRunner
                 {
                     if (t == null || t.GetType().Name != "SolarPanel") return;
                     solarTotal++;
-                    if (PgpIsLocked(asm, "PowerGridPlus.VariableVoltageFaultRegistry", t.ReferenceId)) solarVvf++;
+                    if (PgpIsLocked(asm, "PowerGridPlus.CurrentMismatchFaultRegistry", t.ReferenceId)) solarVvf++;
                 });
                 _log?.LogInfo($"[ScenarioRunner] PTTOPO P11-count: solarTotal={solarTotal} solarInVVF={solarVvf} (solar NOT faulted = {solarTotal - solarVvf}; a not-faulted solar proves 'a transformer/regulated network -> no producer-isolation').");
 
@@ -893,18 +914,18 @@ namespace ScenarioRunner
                 }
                 else { _log?.LogInfo("[ScenarioRunner] PTEXTRA P3 NOTE: Sanitize method or device not found."); note++; }
 
-                // --- clean P11 isolation count: read VVF BEFORE any clear ---
+                // --- clean P11 isolation count: read CURRENT-MISMATCH BEFORE any clear ---
                 int solarTotal = 0, solarVvf = 0;
                 OcclusionManager.AllThings.ForEach(t =>
                 {
                     if (t == null || t.GetType().Name != "SolarPanel") return;
                     solarTotal++;
-                    if (PgpIsLocked(asm, "PowerGridPlus.VariableVoltageFaultRegistry", t.ReferenceId)) solarVvf++;
+                    if (PgpIsLocked(asm, "PowerGridPlus.CurrentMismatchFaultRegistry", t.ReferenceId)) solarVvf++;
                 });
                 total++;
                 if (solarTotal > 0 && solarVvf > 0 && solarVvf < solarTotal)
-                { _log?.LogInfo($"[ScenarioRunner] PTEXTRA P11-count PASS: solarTotal={solarTotal} isolated(VVF)={solarVvf} regulated(notFaulted)={solarTotal - solarVvf} -> producer-isolation fires ONLY on the direct-wired solar; solar behind a transformer does not fault."); pass++; }
-                else { _log?.LogInfo($"[ScenarioRunner] PTEXTRA P11-count NOTE: solarTotal={solarTotal} VVF={solarVvf} (expected 0<VVF<total)."); note++; total--; }
+                { _log?.LogInfo($"[ScenarioRunner] PTEXTRA P11-count PASS: solarTotal={solarTotal} isolated(CURRENT-MISMATCH)={solarVvf} regulated(notFaulted)={solarTotal - solarVvf} -> producer-isolation fires ONLY on the direct-wired solar; solar behind a transformer does not fault."); pass++; }
+                else { _log?.LogInfo($"[ScenarioRunner] PTEXTRA P11-count NOTE: solarTotal={solarTotal} CURRENT-MISMATCH={solarVvf} (expected 0<CURRENT-MISMATCH<total)."); note++; total--; }
 
                 // --- P8 observability: is per-transformer delivered power readable via PowerActual? ---
                 LogicType powerActual = default; bool paOk = false;
@@ -1085,7 +1106,7 @@ namespace ScenarioRunner
                     _log?.LogInfo($"[ScenarioRunner] PTBURN pending cell {pc} hasCableRupturedAtSameCell={crCells.Contains(pc)}");
 
                 // --- bug 2 verification: flash renderers discovered on Battery / APC / nuclear ---
-                var flashType2 = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
+                var flashType2 = asm.GetType("PowerGridPlus.FaultFlashBehaviour");
                 var rField = flashType2?.GetField("_renderers", BindingFlags.NonPublic | BindingFlags.Instance);
                 foreach (var cn in new[] { "Battery", "AreaPowerControl", "StationBatteryNuclear" })
                 {
@@ -1221,7 +1242,7 @@ namespace ScenarioRunner
                 }
 
                 // ===== Bug 2: flash renderer correctness =====
-                var flashType = asm.GetType("PowerGridPlus.BrownoutFlashBehaviour");
+                var flashType = asm.GetType("PowerGridPlus.FaultFlashBehaviour");
                 var rField = flashType?.GetField("_renderers", BindingFlags.NonPublic | BindingFlags.Instance);
                 var flashExpect = new (string cls, string expect)[]
                 {

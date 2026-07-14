@@ -10,27 +10,28 @@ namespace ScenarioRunner
 {
     // pgp-2cycle-freeze
     //
-    // Verifies the allocator's overload-before-shed ordering prevents the "60-second freeze" (the
-    // shed<->overload interaction). A grow-only / shed-first allocator could shed a low-priority consumer
-    // X to fit a tight input net, then overload a sibling Y whose trip frees the very budget X's shed was
-    // protecting -- but with shed committed grow-only, X stays locked out 60 s though its supply returned
-    // the same tick. The current allocator evaluates the structural overload BEFORE the shed pass and only
-    // re-decides SHED, so once Y overloads (offline, draws 0) the freed budget lets X stay powered and X is
-    // never shed. There is one allocator (no toggle), so this is an ABSOLUTE assertion, not an A/B.
+    // Verifies the allocator's overload-before-deprioritization ordering prevents the "60-second freeze"
+    // (the deprioritization<->overload interaction). A grow-only / deprioritize-first allocator could
+    // deprioritize a low-priority consumer X to fit a tight input net, then overload a sibling Y whose trip
+    // frees the very budget X's deprioritization was protecting -- but with the deprioritization committed
+    // grow-only, X stays locked out 60 s though its supply returned the same tick. The current allocator
+    // evaluates the structural overload BEFORE the deprioritization pass and only re-decides DEPRIORITIZED,
+    // so once Y overloads (offline, draws 0) the freed budget lets X stay powered and X is never
+    // deprioritized. There is one allocator (no toggle), so this is an ABSOLUTE assertion, not an A/B.
     //
     // Construction at runtime (reuses Sv* helpers):
     //   Phase A (observe, TF_OBS ticks): measure every transformer's peak downstream demand.
     //   Phase B (pick): choose a transformer-fed input net F (multi-level, throttle-able feeder) with a
-    //     shed-eligible X = a NON-step-up consumer (step-ups never shed, POWER.md §5.2, so X is the device
-    //     that WOULD freeze) and an overloader Y = a sibling consumer (any; step-ups can still overload)
-    //     with a downstream big enough to overload when throttled. X gets the LOWEST priority (the would-be
-    //     shed victim), Y the HIGHEST.
+    //     deprioritization-eligible X = a NON-step-up consumer (step-ups are never deprioritized, POWER.md §5.2,
+    //     so X is the device that WOULD freeze) and an overloader Y = a sibling consumer (any; step-ups can
+    //     still overload) with a downstream big enough to overload when throttled. X gets the LOWEST priority
+    //     (the would-be deprioritization victim), Y the HIGHEST.
     //   Phase C (setup): throttle Y.Setting below its downstream demand so Y OVERLOADS. Throttle F's feeder
     //     so F covers X + the other consumers fully but only ~half of Y's draw -> F is contended by Y, and
     //     Y's overload frees its draw so X then fits. Drain F-local battery/APC stores (feeder untouched).
-    //   Phase D (trace, TF_TRACE ticks): per tick record IsShedding(X) and IsOverloaded(Y).
-    //   Phase E (verdict): PASS = Y overloaded AND X never shed; FAIL = X frozen-shed; INCONCLUSIVE = Y did
-    //     not overload (construction did not bite).
+    //   Phase D (trace, TF_TRACE ticks): per tick record IsDeprioritized(X) and IsOverloaded(Y).
+    //   Phase E (verdict): PASS = Y overloaded AND X never deprioritized; FAIL = X frozen in the
+    //     deprioritization lockout; INCONCLUSIVE = Y did not overload (construction did not bite).
     internal static partial class Dispatcher
     {
         private const int TF_OBS = 6;
@@ -49,8 +50,9 @@ namespace ScenarioRunner
         private static bool _tfVerdictDone;
         private static int _tfSetupTick = int.MinValue;
         private static int _tfTraceCount;
-        private static int _tfXShedTicks;
+        private static int _tfXDeprioritizedTicks;
         private static int _tfYOverTicks;
+        private static int _tfYCableOverTicks;   // diagnostic: overload split diverted Y to the cable kind
         private static float _tfYSetting;
         private static float _tfTarget;
         private static float _tfDemandSum;
@@ -118,8 +120,8 @@ namespace ScenarioRunner
             {
                 if (kv.Value.Count < 2) continue;
                 if (!fedNets.Contains(kv.Key)) continue;          // multi-level only (need a feeder to throttle)
-                // X = the PROTECTED device. It must be shed-eligible (NON-step-up; step-ups never shed,
-                // POWER.md §5.2), so under a grow-only / shed-first allocator it would be the frozen victim.
+                // X = the PROTECTED device. It must be deprioritization-eligible (NON-step-up; step-ups are never
+                // deprioritized, POWER.md §5.2), so under a grow-only / deprioritize-first allocator it would be the frozen victim.
                 // Pick the largest non-step-up consumer with a real draw.
                 var x = kv.Value.Where(c => !TfStepUp(asm, c.InputNetwork, c.OutputNetwork) && Demand(c) >= TF_DEMAND_MIN)
                     .OrderByDescending(Demand).FirstOrDefault();
@@ -138,16 +140,16 @@ namespace ScenarioRunner
 
             if (bestF == -1)
             {
-                _log?.LogError("[ScenarioRunner] 2CYC PICK FAIL: no transformer-fed fanout with a shed-eligible (non-step-up) consumer X plus an overload-capable sibling Y in this save's current activity.");
+                _log?.LogError("[ScenarioRunner] 2CYC PICK FAIL: no transformer-fed fanout with a deprioritization-eligible (non-step-up) consumer X plus an overload-capable sibling Y in this save's current activity.");
                 _tfPickFailed = true;
                 return;
             }
 
             _tfFanout = bestF; _tfX = bestX.ReferenceId; _tfY = bestY.ReferenceId;
             _tfDemandSum = bestCons.Sum(Demand);
-            _tfXShedTicks = 0; _tfYOverTicks = 0; _tfTraceCount = 0;
+            _tfXDeprioritizedTicks = 0; _tfYOverTicks = 0; _tfYCableOverTicks = 0; _tfTraceCount = 0;
 
-            // Priorities: X lowest (sheds first), Y highest (survives to overload), others middling.
+            // Priorities: X lowest (deprioritized first), Y highest (survives to overload), others middling.
             foreach (var t in bestCons)
             {
                 int p = t.ReferenceId == _tfX ? 10 : (t.ReferenceId == _tfY ? 1000 : 500);
@@ -225,7 +227,7 @@ namespace ScenarioRunner
             }
 
             // F budget = cover X + the other consumers fully + only HALF of Y's throttled draw -> F is
-            // contended by Y; when Y overloads (offline) it frees its draw and X then fits without a shed.
+            // contended by Y; when Y overloads (offline) it frees its draw and X then fits without a deprioritization.
             _tfTarget = xDraw + sumOthers + 0.5f * yDraw;
 
             int n = Math.Max(_tfFeeders.Count, 1);
@@ -248,11 +250,16 @@ namespace ScenarioRunner
             var F = SvNet(_tfFanout);
             var xT = SvTransformer(_tfX);
             var yT = SvTransformer(_tfY);
-            bool xShed = SvReg(asm, "PowerGridPlus.BrownoutRegistry", "IsShedding", _tfX);
+            bool xDeprioritized = SvReg(asm, "PowerGridPlus.DeprioritizedRegistry", "IsDeprioritized", _tfX);
             bool yOver = SvReg(asm, "PowerGridPlus.OverloadRegistry", "IsOverloaded", _tfY);
-            bool yShed = SvReg(asm, "PowerGridPlus.BrownoutRegistry", "IsShedding", _tfY);
-            if (xShed) _tfXShedTicks++;
+            // Diagnostic only: the construction throttles Y by Setting (capacity family), so the
+            // verdict stays keyed to OverloadRegistry; a non-zero cable count means the fault
+            // diverted to the cable kind and the construction needs a look.
+            bool yCableOver = SvReg(asm, "PowerGridPlus.CableOverloadRegistry", "IsCableOverloaded", _tfY);
+            bool yDeprioritized = SvReg(asm, "PowerGridPlus.DeprioritizedRegistry", "IsDeprioritized", _tfY);
+            if (xDeprioritized) _tfXDeprioritizedTicks++;
             if (yOver) _tfYOverTicks++;
+            if (yCableOver) _tfYCableOverTicks++;
             float xReq = xT != null && xT.OutputNetwork != null ? xT.OutputNetwork.RequiredLoad : 0f;
             float yReq = yT != null && yT.OutputNetwork != null ? yT.OutputNetwork.RequiredLoad : 0f;
             float xDrawF = 0f, yDrawF = 0f, yGenG = 0f;
@@ -261,30 +268,34 @@ namespace ScenarioRunner
             try { if (yT != null && yT.OutputNetwork != null) yGenG = yT.GetGeneratedPower(yT.OutputNetwork); } catch { }
             _log?.LogInfo($"[ScenarioRunner] 2CYC t={_ticksSeen} " +
                 (F != null ? $"F.Req={F.RequiredLoad:0} F.Pot={F.PotentialLoad:0} F.Short={F.ShortfallLoad:0} " : "F=<null> ") +
-                $"| X={_tfX} shed={xShed} outReq={xReq:0} drawF={xDrawF:0} | Y={_tfY} overload={yOver} shed={yShed} downstreamReq={yReq:0} drawF={yDrawF:0} genG={yGenG:0}");
+                $"| X={_tfX} deprioritized={xDeprioritized} outReq={xReq:0} drawF={xDrawF:0} | Y={_tfY} overload={yOver} cableOverload={yCableOver} deprioritized={yDeprioritized} downstreamReq={yReq:0} drawF={yDrawF:0} genG={yGenG:0}");
         }
 
         private static void TfVerdict(Assembly asm)
         {
             if (_tfTraceCount == 0) { _log?.LogError("[ScenarioRunner] 2CYC VERDICT: setup incomplete (no trace)."); return; }
             int half = Math.Max(1, _tfTraceCount / 2);
-            bool xShed = _tfXShedTicks >= half;
+            bool xDeprioritized = _tfXDeprioritizedTicks >= half;
             bool yOver = _tfYOverTicks >= half;
 
             _log?.LogInfo($"[ScenarioRunner] 2CYC VERDICT detail: trace={_tfTraceCount}t " +
-                $"X={_tfX}.shedTicks={_tfXShedTicks}/{_tfTraceCount} Y={_tfY}.overloadTicks={_tfYOverTicks}/{_tfTraceCount} " +
+                $"X={_tfX}.deprioritizedTicks={_tfXDeprioritizedTicks}/{_tfTraceCount} Y={_tfY}.overloadTicks={_tfYOverTicks}/{_tfTraceCount} " +
+                $"Y.cableOverloadTicks={_tfYCableOverTicks}/{_tfTraceCount} " +
                 $"Y.Setting={_tfYSetting:0} F.targetBudget={_tfTarget:0} demandSum={_tfDemandSum:0}");
 
             if (!yOver)
             {
-                _log?.LogWarning("[ScenarioRunner] 2CYC VERDICT: INCONCLUSIVE -- Y did not overload on most ticks; the construction did not bite (Y's downstream did not out-demand its throttled cap, or F was not tight enough). No freeze conclusion possible.");
+                string diverted = _tfYCableOverTicks > 0
+                    ? $" NOTE: Y read cable-overloaded on {_tfYCableOverTicks} tick(s); the overload split diverted the fault to the CABLE kind, so the Setting-throttle construction did not produce the intended capacity overload."
+                    : "";
+                _log?.LogWarning("[ScenarioRunner] 2CYC VERDICT: INCONCLUSIVE -- Y did not overload (capacity kind) on most ticks; the construction did not bite (Y's downstream did not out-demand its throttled cap, or F was not tight enough). No freeze conclusion possible." + diverted);
                 return;
             }
 
-            if (!xShed)
-                _log?.LogInfo("[ScenarioRunner] 2CYC VERDICT: PASS -- Y overloaded and X was NEVER shed. The allocator evaluated Y's structural overload before the shed pass, freeing F's budget, so the low-priority X stays powered. A grow-only / shed-first allocator with this same tight F budget would have shed X (the only shed-eligible consumer here) and frozen it 60 s; this allocator does not, and the fault surfaces as OVERLOAD on Y.");
+            if (!xDeprioritized)
+                _log?.LogInfo("[ScenarioRunner] 2CYC VERDICT: PASS -- Y overloaded and X was NEVER deprioritized. The allocator evaluated Y's structural overload before the deprioritization pass, freeing F's budget, so the low-priority X stays powered. A grow-only / deprioritize-first allocator with this same tight F budget would have deprioritized X (the only deprioritization-eligible consumer here) and frozen it 60 s; this allocator does not, and the fault surfaces as OVERLOAD on Y.");
             else
-                _log?.LogError("[ScenarioRunner] 2CYC VERDICT: FAIL -- X is frozen-shed even though Y overloaded and freed F's budget. The overload-before-shed ordering did not prevent the unnecessary shed. Inspect the trace.");
+                _log?.LogError("[ScenarioRunner] 2CYC VERDICT: FAIL -- X is frozen in the deprioritization lockout even though Y overloaded and freed F's budget. The overload-before-deprioritization ordering did not prevent the unnecessary deprioritization. Inspect the trace.");
         }
 
         private static int TfGetPriority(Assembly asm, long refId)
@@ -301,8 +312,8 @@ namespace ScenarioRunner
 
         // Zero ONLY the elastic stores whose OUTPUT network is F, so F's local battery/APC backfill cannot
         // mask the contention -- WITHOUT draining the feeder's own upstream supply. A global drain (the
-        // pgp-shed-multilevel approach) kills a battery-backed feeder and makes F dead, which on this save
-        // turns the contest degenerate. Reuses SvZeroStored from the shed-multilevel harness.
+        // pgp-deprioritization-multilevel approach) kills a battery-backed feeder and makes F dead, which on this save
+        // turns the contest degenerate. Reuses SvZeroStored from the deprioritization-multilevel harness.
         private static void TfDrainFLocal()
         {
             foreach (var b in _batteries)

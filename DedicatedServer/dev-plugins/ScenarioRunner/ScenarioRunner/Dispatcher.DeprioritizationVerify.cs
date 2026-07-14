@@ -8,9 +8,9 @@ using Assets.Scripts.Objects.Electrical;
 
 namespace ScenarioRunner
 {
-    // pgp-shed-multilevel
+    // pgp-deprioritization-multilevel
     //
-    // Verifies the live allocator (PowerGridPlus.PowerAllocator) still sheds correctly, in PRIORITY
+    // Verifies the live allocator (PowerGridPlus.PowerAllocator) still deprioritizes correctly, in PRIORITY
     // order, on a MULTI-LEVEL chain under the capacity-propagation supply fix. It constructs a
     // controlled shortage at runtime:
     //
@@ -18,15 +18,16 @@ namespace ScenarioRunner
     //   Phase B (pick + throttle): choose a fanout input net F that is itself transformer-fed
     //     (multi-level) and has the most ON transformer consumers, with >=2 of them genuinely drawing
     //     (>= DEMAND_MIN W). Assign DISTINCT descending priorities to ALL of F's consumers by
-    //     ReferenceId (so the whole contest is controlled, no default-priority strangers). PGP sheds
+    //     ReferenceId (so the whole contest is controlled, no default-priority strangers). PGP deprioritizes
     //     priority-ASC (lowest number first, POWER.md 8.3), so the highest number should survive.
     //     Throttle F's feeder transformer Setting to ~half the demanding sum, forcing a real shortfall.
-    //   Phase C (trace, SV_TRACE ticks): record per consumer shed/overload + downstream demand.
-    //   Phase D (verdict): among the consumers that actually draw, PASS when a shed fired (>=1 shed on
-    //     most ticks), at least one survives, the highest-priority drawer survives, and there is NO
-    //     priority inversion (no higher-priority drawer shedding while a lower-priority one survives).
+    //   Phase C (trace, SV_TRACE ticks): record per consumer deprioritization/overload + downstream demand.
+    //   Phase D (verdict): among the consumers that actually draw, PASS when a deprioritization fired
+    //     (>=1 deprioritized on most ticks), at least one survives, the highest-priority drawer survives,
+    //     and there is NO priority inversion (no higher-priority drawer deprioritized while a
+    //     lower-priority one survives).
     //
-    // Run on the SAME save with the fixed DLL and the unmodified DLL; the shed outcome should match.
+    // Run on the SAME save with the fixed DLL and the unmodified DLL; the deprioritization outcome should match.
     internal static partial class Dispatcher
     {
         private const int SV_OBS = 6;
@@ -45,12 +46,12 @@ namespace ScenarioRunner
         private static readonly List<long> _svConsumers = new List<long>();   // ALL of F's ON consumers, by ReferenceId
         private static readonly Dictionary<long, int> _svPrio = new Dictionary<long, int>();
         private static readonly List<long> _svFeeders = new List<long>();
-        private static readonly Dictionary<long, int> _svShedTicks = new Dictionary<long, int>();
+        private static readonly Dictionary<long, int> _svDeprioritizedTicks = new Dictionary<long, int>();
         private static readonly Dictionary<long, float> _svTracePeak = new Dictionary<long, float>();
 
-        private static void Scenario_PgpShedMultilevel()
+        private static void Scenario_PgpDeprioritizedMultilevel()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-shed-multilevel")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-deprioritization-multilevel")) return;
             if (_ticksSeen < _delayTicks) return;
             if (_ticksSeen == _svLastTick) return;
             _svLastTick = (int)_ticksSeen;
@@ -129,14 +130,14 @@ namespace ScenarioRunner
 
             bestCons.Sort((a, b) => a.ReferenceId.CompareTo(b.ReferenceId));
             _svFanout = bestF; _svMulti = bestMulti;
-            _svConsumers.Clear(); _svPrio.Clear(); _svShedTicks.Clear(); _svTracePeak.Clear();
+            _svConsumers.Clear(); _svPrio.Clear(); _svDeprioritizedTicks.Clear(); _svTracePeak.Clear();
             _svDemandSum = bestCons.Where(t => Demand(t) >= SV_DEMAND_MIN).Sum(Demand);
             int p = 10 * bestCons.Count;             // ALL consumers get distinct descending priorities
             foreach (var t in bestCons)
             {
                 setPrio?.Invoke(null, new object[] { (Thing)t, p });
                 _svConsumers.Add(t.ReferenceId); _svPrio[t.ReferenceId] = p;
-                _svShedTicks[t.ReferenceId] = 0; _svTracePeak[t.ReferenceId] = 0f;
+                _svDeprioritizedTicks[t.ReferenceId] = 0; _svTracePeak[t.ReferenceId] = 0f;
                 p -= 10;
             }
             _svFeeders.Clear();
@@ -152,7 +153,7 @@ namespace ScenarioRunner
 
         private static void SvApplyThrottle()
         {
-            float target = _svDemandSum * 0.5f;      // supply ~half the demanding load -> forces ~half to shed by priority
+            float target = _svDemandSum * 0.5f;      // supply ~half the demanding load -> forces ~half to be deprioritized by priority
             int n = Math.Max(_svFeeders.Count, 1);
             float per = target / n;
             foreach (var fref in _svFeeders)
@@ -166,7 +167,7 @@ namespace ScenarioRunner
         }
 
         // Zero the store on every battery + APC cell so the throttled feeder is the ONLY supply,
-        // isolating transformer shedding from the base's elastic backfill (POWER.md 7.3). Reflection so
+        // isolating transformer deprioritization from the base's elastic backfill (POWER.md 7.3). Reflection so
         // it works whether PowerStored is a property or a backing field.
         private static void SvDrainElastic()
         {
@@ -198,11 +199,11 @@ namespace ScenarioRunner
             {
                 var t = SvTransformer(cref);
                 if (t == null) continue;
-                bool shed = SvReg(asm, "PowerGridPlus.BrownoutRegistry", "IsShedding", cref);
-                if (shed) _svShedTicks[cref] = _svShedTicks[cref] + 1;
+                bool deprioritized = SvReg(asm, "PowerGridPlus.DeprioritizedRegistry", "IsDeprioritized", cref);
+                if (deprioritized) _svDeprioritizedTicks[cref] = _svDeprioritizedTicks[cref] + 1;
                 float req = t.OutputNetwork != null ? t.OutputNetwork.RequiredLoad : 0f;
                 if (req > _svTracePeak[cref]) _svTracePeak[cref] = req;
-                _log?.LogInfo($"[ScenarioRunner] SHEDML   cons={cref} prio={_svPrio[cref]} outReq={req:0} shed={shed}");
+                _log?.LogInfo($"[ScenarioRunner] SHEDML   cons={cref} prio={_svPrio[cref]} outReq={req:0} deprioritized={deprioritized}");
             }
         }
 
@@ -212,28 +213,28 @@ namespace ScenarioRunner
             { _log?.LogError("[ScenarioRunner] SHEDML VERDICT: setup incomplete."); return; }
 
             int half = Math.Max(1, _svTraceCount / 2);
-            bool Shed(long r) => _svShedTicks[r] >= half;
-            // "Drawers": consumers that actually presented load during the trace (others can't be shed
-            // victims -- Pull<=eps is skipped by the allocator -- so they are irrelevant to a contest).
+            bool Deprioritized(long r) => _svDeprioritizedTicks[r] >= half;
+            // "Drawers": consumers that actually presented load during the trace (others can't be
+            // deprioritization victims -- Pull<=eps is skipped by the allocator -- so they are irrelevant to a contest).
             var drawers = _svConsumers.Where(r => _svTracePeak[r] >= 50f).OrderByDescending(r => _svPrio[r]).ToList();
 
-            int shedCount = drawers.Count(Shed);
-            int surviveCount = drawers.Count - shedCount;
+            int deprioritizedCount = drawers.Count(Deprioritized);
+            int surviveCount = drawers.Count - deprioritizedCount;
             int inversions = 0;
             foreach (var hi in drawers)
                 foreach (var lo in drawers)
-                    if (_svPrio[hi] > _svPrio[lo] && Shed(hi) && !Shed(lo)) inversions++;
+                    if (_svPrio[hi] > _svPrio[lo] && Deprioritized(hi) && !Deprioritized(lo)) inversions++;
 
-            string detail = string.Join(", ", drawers.Select(r => $"{r}(p{_svPrio[r]},{_svTracePeak[r]:0}W):shed{_svShedTicks[r]}/{_svTraceCount}{(Shed(r) ? " SHED" : "")}"));
-            _log?.LogInfo($"[ScenarioRunner] SHEDML VERDICT detail: multiLevel={_svMulti} trace={_svTraceCount}t drawers={drawers.Count} shed={shedCount} survive={surviveCount} inversions={inversions} | {detail}");
+            string detail = string.Join(", ", drawers.Select(r => $"{r}(p{_svPrio[r]},{_svTracePeak[r]:0}W):deprioritized{_svDeprioritizedTicks[r]}/{_svTraceCount}{(Deprioritized(r) ? " DEPRIORITIZED" : "")}"));
+            _log?.LogInfo($"[ScenarioRunner] SHEDML VERDICT detail: multiLevel={_svMulti} trace={_svTraceCount}t drawers={drawers.Count} deprioritized={deprioritizedCount} survive={surviveCount} inversions={inversions} | {detail}");
 
-            bool fired = shedCount >= 1;
-            bool topSurvives = drawers.Count > 0 && !Shed(drawers[0]);
+            bool fired = deprioritizedCount >= 1;
+            bool topSurvives = drawers.Count > 0 && !Deprioritized(drawers[0]);
             bool someSurvive = surviveCount >= 1;
             if (fired && topSurvives && someSurvive && inversions == 0)
-                _log?.LogInfo("[ScenarioRunner] SHEDML VERDICT: PASS -- multi-level shortage fired a shed; lower-priority consumers shed, highest-priority survived, NO priority inversion. Shedding + priority intact under the fix.");
+                _log?.LogInfo("[ScenarioRunner] SHEDML VERDICT: PASS -- multi-level shortage fired a deprioritization; lower-priority consumers were deprioritized, highest-priority survived, NO priority inversion. Deprioritization + priority intact under the fix.");
             else if (!fired)
-                _log?.LogWarning("[ScenarioRunner] SHEDML VERDICT: INCONCLUSIVE -- no consumer shed (battery backfill / intermittent demand absorbed the shortage on this save). No inversion either.");
+                _log?.LogWarning("[ScenarioRunner] SHEDML VERDICT: INCONCLUSIVE -- no consumer was deprioritized (battery backfill / intermittent demand absorbed the shortage on this save). No inversion either.");
             else
                 _log?.LogError($"[ScenarioRunner] SHEDML VERDICT: FAIL -- fired={fired} topSurvives={topSurvives} someSurvive={someSurvive} inversions={inversions}. Inspect the trace.");
         }

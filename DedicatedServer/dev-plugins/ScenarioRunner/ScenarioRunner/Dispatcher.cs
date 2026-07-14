@@ -197,48 +197,48 @@ namespace ScenarioRunner
                     Scenario_PgpStationpediaPageProbe();
                     return;
 
-                case "pgp-priority-shedding-probe":
-                    Scenario_PgpPriorityShedingProbe();
+                case "pgp-priority-deprioritization-probe":
+                    Scenario_PgpPriorityDeprioritizationProbe();
                     return;
 
-                case "pgp-priority-shedding-persist-probe":
-                    Scenario_PgpPriorityShedingPersistProbe();
+                case "pgp-priority-deprioritization-persist-probe":
+                    Scenario_PgpPriorityDeprioritizationPersistProbe();
                     return;
 
-                case "pgp-priority-shedding-network-breakdown":
-                    Scenario_PgpPriorityShedingNetworkBreakdown();
+                case "pgp-priority-deprioritization-network-breakdown":
+                    Scenario_PgpPriorityDeprioritizationNetworkBreakdown();
                     return;
 
-                case "pgp-priority-shedding-knob-probe":
-                    Scenario_PgpPriorityShedingKnobProbe();
+                case "pgp-priority-deprioritization-knob-probe":
+                    Scenario_PgpPriorityDeprioritizationKnobProbe();
                     return;
 
-                case "pgp-priority-shedding-flash-probe":
-                    Scenario_PgpPriorityShedingFlashProbe();
+                case "pgp-priority-deprioritization-flash-probe":
+                    Scenario_PgpPriorityDeprioritizationFlashProbe();
                     return;
 
-                case "pgp-priority-shedding-hover-probe":
-                    Scenario_PgpPriorityShedingHoverProbe();
+                case "pgp-priority-deprioritization-hover-probe":
+                    Scenario_PgpPriorityDeprioritizationHoverProbe();
                     return;
 
-                case "pgp-priority-shedding-labeller-probe":
-                    Scenario_PgpPriorityShedingLabellerProbe();
+                case "pgp-priority-deprioritization-labeller-probe":
+                    Scenario_PgpPriorityDeprioritizationLabellerProbe();
                     return;
 
-                case "pgp-priority-shedding-mp-probe":
-                    Scenario_PgpPriorityShedingMpProbe();
+                case "pgp-priority-deprioritization-mp-probe":
+                    Scenario_PgpPriorityDeprioritizationMpProbe();
                     return;
 
-                case "pgp-priority-shedding-saveload-probe":
-                    Scenario_PgpPriorityShedingSaveLoadProbe();
+                case "pgp-priority-deprioritization-saveload-probe":
+                    Scenario_PgpPriorityDeprioritizationSaveLoadProbe();
                     return;
 
-                case "pgp-priority-shedding-topology-probe":
-                    Scenario_PgpPriorityShedingTopologyProbe();
+                case "pgp-priority-deprioritization-topology-probe":
+                    Scenario_PgpPriorityDeprioritizationTopologyProbe();
                     return;
 
-                case "pgp-priority-shedding-all":
-                    Scenario_PgpPriorityShedingAll();
+                case "pgp-priority-deprioritization-all":
+                    Scenario_PgpPriorityDeprioritizationAll();
                     return;
 
                 case "pgp-r1-prepare":
@@ -249,8 +249,12 @@ namespace ScenarioRunner
                     Scenario_PgpPowerFlowDiagnose();
                     return;
 
-                case "pgp-shed-trace":
-                    Scenario_PgpShedTrace();
+                case "pgp-net-consumer-dump":
+                    Scenario_PgpNetConsumerDump();
+                    return;
+
+                case "pgp-deprioritization-trace":
+                    Scenario_PgpDeprioritizedTrace();
                     return;
 
                 case "pgp-atomic-probe":
@@ -274,20 +278,24 @@ namespace ScenarioRunner
                     Scenario_PgpReversedTransformerProbe();
                     return;
 
-                case "pgp-shed-multilevel":
-                    Scenario_PgpShedMultilevel();
+                case "pgp-deprioritization-multilevel":
+                    Scenario_PgpDeprioritizedMultilevel();
                     return;
 
                 case "pgp-2cycle-freeze":
                     Scenario_Pgp2CycleFreeze();
                     return;
 
-                case "pgp-shed-victim-fixture":
-                    Scenario_PgpShedVictimFixture();
+                case "pgp-deprioritization-victim-fixture":
+                    Scenario_PgpDeprioritizedVictimFixture();
                     return;
 
                 case "pgp-chain-fixture":
                     Scenario_PgpChainFixture();
+                    return;
+
+                case "pgp-overload-split-fixture":
+                    Scenario_PgpOverloadSplitFixture();
                     return;
 
                 case "pgp-rearch-suite":
@@ -300,7 +308,7 @@ namespace ScenarioRunner
                     // are called every tick; the synthetic block self-skips
                     // after the first call, the trace advances per-tick.
                     Scenario_PgpAtomicAll();
-                    Scenario_PgpShedTrace();
+                    Scenario_PgpDeprioritizedTrace();
                     return;
 
                 case "pgp-pt-hover-all":
@@ -1585,12 +1593,16 @@ namespace ScenarioRunner
         }
 
         // PGP scenario: fault-state-probe.
-        // Every 10 ticks, log the four PGP fault-registry counts (shed / overload / cycle / VVF) plus the
-        // live segmenter count and a fresh re-run of CycleGraphBuilder.FindCycleFaultedSegmenters(). On an
-        // acyclic grid (e.g. a normal Luna base) cycleDetectNow MUST be 0 -- a non-zero value would mean the
-        // directed-SCC cycle detector is producing a false positive (e.g. on parallel transformers/batteries).
-        // vvf > 0 reveals producer-isolation violations baked into the loaded base (a producer wired straight
-        // to a consumer with no transformer). All reads are managed-state only, safe on the sim-tick thread.
+        // Every 10 ticks, log the five PGP fault-registry counts (deprioritized / transformer-overload /
+        // cable-overload / cycle / CURRENT-MISMATCH) plus the live segmenter count and a fresh re-run of
+        // CycleGraphBuilder.FindCycleFaultedSegmenters(). On an acyclic grid (e.g. a normal Luna base)
+        // cycleDetectNow MUST be 0 -- a non-zero value would mean the directed-SCC cycle detector is
+        // producing a false positive (e.g. on parallel transformers/batteries). currentMismatch > 0 reveals
+        // producer-isolation violations baked into the loaded base (a producer wired straight to a
+        // consumer with no transformer). The cableOverload count comes from CableOverloadRegistry, the
+        // cable-overflow half of the former single overload fault (a missing type reads -1 here, which
+        // is the tripwire for a build that lost the fifth registry). All reads are managed-state only,
+        // safe on the sim-tick thread.
 
         private static int _fsLastLogTick = int.MinValue;
         private const int FS_LOG_EVERY_TICKS = 10;
@@ -1602,16 +1614,20 @@ namespace ScenarioRunner
             _fsLastLogTick = (int)_ticksSeen;
 
             var asm = GetModAssembly(PGP_ASSEMBLY);
-            int shed = ReadPgpStaticIntProp(asm, "PowerGridPlus.BrownoutRegistry", "LockoutCount");
+            int deprioritized = ReadPgpStaticIntProp(asm, "PowerGridPlus.DeprioritizedRegistry", "LockoutCount");
             int over = ReadPgpStaticIntProp(asm, "PowerGridPlus.OverloadRegistry", "LockoutCount");
+            int cableOver = ReadPgpStaticIntProp(asm, "PowerGridPlus.CableOverloadRegistry", "LockoutCount");
             int cycle = ReadPgpStaticIntProp(asm, "PowerGridPlus.CycleFaultRegistry", "LockoutCount");
-            int vvf = ReadPgpStaticIntProp(asm, "PowerGridPlus.VariableVoltageFaultRegistry", "LockoutCount");
+            int currentMismatch = ReadPgpStaticIntProp(asm, "PowerGridPlus.CurrentMismatchFaultRegistry", "LockoutCount");
             int segCount = InvokePgpStaticCollectionCount(asm, "PowerGridPlus.SegmentingDeviceRegistry", "EnumerateSorted");
             int cycleNow = InvokePgpStaticCollectionCount(asm, "PowerGridPlus.CycleGraphBuilder", "FindCycleFaultedSegmenters");
 
+            if (asm?.GetType("PowerGridPlus.CableOverloadRegistry") == null)
+                _log?.LogError("[ScenarioRunner] FAULT-STATE: CableOverloadRegistry type MISSING (the overload split's fifth registry); this PowerGridPlus build predates or regressed the split.");
+
             _log?.LogInfo(
                 $"[ScenarioRunner] FAULT-STATE tick={_ticksSeen} segmenters={segCount} cycleDetectNow={cycleNow} " +
-                $"| registry: shed={shed} overload={over} cycle={cycle} vvf={vvf}");
+                $"| registry: deprioritized={deprioritized} overload={over} cableOverload={cableOver} cycle={cycle} currentMismatch={currentMismatch}");
         }
 
         // PGP scenario: shortfall-net-probe. One-shot (first qualifying tick after warmup): for every
@@ -1630,10 +1646,11 @@ namespace ScenarioRunner
             var asm = GetModAssembly(PGP_ASSEMBLY);
             var registries = new (string label, string type)[]
             {
-                ("shed", "PowerGridPlus.BrownoutRegistry"),
+                ("deprioritized", "PowerGridPlus.DeprioritizedRegistry"),
                 ("overload", "PowerGridPlus.OverloadRegistry"),
+                ("cableOverload", "PowerGridPlus.CableOverloadRegistry"),
                 ("cycle", "PowerGridPlus.CycleFaultRegistry"),
-                ("vvf", "PowerGridPlus.VariableVoltageFaultRegistry"),
+                ("currentMismatch", "PowerGridPlus.CurrentMismatchFaultRegistry"),
             };
 
             int reported = 0;
@@ -1681,9 +1698,9 @@ namespace ScenarioRunner
             _log?.LogInfo($"[ScenarioRunner] SHORTFALL probe complete ({reported} undersupplied net(s) reported, cap 14).");
         }
 
-        // Reflection helper: call the registry's client-aware bool reader (IsShedding / IsOverloaded /
-        // IsCycleFaulted / IsVariableVoltageFaulted or IsLockedOut(long, int)) for a refId at the
-        // current PGP tick.
+        // Reflection helper: call the registry's client-aware bool reader (IsDeprioritized / IsOverloaded /
+        // IsCableOverloaded / IsCycleFaulted / IsCurrentMismatchFaulted or IsLockedOut(long, int)) for
+        // a refId at the current PGP tick.
         private static bool PgpIsLocked(System.Reflection.Assembly asm, string typeName, long refId)
         {
             try
@@ -1694,7 +1711,7 @@ namespace ScenarioRunner
                 var tickProp = tickType?.GetProperty("CurrentTick",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
                 int tick = tickProp?.GetValue(null) is int i ? i : 0;
-                foreach (var name in new[] { "IsShedding", "IsOverloaded", "IsCycleFaulted", "IsVariableVoltageFaulted", "IsLockedOut" })
+                foreach (var name in new[] { "IsDeprioritized", "IsOverloaded", "IsCableOverloaded", "IsCycleFaulted", "IsCurrentMismatchFaulted", "IsLockedOut" })
                 {
                     var m = t.GetMethod(name,
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
@@ -2934,20 +2951,20 @@ namespace ScenarioRunner
                 _log?.LogError($"[ScenarioRunner] PtpBPP FAIL: {unexpected} unexpected shouldShow=true result(s) for unlinked or switched-off TX.");
         }
 
-        // PGP scenario: priority-shedding-probe.
+        // PGP scenario: priority-deprioritization-probe.
         // One-shot, multi-phase end-to-end verification of the Transformer Priority +
-        // Shedding feature surface. Reaches into PowerGridPlus via reflection (no
+        // Deprioritization feature surface. Reaches into PowerGridPlus via reflection (no
         // build-time dependency on PGP) and asserts results structurally against the
-        // CURRENT architecture: the Priority + Shedding system is always on (no master
+        // CURRENT architecture: the Priority + Deprioritization system is always on (no master
         // toggle), Priority is a first-class writable LogicType slot (Setting / Ratio
         // are pure vanilla, no redirect), allocations are computed once per tick by
         // PowerAllocator and published to TransformerSupplyCache (live allocation
-        // behaviour is covered by pgp-priority-shedding-topology-probe,
-        // pgp-shed-multilevel, and pgp-chain-fixture, which drive across ticks).
+        // behaviour is covered by pgp-priority-deprioritization-topology-probe,
+        // pgp-deprioritization-multilevel, and pgp-chain-fixture, which drive across ticks).
         //
         // Phases:
         //   1. Inventory + baseline. Count Transformers, log per-Transformer state
-        //      (Priority, OutputMaximum, OnOff, Error, IsShedding, published output
+        //      (Priority, OutputMaximum, OnOff, Error, IsDeprioritized, published output
         //      from TransformerSupplyCache, both network refs). Baseline Priority is
         //      the default 100 for untouched transformers.
         //   2. Priority logic slot. SetLogicValue(Priority=6578, 175) through the real
@@ -2955,16 +2972,16 @@ namespace ScenarioRunner
         //      zero clients); GetLogicValue(Priority) reads it back; a Setting write
         //      stays PURE VANILLA (does not touch Priority; Setting readback returns
         //      the written value; restored after).
-        //   3. CanLogicRead/Write surface: Priority R+W, Shedding read-only.
+        //   3. CanLogicRead/Write surface: Priority R+W, Deprioritization read-only.
         //   4. PriorityStore contract: SetPriority persists, bumps the monotonic
         //      Version (the allocator's invalidation cue), and clamps negatives to 0.
-        //   4b. Lockout precedence: NoteShed arms the 60 s lockout instantly and a
+        //   4b. Lockout precedence: NoteDeprioritized arms the 60 s lockout instantly and a
         //      priority write does NOT clear it (only expiry or the OFF-as-reset
         //      ClearLockout does).
         //   5. Registry constants: LockoutDurationTicks == 120 (60 s at 2 Hz) and the
         //      retired ShortfallTolerance counter stays deleted.
         //   6. Deleted-surface tripwires: the EnableTransformerShedding ConfigEntry and
-        //      the ShedSettingsSync / OverloadSettingsSync / PassthroughSettingsSync /
+        //      the DeprioritizedSettingsSync / OverloadSettingsSync / PassthroughSettingsSync /
         //      TransformerAllocator types must all be ABSENT (always-on rework), while
         //      PowerAllocator exists.
         //   7. Stationpedia footer. StationpediaPatches.GetDescriptionFooter for every
@@ -2982,19 +2999,19 @@ namespace ScenarioRunner
         //
         // Threading: every read/invoke runs from the simulation-tick worker (UniTask
         // ThreadPool). All reflection-driven calls touch managed state only; no Unity
-        // API calls. PriorityStore / BrownoutRegistry are concurrent dictionaries safe
+        // API calls. PriorityStore / DeprioritizedRegistry are concurrent dictionaries safe
         // to read from the worker.
         //
         // Side effects: phase 2 leaves the sample transformer's Priority at 175 and phase 4
         // leaves a second transformer at 137 (so the save-load follow-up
-        // pgp-priority-shedding-persist-probe has >= 2 non-default values to verify);
+        // pgp-priority-deprioritization-persist-probe has >= 2 non-default values to verify);
         // everything else is restored. The scenario logs what was written.
 
         private static bool _pspFired;
 
-        private static void Scenario_PgpPriorityShedingProbe()
+        private static void Scenario_PgpPriorityDeprioritizationProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-probe")) return;
             if (_pspFired) return;
             _pspFired = true;
 
@@ -3004,16 +3021,16 @@ namespace ScenarioRunner
 
             try
             {
-                _log?.LogInfo("[ScenarioRunner] PSP START priority-shedding-probe");
+                _log?.LogInfo("[ScenarioRunner] PSP START priority-deprioritization-probe");
 
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] PSP no PGP assembly"); return; }
 
                 // Resolve the PGP types the probe drives; missing types are FAIL. The deleted
-                // types (ShedSettingsSync / TransformerAllocator and friends) are looked up too,
+                // types (DeprioritizedSettingsSync / TransformerAllocator and friends) are looked up too,
                 // but as ABSENCE tripwires asserted in phase 6.
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                var brownoutRegistryType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
                 var logicRegType = asm.GetType("PowerGridPlus.LogicTypeRegistry");
                 var settingsType = asm.GetType("PowerGridPlus.Settings");
@@ -3022,7 +3039,7 @@ namespace ScenarioRunner
                 var priorityMessageType = asm.GetType("PowerGridPlus.PriorityMessage");
 
                 if (priorityStoreType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: PriorityStore type missing"); failCount++; return; }
-                if (brownoutRegistryType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: BrownoutRegistry type missing"); failCount++; return; }
+                if (deprioritizedRegistryType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: DeprioritizedRegistry type missing"); failCount++; return; }
                 if (tickCounterType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: ElectricityTickCounter type missing"); failCount++; return; }
                 if (priorityLogicPatchType == null) { _log?.LogError("[ScenarioRunner] PSP FAIL: TransformerPriorityLogicPatches type missing"); failCount++; return; }
 
@@ -3034,26 +3051,26 @@ namespace ScenarioRunner
                     null, new[] { typeof(Assets.Scripts.Objects.Thing), typeof(int) }, null);
                 var versionProp = priorityStoreType.GetProperty("Version",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                var isSheddingMethod = brownoutRegistryType.GetMethod("IsShedding",
+                var isDeprioritizedMethod = deprioritizedRegistryType.GetMethod("IsDeprioritized",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                var isLockedOutMethodLong = brownoutRegistryType.GetMethod("IsLockedOut",
+                var isLockedOutMethodLong = deprioritizedRegistryType.GetMethod("IsLockedOut",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                var noteShedMethod = brownoutRegistryType.GetMethod("NoteShed",
+                var noteDeprioritizedMethod = deprioritizedRegistryType.GetMethod("NoteDeprioritized",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
-                var clearLockoutMethod = brownoutRegistryType.GetMethod("ClearLockout",
+                var clearLockoutMethod = deprioritizedRegistryType.GetMethod("ClearLockout",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long) }, null);
-                var snapshotRemainingMethod = brownoutRegistryType.GetMethod("SnapshotRemaining",
+                var snapshotRemainingMethod = deprioritizedRegistryType.GetMethod("SnapshotRemaining",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
                 var currentTickProp = tickCounterType.GetProperty("CurrentTick",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
                 int currentTick = (int)(currentTickProp?.GetValue(null) ?? -1);
 
-                _log?.LogInfo($"[ScenarioRunner] PSP env: ElectricityTickCounter.CurrentTick={currentTick} (Priority + Shedding is always on; no master toggle)");
+                _log?.LogInfo($"[ScenarioRunner] PSP env: ElectricityTickCounter.CurrentTick={currentTick} (Priority + Deprioritization is always on; no master toggle)");
 
                 // ---- PHASE 1: inventory + baseline ----
                 if (_transformers.Count == 0) RebuildCaches();
@@ -3066,11 +3083,11 @@ namespace ScenarioRunner
                     if (t == null || t.InputNetwork == null || t.OutputNetwork == null) continue;
                     int prio = (int)(getPriorityMethod?.Invoke(null, new object[] { t.ReferenceId }) ?? -1);
                     float published = TpPublishedOutput(asm, t.ReferenceId);
-                    bool shedding = (bool)(isSheddingMethod?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
+                    bool deprioritized = (bool)(isDeprioritizedMethod?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                     double setting = t.Setting;
                     _log?.LogInfo(
                         $"[ScenarioRunner] PSP P1 T ref={t.ReferenceId} prefab={t.PrefabName} OnOff={t.OnOff} Error={t.Error} " +
-                        $"OutputMax={t.OutputMaximum:F0} Setting={setting:F0} Priority={prio} PublishedOut={published:F0} Shedding={shedding} " +
+                        $"OutputMax={t.OutputMaximum:F0} Setting={setting:F0} Priority={prio} PublishedOut={published:F0} Deprioritization={deprioritized} " +
                         $"InNet={t.InputNetwork.ReferenceId} OutNet={t.OutputNetwork.ReferenceId}");
                 }
 
@@ -3151,8 +3168,8 @@ namespace ScenarioRunner
 
                     bool canReadPriority = sampleT.CanLogicRead((Assets.Scripts.Objects.Motherboards.LogicType)priorityTypeValue);
                     bool canWritePriority = sampleT.CanLogicWrite((Assets.Scripts.Objects.Motherboards.LogicType)priorityTypeValue);
-                    bool canReadShedding = sampleT.CanLogicRead((Assets.Scripts.Objects.Motherboards.LogicType)sheddingTypeValue);
-                    bool canWriteShedding = sampleT.CanLogicWrite((Assets.Scripts.Objects.Motherboards.LogicType)sheddingTypeValue);
+                    bool canReadDeprioritization = sampleT.CanLogicRead((Assets.Scripts.Objects.Motherboards.LogicType)sheddingTypeValue);
+                    bool canWriteDeprioritization = sampleT.CanLogicWrite((Assets.Scripts.Objects.Motherboards.LogicType)sheddingTypeValue);
 
                     totalChecks++;
                     if (canReadPriority && canWritePriority)
@@ -3161,21 +3178,21 @@ namespace ScenarioRunner
                     { _log?.LogError($"[ScenarioRunner] PSP P3 FAIL: Priority surface wrong. canRead={canReadPriority} canWrite={canWritePriority}"); failCount++; }
 
                     totalChecks++;
-                    if (canReadShedding && !canWriteShedding)
-                    { _log?.LogInfo("[ScenarioRunner] PSP P3 PASS: CanLogicRead(Shedding)=true, CanLogicWrite(Shedding)=false (read-only)."); passCount++; }
+                    if (canReadDeprioritization && !canWriteDeprioritization)
+                    { _log?.LogInfo("[ScenarioRunner] PSP P3 PASS: CanLogicRead(Deprioritization)=true, CanLogicWrite(Deprioritization)=false (read-only)."); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] PSP P3 FAIL: Shedding surface wrong (expected RO). canRead={canReadShedding} canWrite={canWriteShedding}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] PSP P3 FAIL: Deprioritization surface wrong (expected RO). canRead={canReadDeprioritization} canWrite={canWriteDeprioritization}"); failCount++; }
                 }
 
                 // ---- PHASE 4: PriorityStore contract (persist, Version bump, negative clamp) ----
                 // Live strict-priority allocation is multi-tick under the atomic allocator and is
-                // covered by pgp-priority-shedding-topology-probe / pgp-shed-multilevel /
+                // covered by pgp-priority-deprioritization-topology-probe / pgp-deprioritization-multilevel /
                 // pgp-chain-fixture; here the probe asserts the store semantics the allocator
                 // depends on: a write persists, bumps the monotonic Version counter (the
                 // intra-tick invalidation cue), and clamps negatives to 0. Runs on a SECOND
                 // transformer where one exists and leaves it at 137, so together with P2's 175
                 // the save carries the >= 2 non-default priorities the persist follow-up
-                // (pgp-priority-shedding-persist-probe) verifies across a reload.
+                // (pgp-priority-deprioritization-persist-probe) verifies across a reload.
                 if (sampleT != null)
                 {
                     Transformer contractT = _transformers.FirstOrDefault(x => x != null && !ReferenceEquals(x, sampleT)) ?? sampleT;
@@ -3206,7 +3223,7 @@ namespace ScenarioRunner
                 }
 
                 // ---- PHASE 4b: lockout precedence over priority changes ----
-                // NoteShed arms the 60 s lockout INSTANTLY (no tolerance counter in the atomic
+                // NoteDeprioritized arms the 60 s lockout INSTANTLY (no tolerance counter in the atomic
                 // architecture), and a priority write must NOT clear it: only expiry or the
                 // OFF-as-reset ClearLockout releases a locked device. Uses the sample transformer
                 // transiently; no allocator pass runs between arm and clear (the pump is a
@@ -3214,7 +3231,7 @@ namespace ScenarioRunner
                 if (sampleT != null)
                 {
                     int simTick = (int)(currentTickProp?.GetValue(null) ?? 0);
-                    noteShedMethod?.Invoke(null, new object[] { sampleT.ReferenceId, simTick });
+                    noteDeprioritizedMethod?.Invoke(null, new object[] { sampleT.ReferenceId, simTick });
                     bool lockedAfterNote = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { sampleT.ReferenceId, simTick }) ?? false);
 
                     setPriorityMethod?.Invoke(null, new object[] { sampleT, 9999 });
@@ -3226,7 +3243,7 @@ namespace ScenarioRunner
 
                     totalChecks++;
                     if (lockedAfterNote && lockedAfterPromote && !lockedAfterClear)
-                    { _log?.LogInfo("[ScenarioRunner] PSP P4b PASS: NoteShed arms the lockout instantly, a priority write (9999) does NOT clear it, ClearLockout does."); passCount++; }
+                    { _log?.LogInfo("[ScenarioRunner] PSP P4b PASS: NoteDeprioritized arms the lockout instantly, a priority write (9999) does NOT clear it, ClearLockout does."); passCount++; }
                     else
                     { _log?.LogError($"[ScenarioRunner] PSP P4b FAIL: lockedAfterNote={lockedAfterNote} lockedAfterPromote={lockedAfterPromote} lockedAfterClear={lockedAfterClear} (expected true/true/false)."); failCount++; }
                 }
@@ -3235,9 +3252,9 @@ namespace ScenarioRunner
                 // LockoutDurationTicks is 120 (60 seconds at 2 Hz) and the retired
                 // ShortfallTolerance counter (the old 2-consecutive-ticks rule) stays deleted:
                 // the atomic tick has fresh in-tick supply data, so lockout fires instantly.
-                var shortfallToleranceField = brownoutRegistryType.GetField("ShortfallTolerance",
+                var shortfallToleranceField = deprioritizedRegistryType.GetField("ShortfallTolerance",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                var lockoutDurationField = brownoutRegistryType.GetField("LockoutDurationTicks",
+                var lockoutDurationField = deprioritizedRegistryType.GetField("LockoutDurationTicks",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
                 int lockoutTicks = (int)(lockoutDurationField?.GetValue(null) ?? -1);
 
@@ -3245,7 +3262,7 @@ namespace ScenarioRunner
                 if (shortfallToleranceField == null)
                 { _log?.LogInfo("[ScenarioRunner] PSP P5 PASS: ShortfallTolerance stays deleted (instant lockout, no tolerance counter)."); passCount++; }
                 else
-                { _log?.LogError("[ScenarioRunner] PSP P5 FAIL: ShortfallTolerance reappeared on BrownoutRegistry (regression to the tolerance-counter era)."); failCount++; }
+                { _log?.LogError("[ScenarioRunner] PSP P5 FAIL: ShortfallTolerance reappeared on DeprioritizedRegistry (regression to the tolerance-counter era)."); failCount++; }
 
                 totalChecks++;
                 if (lockoutTicks == 120)
@@ -3260,18 +3277,18 @@ namespace ScenarioRunner
                 // and that the current allocator type exists.
                 var settingFieldT = settingsType?.GetField("EnableTransformerShedding",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                var shedSyncTypeGone = asm.GetType("PowerGridPlus.ShedSettingsSync");
+                var deprioritizedSyncTypeGone = asm.GetType("PowerGridPlus.DeprioritizedSettingsSync");
                 var overloadSyncTypeGone = asm.GetType("PowerGridPlus.OverloadSettingsSync");
                 var passthroughSyncTypeGone = asm.GetType("PowerGridPlus.PassthroughSettingsSync");
                 var legacyAllocatorGone = asm.GetType("PowerGridPlus.TransformerAllocator");
                 var powerAllocatorType = asm.GetType("PowerGridPlus.PowerAllocator");
                 totalChecks++;
-                if (settingFieldT == null && shedSyncTypeGone == null && overloadSyncTypeGone == null
+                if (settingFieldT == null && deprioritizedSyncTypeGone == null && overloadSyncTypeGone == null
                     && passthroughSyncTypeGone == null && legacyAllocatorGone == null && powerAllocatorType != null)
-                { _log?.LogInfo("[ScenarioRunner] PSP P6 PASS: EnableTransformerShedding ConfigEntry, ShedSettingsSync, OverloadSettingsSync, PassthroughSettingsSync, and TransformerAllocator are all absent; PowerAllocator exists (always-on atomic architecture)."); passCount++; }
+                { _log?.LogInfo("[ScenarioRunner] PSP P6 PASS: EnableTransformerShedding ConfigEntry, DeprioritizedSettingsSync, OverloadSettingsSync, PassthroughSettingsSync, and TransformerAllocator are all absent; PowerAllocator exists (always-on atomic architecture)."); passCount++; }
                 else
                 { _log?.LogError("[ScenarioRunner] PSP P6 FAIL: deleted surface reappeared or current one missing. " +
-                    $"EnableTransformerShedding={settingFieldT != null} ShedSettingsSync={shedSyncTypeGone != null} " +
+                    $"EnableTransformerShedding={settingFieldT != null} DeprioritizedSettingsSync={deprioritizedSyncTypeGone != null} " +
                     $"OverloadSettingsSync={overloadSyncTypeGone != null} PassthroughSettingsSync={passthroughSyncTypeGone != null} " +
                     $"TransformerAllocator={legacyAllocatorGone != null} (all expect false); PowerAllocator={powerAllocatorType != null} (expect true)."); failCount++; }
 
@@ -3461,7 +3478,7 @@ namespace ScenarioRunner
                 {
                     long fakeRef = 999999999L;
                     int simTick2 = (int)(currentTickProp?.GetValue(null) ?? 0);
-                    noteShedMethod?.Invoke(null, new object[] { fakeRef, simTick2 });
+                    noteDeprioritizedMethod?.Invoke(null, new object[] { fakeRef, simTick2 });
                     bool lockedFresh = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { fakeRef, simTick2 }) ?? false);
                     clearLockoutMethod?.Invoke(null, new object[] { fakeRef });
                     bool lockedAfterClear = (bool)(isLockedOutMethodLong?.Invoke(null, new object[] { fakeRef, simTick2 }) ?? false);
@@ -3475,12 +3492,12 @@ namespace ScenarioRunner
 
                 // ---- PHASE 12: SnapshotRemaining heartbeat payload ----
                 // The per-tick FaultRegistrySnapshotMessage serializes
-                // BrownoutRegistry.SnapshotRemaining(currentTick): a fresh lockout must appear
+                // DeprioritizedRegistry.SnapshotRemaining(currentTick): a fresh lockout must appear
                 // there with the full LockoutDurationTicks remaining.
                 {
                     long fakeRef = 999999998L;
                     int simTick3 = (int)(currentTickProp?.GetValue(null) ?? 0);
-                    noteShedMethod?.Invoke(null, new object[] { fakeRef, simTick3 });
+                    noteDeprioritizedMethod?.Invoke(null, new object[] { fakeRef, simTick3 });
                     int remaining = -1;
                     if (snapshotRemainingMethod?.Invoke(null, new object[] { simTick3 }) is System.Collections.IEnumerable snapEnum)
                     {
@@ -3488,6 +3505,17 @@ namespace ScenarioRunner
                         {
                             if (item is KeyValuePair<long, int> pair && pair.Key == fakeRef)
                             { remaining = pair.Value; break; }
+                            // DeprioritizedRegistry.SnapshotRemaining yields the hover-payload
+                            // tuple (long refId, int remainingTicks, float needsW,
+                            // float upstreamDemandW, float upstreamSupplyW); this check only
+                            // needs the first two fields.
+                            var itemType = item?.GetType();
+                            var refField = itemType?.GetField("Item1");
+                            var ticksField = itemType?.GetField("Item2");
+                            if (refField != null && ticksField != null
+                                && refField.FieldType == typeof(long) && ticksField.FieldType == typeof(int)
+                                && (long)refField.GetValue(item) == fakeRef)
+                            { remaining = (int)ticksField.GetValue(item); break; }
                         }
                     }
                     clearLockoutMethod?.Invoke(null, new object[] { fakeRef });
@@ -3507,41 +3535,49 @@ namespace ScenarioRunner
             }
         }
 
-        // PGP scenario: priority-shedding-network-breakdown.
+        // PGP scenario: priority-deprioritization-network-breakdown.
         // Diagnostic (no PASS/FAIL). Per input cable network with >= 1 transformer, log the net
         // fields (PotentialLoad / CurrentLoad / RequiredLoad) and each contestant sorted by
         // priority desc + ReferenceId asc with its PUBLISHED output (the TransformerSupplyCache
         // presentation totals the atomic PowerAllocator writes each tick; the old on-demand
-        // GetAllocatedSupply is gone), its downstream RequiredLoad, and its shed / overload
-        // state. Use this to investigate "unexpected sheds": a CONDUCTING line publishes > 0, an
-        // IDLE line publishes 0 with no fault (standby or dead input), SHED / OVERLOAD name the
-        // active lockout.
+        // GetAllocatedSupply is gone), its downstream RequiredLoad, and its deprioritization /
+        // overload state. Use this to investigate unexpected deprioritizations: a CONDUCTING line publishes > 0, an
+        // IDLE line publishes 0 with no fault (standby or dead input), DEPRIORITIZED / CABLE-OVERLOAD /
+        // TRANSFORMER-OVERLOAD name the active lockout (the overload split keeps the two overload
+        // kinds independently observable).
         private static bool _pspNbFired;
 
-        private static void Scenario_PgpPriorityShedingNetworkBreakdown()
+        private static void Scenario_PgpPriorityDeprioritizationNetworkBreakdown()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-network-breakdown")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-network-breakdown")) return;
             if (_pspNbFired) return;
             _pspNbFired = true;
 
             try
             {
-                _log?.LogInfo("[ScenarioRunner] NBP START priority-shedding-network-breakdown");
+                _log?.LogInfo("[ScenarioRunner] NBP START priority-deprioritization-network-breakdown");
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 if (asm == null) { _log?.LogError("[ScenarioRunner] NBP no PGP assembly"); return; }
 
                 var priorityStoreType = asm.GetType("PowerGridPlus.PriorityStore");
-                var brownoutType = asm.GetType("PowerGridPlus.BrownoutRegistry");
+                var deprioritizedRegistryType = asm.GetType("PowerGridPlus.DeprioritizedRegistry");
                 var overloadType = asm.GetType("PowerGridPlus.OverloadRegistry");
+                var cableOverloadType = asm.GetType("PowerGridPlus.CableOverloadRegistry");
                 var tickCounterType = asm.GetType("PowerGridPlus.ElectricityTickCounter");
 
                 var getPriorityMethod = priorityStoreType?.GetMethod("GetPriority",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long) }, null);
-                var isShedding = brownoutType?.GetMethod("IsShedding",
+                var isDeprioritization = deprioritizedRegistryType?.GetMethod("IsDeprioritized",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
                 var isOverloaded = overloadType?.GetMethod("IsOverloaded",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+                    null, new[] { typeof(long), typeof(int) }, null);
+                // The overload split: the cable-overflow half publishes into its own registry,
+                // so a breakdown that read only IsOverloaded would mislabel a cable-overloaded
+                // transformer as IDLE.
+                var isCableOverloaded = cableOverloadType?.GetMethod("IsCableOverloaded",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
                 var currentTickProp = tickCounterType?.GetProperty("CurrentTick",
@@ -3589,22 +3625,24 @@ namespace ScenarioRunner
                     {
                         var t = item.T;
                         float published = TpPublishedOutput(asm, t.ReferenceId);
-                        bool isShed = (bool)(isShedding?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
+                        bool isDeprioritized = (bool)(isDeprioritization?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                         bool isOver = (bool)(isOverloaded?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
+                        bool isCableOver = (bool)(isCableOverloaded?.Invoke(null, new object[] { t.ReferenceId, currentTick }) ?? false);
                         float outNetReq = t.OutputNetwork?.RequiredLoad ?? 0f;
                         long outId = t.OutputNetwork?.ReferenceId ?? 0L;
 
                         string state;
                         if (!t.OnOff) state = "OFF";
                         else if (t.Error == 1) state = "ERROR";
-                        else if (isShed) state = "SHED (60 s lockout)";
-                        else if (isOver) state = "OVERLOAD (60 s lockout)";
+                        else if (isDeprioritized) state = "DEPRIORITIZED (60 s lockout)";
+                        else if (isCableOver) state = "CABLE-OVERLOAD (60 s lockout)";
+                        else if (isOver) state = "TRANSFORMER-OVERLOAD (60 s lockout)";
                         else if (published > 0.01f) state = "CONDUCTING";
                         else state = "IDLE (standby, no downstream demand, or dead input)";
                         _log?.LogInfo(
                             $"[ScenarioRunner] NBP   ref={t.ReferenceId} prefab={t.PrefabName} prio={item.Prio} " +
                             $"OutMax={t.OutputMaximum:F0} OutReq={outNetReq:F0} OnOff={t.OnOff} Error={t.Error} " +
-                            $"publishedOut={published:F0} shedding={isShed} overloaded={isOver} state=[{state}] OutNet={outId}");
+                            $"publishedOut={published:F0} deprioritized={isDeprioritized} overloaded={isOver} cableOverloaded={isCableOver} state=[{state}] OutNet={outId}");
                     }
 
                     netsLogged++;
@@ -3617,8 +3655,8 @@ namespace ScenarioRunner
             }
         }
 
-        // PGP scenario: priority-shedding-persist-probe.
-        // Verifies PrioritySideCar round-trip. Run this AFTER pgp-priority-shedding-probe wrote
+        // PGP scenario: priority-deprioritization-persist-probe.
+        // Verifies PrioritySideCar round-trip. Run this AFTER pgp-priority-deprioritization-probe wrote
         // synthetic priorities on phase 4, after `-Save -Name <X>`, after `-Stop`, after `-Start
         // -Load <X>`. Reads back the priorities of the same transformers and asserts that the
         // post-load PriorityStore values match what phase 4 wrote.
@@ -3632,15 +3670,15 @@ namespace ScenarioRunner
 
         private static bool _pspPersistFired;
 
-        private static void Scenario_PgpPriorityShedingPersistProbe()
+        private static void Scenario_PgpPriorityDeprioritizationPersistProbe()
         {
-            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-shedding-persist-probe")) return;
+            if (!RequireModAssembly(PGP_ASSEMBLY, "pgp-priority-deprioritization-persist-probe")) return;
             if (_pspPersistFired) return;
             _pspPersistFired = true;
 
             try
             {
-                _log?.LogInfo("[ScenarioRunner] PSPP START priority-shedding-persist-probe");
+                _log?.LogInfo("[ScenarioRunner] PSPP START priority-deprioritization-persist-probe");
                 var asm = GetModAssembly(PGP_ASSEMBLY);
                 var priorityStoreType = asm?.GetType("PowerGridPlus.PriorityStore");
                 var getPriorityMethod = priorityStoreType?.GetMethod("GetPriority",
@@ -3666,7 +3704,7 @@ namespace ScenarioRunner
                 else if (total == 0)
                     _log?.LogWarning("[ScenarioRunner] PSPP SKIP: no transformers in scene.");
                 else
-                    _log?.LogError($"[ScenarioRunner] PSPP FAIL: only {nonDefault} non-default priorities survived; expected the writes from pgp-priority-shedding-probe phase 2/4 to be present.");
+                    _log?.LogError($"[ScenarioRunner] PSPP FAIL: only {nonDefault} non-default priorities survived; expected the writes from pgp-priority-deprioritization-probe phase 2/4 to be present.");
             }
             catch (Exception e)
             {
