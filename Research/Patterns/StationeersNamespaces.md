@@ -26,6 +26,7 @@ F0049 (Mods/PowerTransmitterPlus/RESEARCH.md:613-619, primary):
 | `ProgrammableChip` | `Assets.Scripts.Objects.Electrical` | Not `Motherboards` |
 | `ProgrammableChip.Constant` | nested in `ProgrammableChip` | Must qualify as `ProgrammableChip.Constant` |
 | `LogicType` | `Assets.Scripts.Objects.Motherboards` | (Most Logic types ARE in Motherboards, just not the chip) |
+| `GameState` (enum) | `Assets.Scripts.GridSystem` | Not `Assets.Scripts` (where `GameManager` lives; decompile 290777 under the 290052 namespace) |
 | `PowerTransmitterVisualiser` | global namespace | NOT `Assets.Scripts.Objects.Electrical` despite the dish being there |
 
 F0388 (Mods/SprayPaintPlus/SprayPaintPlus/ConsumableSyncPatch.cs:6) adds:
@@ -48,6 +49,7 @@ Add entries here as new namespace surprises are discovered. The table is small b
 - F0388: `Consumable` namespace note from SprayPaintPlus code comment.
 
 ## Verification history
+- 2026-07-14: added the GameState enum row (Assets.Scripts.GridSystem, decompile 290777; hit while a new file using GameManager.GameState failed to resolve GameState with only the Assets.Scripts using). Additive.
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
 - 2026-04-20: page created from the Research migration; F0049 primary, F0388 additional.
