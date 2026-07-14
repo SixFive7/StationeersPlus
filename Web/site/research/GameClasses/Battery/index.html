@@ -1118,6 +1118,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#isoperable-completion-and-breakage-gates-on-top-of-the-base" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IsOperable: completion and breakage gates on top of the base
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8418,6 +8429,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#isoperable-completion-and-breakage-gates-on-top-of-the-base" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IsOperable: completion and breakage gates on top of the base
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9019,8 +9041,26 @@
 </tbody>
 </table>
 <p>So the station batteries carry a pure <code>Data</code> third port; the rocket batteries carry a <code>PowerAndData</code> third port. No vanilla battery folds data onto its <code>Power/Input</code> or <code>Power/Output</code> connector. Which cable coil (normal vs heavy) physically snaps onto a connector is a separate matter of the connector's prefab grid-cell / collider geometry, not its <code>NetworkType</code> (cable type lives on <code>Cable</code>, see <a href="../Cable/">Cable</a>; <code>SmallGrid.IsConnected</code> gates on <code>NetworkType</code> + grid coincidence only).</p>
+<h2 id="isoperable-completion-and-breakage-gates-on-top-of-the-base">IsOperable: completion and breakage gates on top of the base<a class="headerlink" href="#isoperable-completion-and-breakage-gates-on-top-of-the-base" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>Battery</code> overrides <code>IsOperable</code> (391754-391764), verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsOperable</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="k">base</span><span class="p">.</span><span class="n">IsStructureCompleted</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">IsBroken</span><span class="p">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">IsOperable</span><span class="p">;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So a stationary battery is operable iff it is structure-complete, not broken, and passes the <code>ElectricalInputOutput</code> base check (distinct input and output networks). Vanilla gates every battery power surface on this property, which is why PowerGridPlus refuses to enroll an inoperable battery as a store (a granted charge share would strand as granted-but-unbillable).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-14: added the IsOperable override verbatim (completion + breakage on top of the ElectricalInputOutput base gate; decompile 391754-391764). Driving work: diagnosing a rocket-mounted battery that would not charge (the gate turned out NOT to be the cause; the OnOff-gated umbilical Female enrollment was, see RocketPowerUmbilical.md).</li>
 <li>2026-07-07 (later): added "Self-drain in OnAtmosphericTick: never billed to the network" section (game version 0.2.6403.27689). Verbatim body read at 392186-392207; <code>LOSS_NORMAL = 10f</code> / <code>LOSS_IN_COLD = 50f</code> declarations at 391695 / 391697 (const-inlined by the decompiler, hence the literals in the body). Documents the four branches (rocket-internal and empty stores exempt; vacuum flat 50 J with no heat emission; warm atmosphere 10 J; below-freezing scaled by <code>50 * (1 - T/ZeroDegrees) * HeatExchangeRatio</code> floored at 10 J with the joules added to the gas as heat) and the billing consequence (the drain is written straight into <code>PowerStored</code> on the atmospheric tick; it never enters any network's <code>Required</code>). Occasion: PowerGridPlus partial-power forensics (a known vanilla sink to subtract before blaming the allocator). Additive; no prior claim on this page addressed self-drain.</li>
 <li>2026-07-07: re-confirmed <code>ReceivePower</code> (392152-392158, <code>PowerStored = Mathf.Clamp(powerAdded + PowerStored, 0f, PowerMaximum)</code> on the incoming chunk) byte-identical against the 0.2.6403.27689 decompile. Occasion: the PowerGridPlus partial-power sentinel scope derivation; this body is the proof that a charging store is ratio-deprivable (vanilla ApplyState scales the chunk stream before it reaches <code>ReceivePower</code>, so delivered charge = grant times the network ratio), which keeps storage-charging networks inside the sentinel's contract scope. No content change.</li>
 <li>2026-07-02: re-verification pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. Confirmed unchanged with new line refs: class declaration <code>Battery : ElectricalInputOutput, ...</code> (391662, body ends 392217), <code>PowerMaximum = 3600000f</code> C# default (391675), and the four power-tick bodies verbatim (<code>UsePower</code> 392144-392150, <code>ReceivePower</code> 392152-392158, <code>GetUsedPower</code> full headroom 392160-392171, <code>GetGeneratedPower</code> whole store 392173-392184). ADDED the "PowerDelta is SIGN-REVERSED" subsection: station <code>Battery.PowerDelta =&gt; PowerStored - PowerMaximum</code> (391732) vs <code>BatteryCell.PowerDelta =&gt; PowerMaximum - PowerStored</code> (340551); <code>AreaPowerControl</code> uses the <code>BatteryCell</code> form (its slot <code>Battery</code> property is a <code>BatteryCell</code>, APC line 390594), so code reaching for the station property must account for the reversed sign. Sections on the charge-state ladder, display, flashing coroutine, prefab variants, and rocket-internal fields were not re-read this pass and keep their earlier stamps.</li>

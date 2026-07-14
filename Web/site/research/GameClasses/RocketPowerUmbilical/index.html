@@ -2860,6 +2860,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#enrollment-corollary-never-onoff-gate-the-female-in-a-replacement-allocator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrollment corollary: never OnOff-gate the Female in a replacement allocator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8374,6 +8385,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#enrollment-corollary-never-onoff-gate-the-female-in-a-replacement-allocator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrollment corollary: never OnOff-gate the Female in a replacement allocator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8828,8 +8850,13 @@
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="p">}</span>
 </span></code></pre></div>
 <p>Consequence for mods that retire <code>ApplyState</code>: nothing writes an umbilical's <code>Powered</code> any more, the flag freezes at its load default (false), and the Activate action refuses forever with "not powered" even on a wired, error-free, switched-on half (observed live 2026-07-14 on a dedicated server). Such a mod must own the flag itself; PowerGridPlus asserts it from the net-liveness verdict of the half's INPUT network (PoweredOwnership carve-out, 2026-07-14), because the halves enroll in its allocator as buffered stores rather than routed segmenters and therefore never appear in its segmenter presentation roster.</p>
+<h2 id="enrollment-corollary-never-onoff-gate-the-female-in-a-replacement-allocator">Enrollment corollary: never OnOff-gate the Female in a replacement allocator<a class="headerlink" href="#enrollment-corollary-never-onoff-gate-the-female-in-a-replacement-allocator" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>The Female quartet's OnOff-blindness (gate table above) is load-bearing for any mod that replaces the vanilla power tick: a generic "skip switched-off segmenters" enrollment filter silently drops the Female, and since she is typically a docked rocket's ONLY grid-side supply, the rocket's internal cable network then models zero supply, gets judged dead, and every rocket-mounted battery's charge grant is zeroed. Observed live 2026-07-14 in PowerGridPlus: <code>StructureBatteryMedium</code> 703648 sat at 0 J next to Female 614953 holding a full 4900 J cell (her <code>OnOff</code> is false in normal play; the pair's player-facing switch is the Male). The fix exempts <code>RocketPowerUmbilicalFemale</code> from the OnOff enrollment gate, matching her vanilla semantics; the Male keeps the gate (vanilla gates his quartet on OnOff).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-14 (third pass, same day): added "Enrollment corollary" (the OnOff-blind Female must not be dropped by a generic switched-off-segmenter filter; PowerGridPlus rocket-battery starvation found and fixed live). Additive; grounded in the gate table already on this page.</li>
 <li>
 <p>2026-07-14 (second pass, same day): added "Powered flag: no override, written only by the power tick, gated on for Activate" (no Powered getter override on either half; the Male working gate verbatim; the Activate DeviceNoPower/DeviceNotOn refusal ladder verbatim, 158444-158452; the retire-ApplyState consequence). Driving work: diagnosing a wired, ON, error-free Male stuck at Powered=false under PowerGridPlus.</p>
 </li>

@@ -1708,6 +1708,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#power-the-shaft-network-aggregate-reads-cabled-levels-powered-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power: the shaft-network aggregate reads cabled levels' Powered flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8312,6 +8323,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#power-the-shaft-network-aggregate-reads-cabled-levels-powered-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power: the shaft-network aggregate reads cabled levels' Powered flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8642,8 +8664,34 @@
 </span></code></pre></div>
 <p><code>ElevatorLevel</code> does not need a separate branch: it inherits from <code>ElevatorShaft</code>, so the seed switch covers it and the <code>List&lt;ElevatorShaft&gt;</code> enumeration picks it up. Visual prefab variants (with-cable, without-cable) all instantiate one of these three classes and live in the same network, so the walk covers them uniformly.</p>
 <p>The <code>SetCustomColor</code> setter on <code>ElevatorCarrage</code> is inherited from <code>DynamicThing</code> without override; the carriage's motion does not guard the color setter. Confirmed in-game on 2026-05-21 (game version 0.2.6228.27061): a painted carriage keeps its color through vertical motion.</p>
+<h2 id="power-the-shaft-network-aggregate-reads-cabled-levels-powered-flags">Power: the shaft-network aggregate reads cabled levels' Powered flags<a class="headerlink" href="#power-the-shaft-network-aggregate-reads-cabled-levels-powered-flags" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p><code>ElevatorShaftNetwork</code> (395645) aggregates power from its member shafts, verbatim (395673-395695 region):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">PoweredValue</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">shaft</span><span class="p">.</span><span class="n">PoweredValue</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="kt">object</span><span class="p">)</span><span class="n">shaft</span><span class="p">.</span><span class="n">PowerCable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">}</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">Powered</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">{</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">shaft</span><span class="p">.</span><span class="n">Powered</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="kt">object</span><span class="p">)</span><span class="n">shaft</span><span class="p">.</span><span class="n">PowerCable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">        </span><span class="p">...</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The elevator works iff at least one CABLED member shaft (in practice an <code>ElevatorLevel</code>, the piece with the power connector) has its Device <code>Powered</code> flag true; uncabled mid-shaft pieces never contribute. Critically, <code>ElevatorShaft : Device</code> neither overrides the <code>Powered</code> getter nor writes the flag anywhere in its own code: the only vanilla writer is the power tick's <code>ApplyState</code> billing. A mod that retires <code>ApplyState</code> and also exempts the elevator family from its own Powered ownership freezes every level's flag at its load value forever; levels powered before such a change stay powered, newer ones stay dark, and whole elevators dead-lock on the aggregate (observed live 2026-07-14 in PowerGridPlus; fixed by removing the elevator exemption so the ownership sweep asserts cabled levels from the net verdict).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-14: added the shaft-network power aggregate (Powered / PoweredValue require a CABLED shaft with the flag set, 395673-395695 region) and the no-self-writer fact (ElevatorShaft : Device, no Powered override; ApplyState was the only vanilla writer). Driving work: user report of dark elevators under PowerGridPlus (frozen-flag bug, fixed via PoweredOwnership).</li>
 <li>2026-05-18: Initial writeup. Consolidated from two in-session drafts (<code>ElevatorPaintability.md</code>, <code>ElevatorSystem.md</code>, both unsanctioned and removed in the same change). All claims re-verified against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>. The "elevators are not paintable" claim from an earlier sub-agent pass was incorrect: it grepped for <code>PaintableMaterial =</code> assignments in code, which misses prefab-asset assignments by Unity serialization. In-game verification confirms paintability on all three classes and all known with-cable / without-cable visual variants.</li>
 <li>2026-05-21: Resolved the carriage-persistence open question. Developer confirmed in-game (game version 0.2.6228.27061) that a painted <code>ElevatorCarrage</code> retains its <code>CustomColor</code> through vertical motion. Observed during SprayPaintPlus elevator-paint feature testing.</li>
 </ul>
