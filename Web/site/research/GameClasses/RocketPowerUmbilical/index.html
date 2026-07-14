@@ -2849,6 +2849,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#powered-flag-no-override-written-only-by-the-power-tick-gated-on-for-activate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Powered flag: no override, written only by the power tick, gated on for Activate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8352,6 +8363,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#powered-flag-no-override-written-only-by-the-power-tick-gated-on-for-activate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Powered flag: no override, written only by the power tick, gated on for Activate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8786,9 +8808,34 @@
 <!-- verified: 0.2.6228.27061 @ 2026-06-18 -->
 
 <p>The Male declares its own <code>CanLogicRead</code>; the Female inherits the <code>Device</code> base logic methods (relevant to Harmony targeting: a base-<code>Device</code> patch with an <code>is RocketPowerUmbilicalFemale</code> filter is required for the Female, while the Male can be patched directly; see <a href="../../Patterns/HarmonyInheritedMethods/">HarmonyInheritedMethods</a>). The umbilical does NOT carry logic/data across the coupling: <code>MovePowerToUmbilical</code> moves energy only, and the two halves sit on independent cable networks. Any logic bridging would have to go through the rocket's own data network, not the umbilical.</p>
+<h2 id="powered-flag-no-override-written-only-by-the-power-tick-gated-on-for-activate">Powered flag: no override, written only by the power tick, gated on for Activate<a class="headerlink" href="#powered-flag-no-override-written-only-by-the-power-tick-gated-on-for-activate" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+<p>Neither half overrides the <code>Powered</code> getter (whole-region check around the class bodies, 158000-158700): both use the base <code>Thing</code> flag, whose only vanilla writer is the power tick's <code>ApplyState</code> billing. Two gates read it:</p>
+<p>The Male's transfer/working gate (158325):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Powered</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">OnOff</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsOpen</span><span class="p">)</span>
+</span></code></pre></div>
+<p>and the Activate interaction refusal shared by the halves (158444-158452):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">interactable</span><span class="p">.</span><span class="n">Action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">InteractableType</span><span class="p">.</span><span class="n">Activate</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">Powered</span><span class="p">)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">delayedActionInstance</span><span class="p">.</span><span class="n">Fail</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">DeviceNoPower</span><span class="p">);</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">OnOff</span><span class="p">)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">delayedActionInstance</span><span class="p">.</span><span class="n">Fail</span><span class="p">(</span><span class="n">GameStrings</span><span class="p">.</span><span class="n">DeviceNotOn</span><span class="p">);</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="p">}</span>
+</span></code></pre></div>
+<p>Consequence for mods that retire <code>ApplyState</code>: nothing writes an umbilical's <code>Powered</code> any more, the flag freezes at its load default (false), and the Activate action refuses forever with "not powered" even on a wired, error-free, switched-on half (observed live 2026-07-14 on a dedicated server). Such a mod must own the flag itself; PowerGridPlus asserts it from the net-liveness verdict of the half's INPUT network (PoweredOwnership carve-out, 2026-07-14), because the halves enroll in its allocator as buffered stores rather than routed segmenters and therefore never appear in its segmenter presentation roster.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-07-08: added "Gate table and credit semantics" subsection consolidating the per-half power quartet (game version 0.2.6403.27689; re-read Female 158143-158175, Male 158628-158678, docked crossings 158139 / 158624). Facts made explicit: all four settle methods ignore the <code>cableNetwork</code> argument (only the queries are network-keyed), the Female quartet carries no OnOff gate anywhere, the Male's <code>Error == 1 &amp;&amp; OnOff</code> <code>GetUsedPower</code> branch returns the bare quiescent <code>UsedPower</code> (158656-158658), and both halves' <code>ReceivePower</code> credits are bare clamps into the cell with no <code>UsedPower</code> netting (158152 / 158647), so a delivered quiescent component lands as charge (contrast <code>WallLightBattery.ReceivePower</code>, which nets it out). Occasion: the PowerGridPlus delivery-seam generalization (the mod funds each half's quiescent as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share). Every claim matches the verbatim bodies already on this page from the 2026-07-02 pass; additive consolidation, no conflict, no fresh validator.</li>
+<li>
+<p>2026-07-14 (second pass, same day): added "Powered flag: no override, written only by the power tick, gated on for Activate" (no Powered getter override on either half; the Male working gate verbatim; the Activate DeviceNoPower/DeviceNotOn refusal ladder verbatim, 158444-158452; the retire-ApplyState consequence). Driving work: diagnosing a wired, ON, error-free Male stuck at Powered=false under PowerGridPlus.</p>
+</li>
+<li>
+<p>2026-07-08: added "Gate table and credit semantics" subsection consolidating the per-half power quartet (game version 0.2.6403.27689; re-read Female 158143-158175, Male 158628-158678, docked crossings 158139 / 158624). Facts made explicit: all four settle methods ignore the <code>cableNetwork</code> argument (only the queries are network-keyed), the Female quartet carries no OnOff gate anywhere, the Male's <code>Error == 1 &amp;&amp; OnOff</code> <code>GetUsedPower</code> branch returns the bare quiescent <code>UsedPower</code> (158656-158658), and both halves' <code>ReceivePower</code> credits are bare clamps into the cell with no <code>UsedPower</code> netting (158152 / 158647), so a delivered quiescent component lands as charge (contrast <code>WallLightBattery.ReceivePower</code>, which nets it out). Occasion: the PowerGridPlus delivery-seam generalization (the mod funds each half's quiescent as rigid demand and burns it from the delivered stream once per tick, so the cell credits exactly the granted share). Every claim matches the verbatim bodies already on this page from the 2026-07-02 pass; additive consolidation, no conflict, no fresh validator.</p>
+</li>
 <li>2026-07-02: version-change pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. STRUCTURE CHANGED: there is now an abstract base <code>RocketPowerUmbilical : ElectricalInputOutput, IUmbilical, ...</code> (157690) owning <code>PowerMaximum</code> (157693), the SINGLE private <code>_partnerUmbilical</code> (157695) exposed as <code>protected PartnerUmbilical</code> (157727-157741), <code>_savedPartnerId</code> (157713), <code>TransferProgress</code> (157743-157757), and a <code>CanTransfer =&gt; true</code> (157719) that the Male HIDES with <code>new</code> (158321); <code>RocketPowerUmbilicalFemale : RocketPowerUmbilical</code> (157952) and <code>RocketPowerUmbilicalMale : RocketPowerUmbilical</code> (158302). Superseded the old per-half-field class model. TRANSFER CHANGED (supersession): the Female now has its own <code>OnPowerTick</code> transfer (158110-158118, gated <code>TransferProgress &gt;= 1f &amp;&amp; PartnerValid</code>) with a Female <code>MovePowerToUmbilical</code> (158120-158141) that pulls the partner's headroom out of <code>RocketNetwork.Batteries</code> into its own cell and pushes it to the partner via <code>ReceivePower(null, ...)</code>; the previous "one-way station -&gt; rocket only" claim is superseded, and the pair now moves power in both directions. Male push path re-verified with formula unchanged (<code>OnPowerTick</code> 158511-158518, <code>MovePowerToUmbilical</code> 158621-158626). Grid-facing methods re-verified (Male <code>GetUsedPower</code> headroom at 158664, <code>GetGeneratedPower</code> at 158677; Female 158143-158175 with its no-gate <code>UsePower</code> / <code>ReceivePower</code>, no-<code>OnOff</code> <code>GetUsedPower</code>, and Female-partner <code>GetGeneratedPower</code> guard at 158170-158173). Added the pool-slot-order-INsensitivity note (the direct <code>ReceivePower(null, ...)</code> crossing runs in phase 2, unlike every ledger bridge) and the static-analysis note that a Female push into an off/errored Male is destroyed. The 4900 J prefab <code>PowerMaximum</code> figure is prefab-serialized and could not be re-verified from the decompile; moved to Open Questions for an InspectorPlus re-check.</li>
 <li>2026-06-21: corrected the umbilical cell size -- the prefab overrides <code>PowerMaximum</code> to 4900 J on both halves, not the 10000f class default; runtime-confirmed via a <code>Prefab.AllPrefabs</code> dump on the dedicated server. Restamped Class model + Power transfer.</li>
 <li>2026-06-21: added "Partner pairing and connection state" section (private <code>_partnerUmbilical</code> fields typed to the partner class, L147900 / L148283; no public <code>IUmbilical</code> partner getter; <code>_savedPartnerId</code> L148295; exact <code>CanTransfer</code> / <code>PartnerValid</code> / <code>IsOperable</code> per half). Sourced from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> while implementing the PowerGridPlus umbilical logic-passthrough feature. Additive; no conflict with existing content.</li>
