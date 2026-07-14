@@ -45,7 +45,7 @@ Rooms are sealed pressurized volumes. The game tracks every airtight cell. Seale
 **Cell size:** each cell is a 2x2x2 voxel block. Cells are spaced 2 apart on each axis.
 
 ## DifficultySetting
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
 `<DifficultySetting Id="Normal" />` near the top of world.xml (a direct child of root `<WorldData>`, serialized via `XmlSaveLoad.WorldData.DifficultySetting`, a `SerializedId` whose `Id` is an `[XmlAttribute]`). Values include `Easy`, `Normal`, `Stationeer`, and `Creative`. The game mode (Survival vs Creative) is NOT a separate field; it is derived from this difficulty on load. Setting `Id="Creative"` enables creative mode and persists across reloads. See [../GameSystems/CreativeModeAndDifficulty.md](../GameSystems/CreativeModeAndDifficulty.md) for the full mechanism, the stock difficulty presets, and the `Creative` preset's field values.
 
