@@ -10,6 +10,7 @@ sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 394930-395006 (CheckConnections, CheckPower, IsProviderToDevice, OnAddCableNetwork, OnRemoveCableNetwork), 390636-390998 (AreaPowerControl NoPower / CheckPower / AllowSetPower), 391963-391969 (Battery.CheckPower)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 395008-395023 (GetPassiveTooltip), 371547-371557 (Device.GetPassiveTooltip), 314440-314465 (Structure.GetPassiveTooltip), 319731-319739 (Thing.GetPassiveTooltip / GetPassiveUITooltip), 390800-390826 (AreaPowerControl.GetPassiveTooltip / GetContextualName), 424598-424993 (Transformer negative census), 307029-307155 (PassiveUITooltip + PassiveTooltip structs), 253966-254375 (Tooltip UI class), 287864-287869 + 285975 (InventoryManager.NormalModeThing + TooltipRef), 239691-239721 (InputMouse route)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 44018/44086/44166/44282 (KeyMap.MouseControl = LeftAlt), 201299-201391 (MouseModeController), 239369 + 239462-239484 + 239647-239677 (InputMouse class / SetMouseControl / Update gate), 239679-239759 (InputMouse.Idle), 287864-287987 (NormalModeThing display gate), 254408-254433 (Tooltip.SetValuesForInteractable), 307109-307129 (PassiveTooltip DelayedActionInstance constructor), 250399-250428 + 250451 + 250633 + 250640 (#008AE6 census)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 254298-254320 (SetUpToolTip) + 254377-254380 (ColorToHex) + 254081-254100 (Action property) + 253998 (Color field) + 254025-254029 (row renderer fields) + 254345-254362 + 254389 (per-row renderer gates / all-empty hide), 287898-287958 (NormalModeThing action sub-branches)
 related:
   - ./Device.md
   - ./Transformer.md
@@ -444,6 +445,19 @@ else
 
 Branch 2 is the branch that renders this class's port labels on the plain crosshair: the port override (395008) fills `Title` with `InterfaceStrings.ConnectionInput` / `ConnectionOutput`, and connection colliders are not interactable colliders, so branch 1 does not intercept. Branch 3 is how the APC body readout displays without ALT: `AreaPowerControl.GetPassiveTooltip` fills `Title` / `Extended` only for the null-collider form (390800-390810, section above), so branch 2's collider form stays empty and branch 3 fires in `ActionLast` mode.
 
+Gate asymmetry: the Title-empty gates exist only on the non-actionable else-chain. Inside branch 1 every sub-branch hands its struct to `HandleToolTipDisplay` without inspecting a single field first: drag (287917-287923, display 287922), interactable (287924-287946, display 287929), attack (287947-287953, display 287952), plain item (287954-287958, display 287957). In this method `delayedActionInstance` is the `AttackWith` preview (287871-287874), `delayedActionInstance2` the `InteractWith` preview (287886), `delayedActionInstance3` the Human `DragInto` preview (287892-287894). The interactable sub-branch, the one that runs for button and switch hovers, verbatim (287924-287929):
+
+```csharp
+else if (interactable != null && delayedActionInstance2 != null && delayedActionInstance == null)   // line 287924
+{
+    PassiveTooltip cursorPassiveTooltip4 = new PassiveTooltip(delayedActionInstance2, string.Empty, CursorManager.CursorThing);
+    Tooltip.SetValuesForInteractable(ref cursorPassiveTooltip4, CursorManager.CursorThing, interactable);
+    color = ((delayedActionInstance2.IsDisabled || !CursorManager.CursorThing.AllowInteraction) ? UnityEngine.Color.red : ((!WillStackFromInteractable(interactable)) ? ((delayedActionInstance2.Duration > 0f) ? UnityEngine.Color.yellow : UnityEngine.Color.green) : UnityEngine.Color.yellow));
+    TooltipRef.HandleToolTipDisplay(cursorPassiveTooltip4);                                         // line 287929: no Title gate
+```
+
+So the Title-empty gates (287963, 287972) cover only collider and body hovers with nothing actionable under the crosshair; an interactable hover displays whatever `SetValuesForInteractable` produced, unconditionally. Emptying `Title` on an interactable hover therefore does not suppress the tooltip display; it only hides the name box row via the `TitleRenderer` gate (see the render-path section below).
+
 Mod consequence: a `GetPassiveTooltip` postfix on a Structure/Device that fills only `Extended` (leaving `Title` empty) renders ONLY in ALT mouse-control hover; the plain crosshair drops it at both Title gates (287963 / 287972). Filling `Title` (typically with `DisplayName`) makes the crosshair display it too: via branch 2 when the collider form carries the Title, via branch 3 (`ActionLast`) when only the null-collider form does. This is why the PowerGridPlus fault-hover block fills `Title` alongside `Extended` (`Mods/PowerGridPlus/PowerGridPlus/Patches/FaultHoverPatches.cs`).
 
 ## PassiveTooltip: the struct and its TextMeshPro render path
@@ -541,7 +555,56 @@ public string Extended                           // line 254144
 
 So the `Extended` string is rendered by a `TextMeshProUGUI`, which parses `\n` line breaks and rich-text tags (`<color>`, nested spans) in `.text`. The game relies on exactly that in this component: `SetUpToolTip` itself wraps the action line in a color tag, `Action = "<color=#" + ColorToHex(Color) + ">" + Action + "</color> ";` (254319), and vanilla overrides write tags into the struct too (`LogicMirror.GetPassiveTooltip` puts `$"Mirroring <color=green>{...}</color>"` into `State`, see [LogicMirror](./LogicMirror.md)). Confirmed in-game during the PowerGridPlus fault-hover work: multi-line blocks appended to `Extended` with `"\n"` separators and `<color>` tags render as colored lines in the body tooltip.
 
+### SetUpToolTip: the Action color wrap and the per-row renderer gates
+<!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
+
+`SetUpToolTip` copies every struct field into the Tooltip properties (each setter writes its TextMeshPro `.text` directly; `TooltipAction.text = value;` at 254098), computes the `_has*` emptiness flags, and THEN wraps the ENTIRE Action string in color markup. Verbatim (254298-254320):
+
+```csharp
+public void SetUpToolTip(string action, PassiveTooltip cursorPassiveTooltip)     // line 254298
+{
+    Action = cursorPassiveTooltip.Action;                                        // line 254300
+    Title = cursorPassiveTooltip.Title;
+    State = cursorPassiveTooltip.State;
+    Color = cursorPassiveTooltip.color;                                          // line 254303
+    Slider = cursorPassiveTooltip.Slider;
+    Extended = cursorPassiveTooltip.Extended;
+    BuildStateInfo = cursorPassiveTooltip.ConstructString;
+    DeconstructBuildState = cursorPassiveTooltip.DeconstructString;
+    RepairBuildState = cursorPassiveTooltip.RepairString;
+    PlacementType = cursorPassiveTooltip.PlacementString;
+    TooltipNumberOfBuildStates.text = cursorPassiveTooltip.BuildStateIndexMessage;
+    _hasTitle = !string.IsNullOrEmpty(_title) && _title.Length > 0;              // line 254311
+    _hasState = !string.IsNullOrEmpty(_state) && _state.Length > 0;              // line 254312
+    _hasAction = !string.IsNullOrEmpty(_action) && _action.Length > 0;           // line 254313
+    _hasExtended = !string.IsNullOrEmpty(_extended) && _extended.Length > 0;     // line 254314
+    _hasConstruction = !string.IsNullOrEmpty(_buildStateInfo);
+    _hasDeconstruction = !string.IsNullOrEmpty(_deconstructBuildState);
+    _hasRepair = !string.IsNullOrEmpty(_repairStateInfo);
+    _hasPlacement = !string.IsNullOrEmpty(PlacementType);
+    Action = "<color=#" + ColorToHex(Color) + ">" + Action + "</color> ";        // line 254319
+}
+```
+
+Consequences of the 254319 wrap:
+
+- The action line's color is applied OUTSIDE the caller's string: it comes from the struct's `color` field, copied into the class field `public UnityEngine.Color Color = UnityEngine.Color.white;` (253998). A mod that appends text to `Action` inherits the wrap color for the whole line unless it closes and reopens its own `<color>` spans inside the string.
+- `ColorToHex` (254377-254380) is `return $"{color.r:X2}{color.g:X2}{color.b:X2}";` over the `Color32` conversion of the color (alpha dropped), so `UnityEngine.Color.green` (0, 1, 0) renders as `<color=#00FF00>`. #00FF00 is therefore the vanilla action-text green, the value the interaction-color ladders pick for an allowed instant click (254426; inline copies 287919 / 287928 / 287949).
+- The `_has*` flags are computed from the raw strings BEFORE the wrap (254311-254314 vs 254319), so an empty `Action` stays `_hasAction == false` even though the markup shell is still written into `TooltipAction.text`. The wrap appends a trailing space after `</color>`.
+
 Visibility gating: `_hasExtended = !string.IsNullOrEmpty(_extended) && _extended.Length > 0;` (254314) feeds both the panel-visible decision (`flag2` at 254331 ORs `_hasExtended` in) and `ExtendedRenderer.SetVisible(_hasExtended)` (254350), so appending a non-empty `Extended` to an otherwise empty tooltip makes the panel appear. Caveat: `HandleToolTipDisplay` returns early when the player's active hand holds a `Tablet` (254325-254328), so body tooltips are suppressed while a tablet is out.
+
+The visible-panel block of `HandleToolTipDisplay` toggles one `UiComponentRenderer` per row (fields declared 254025-254029), verbatim (254349-254351):
+
+```csharp
+StateRenderer.SetVisible(_hasState);         // line 254349
+ExtendedRenderer.SetVisible(_hasExtended);   // line 254350
+TitleRenderer.SetVisible(_hasTitle);         // line 254351
+```
+
+An empty `Title` (`_hasTitle`, 254311) hides the tooltip's name box entirely (in the on-screen button-hover layout this is the boxed thing name beside the action text, observed in-game during the PowerGridPlus button-tooltip layout work), and an empty `State` (`_hasState`, 254312) hides the state row the same way. There is no action-row entry in this block; the action-side elements hang off `flag` (254330 / 254341 / 254363-254369). Emptying `Title` alone cannot hide the panel while an action line is present: `DrawTooltip` (254389) forces `TooltipMode.Hidden` only when Title, State, Action, and Extended are ALL empty.
+
+Mod consequence: a Harmony postfix on `Tooltip.SetValuesForInteractable` (subsection below) that sets `tooltip.Title = string.Empty` suppresses the name box for exactly that hover poll and nothing else. It is self-restoring because the struct is rebuilt from scratch on every poll (full replacement at 254415, fresh struct at 287926, `Idle` re-polls per frame at 239679-239721), and the postfix runs after the `SwitchTitleForTooltip` title write (254429-254432), so the emptied Title wins for that poll and vanishes with it.
 
 ### SetValuesForInteractable: an interactable hover REPLACES the struct
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
@@ -576,6 +639,14 @@ public static void SetValuesForInteractable(ref PassiveTooltip tooltip, Thing Cu
     }
 }
 ```
+
+The color ladder (254416-254427, quoted above) is the vanilla interaction-color policy: green for an instantly allowed click, yellow or red for every other state. Exact ladder:
+
+- red when `(delayedActionInstance != null && delayedActionInstance.IsDisabled) || !CursorThing.AllowInteraction` (254416-254419): the previewed action is disabled, or interaction with the thing is disallowed.
+- else yellow when `InventoryManager.WillStackFromInteractable(interactable)` (254420-254423).
+- else `tooltip.color = ((delayedActionInstance.Duration > 0f) ? UnityEngine.Color.yellow : UnityEngine.Color.green);` (254424-254427): yellow for a timed action, green only for an enabled, allowed, non-stacking, zero-duration click.
+
+`InventoryManager.NormalModeThing` re-derives the identical ladder inline in its interactable sub-branch (287928) and reduced no-stack forms in the drag and attack sub-branches (287919, 287949), so the policy holds on both display routes. The chosen struct `color` is what `SetUpToolTip` wraps around the whole Action line (254319, subsection above); `Color.green` there renders as #00FF00.
 
 The replacement constructor `PassiveTooltip(Thing.DelayedActionInstance actionInstance, string actionOverride, Thing cursorThing)` maps the action preview onto the struct fields. Verbatim (307109-307129):
 
@@ -617,6 +688,7 @@ PowerGridPlus adopts the same hex for the informational (non-fault) value in its
 
 ## Verification history
 
+- 2026-07-14 (fourth pass, same day): four precision additions from the PowerGridPlus button-tooltip layout work, all ranges re-read verbatim from the 0.2.6403.27689 decompile. (1) New subsection "SetUpToolTip: the Action color wrap and the per-row renderer gates": full body 254298-254320 (Action/Color copies 254300/254303, `_has*` flags 254311-254314 computed before the wrap, whole-Action color wrap 254319 with trailing space), `ColorToHex` 254377-254380 (RGB hex over the `Color32` conversion, alpha dropped, so `Color.green` renders as #00FF00, the vanilla action-text green), `Color` field default white 253998, `TooltipAction.text` write 254098. (2) Same subsection: per-row renderer gates 254349-254351 (`StateRenderer` / `ExtendedRenderer` / `TitleRenderer` on `_hasState` / `_hasExtended` / `_hasTitle`, fields 254025-254029): an empty Title hides the name box entirely, an empty State hides the state row; `DrawTooltip` all-empty hide 254389; mod note that emptying `Title` in a `SetValuesForInteractable` postfix is self-restoring (struct rebuilt every poll, postfix runs after the `SwitchTitleForTooltip` write 254429-254432). The pre-existing "Visibility gating" paragraph moved under the new subsection unchanged. (3) SetValuesForInteractable subsection: interaction-color policy reading of the 254416-254427 ladder (red = disabled or `!AllowInteraction`, yellow = `WillStackFromInteractable` or `Duration > 0f`, green only for an instantly allowed click), with the inline parity ladders in `NormalModeThing` (287928 identical, 287919/287949 reduced). (4) Display routes section: gate-asymmetry note that every branch-1 sub-branch displays unconditionally (drag 287917-287923, interactable 287924-287946 with display 287929 quoted verbatim, attack 287947-287953, item 287954-287958; `delayedActionInstance` = AttackWith preview 287871-287874, `delayedActionInstance2` = InteractWith preview 287886, `delayedActionInstance3` = DragInto preview 287892-287894), so the Title-empty gates 287963/287972 cover only non-actionable hovers. Additive; no prior claim contradicted (the third-pass note that sub-case 287954-287957 displays "without a Title check" generalizes to the whole action branch).
 - 2026-07-14 (third pass, same day): added "Display routes: the ALT mouse-control gate vs the crosshair poll" and, under the PassiveTooltip section, the subsections "SetValuesForInteractable: an interactable hover REPLACES the struct" and "#008AE6: the informational blue vanilla UI text uses" (game version 0.2.6403.27689, all bodies re-read verbatim from the decompile). New anchors: `KeyMap.MouseControl = KeyCode.LeftAlt` (44018 legacy field, 44086 key-list assign, 44166 AddKey registration, 44282 saved-bindings re-read); `MouseModeController` (201299) with `AltKeyDown` (201313), the `Check()` ALT unlock (201347-201351), and `SetState -> InputMouse.SetMouseControl(!locked)` (201375); `InputMouse.SetMouseControl` (239462-239484, `IsMouseControl` write 239466); the `InputMouse.Update` mouse-control gate (239647-239652); `Idle` (239679-239759: `GetPassiveTooltip` 239691, `GetInteractable` 239692, `SetValuesForInteractable` 239716-239719, unconditional `HandleToolTipDisplay` 239721, no Title gate); `InventoryManager.NormalModeThing` three-branch display gate (action branch 287898 with sub-branches 287917-287958, Title-gated collider branch 287963, Title-gated body branch 287972 with `TooltipMode.ActionLast` 287974); `Tooltip.SetValuesForInteractable` (254408-254433, struct replacement 254415, `SwitchTitleForTooltip` title swap 254429-254432); the `PassiveTooltip(DelayedActionInstance, string, Thing)` constructor (307109-307129: Title = OverrideTitle or DisplayName, State = GetStateMessage, Extended = GetExtendedText); `#008AE6` census (exactly 4 occurrences: `StationSuitProperties` 250418/250421, `UniversalPage` `LINK_COLOR_FORMAT` 250633 plus inline 250640). Additive; completes the render-path story from earlier today. No prior claim on this page contradicted; the earlier statement that the APC charge readout ships only through the null-collider poll is now explained mechanically by the body branch (287972, ActionLast). Thing-level members referenced here (`GetInteractable`, `InteractWith`, `GetContextualName`, `GetExtendedText`) are quoted in full on [Thing](./Thing.md), curated in the same pass.
 - 2026-07-14 (later the same day): the cross-page flag at the end of the entry below is RESOLVED. A Rule 3 fresh validator confirmed against the 0.2.6403.27689 decompile that `CableRuptured : SmallGrid` (392848) declares no `GetPassiveTooltip` (full body 392848-392881) and that a wreckage body hover dispatches to `Structure.GetPassiveTooltip` (314440), with `Thing.GetPassiveTooltip` (319731) reached only by the no-damage / no-build-tooltip fall-through. [Cable](./Cable.md)'s Wreckage section is corrected and restamped to 0.2.6403.27689; its patch recommendation now targets `Structure.GetPassiveTooltip`, matching this page and the shipped `Mods/PowerGridPlus/PowerGridPlus/Patches/BurnReasonPatches.cs`. The "conflict protocol pending" note below no longer applies.
 - 2026-07-14: added "GetPassiveTooltip: body-hover tooltip resolution chain" (with the override census) and "PassiveTooltip: the struct and its TextMeshPro render path" (game version 0.2.6403.27689), from the PowerGridPlus fault-hover work. All bodies read verbatim from the 0.2.6403.27689 decompile: ElectricalInputOutput override 395008-395023 (port labels only, tail base call), Device 371547-371557 (open-end labels, tail base call), Structure 314440-314465 (damage/build tooltip; healthy structures fall through to base), Thing 319731-319734 (returns the all-empty `new PassiveTooltip(true)`), AreaPowerControl 390800-390810 (both paths call base; the charge readout ships via the null-collider poll only); negative census for Transformer (no `GetPassiveTooltip`, no `GetContextualName` anywhere in 424598-424993) and the family table. Render path: PassiveTooltip struct 307045-307155, InputMouse route 239691/239721, InventoryManager.NormalModeThing 287868-287869 with `TooltipRef` 285975, Tooltip class 253966 with `TooltipExtended` TextMeshProUGUI 253982, SetUpToolTip 254298-254320 (Extended copy 254305, Action color-wrap 254319), Extended setter 254144-254163 (`TooltipExtended.text` write 254161), visibility gates 254314/254331/254350, tablet early-out 254325. Additive; no prior content on this page contradicted. Cross-page flag (not edited here, conflict protocol pending): [Cable](./Cable.md)'s CableRuptured section (stamped 0.2.6228.27061) states the wreckage inherits "the base `Thing.GetPassiveTooltip`"; at 0.2.6403.27689 the dispatch target for any SmallGrid subclass without its own override is `Structure.GetPassiveTooltip` (314440), with Thing's base only reached by fall-through.
