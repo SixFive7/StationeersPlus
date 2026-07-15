@@ -3,7 +3,7 @@ title: Structure
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-14
+verified_at: 2026-07-15
 sources:
   - Mods/SprayPaintPlus/RESEARCH.md:177-179
   - Mods/SprayPaintPlus/SprayPaintPlus/NetworkPainterPatch.cs:320-328
@@ -390,6 +390,19 @@ public static void Destroy(Thing thing)
 }
 ```
 
+### Construction completion: the tool stroke has no network side effects
+<!-- verified: 0.2.6403.27689 @ 2026-07-15 -->
+
+The construct branch of `Structure.AttackWith` completes a build state with exactly two statements (0.2.6403.27689 decompile lines 315202-315203): `CurrentBuildStateIndex++;` then `UpdateStateVisualizer();`. No cable-network, grid, or device-list operation runs on completion; the structure was already registered on the grid and in its network's `DeviceList` since placement (see [StructureRegistration](../GameSystems/StructureRegistration.md)). What changes on completion is only what reads the index afterwards.
+
+`IsStructureCompleted` (313965-313978) is `CurrentBuildStateIndex == BuildStates.Count - 1`, with one carve-out: a structure whose current build state has `CanManufacture` set also reports completed at that middle state.
+
+The base `Device.GetUsedPower(CableNetwork)` (371510-371521) returns `-1` when the queried network is not one of the device's own power networks, and `0` unless `OnOff && IsStructureCompleted`. Consequence: an under-construction device sits on the network with zero demand, and its demand appears the moment the completing tool stroke lands, with no other side effect.
+
+Programmatic spawns land INCOMPLETE for multi-state structures: `Thing.Create` / `OnServer.Create` instances arrive at `CurrentBuildStateIndex = 0` (live-observed on `StructureConsole`, 2 build states, spawned via `OnServer.Create<Structure>` on the dedicated server at 0.2.6403.27689: 24 electricity ticks on a live network with row demand 0, then demand appeared on the tick after `CurrentBuildStateIndex` was advanced to final through the real completion write). A single-state structure (a cable) spawns complete because state 0 IS its final state.
+
+Live verification 2026-07-15 via a ScenarioRunner per-tick trace on the dedicated server (scenario pgp-fresh-device-trace: RTG feeding a small transformer feeding consumers; logged per electricity tick: snapshot demand rows, transformer grants, net verdicts, device `IsStructureCompleted` / `OnOff` / `Powered`): a spawn-complete device's demand and its funding both appear on the same first tick that snapshots it, and a build-state completion likewise lands demand and funding on the same tick. The registration and completion boundaries are tick-coherent in vanilla.
+
 ### Multiplayer flow: the destructive interaction runs host-side
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
@@ -424,6 +437,7 @@ Therefore a mod's refuse-and-drop needs exactly: run on `GameManager.RunSimulati
 - 2026-04-29: added "Build-state model and the destruction path" section (with "When DamageState maxes out" and "OnDamageDestroyed and StructureDestroyed" subsections) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: `Assets.Scripts.Objects.Structure` (`BuildStates`, `BrokenBuildStates`, `CurrentBuildStateIndex`, `HasBrokenMesh`, `AttackWith`, `OnDamageDestroyed`, `StructureDestroyed`, `OnDestroy`), `ThingDamageState.OnDamageUpdated` / `Destroy`, `IWreckage` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
 - 2026-06-19: extended the subclass tree with the ladder family (`Ladder : SmallGrid, ISmartRotatable`, `LadderEnd : Ladder`, `LadderPlatform : Floor : Wall : LargeStructure`) and a `Stairs : Structure` note. Additive; no existing content changed. Sources: `Assets.Scripts.Objects.Ladder` / `LadderEnd` / `LadderPlatform`, `SmallGrid`, `LargeStructure`, `Wall`, `Floor`, `Stairs` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
 - 2026-07-14: added four subsections to "Build-state model and the destruction path" from the mixed-tier cable network guard research pass against the 0.2.6403.27689 decompile: the tool-deconstruct branch of `Structure.AttackWith` verbatim (315205-315262, with the `CanDeconstruct` gate at 315366-315369 and `Cable.CanDeconstruct`'s `AttachedDevices` refusal at 392393-392405, and the `StructureDestroyed` kit-refund excerpt gated on `!destroyedFromDamage`), the `ToolBasic` / `ToolUse` field blocks (316015-316027 / 316130-316143) with the cable-coil kit-identity note (read `BuildStates[0].Tool.ToolEntry` x `EntryQuantity` from the live instance), `ToolUse.Deconstruct` + `SpawnItem` verbatim (316169-316234) as the canonical drop-spawn pattern plus `OnServer.Create<T>` (39866-39876) and `OnServer.Destroy` (39914-39926) with its soft non-simulation guard (logs an error on a client, still destroys locally), and the multiplayer flow (`OnServer.AttackWith` 39630-39654 runs with `doAction = RunSimulation`; `AttackWithMessage.Process` 277409-277420 re-runs host-side with `doAction = true`; `AttackWithMessage` is MessageFactory index 63 at 191267; spawns replicate via `NewToSend`, destroys via `DestroyToSend` per `Thing.OnDestroy` 320984-320999, stack quantity via `NetworkUpdateFlags |= 1024`). Also recorded `Structure.UpgradeStructureServer` (315307-315315) as the destroy-then-`SpawnConstruct` upgrade pattern. Additive; the existing prose summary of the deconstruct path ("deconstructing build state 0 removes the object via `BuildStates[0].Tool.Deconstruct` then `OnServer.Destroy`") is refined, not contradicted, by the exact branch mechanics.
+- 2026-07-15: added the "Construction completion: the tool stroke has no network side effects" subsection from the fresh-device power investigation against the 0.2.6403.27689 decompile plus a live dedicated-server trace: the construct branch's completion write is `CurrentBuildStateIndex++` + `UpdateStateVisualizer()` only (315202-315203); `IsStructureCompleted` is last-index with the `CanManufacture` carve-out (313965-313978); base `Device.GetUsedPower` returns -1 for a foreign network and gates demand on `OnOff && IsStructureCompleted` (371510-371521); `Thing.Create` / `OnServer.Create` spawns of multi-state structures arrive at `CurrentBuildStateIndex = 0` (live-observed on StructureConsole). Live verification via a ScenarioRunner per-tick trace (scenario pgp-fresh-device-trace on the dedicated server): demand and funding land on the same electricity tick at both the spawn-complete and the build-completion boundaries. Additive; no existing claim contradicted.
 
 ## Open questions
 
