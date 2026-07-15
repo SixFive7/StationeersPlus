@@ -3348,6 +3348,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#construction-completion-the-tool-stroke-has-no-network-side-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construction completion: the tool stroke has no network side effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#multiplayer-flow-the-destructive-interaction-runs-host-side" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8414,6 +8425,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#construction-completion-the-tool-stroke-has-no-network-side-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construction completion: the tool stroke has no network side effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#multiplayer-flow-the-destructive-interaction-runs-host-side" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8541,7 +8563,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-14.
+           on 2026-07-15.
         </p>
       
       
@@ -8932,6 +8954,14 @@
 </span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="p">}</span>
 </span></code></pre></div>
+<h3 id="construction-completion-the-tool-stroke-has-no-network-side-effects">Construction completion: the tool stroke has no network side effects<a class="headerlink" href="#construction-completion-the-tool-stroke-has-no-network-side-effects" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-15 -->
+
+<p>The construct branch of <code>Structure.AttackWith</code> completes a build state with exactly two statements (0.2.6403.27689 decompile lines 315202-315203): <code>CurrentBuildStateIndex++;</code> then <code>UpdateStateVisualizer();</code>. No cable-network, grid, or device-list operation runs on completion; the structure was already registered on the grid and in its network's <code>DeviceList</code> since placement (see <a href="../../GameSystems/StructureRegistration/">StructureRegistration</a>). What changes on completion is only what reads the index afterwards.</p>
+<p><code>IsStructureCompleted</code> (313965-313978) is <code>CurrentBuildStateIndex == BuildStates.Count - 1</code>, with one carve-out: a structure whose current build state has <code>CanManufacture</code> set also reports completed at that middle state.</p>
+<p>The base <code>Device.GetUsedPower(CableNetwork)</code> (371510-371521) returns <code>-1</code> when the queried network is not one of the device's own power networks, and <code>0</code> unless <code>OnOff &amp;&amp; IsStructureCompleted</code>. Consequence: an under-construction device sits on the network with zero demand, and its demand appears the moment the completing tool stroke lands, with no other side effect.</p>
+<p>Programmatic spawns land INCOMPLETE for multi-state structures: <code>Thing.Create</code> / <code>OnServer.Create</code> instances arrive at <code>CurrentBuildStateIndex = 0</code> (live-observed on <code>StructureConsole</code>, 2 build states, spawned via <code>OnServer.Create&lt;Structure&gt;</code> on the dedicated server at 0.2.6403.27689: 24 electricity ticks on a live network with row demand 0, then demand appeared on the tick after <code>CurrentBuildStateIndex</code> was advanced to final through the real completion write). A single-state structure (a cable) spawns complete because state 0 IS its final state.</p>
+<p>Live verification 2026-07-15 via a ScenarioRunner per-tick trace on the dedicated server (scenario pgp-fresh-device-trace: RTG feeding a small transformer feeding consumers; logged per electricity tick: snapshot demand rows, transformer grants, net verdicts, device <code>IsStructureCompleted</code> / <code>OnOff</code> / <code>Powered</code>): a spawn-complete device's demand and its funding both appear on the same first tick that snapshots it, and a build-state completion likewise lands demand and funding on the same tick. The registration and completion boundaries are tick-coherent in vanilla.</p>
 <h3 id="multiplayer-flow-the-destructive-interaction-runs-host-side">Multiplayer flow: the destructive interaction runs host-side<a class="headerlink" href="#multiplayer-flow-the-destructive-interaction-runs-host-side" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
@@ -8961,6 +8991,7 @@
 <li>2026-04-29: added "Build-state model and the destruction path" section (with "When DamageState maxes out" and "OnDamageDestroyed and StructureDestroyed" subsections) from a research pass on the explosion / structure-destruction system. Additive; no existing content changed. Sources: <code>Assets.Scripts.Objects.Structure</code> (<code>BuildStates</code>, <code>BrokenBuildStates</code>, <code>CurrentBuildStateIndex</code>, <code>HasBrokenMesh</code>, <code>AttackWith</code>, <code>OnDamageDestroyed</code>, <code>StructureDestroyed</code>, <code>OnDestroy</code>), <code>ThingDamageState.OnDamageUpdated</code> / <code>Destroy</code>, <code>IWreckage</code> (all in <code>Assembly-CSharp</code>, game version 0.2.6228.27061).</li>
 <li>2026-06-19: extended the subclass tree with the ladder family (<code>Ladder : SmallGrid, ISmartRotatable</code>, <code>LadderEnd : Ladder</code>, <code>LadderPlatform : Floor : Wall : LargeStructure</code>) and a <code>Stairs : Structure</code> note. Additive; no existing content changed. Sources: <code>Assets.Scripts.Objects.Ladder</code> / <code>LadderEnd</code> / <code>LadderPlatform</code>, <code>SmallGrid</code>, <code>LargeStructure</code>, <code>Wall</code>, <code>Floor</code>, <code>Stairs</code> (all in <code>Assembly-CSharp</code>, game version 0.2.6228.27061).</li>
 <li>2026-07-14: added four subsections to "Build-state model and the destruction path" from the mixed-tier cable network guard research pass against the 0.2.6403.27689 decompile: the tool-deconstruct branch of <code>Structure.AttackWith</code> verbatim (315205-315262, with the <code>CanDeconstruct</code> gate at 315366-315369 and <code>Cable.CanDeconstruct</code>'s <code>AttachedDevices</code> refusal at 392393-392405, and the <code>StructureDestroyed</code> kit-refund excerpt gated on <code>!destroyedFromDamage</code>), the <code>ToolBasic</code> / <code>ToolUse</code> field blocks (316015-316027 / 316130-316143) with the cable-coil kit-identity note (read <code>BuildStates[0].Tool.ToolEntry</code> x <code>EntryQuantity</code> from the live instance), <code>ToolUse.Deconstruct</code> + <code>SpawnItem</code> verbatim (316169-316234) as the canonical drop-spawn pattern plus <code>OnServer.Create&lt;T&gt;</code> (39866-39876) and <code>OnServer.Destroy</code> (39914-39926) with its soft non-simulation guard (logs an error on a client, still destroys locally), and the multiplayer flow (<code>OnServer.AttackWith</code> 39630-39654 runs with <code>doAction = RunSimulation</code>; <code>AttackWithMessage.Process</code> 277409-277420 re-runs host-side with <code>doAction = true</code>; <code>AttackWithMessage</code> is MessageFactory index 63 at 191267; spawns replicate via <code>NewToSend</code>, destroys via <code>DestroyToSend</code> per <code>Thing.OnDestroy</code> 320984-320999, stack quantity via <code>NetworkUpdateFlags |= 1024</code>). Also recorded <code>Structure.UpgradeStructureServer</code> (315307-315315) as the destroy-then-<code>SpawnConstruct</code> upgrade pattern. Additive; the existing prose summary of the deconstruct path ("deconstructing build state 0 removes the object via <code>BuildStates[0].Tool.Deconstruct</code> then <code>OnServer.Destroy</code>") is refined, not contradicted, by the exact branch mechanics.</li>
+<li>2026-07-15: added the "Construction completion: the tool stroke has no network side effects" subsection from the fresh-device power investigation against the 0.2.6403.27689 decompile plus a live dedicated-server trace: the construct branch's completion write is <code>CurrentBuildStateIndex++</code> + <code>UpdateStateVisualizer()</code> only (315202-315203); <code>IsStructureCompleted</code> is last-index with the <code>CanManufacture</code> carve-out (313965-313978); base <code>Device.GetUsedPower</code> returns -1 for a foreign network and gates demand on <code>OnOff &amp;&amp; IsStructureCompleted</code> (371510-371521); <code>Thing.Create</code> / <code>OnServer.Create</code> spawns of multi-state structures arrive at <code>CurrentBuildStateIndex = 0</code> (live-observed on StructureConsole). Live verification via a ScenarioRunner per-tick trace (scenario pgp-fresh-device-trace on the dedicated server): demand and funding land on the same electricity tick at both the spawn-complete and the build-completion boundaries. Additive; no existing claim contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>
