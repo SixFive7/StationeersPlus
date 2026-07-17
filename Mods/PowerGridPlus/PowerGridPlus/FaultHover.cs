@@ -265,21 +265,17 @@ namespace PowerGridPlus
             return block;
         }
 
-        // The deprioritized "Reason:" block: one to three grey lines chosen by the cause the
-        // allocator recorded at shed time (DeprioritizeReason). LowerPriority names the losing
-        // priority value; the two equal-priority cases explain the within-tier tie-break, teaching
-        // what the allocator actually did (best-fit single cover vs largest-first).
+        // The deprioritized "Reason:" block: grey lines chosen by the cause the allocator recorded
+        // at shed time (DeprioritizeReason). LowerPriority names the losing priority value;
+        // EqualWattCover explains the decision-33 within-tier choice: the victim was part of the
+        // smallest combined cut, in watts, that covered the remaining shortfall.
         private static string ReasonLines(DeprioritizeReason reason, int victimPriority)
         {
             switch (reason)
             {
-                case DeprioritizeReason.EqualBestFit:
+                case DeprioritizeReason.EqualWattCover:
                     return $"\n<color={CalmGrey}>Reason: Its priority was equal to other consumers</color>"
-                         + $"\n<color={CalmGrey}>Reason: Its draw alone covered the remaining shortfall</color>";
-                case DeprioritizeReason.EqualLargest:
-                    return $"\n<color={CalmGrey}>Reason: Its priority was equal to other consumers</color>"
-                         + $"\n<color={CalmGrey}>Reason: No single consumer's draw could cover the shortfall</color>"
-                         + $"\n<color={CalmGrey}>Reason: Its draw was the largest consumer</color>";
+                         + $"\n<color={CalmGrey}>Reason: It was part of the smallest combined cut covering the shortfall</color>";
                 default:   // LowerPriority
                     return $"\n<color={CalmGrey}>Reason: Its priority of {victimPriority} was below other consumers</color>";
             }

@@ -6,10 +6,11 @@ namespace PowerGridPlus
 {
     // Why a device lost its input competition, for the hover text. LowerPriority: no
     // same-priority peer survived, so the victim was shed purely on being the lowest
-    // priority tier. EqualBestFit: a same-priority peer survived and this victim was the
-    // best-fit cover (POWER.md 8.3.3 rule 2a). EqualLargest: a same-priority peer survived
-    // and this victim was taken largest-first (rule 2b). Determined at the victim-mark site.
-    internal enum DeprioritizeReason : byte { LowerPriority = 0, EqualBestFit = 1, EqualLargest = 2 }
+    // priority tier (its whole tier was shed wholesale: the tier's combined claims could not
+    // cover the deficit). EqualWattCover: the victim's tier COULD cover, and it was part of the
+    // smallest-total-watts cut chosen to do so (decision-33 watt-minimizing selection, replacing
+    // the retired EqualBestFit / EqualLargest pair). Determined at the decision site.
+    internal enum DeprioritizeReason : byte { LowerPriority = 0, EqualWattCover = 1 }
 
     // Deprioritization (upstream-side protection) lockout state machine for segmenting devices:
     // when transformers competing for the same input network cannot all be served, the allocator

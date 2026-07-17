@@ -1941,23 +1941,28 @@ namespace PowerGridPlus
             return a.RefId.CompareTo(b.RefId);
         }
 
-        // Deprioritized victim selection (POWER.md §8.3 / §8.3.3): tier-major best-fit-decreasing, the
-        // deliberate policy that replaced the flat (priority ASC, ReferenceId ASC) walk. In order:
+        // Deprioritized victim selection (POWER.md §8.3 / §8.3.3; decision-33 (a) watt-minimizing
+        // edition, replacing tier-major best-fit-decreasing). In order:
         //
-        //   1. Tiers go priority ASC: the lowest tier is deprioritized first, and selection moves to the next
-        //      tier only when the current tier is exhausted with deficit remaining.
-        //   2. Within the tier, against the remaining deficit D (whole Watts):
-        //      a. if any candidate's quantised claim covers D alone, deprioritize the SMALLEST such claim
-        //         (tie: lowest ReferenceId) and stop: the deficit is covered;
-        //      b. else deprioritize the LARGEST claim (tie: lowest ReferenceId), subtract it from D, and
-        //         repeat within the tier.
-        //   3. Step-up contributors are never candidates (§5.2), and a claim at or below Eps has
-        //      nothing worth reclaiming. Locked / overloaded / already-deprioritized segs are the CALLER's
-        //      gates (live per-round state, not policy), as is the dead-input carveout (§8.3.1).
+        //   1. Tiers go priority ASC: the lowest tier is deprioritized first, and selection moves
+        //      to the next tier only when the current tier's combined claims cannot cover the
+        //      remaining deficit (that whole tier is then shed wholesale: it lost on priority).
+        //   2. A tier that CAN cover the remaining deficit D (whole Watts) ends the selection with
+        //      the victim set of the SMALLEST TOTAL WATTS whose sum still covers D (exact 0/1
+        //      subset choice within DP bounds, the legacy best-fit walk beyond them). The old
+        //      smallest-single-cover rule shed a 50 kW trunk for an 8 kW gap when two small rooms
+        //      (11 kW) would have done; watt-minimization sheds the rooms.
+        //      Ties: on equal claims the LOWEST ReferenceId is shed (the keep-side reconstruction
+        //      offers items in reverse pool order, first-fill-wins), matching the legacy
+        //      tie-break the victim fixture pins.
+        //   3. Step-up contributors are never candidates (§5.2; retires with the decision-33
+        //      step-up phase), and a claim at or below Eps has nothing worth reclaiming. Locked /
+        //      overloaded / already-deprioritized segs are the CALLER's gates (live per-round
+        //      state, not policy), as is the dead-input carveout (§8.3.1).
         //
         // Worked §8.3.3 example: same-tier claims 500 / 1000 / 2000, deficit 1000 -> exactly the
-        // 1000 W device is deprioritized (the old walk deprioritized the 500 then the 1000: two
-        // victims where one sufficed).
+        // 1000 W device (the minimal cover). Decision-33 divergence example: claims 50000 / 6000 /
+        // 5000, deficit 8000 -> the 6000 and the 5000 (11000 W total), never the 50000.
         //
         // Quantisation (§8.0.1 / §8.0.5 determinism): float claims floor to whole Watts
         // ((int)Math.Floor); the float deficit rounds UP after the allocator's Eps tolerance
@@ -1966,14 +1971,15 @@ namespace PowerGridPlus
         // leave Unmet > Eps and spuriously trip the elastic hit-max, §8.4 rule 2); the cost is at
         // most one extra small victim when sub-Watt fractions straddle a whole-Watt boundary.
         // Every comparison is integer / ReferenceId only, so the result is a pure deterministic
-        // function of (candidates, deficit): input order is irrelevant (sorted internally), no
-        // live-net or Unity state, no statics, re-entrant. ScenarioRunner's
+        // function of (candidates, deficit): input order is irrelevant (sorted internally), the
+        // DP scratch is worker-local reusable state, re-entrant per call. ScenarioRunner's
         // pgp-deprioritization-victim-fixture scenario reflection-invokes this exact method with
         // synthetic candidate sets; keep the name and signature stable.
         // A victim the selector shed, with the data the deprioritized hover needs: the remaining
-        // upstream deficit at the instant it was cut (ShortfallAtCut), which branch cut it
-        // (ByBestFit = rule 2a cover vs rule 2b largest-first), the victim's priority tier, and the
-        // resolved DeprioritizeReason (computed once the whole set is known).
+        // upstream deficit the decision was made against (ShortfallAtCut: per-victim declining
+        // through a wholesale tier shed, shared by the whole set of a covering cut), whether the
+        // watt-min cover chose it (ByBestFit) or its tier was shed wholesale, the victim's
+        // priority tier, and the DeprioritizeReason assigned at the decision site.
         internal struct VictimCut
         {
             public long RefId;
@@ -1997,11 +2003,9 @@ namespace PowerGridPlus
             return victims;
         }
 
-        // Detailed victim selection: the SAME policy walk as the shim (POWER.md §8.3 / §8.3.3,
-        // tier-major best-fit-decreasing, the identical quantisation and comparisons), with only
-        // per-victim recording added. As each victim is taken the remaining deficit and the cutting
-        // branch are captured; after the set is known the DeprioritizeReason is resolved per victim.
-        // The selection order and set are byte-for-byte identical to the pre-recording walk.
+        // Detailed victim selection: the decision-33 watt-minimizing walk (policy doc above), with
+        // per-victim recording. Reasons are assigned at the decision site: a wholesale tier shed
+        // is LowerPriority; membership in a covering cut is EqualWattCover.
         internal static List<VictimCut> SelectDeprioritizationVictimsDetailed(
             IReadOnlyList<(long refId, int priority, float claim, bool stepUp)> candidates,
             float deficit)
@@ -2023,7 +2027,9 @@ namespace PowerGridPlus
             }
             if (pool.Count == 0) return victims;
 
-            // (priority ASC, claim DESC, ReferenceId ASC): tier-major, largest-first in a tier.
+            // (priority ASC, claim DESC, ReferenceId ASC): tier-major; the in-tier order is the
+            // OUTPUT order for multi-victim results and the determinism anchor for the cover
+            // reconstruction.
             pool.Sort((a, b) =>
             {
                 if (a.priority != b.priority) return a.priority.CompareTo(b.priority);
@@ -2031,72 +2037,137 @@ namespace PowerGridPlus
                 return a.refId.CompareTo(b.refId);
             });
 
-            bool covered = false;
             int lo = 0;
-            while (!covered && lo < pool.Count && need > 0)
+            while (lo < pool.Count && need > 0)
             {
                 int hi = lo;   // current tier slice [lo..hi] shares pool[lo].priority
                 while (hi + 1 < pool.Count && pool[hi + 1].priority == pool[lo].priority) hi++;
 
-                while (lo <= hi && need > 0)
+                long tierTotal = 0;
+                for (int i = lo; i <= hi; i++) tierTotal += pool[i].claim;
+
+                if (tierTotal <= need)
                 {
-                    if (pool[lo].claim >= need)
+                    // The whole tier together cannot cover the remaining deficit: shed it
+                    // wholesale (pool order) and walk into the next tier. These victims lost on
+                    // priority alone; ShortfallAtCut declines per victim as in the legacy walk.
+                    for (int i = lo; i <= hi; i++)
                     {
-                        // Rule 2a. Claims are DESC, so the entries covering D alone form the
-                        // slice's prefix; the last covering claim value is the smallest cover,
-                        // and the first entry holding that value is its lowest ReferenceId.
-                        int last = lo;
-                        while (last + 1 <= hi && pool[last + 1].claim >= need) last++;
-                        int first = last;
-                        while (first - 1 >= lo && pool[first - 1].claim == pool[last].claim) first--;
                         victims.Add(new VictimCut
                         {
-                            RefId = pool[first].refId,
-                            ShortfallAtCut = need,       // the remaining deficit this single cut clears
-                            ByBestFit = true,            // rule 2a
-                            Priority = pool[first].priority,
+                            RefId = pool[i].refId,
+                            ShortfallAtCut = need,
+                            ByBestFit = false,
+                            Priority = pool[i].priority,
+                            Reason = DeprioritizeReason.LowerPriority,
                         });
-                        covered = true;   // deficit covered: selection for this net ends
-                        break;
+                        need -= pool[i].claim;
                     }
-                    // Rule 2b: largest remaining claim in the tier. claim < need keeps need > 0,
-                    // so a cover only ever happens through rule 2a or candidate exhaustion.
-                    victims.Add(new VictimCut
-                    {
-                        RefId = pool[lo].refId,
-                        ShortfallAtCut = need,           // remaining deficit before this claim is subtracted
-                        ByBestFit = false,               // rule 2b
-                        Priority = pool[lo].priority,
-                    });
-                    need -= pool[lo].claim;
-                    lo++;
+                    lo = hi + 1;
+                    continue;
                 }
-                // Tier exhausted with deficit remaining: lo == hi + 1 is the next tier's start.
-            }
 
-            // Reason: a victim with a surviving same-priority peer (any candidate at its priority
-            // not itself a victim, step-ups and tiny claims included) lost a within-tier tie-break,
-            // so it reports the branch that cut it (EqualBestFit / EqualLargest). A victim with no
-            // such survivor was shed purely on being the lowest priority tier -> LowerPriority.
-            for (int vi = 0; vi < victims.Count; vi++)
-            {
-                var v = victims[vi];
-                bool samePrioritySurvivor = false;
-                for (int ci = 0; ci < candidates.Count; ci++)
-                {
-                    if (candidates[ci].priority != v.Priority) continue;
-                    long candRef = candidates[ci].refId;
-                    bool candIsVictim = false;
-                    for (int wj = 0; wj < victims.Count; wj++)
-                        if (victims[wj].RefId == candRef) { candIsVictim = true; break; }
-                    if (!candIsVictim) { samePrioritySurvivor = true; break; }
-                }
-                if (!samePrioritySurvivor) v.Reason = DeprioritizeReason.LowerPriority;
-                else if (v.ByBestFit) v.Reason = DeprioritizeReason.EqualBestFit;
-                else v.Reason = DeprioritizeReason.EqualLargest;
-                victims[vi] = v;
+                // This tier can cover the deficit: shed the smallest-total-watts cut and end the
+                // selection for this net.
+                SelectWattMinCover(pool, lo, hi, need, tierTotal, victims);
+                break;
             }
             return victims;
+        }
+
+        private const int CoverDpMaxKeepWatts = 65536;   // DP kept-watts capacity ceiling
+        private const int CoverDpMaxItems = 64;
+        // Worker-local reusable DP scratch (the allocator and the fixture pump share one thread).
+        private static readonly bool[] _coverReach = new bool[CoverDpMaxKeepWatts + 1];
+        private static readonly int[] _coverChoice = new int[CoverDpMaxKeepWatts + 1];
+        private static readonly int[] _coverParent = new int[CoverDpMaxKeepWatts + 1];
+
+        // Choose, within pool[lo..hi] (one priority tier whose total EXCEEDS `need`), the victim
+        // subset with the smallest total quantised watts whose sum still covers `need`, appended
+        // to `victims` in pool order with the shared tier-entry shortfall. Equivalent complement:
+        // KEEP the subset with the largest total <= tierTotal - need (0/1 subset-sum DP over kept
+        // watts). Determinism: items are offered to the keep side in REVERSE pool order (claim
+        // ASC, ReferenceId DESC) with first-fill-wins, so on equal claims the higher ReferenceId
+        // is kept and the LOWER one is shed, matching the legacy tie-break the victim fixture
+        // pins. Zero-quantised claims are always kept (shedding them reclaims nothing). Above the
+        // DP bounds the legacy best-fit-decreasing walk decides instead: same cover guarantee,
+        // not always watt-minimal.
+        private static void SelectWattMinCover(List<(int priority, int claim, long refId)> pool,
+            int lo, int hi, int need, long tierTotal, List<VictimCut> victims)
+        {
+            long keepBudget = tierTotal - need;
+            int n = hi - lo + 1;
+            var isVictim = new bool[n];
+
+            if (keepBudget > CoverDpMaxKeepWatts || n > CoverDpMaxItems)
+            {
+                LegacyCoverWalk(pool, lo, hi, need, isVictim);
+            }
+            else
+            {
+                int cap = (int)keepBudget;
+                Array.Clear(_coverReach, 0, cap + 1);
+                for (int w = 0; w <= cap; w++) _coverChoice[w] = -1;
+                _coverReach[0] = true;
+                for (int i = hi; i >= lo; i--)   // reverse pool order: see the determinism note
+                {
+                    int c = pool[i].claim;
+                    if (c <= 0 || c > cap) continue;   // zero-claims kept below; oversize must be shed
+                    for (int w = cap; w >= c; w--)
+                    {
+                        if (_coverReach[w] || !_coverReach[w - c]) continue;
+                        _coverReach[w] = true;
+                        _coverChoice[w] = i;
+                        _coverParent[w] = w - c;
+                    }
+                }
+                int best = cap;
+                while (best > 0 && !_coverReach[best]) best--;
+                for (int i = 0; i < n; i++) isVictim[i] = pool[lo + i].claim > 0;
+                for (int w = best; w > 0; w = _coverParent[w]) isVictim[_coverChoice[w] - lo] = false;
+            }
+
+            for (int i = lo; i <= hi; i++)
+            {
+                if (!isVictim[i - lo]) continue;
+                victims.Add(new VictimCut
+                {
+                    RefId = pool[i].refId,
+                    ShortfallAtCut = need,   // the deficit this cut was chosen against, shared by the set
+                    ByBestFit = true,
+                    Priority = pool[i].priority,
+                    Reason = DeprioritizeReason.EqualWattCover,
+                });
+            }
+        }
+
+        // The pre-decision-33 within-tier walk, kept as the bounded fallback for a COVERING tier:
+        // the smallest single cover if one exists (tie: lowest ReferenceId), else shed the largest
+        // claim and repeat. Terminates with the deficit covered because the tier's total exceeds it.
+        private static void LegacyCoverWalk(List<(int priority, int claim, long refId)> pool,
+            int lo, int hi, int need, bool[] isVictim)
+        {
+            while (need > 0)
+            {
+                int cover = -1;
+                for (int i = lo; i <= hi; i++)
+                {
+                    if (isVictim[i - lo]) continue;
+                    if (pool[i].claim < need) continue;
+                    if (cover < 0 || pool[i].claim < pool[cover].claim
+                        || (pool[i].claim == pool[cover].claim && pool[i].refId < pool[cover].refId))
+                        cover = i;
+                }
+                if (cover >= 0) { isVictim[cover - lo] = true; return; }
+
+                int largest = -1;
+                for (int i = lo; i <= hi; i++)
+                    if (!isVictim[i - lo] && (largest < 0 || pool[i].claim > pool[largest].claim))
+                        largest = i;
+                if (largest < 0) return;
+                isVictim[largest - lo] = true;
+                need -= pool[largest].claim;
+            }
         }
 
         // -------------------------------------------------------------------
