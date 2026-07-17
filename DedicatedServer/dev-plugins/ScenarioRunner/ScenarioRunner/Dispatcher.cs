@@ -133,6 +133,10 @@ namespace ScenarioRunner
                     Scenario_PgpRocketBatteryProbe();
                     return;
 
+                case "pgp-fresh-device-trace":
+                    Scenario_PgpFreshDeviceTrace();
+                    return;
+
                 case "pgp-mixedwire-survey":
                     Scenario_PgpMixedWireSurvey();
                     return;
