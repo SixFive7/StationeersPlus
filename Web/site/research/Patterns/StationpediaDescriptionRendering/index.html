@@ -6792,6 +6792,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#logic-type-data-field-name-colour-tmp-orange-ff8000" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logic-type / data-field name colour: TMP orange (#FF8000)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#textmeshpro-newline-behaviour-pagedescription-component" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8318,6 +8329,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#logic-type-data-field-name-colour-tmp-orange-ff8000" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logic-type / data-field name colour: TMP orange (#FF8000)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#textmeshpro-newline-behaviour-pagedescription-component" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8472,35 +8494,53 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-28.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-15.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (10)</summary>
           <ul>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Localization.ParseHelpText'}</code></li>
             
               <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.UI.Stationpedia.PopulateThingPages'}</code></li>
             
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.Localization.ReplaceLogicTypes (line 209825/209830, 0.2.6403.27689 decompile)'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.UI.Stationpedia.AddLogicTypeInfo (line 247781/247805, 0.2.6403.27689 decompile)'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Assembly-CSharp.dll :': 'Assets.Scripts.UI.Stationpedia.LINK_COLOR_FORMAT (line 250633, 0.2.6403.27689 decompile)'}</code></li>
+            
+              <li><code>{'rocketstation_Data/Managed/Unity.TextMeshPro.dll :': 'TMP_Text named-colour switch (lines 27211-27214, 0.2.6403.27689 decompile)'}</code></li>
+            
               <li><code>rocketstation_Data/StreamingAssets/Language/en.resx (vanilla description corpus)</code></li>
             
               <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code></li>
+            
+              <li><code>.work/decomp/0.2.6403.27689/Unity.TextMeshPro.decompiled.cs</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (2)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
               <li><code>../GameClasses/Stationpedia.md</code></li>
             
               <li><code>../GameSystems/StationpediaPageRendering.md</code></li>
+            
+              <li><code>../GameSystems/LogicType.md</code></li>
             
           </ul>
         </details>
@@ -8511,6 +8551,13 @@
                   
 
   <nav class="md-tags" >
+    
+      
+      
+      
+      
+        <span class="md-tag">logic</span>
+      
     
       
       
@@ -8598,6 +8645,39 @@
 <li><code>{INPUT:...}</code> -- key-binding lookup.</li>
 </ul>
 <p>Plain text with <code>\n</code>, <code>\n\n</code> paragraph breaks, and ASCII punctuation passes through unchanged. If a postfix wants TMP styling, embed the raw TMP tag directly (<code>&lt;b&gt;...&lt;/b&gt;</code>, <code>&lt;color=#XXX&gt;...&lt;/color&gt;</code>) -- ParseHelpText doesn't touch them, TMP renders them at the end.</p>
+<h2 id="logic-type-data-field-name-colour-tmp-orange-ff8000">Logic-type / data-field name colour: TMP <code>orange</code> (#FF8000)<a class="headerlink" href="#logic-type-data-field-name-colour-tmp-orange-ff8000" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-15 -->
+
+<p>The per-device logic-field list a Stationpedia page shows (the IC10 data-field names: <code>Setting</code>, <code>Power</code>, <code>Pressure</code>, <code>Mode</code>, and so on) renders each name in orange, a different colour from the blue value and cross-reference links elsewhere on the page. The colour is fixed in the markup that the <code>{LOGICTYPE:X}</code> token expands to, plus TextMeshPro's built-in named-colour table; the Stationpedia layer does not pick it.</p>
+<p><code>Localization.ReplaceLogicTypes</code> (Assembly-CSharp decompile 0.2.6403.27689, line 209825) emits the format string at line 209830:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ReplaceLogicTypes</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">masterString</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">RegexResult</span><span class="w"> </span><span class="n">matchesWithSpace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GetMatchesWithSpace</span><span class="p">(</span><span class="s">&quot;LOGICTYPE&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">masterString</span><span class="p">);</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">matchesWithSpace</span><span class="p">.</span><span class="n">Count</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="n">masterString</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">masterString</span><span class="p">.</span><span class="n">Replace</span><span class="p">(</span><span class="n">matchesWithSpace</span><span class="p">.</span><span class="n">GetFull</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">            </span><span class="kt">string</span><span class="p">.</span><span class="n">Format</span><span class="p">(</span><span class="s">&quot;&lt;link=LogicType{0}&gt;&lt;color=orange&gt;{0}&lt;/color&gt;&lt;/link&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">matchesWithSpace</span><span class="p">.</span><span class="n">GetName</span><span class="p">(</span><span class="n">i</span><span class="p">)));</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>So <code>{LOGICTYPE:Setting}</code> becomes the literal string <code>&lt;link=LogicTypeSetting&gt;&lt;color=orange&gt;Setting&lt;/color&gt;&lt;/link&gt;</code>. The colour is the TMP named colour <code>orange</code>, not a hex literal.</p>
+<p>Token source: <code>Stationpedia.AddLogicTypeInfo(Thing prefab, ref StationpediaPage page)</code> (line 247781, called once per prefab from the page-population loop at line 248720) walks <code>EnumCollections.LogicTypes</code>, keeps the types the device can read or write, and builds each field label by expanding a <code>{LOGICTYPE:X}</code> token (lines 247805-247806):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kt">string</span><span class="w"> </span><span class="n">helpText</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;{LOGICTYPE:&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">logicType</span><span class="p">.</span><span class="n">ToString</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;}&quot;</span><span class="p">;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">helpText</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">ParseHelpText</span><span class="p">(</span><span class="n">helpText</span><span class="p">);</span>
+</span></code></pre></div>
+<p><code>ParseHelpText</code> routes the token to <code>ReplaceLogicTypes</code> (see the token catalogue above), so every device field name inherits the orange markup.</p>
+<p>TMP resolves the named colour <code>orange</code> to RGB (255, 128, 0) = #FF8000. This is not the #FFA500 that CSS and several other systems assign to the name "orange"; TMP keeps its own table. The resolution is a hard-coded switch on the hash of the colour name (Unity.TextMeshPro decompile 0.2.6403.27689, lines 27211-27214):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">case</span><span class="w"> </span><span class="mi">26556144</span><span class="p">:</span><span class="w">   </span><span class="c1">// TMP hash of the name &quot;orange&quot;</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="n">m_htmlColor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Color32</span><span class="p">(</span><span class="kt">byte</span><span class="p">.</span><span class="n">MaxValue</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="p">.</span><span class="n">MaxValue</span><span class="p">);</span><span class="w">   </span><span class="c1">// (255, 128, 0, 255) = #FF8000</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">m_colorStack</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">m_htmlColor</span><span class="p">);</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span></code></pre></div>
+<p>This orange is distinct from the two blue link colours on the same page:</p>
+<ul>
+<li>Value and cross-reference links use <code>Stationpedia.LINK_COLOR_FORMAT = "&lt;link={0}&gt;&lt;color=#008AE6&gt;{1}&lt;/color&gt;&lt;/link&gt;"</code> (line 250633), the blue #008AE6.</li>
+<li>The <code>{LINK:id;name}</code> help-macro (ReplaceHelpLinks, in the token catalogue above) uses the blue #0080FFFF.</li>
+</ul>
+<p>A mod that emits a <code>{LOGICTYPE:X}</code> token, or writes the <code>&lt;link=LogicType...&gt;&lt;color=orange&gt;...</code> markup by hand, gets the #FF8000 orange for free. To match the vanilla field colour without the token, emit <code>&lt;color=orange&gt;</code> or the equivalent <code>&lt;color=#FF8000&gt;</code>; do not reach for #008AE6 or #0080FFFF, which are the value-link and help-link blues.</p>
 <h2 id="textmeshpro-newline-behaviour-pagedescription-component">TextMeshPro newline behaviour (<code>PageDescription</code> component)<a class="headerlink" href="#textmeshpro-newline-behaviour-pagedescription-component" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
@@ -8612,7 +8692,7 @@
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <p><code>Stationpedia.PopulateThingPages()</code> (decompile line 231964) iterates <code>Prefab.AllPrefabs</code> once and stores the parsed text:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">page3</span><span class="p">.</span><span class="n">Description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">ParseHelpText</span><span class="p">(</span><span class="n">Localization</span><span class="p">.</span><span class="n">GetThingDescription</span><span class="p">(</span><span class="n">allPrefab</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">));</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">page3</span><span class="p">.</span><span class="n">Description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">ParseHelpText</span><span class="p">(</span><span class="n">Localization</span><span class="p">.</span><span class="n">GetThingDescription</span><span class="p">(</span><span class="n">allPrefab</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">));</span>
 </span></code></pre></div>
 <p>Called from <code>Stationpedia.Initialize()</code> (line 231023). After this runs, <code>StationpediaPage.Description</code> is fixed for the session. A <code>GetThingDescription</code> postfix sees the call exactly once during page population and again on every separate caller (tooltips, build-state hover, etc.) -- those non-Stationpedia surfaces DO see live config values from a postfix; only the Stationpedia page itself is cache-locked until restart.</p>
 <p>For mods that want live updates of the Stationpedia entry on a config change, the page would need to be re-built (either re-call <code>PopulateThingPages</code> or directly mutate <code>StationpediaPage.Description</code> for the affected key). The vanilla flow does not support this; it would be a custom mod feature.</p>
@@ -8624,16 +8704,17 @@
 <!-- verified: 0.2.6228.27061 @ 2026-05-28 -->
 
 <p><code>Mods/PowerGridPlus/PowerGridPlus/StationpediaPatches.cs</code> <code>BuildApcFooter</code> and <code>BuildBatteryFooter</code> build footer text like:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>\n\n{HEADER:POWER GRID PLUS}\n
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Charge rate: capped at 1 kW (server config &quot;APC Battery Charge Rate&quot;). ...\n
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Output: capped at the output cable&#39;s MaxVoltage. ...\n
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>Cable tier: input and output cables must be the same tier; mismatched cables burn at the junction when power flows.\n
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>Bug fix: the vanilla idle-leak is closed. Battery does not slowly drain when nothing is connected downstream.
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>\n\n{HEADER:POWER GRID PLUS}\n
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>Charge rate: capped at 1 kW (server config &quot;APC Battery Charge Rate&quot;). ...\n
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Output: capped at the output cable&#39;s MaxVoltage. ...\n
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>Cable tier: input and output cables must be the same tier; mismatched cables burn at the junction when power flows.\n
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>Bug fix: the vanilla idle-leak is closed. Battery does not slowly drain when nothing is connected downstream.
 </span></code></pre></div>
 <p>The <code>{HEADER:POWER GRID PLUS}</code> token is the one tagged expansion in the footer. <code>ParseHelpText</code> rewrites it to <code>&lt;size=120%&gt;&lt;b&gt;POWER GRID PLUS&lt;/b&gt;&lt;/size&gt;</code>, giving the section the same visual treatment vanilla uses for <code>POWER OUTPUT</code> headings. The body sentences contain no <code>{TOKEN:...}</code> patterns so they pass through unchanged. TMP renders the <code>\n\n</code> separator as a blank line, then the bold heading, then the body lines.</p>
 <p>Render correctness verified statically against the pipeline above plus the <code>pgp-rate-cap-probe</code> ScenarioRunner scenario that asserts the <code>{HEADER:POWER GRID PLUS}</code> sentinel string is present in <code>Localization.GetThingDescription</code> output for the five affected prefabs.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-15: added the "Logic-type / data-field name colour: TMP <code>orange</code> (#FF8000)" section (additive; no existing section changed, so no fresh-validator pass). <code>Stationpedia.AddLogicTypeInfo</code> (line 247781, emitting <code>{LOGICTYPE:X}</code> at line 247805) feeds the device logic-field list through <code>Localization.ParseHelpText</code> -&gt; <code>ReplaceLogicTypes</code> (line 209825), which expands each token to <code>&lt;link=LogicType{Name}&gt;&lt;color=orange&gt;{Name}&lt;/color&gt;&lt;/link&gt;</code> (line 209830). TextMeshPro resolves the named colour <code>orange</code> to Color32(255, 128, 0, 255) = #FF8000 (Unity.TextMeshPro decompile 0.2.6403.27689, case 26556144 at lines 27211-27214). Distinguished from the Stationpedia value-link blue #008AE6 (<code>LINK_COLOR_FORMAT</code>, line 250633) and the <code>{LINK:}</code> help-macro blue #0080FFFF. Verified against the 0.2.6403.27689 decompile; top-level verified_in / verified_at advanced to 0.2.6403.27689 / 2026-07-15 (the pre-existing sections keep their 0.2.6228.27061 @ 2026-05-28 stamps).</li>
 <li>2026-05-28 (later): updated the "Worked example: PowerGridPlus footer" section to reflect commit 2def43c's follow-up polish that swapped the dashes divider <code>--- Power Grid Plus ---</code> for the <code>{HEADER:POWER GRID PLUS}</code> token. The example now demonstrates a single ParseHelpText-expanded token rather than a plain-text divider, which is the more idiomatic vanilla pattern. No other section changed. Pipeline analysis stands.</li>
 <li>2026-05-28: page created during PowerGridPlus rate-cap rollout verification. The ScenarioRunner <code>pgp-rate-cap-probe</code> scenario confirmed the footer text reaches <code>Localization.GetThingDescription</code> correctly. This page documents the rest of the pipeline (ParseHelpText, page cache, TMP render path) so the question "will my footer render correctly?" can be answered by static analysis instead of requiring an in-game eyeball check. Sourced from decompile lines 194901 (ParseHelpText), 231023 / 231964 (Stationpedia.Initialize / PopulateThingPages), 232041 (Description assignment), 233798 (PageDescription field), 233983 / 234508 (CheckAndSetTextElement -&gt; TMP.text). en.resx samples at lines 2756, 2816, 3270, 3534, 3804, 6576.</li>
 </ul>

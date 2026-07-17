@@ -6865,6 +6865,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#capturing-a-device-name-during-off-thread-snapshot-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capturing a device name during off-thread snapshot build
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#repro-and-the-fix-that-landed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8263,6 +8274,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#capturing-a-device-name-during-off-thread-snapshot-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capturing a device name during off-thread snapshot build
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#repro-and-the-fix-that-landed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8384,17 +8406,27 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-25.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-15.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'line 199822 (OcclusionManager.AllThings), 253430 (CableNetwork.AllCableNetworks), 417824 (AtmosphericsManager.AllAtmospheres)'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'line 317670 (Thing.DisplayName), 210256 (Localization.GetThingName)'}</code></li>
+            
+              <li><code>Mods/PowerGridPlus/PowerGridPlus/Patches/AtomicElectricityTickPatch.cs (worker-thread pipeline header; GridSnapshot.Build SNAPSHOT phase)</code></li>
+            
+              <li><code>Mods/PowerGridPlus/PowerGridPlus/DeliveryEffectClassifier.cs:32 (classifier runs on the power worker, GridSnapshot.Build)</code></li>
             
               <li><code>Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs (the working enumeration pattern)</code></li>
             
@@ -8524,6 +8556,47 @@
 <li><code>thing.gameObject.GetComponent&lt;T&gt;()</code> if T is not already cached on the Thing.</li>
 </ul>
 <p>If a scenario needs a Unity-API write, marshal back to the main thread via a <code>MainThreadDispatcher</code> (see <code>Mods/InspectorPlus/InspectorPlus/MainThreadDispatcher.cs</code> for the working implementation).</p>
+<h2 id="capturing-a-device-name-during-off-thread-snapshot-build">Capturing a device name during off-thread snapshot build<a class="headerlink" href="#capturing-a-device-name-during-off-thread-snapshot-build" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-15 -->
+
+<p>The worker-thread constraint is not limited to a postfix. PowerGridPlus retired the vanilla per-network <code>PowerTick</code> trio and replaced <code>ElectricityManager.ElectricityTick</code> with a single Harmony prefix, <code>AtomicElectricityTickPatch</code> (<code>Mods/PowerGridPlus/PowerGridPlus/Patches/AtomicElectricityTickPatch.cs</code>). The whole prefix pipeline runs on the same UniTask worker: the patch header states "vanilla calls ElectricityTick on the UniTask ThreadPool worker; the prefix runs on the same worker", and step 1, the SNAPSHOT phase, is <code>GridSnapshot.Build</code>, which does "the single boundary read of every device's demand / output / control". <code>Mods/PowerGridPlus/PowerGridPlus/DeliveryEffectClassifier.cs:32</code> restates it: "the classifier runs on the power worker (GridSnapshot.Build)". So every device field captured while building the snapshot is captured off the main thread, and the read rules above apply.</p>
+<p>When the snapshot needs a device name, <code>Thing.PrefabName</code> is the correct source. It is a plain immutable managed string (see the safe-off-thread list above), so reading it from <code>GridSnapshot.Build</code> on the worker is fine. The two obvious alternatives are NOT confirmed worker-safe:</p>
+<ul>
+<li><code>Thing.DisplayName</code> (Assembly-CSharp decompile 0.2.6403.27689, line 317670) is <code>virtual</code> and returns the player rename when one is set, otherwise falls through to <code>Localization.GetThingName(PrefabName)</code>:</li>
+</ul>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">DisplayName</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">CustomName</span><span class="p">))</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Localization</span><span class="p">.</span><span class="n">GetThingName</span><span class="p">(</span><span class="n">PrefabName</span><span class="p">);</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">CustomName</span><span class="p">;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The fallback path (below) is not on the confirmed-safe list, and the <code>virtual</code> modifier means a subclass override could add further work. <code>Thing.TrackableName =&gt; DisplayName</code> (line 317682) carries the same caveat.</p>
+<ul>
+<li><code>Localization.GetThingName(string thingPrefabName)</code> (line 210256) calls <code>Animator.StringToHash</code> on both the primary and the fallback lookup:</li>
+</ul>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">GetThingName</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">thingPrefabName</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">ThingLocalized</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">thingPrefabName</span><span class="p">),</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="n">FallbackThingsLocalized</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">Animator</span><span class="p">.</span><span class="n">StringToHash</span><span class="p">(</span><span class="n">thingPrefabName</span><span class="p">),</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="k">value</span><span class="p">);</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="kt">string</span><span class="p">.</span><span class="n">Format</span><span class="p">(</span><span class="n">ErrorName</span><span class="p">,</span><span class="w"> </span><span class="n">CurrentLanguage</span><span class="p">,</span><span class="w"> </span><span class="n">thingPrefabName</span><span class="p">);</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">value</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">;</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">value</span><span class="p">.</span><span class="n">PrefabName</span><span class="p">;</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>Animator.StringToHash</code> is a Unity API whose off-thread safety is unconfirmed, so <code>GetThingName</code> (and therefore <code>DisplayName</code>'s fallback) is not confirmed worker-safe.</p>
+<p>Rule: during snapshot build, or any <code>OcclusionManager.AllThings.ForEach</code> on the power worker, capture <code>Thing.PrefabName</code> as the device identity. If a friendly display name is needed, resolve it later on the main thread; do not call <code>Thing.DisplayName</code> or <code>Localization.GetThingName</code> from the worker until their off-thread safety is confirmed.</p>
 <h2 id="repro-and-the-fix-that-landed">Repro and the fix that landed<a class="headerlink" href="#repro-and-the-fix-that-landed" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-25 -->
 
@@ -8531,6 +8604,7 @@
 <p>The reason the FIRST run happened to work but the second crashed is undetermined: most likely a race window where Unity's scene-graph mutex was free for the first call and held for the second. Either way, do not rely on FindObjectsOfType from any ElectricityTick-driven postfix; the OcclusionManager.AllThings path is correct.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-15: added the "Capturing a device name during off-thread snapshot build" section (additive; no existing section changed, so no fresh-validator pass). PowerGridPlus's <code>AtomicElectricityTickPatch</code> prefix (replacing <code>ElectricityManager.ElectricityTick</code>) and its <code>GridSnapshot.Build</code> SNAPSHOT phase run on the UniTask ThreadPool worker (patch header comment; <code>DeliveryEffectClassifier.cs:32</code>), so device fields read during snapshot build are off-thread reads. <code>Thing.PrefabName</code> (plain immutable string, already on the safe list) is the correct off-thread name source; <code>Thing.DisplayName</code> (Assembly-CSharp 0.2.6403.27689 line 317670: player-rename <code>CustomName</code> with a <code>Localization.GetThingName</code> fallback, and <code>virtual</code>) and <code>Localization.GetThingName</code> (line 210256, calls <code>Animator.StringToHash</code> on both the primary and the fallback lookup) are NOT confirmed worker-safe. Verified against the 0.2.6403.27689 decompile and the current PowerGridPlus source; top-level verified_in / verified_at advanced to 0.2.6403.27689 / 2026-07-15 (the pre-existing sections keep their earlier stamps).</li>
 <li>2026-07-07: added <code>thing.IsBeingDestroyed</code> to the safe-off-thread reads list (game version 0.2.6403.27689: <code>public bool IsBeingDestroyed =&gt; BeingDestroyed;</code> on Thing, decompile line 318452). Occasion: PowerGridPlus partial-power forensics. Single-bullet addition with its own inline version note; the section stamp and the other entries keep their 0.2.6228.27061 basis.</li>
 <li>2026-05-25: page created. Source: live crash repro on the dedicated server during PgpVerifyHelper development (<code>DedicatedServer/data/server.log</code> after the 2026-05-25 transformer-conservation run) plus the <code>Plans/PgpVerifyHelper/PgpVerifyHelper/ScenarioRunner.cs</code> fix. Decompile reference for the static pools verified in place at <code>OcclusionManager.AllThings</code> (line 199822), <code>CableNetwork.AllCableNetworks</code> (line 253430), <code>AtmosphericsManager.AllAtmospheres</code> (line 417824).</li>
 </ul>
