@@ -107,6 +107,9 @@ namespace ScenarioRunner
         private const long OSF_SEG_RES_CHILD = 9900000323L;
         private const long OSF_SEG_FIX_A = 9900000324L;
         private const long OSF_SEG_FIX_B = 9900000325L;
+        private const long OSF_NET_STORED = 9900000305L;
+        private const long OSF_ELASTIC_RATE = 9900000326L;
+        private const long OSF_ELASTIC_ENERGY = 9900000327L;
         private const long OSF_IC10_FALLBACK = 9900000316L;
 
         // Constructed numbers, asserted back within OSF_EPS.
@@ -169,6 +172,7 @@ namespace ScenarioRunner
                 OverloadSplitFixture_P2_TransformerOverloaded(tick);
                 OverloadSplitFixture_P2cd_ResidualSplit(tick);
                 OverloadSplitFixture_P3_CableOverloaded(tick);
+                OverloadSplitFixture_P3d_StoredBoundSplit();
                 OverloadSplitFixture_P4_Precedence(tick);
                 OverloadSplitFixture_P5_WireShape(tick);
 
@@ -542,6 +546,41 @@ namespace ScenarioRunner
                 $"expected ({OSF_CABLE_FLOW:0},{OSF_CABLE_CAP:0}).");
 
             OverloadSplitFixture_P3c_Ic10Read(tick);
+        }
+
+        // ---- P3d: decision-33 (f), the rule-2 rate-vs-energy split ----
+
+        private static void OverloadSplitFixture_P3d_StoredBoundSplit()
+        {
+            // A net short after full elastic discharge (rule 2 territory; RigidDemand - Unmet +
+            // PullsGranted = 0 keeps rule 3 silent). The rate-bound store takes the capacity
+            // fault; the energy-drained store (StoredBound) is skipped, its shortfall falling to
+            // the DEAD_UNMET verdict and the Undersupplied face.
+            var netList = OsfTypedList(_osfNetT);
+            var elasticList = OsfTypedList(_osfElasticT);
+            object net = OsfNewNet(OSF_NET_STORED, 1000f, 0f, OSF_AMPLE_CABLE);
+            OsfSet(net, "Unmet", 1000f);
+            OsfSet(net, "PullsGranted", 0f);
+            object rateBound = OsfNew(_osfElasticT);
+            OsfSet(rateBound, "RefId", OSF_ELASTIC_RATE);
+            OsfSet(rateBound, "EffDischarge", 500f);
+            object energyBound = OsfNew(_osfElasticT);
+            OsfSet(energyBound, "RefId", OSF_ELASTIC_ENERGY);
+            OsfSet(energyBound, "EffDischarge", 100f);
+            OsfSet(energyBound, "StoredBound", true);
+            OsfAddTo(net, "Elastics", rateBound);
+            OsfAddTo(net, "Elastics", energyBound);
+            netList.Add(net);
+            elasticList.Add(rateBound);
+            elasticList.Add(energyBound);
+
+            _osfDetectSupply.Invoke(null, new object[] { netList, elasticList });
+
+            bool rOver = (bool)OsfGet(rateBound, "Overloaded");
+            bool eOver = (bool)OsfGet(energyBound, "Overloaded");
+            OsfCheck("P3d", rOver && !eOver,
+                $"rule-2 rate/energy split (decision-33 (f)): rate-bound elastic stamped (got {rOver}, expect true), " +
+                $"energy-drained elastic skipped (got {eOver}, expect false; its shortfall falls to Undersupplied).");
         }
 
         // IC10-style read of the new CableOverloaded slot via the real GetLogicValue path
