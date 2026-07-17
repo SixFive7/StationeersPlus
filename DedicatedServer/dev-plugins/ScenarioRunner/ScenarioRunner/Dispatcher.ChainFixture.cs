@@ -441,7 +441,9 @@ namespace ScenarioRunner
 
         private static bool ChainFixture_HopProtected(ChainSeg seg)
         {
-            if (seg.StepUp) return true;
+            // Decision 33: the categorical step-up exclusion is retired; protection is
+            // FeedsActiveSeg alone (a trunk is safe exactly while its subtree is active, and a
+            // no-practical-load trunk is guarded by the selector's tiny-claim gate).
             if (_cfMirrorsOk && seg.MirrorSeg != null)
             {
                 try { return ChainFixture_InvokeFeedsActiveSeg(seg.MirrorSeg); }
