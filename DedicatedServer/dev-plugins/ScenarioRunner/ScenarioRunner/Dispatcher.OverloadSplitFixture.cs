@@ -50,6 +50,10 @@ namespace ScenarioRunner
     //       two suppliers' combined Setting-derived caps (1000 + 800 W) while the cable
     //       cap is ample; both suppliers land in OverloadRegistry (not the cable
     //       registry) with payload (3000, 1800) within epsilon.
+    //   P2c/P2d decision-33 split: rule 1a stays silent when only forwarded child claims
+    //       exceed the cap (DetectResidualOverload owns that trip at settle, residual payload),
+    //       and a Deprioritized supplier's EffCap stays in the capacity sum, so a same-tick
+    //       shed cannot manufacture a false overload on the surviving co-supplier.
     //   P3  Cable overloaded: a synthetic net whose suppliers could fund the demand
     //       (Setting ample) but the flow (5000 W) exceeds WeakestCap (2000 W); the
     //       supplier and the elastic land in CableOverloadRegistry with payload
@@ -96,11 +100,22 @@ namespace ScenarioRunner
         private const long OSF_SEG_CABLE = 9900000313L;
         private const long OSF_ELASTIC_CABLE = 9900000314L;
         private const long OSF_PRECEDENCE_REF = 9900000315L;
+        private const long OSF_NET_RESIDUAL = 9900000303L;
+        private const long OSF_NET_CAPFIX = 9900000304L;
+        private const long OSF_SEG_RES_A = 9900000321L;
+        private const long OSF_SEG_RES_B = 9900000322L;
+        private const long OSF_SEG_RES_CHILD = 9900000323L;
+        private const long OSF_SEG_FIX_A = 9900000324L;
+        private const long OSF_SEG_FIX_B = 9900000325L;
         private const long OSF_IC10_FALLBACK = 9900000316L;
 
         // Constructed numbers, asserted back within OSF_EPS.
         private const float OSF_EPS = 0.5f;
         private const float OSF_CAP_DEMAND = 3000f;    // rigid desire on the capacity net
+        private const float OSF_RES_OWN = 500f;        // P2c: own rigid demand, under the cap alone
+        private const float OSF_RES_CHILD = 2500f;     // P2c: forwarded child claim
+        private const float OSF_RES_TOTAL = OSF_RES_OWN + OSF_RES_CHILD;   // P2c residual = 3000
+        private const float OSF_FIX_DEMAND = 1700f;    // P2d: fits only when the shed supplier's cap counts
         private const float OSF_CAP_EFF_A = 1000f;     // supplier A Setting-derived cap
         private const float OSF_CAP_EFF_B = 800f;      // supplier B Setting-derived cap
         private const float OSF_CAP_COMBINED = OSF_CAP_EFF_A + OSF_CAP_EFF_B;
@@ -118,7 +133,7 @@ namespace ScenarioRunner
         private static MethodInfo _osfOverSnap, _osfCableSnap;           // SnapshotRemaining(int)
         private static MethodInfo _osfOverCurr, _osfCableCurr;           // CurrentlyLockedOut(int)
         private static MethodInfo _osfOverClear, _osfCableClear;         // ClearLockout(long)
-        private static MethodInfo _osfDetectStructural, _osfDetectSupply;
+        private static MethodInfo _osfDetectStructural, _osfDetectResidual, _osfDetectSupply;
         private static MethodInfo _osfActiveFault, _osfTryGetMerged;
         private static PropertyInfo _osfCurrentTick;
 
@@ -152,6 +167,7 @@ namespace ScenarioRunner
 
                 int tick = OsfTick();
                 OverloadSplitFixture_P2_TransformerOverloaded(tick);
+                OverloadSplitFixture_P2cd_ResidualSplit(tick);
                 OverloadSplitFixture_P3_CableOverloaded(tick);
                 OverloadSplitFixture_P4_Precedence(tick);
                 OverloadSplitFixture_P5_WireShape(tick);
@@ -207,6 +223,7 @@ namespace ScenarioRunner
             _osfOverClear = _osfOverT?.GetMethod("ClearLockout", SF, null, sigLong, null);
             _osfCableClear = _osfCableT?.GetMethod("ClearLockout", SF, null, sigLong, null);
             _osfDetectStructural = allocT?.GetMethod("DetectStructuralOverload", SF);
+            _osfDetectResidual = allocT?.GetMethod("DetectResidualOverload", SF);
             _osfDetectSupply = allocT?.GetMethod("DetectSupplyOverload", SF);
             _osfActiveFault = hoverT?.GetMethod("ActiveFault", SF);
             _osfTryGetMerged = hoverT?.GetMethod("TryGetMergedBlock", SF);
@@ -224,7 +241,7 @@ namespace ScenarioRunner
                 && _osfOverSnap != null && _osfCableSnap != null
                 && _osfOverCurr != null && _osfCableCurr != null
                 && _osfOverClear != null && _osfCableClear != null;
-            bool allocOk = _osfDetectStructural != null && _osfDetectSupply != null
+            bool allocOk = _osfDetectStructural != null && _osfDetectResidual != null && _osfDetectSupply != null
                 && _osfNetT != null && _osfSegT != null && _osfElasticT != null;
             bool hoverOk = _osfActiveFault != null && _osfTryGetMerged != null;
             bool tickOk = _osfCurrentTick != null;
@@ -232,7 +249,7 @@ namespace ScenarioRunner
             OsfCheck("P1", registriesOk && allocOk && hoverOk && tickOk && logicOk,
                 $"seams: OverloadRegistry(NoteOverload5/IsLockedOut/IsOverloaded/TryGetFault/Snapshot/Currently/Clear)={registriesOk && _osfOverT != null} " +
                 $"CableOverloadRegistry(NoteCableOverload4/IsLockedOut/IsCableOverloaded/TryGetFault/Snapshot/Currently/Clear)={_osfCableT != null && _osfNoteCable != null} " +
-                $"allocator(DetectStructuralOverload={_osfDetectStructural != null} DetectSupplyOverload={_osfDetectSupply != null} Net/Seg/Elastic mirrors={_osfNetT != null && _osfSegT != null && _osfElasticT != null}) " +
+                $"allocator(DetectStructuralOverload={_osfDetectStructural != null} DetectResidualOverload={_osfDetectResidual != null} DetectSupplyOverload={_osfDetectSupply != null} Net/Seg/Elastic mirrors={_osfNetT != null && _osfSegT != null && _osfElasticT != null}) " +
                 $"FaultHover(ActiveFault={_osfActiveFault != null} TryGetMergedBlock={_osfTryGetMerged != null}) CurrentTick={tickOk} " +
                 $"LogicTypeRegistry.CableOverloadedFault={cableLogicValue} (expect 6587)");
 
@@ -414,6 +431,69 @@ namespace ScenarioRunner
                 $"expected ({OSF_CAP_DEMAND:0},{OSF_CAP_COMBINED:0} storage=0).");
         }
 
+        // ---- P2c/P2d: the decision-33 1a/1b split and the capacity-sum fix ----
+
+        private static void OverloadSplitFixture_P2cd_ResidualSplit(int tick)
+        {
+            // P2c: own rigid demand (500 W) sits under the combined cap, so the per-round rule 1a
+            // stays silent; the forwarded child claim (2500 W) pushes the settle-time residual
+            // (3000 W) over the cap, so DetectResidualOverload owns the trip with the residual
+            // payload. Detection-level only; commit routing is P2b's job.
+            var netList = OsfTypedList(_osfNetT);
+            var segList = OsfTypedList(_osfSegT);
+            object net = OsfNewNet(OSF_NET_RESIDUAL, OSF_RES_OWN, 0f, OSF_AMPLE_CABLE);
+            object supA = OsfNewSeg(OSF_SEG_RES_A, OSF_CAP_EFF_A, OSF_AMPLE_CABLE, OSF_CAP_EFF_A);
+            object supB = OsfNewSeg(OSF_SEG_RES_B, OSF_CAP_EFF_B, OSF_AMPLE_CABLE, OSF_CAP_EFF_B);
+            object child = OsfNewSeg(OSF_SEG_RES_CHILD, OSF_AMPLE_SETTING, OSF_AMPLE_CABLE, OSF_AMPLE_SETTING);
+            OsfSet(child, "DesiredPull", OSF_RES_CHILD);
+            OsfAddTo(net, "Suppliers", supA);
+            OsfAddTo(net, "Suppliers", supB);
+            OsfAddTo(net, "Consumers", child);
+            netList.Add(net);
+            segList.Add(supA);
+            segList.Add(supB);
+            segList.Add(child);
+
+            _osfDetectStructural.Invoke(null, new object[] { netList, segList });
+            bool silentA = !(bool)OsfGet(supA, "Overloaded");
+            bool silentB = !(bool)OsfGet(supB, "Overloaded");
+
+            _osfDetectResidual.Invoke(null, new object[] { netList, segList });
+            bool aOver = (bool)OsfGet(supA, "Overloaded"), aCable = (bool)OsfGet(supA, "CableOverloaded");
+            bool bOver = (bool)OsfGet(supB, "Overloaded"), bCable = (bool)OsfGet(supB, "CableOverloaded");
+            bool childOver = (bool)OsfGet(child, "Overloaded");
+            float aVal = (float)OsfGet(supA, "OverloadValueW"), aCap = (float)OsfGet(supA, "OverloadCapW");
+            bool payloadOk = Math.Abs(aVal - OSF_RES_TOTAL) < OSF_EPS && Math.Abs(aCap - OSF_CAP_COMBINED) < OSF_EPS;
+            OsfCheck("P2c", silentA && silentB && aOver && bOver && !aCable && !bCable && !childOver && payloadOk,
+                $"1a/1b split: rule 1a silent on own demand {OSF_RES_OWN:0} under cap {OSF_CAP_COMBINED:0} (Asilent={silentA} Bsilent={silentB}); " +
+                $"DetectResidualOverload trips both suppliers (A={aOver} B={bOver} cableBits={aCable}/{bCable} childStamped={childOver}) " +
+                $"payload=({aVal:0},{aCap:0}) expected ({OSF_RES_TOTAL:0},{OSF_CAP_COMBINED:0}).");
+
+            // P2d: a same-tick Deprioritized supplier's hardware cap STAYS in the capacity sum
+            // (decision-33 (b)), so a shed of one supplier cannot manufacture a false overload on
+            // the survivor: demand 1700 W against 1000 W active + 800 W shed = 1800 W cap, no trip
+            // from either rule.
+            var netList2 = OsfTypedList(_osfNetT);
+            var segList2 = OsfTypedList(_osfSegT);
+            object net2 = OsfNewNet(OSF_NET_CAPFIX, OSF_FIX_DEMAND, 0f, OSF_AMPLE_CABLE);
+            object supC = OsfNewSeg(OSF_SEG_FIX_A, OSF_CAP_EFF_A, OSF_AMPLE_CABLE, OSF_CAP_EFF_A);
+            object supD = OsfNewSeg(OSF_SEG_FIX_B, OSF_CAP_EFF_B, OSF_AMPLE_CABLE, OSF_CAP_EFF_B);
+            OsfSet(supD, "Deprioritized", true);
+            OsfAddTo(net2, "Suppliers", supC);
+            OsfAddTo(net2, "Suppliers", supD);
+            netList2.Add(net2);
+            segList2.Add(supC);
+            segList2.Add(supD);
+
+            _osfDetectStructural.Invoke(null, new object[] { netList2, segList2 });
+            _osfDetectResidual.Invoke(null, new object[] { netList2, segList2 });
+            bool cOver = (bool)OsfGet(supC, "Overloaded");
+            bool dOver = (bool)OsfGet(supD, "Overloaded");
+            OsfCheck("P2d", !cOver && !dOver,
+                $"deprioritized supplier counted in the cap: demand {OSF_FIX_DEMAND:0} vs {OSF_CAP_EFF_A:0} active + {OSF_CAP_EFF_B:0} shed; " +
+                $"no false stamp (activeSupplier={cOver} shedSupplier={dOver}, both expected false).");
+        }
+
         // ---- P3: cable family (Cable Overloaded) ----
 
         private static void OverloadSplitFixture_P3_CableOverloaded(int tick)
@@ -547,8 +627,10 @@ namespace ScenarioRunner
                     $"the Pushing diagnostics, parentheses gone (got={got} kind={outKind} line='{Truncate(line, 200)}').");
 
                 // P4b2: the capacity kind's block with a null Thing falls back to the generic
-                // "Device overloaded fault" title and carries the locked "Drawing X of Y"
-                // diagnostics (live per-device labels are covered by PTHOVER P4).
+                // "Device overloaded fault" title and carries the 2026-07-15 hover-overhaul
+                // diagnostics: "Downstream demand of X exceeds the available Y" plus the
+                // "Short by" line; with storage 0 the breakdown line is absent (live per-device
+                // labels are covered by PTHOVER P4).
                 _osfCableClear.Invoke(null, new object[] { OSF_PRECEDENCE_REF });
                 var argsOver = new object[] { OSF_PRECEDENCE_REF, tick, null, null, null };
                 bool gotOver = _osfTryGetMerged.Invoke(null, argsOver) is bool b2 && b2;
@@ -556,9 +638,10 @@ namespace ScenarioRunner
                 string outKindOver = argsOver[4]?.ToString() ?? "<null>";
                 OsfCheck("P4b2", gotOver && outKindOver == "DeviceOverload"
                         && lineOver.Contains("<color=#ff2626>Device overloaded fault: ")
-                        && lineOver.Contains("Drawing ") && lineOver.Contains(" of ")
+                        && lineOver.Contains("Downstream demand of ") && lineOver.Contains(" exceeds the available ")
+                        && lineOver.Contains("Short by ")
                         && !lineOver.Contains("("),
-                    $"capacity kind renders the 'Device overloaded fault:' title plus the Drawing diagnostics " +
+                    $"capacity kind renders the 'Device overloaded fault:' title plus the Downstream-demand and Short-by diagnostics " +
                     $"(got={gotOver} kind={outKindOver} line='{Truncate(lineOver, 200)}').");
             }
             else
