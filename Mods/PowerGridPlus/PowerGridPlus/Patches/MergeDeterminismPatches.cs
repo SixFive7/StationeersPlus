@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Assets.Scripts;
 using Assets.Scripts.Networks;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -49,6 +50,16 @@ namespace PowerGridPlus.Patches
         {
             if (cableNetworks == null || cableNetworks.Count <= 1) return;
             cableNetworks.Sort(CompareByReferenceId);
+            // Decision-33 hold fix: a merge changes the identity under NetLiveness's hold-table
+            // key (the survivor absorbs members the held verdict never judged), so every merging
+            // net's DEAD_UNMET hold is queued for the tick-head drain. Host only: the hold table
+            // exists only where the allocator runs.
+            if (!GameManager.RunSimulation) return;
+            for (int i = 0; i < cableNetworks.Count; i++)
+            {
+                var net = cableNetworks[i];
+                if (net != null) NetLiveness.NoteMergedNet(net.ReferenceId);
+            }
         }
 
         private static int CompareByReferenceId(CableNetwork a, CableNetwork b)

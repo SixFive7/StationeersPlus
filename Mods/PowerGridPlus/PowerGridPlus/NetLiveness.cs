@@ -9,12 +9,14 @@ namespace PowerGridPlus
     ///     settlement and the accumulator drains skip DEAD nets) and the PoweredOwnership sweep.
     ///
     ///     <para><b>The formula</b> (computed in PowerAllocator's publish tail, post-clawback):
-    ///     LIVE iff the net's rigid demand is fully funded (<c>Unmet &lt;= Eps</c>) AND an
-    ///     energized feed exists (<c>GenSupply + InflowCommitted + AvailableElastic &gt; Eps</c>).
-    ///     A net that fails the first term is DEAD_UNMET (demand the allocator could not fund:
-    ///     generation-short root nets, the step-up and cable-limited partial-delivery carve-outs);
-    ///     a net that fails the second is DEAD_NOSUPPLY (nothing energized feeds it: night-time
-    ///     solar islands, Served-by-vacuity idle nets, nets behind a deprioritized / locked feed). The
+    ///     LIVE iff an energized feed exists (<c>GenSupply + InflowCommitted + AvailableElastic
+    ///     &gt; Eps</c>) AND the net's rigid demand is fully funded (<c>Unmet &lt;= Eps</c>).
+    ///     Supply-absence is tested FIRST (decision-33 hold fix): a net that nothing energized
+    ///     feeds is DEAD_NOSUPPLY even when it carries rigid demand (night-time solar islands,
+    ///     Served-by-vacuity idle nets, nets behind a deprioritized / locked feed, and unfed
+    ///     under-construction stubs, which previously classified DEAD_UNMET and armed the hold
+    ///     every tick they existed); a FED net whose rigid demand the allocator could not fully
+    ///     fund is DEAD_UNMET (generation-short root nets, the partial-delivery carve-outs). The
     ///     supply term is the same expression the dead-input cue and the presentation health gate
     ///     already use. A DEAD net receives nothing at the settlement layer by construction (the
     ///     write-back plan, the published caches, and the audit grants are all dead-zeroed), so
@@ -29,6 +31,15 @@ namespace PowerGridPlus
     ///     same player-legible rhythm as every other fault. DEAD_NOSUPPLY deliberately does NOT
     ///     hold: supply-side recovery (sunrise, a battery cohort re-arming, a deprioritization lockout
     ///     expiring) must re-power the net the tick it returns.</para>
+    ///
+    ///     <para><b>Merge boundary.</b> Holds are keyed by net ReferenceId, and a cable-network
+    ///     MERGE changes the identity under that key: the surviving object absorbs members the
+    ///     held verdict never judged (the fresh-device 60 s darkness rode exactly that, an unfed
+    ///     stub's ever-refreshed hold surviving the connecting merge onto the whole powered
+    ///     trunk). The merge patch therefore enqueues every merging net's id from the main thread
+    ///     and the tick head drains them out of the hold table on the worker before any verdict is
+    ///     computed; a merged net is a new topology and the next tick decides it fresh. Splits
+    ///     need nothing: a split spawns a FRESH ReferenceId that cannot be in the table.</para>
     ///
     ///     <para><b>Unclassified</b> (a net id absent from the map) is not dead. The verdict map is
     ///     computed from the same GridSnapshot the consumers iterate, so in practice every consumed
@@ -52,10 +63,41 @@ namespace PowerGridPlus
         // Worker-only (ALLOCATE) state; never read outside ApplyHold/Publish/Clear.
         private static readonly Dictionary<long, int> _deadUnmetHoldUntil = new Dictionary<long, int>();
         private static readonly List<long> _pruneScratch = new List<long>();
+        // Main-thread producer (the merge patch), worker consumer (the tick-head drain); the list
+        // itself is the lock. See the class doc, "Merge boundary".
+        private static readonly List<long> _pendingMergeClears = new List<long>();
         private static volatile int _publishedTick = -1;
 
         /// <summary>Tick the current map was published for; -1 before the first atomic tick.</summary>
         internal static int PublishedTick => _publishedTick;
+
+        /// <summary>
+        ///     Main-thread note from the merge-determinism patch: this net participated in a merge,
+        ///     so its hold entry (if any) is stale under its id and must be dropped at the next
+        ///     tick head. Survivor and consumed nets alike.
+        /// </summary>
+        internal static void NoteMergedNet(long netId)
+        {
+            lock (_pendingMergeClears)
+            {
+                _pendingMergeClears.Add(netId);
+            }
+        }
+
+        /// <summary>
+        ///     Tick-head drain (power worker, HOUSEKEEPING, before any verdict is computed or any
+        ///     hold armed this tick): drop the hold entries of every net that merged since the
+        ///     last tick. Removing an absent key is a no-op, so consumed nets cost nothing.
+        /// </summary>
+        internal static void DrainMergeClears()
+        {
+            lock (_pendingMergeClears)
+            {
+                for (int i = 0; i < _pendingMergeClears.Count; i++)
+                    _deadUnmetHoldUntil.Remove(_pendingMergeClears[i]);
+                _pendingMergeClears.Clear();
+            }
+        }
 
         /// <summary>
         ///     Fold the hold-down into a formula verdict for one net (ALLOCATE worker only).
@@ -97,11 +139,15 @@ namespace PowerGridPlus
             return _byNet.TryGetValue(netId, out verdict);
         }
 
-        /// <summary>World-load reset: drop the previous world's verdicts and holds.</summary>
+        /// <summary>World-load reset: drop the previous world's verdicts, holds, and merge notes.</summary>
         internal static void Clear()
         {
             _byNet = new Dictionary<long, byte>();
             _deadUnmetHoldUntil.Clear();
+            lock (_pendingMergeClears)
+            {
+                _pendingMergeClears.Clear();
+            }
             _publishedTick = -1;
         }
     }

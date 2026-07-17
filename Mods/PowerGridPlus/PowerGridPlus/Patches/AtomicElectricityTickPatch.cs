@@ -55,6 +55,7 @@ namespace PowerGridPlus.Patches
 
                 // ---- 0. HOUSEKEEPING ----
                 LoadBoundary.DrainPending();
+                NetLiveness.DrainMergeClears();
                 MainThreadDebitQueue.Reconcile();
                 UnknownBridgeCensus.RunIfPending();
                 ReceivePowerOverrideCensus.RunIfPending();

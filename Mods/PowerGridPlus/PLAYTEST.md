@@ -33,6 +33,13 @@ Checks are visual (the rendered hover string is transient, not an InspectorPlus-
 
 Supersedes the wording specifics in the older fault bullets below (Group A flash / hover, the overload-split observation bullets, the producer-isolation and throttle bullets): those quote the pre-2026-07-15 strings; the layout / colour / pulse mechanics they assert still hold.
 
+## Decision-33 phase 1, 2026-07-17: fresh-device hold fixes (build C60F2089, in tree)
+
+What changed: the net-liveness verdict now tests supply-absence FIRST, so an unfed under-construction cable stub classifies DEAD_NOSUPPLY and never arms the 60 s hold (previously it classified DEAD_UNMET and re-armed the hold every tick it existed), and every cable-network merge clears the merging ids out of the hold table at the next tick head, so a stale hold can no longer ride a surviving ReferenceId onto the powered trunk. Dedi-verified with pgp-fresh-device-trace on a fresh Lunar world: the stub soaked twenty ticks as DEAD_NOSUPPLY with no hold armed, the merged net was LIVE on the first post-bridge tick, the new device powered two ticks after the connecting cable, the previously-lit neighbors never flickered, and the spawn-complete and build-completion paths replayed clean at the same tick numbers as the 2026-07-15 baseline (which showed 120 ticks of whole-net darkness).
+
+- **Fresh-device power-up feel.** In game: build a device and its local wiring first, connect the run to a powered net last (the normal way to tee in a new room). Everything on the merged net lights within a tick of the connecting cable; nothing else on the net flickers. Previously this exact flow produced 60 seconds of unexplained darkness for the whole merged net.
+- **Hold rhythm regression check.** A genuinely underfed FED room (rigid demand above what reaches it, nothing left to shed) must still fail calmly: dark whole with the 60 s hold rhythm, not strobing at tick rate. Kill enough generation to starve a small room and watch it hold dark for 60 s per cycle.
+
 Known follow-up (not blocking the shipped mod, which builds 0/0): the ScenarioRunner dev harness (`DedicatedServer/dev-plugins/ScenarioRunner`, not shipped) has fixtures that reflection-pin the OLD registry signatures (OverloadSplitFixture's 4-arg `NoteOverload`, the Deprioritization P3c 5-arg `NoteDeprioritized` + 4-out `TryGetFault`, the MP P1 tuple shapes); they report FAIL until updated to the widened signatures. A FaultHover-string assertion fixture would give headless coverage of the new texts.
 
 ## Settings rework + residuals 2026-07-13: multiplayer client review session

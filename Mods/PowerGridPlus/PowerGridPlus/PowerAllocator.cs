@@ -891,11 +891,13 @@ namespace PowerGridPlus
             // 4.9 NET LIVENESS: the per-net LIVE / DEAD verdict for the consumer Powered-ownership
             //     layer (NetLiveness), computed from the converged post-clawback state BEFORE the
             //     caches publish so a dead net's shares and totals can be zeroed at the source.
-            //     LIVE = rigid demand fully funded AND an energized feed exists (the same supply
-            //     expression the dead-input cue and the healthy-set inNetMet gate use). DEAD_UNMET
-            //     (demand the allocator could not fund: generation-short root nets, the step-up and
-            //     cable-limited partial-delivery carve-outs) arms a 60 s hold against demand-
-            //     collapse flapping; DEAD_NOSUPPLY re-arms the tick supply returns. Consumed the
+            //     LIVE = an energized feed exists AND rigid demand fully funded (the same supply
+            //     expression the dead-input cue and the healthy-set inNetMet gate use). Supply-
+            //     absence wins the classification: DEAD_NOSUPPLY (nothing feeds the net, unfed
+            //     construction stubs included) never holds and re-powers the tick supply returns;
+            //     DEAD_UNMET (a FED net whose rigid demand the allocator could not fund:
+            //     generation-short root nets, the step-up and cable-limited partial-delivery
+            //     carve-outs) arms a 60 s hold against demand-collapse flapping. Consumed the
             //     same tick by the SetPowerFromThread false-edge block, the producer dead-net
             //     advertise zeroing, and the PoweredOwnership sweep. Zeroing a dead net's caches
             //     below is what makes the verdict conservation-exact: no provider on the net means
@@ -907,10 +909,17 @@ namespace PowerGridPlus
             var liveness = new Dictionary<long, byte>(netList.Count);
             foreach (var n in netList)
             {
+                // Supply-absence is tested FIRST (decision-33 hold fix): a net nothing energized
+                // feeds is DEAD_NOSUPPLY even when it carries rigid demand. Testing Unmet first
+                // classified an unfed under-construction stub as DEAD_UNMET, arming the 60 s hold
+                // every tick the stub existed; the hold then rode the stub's surviving ReferenceId
+                // through the connecting merge onto the whole powered trunk (the fresh-device 60 s
+                // darkness root cause). A zero-supply net cannot deliver, so the demand-collapse
+                // flap the hold guards against is impossible there.
                 bool hasSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n) > Eps;
-                byte formula = n.Unmet > Eps ? NetLiveness.DeadUnmet
-                             : hasSupply ? NetLiveness.Live
-                             : NetLiveness.DeadNoSupply;
+                byte formula = !hasSupply ? NetLiveness.DeadNoSupply
+                             : n.Unmet > Eps ? NetLiveness.DeadUnmet
+                             : NetLiveness.Live;
                 liveness[n.Id] = NetLiveness.ApplyHold(n.Id, formula, currentTick);
             }
             NetLiveness.Publish(liveness, currentTick);
