@@ -3,7 +3,7 @@ title: Device
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-13
+verified_at: 2026-07-17
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Pipes.Device
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 345177-345193 (ArcFurnace GetUsedPower/ReceivePower, _powerUsedDuringTick impulse + reset), 350705 (Device.GetUsedPower base), 344687 (Setting/Setting2 device GetUsedPower) -- per-device draw-state fields (_powerProvided one-tick lag, _powerUsedDuringTick impulse)
@@ -13,6 +13,7 @@ sources:
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 317927-317957 (Thing.Error property), 319497-319503 (Thing.SetIntegerSafe), Error write-path census (257 InteractError interact sites; CheckError bodies 424944-424957 / 391986-391999 / 427072; direct writes 389414/389424/374288/432580/42534/42544)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 370335 (Device class), 370460-370462 (DataCables/PowerCables arrays), 371501-371534 (power virtuals), 371568-371615 (FindDataCable/FindPowerCable/InitializeDataConnection), 371617-371638 (CanConstruct), 371640-371698 (SetPower/AssessPower/OnInteractableUpdated)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 304441-304460 (Interactable.State setter funnel), 319509-319522 (Thing.OnInteractableStateChanged/OnInteractableUpdated), 371700-371707 (Device.RefreshAnimState), 33633-33647 (InfoScreenComponent), 146456-146661 (SwitchMode/SwitchColorState/SwitchOnOff), 375983 (DeviceInputOutputImportExportCircuit tooltip gate), 371164-371181 (GetLogicValue incomplete-structure early-out + On/Power arms), 371028/371041 (CanLogicRead Power = HasPowerState)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 371510-371521 (GetUsedPower gate-list re-read), 313965-313979 (Structure.IsStructureCompleted)
 related:
   - ./Cable.md
   - ./CableNetwork.md
@@ -20,6 +21,7 @@ related:
   - ./ElectricalInputOutput.md
   - ./ElectricityManager.md
   - ./PowerTick.md
+  - ./Structure.md
   - ../GameSystems/StructurePlacementValidation.md
   - ../Patterns/CursorAdjacencyLookup.md
 tags: [power, prefab, network]
@@ -241,6 +243,52 @@ public virtual bool AllowSetPower(CableNetwork cableNetwork)        // line 3715
 ```
 
 A device whose `PowerCable` is null (no adjacent power cable) silently returns `-1f` from `GetUsedPower` / `GetGeneratedPower`, which `PowerTick` reads as "not on this network". Many subclasses override these three methods; the `PowerCable == null || PowerCable.CableNetwork != cableNetwork` guard is replicated almost verbatim across vanilla power devices (0.2.6228.27061 line census: 165086, 169955, 344689, 345179, 350698, 350707, 359403, 371227, 374356, 375228, 387488, 397078, 398880, 401392; e.g. `PowerTransmitterOmni.GetUsedPower` at 0.2.6403 line 408692).
+
+### GetUsedPower gates: what makes the base override report zero demand
+<!-- verified: 0.2.6403.27689 @ 2026-07-17 -->
+
+The base `Device.GetUsedPower(CableNetwork)` body, verbatim from the 0.2.6403.27689 decompile (lines 371510-371521):
+
+```csharp
+public virtual float GetUsedPower(CableNetwork cableNetwork)
+{
+    if (PowerCable == null || PowerCable.CableNetwork != cableNetwork)
+    {
+        return -1f;
+    }
+    if (!OnOff || !base.IsStructureCompleted)
+    {
+        return 0f;
+    }
+    return UsedPower;
+}
+```
+
+Three gates, in evaluation order:
+
+1. **Network identity** (`PowerCable == null || PowerCable.CableNetwork != cableNetwork` returns `-1f`, "not on this network"). The check is against the singular `PowerCable`, which is always `PowerCables[0]` per the resolution section above; the body consults neither the rest of the `PowerCables` array nor `ConnectedCableNetworks`, so a device whose power cables span two different networks bills demand only to the first cable's network and returns `-1f` to the other.
+2. **Switch state** (`!OnOff` returns `0f`). `OnOff` is the Thing-level animator/interactable switch property; a prefab with no `InteractableType.OnOff` interactable reads `OnOff == false` permanently (see the `CacheStates` subsection under the operational-state section), so a buttonless prefab whose class inherits this base override reports zero demand permanently.
+3. **Construction state** (`!base.IsStructureCompleted` returns `0f`). An under-construction device sits on the network with zero demand, and its demand appears the moment the completing tool stroke lands (`CurrentBuildStateIndex++` is the entire completion write; see [Structure](./Structure.md), section "Construction completion: the tool stroke has no network side effects", where this consequence was recorded during the fresh-device trace investigation). `Structure.IsStructureCompleted` verbatim (0.2.6403.27689 decompile lines 313965-313979):
+
+```csharp
+public bool IsStructureCompleted
+{
+    get
+    {
+        if (CurrentBuildStateIndex != BuildStates.Count - 1)
+        {
+            if (CurrentBuildStateIndex > 0 && CurrentBuildStateIndex < BuildStates.Count)
+            {
+                return BuildStates[CurrentBuildStateIndex].CanManufacture;
+            }
+            return false;
+        }
+        return true;
+    }
+}
+```
+
+What the base override does NOT gate on: the body contains no `Powered`, `Error`, `IsOperable`, or damage term. A device that is switched on and structurally complete reports its full `UsedPower` demand even while unpowered (`Powered == 0`, browned out) or showing `Error == 1`. Subclass overrides layer their own gates and formulas on top (see the guard census in the intro above and the per-class overrides on [DevicePowerDraw](../GameSystems/DevicePowerDraw.md)).
 
 ### Mid-tick admission: AssessPower books DuringTickLoad between power ticks
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
@@ -645,6 +693,7 @@ Consequence for a mod taking ownership of Powered: blocking the ApplyState OFF e
 
 ## Verification history
 
+- 2026-07-17: added the "GetUsedPower gates" subsection under "Power virtuals" (game version 0.2.6403.27689). `Device.GetUsedPower` re-read verbatim at 371510-371521 (semantically identical to the compact excerpt already in the intro; the new subsection carries the decompiler's exact brace formatting) and `Structure.IsStructureCompleted` quoted verbatim at 313965-313979 (final-build-state test with the mid-state `CanManufacture` carve-out). Recorded the three gates in evaluation order (PowerCable-network identity returns -1f; `!OnOff` returns 0f; `!base.IsStructureCompleted` returns 0f), the singular-`PowerCable` scope of gate 1, the buttonless-prefab consequence of gate 2, and the absence of any `Powered` / `Error` / `IsOperable` / damage term in the body. Cross-referenced [Structure](./Structure.md) "Construction completion: the tool stroke has no network side effects", where the under-construction zero-demand consequence was first recorded during the fresh-device trace investigation; the gates now live on both pages. Additive; no existing content changed.
 - 2026-07-13 (third pass): extended the visual-state plumbing subsection's IC10 paragraph with the two front gates, re-read from the 0.2.6403.27689 decompile during the PowerGridPlus Power-read-override build: `GetLogicValue` returns `0.0` for any logic type while `!IsStructureCompleted` (pre-switch early-out, 371164 region), `CanLogicRead(LogicType.Power)` returns `HasPowerState` (371028/371041), and `Thing.OnOff` returns `false` when `!HasOnOffState` before consulting storage (318249 region). Additive; no prior content contradicted.
 - 2026-07-13 (later): added the "Visual-state plumbing" subsection to the operational-state section (game version 0.2.6403.27689), all bodies re-read from the decompile this pass. The chain: animator integers are the storage for `PoweredValue` / `OnOff` (getter animator read 318296, animator-less `InteractPowered.State` 318290, setter 318306; the IC10 `LogicType.On` / `LogicType.Power` arms read the same properties, 371178-371181); the `Interactable.State` setter funnel (304441-304460) drives `Thing.OnInteractableStateChanged` (319509-319515, stamps the animator via `SetIntegerSafe`) and `Thing.OnInteractableUpdated` -> `RefreshAnimState` (319517-319522), both quoted verbatim; `Device.RefreshAnimState` (371700-371707) forwards to `InfoScreenComponent.RefreshState` (33633-33647, keyed on `parent.Powered` ONLY, no OnOff term; same keying as the `DeviceInputOutputImportExportCircuit.GetPassiveTooltip` gate at 375983); `SwitchOnOff.RefreshColorState` quoted verbatim in full (146597-146629, OnOff-first with the `!HasPowerState` promotion, Error blink 146641-146661, no OffPowered case in the base); `SwitchMode` adds `offPowered` (146456-146502, ladder 146480); `SwitchColorState` enum verbatim (146504-146512); `AssessPower` quoted verbatim (371654-371685, immediate `SetPower(false)` when `!isOn`), triggered from `Device.OnInteractableUpdated` (371687-371698), plus the per-tick `PowerTick.ApplyState` OFF edge (271936-271938), which together force `Powered = 0` within the frame of an OnOff-off in vanilla. Occasion: a mod holding `Powered = 1` while `OnOff = 0` lights every Powered-only surface; recorded the re-keying constraint (animator-is-storage means no separate render flag exists). Additive; no prior content contradicted.
 - 2026-07-13: fresh-validation pass at 0.2.6403.27689 (decompile-claim audit). (a) Restamped "Thing-level state properties": `OnOff` / `Powered` / `PoweredValue` re-read verbatim at 318249-318315 (byte-identical to the 0.2.6228 excerpt; a worker thread returns the cached `_onOff` / `_powered` without touching the animator), `Exporting2` (318223-318247) and `IsOpen` (318317-318348) confirmed to share the shape, `ThreadedManager.IsThread` located at 217769; the `CacheStates` excerpt keeps its 0.2.6228 ref, marked inline. (b) Re-confirmed the Powered-writer census's tick-writer claim by whole-decompile grep: `SetPowerFromThread` is declared once (`Device`, 371648, `await UniTask.SwitchToMainThread(); SetPower(cableNetwork, hasPower);`) and called exactly twice, both in `PowerTick.ApplyState` (271933 ON edge, 271938 OFF edge); no other vanilla system marshals `Powered` writes through it. No content contradicted. The destroyed-parent drop semantics of the `OnServer.Interact` funnel these writes land in are now on [OnServer](./OnServer.md).

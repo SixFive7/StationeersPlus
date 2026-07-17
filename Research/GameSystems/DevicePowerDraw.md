@@ -2,11 +2,13 @@
 title: Device power draw (which devices exceed the 5 kW normal-cable rating)
 type: GameSystems
 created_in: 0.2.6228.27061
-verified_in: 0.2.6228.27061
-verified_at: 2026-05-27
+verified_in: 0.2.6403.27689
+verified_at: 2026-07-17
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Device, AdvancedFurnace, ArcFurnace, CarbonSequester, Transformer
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 349604 (Device.UsedPower), 350696 (Device.GetGeneratedPower virtual), 350705 (Device.GetUsedPower virtual), 344409+ (AdvancedFurnace), 344837+ (ArcFurnace), 345293+ (CarbonSequester), 403311 (Transformer.OutputMaximum), 138702 (IPowerGenerator interface)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 416897-416928 (RadioscopicThermalGenerator class body)
+  - Live capture 2026-07-17 on the dedicated server, game 0.2.6403.27689, ScenarioRunner scenario pgp-fresh-device-trace (grep the log for "FDT t=": the upstream net's gen= field with a single spawned StructureRTG as sole generator)
   - Plans/PowerGridPlus/PLAN.md (NEW-3 / voltage-tier research)
   - ScenarioRunner power-prefab-dump (DedicatedServer/dev-plugins/ScenarioRunner)
 related:
@@ -50,7 +52,7 @@ Implication: a design that puts **every** device on a single 5 kW network is not
 `Transformer.OutputMaximum = 10000f` is the C# default (decompile line 403311); the per-prefab small/medium/large transformer values are serialized, not in the decompile.
 
 ## Vanilla generator outputs (which generators feed more than 5 kW into a network)
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-17 -->
 
 A `normal` cable ruptures on the network's *total* throughput vs the weakest cable's `MaxVoltage` (5 kW), so a generator (or a generator field) feeding more than 5 kW into a `normal` network burns it. The peak outputs below are mostly C# constants (unlike per-device `UsedPower`, which is prefab data), so they *are* extractable. "Event peak" = output during a weather event (solar storm for solar, high-wind storm for wind turbines).
 
@@ -64,13 +66,13 @@ A `normal` cable ruptures on the network's *total* throughput vs the weakest cab
 | Stirling Engine | `StirlingEngine : DeviceInputOutput` | **up to ~6 kW** (`maxPower`) | -- | `private float maxPower = 6000f;` (~line 402367); `MaxPower => new MoleEnergy(maxPower)` |
 | Solid Fuel Generator | `SolidFuelGenerator : PowerGeneratorSlot` | **~20 kW** when burning (`GetGeneratedPower` returns `PowerGenerated` if `PoweredTicks > 0 && OnOff`) | -- | `PowerGenerated = 20000f` on `PowerGeneratorSlot` (line 400449) |
 | Gas Fuel Generator | `GasFuelGenerator : PowerGeneratorPipe` | **>5 kW; scales with combustion energy** (the `GasFuelGenerator` class body is empty; power logic is in `PowerGeneratorPipe : DeviceInputOutput, IThermal`, ~line 375414 -- a heat-to-power converter, can reach tens of kW with a hot H2/O2 mix; exact cap not a single constant) | -- | `class GasFuelGenerator` (line 375700) -> `PowerGeneratorPipe` (line 375414) |
-| RTG (Creative RTG; the various RTG-recipe mods make it craftable) | `RadioscopicThermalGenerator : Electrical` | **50 kW constant** (`GetGeneratedPower` returns `PowerGenerated` flat) | -- | `PowerGenerated = 50000f` (line 395568) |
+| RTG (Creative RTG; the various RTG-recipe mods make it craftable) | `RadioscopicThermalGenerator : Electrical` | **4000 W live** (`GetGeneratedPower` returns `PowerGenerated` flat; the field is prefab-serialized, and the shipped StructureRTG prefab carries 4000, overriding the 50000f class default in code) | -- | `public float PowerGenerated = 50000f` class default (0.2.6403.27689 decompile lines 416897-416928); live 4000 W confirmed 2026-07-17, see Verification history |
 | Wireless Power Receiver | `PowerReceiver : WirelessPower` | not a generator; relays whatever the paired transmitter sends, up to the link's capacity (can be large) | -- | line 386861 |
 
-So the generators that **must sit on `heavy` cable or higher** under a "lowest tier rated for peak output" rule: **RTG** (50 kW), **Solid Fuel Generator** (~20 kW), **Gas Fuel Generator** (tens of kW), **Stirling Engine** (~6 kW, just over), and **Large Wind Turbine** (only ~1 kW normally, but ~20 kW during a high-wind event -- its *peak* is what matters). Solar panels, the small Wind Turbine, and the Turbine Generator stay on `normal`. Note the *field-total* trap: many small `normal`-rated generators on one `normal` network can sum past 5 kW and burn it even though no single unit does.
+So the generators that **must sit on `heavy` cable or higher** under a "lowest tier rated for peak output" rule: **Solid Fuel Generator** (~20 kW), **Gas Fuel Generator** (tens of kW), **Stirling Engine** (~6 kW, just over), and **Large Wind Turbine** (only ~1 kW normally, but ~20 kW during a high-wind event -- its *peak* is what matters). The **RTG** (4000 W live, prefab-serialized; see the table row) fits under the 5 kW `normal` cap; only its CODE default (50000f) would not, and the shipped prefab overrides it. Solar panels, the small Wind Turbine, and the Turbine Generator stay on `normal`. Note the *field-total* trap: many small `normal`-rated generators on one `normal` network can sum past 5 kW and burn it even though no single unit does.
 
 ## Generator detection: two parallel mechanisms in vanilla code
-<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-17 -->
 
 The game uses two independent mechanisms to mark a device as a power generator. Both must be checked to enumerate generators exhaustively; many generators use only one of the two.
 
@@ -86,7 +88,7 @@ public interface IPowerGenerator : IReferencable, IEvaluable
 Implementers in vanilla (game version 0.2.6228.27061):
 
 - `WindTurbineGenerator : Device, ..., IPowerGenerator` (decompile line 138706)
-- `LargeWindTurbineGenerator : WindTurbineGenerator` (line 138218 — inherits the interface)
+- `LargeWindTurbineGenerator : WindTurbineGenerator` (line 138218 -- inherits the interface)
 - `SolarPanel : Electrical, IPowerGenerator` (~line 399768; see Research/GameClasses/SolarPanel.md)
 
 **Mechanism 2: the `Device.GetGeneratedPower(CableNetwork)` virtual.** Declared at decompile line 350696:
@@ -97,18 +99,18 @@ public virtual float GetGeneratedPower(CableNetwork cableNetwork)
 
 This is the parallel of `GetUsedPower` (line 350705) on the same class. Subclasses override it to compute per-tick power output. Vanilla classes that override it but do NOT implement `IPowerGenerator`:
 
-- `Battery` (line 371127) — discharges generate power into the OutputNetwork side.
-- `Transformer` (line 403496) — output side is "generated" relative to the upstream network.
-- `WirelessPower.PowerReceiver` (line 386810) / `PowerTransmitter` (line 387028) / `PowerTransmitterOmni` (line 387268) — relays.
-- `RocketPowerUmbilicalFemale` (line 148191) / `RocketPowerUmbilicalMale` (line 148761) — rocket -> ground bridge.
-- `RadioscopicThermalGenerator : Electrical, IRocketInternals, IRocketComponent` (line 395566; override at 395580). The 50 kW RTG.
+- `Battery` (line 371127) -- discharges generate power into the OutputNetwork side.
+- `Transformer` (line 403496) -- output side is "generated" relative to the upstream network.
+- `WirelessPower.PowerReceiver` (line 386810) / `PowerTransmitter` (line 387028) / `PowerTransmitterOmni` (line 387268) -- relays.
+- `RocketPowerUmbilicalFemale` (line 148191) / `RocketPowerUmbilicalMale` (line 148761) -- rocket -> ground bridge.
+- `RadioscopicThermalGenerator : Electrical, IRocketInternals, IRocketComponent` (0.2.6403.27689 decompile lines 416897-416928). The RTG: 4000 W live via the prefab-serialized `PowerGenerated` (50000f is only the class default).
 - `PowerGeneratorSlot : DeviceImport, ...` (line 400441; override at 400512). Base class for `SolidFuelGenerator` (line 400538).
 - `PowerGeneratorPipe : DeviceInputOutput, IThermal` (line 375414; override at 375517). Base class for `GasFuelGenerator` (line 375700).
 - `TurbineGenerator : Device, ISmartRotatable` (line 403819; override at 403973). The gas-pipe spinner.
 - `StirlingEngine : DeviceInputOutput, IThermal` (line 402334; override at 402686).
-- Two more overrides at lines 370000 and 400139 — context-dependent (Battery has two and a similar shape repeats inside the same hierarchy).
+- Two more overrides at lines 370000 and 400139 -- context-dependent (Battery has two and a similar shape repeats inside the same hierarchy).
 
-**Why this matters for tier classification.** PowerGridPlus's voltage-tier check distinguishes generators (heavy-only) from consumers (normal+ if low draw, heavy+ if high draw). A type check that only walks `IPowerGenerator` implementers misses every generator that uses `GetGeneratedPower` instead — RTG, Solid Fuel, Gas Fuel, Turbine, Stirling. To catch all generators exhaustively, the classifier must walk both: `type.GetInterfaces().Any(i => i.Name == "IPowerGenerator")` OR `type.GetMethod("GetGeneratedPower", new[] { typeof(CableNetwork) }).DeclaringType != typeof(Device)`.
+**Why this matters for tier classification.** PowerGridPlus's voltage-tier check distinguishes generators (heavy-only) from consumers (normal+ if low draw, heavy+ if high draw). A type check that only walks `IPowerGenerator` implementers misses every generator that uses `GetGeneratedPower` instead -- RTG, Solid Fuel, Gas Fuel, Turbine, Stirling. To catch all generators exhaustively, the classifier must walk both: `type.GetInterfaces().Any(i => i.Name == "IPowerGenerator")` OR `type.GetMethod("GetGeneratedPower", new[] { typeof(CableNetwork) }).DeclaringType != typeof(Device)`.
 
 ## Runtime enumeration via the prefab registry
 <!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
@@ -122,6 +124,8 @@ A vanilla `-New Lunar` dump on game 0.2.6228.27061 reported `emitted=410 totalPr
 This is the cheapest way to get an authoritative current-game list of power devices without trusting the decompile's static `UsedPower` literals (which are usually `10f` defaults overridden by prefab-asset data).
 
 ## Verification history
+
+- 2026-07-17: conflict on "RTG generated wattage". Previous claim: 50 kW constant (the code literal 50000f read as the device's output). New finding: the shipped StructureRTG prefab generates 4000 W live; PowerGenerated is a prefab-serialized public field with no runtime writer, so the 50000f literal is only the class default a prefab overrides. Fresh validator verdict: B is correct, backed by the 0.2.6403.27689 class body (decompile lines 416897-416928: public float field on a MonoBehaviour-descended class, single occurrence in the decompile, GetGeneratedPower returns it flat) and the 2026-07-17 pgp-fresh-device-trace live capture (a net whose only generator was one spawned StructureRTG read GenSupply 4000 W every tick through PowerGridPlus's once-per-tick boundary read). Result: the RTG table row now reads 4000 W live with the field/default mechanism spelled out, the RTG left the must-sit-on-heavy list (4000 W fits the 5 kW normal cap), and the Generator detection entry re-cites the relocated class body. Restamp scope note: this pass re-verified the RTG rows only; the other generator rows keep their inline 0.2.6228 line citations and were not re-read.
 
 - 2026-05-12: page created. From a voltage-tier design check (planned mod "Power Grid Plus") against `.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs`: `Device.UsedPower` default (line 349604), `AdvancedFurnace.GetUsedPower` (verbatim, ~line 344688), `ArcFurnace.GetUsedPower`/`_powerUsedDuringTick` (~line 344877+), `CarbonSequester.POWER_PER_UNIT_CARBON = 45000f` (line ~345293), `Transformer.OutputMaximum` default (line 403311). Per-device wattages confirmed to be prefab serialized data, not in the decompile.
 - 2026-05-27: added two new sections, "Generator detection: two parallel mechanisms in vanilla code" and "Runtime enumeration via the prefab registry". Sourced from the same decompile: `IPowerGenerator` interface at line 138702 (namespace `Objects`), `Device.GetGeneratedPower` virtual at line 350696, and grep of every `override.*GetGeneratedPower\(CableNetwork` in the decompile yielding 15 hits across Battery, Transformer, the wireless trio, the rocket umbilical pair, RTG, PowerGeneratorSlot/SolidFuelGenerator, PowerGeneratorPipe/GasFuelGenerator, TurbineGenerator, and StirlingEngine. Runtime methodology verified by `ScenarioRunner` `power-prefab-dump` scenario (`DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.cs`) returning `emitted=410 totalPrefabs=2041` on a vanilla `-New Lunar` start; the 410-line dump now lives at `.work/2026-05-27-pgp-device-classification/source2-runtime-dump.raw.log` for that session and is the basis of PowerGridPlus's per-device tier classification table.
