@@ -149,14 +149,21 @@ namespace PowerGridPlus
             public Net OutNetModel;
             // per-round:
             public bool Deprioritized;
-            // Deprioritization hover payload (locked template "Needs D while U competes for S
-            // upstream"), captured at the victim-mark site inside the deciding forward sweep:
+            // Deprioritization hover payload (the block FaultHover renders, POWER.md §11.1),
+            // captured at the victim-mark site inside the deciding forward sweep:
             // the victim's own rigid pull, the input net's total rigid want that round, and the
             // supply that net could raise. Not cleared with the flag: a 2-cycle union re-mark
             // reuses the values from the round that last marked the seg.
             public float DeprioritizedNeedsW;
             public float DeprioritizedUpstreamDemandW;
             public float DeprioritizedUpstreamSupplyW;
+            // Decision fields captured at the same victim-mark site: the remaining upstream deficit
+            // at the instant this seg was shed (ShortfallW), which of the three DeprioritizeReason
+            // cases applied, and the seg's own priority value. Sticky with the triple above (not
+            // cleared with the flag), so a 2-cycle union re-mark reuses the last-marked values.
+            public float DeprioritizedShortfallW;
+            public DeprioritizeReason DeprioritizedReason;
+            public int DeprioritizedVictimPriority;
             public bool Overloaded;
             // Overload KIND bit + hover payload. Overloaded keeps meaning "offline this tick" for
             // BOTH overload kinds (the solve reads only Overloaded); CableOverloaded routes the
@@ -168,6 +175,10 @@ namespace PowerGridPlus
             public bool CableOverloaded;
             public float OverloadValueW;
             public float OverloadCapW;
+            // The internal-storage (AvailableElastic) component of OverloadCapW for the rule-1
+            // capacity fault; a consumer derives the upstream part as OverloadCapW - OverloadStorageW.
+            // Written at the DetectStructuralOverload site alongside the pair, reset with them.
+            public float OverloadStorageW;
             public float Throughput;       // committed RIGID passthrough this round
             public float Pull;             // the rigid demand presented on InNet (Throughput * m + UsedPower when granted)
             // Backward desire pass scratch: what this contributor WANTS to pass assuming its input can
@@ -627,7 +638,8 @@ namespace PowerGridPlus
                 if (seg.Locked) continue;   // prior-tick lockout carries; timer untouched
                 if (SegNetPending(seg)) continue;
                 if (seg.Deprioritized) DeprioritizedRegistry.NoteDeprioritized(seg.RefId, currentTick,
-                    seg.DeprioritizedNeedsW, seg.DeprioritizedUpstreamDemandW, seg.DeprioritizedUpstreamSupplyW);
+                    seg.DeprioritizedNeedsW, seg.DeprioritizedUpstreamDemandW, seg.DeprioritizedUpstreamSupplyW,
+                    seg.DeprioritizedShortfallW, seg.DeprioritizedReason, seg.DeprioritizedVictimPriority);
                 if (seg.Overloaded)
                 {
                     // Kind routing: the cable-overflow trip (rule 3) and the capacity trip (rule 1)
@@ -639,7 +651,7 @@ namespace PowerGridPlus
                             seg.OverloadValueW, seg.OverloadCapW);
                     else
                         OverloadRegistry.NoteOverload(seg.RefId, currentTick,
-                            seg.OverloadValueW, seg.OverloadCapW);
+                            seg.OverloadValueW, seg.OverloadCapW, seg.OverloadStorageW);
                 }
             }
             // Elastic overload commit: NETWORK-LEVEL RETRY, then reset (POWER.md §8.4.1). A net with a
@@ -691,15 +703,20 @@ namespace PowerGridPlus
                 // site for the elastic capacity fault) so every cohort member shows one consistent
                 // pair; AvailableElastic excludes the cohort itself (locked or flagged), so adding
                 // cohortDischarge does not double-count.
-                float liveSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n);
+                float availElastic = AvailableElastic(n);
+                float liveSupply = n.GenSupply + n.InflowCommitted + availElastic;
                 float cohortValueW = liveSupply + n.Unmet;
                 float cohortCapW = liveSupply + cohortDischarge;
+                // The internal-storage slice of the cohort cap: the non-cohort elastic already in
+                // liveSupply plus the cohort's own discharge re-engaged by the retry. A consumer
+                // reads upstream as cohortCapW - cohortStorageW.
+                float cohortStorageW = availElastic + cohortDischarge;
                 foreach (var e in elastics)
                 {
                     if (!InCapacityCohort(e, netRef)) continue;
                     if (recover) OverloadRegistry.ClearLockout(e.RefId);          // recovered: no reset, rejoin next tick
                     else OverloadRegistry.NoteOverload(e.RefId, currentTick,      // still short: arm + phase-sync
-                        cohortValueW, cohortCapW);
+                        cohortValueW, cohortCapW, cohortStorageW);
                 }
             }
 
@@ -1238,6 +1255,11 @@ namespace PowerGridPlus
                 seg.CableOverloaded = false;
                 seg.OverloadValueW = 0f;
                 seg.OverloadCapW = 0f;
+                seg.OverloadStorageW = 0f;
+                // The deprioritized decision fields (ShortfallW / Reason / VictimPriority) are NOT
+                // reset here, matching the sticky DeprioritizedNeedsW / UpstreamDemandW /
+                // UpstreamSupplyW triple: they are only read when Deprioritized is set, and the
+                // 2-cycle union re-mark reuses the values from the round that last marked the seg.
             }
             foreach (var e in elastics)
             {
@@ -1504,22 +1526,28 @@ namespace PowerGridPlus
                                 // leaf-to-trunk, and a no-practical-load trunk chain is never
                                 // deprioritized at all.
                                 _victimCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp || FeedsActiveSeg(c)));
-                        var victims = SelectDeprioritizationVictims(_victimCandidateBuffer, claims - budget);
+                        var victims = SelectDeprioritizationVictimsDetailed(_victimCandidateBuffer, claims - budget);
                         for (int vi = 0; vi < victims.Count; vi++)
                         {
-                            long refId = victims[vi];
+                            var victim = victims[vi];
                             foreach (var c in n.Consumers)
-                                if (c.RefId == refId)
+                                if (c.RefId == victim.RefId)
                                 {
                                     c.Deprioritized = true;
-                                    // Hover payload for the locked "Needs D while U competes for
-                                    // S upstream" line: the victim's own rigid pull, the net's
+                                    // Hover payload (the block FaultHover renders, POWER.md §11.1):
+                                    // the victim's own rigid pull, the net's
                                     // total rigid want this round (local rigid loads + every
                                     // active contributor claim, the same terms the deficit above
                                     // is made of), and the supply the net could actually raise.
                                     c.DeprioritizedNeedsW = c.DesiredPull;
                                     c.DeprioritizedUpstreamDemandW = n.RigidDemand + claims;
                                     c.DeprioritizedUpstreamSupplyW = avail;
+                                    // Decision fields the selector recorded as this victim was cut:
+                                    // the decision-time shortfall, which reason case applied, and
+                                    // the victim's own priority value (the "priority of 80" text).
+                                    c.DeprioritizedShortfallW = victim.ShortfallAtCut;
+                                    c.DeprioritizedReason = victim.Reason;
+                                    c.DeprioritizedVictimPriority = victim.Priority;
                                     break;
                                 }
                         }
@@ -1674,7 +1702,8 @@ namespace PowerGridPlus
                 float demand = n.RigidDemand;
                 foreach (var c in n.Consumers)
                     if (IsActive(c)) demand += c.DesiredPull;
-                float cap = n.GenSupply + AvailableElastic(n);
+                float elasticCap = AvailableElastic(n);
+                float cap = n.GenSupply + elasticCap;
                 foreach (var s in n.Suppliers)
                     if (!s.Locked && !s.Deprioritized) cap += s.EffCap;
                 if (demand <= cap + Eps) continue;
@@ -1686,9 +1715,11 @@ namespace PowerGridPlus
                     s.Overloaded = true;                            // includes input-limited PT pairs (taken offline)
                     // Fault-1 hover payload: the net's rigid desire against the combined deliverable
                     // cap, the exact locals of this rule. Net-level numbers, shared by every supplier
-                    // the rule flags on this net.
+                    // the rule flags on this net. StorageW is the elastic (battery) slice of the cap,
+                    // so the hover can split it from the upstream gen + supplier caps.
                     s.OverloadValueW = demand;
                     s.OverloadCapW = cap;
+                    s.OverloadStorageW = elasticCap;
                 }
             }
         }
@@ -1867,11 +1898,43 @@ namespace PowerGridPlus
         // live-net or Unity state, no statics, re-entrant. ScenarioRunner's
         // pgp-deprioritization-victim-fixture scenario reflection-invokes this exact method with
         // synthetic candidate sets; keep the name and signature stable.
+        // A victim the selector shed, with the data the deprioritized hover needs: the remaining
+        // upstream deficit at the instant it was cut (ShortfallAtCut), which branch cut it
+        // (ByBestFit = rule 2a cover vs rule 2b largest-first), the victim's priority tier, and the
+        // resolved DeprioritizeReason (computed once the whole set is known).
+        internal struct VictimCut
+        {
+            public long RefId;
+            public float ShortfallAtCut;
+            public bool ByBestFit;
+            public int Priority;
+            public DeprioritizeReason Reason;
+        }
+
+        // Stable ScenarioRunner-facing shim: pgp-deprioritization-victim-fixture and the chain
+        // fixture reflection-invoke this exact (IReadOnlyList<(long,int,float,bool)>, float) ->
+        // List<long> signature (name + arity + return type all asserted), so keep it. It delegates
+        // to the detailed selector and projects the refIds in the same order.
         internal static List<long> SelectDeprioritizationVictims(
             IReadOnlyList<(long refId, int priority, float claim, bool stepUp)> candidates,
             float deficit)
         {
-            var victims = new List<long>();
+            var detailed = SelectDeprioritizationVictimsDetailed(candidates, deficit);
+            var victims = new List<long>(detailed.Count);
+            for (int i = 0; i < detailed.Count; i++) victims.Add(detailed[i].RefId);
+            return victims;
+        }
+
+        // Detailed victim selection: the SAME policy walk as the shim (POWER.md §8.3 / §8.3.3,
+        // tier-major best-fit-decreasing, the identical quantisation and comparisons), with only
+        // per-victim recording added. As each victim is taken the remaining deficit and the cutting
+        // branch are captured; after the set is known the DeprioritizeReason is resolved per victim.
+        // The selection order and set are byte-for-byte identical to the pre-recording walk.
+        internal static List<VictimCut> SelectDeprioritizationVictimsDetailed(
+            IReadOnlyList<(long refId, int priority, float claim, bool stepUp)> candidates,
+            float deficit)
+        {
+            var victims = new List<VictimCut>();
             if (candidates == null || candidates.Count == 0) return victims;
 
             int need = deficit - Eps >= int.MaxValue ? int.MaxValue : (int)Math.Ceiling(deficit - Eps);
@@ -1896,8 +1959,9 @@ namespace PowerGridPlus
                 return a.refId.CompareTo(b.refId);
             });
 
+            bool covered = false;
             int lo = 0;
-            while (lo < pool.Count && need > 0)
+            while (!covered && lo < pool.Count && need > 0)
             {
                 int hi = lo;   // current tier slice [lo..hi] shares pool[lo].priority
                 while (hi + 1 < pool.Count && pool[hi + 1].priority == pool[lo].priority) hi++;
@@ -1913,16 +1977,52 @@ namespace PowerGridPlus
                         while (last + 1 <= hi && pool[last + 1].claim >= need) last++;
                         int first = last;
                         while (first - 1 >= lo && pool[first - 1].claim == pool[last].claim) first--;
-                        victims.Add(pool[first].refId);
-                        return victims;   // deficit covered: selection for this net ends
+                        victims.Add(new VictimCut
+                        {
+                            RefId = pool[first].refId,
+                            ShortfallAtCut = need,       // the remaining deficit this single cut clears
+                            ByBestFit = true,            // rule 2a
+                            Priority = pool[first].priority,
+                        });
+                        covered = true;   // deficit covered: selection for this net ends
+                        break;
                     }
                     // Rule 2b: largest remaining claim in the tier. claim < need keeps need > 0,
                     // so a cover only ever happens through rule 2a or candidate exhaustion.
-                    victims.Add(pool[lo].refId);
+                    victims.Add(new VictimCut
+                    {
+                        RefId = pool[lo].refId,
+                        ShortfallAtCut = need,           // remaining deficit before this claim is subtracted
+                        ByBestFit = false,               // rule 2b
+                        Priority = pool[lo].priority,
+                    });
                     need -= pool[lo].claim;
                     lo++;
                 }
                 // Tier exhausted with deficit remaining: lo == hi + 1 is the next tier's start.
+            }
+
+            // Reason: a victim with a surviving same-priority peer (any candidate at its priority
+            // not itself a victim, step-ups and tiny claims included) lost a within-tier tie-break,
+            // so it reports the branch that cut it (EqualBestFit / EqualLargest). A victim with no
+            // such survivor was shed purely on being the lowest priority tier -> LowerPriority.
+            for (int vi = 0; vi < victims.Count; vi++)
+            {
+                var v = victims[vi];
+                bool samePrioritySurvivor = false;
+                for (int ci = 0; ci < candidates.Count; ci++)
+                {
+                    if (candidates[ci].priority != v.Priority) continue;
+                    long candRef = candidates[ci].refId;
+                    bool candIsVictim = false;
+                    for (int wj = 0; wj < victims.Count; wj++)
+                        if (victims[wj].RefId == candRef) { candIsVictim = true; break; }
+                    if (!candIsVictim) { samePrioritySurvivor = true; break; }
+                }
+                if (!samePrioritySurvivor) v.Reason = DeprioritizeReason.LowerPriority;
+                else if (v.ByBestFit) v.Reason = DeprioritizeReason.EqualBestFit;
+                else v.Reason = DeprioritizeReason.EqualLargest;
+                victims[vi] = v;
             }
             return victims;
         }
@@ -1948,8 +2048,7 @@ namespace PowerGridPlus
             if (!Assets.Scripts.Networking.NetworkManager.IsServer) return;
 
             SendDeprioritized(DeprioritizedRegistry.SnapshotRemaining(currentTick), ref _deprioritizedWasNonEmpty);
-            SendWithWattPayload(FaultRegistrySnapshotMessage.KindDeviceOverload,
-                OverloadRegistry.SnapshotRemaining(currentTick), ref _overloadWasNonEmpty);
+            SendDeviceOverload(OverloadRegistry.SnapshotRemaining(currentTick), ref _overloadWasNonEmpty);
             SendPlain(FaultRegistrySnapshotMessage.KindCycleFault,
                 CycleFaultRegistry.SnapshotRemaining(currentTick), ref _cycleWasNonEmpty);
             SendPlain(FaultRegistrySnapshotMessage.KindDeadInput,
@@ -1985,9 +2084,9 @@ namespace PowerGridPlus
             wasNonEmpty = entries.Count > 0;
         }
 
-        // The two overload registries carry a per-entry (valueW, capW) float pair alongside the
-        // remaining ticks; the message serialises the pair for these kinds (the CURRENT-MISMATCH violator-names
-        // precedent, numeric edition).
+        // Cable overload carries a per-entry (flowW, capW) float pair alongside the remaining ticks;
+        // the message serialises the pair (the CURRENT-MISMATCH violator-names precedent, numeric
+        // edition). Device overload takes the storage-aware SendDeviceOverload path instead.
         private static void SendWithWattPayload(byte kind,
             IEnumerable<(long refId, int remainingTicks, float valueW, float capW)> snapshot,
             ref bool wasNonEmpty)
@@ -2014,23 +2113,64 @@ namespace PowerGridPlus
             wasNonEmpty = entries.Count > 0;
         }
 
+        // Device overload additionally carries the storage (elastic/battery) slice of the cap, so it
+        // gets its own sender rather than sharing SendWithWattPayload (whose wire shape stays the
+        // cable-overload 2-float pair).
+        private static void SendDeviceOverload(
+            IEnumerable<(long refId, int remainingTicks, float valueW, float capW, float storageW)> snapshot,
+            ref bool wasNonEmpty)
+        {
+            var entries = new List<KeyValuePair<long, int>>();
+            var values = new List<float>();
+            var caps = new List<float>();
+            var storages = new List<float>();
+            foreach (var (refId, remaining, valueW, capW, storageW) in snapshot)
+            {
+                entries.Add(new KeyValuePair<long, int>(refId, remaining));
+                values.Add(valueW);
+                caps.Add(capW);
+                storages.Add(storageW);
+            }
+            if (entries.Count > 0 || wasNonEmpty)
+            {
+                new FaultRegistrySnapshotMessage
+                {
+                    Kind = FaultRegistrySnapshotMessage.KindDeviceOverload,
+                    Entries = entries,
+                    PayloadValuesW = values,
+                    PayloadCapsW = caps,
+                    PayloadStoragesW = storages,
+                }.SendAll(0L);
+            }
+            wasNonEmpty = entries.Count > 0;
+        }
+
         // The deprioritized registry carries the locked hover triple (needs, upstream demand,
-        // upstream supply) alongside the remaining ticks; the message serialises all three for
-        // KindDeprioritized.
+        // upstream supply) plus the decision fields (shortfall, reason, victim priority) alongside
+        // the remaining ticks; the message serialises them all for KindDeprioritized (reason as a
+        // byte on the wire).
         private static void SendDeprioritized(
-            IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)> snapshot,
+            IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)> snapshot,
             ref bool wasNonEmpty)
         {
             var entries = new List<KeyValuePair<long, int>>();
             var needs = new List<float>();
             var upstreamDemand = new List<float>();
             var upstreamSupply = new List<float>();
-            foreach (var (refId, remaining, needsW, upstreamDemandW, upstreamSupplyW) in snapshot)
+            var shortfall = new List<float>();
+            var reasons = new List<byte>();
+            var victimPriorities = new List<int>();
+            foreach (var (refId, remaining, needsW, upstreamDemandW, upstreamSupplyW,
+                shortfallW, reason, victimPriority) in snapshot)
             {
                 entries.Add(new KeyValuePair<long, int>(refId, remaining));
                 needs.Add(needsW);
                 upstreamDemand.Add(upstreamDemandW);
                 upstreamSupply.Add(upstreamSupplyW);
+                shortfall.Add(shortfallW);
+                reasons.Add((byte)reason);
+                victimPriorities.Add(victimPriority);
             }
             if (entries.Count > 0 || wasNonEmpty)
             {
@@ -2041,6 +2181,9 @@ namespace PowerGridPlus
                     PayloadNeedsW = needs,
                     PayloadUpstreamDemandW = upstreamDemand,
                     PayloadUpstreamSupplyW = upstreamSupply,
+                    PayloadShortfallW = shortfall,
+                    PayloadReason = reasons,
+                    PayloadVictimPriority = victimPriorities,
                 }.SendAll(0L);
             }
             wasNonEmpty = entries.Count > 0;

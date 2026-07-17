@@ -149,16 +149,17 @@ namespace PowerGridPlus
             // arrives. Fixed block order, mirrored in DeserializeJoinSuffix:
             //   1. Deprioritized:   count, then per entry int64 refId + int32 remainingTicks
             //                       + single needsW + single upstreamDemandW + single
-            //                       upstreamSupplyW (the deprioritized hover triple).
+            //                       upstreamSupplyW (the deprioritized hover triple) + single
+            //                       shortfallW + byte reason + int32 victimPriority (the decision).
             //   2. DeviceOverload:  count, then per entry int64 + int32 + single valueW + single
-            //                       capW (the capacity-overload hover payload).
+            //                       capW + single storageW (the capacity-overload hover payload).
             //   3. CycleFault:      count, then per entry int64 + int32.
             //   4. CurrentMismatch: count, then per entry int64 + int32 + string violators.
             //   5. CableOverload:   count, then per entry int64 + int32 + single flowW + single
             //                       capW (the cable-overload hover payload).
             int tick = ElectricityTickCounter.CurrentTick;
             WriteRemainingDeprioritized(writer, DeprioritizedRegistry.SnapshotRemaining(tick));
-            WriteRemainingWithWatts(writer, OverloadRegistry.SnapshotRemaining(tick));
+            WriteRemainingDeviceOverload(writer, OverloadRegistry.SnapshotRemaining(tick));
             WriteRemaining(writer, CycleFaultRegistry.SnapshotRemaining(tick));
             var currentMismatch = new List<(long refId, int remainingTicks, string violators)>(
                 CurrentMismatchFaultRegistry.SnapshotRemaining(tick));
@@ -173,12 +174,15 @@ namespace PowerGridPlus
         }
 
         // The deprioritized registry carries the locked hover triple (needs, upstream demand,
-        // upstream supply) per entry; the join suffix ships it so a joining client's hover shows
-        // the same numbers as the host's.
+        // upstream supply) plus the decision fields (shortfall, reason, victim priority) per entry;
+        // the join suffix ships them so a joining client's hover shows the same numbers and reason
+        // as the host's. Reason travels as a byte.
         private static void WriteRemainingDeprioritized(RocketBinaryWriter writer,
-            IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)> snapshot)
+            IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)> snapshot)
         {
-            var entries = new List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)>(snapshot);
+            var entries = new List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)>(snapshot);
             writer.WriteInt32(entries.Count);
             foreach (var entry in entries)
             {
@@ -187,14 +191,19 @@ namespace PowerGridPlus
                 writer.WriteSingle(entry.needsW);
                 writer.WriteSingle(entry.upstreamDemandW);
                 writer.WriteSingle(entry.upstreamSupplyW);
+                writer.WriteSingle(entry.shortfallW);
+                writer.WriteByte((byte)entry.reason);
+                writer.WriteInt32(entry.victimPriority);
             }
         }
 
-        private static List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)>
+        private static List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)>
             ReadRemainingDeprioritized(RocketBinaryReader reader)
         {
             int count = reader.ReadInt32();
-            var entries = new List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)>(count);
+            var entries = new List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)>(count);
             for (int i = 0; i < count; i++)
             {
                 long refId = reader.ReadInt64();
@@ -202,7 +211,10 @@ namespace PowerGridPlus
                 float needsW = reader.ReadSingle();
                 float upstreamDemandW = reader.ReadSingle();
                 float upstreamSupplyW = reader.ReadSingle();
-                entries.Add((refId, remaining, needsW, upstreamDemandW, upstreamSupplyW));
+                float shortfallW = reader.ReadSingle();
+                DeprioritizeReason reason = (DeprioritizeReason)reader.ReadByte();
+                int victimPriority = reader.ReadInt32();
+                entries.Add((refId, remaining, needsW, upstreamDemandW, upstreamSupplyW, shortfallW, reason, victimPriority));
             }
             return entries;
         }
@@ -231,8 +243,9 @@ namespace PowerGridPlus
             return entries;
         }
 
-        // The two overload registries carry a per-entry (valueW, capW) float pair; the join suffix
-        // ships it so a joining client's hover shows the same numbers as the host's.
+        // Cable overload carries a per-entry (flowW, capW) float pair; the join suffix ships it so a
+        // joining client's hover shows the same numbers as the host's. Device overload uses the
+        // storage-aware WriteRemainingDeviceOverload / ReadRemainingDeviceOverload variants below.
         private static void WriteRemainingWithWatts(RocketBinaryWriter writer,
             IEnumerable<(long refId, int remainingTicks, float valueW, float capW)> snapshot)
         {
@@ -259,6 +272,39 @@ namespace PowerGridPlus
                 float valueW = reader.ReadSingle();
                 float capW = reader.ReadSingle();
                 entries.Add((refId, remaining, valueW, capW));
+            }
+            return entries;
+        }
+
+        // Device overload additionally carries the storage (elastic/battery) slice of the cap.
+        private static void WriteRemainingDeviceOverload(RocketBinaryWriter writer,
+            IEnumerable<(long refId, int remainingTicks, float valueW, float capW, float storageW)> snapshot)
+        {
+            var entries = new List<(long refId, int remainingTicks, float valueW, float capW, float storageW)>(snapshot);
+            writer.WriteInt32(entries.Count);
+            foreach (var entry in entries)
+            {
+                writer.WriteInt64(entry.refId);
+                writer.WriteInt32(entry.remainingTicks);
+                writer.WriteSingle(entry.valueW);
+                writer.WriteSingle(entry.capW);
+                writer.WriteSingle(entry.storageW);
+            }
+        }
+
+        private static List<(long refId, int remainingTicks, float valueW, float capW, float storageW)> ReadRemainingDeviceOverload(
+            RocketBinaryReader reader)
+        {
+            int count = reader.ReadInt32();
+            var entries = new List<(long refId, int remainingTicks, float valueW, float capW, float storageW)>(count);
+            for (int i = 0; i < count; i++)
+            {
+                long refId = reader.ReadInt64();
+                int remaining = reader.ReadInt32();
+                float valueW = reader.ReadSingle();
+                float capW = reader.ReadSingle();
+                float storageW = reader.ReadSingle();
+                entries.Add((refId, remaining, valueW, capW, storageW));
             }
             return entries;
         }
@@ -298,7 +344,7 @@ namespace PowerGridPlus
             // triple, DeviceOverload + watt payload, CycleFault, CurrentMismatch + violators,
             // CableOverload + watt payload).
             DeprioritizedRegistry.ReplaceClientSnapshot(ReadRemainingDeprioritized(reader));
-            OverloadRegistry.ReplaceClientSnapshot(ReadRemainingWithWatts(reader));
+            OverloadRegistry.ReplaceClientSnapshot(ReadRemainingDeviceOverload(reader));
             CycleFaultRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
             int currentMismatchCount = reader.ReadInt32();
             var currentMismatch = new List<(long, int, string)>(currentMismatchCount);

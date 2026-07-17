@@ -12,16 +12,20 @@ namespace PowerGridPlus
     // Per-entry wire layout by kind (host and client ship in the same DLL, so the layout can change
     // freely as long as both sides agree):
     //   KindCycleFault / KindDeadInput:        int64 refId, int32 remainingTicks
-    //   KindDeviceOverload / KindCableOverload: int64 refId, int32 remainingTicks,
+    //   KindDeviceOverload:                    int64 refId, int32 remainingTicks,
+    //                                          single valueW, single capW, single storageW
+    //   KindCableOverload:                     int64 refId, int32 remainingTicks,
     //                                          single valueW, single capW
     //   KindDeprioritized:                     int64 refId, int32 remainingTicks,
     //                                          single needsW, single upstreamDemandW,
-    //                                          single upstreamSupplyW
+    //                                          single upstreamSupplyW, single shortfallW,
+    //                                          byte reason, int32 victimPriority
     //   KindCurrentMismatch:                   int64 refId, int32 remainingTicks, string violators
     // The float payloads are the hover diagnostics: for KindDeviceOverload the rigid draw that
-    // tripped the capacity rule and the combined deliverable cap; for KindCableOverload the flow
-    // and the network's weakest-cable cap; for KindDeprioritized the locked "Needs D while U
-    // competes for S upstream" triple.
+    // tripped the capacity rule, the combined deliverable cap, and the internal-storage component
+    // of that cap; for KindCableOverload the flow and the network's weakest-cable cap; for
+    // KindDeprioritized the (needsW, upstreamDemandW, upstreamSupplyW) triple plus the
+    // decision-time shortfall, the DeprioritizeReason (as a byte), and the victim's priority.
     //
     // Send policy (PowerAllocator.SyncFaultSnapshots): a registry's snapshot is sent every tick while
     // it is non-empty, plus exactly one EMPTY snapshot on the non-empty -> empty transition so an
@@ -42,10 +46,15 @@ namespace PowerGridPlus
         // Parallel to Entries for KindDeviceOverload and KindCableOverload only (per-entry hover payload).
         public List<float> PayloadValuesW = new List<float>();
         public List<float> PayloadCapsW = new List<float>();
-        // Parallel to Entries for KindDeprioritized only (per-entry hover triple).
+        // Parallel to Entries for KindDeviceOverload only (the internal-storage component of CapW).
+        public List<float> PayloadStoragesW = new List<float>();
+        // Parallel to Entries for KindDeprioritized only (per-entry hover triple + decision fields).
         public List<float> PayloadNeedsW = new List<float>();
         public List<float> PayloadUpstreamDemandW = new List<float>();
         public List<float> PayloadUpstreamSupplyW = new List<float>();
+        public List<float> PayloadShortfallW = new List<float>();
+        public List<byte> PayloadReason = new List<byte>();
+        public List<int> PayloadVictimPriority = new List<int>();
 
         private static bool KindHasWattPayload(byte kind)
             => kind == KindDeviceOverload || kind == KindCableOverload;
@@ -64,12 +73,18 @@ namespace PowerGridPlus
                 {
                     writer.WriteSingle(i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f);
                     writer.WriteSingle(i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f);
+                    // Device overload carries the storage component of the cap; cable overload does not.
+                    if (Kind == KindDeviceOverload)
+                        writer.WriteSingle(i < PayloadStoragesW.Count ? PayloadStoragesW[i] : 0f);
                 }
                 if (Kind == KindDeprioritized)
                 {
                     writer.WriteSingle(i < PayloadNeedsW.Count ? PayloadNeedsW[i] : 0f);
                     writer.WriteSingle(i < PayloadUpstreamDemandW.Count ? PayloadUpstreamDemandW[i] : 0f);
                     writer.WriteSingle(i < PayloadUpstreamSupplyW.Count ? PayloadUpstreamSupplyW[i] : 0f);
+                    writer.WriteSingle(i < PayloadShortfallW.Count ? PayloadShortfallW[i] : 0f);
+                    writer.WriteByte(i < PayloadReason.Count ? PayloadReason[i] : (byte)0);
+                    writer.WriteInt32(i < PayloadVictimPriority.Count ? PayloadVictimPriority[i] : 0);
                 }
             }
         }
@@ -81,12 +96,17 @@ namespace PowerGridPlus
             Entries = new List<KeyValuePair<long, int>>(count);
             Violators = new List<string>(Kind == KindCurrentMismatch ? count : 0);
             bool wattPayload = KindHasWattPayload(Kind);
+            bool deviceOverload = Kind == KindDeviceOverload;
             bool triplePayload = Kind == KindDeprioritized;
             PayloadValuesW = new List<float>(wattPayload ? count : 0);
             PayloadCapsW = new List<float>(wattPayload ? count : 0);
+            PayloadStoragesW = new List<float>(deviceOverload ? count : 0);
             PayloadNeedsW = new List<float>(triplePayload ? count : 0);
             PayloadUpstreamDemandW = new List<float>(triplePayload ? count : 0);
             PayloadUpstreamSupplyW = new List<float>(triplePayload ? count : 0);
+            PayloadShortfallW = new List<float>(triplePayload ? count : 0);
+            PayloadReason = new List<byte>(triplePayload ? count : 0);
+            PayloadVictimPriority = new List<int>(triplePayload ? count : 0);
             for (int i = 0; i < count; i++)
             {
                 long refId = reader.ReadInt64();
@@ -98,12 +118,17 @@ namespace PowerGridPlus
                 {
                     PayloadValuesW.Add(reader.ReadSingle());
                     PayloadCapsW.Add(reader.ReadSingle());
+                    if (deviceOverload)
+                        PayloadStoragesW.Add(reader.ReadSingle());
                 }
                 if (triplePayload)
                 {
                     PayloadNeedsW.Add(reader.ReadSingle());
                     PayloadUpstreamDemandW.Add(reader.ReadSingle());
                     PayloadUpstreamSupplyW.Add(reader.ReadSingle());
+                    PayloadShortfallW.Add(reader.ReadSingle());
+                    PayloadReason.Add(reader.ReadByte());
+                    PayloadVictimPriority.Add(reader.ReadInt32());
                 }
             }
         }
@@ -115,17 +140,20 @@ namespace PowerGridPlus
             {
                 case KindDeprioritized:
                 {
-                    var combined = new List<(long, int, float, float, float)>(Entries.Count);
+                    var combined = new List<(long, int, float, float, float, float, DeprioritizeReason, int)>(Entries.Count);
                     for (int i = 0; i < Entries.Count; i++)
                         combined.Add((Entries[i].Key, Entries[i].Value,
                             i < PayloadNeedsW.Count ? PayloadNeedsW[i] : 0f,
                             i < PayloadUpstreamDemandW.Count ? PayloadUpstreamDemandW[i] : 0f,
-                            i < PayloadUpstreamSupplyW.Count ? PayloadUpstreamSupplyW[i] : 0f));
+                            i < PayloadUpstreamSupplyW.Count ? PayloadUpstreamSupplyW[i] : 0f,
+                            i < PayloadShortfallW.Count ? PayloadShortfallW[i] : 0f,
+                            (DeprioritizeReason)(i < PayloadReason.Count ? PayloadReason[i] : (byte)0),
+                            i < PayloadVictimPriority.Count ? PayloadVictimPriority[i] : 0));
                     DeprioritizedRegistry.ReplaceClientSnapshot(combined);
                     break;
                 }
                 case KindDeviceOverload:
-                    OverloadRegistry.ReplaceClientSnapshot(CombineWattPayload());
+                    OverloadRegistry.ReplaceClientSnapshot(CombineDeviceOverloadPayload());
                     break;
                 case KindCycleFault:
                     CycleFaultRegistry.ReplaceClientSnapshot(Entries);
@@ -147,6 +175,7 @@ namespace PowerGridPlus
             }
         }
 
+        // Cable overload: (refId, remainingTicks, flowW, capW). No storage component.
         private List<(long, int, float, float)> CombineWattPayload()
         {
             var combined = new List<(long, int, float, float)>(Entries.Count);
@@ -154,6 +183,18 @@ namespace PowerGridPlus
                 combined.Add((Entries[i].Key, Entries[i].Value,
                     i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f,
                     i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f));
+            return combined;
+        }
+
+        // Device overload: (refId, remainingTicks, valueW, capW, storageW).
+        private List<(long, int, float, float, float)> CombineDeviceOverloadPayload()
+        {
+            var combined = new List<(long, int, float, float, float)>(Entries.Count);
+            for (int i = 0; i < Entries.Count; i++)
+                combined.Add((Entries[i].Key, Entries[i].Value,
+                    i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f,
+                    i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f,
+                    i < PayloadStoragesW.Count ? PayloadStoragesW[i] : 0f));
             return combined;
         }
     }

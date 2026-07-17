@@ -95,7 +95,7 @@ namespace PowerGridPlus
                 bool hasActiveProducer = false, hasForeignDevice = false;
                 var activeProducers = new List<Device>();                     // IsActiveProducer -> the cohort to lock
                 var allProducers = new List<Core.GridSnapshot.DeviceRow>();   // IsProducer by class -> the cohort to clear
-                var foreign = new List<Device>();
+                var foreignNames = new List<string>();                        // foreign-device pretty names (from the snapshot rows)
                 List<Device> unknownProducers = null;
                 Cable foreignCable = null;                   // burn adjacency for the unknown fallback
 
@@ -133,7 +133,7 @@ namespace PowerGridPlus
                         // Presence-based, not draw-based: topology legality, not instantaneous
                         // load, is what the rule protects.
                         hasForeignDevice = true;
-                        foreign.Add(row.Device);
+                        foreignNames.Add(row.DisplayName);
                         if (foreignCable == null) foreignCable = row.PowerCable;
                     }
                 }
@@ -177,7 +177,7 @@ namespace PowerGridPlus
                         // RESET: still violating -> stamp every ACTIVE producer to one shared fresh
                         // expiry (phase-synced cohort). Clear any stale lock left on a now-inactive
                         // producer so it does not linger.
-                        string violatorNames = BuildViolatorNames(foreign);
+                        string violatorNames = BuildViolatorNames(foreignNames);
                         for (int i = 0; i < activeProducers.Count; i++)
                         {
                             long id = activeProducers[i].ReferenceId;
@@ -208,7 +208,7 @@ namespace PowerGridPlus
                 {
                     faultingNets++;
                     foreach (var p in activeProducers) Tally(producerTally, CleanTypeName(p.GetType().Name));
-                    foreach (var r in foreign) Tally(violatorTally, CleanTypeName(r.GetType().Name));
+                    foreach (var name in foreignNames) Tally(violatorTally, name);
                 }
 
                 if (unknownProducers != null && foreignCable != null)
@@ -239,21 +239,28 @@ namespace PowerGridPlus
             return changed;
         }
 
-        // Distinct foreign-device class names for the hover block, newline-joined so
-        // FaultHover.ViolatorLines renders one red name per line, capped at three names; the
-        // overflow beyond three is carried as a final "+N" marker token that renders as the grey
-        // "and N more" line (locked template). Class names never contain '\n' or start with '+',
-        // so the marker cannot collide with a real name.
-        private static string BuildViolatorNames(List<Device> foreign)
+        // Distinct foreign-device names for the hover block, newline-joined so
+        // FaultHover.ViolatorLines renders one red name per line. The names are the snapshot rows'
+        // DisplayName (a pretty prefab name captured on the worker at GridSnapshot build time), so
+        // this method never calls GetType()/DisplayName on a live device off-thread. First-seen
+        // order is preserved. Cap: 4 or fewer distinct names render in full; beyond 4, the first 3
+        // render and the overflow is carried as a final "+N" marker token (N = distinctCount - 3)
+        // that renders as the grey "and N more" line (locked template). DisplayName never contains
+        // '\n' or starts with '+', so the marker cannot collide with a real name.
+        private static string BuildViolatorNames(List<string> foreignNames)
         {
-            var violatorList = foreign
-                .Select(r => CleanTypeName(r.GetType().Name))
-                .Distinct()
-                .ToList();
-            if (violatorList.Count <= 3)
-                return string.Join("\n", violatorList);
-            return string.Join("\n", violatorList.Take(3))
-                + "\n+" + (violatorList.Count - 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var distinct = new List<string>();
+            var seen = new HashSet<string>();
+            for (int i = 0; i < foreignNames.Count; i++)
+            {
+                string name = foreignNames[i];
+                if (string.IsNullOrEmpty(name)) continue;
+                if (seen.Add(name)) distinct.Add(name);
+            }
+            if (distinct.Count <= 4)
+                return string.Join("\n", distinct);
+            return string.Join("\n", distinct.Take(3))
+                + "\n+" + (distinct.Count - 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private static void Tally(Dictionary<string, int> d, string key)

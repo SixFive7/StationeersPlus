@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Text;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -36,6 +38,7 @@ namespace PowerGridPlus.Core
             public Device Device;
             public long RefId;
             public Cable PowerCable;            // first power cable on this net (burn adjacency)
+            public string DisplayName;          // pretty prefab display name, captured here on the worker (see ResolveDisplayName)
 
             // Classification (computed once per tick).
             public ElectricalInputOutput Eio;   // null for plain devices
@@ -141,6 +144,7 @@ namespace PowerGridPlus.Core
                         Device = device,
                         RefId = device.ReferenceId,
                         PowerCable = firstPowerCable,
+                        DisplayName = ResolveDisplayName(device),
                     };
 
                     var eio = device as ElectricalInputOutput;
@@ -245,6 +249,59 @@ namespace PowerGridPlus.Core
             snap.SegmentersSorted.Sort((a, b) => a.ReferenceId.CompareTo(b.ReferenceId));
             Current = snap;
             return snap;
+        }
+
+        // Category prefixes stripped from a prefab id before spacing the PascalCase remainder.
+        private static readonly string[] _prefabPrefixes = { "Structure", "Appliance", "Dynamic", "Item" };
+
+        // Cache of prefab id -> pretty name. Prefab ids are a small fixed set, so the string work
+        // runs once per distinct prefab; ConcurrentDictionary keeps it worker-safe across ticks.
+        private static readonly ConcurrentDictionary<string, string> _prettyNameCache =
+            new ConcurrentDictionary<string, string>();
+
+        // Human-readable device name for the fault-hover violator list, resolved from the PREFAB id
+        // (never the player rename). Captured here at snapshot BUILD time because the consumer
+        // (CurrentMismatchFaultDetector.BuildViolatorNames) runs later in the same tick and must not
+        // re-read live device state. This runs on the power worker, not the Unity main thread
+        // (AtomicElectricityTickPatch runs the whole pipeline on the UniTask worker), so the source
+        // must be worker-safe: PrefabName is a plain managed string field, immutable after prefab
+        // registration, and is listed among the safe off-thread reads in
+        // Research/Patterns/ThingEnumerationOffMainThread.md. The localized name would need
+        // Localization.GetThingName (which calls the Unity utility Animator.StringToHash, off-thread
+        // safety unconfirmed), so we prettify the prefab id ourselves instead. GetType().Name is
+        // reflection metadata and is likewise worker-safe as the empty-prefab fallback.
+        private static string ResolveDisplayName(Device device)
+        {
+            string prefab = device.PrefabName;
+            if (string.IsNullOrEmpty(prefab)) return device.GetType().Name;
+            return _prettyNameCache.GetOrAdd(prefab, PrettifyPrefabName);
+        }
+
+        // "StructureWallCooler" -> "Wall Cooler": strip a leading category prefix, then insert a
+        // space before each uppercase letter that follows a lowercase one. Acronyms ("LED", "APC")
+        // and digit runs are left intact; only lower-to-upper transitions split.
+        private static string PrettifyPrefabName(string prefabName)
+        {
+            string s = prefabName;
+            for (int p = 0; p < _prefabPrefixes.Length; p++)
+            {
+                string prefix = _prefabPrefixes[p];
+                if (s.Length > prefix.Length && s.StartsWith(prefix, System.StringComparison.Ordinal))
+                {
+                    s = s.Substring(prefix.Length);
+                    break;
+                }
+            }
+            var sb = new StringBuilder(s.Length + 8);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (i > 0 && char.IsUpper(c) && char.IsLower(s[i - 1]))
+                    sb.Append(' ');
+                sb.Append(c);
+            }
+            string result = sb.ToString();
+            return string.IsNullOrEmpty(result) ? prefabName : result;
         }
 
         /// <summary>

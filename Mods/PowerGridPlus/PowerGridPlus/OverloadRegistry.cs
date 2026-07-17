@@ -20,10 +20,11 @@ namespace PowerGridPlus
     // tolerance counter).
     //
     // Each entry additionally records the rigid draw that tripped the rule
-    // (ValueW) and the combined deliverable cap the rule computed (CapW) so the
-    // hover can show the numbers; the payload rides the per-tick snapshots and
-    // the join suffix (the CurrentMismatchFaultRegistry violator-names
-    // precedent).
+    // (ValueW), the combined deliverable cap the rule computed (CapW), and the
+    // internal-storage (battery/elastic) component of that cap (StorageW) so the
+    // hover can split the cap into its upstream part (CapW - StorageW) and its
+    // storage part; the payload rides the per-tick snapshots and the join suffix
+    // (the CurrentMismatchFaultRegistry violator-names precedent).
     //
     // Client mirror model identical to DeprioritizedRegistry: per-tick full snapshots
     // carry remaining ticks + payload; the client stores expiry against
@@ -39,6 +40,7 @@ namespace PowerGridPlus
             public int UntilTick;
             public float ValueW;
             public float CapW;
+            public float StorageW;
         }
 
         private struct ClientEntry
@@ -46,6 +48,7 @@ namespace PowerGridPlus
             public long ExpiryMs;
             public float ValueW;
             public float CapW;
+            public float StorageW;
         }
 
         private static readonly ConcurrentDictionary<long, HostEntry> _lockoutUntilTick =
@@ -58,32 +61,33 @@ namespace PowerGridPlus
             Assets.Scripts.Networking.NetworkManager.IsActive
             && !Assets.Scripts.Networking.NetworkManager.IsServer;
 
-        internal static void ReplaceClientSnapshot(List<(long refId, int remainingTicks, float valueW, float capW)> entries)
+        internal static void ReplaceClientSnapshot(List<(long refId, int remainingTicks, float valueW, float capW, float storageW)> entries)
         {
             _clientExpiry.Clear();
             long now = MonotonicClock.NowMs;
             for (int i = 0; i < entries.Count; i++)
             {
-                var (refId, remaining, valueW, capW) = entries[i];
+                var (refId, remaining, valueW, capW, storageW) = entries[i];
                 if (remaining <= 0) continue;
                 _clientExpiry[refId] = new ClientEntry
                 {
                     ExpiryMs = now + remaining * 500L,
                     ValueW = valueW,
                     CapW = capW,
+                    StorageW = storageW,
                 };
             }
         }
 
         // Host snapshot for the per-tick full sync and the join suffix:
-        // (refId, remainingTicks, valueW, capW).
-        internal static IEnumerable<(long refId, int remainingTicks, float valueW, float capW)> SnapshotRemaining(int currentTick)
+        // (refId, remainingTicks, valueW, capW, storageW).
+        internal static IEnumerable<(long refId, int remainingTicks, float valueW, float capW, float storageW)> SnapshotRemaining(int currentTick)
         {
             foreach (var pair in _lockoutUntilTick)
             {
                 int remaining = pair.Value.UntilTick - currentTick;
                 if (remaining > 0)
-                    yield return (pair.Key, remaining, pair.Value.ValueW, pair.Value.CapW);
+                    yield return (pair.Key, remaining, pair.Value.ValueW, pair.Value.CapW, pair.Value.StorageW);
             }
         }
 
@@ -110,13 +114,14 @@ namespace PowerGridPlus
             return IsLockedOut(thing.ReferenceId, currentTick);
         }
 
-        internal static void NoteOverload(long referenceId, int currentTick, float valueW, float capW)
+        internal static void NoteOverload(long referenceId, int currentTick, float valueW, float capW, float storageW)
         {
             _lockoutUntilTick[referenceId] = new HostEntry
             {
                 UntilTick = currentTick + LockoutDurationTicks,
                 ValueW = valueW,
                 CapW = capW,
+                StorageW = storageW,
             };
         }
 
@@ -127,9 +132,9 @@ namespace PowerGridPlus
             return IsLockedOut(referenceId, currentTick);
         }
 
-        // Remaining seconds + the (value, cap) payload for the hover lines, peer-aware.
+        // Remaining seconds + the (value, cap, storage) payload for the hover lines, peer-aware.
         internal static bool TryGetFault(long referenceId, int currentTick,
-            out float secondsLeft, out float valueW, out float capW)
+            out float secondsLeft, out float valueW, out float capW, out float storageW)
         {
             if (IsClientPeer)
             {
@@ -141,12 +146,14 @@ namespace PowerGridPlus
                         secondsLeft = left / 1000f;
                         valueW = entry.ValueW;
                         capW = entry.CapW;
+                        storageW = entry.StorageW;
                         return true;
                     }
                 }
                 secondsLeft = 0f;
                 valueW = 0f;
                 capW = 0f;
+                storageW = 0f;
                 return false;
             }
             if (_lockoutUntilTick.TryGetValue(referenceId, out var host) && host.UntilTick > currentTick)
@@ -154,11 +161,13 @@ namespace PowerGridPlus
                 secondsLeft = ElectricityTickCounter.SmoothSeconds(host.UntilTick - currentTick);
                 valueW = host.ValueW;
                 capW = host.CapW;
+                storageW = host.StorageW;
                 return true;
             }
             secondsLeft = 0f;
             valueW = 0f;
             capW = 0f;
+            storageW = 0f;
             return false;
         }
 

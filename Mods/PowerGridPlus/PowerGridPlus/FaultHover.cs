@@ -16,15 +16,23 @@ namespace PowerGridPlus
     ///     fault resolution (every fault except DEPRIORITIZED is red, DEPRIORITIZED is orange);
     ///     the info states never flash.
     ///
-    ///     <para>Block template (locked 2026-07-14, both hover surfaces render the same block):
-    ///     line 1 merges the switch state and the title into one sentence-case line,
+    ///     <para>Line 1 merges the switch state and the title into one sentence-case line,
     ///     "On - Cable overloaded fault: 35.23s". The switch word is StateGreen when on, CalmGrey
-    ///     when off, the " - " separator CalmGrey; a fault title plus its countdown is FaultRed;
-    ///     an info title is CalmGrey (dead input) or ThrottleAmber (throttled) and carries no
-    ///     countdown. Devices without an on/off switch (and a null thing, which is how the
-    ///     ScenarioRunner fixture drives this renderer without a live Thing) omit the "On - "
-    ///     prefix entirely. The following line(s) are the diagnostics: CalmGrey prose,
-    ///     sentence-capitalized, the offending value FaultRed, the capacity value CapBlue.</para>
+    ///     when off, the " - " separator CalmGrey; a fault title plus its countdown is FaultRed; an
+    ///     info title is CalmGrey (dead input) or ThrottleAmber (throttled) and carries no
+    ///     countdown. Devices without an on/off switch (and a null thing, the ScenarioRunner
+    ///     fixture path) omit the "On - " prefix. The diagnostic line(s) below differ per fault:
+    ///     the overload family shows a demand-vs-available breakdown plus a shortfall, current
+    ///     mismatch lists the incompatible devices, deprioritized names the upstream contention and
+    ///     the reason the allocator recorded when it shed the device.</para>
+    ///
+    ///     <para>Colour system (one rule across every block): FaultRed = power wanted (downstream
+    ///     demand, cable flow, the shortfall / overage) and the offending device names; CapBlue =
+    ///     power available (upstream supply, device capacity, wire rating, throttle maximum);
+    ///     TealStorage = the internal-storage (battery) contribution split out from the available
+    ///     total; LogicOrange = the IC10 "Setting" field, the exact colour Stationpedia paints a
+    ///     logic field (&lt;color=orange&gt; = #FF8000); CalmGrey = prose. A diagnostic line is a
+    ///     CalmGrey base with the coloured values nested inside.</para>
     ///
     ///     <para>The countdown is the live remaining lockout in seconds with two-decimal precision,
     ///     locale-formatted ("4.32s" / "4,32s"), recomputed on every poll: tick-derived and
@@ -49,14 +57,10 @@ namespace PowerGridPlus
             Throttled,
         }
 
-        // Fault colours: red for every fault except DEPRIORITIZED (matches
-        // FaultFlashBehaviour.RedFlashColor), orange for DEPRIORITIZED (flash only; the
-        // deprioritized hover title uses the same red as the other faults), neutral grey for info
-        // prose. The diagnostics line uses the grey as the calm base so the red offending value
-        // stands out against the calmer capacity figure. The capacity value itself is blue:
-        // #008AE6 is the informational blue vanilla already uses in HUD text (suit min-coolant
-        // readouts, Stationpedia link colour), so the pair reads as "red = what you did, blue =
-        // what the hardware allows" in the game's own palette.
+        // FaultRed = power wanted (downstream demand, cable flow, the shortfall / overage) and the
+        // offending device names; also the fault title plus countdown. CalmGrey = calm prose base.
+        // CapBlue = power available (#008AE6 is the informational blue vanilla uses in HUD text and
+        // Stationpedia links), so demand-vs-supply reads as "red = wanted, blue = available".
         private const string FaultRed = "#ff2626";
         private const string CalmGrey = "#9aa0a6";
         private const string CapBlue = "#008AE6";
@@ -72,10 +76,15 @@ namespace PowerGridPlus
         // mimicking the deprioritized flash orange (#ffa500) or a red fault.
         private const string ThrottleAmber = "#d9a441";
 
-        // Vanilla tooltip yellow (UnityEngine.Color.yellow) for the literal IC10 variable name
-        // "Setting" inside the throttled diagnostics, so the word reads as the game's own
-        // interaction highlight rather than mod prose.
-        private const string SettingYellow = "#FFFF00";
+        // Internal-storage (battery / APC / umbilical) contribution, split out from the available
+        // total in the overload breakdown. A teal / cyan distinct from the On-green and the CapBlue
+        // supply figure, so the player reads the battery's help as its own thing at a glance.
+        private const string TealStorage = "#2DD4BF";
+
+        // The IC10 "Setting" field word: #FF8000 is the exact colour Stationpedia paints a logic
+        // field name (the game emits <color=orange>, which TextMeshPro resolves to #FF8000), so the
+        // word reads as a logic field just like the Stationpedia entry rather than mod prose.
+        private const string LogicOrange = "#FF8000";
 
         // True for the five lockout faults (the registries with a 60 s timer and a flash). The
         // two info states share the hover pipeline but must never trigger the fault-only
@@ -117,42 +126,63 @@ namespace PowerGridPlus
                     CableOverloadRegistry.TryGetFault(refId, tick, out var seconds, out var flowW, out var capW);
                     block = FaultTitleLine(thing, "Cable overloaded fault", seconds);
                     if (flowW > 0f || capW > 0f)
-                        block += $"\n<color={CalmGrey}>Pushing <color={FaultRed}>{FmtWatts(flowW)}</color> onto a <color={CapBlue}>{FmtWatts(capW)}</color> wire</color>";
+                    {
+                        block += $"\n<color={CalmGrey}>Pushing <color={FaultRed}>{FmtWatts(flowW)}</color> onto a wire rated for <color={CapBlue}>{FmtWatts(capW)}</color></color>";
+                        float over = flowW - capW;
+                        if (over > 0f)
+                            block += $"\n<color={CalmGrey}>Overloaded by <color={FaultRed}>{FmtWatts(over)}</color></color>";
+                    }
                     return true;
                 }
                 case Kind.DeviceOverload:
                 {
-                    OverloadRegistry.TryGetFault(refId, tick, out var seconds, out var valueW, out var capW);
+                    OverloadRegistry.TryGetFault(refId, tick, out var seconds, out var valueW, out var capW, out var storageW);
                     // The generic "Device" in the IC10 name DeviceOverloadedFault is substituted
-                    // by the hovered device's own label in the title (locked matrix): Transformer /
-                    // Link / Battery / APC / Umbilical overloaded fault.
+                    // by the hovered device's own label in the title: Transformer / Link / Battery /
+                    // APC / Umbilical overloaded fault.
                     block = FaultTitleLine(thing, DeviceOverloadLabel(thing) + " overloaded fault", seconds);
                     if (valueW > 0f || capW > 0f)
-                        block += $"\n<color={CalmGrey}>Drawing <color={FaultRed}>{FmtWatts(valueW)}</color> of <color={CapBlue}>{FmtWatts(capW)}</color></color>";
+                    {
+                        block += $"\n<color={CalmGrey}>Downstream demand of <color={FaultRed}>{FmtWatts(valueW)}</color> exceeds the available <color={CapBlue}>{FmtWatts(capW)}</color></color>";
+                        // Breakdown line only when internal storage actually contributes AND the
+                        // upstream share is non-zero, i.e. two real sources. A device with no
+                        // storage on its net never shows a phantom "0 W internal storage", and a
+                        // single-source cap needs no trivial "X = X" restatement.
+                        float upstreamW = capW - storageW;
+                        if (storageW > 0f && upstreamW > 0f)
+                            block += $"\n<color={CalmGrey}><color={CapBlue}>{FmtWatts(upstreamW)}</color> upstream + <color={TealStorage}>{FmtWatts(storageW)}</color> internal storage = <color={CapBlue}>{FmtWatts(capW)}</color> available</color>";
+                        float shortW = valueW - capW;
+                        if (shortW > 0f)
+                            block += $"\n<color={CalmGrey}>Short by <color={FaultRed}>{FmtWatts(shortW)}</color></color>";
+                    }
                     return true;
                 }
                 case Kind.Deprioritized:
                 {
                     DeprioritizedRegistry.TryGetFault(refId, tick, out var seconds,
-                        out var needsW, out var upstreamDemandW, out var upstreamSupplyW);
+                        out var needsW, out var upstreamDemandW, out var upstreamSupplyW,
+                        out var shortfallW, out var reason, out var victimPriority);
                     block = FaultTitleLine(thing, "Deprioritized fault", seconds);
-                    if (needsW > 0f || upstreamDemandW > 0f || upstreamSupplyW > 0f)
-                        block += $"\n<color={CalmGrey}>Needs {FmtWatts(needsW)} while <color={FaultRed}>{FmtWatts(upstreamDemandW)}</color> competes for <color={CapBlue}>{FmtWatts(upstreamSupplyW)}</color> upstream</color>";
+                    if (upstreamDemandW > 0f || upstreamSupplyW > 0f)
+                        block += $"\n<color={CalmGrey}>Upstream demand of <color={FaultRed}>{FmtWatts(upstreamDemandW)}</color> exceeded the upstream supply of <color={CapBlue}>{FmtWatts(upstreamSupplyW)}</color></color>";
+                    if (shortfallW > 0f || needsW > 0f)
+                        block += $"\n<color={CalmGrey}>Due to the shortfall of <color={FaultRed}>{FmtWatts(shortfallW)}</color> this device's {FmtWatts(needsW)} share was cut</color>";
+                    block += ReasonLines(reason, victimPriority);
                     return true;
                 }
                 case Kind.CycleFault:
                 {
                     CycleFaultRegistry.TryGetSecondsLeft(refId, tick, out var seconds);
                     block = FaultTitleLine(thing, "Cycle fault", seconds);
-                    block += $"\n<color={CalmGrey}>This device is part of a power loop</color>";
+                    block += $"\n<color={CalmGrey}>This device is part of a power loop that feeds back into itself</color>";
                     return true;
                 }
                 case Kind.CurrentMismatch:
                 {
                     CurrentMismatchFaultRegistry.TryGetFault(refId, tick, out var seconds, out var violators);
                     block = FaultTitleLine(thing, "Current mismatch fault", seconds);
-                    block += ViolatorLines(violators);
-                    block += $"\n<color={CalmGrey}>Generator DC cannot feed the AC grid without a transformer</color>";
+                    block += $"\n<color={CalmGrey}>Put a transformer between the generator DC and the AC grid</color>";
+                    block += IncompatibleDeviceLines(violators);
                     return true;
                 }
                 default:
@@ -166,15 +196,16 @@ namespace PowerGridPlus
                     {
                         kind = Kind.DeadInput;
                         block = InfoTitleLine(thing, "No upstream supply", CalmGrey);
-                        block += $"\n<color={CalmGrey}>The input network carries no power</color>";
+                        block += $"\n<color={CalmGrey}>No power is reaching this device from upstream</color>";
                         return true;
                     }
                     if (TransformerThrottleHover.TryGetThrottle(thing, out var settingW, out var maximumW))
                     {
                         kind = Kind.Throttled;
                         block = InfoTitleLine(thing, "Throttled", ThrottleAmber);
-                        block += $"\n<color={CalmGrey}>Limited to <color={FaultRed}>{FmtWatts(settingW)}</color> of <color={CapBlue}>{FmtWatts(maximumW)}</color> by the IC10 <color={SettingYellow}>Setting</color> value</color>";
+                        block += $"\n<color={CalmGrey}>Limited to <color={FaultRed}>{FmtWatts(settingW)}</color> of the <color={CapBlue}>{FmtWatts(maximumW)}</color> maximum by the <color={LogicOrange}>Setting</color> value</color>";
                         block += $"\n<color={CalmGrey}>The dial sets priority instead of power</color>";
+                        block += $"\n<color={CalmGrey}>Use IC10 to set the <color={LogicOrange}>Setting</color> value</color>";
                         return true;
                     }
                     block = null;
@@ -203,27 +234,55 @@ namespace PowerGridPlus
             return word + $"<color={CalmGrey}> - </color>";
         }
 
-        // The current-mismatch violator block: one red name per line, capped at three lines by
-        // the detector, plus a grey "and N more" line when the detector appended its "+N"
-        // overflow marker (CurrentMismatchFaultDetector.BuildViolatorNames writes
-        // "Name\nName\nName\n+4"). An empty payload (mid-sync race) renders no violator lines;
-        // the explanation line below the block still names the rule.
-        private static string ViolatorLines(string violators)
+        // The current-mismatch incompatible-device block: a grey header, then one indented device
+        // per line (the pretty prefab name in FaultRed with a grey " - " bullet), capped at four by
+        // the detector. When the detector appended its "+N" overflow marker
+        // (CurrentMismatchFaultDetector.BuildViolatorNames writes "Name\nName\nName\n+N" past four
+        // distinct names) the marker renders as a grey " - And N more devices..." row. An empty
+        // payload (mid-sync race) renders no device lines; the explanation line above still names
+        // the rule.
+        private static string IncompatibleDeviceLines(string violators)
         {
             if (string.IsNullOrEmpty(violators)) return string.Empty;
             var lines = violators.Split('\n');
             string block = string.Empty;
+            bool headerWritten = false;
             for (int i = 0; i < lines.Length; i++)
             {
                 string name = lines[i];
                 if (string.IsNullOrEmpty(name)) continue;
+                if (!headerWritten)
+                {
+                    block += $"\n<color={CalmGrey}>Incompatible devices on this network:</color>";
+                    headerWritten = true;
+                }
                 if (name[0] == '+' && int.TryParse(name.Substring(1), NumberStyles.Integer,
                         CultureInfo.InvariantCulture, out int more))
-                    block += $"\n<color={CalmGrey}>and {more} more</color>";
+                    block += $"\n<color={CalmGrey}> - And {more} more devices...</color>";
                 else
-                    block += $"\n<color={FaultRed}>{name}</color>";
+                    block += $"\n<color={CalmGrey}> - </color><color={FaultRed}>{name}</color>";
             }
             return block;
+        }
+
+        // The deprioritized "Reason:" block: one to three grey lines chosen by the cause the
+        // allocator recorded at shed time (DeprioritizeReason). LowerPriority names the losing
+        // priority value; the two equal-priority cases explain the within-tier tie-break, teaching
+        // what the allocator actually did (best-fit single cover vs largest-first).
+        private static string ReasonLines(DeprioritizeReason reason, int victimPriority)
+        {
+            switch (reason)
+            {
+                case DeprioritizeReason.EqualBestFit:
+                    return $"\n<color={CalmGrey}>Reason: Its priority was equal to other consumers</color>"
+                         + $"\n<color={CalmGrey}>Reason: Its draw alone covered the remaining shortfall</color>";
+                case DeprioritizeReason.EqualLargest:
+                    return $"\n<color={CalmGrey}>Reason: Its priority was equal to other consumers</color>"
+                         + $"\n<color={CalmGrey}>Reason: No single consumer's draw could cover the shortfall</color>"
+                         + $"\n<color={CalmGrey}>Reason: Its draw was the largest consumer</color>";
+                default:   // LowerPriority
+                    return $"\n<color={CalmGrey}>Reason: Its priority of {victimPriority} was below other consumers</color>";
+            }
         }
 
         // The device label substituted into the DeviceOverloadedFault title (locked matrix):

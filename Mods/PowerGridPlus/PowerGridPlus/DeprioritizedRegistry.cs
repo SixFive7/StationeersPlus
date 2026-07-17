@@ -4,6 +4,13 @@ using Assets.Scripts.Objects;
 
 namespace PowerGridPlus
 {
+    // Why a device lost its input competition, for the hover text. LowerPriority: no
+    // same-priority peer survived, so the victim was shed purely on being the lowest
+    // priority tier. EqualBestFit: a same-priority peer survived and this victim was the
+    // best-fit cover (POWER.md 8.3.3 rule 2a). EqualLargest: a same-priority peer survived
+    // and this victim was taken largest-first (rule 2b). Determined at the victim-mark site.
+    internal enum DeprioritizeReason : byte { LowerPriority = 0, EqualBestFit = 1, EqualLargest = 2 }
+
     // Deprioritization (upstream-side protection) lockout state machine for segmenting devices:
     // when transformers competing for the same input network cannot all be served, the allocator
     // serves them in Priority order and the losers are deprioritized (turned off) for the lockout
@@ -16,11 +23,15 @@ namespace PowerGridPlus
     // is unnecessary: if the allocator sees a real shortfall this tick, the
     // shortfall is real, and the 60-second lockout fires immediately.
     //
-    // Hover payload (locked template "Needs D while U competes for S upstream"): NeedsW is the
+    // Hover payload (the block FaultHover renders, POWER.md §11.1): NeedsW is the
     // victim's own rigid pull, UpstreamDemandW the input network's total rigid want at the
-    // deciding round, UpstreamSupplyW the supply that network could actually raise. The triple
-    // rides the per-tick snapshots and the join suffix (the CurrentMismatchFaultRegistry
-    // violator-names precedent, numeric edition).
+    // deciding round, UpstreamSupplyW the supply that network could actually raise. Three more
+    // fields describe the decision itself: ShortfallW is the remaining upstream deficit at the
+    // instant THIS device was shed (decision-time, not UpstreamDemandW - UpstreamSupplyW),
+    // VictimPriority the device's own priority value (the "priority of 80" text), and Reason
+    // which of the three DeprioritizeReason cases applied. The payload rides the per-tick
+    // snapshots and the join suffix (the CurrentMismatchFaultRegistry violator-names precedent,
+    // numeric edition).
     //
     // Client mirror: hosts decide; clients receive per-tick full snapshots
     // (FaultRegistrySnapshotMessage) carrying REMAINING ticks per device, and
@@ -41,6 +52,9 @@ namespace PowerGridPlus
             public float NeedsW;
             public float UpstreamDemandW;
             public float UpstreamSupplyW;
+            public float ShortfallW;
+            public DeprioritizeReason Reason;
+            public int VictimPriority;
         }
 
         private struct ClientEntry
@@ -49,6 +63,9 @@ namespace PowerGridPlus
             public float NeedsW;
             public float UpstreamDemandW;
             public float UpstreamSupplyW;
+            public float ShortfallW;
+            public DeprioritizeReason Reason;
+            public int VictimPriority;
         }
 
         private static readonly ConcurrentDictionary<long, HostEntry> _lockoutUntilTick =
@@ -64,13 +81,15 @@ namespace PowerGridPlus
 
         // Snapshot receive: replace the whole mirror (self-healing full state).
         internal static void ReplaceClientSnapshot(
-            List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)> entries)
+            List<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)> entries)
         {
             _clientExpiry.Clear();
             long now = MonotonicClock.NowMs;
             for (int i = 0; i < entries.Count; i++)
             {
-                var (refId, remaining, needsW, upstreamDemandW, upstreamSupplyW) = entries[i];
+                var (refId, remaining, needsW, upstreamDemandW, upstreamSupplyW,
+                    shortfallW, reason, victimPriority) = entries[i];
                 if (remaining <= 0) continue;
                 _clientExpiry[refId] = new ClientEntry
                 {
@@ -78,13 +97,17 @@ namespace PowerGridPlus
                     NeedsW = needsW,
                     UpstreamDemandW = upstreamDemandW,
                     UpstreamSupplyW = upstreamSupplyW,
+                    ShortfallW = shortfallW,
+                    Reason = reason,
+                    VictimPriority = victimPriority,
                 };
             }
         }
 
         // Host snapshot for the per-tick full sync and the join suffix:
-        // (refId, remainingTicks, needsW, upstreamDemandW, upstreamSupplyW).
-        internal static IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW)>
+        // (refId, remainingTicks, needsW, upstreamDemandW, upstreamSupplyW, shortfallW, reason, victimPriority).
+        internal static IEnumerable<(long refId, int remainingTicks, float needsW, float upstreamDemandW, float upstreamSupplyW,
+                float shortfallW, DeprioritizeReason reason, int victimPriority)>
             SnapshotRemaining(int currentTick)
         {
             foreach (var pair in _lockoutUntilTick)
@@ -92,7 +115,8 @@ namespace PowerGridPlus
                 int remaining = pair.Value.UntilTick - currentTick;
                 if (remaining > 0)
                     yield return (pair.Key, remaining, pair.Value.NeedsW,
-                        pair.Value.UpstreamDemandW, pair.Value.UpstreamSupplyW);
+                        pair.Value.UpstreamDemandW, pair.Value.UpstreamSupplyW,
+                        pair.Value.ShortfallW, pair.Value.Reason, pair.Value.VictimPriority);
             }
         }
 
@@ -124,7 +148,8 @@ namespace PowerGridPlus
         // Fires the 60-second lockout immediately, with the hover payload captured at the
         // allocator's deciding site.
         internal static void NoteDeprioritized(long referenceId, int currentTick,
-            float needsW, float upstreamDemandW, float upstreamSupplyW)
+            float needsW, float upstreamDemandW, float upstreamSupplyW,
+            float shortfallW, DeprioritizeReason reason, int victimPriority)
         {
             _lockoutUntilTick[referenceId] = new HostEntry
             {
@@ -132,13 +157,16 @@ namespace PowerGridPlus
                 NeedsW = needsW,
                 UpstreamDemandW = upstreamDemandW,
                 UpstreamSupplyW = upstreamSupplyW,
+                ShortfallW = shortfallW,
+                Reason = reason,
+                VictimPriority = victimPriority,
             };
         }
 
         // Payload-less convenience form (fixtures and synthetic lockouts): the ScenarioRunner
         // chain fixture reflection-invokes this exact (long, int) signature; keep it stable.
         internal static void NoteDeprioritized(long referenceId, int currentTick)
-            => NoteDeprioritized(referenceId, currentTick, 0f, 0f, 0f);
+            => NoteDeprioritized(referenceId, currentTick, 0f, 0f, 0f, 0f, DeprioritizeReason.LowerPriority, 0);
 
         // External read of the deprioritized flag for IC10 DeprioritizedFault and the
         // visuals. On a non-server peer the host dict is empty; read the mirror.
@@ -154,7 +182,8 @@ namespace PowerGridPlus
         // wall-clock offset so the displayed value ticks down continuously; the authoritative
         // expiry stays tick-based.
         internal static bool TryGetFault(long referenceId, int currentTick, out float secondsLeft,
-            out float needsW, out float upstreamDemandW, out float upstreamSupplyW)
+            out float needsW, out float upstreamDemandW, out float upstreamSupplyW,
+            out float shortfallW, out DeprioritizeReason reason, out int victimPriority)
         {
             if (IsClientPeer)
             {
@@ -167,6 +196,9 @@ namespace PowerGridPlus
                         needsW = entry.NeedsW;
                         upstreamDemandW = entry.UpstreamDemandW;
                         upstreamSupplyW = entry.UpstreamSupplyW;
+                        shortfallW = entry.ShortfallW;
+                        reason = entry.Reason;
+                        victimPriority = entry.VictimPriority;
                         return true;
                     }
                 }
@@ -174,6 +206,9 @@ namespace PowerGridPlus
                 needsW = 0f;
                 upstreamDemandW = 0f;
                 upstreamSupplyW = 0f;
+                shortfallW = 0f;
+                reason = DeprioritizeReason.LowerPriority;
+                victimPriority = 0;
                 return false;
             }
             if (_lockoutUntilTick.TryGetValue(referenceId, out var host) && host.UntilTick > currentTick)
@@ -182,12 +217,18 @@ namespace PowerGridPlus
                 needsW = host.NeedsW;
                 upstreamDemandW = host.UpstreamDemandW;
                 upstreamSupplyW = host.UpstreamSupplyW;
+                shortfallW = host.ShortfallW;
+                reason = host.Reason;
+                victimPriority = host.VictimPriority;
                 return true;
             }
             secondsLeft = 0f;
             needsW = 0f;
             upstreamDemandW = 0f;
             upstreamSupplyW = 0f;
+            shortfallW = 0f;
+            reason = DeprioritizeReason.LowerPriority;
+            victimPriority = 0;
             return false;
         }
 
