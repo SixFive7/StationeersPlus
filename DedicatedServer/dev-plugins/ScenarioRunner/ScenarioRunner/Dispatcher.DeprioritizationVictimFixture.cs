@@ -68,7 +68,7 @@ namespace ScenarioRunner
                     fail++;
                     return;
                 }
-                _log?.LogInfo("[ScenarioRunner] SVF START deprioritization-victim fixture: resolved PowerGridPlus.PowerAllocator.SelectDeprioritizationVictims; 16 checks.");
+                _log?.LogInfo("[ScenarioRunner] SVF START deprioritization-victim fixture: resolved PowerGridPlus.PowerAllocator.SelectDeprioritizationVictims; 17 checks.");
 
                 // P1: the POWER.md 8.3.3 worked example. Same tier, claims 500/1000/2000
                 // (RefIds ascending in that order), deficit 1000 -> exactly the 1000 W
@@ -82,7 +82,8 @@ namespace ScenarioRunner
                     new (long, int, float, bool)[] { (201, 100, 999f, false), (202, 100, 1000f, false), (203, 100, 1001f, false) },
                     1000f, new long[] { 202 }, ref pass, ref fail);
 
-                // P3: no single cover -> largest first, then the smallest cover of the rest.
+                // P3: no single claim covers; the only covering cut is both, emitted in pool
+                // order (claim DESC).
                 SvfCase(select, "P3", "no-single-cover 500/700 D=1000 -> 700 then 500",
                     new (long, int, float, bool)[] { (301, 100, 500f, false), (302, 100, 700f, false) },
                     1000f, new long[] { 302, 301 }, ref pass, ref fail);
@@ -152,6 +153,14 @@ namespace ScenarioRunner
                 SvfCase(select, "P13", "sub-Watt claim 0.5+100 D=500 -> 100 then 0.5 (exhaustion)",
                     new (long, int, float, bool)[] { (1301, 100, 0.5f, false), (1302, 100, 100f, false) },
                     500f, new long[] { 1302, 1301 }, ref pass, ref fail);
+
+                // P14: the decision-33 watt-minimizing cover: a large single cover loses to a
+                // lighter multi-victim cut. D=8000 against {50000, 6000, 5000}: shed 6000+5000
+                // (11000 W total), never the 50000 W branch the old smallest-single-cover rule
+                // picked; victims emit in pool order (claim DESC).
+                SvfCase(select, "P14", "watt-min cover 50000/6000/5000 D=8000 -> 6000 then 5000, not the 50000",
+                    new (long, int, float, bool)[] { (1401, 100, 50000f, false), (1402, 100, 6000f, false), (1403, 100, 5000f, false) },
+                    8000f, new long[] { 1402, 1403 }, ref pass, ref fail);
             }
             catch (Exception e)
             {
