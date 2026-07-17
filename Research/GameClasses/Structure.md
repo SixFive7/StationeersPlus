@@ -3,18 +3,21 @@ title: Structure
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-15
+verified_at: 2026-07-18
 sources:
   - Mods/SprayPaintPlus/RESEARCH.md:177-179
   - Mods/SprayPaintPlus/SprayPaintPlus/NetworkPainterPatch.cs:320-328
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Structure
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Ladder / LadderEnd / LadderPlatform / SmallGrid
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 314994-315262 (Structure.AttackWith deconstruct branch), 315366-315369 (CanDeconstruct), 315390-315491 (StructureDestroyed), 316015-316234 (ToolBasic / ToolUse / SpawnItem), 39630-39654 / 39866-39876 / 39914-39926 (OnServer.AttackWith / Create / Destroy), 277409-277420 (AttackWithMessage.Process), 315307-315315 (UpgradeStructureServer)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 313965-313979 (IsStructureCompleted), 314029-314062 (CurrentBuildStateIndex setter), 371775-371815 / 370383-370390 (Device.InitializeDevice / InitializeDeviceAction), 268725 (LoadWorld device-init call), 270966-270992 (CableNetwork.AddDevice)
 related:
   - ./Thing.md
   - ./Wall.md
   - ./OnServer.md
   - ./Cable.md
+  - ./Device.md
+  - ./AreaPowerControl.md
   - ../GameSystems/DamageState.md
   - ../GameSystems/Explosions.md
   - ../GameSystems/StructureRegistration.md
@@ -403,6 +406,163 @@ Programmatic spawns land INCOMPLETE for multi-state structures: `Thing.Create` /
 
 Live verification 2026-07-15 via a ScenarioRunner per-tick trace on the dedicated server (scenario pgp-fresh-device-trace: RTG feeding a small transformer feeding consumers; logged per electricity tick: snapshot demand rows, transformer grants, net verdicts, device `IsStructureCompleted` / `OnOff` / `Powered`): a spawn-complete device's demand and its funding both appear on the same first tick that snapshots it, and a build-state completion likewise lands demand and funding on the same tick. The registration and completion boundaries are tick-coherent in vanilla.
 
+### IsStructureCompleted exact semantics; the index setter clamps overshoot to 0
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+The exact body behind the summary above (313965-313979), verbatim:
+
+```csharp
+public bool IsStructureCompleted
+{
+    get
+    {
+        if (CurrentBuildStateIndex != BuildStates.Count - 1)
+        {
+            if (CurrentBuildStateIndex > 0 && CurrentBuildStateIndex < BuildStates.Count)
+            {
+                return BuildStates[CurrentBuildStateIndex].CanManufacture;
+            }
+            return false;
+        }
+        return true;
+    }
+}
+```
+
+Three consequences pinned down:
+
+- `CurrentBuildStateIndex == BuildStates.Count - 1` is unconditionally completed, so a single-state prefab (a cable) is completed at index 0: state 0 IS its last state.
+- A non-last index counts as completed only when ALL of `CurrentBuildStateIndex > 0`, `CurrentBuildStateIndex < BuildStates.Count`, and `BuildStates[CurrentBuildStateIndex].CanManufacture` hold. The `CanManufacture` carve-out never applies to index 0.
+- Index 0 of a multi-state ladder is therefore NEVER completed: it is neither the last index nor `> 0`.
+
+The `CurrentBuildStateIndex` setter (314029-314062), verbatim:
+
+```csharp
+public int CurrentBuildStateIndex
+{
+    get
+    {
+        return _currentBuildState;
+    }
+    set
+    {
+        if (value > BuildStates.Count - 1)
+        {
+            value = 0;
+        }
+        if (value < _currentBuildState)
+        {
+            UpdateSoundsOnBuildState(construct: false);
+        }
+        int currentBuildState = _currentBuildState;
+        _currentBuildState = value;
+        if (this.OnBuildState != null)
+        {
+            this.OnBuildState();
+        }
+        if (_currentBuildState > currentBuildState)
+        {
+            UpdateSoundsOnBuildState(construct: true);
+        }
+        base.GridController?.UpdateAirState(this);
+        OnBuildStateUpdated(value, currentBuildState);
+        if (Assets.Scripts.Networking.NetworkManager.IsServer)
+        {
+            base.NetworkUpdateFlags |= 64;
+        }
+    }
+}
+```
+
+The first statement is the clamp: a value above `BuildStates.Count - 1` silently becomes 0. A saved or written index that overshoots the prefab's ladder (a prefab whose state count shrank across game versions, or bad mod data) lands at the BOTTOM of the ladder, not the top.
+
+### Network and port registration is never completion-gated
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+Build state never controls which networks a device belongs to; it only shapes the watt numbers the device reports afterwards. Two verbatim proofs at 0.2.6403.27689:
+
+`Device.InitializeDevice` (371775-371815) registers the device into EVERY adjacent cable, pipe, and chute network, with no build-state term anywhere:
+
+```csharp
+public virtual void InitializeDevice()
+{
+    Span<SmallCellRef> span = stackalloc SmallCellRef[32];
+    int count = 0;
+    FillConnected<Cable>(span, ref count);
+    Span<SmallCellRef> span2 = span;
+    Span<SmallCellRef> span3 = span2.Slice(0, count);
+    for (int i = 0; i < span3.Length; i++)
+    {
+        SmallCellRef smallCellRef = span3[i];
+        if (smallCellRef.TryGet<Cable>(out var found))
+        {
+            found.CableNetwork.AddDevice(found, this);
+        }
+    }
+    count = 0;
+    FillConnected<INetworkedPipe>(span, ref count);
+    span2 = span;
+    span3 = span2.Slice(0, count);
+    for (int i = 0; i < span3.Length; i++)
+    {
+        SmallCellRef smallCellRef2 = span3[i];
+        if (smallCellRef2.TryGet<INetworkedPipe>(out var found2))
+        {
+            found2.PipeNetwork.AddDevice(found2, this);
+        }
+    }
+    count = 0;
+    FillConnected<INetworkedChute>(span, ref count);
+    span2 = span;
+    span3 = span2.Slice(0, count);
+    for (int i = 0; i < span3.Length; i++)
+    {
+        SmallCellRef smallCellRef3 = span3[i];
+        if (smallCellRef3.TryGet<INetworkedChute>(out var found3))
+        {
+            found3.ChuteNetwork.AddDevice(found3, this);
+        }
+    }
+    CheckConnections();
+}
+```
+
+On world load it runs for every device regardless of build state: `XmlSaveLoad.LoadWorld` calls `Device.AllDevices.ForEach(Device.InitializeDeviceAction);` (268725; the action at 370383-370390 skips only null / `IsBeingDestroyed` devices before calling `device.InitializeDevice()` and `device.InitializeDataConnection()`).
+
+`CableNetwork.AddDevice(Cable, Device)` (270966-270992) is pure membership bookkeeping, also with no completion check:
+
+```csharp
+public void AddDevice(Cable cable, Device device)
+{
+    HashSet<Cable> deviceRegistration = GetDeviceRegistration(device);
+    if (deviceRegistration == null)
+    {
+        deviceRegistration = new HashSet<Cable> { cable };
+        lock (DeviceList)
+        {
+            DeviceList.Add(device);
+        }
+        DeviceRegister.Add(device, deviceRegistration);
+        Battery battery = device as Battery;
+        if (battery != null)
+        {
+            BatteryList.Add(battery);
+        }
+        device.ConnectedCableNetworks.Add(this);
+        RefreshNetworkDevice(device);
+    }
+    else if (!deviceRegistration.Contains(cable))
+    {
+        deviceRegistration.Add(cable);
+        DeviceRegister[device] = deviceRegistration;
+        RefreshNetworkDevice(device);
+    }
+    DirtyPowerAndDataDeviceLists();
+}
+```
+
+What completion DOES gate is per-class query behavior after registration: the base `Device.GetUsedPower` (371510-371521, quoted in "Construction completion" above) returns 0 unless `OnOff && base.IsStructureCompleted`, so an incomplete device sits on the network with zero demand. IMPORTANT caveat: that gating is per-CLASS, applied inside individual method overrides, and an override can drop it entirely. `AreaPowerControl` is the proven example: its `GetUsedPower` replaces the base without any completion term, and its `IsOperable` output-network fallback keeps `Error` at 0, so an APC generates output power at any `CurrentBuildStateIndex` while a valid output network exists (see [AreaPowerControl](./AreaPowerControl.md), "IsOperable: a valid output network bypasses completion, broken, and short-circuit gating"). Per-method gate census for the base class: [Device](./Device.md), "GetUsedPower gates: what makes the base override report zero demand".
+
 ### Multiplayer flow: the destructive interaction runs host-side
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
@@ -438,6 +598,7 @@ Therefore a mod's refuse-and-drop needs exactly: run on `GameManager.RunSimulati
 - 2026-06-19: extended the subclass tree with the ladder family (`Ladder : SmallGrid, ISmartRotatable`, `LadderEnd : Ladder`, `LadderPlatform : Floor : Wall : LargeStructure`) and a `Stairs : Structure` note. Additive; no existing content changed. Sources: `Assets.Scripts.Objects.Ladder` / `LadderEnd` / `LadderPlatform`, `SmallGrid`, `LargeStructure`, `Wall`, `Floor`, `Stairs` (all in `Assembly-CSharp`, game version 0.2.6228.27061).
 - 2026-07-14: added four subsections to "Build-state model and the destruction path" from the mixed-tier cable network guard research pass against the 0.2.6403.27689 decompile: the tool-deconstruct branch of `Structure.AttackWith` verbatim (315205-315262, with the `CanDeconstruct` gate at 315366-315369 and `Cable.CanDeconstruct`'s `AttachedDevices` refusal at 392393-392405, and the `StructureDestroyed` kit-refund excerpt gated on `!destroyedFromDamage`), the `ToolBasic` / `ToolUse` field blocks (316015-316027 / 316130-316143) with the cable-coil kit-identity note (read `BuildStates[0].Tool.ToolEntry` x `EntryQuantity` from the live instance), `ToolUse.Deconstruct` + `SpawnItem` verbatim (316169-316234) as the canonical drop-spawn pattern plus `OnServer.Create<T>` (39866-39876) and `OnServer.Destroy` (39914-39926) with its soft non-simulation guard (logs an error on a client, still destroys locally), and the multiplayer flow (`OnServer.AttackWith` 39630-39654 runs with `doAction = RunSimulation`; `AttackWithMessage.Process` 277409-277420 re-runs host-side with `doAction = true`; `AttackWithMessage` is MessageFactory index 63 at 191267; spawns replicate via `NewToSend`, destroys via `DestroyToSend` per `Thing.OnDestroy` 320984-320999, stack quantity via `NetworkUpdateFlags |= 1024`). Also recorded `Structure.UpgradeStructureServer` (315307-315315) as the destroy-then-`SpawnConstruct` upgrade pattern. Additive; the existing prose summary of the deconstruct path ("deconstructing build state 0 removes the object via `BuildStates[0].Tool.Deconstruct` then `OnServer.Destroy`") is refined, not contradicted, by the exact branch mechanics.
 - 2026-07-15: added the "Construction completion: the tool stroke has no network side effects" subsection from the fresh-device power investigation against the 0.2.6403.27689 decompile plus a live dedicated-server trace: the construct branch's completion write is `CurrentBuildStateIndex++` + `UpdateStateVisualizer()` only (315202-315203); `IsStructureCompleted` is last-index with the `CanManufacture` carve-out (313965-313978); base `Device.GetUsedPower` returns -1 for a foreign network and gates demand on `OnOff && IsStructureCompleted` (371510-371521); `Thing.Create` / `OnServer.Create` spawns of multi-state structures arrive at `CurrentBuildStateIndex = 0` (live-observed on StructureConsole). Live verification via a ScenarioRunner per-tick trace (scenario pgp-fresh-device-trace on the dedicated server): demand and funding land on the same electricity tick at both the spawn-complete and the build-completion boundaries. Additive; no existing claim contradicted.
+- 2026-07-18: added two subsections to "Build-state model and the destruction path" from the build-state completion boundary research pass; the findings were produced and independently adversarially verified against the 0.2.6403.27689 decompile this session. "IsStructureCompleted exact semantics" (verbatim 313965-313979: last index unconditionally completed, so 1-state prefabs are complete at index 0; a non-last index requires index > 0 AND < Count AND CanManufacture; index 0 of a multi-state ladder is never completed; plus the CurrentBuildStateIndex setter 314029-314062, whose first statement clamps any value above Count - 1 to 0). "Network and port registration is never completion-gated" (Device.InitializeDevice 371775-371815 registers into every adjacent cable / pipe / chute network with no build-state term, invoked for all devices from XmlSaveLoad.LoadWorld at 268725 via InitializeDeviceAction 370383-370390; CableNetwork.AddDevice 270966-270992 has no completion check; completion shapes only per-class query methods afterwards, with the per-class caveat recorded and AreaPowerControl cited as the proven override that drops the gate). Additive; the existing "Construction completion" summary is refined, not contradicted (its "middle state" carve-out phrasing is the index > 0 case, now spelled out).
 
 ## Open questions
 

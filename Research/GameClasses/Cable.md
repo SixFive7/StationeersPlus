@@ -3,12 +3,13 @@ title: Cable
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-14
+verified_at: 2026-07-18
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.Cable
   - $(StationeersPath)\rocketstation_Data\resources.assets :: Cable prefab MaxVoltage / CableType (read 2026-05-22 via UnityPy + generated type tree)
   - .work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :: lines 293196-293256 (NetworkType / ConnectionRole / Connection), 371283-371673 (Cable)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 392329-392700 (Cable), 311698 (NetworkType), 311786-312023 (Connection), 271203-271220 (RebuildCableNetworkServer overloads), 392848-392881 (CableRuptured), 314440-314471 (Structure.GetPassiveTooltip), 319731-319734 (Thing.GetPassiveTooltip), 392420-392462 (SerializeSave / DeserializeSave / SerializeOnJoin / DeserializeOnJoin), 288665-288726 (InventoryManager cursor gate), 271842-271915 (PowerTick burn selection), 39914-39926 (OnServer.Destroy)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 392800-392847 (CableFuse)
   - Plans/PowerGridPlus/PLAN.md (phase 3 research)
 related:
   - ./PowerTick.md
@@ -19,6 +20,7 @@ related:
   - ../GameSystems/StructurePlacementValidation.md
   - ../GameSystems/StructureRegistration.md
   - ../GameClasses/MultiMergeConstructor.md
+  - ../Patterns/PassiveTooltipPipelines.md
 tags: [power, prefab]
 ---
 
@@ -367,6 +369,74 @@ The vanilla over-current check that decides whether a cable ruptures is `PowerTi
 
 0.2.6403.27689 line refs for the vanilla burn-selection chain: `PowerTick.CacheState` (271842-271855) computes `_actual = Mathf.Min(Potential, Required)`; `GetBreakableCables` (271869-271879) flags `cable.MaxVoltage < _actual`; `BreakSingleCable` (271892-271901) picks one and calls `cable.Break()`; `ApplyState` order (271903-271915) is fuses first, then cables, then devices. This is the demand-gated burn pattern for a mod to mirror for a wrong-tier burn (it runs on the worker thread; `Break()` self-marshals; Power Grid Plus's `VoltageTierEnforcer` already follows it).
 
+## CableFuse: Break() burns the seated cable, then destroys the fuse itself
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+The fuse is the cable-mounted device the PowerTick burn order consults before any cable (fuses, then cables, then devices; `ApplyState` order 271903-271915, above). Full class body verbatim (392800-392847):
+
+```csharp
+public class CableFuse : DeviceCableMounted
+{
+    public float PowerBreak = 4000f;
+
+    public override void AddToNetwork()
+    {
+        base.AddToNetwork();
+        if (base.CableNetwork != null)
+        {
+            lock (base.CableNetwork.FuseList)
+            {
+                base.CableNetwork.FuseList.Add(this);
+            }
+        }
+    }
+
+    public override void RemoveFromNetwork()
+    {
+        base.RemoveFromNetwork();
+        if (RegisteredNetwork != null)
+        {
+            lock (RegisteredNetwork.FuseList)
+            {
+                RegisteredNetwork.FuseList.Remove(this);
+            }
+        }
+    }
+
+    private IEnumerator WaitThenBreak()
+    {
+        Break();
+        yield break;
+    }
+
+    public void Break()
+    {
+        if (ThreadedManager.IsThread)
+        {
+            UnityMainThreadDispatcher.Instance().Enqueue(WaitThenBreak());
+            return;
+        }
+        if (base.SmallCell != null && base.SmallCell.Cable != null)
+        {
+            base.SmallCell.Cable.Break();
+        }
+        OnServer.Destroy(this);
+    }
+}
+```
+
+Mechanics:
+
+- `CableFuse : DeviceCableMounted` with one serialized threshold: `public float PowerBreak = 4000f;` (392802; 4000f is the C# field default, per-prefab data may differ).
+- `AddToNetwork` / `RemoveFromNetwork` maintain `CableNetwork.FuseList` under `lock`; that is the list the burn selection consults first.
+- `CableFuse.Break()` self-marshals to the main thread (same `ThreadedManager.IsThread` shape as `Cable.Break`), burns the cable seated in the fuse's own cell (`base.SmallCell.Cable.Break()`), then destroys the fuse itself (`OnServer.Destroy(this)`).
+- Consequence: after a fuse blows there is NO fuse left to hover or annotate. The fuse GameObject is destroyed, and the cable under it became `CableRuptured` wreckage; a mod attaching burn reasons can only attach them to the wreckage (see the sidecar pattern at the end of "Wreckage: CableRuptured" below).
+
+### The wreckage spawns undamaged: DamageState.Total == 0
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+`Cable.Break` (392470-392484, quoted in "Cable rupture" above) applies no damage on the way out: it sparks, builds `CreateStructureInstance(RupturedPrefab, this)`, destroys the cable, and `Constructor.SpawnConstruct`s the wreckage. Nothing on that path writes the new thing's damage, so the freshly spawned `CableRuptured` sits at `DamageState.Total == 0`. Combined with `Structure.GetPassiveTooltip`'s fall-through (`DamageState.Total <= 0f` plus no build / deconstruct / repair gate passing returns the all-empty base tooltip; see "Wreckage: CableRuptured" below), a bare wreckage hover renders NO crosshair tooltip unless one of the ExtendedTooltips-gated flags applies. A mod annotating the wreckage must therefore fill `Title`, not only `Extended`, for crosshair-mode visibility; `Extended`-only text shows solely in the ALT mouse-control hover. The two hover pipelines and their asymmetric gates are documented on [PassiveTooltipPipelines](../Patterns/PassiveTooltipPipelines.md).
+
 ## Network split on destruction: OnDestroy -> RebuildCableNetworkServer
 <!-- verified: 0.2.6403.27689 @ 2026-07-02 -->
 
@@ -469,6 +539,7 @@ To attach a per-wreckage reason from the caller side (where it is known), the ca
 
 ## Verification history
 
+- 2026-07-18: added the "CableFuse" section and its "wreckage spawns undamaged" subsection; the findings were produced and independently adversarially verified against the 0.2.6403.27689 decompile this session. CableFuse full class body verbatim (392800-392847): `CableFuse : DeviceCableMounted`, `PowerBreak = 4000f` (392802), FuseList registration under lock in `AddToNetwork` / `RemoveFromNetwork`, and `Break()` burning the seated cable via `base.SmallCell.Cable.Break()` before `OnServer.Destroy(this)`, so a blown fuse is not hoverable afterwards. Wreckage damage state: `Cable.Break` (392470-392484) applies no damage, so `CableRuptured` spawns at `DamageState.Total == 0` and the undamaged-structure tooltip fall-through renders nothing on a bare crosshair hover. Additive; no existing claim changed. Cross-linked the new [PassiveTooltipPipelines](../Patterns/PassiveTooltipPipelines.md) page.
 - 2026-07-14 (mixed-tier guard pass): extended three sections and added one, from the mixed-tier cable network guard research pass against the 0.2.6403.27689 decompile. **CableType collision / merge gating**: replaced the partial `CanReplace` / `WillMergeWhenPlaced` excerpts with the full verbatim bodies at new refs (`_IsCollision` 392588-392603, `CanReplace` 392634-392672, `WillMergeWhenPlaced` 392674-392694); added the `CanReplace` second-cursor-arm mechanics (requires `MultiMergeConstructor` + `ToolExit` in the off hand, `MergeRequiresTool` otherwise), the static `Cable.OnMerge` event (declared 392391, raised 392659-392662, cursor-side preview signal only), the `InventoryManager` gate lines (288665-288726), and the same-tier stacking consequence (same-tier cable-over-cable passes `CanConstruct`; only the `CanReplace` arm blocks the click; programmatic callers skipping `CanReplace` can stack). **Placement / registration**: added the object-state-validity list at `Cable.OnRegistered` time (the cable IS already in its SmallCell, cell writes precede `OnRegistered` per the fresh-validator ruling recorded on [CableNetwork](./CableNetwork.md); `Position` / `WorldGrid` / `Cell` not yet set; `Connection.Initialize` not yet run), the verbatim `DeserializeSave` / `SerializeOnJoin` / `DeserializeOnJoin` bodies (392420-392462), the remote-client spawn flow, and the thread census (all registration and membership mutation main-thread). **Cable rupture**: added 0.2.6403 line refs for the vanilla burn-selection chain (`CacheState` 271842-271855 `_actual = min(Potential, Required)`, `GetBreakableCables` 271869-271879, `BreakSingleCable` 271892-271901, `ApplyState` order fuses/cables/devices 271903-271915). **NEW section "Registration-time guard: interception points and destroy-from-hook mechanics"**: the hook-point catalogue (OnRegistered postfix recommended; prefix workable but half-initialized; `CableNetwork.Add` prefix hazardous because `Merge` unconditionally `Clear()`s + `RefreshNetwork()`s the old network leaving a skipped cable with a dangling reference, and `Remove`'s unguarded `cable.SmallCell.Device` deref at 271102 can NRE; `Merge(List)` fires only for 2+ network bridges; `OnPowerNetworkChanged` instance event as a patch-free observation signal; adjacent-placed observation hooks; cursor gate limits; load-path caution), the multiplayer auto-replication note (`NewToSend` / `DestroyToSend` 320984-320999 / `RebuildCableNetworkEvent`), and the kit-identity line (`BuildStates[0].Tool.ToolEntry` x `EntryQuantity`, read from the live instance). No prior claim on this page contradicted.
 - 2026-07-14: conflict on "CableRuptured hover-tooltip dispatch target", resolved via the Rule 3 fresh-validator protocol. Previous claim (Wreckage section, stamped 0.2.6228.27061): the wreckage inherits "the base `Thing.GetPassiveTooltip`" (old line 300658) and a mod annotating the hover patches `Thing.GetPassiveTooltip` filtered to `CableRuptured`. New finding (surfaced during the [ElectricalInputOutput](./ElectricalInputOutput.md) tooltip-chain pass, 2026-07-14): a `SmallGrid` subclass without its own override dispatches to `Structure.GetPassiveTooltip`. Fresh validator verdict: the new finding is correct at 0.2.6403.27689. Decisive lines in `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs`: `public class CableRuptured : SmallGrid` (392848) declares no `GetPassiveTooltip` in its full body (392848-392881); `public class SmallGrid : Structure, ...` (312025) declares none (whole-file `GetPassiveTooltip` census has zero occurrences between 309684 and 314439); `public class Structure : Thing` (313704) declares the override at 314440, whose only route to `Thing.GetPassiveTooltip` (319731-319734) is the fall-through `if (DamageState.Total <= 0f && !flag && !flag2 && !flag3) return base.GetPassiveTooltip(hitCollider);` (314445-314448). Whether the claim was already wrong at 0.2.6228.27061 or the game changed could not be determined: `.work/decomp/0.2.6228.27061/` no longer exists (one-version-at-a-time decomp cache), so the ruling covers the current version only. Result: rewrote the Wreckage section's tooltip paragraph around `Structure.GetPassiveTooltip` (verbatim head quoted), retargeted the mod recommendation to a `Structure.GetPassiveTooltip` postfix (matching the shipped `Mods/PowerGridPlus/PowerGridPlus/Patches/BurnReasonPatches.cs`, which patches `typeof(Structure)`), refreshed stale line refs (`RupturedPrefab` 392346, class header 392848, namespace block 389692, `PassiveTooltip` struct 307045), cross-linked [ElectricalInputOutput](./ElectricalInputOutput.md), and restamped the section. Re-verified in the same pass: the `CableRuptured` class body is verbatim-unchanged from the 0.2.6228.27061 excerpt (now 392848-392881); `RupturedPrefab` typing unchanged (392346); `Constructor.SpawnConstruct(CreateStructureInstance)` still present (295228) and `SmallCell.Other` still the blocking slot placement checks consult (148460-148474, 161157-161162), supporting the carried-over spawn-sequence paragraph.
 - 2026-07-02: grid-adjacency API migration pass against the 0.2.6403.27689 decompile after the game update from 0.2.6228.27061. SUPERSEDED: `SmallGrid.ConnectedCables()` / `ConnectedCables(NetworkType)` and the static `FoundCables` buffer are REMOVED from the game (whole-decompile grep: zero hits); replaced by allocation-free Span fillers on `SmallGrid` (`FillConnected<T>(Span<SmallCellRef>, ref int)` 312804, `FillConnected(Span<SmallCellRef>, ref int)` 312852, `FillConnected<T>(NetworkType, Span<SmallCellRef>, ref int)` 312896) over the new `readonly struct SmallCellRef` (290601, BUFFER_SIZE = 32). Replaced the `Cable.OnDestroy` verbatim excerpt with the new Span-based body (392565-392586, per-neighbour `RebuildCableNetworkServer(SmallCellRef)` overload 271203) and reworked the separability discussion (shared-buffer hazard gone; the `openEnd.Transform.position` main-thread coupling remains inside FillConnected). Re-verified unchanged with new refs: class/fields (392329-392389), `_IsCollision` / `CanReplace` / `WillMergeWhenPlaced` shapes (392588-392694), `OnRegistered` (392523-392538), `CanConstruct` (392625-392632), `Break()` (392470-392484), `DeserializeSave` / `DeserializeOnJoin` rejoin paths (392427-392434 / 392451-392462), `SmallGrid.IsConnected(Connection)` (312730), `NetworkType` enum (311698), `Connection` class (311786). The wreckage section (`CableRuptured`) was not re-read this pass and keeps its 0.2.6228.27061 stamp. Mod-side note: the `FillConnected` Span signatures are not bindable from net472 mods (see [CursorAdjacencyLookup](../Patterns/CursorAdjacencyLookup.md) for the constraint and the replacement pattern).

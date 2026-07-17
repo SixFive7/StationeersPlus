@@ -3,7 +3,7 @@ title: Save-load ordering: defer restore to OnFinishedLoad
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-13
+verified_at: 2026-07-18
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
@@ -11,6 +11,7 @@ sources:
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:95-101 (F0374)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: XmlSaveLoad class (line 267663), Load<T> (line 268424), Load (line 268463)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: LoadWorld (line 268507), caller (line 264682), GameManager.GameTick pause gate (lines 204387-204418)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: NetworkClient.ProcessJoinData (line 213188, tail 213235-213239), GameManager.StartGame (204575-204581), UpdateThingsOnGameStart (204629-204632) + UpdateThingsOnGameStartAction (203847-203869), Device.InitAllDevices (371889-371892)
 related:
   - ../GameSystems/SaveDataRegistration.md
   - ./HarmonyInheritedMethods.md
@@ -202,6 +203,63 @@ Two consequences for mods:
 - To run code at load completion, do not postfix `LoadWorld` directly. Hook something the tail of the load actually reaches (per-Thing `OnFinishedLoad`, or the `GameState` transition to `Running`), or take `__result` (the `UniTask`) in the postfix and continue after awaiting it.
 - A postfix that assumes "no simulation tick is running because the game just paused" is also wrong on arrival: `GameManager.GameTick` (204387) checks `WorldManager.IsGamePaused` only at the TOP of each loop iteration (204394) and then moves the tick body onto a ThreadPool worker (`await UniTask.SwitchToThreadPool()`, 204418). A tick that passed the pause check before `SetGamePause(true)` landed runs to completion, including `ElectricityManager.ElectricityTick()` (204466), concurrently with the first stretch of `LoadWorld` and with anything a load-start postfix does. See [PowerTickThreading](../GameSystems/PowerTickThreading.md).
 
+## OnFinishedLoad also fires on multiplayer client join, not only on save load
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+The `OnFinishedLoad` hook this page's pattern relies on is NOT exclusive to the save-load path. Both game-entry paths funnel into the same per-Thing sweep, `GameManager.UpdateThingsOnGameStart` (204629-204632):
+
+```csharp
+public static void UpdateThingsOnGameStart()
+{
+    OcclusionManager.AllThings.ForEach(UpdateThingsOnGameStartAction);
+}
+```
+
+whose action (203847-203869) invokes `thing.OnFinishedLoad()` per thing behind a per-thing try / catch, verbatim:
+
+```csharp
+private static readonly Action<Thing> UpdateThingsOnGameStartAction = delegate(Thing thing)
+{
+    if ((object)thing == null)
+    {
+        return;
+    }
+    try
+    {
+        thing.OnFinishedLoad();
+        foreach (Interactable interactable in thing.Interactables)
+        {
+            if (interactable.JoinInProgressSync && (bool)interactable.Animator)
+            {
+                interactable.SetState();
+                thing.OnFinishedInteractionSync(interactable);
+            }
+        }
+    }
+    catch (System.Exception arg)
+    {
+        ConsoleWindow.PrintError($"OnFinishedLoad failed for {thing.DisplayName} #{thing.ReferenceId}: {arg}");
+    }
+};
+```
+
+Call sites (whole-decompile census at 0.2.6403.27689: exactly two):
+
+- Host / single-player start after load: `GameManager.StartGame` (204575) sets `GameState = GameState.Running;` (204577) and calls `UpdateThingsOnGameStart();` (204580).
+- Multiplayer client join: `NetworkClient.ProcessJoinData` (`NetworkClient : NetworkBase` at 212856; the method at 213188, awaited from the join flow at 213084) ends the join with (213235-213239), verbatim:
+
+```csharp
+GameManager.GameState = GameState.Running;
+GameManager.UpdateThingsOnGameStart();
+Device.InitAllDevices();
+Singleton<DiscordClient>.Instance.UpdateActivityInGame();
+Rocket.OnFinishedLoad();
+```
+
+(`Device.InitAllDevices` at 371889-371892 is `AllDevices.ForEach(InitializeDeviceAction);`, the same device network-registration sweep the load path runs at 268725; the joining client re-registers device network membership right after the OnFinishedLoad sweep.) On both paths the sweep runs after `GameState` was set to `Running`, so a `GameManager.GameState` check inside an `OnFinishedLoad` hook sees `Running`, never `Loading` or `Joining`.
+
+Consequence for this page's pattern (stale-cache hazard): a mod restore keyed on `Thing.OnFinishedLoad` ALSO fires on every multiplayer join, for every replicated thing, with whatever state the mod's process-level caches hold at that moment. A stash dictionary populated by an earlier world in the same game process (a single-player session before joining a server, or a previous join) is still there when the join-time sweep runs, and colliding `ReferenceId`s apply stale entries to the new world's things. A load-keyed restore must clear its stashes on world teardown (or key them per world session) and must tolerate things for which no stash entry exists.
+
 ## Verification history
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -209,6 +267,7 @@ Two consequences for mods:
 - 2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of `XmlSaveLoad.LoadThing` (line 251312) and `GridController.AddGridStructure` (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.
 - 2026-07-02: added the "XmlSaveLoad.LoadThing renamed to Load at 0.2.6403" section (`Load` plus a new generic `Load<T>` overload). Verified against the 0.2.6403.27689 decompile: zero grep hits for `LoadThing`, replacement overloads quoted verbatim from lines 268424 and 268463. The 0.2.6228-stamped ordering sections above were not restamped; the new section records which part of their evidence (the Create -> DeserializeSave -> ValidateOnLoad order) is re-confirmed by the new body and which part (`GridController.AddGridStructure`) was not re-read.
 - 2026-07-13: added the "XmlSaveLoad.LoadWorld is async" section (game version 0.2.6403.27689) from a fresh-validation pass on a decompile-claim audit. Verbatim method head read at 268507-268516 (`public static async UniTask LoadWorld(bool loadWithoutChars = false)`; `SetGamePause(true)` is the first synchronous statement, `GameState = Loading` lands only after three awaits); sole caller `await XmlSaveLoad.LoadWorld();` at 264682; the `GameTick` top-of-loop pause gate (204394) and `SwitchToThreadPool` handoff (204418) read the same pass. Establishes that a Harmony postfix on `LoadWorld` fires at load start (the async stub returns at the first suspending await) with a simulation tick possibly still in flight. Additive; no existing content contradicted.
+- 2026-07-18: added the "OnFinishedLoad also fires on multiplayer client join" section (game version 0.2.6403.27689); the finding was produced and independently adversarially verified against the decompile this session. Whole-decompile census: `UpdateThingsOnGameStart` (204629-204632, `OcclusionManager.AllThings.ForEach(UpdateThingsOnGameStartAction)`) has exactly two callers, `GameManager.StartGame` (204580, after `GameState = Running` at 204577) and the tail of `NetworkClient.ProcessJoinData` (213236, after `GameState = Running` at 213235 and followed by `Device.InitAllDevices()` at 213237); the action delegate (203847-203869) calls `thing.OnFinishedLoad()` (203855) behind a per-thing try / catch. Records the stale-cache hazard for OnFinishedLoad-keyed restores on join. Additive; no existing content contradicted.
 
 ## Open questions
 

@@ -3,11 +3,12 @@ title: AreaPowerControl
 type: GameClasses
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-13
+verified_at: 2026-07-18
 sources:
   - rocketstation_Data/Managed/Assembly-CSharp.dll :: Assets.Scripts.Objects.Electrical.AreaPowerControl
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 390555-391057 (AreaPowerControl declaration through GetGeneratedPower), 424757-424805 (Transformer power methods)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 390753-390773 (CanLogicRead/GetLogicValue overrides), 371028-371164 (Device logic virtuals), 394813 (ElectricalInputOutput declaration)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: lines 390547-390554 (PowerMode), 390616-390630 (IsOperable), 370422-370432 / 394861-394871 (Device / ElectricalInputOutput IsOperable), 390843-390879 (crowbar AttackWith), 390919-390930 (CheckConnections), 391059-391091 (SetContentsVisibility)
   - Mods/PowerGridPlus/PowerGridPlus/Patches/AreaPowerControlPatches.cs
   - .work/revolt-source/Assets/Scripts/Patches/AreaPowerControllerPatches.cs
 related:
@@ -15,6 +16,7 @@ related:
   - ./CableNetwork.md
   - ./Transformer.md
   - ./Device.md
+  - ./Structure.md
   - ../Patterns/HarmonyLogicableInheritedMethodTrap.md
 tags: [power, prefab, logic]
 ---
@@ -121,6 +123,208 @@ Re-read from the verbatim bodies above (`GetUsedPower` 391028-391044, `GetGenera
 
 Consequence: an APC that is switched OFF, errored (`Error == 1`), or has no output cable still adds its cell-charge demand to the INPUT network every tick while a non-charged cell sits in the slot, while `GetGeneratedPower` (which IS Error- and OnOff-gated) advertises nothing downstream. A vanilla APC therefore charge-draws in states a player reads as "off" or "faulted"; during the PowerGridPlus partial-power forensics this input-side draw from apparently idle APCs is expected vanilla behavior, not a mod-introduced load. The same asymmetry exists on `WallLightBattery.GetUsedPower` (`(OnOff ? UsedPower : 0f)` plus a charge term gated only on cell-present-and-not-charged, decompile 327979-327992; see [LightSources](../GameSystems/LightSources.md), "F. WallLightBattery: battery backup").
 
+## PowerMode enum: the values behind the Mode state
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+`PowerMode` is a top-level enum declared immediately before the class (decompile 390547-390554), verbatim:
+
+```csharp
+public enum PowerMode
+{
+    Idle = 0,
+    Charged = 4,
+    Charging = 3,
+    Discharging = 2,
+    Discharged = 1
+}
+```
+
+In numeric order: `Idle` 0, `Discharged` 1, `Discharging` 2, `Charging` 3, `Charged` 4. The APC's mode strings come from this enum (`public override string[] ModeStrings => EnumCollections.PowerModes.Names;`, 390632), and an APC's saved `Mode` state stores these numeric values.
+
+## IsOperable: a valid output network bypasses completion, broken, and short-circuit gating
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+Three overrides stack on the APC's operability. Verbatim at 0.2.6403.27689:
+
+`Device.IsOperable` (370422-370432), the base gate every powered device starts from:
+
+```csharp
+protected virtual bool IsOperable
+{
+    get
+    {
+        if (base.IsStructureCompleted)
+        {
+            return !IsBroken;
+        }
+        return false;
+    }
+}
+```
+
+`ElectricalInputOutput.IsOperable` (394861-394871) adds the short-circuit check:
+
+```csharp
+protected override bool IsOperable
+{
+    get
+    {
+        if (OutputNetwork != null && InputNetwork == OutputNetwork)
+        {
+            return false;
+        }
+        return base.IsOperable;
+    }
+}
+```
+
+`AreaPowerControl.IsOperable` (390616-390630) adds the output-network fallback:
+
+```csharp
+protected override bool IsOperable
+{
+    get
+    {
+        if (!base.IsOperable || InputNetwork == null || !InputNetwork.IsNetworkValid())
+        {
+            if (OutputNetwork != null)
+            {
+                return OutputNetwork.IsNetworkValid();
+            }
+            return false;
+        }
+        return true;
+    }
+}
+```
+
+The fallback branch fires whenever `base.IsOperable` is false OR the input network is missing / invalid, and it consults ONLY `OutputNetwork.IsNetworkValid()`. So an APC that is under construction (`IsStructureCompleted` false), broken (`IsBroken`), or even short-circuited (`InputNetwork == OutputNetwork`, which forces the `ElectricalInputOutput` layer to false and thereby routes into the fallback) still reports operable as long as a valid output network exists.
+
+`CheckConnections` (390919-390930) is the only place that raises or clears the APC's `Error` flag, and it keys entirely off `IsOperable`:
+
+```csharp
+protected override void CheckConnections()
+{
+    base.CheckConnections();
+    if (GameManager.RunSimulation && !IsOperable && Error == 0)
+    {
+        OnServer.Interact(base.InteractError, 1);
+    }
+    else if (GameManager.RunSimulation && IsOperable && Error == 1)
+    {
+        OnServer.Interact(base.InteractError, 0);
+    }
+}
+```
+
+With the fallback holding `IsOperable` true, `Error` stays 0. `GetGeneratedPower` (391046-391057, quoted above) gates only on `OutputNetwork != null`, `Error != 1`, and `OnOff`; none of those ever see the build state. `GetUsedPower` (391028-391044, quoted above) REPLACES the base `Device.GetUsedPower` outright, never calling it, so the base's completion gate is dropped too. The base for contrast (371510-371521), verbatim:
+
+```csharp
+public virtual float GetUsedPower(CableNetwork cableNetwork)
+{
+    if (PowerCable == null || PowerCable.CableNetwork != cableNetwork)
+    {
+        return -1f;
+    }
+    if (!OnOff || !base.IsStructureCompleted)
+    {
+        return 0f;
+    }
+    return UsedPower;
+}
+```
+
+The APC override carries no completion term anywhere, and its cell-charge draw term is additionally not gated on `OnOff` (see "Gate shape" above).
+
+Net effect: an APC generates output power at ANY `CurrentBuildStateIndex` as long as an output cable exists (with `OnOff` on for the generation side). The completion gating the base `Device` power path applies is dropped wholesale by this class; completion gating is per-class, not an engine-level invariant (cross-reference: [Structure](./Structure.md), "Network and port registration is never completion-gated").
+
+## Crowbar AttackWith: toggles the Open interactable only, never build state
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+The APC's `AttackWith` override (390843-390879), verbatim:
+
+```csharp
+public override DelayedActionInstance AttackWith(Attack attack, bool doAction = true)
+{
+    Crowbar crowbar = attack.SourceItem as Crowbar;
+    if ((bool)crowbar)
+    {
+        if (!base.AllowInteraction)
+        {
+            return null;
+        }
+        DelayedActionInstance delayedActionInstance = new DelayedActionInstance
+        {
+            Duration = 1f,
+            ActionMessage = (IsOpen ? ActionStrings.Close : ActionStrings.Open)
+        };
+        if (IsLocked)
+        {
+            delayedActionInstance.IsDisabled = true;
+            delayedActionInstance.AppendStateMessage(GameStrings.ApcUnableToMoveLocked);
+            return delayedActionInstance;
+        }
+        if (!crowbar.IsOperable)
+        {
+            delayedActionInstance.IsDisabled = true;
+            delayedActionInstance.AppendStateMessage(GameStrings.ApcUnableToMoveTool);
+            return delayedActionInstance;
+        }
+        if (!doAction)
+        {
+            return delayedActionInstance;
+        }
+        if (GameManager.RunSimulation)
+        {
+            OnServer.Interact(base.InteractOpen, (!IsOpen) ? 1 : 0);
+        }
+    }
+    return base.AttackWith(attack, doAction);
+}
+```
+
+The only server-side mutation in the crowbar branch is `OnServer.Interact(base.InteractOpen, (!IsOpen) ? 1 : 0);` (390875): it flips the `Open` interactable state and nothing else. Build-state changes (`CurrentBuildStateIndex--`) live solely in `Structure.AttackWith`'s tool-exit branch (315205-315262, reached through the `base.AttackWith(attack, doAction)` tail call when the held tool matches the current build state's `ToolExit`; see [Structure](./Structure.md), "Tool deconstruct branch of AttackWith"). Crowbarring an APC open is orthogonal to deconstruction.
+
+`IsOpen` is read NOWHERE in the power methods: the four power-tick bodies quoted above (391000-391057) contain no `IsOpen` reference (whole-class census over the class body, 390555-391092). While open, the only functional change is collider / visibility plumbing: `OnAnimationStart` / `OnAnimationStop` (391059-391075) call `SetContentsVisibility` (391077-391091), which enables or disables the colliders of the battery-slot, `Slot1`, and `OnOff` interactables and toggles the cell's render visibility. Verbatim (391059-391091):
+
+```csharp
+public override void OnAnimationStart()
+{
+    base.OnAnimationStart();
+    if (IsOpen)
+    {
+        SetContentsVisibility(isVisible: true);
+    }
+}
+
+public override void OnAnimationStop()
+{
+    base.OnAnimationStop();
+    if (!IsOpen)
+    {
+        SetContentsVisibility(isVisible: false);
+    }
+}
+
+public void SetContentsVisibility(bool isVisible)
+{
+    InteractableType action = BatterySlot.Action;
+    foreach (Interactable interactable in Interactables)
+    {
+        if ((interactable.Action == action || interactable.Action == InteractableType.Slot1 || interactable.Action == InteractableType.OnOff) && (bool)interactable.Collider)
+        {
+            interactable.Collider.enabled = isVisible;
+        }
+    }
+    if ((bool)Battery)
+    {
+        Battery.SetVisibility(isVisible);
+    }
+}
+```
+
+An open APC keeps generating, charging, and discharging exactly like a closed one; opening only exposes the cell and the on / off switch to interaction.
+
 ## Logic-method override surface: CanLogicRead and GetLogicValue only
 <!-- verified: 0.2.6403.27689 @ 2026-07-13 -->
 
@@ -211,6 +415,17 @@ What `BatteryChargeRate` does NOT cap:
 Net effect: the APC is effectively transparent for network-to-network power transfer. The 1000 W field name "BatteryChargeRate" is literal: it gates only the internal cell charging, not the bridge throughput.
 
 PowerGridPlus does NOT modify `BatteryChargeRate` and does NOT introduce a net-throughput cap on the APC. Its only `AreaPowerControl` patch is `UsePowerPatch` (battery-drain settlement, see next section). The `BatteryChargeRate` field stays at its vanilla 1000 W under the mod.
+
+### Vanilla has no discharge-rate counterpart; the PowerGridPlus cap is mod-introduced
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+Re-stating the discharge side of the section above as an explicit census: vanilla `AreaPowerControl` contains NO discharge-rate limit anywhere.
+
+- `BatteryChargeRate = 1000f` (390584-390586) gates CHARGING only. Both consumers are charge-side: the `Mathf.Min(Battery.PowerDelta, BatteryChargeRate, powerAdded)` clamp inside `ReceivePower` (391021-391022) and the `Mathf.Min(BatteryChargeRate, Battery.PowerDelta)` charge-demand term inside `GetUsedPower` (391041).
+- `GetGeneratedPower` advertises the whole remaining store: `AvailablePower` adds the full `Battery.PowerStored` on top of upstream `PotentialLoad` (getter 390652-390663), with no rate term.
+- `UsePower` (391000-391012) drains `Mathf.Min(Battery.PowerStored, _powerProvided)`: bounded only by stored energy and the consumed-output ledger, never by a rate field.
+
+PowerGridPlus's "APC Battery Discharge Rate" setting (`Settings.ApcBatteryDischargeRate`, consumed in `Mods/PowerGridPlus/PowerGridPlus/PowerAllocator.cs` when computing the APC cell's per-tick effective discharge) is therefore a mod-introduced cap with no vanilla counterpart, unlike the charge side where the mod's `ApcBatteryChargeRate` config re-tunes a role vanilla already had.
 
 ## Re-Volt 1.4.0 patch attribution: probable bug
 <!-- verified: 0.2.6228.27061 @ 2026-05-22 -->
@@ -465,6 +680,7 @@ Consequence: the ledger is runtime accumulation within a session. On save load a
 ## Verification history
 <!-- verified: 0.2.6403.27689 @ 2026-07-06 -->
 
+- 2026-07-18: added three sections and one subsection from the APC operability / open-state research pass; the findings were produced and independently adversarially verified against the 0.2.6403.27689 decompile this session. "PowerMode enum" (390547-390554 verbatim; Idle 0, Discharged 1, Discharging 2, Charging 3, Charged 4). "IsOperable: a valid output network bypasses completion, broken, and short-circuit gating" (APC override 390616-390630 over the Device 370422-370432 and ElectricalInputOutput 394861-394871 layers; CheckConnections 390919-390930 keys Error entirely off IsOperable, so the fallback keeps Error at 0; GetUsedPower replaces the base outright, dropping Device's `OnOff && IsStructureCompleted` gate at 371510-371521; net effect, output generation at any CurrentBuildStateIndex while a valid output network exists). "Crowbar AttackWith" (390843-390879; sole mutation `OnServer.Interact(base.InteractOpen, ...)` at 390875; IsOpen unread in the power methods per a whole-class census; SetContentsVisibility 391059-391091 toggles interactable colliders and cell visibility only). "Vanilla has no discharge-rate counterpart" subsection (BatteryChargeRate's two consumers are both charge-side; GetGeneratedPower / UsePower carry no rate term; PowerGridPlus's `Settings.ApcBatteryDischargeRate` is a mod-introduced cap). All additive; no existing claim changed. Incidental line-ref note: the class body actually closes at 391092 and the `AsciiString` struct occupies 391093-391146 before `AtmosphericSeat` at 391147; earlier entries citing "class body 390555-391146" span that extra struct, which contains none of the members those censuses looked for, so their conclusions stand unchanged.
 - 2026-07-13: added "Logic-method override surface: CanLogicRead and GetLogicValue only" section (game version 0.2.6403.27689). Direct grep census over the class body (390555-391146): `CanLogicRead` (390753-390760) and `GetLogicValue` (390762-390773) are the only two of the four `Device` logic accessors the APC overrides, quoted verbatim; both fall through to `base.*` for unhandled types (390759 and the default arm at 390771); no `CanLogicWrite` / `SetLogicValue` override exists in the class or in `ElectricalInputOutput` (394813-395114, grep returns nothing), so the write side resolves to the `Device` virtuals (`CanLogicWrite` 371104, `SetLogicValue` 371122; declarations `CanLogicRead` 371028, `GetLogicValue` 371164). Recorded the two Harmony consequences: base-`Device` patches reach the APC for mod-registered LogicTypes, and a `typeof(AreaPowerControl)` attribute on the write-side names cannot resolve (the PowerGridPlus 2026-06-22 all-patches-dead incident). Additive; no prior content contradicted.
 - 2026-07-07: added "Gate shape" subsection under the four-methods section (game version 0.2.6403.27689). Re-read `GetUsedPower` (391028-391044) and `GetGeneratedPower` (391046-391057): the quiescent + ledger term is gated on `OnOff && OutputNetwork != null`, the cell-charge term on `(bool)Battery && !Battery.IsCharged` ONLY (no OnOff, no Error, no OutputNetwork), and `GetGeneratedPower` on `OutputNetwork != null && Error != 1 && OnOff`. Note: the incoming claim from the PowerGridPlus partial-power forensics said the charge term was "gated on OnOff only"; the decompile shows it is not OnOff-gated either, so the documented consequence is wider (OFF, errored, and output-less APCs all still charge-draw). Cross-referenced the same asymmetry on `WallLightBattery.GetUsedPower` (327979-327992). Additive; the verbatim bodies already on this page were confirmed unchanged.
 - 2026-07-06: added "The ledger is not serialized" subsection under the pattern-presence section (game version 0.2.6403.27689). Evidence read directly from the decompile: the four SaveData record bodies (`TransformerSaveData` 424593-424597, `WirelessPowerSaveData` 426765-426778, `PowerTransmitterSaveData` 408264-408268, `PowerReceiverSaveData` 408062-408064), the absence of any serialization member in the `AreaPowerControl` class body (390555-391146, next type at 391147), the whole-decompile `_powerProvided` reference census, and the `.UsePower(` / `.ReceivePower(` caller census isolating `PowerProvider.ApplyPower` (271690-271696) and `PowerTick.ConsumePower` (271820-271840) as the only dispatch sites reaching the four ledger classes. Checked first for existing verified content claiming the ledger persists into saves (fresh-validator trigger): none found on this or any other central page, so the addition is additive; no validator spawned.
