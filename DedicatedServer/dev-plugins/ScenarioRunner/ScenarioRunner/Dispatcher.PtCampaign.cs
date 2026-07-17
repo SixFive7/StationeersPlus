@@ -73,14 +73,17 @@ namespace ScenarioRunner
         private static readonly Type[] _sigLong = { typeof(long) };
         private static readonly Type[] _sigLongFloat = { typeof(long), typeof(float) };
         private static readonly Type[] _sigLongIntFloatFloat = { typeof(long), typeof(int), typeof(float), typeof(float) };
+        private static readonly Type[] _sigLongIntFloatFloatFloat = { typeof(long), typeof(int), typeof(float), typeof(float), typeof(float) };
 
         private static void PgpNoteDeprioritized(Assembly asm, long r, int tick) =>
             PgpInvokeStatic(asm, "PowerGridPlus.DeprioritizedRegistry", "NoteDeprioritized", _sigLongInt, new object[] { r, tick });
-        // The overload split gave both overload registries a payload pair (valueW/flowW, capW)
-        // on the note. Synthetic notes default to 0/0, which also keeps the hover single-line
-        // (the watt diagnostics line renders only for a non-zero payload).
-        private static void PgpNoteOverload(Assembly asm, long r, int tick, float valueW = 0f, float capW = 0f) =>
-            PgpInvokeStatic(asm, "PowerGridPlus.OverloadRegistry", "NoteOverload", _sigLongIntFloatFloat, new object[] { r, tick, valueW, capW });
+        // OverloadRegistry.NoteOverload now carries a triple: ValueW (downstream demand),
+        // CapW (available total), StorageW (the internal-storage slice of CapW; upstream =
+        // CapW - StorageW). CableOverloadRegistry.NoteCableOverload stays a (flowW, capW) pair.
+        // Synthetic notes default to 0, which keeps the hover single-line (the watt diagnostics
+        // line renders only for a non-zero payload).
+        private static void PgpNoteOverload(Assembly asm, long r, int tick, float valueW = 0f, float capW = 0f, float storageW = 0f) =>
+            PgpInvokeStatic(asm, "PowerGridPlus.OverloadRegistry", "NoteOverload", _sigLongIntFloatFloatFloat, new object[] { r, tick, valueW, capW, storageW });
         private static void PgpNoteCableOverload(Assembly asm, long r, int tick, float flowW = 0f, float capW = 0f) =>
             PgpInvokeStatic(asm, "PowerGridPlus.CableOverloadRegistry", "NoteCableOverload", _sigLongIntFloatFloat, new object[] { r, tick, flowW, capW });
         private static void PgpNoteCycle(Assembly asm, long r, int tick) =>

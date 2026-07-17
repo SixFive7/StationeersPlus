@@ -17,9 +17,10 @@ namespace ScenarioRunner
     // combined Setting-derived caps; OverloadRegistry; IC10 DeviceOverloadedFault = 6580).
     // "Cable overloaded" is the cable-overflow family (POWER.md 5.7 rule 3: the flow
     // exceeds the net's weakest cable rating while the suppliers could otherwise fund it;
-    // CableOverloadRegistry; IC10 CableOverloadedFault = 6587). Both registries carry a
-    // per-entry payload pair (valueW/flowW, capW) that rides SnapshotRemaining, the join
-    // suffix, and the hover diagnostics line. Fault precedence on one device:
+    // CableOverloadRegistry; IC10 CableOverloadedFault = 6587). Each entry carries a payload
+    // that rides SnapshotRemaining, the join suffix, and the hover diagnostics line: the
+    // capacity family a (valueW, capW, storageW) triple (storageW = the internal-storage slice
+    // of capW), the cable family a (flowW, capW) pair. Fault precedence on one device:
     // CYCLE > CURRENT-MISMATCH > CABLE-OVERLOADED > DEVICE-OVERLOADED > DEPRIORITIZED.
     //
     // Like pgp-chain-fixture, the fixture cannot spawn Things, so the nets are synthetic,
@@ -32,9 +33,10 @@ namespace ScenarioRunner
     //     kind bit routes NoteCableOverload, else NoteOverload, payload from the detection
     //     site); the full tail is not invokable synthetically because it needs live
     //     CableNetwork instances for the split-pending gate.
-    //   - Registries: the real OverloadRegistry / CableOverloadRegistry (4-arg notes,
-    //     IsLockedOut, TryGetFault payload reads, SnapshotRemaining wire shape,
-    //     ClearLockout cleanup), keyed by the real ElectricityTickCounter.CurrentTick.
+    //   - Registries: the real OverloadRegistry (5-arg note: value, cap, storage) and
+    //     CableOverloadRegistry (4-arg note: flow, cap), plus IsLockedOut, TryGetFault
+    //     payload reads, SnapshotRemaining wire shape, and ClearLockout cleanup, keyed by
+    //     the real ElectricityTickCounter.CurrentTick.
     //   - Publish surface: FaultHover.ActiveFault / TryGetMergedBlock (the same
     //     resolution the hover surfaces and the flash colour use), plus the real
     //     Transformer.GetLogicValue path for the IC10 CableOverloadedFault slot when a
@@ -61,8 +63,10 @@ namespace ScenarioRunner
     //       plus the "Pushing X onto a Y wire" diagnostics), the capacity kind renders
     //       the "Device overloaded fault" title with the "Drawing X of Y" diagnostics,
     //       and dropping the cable entry falls back to the capacity kind.
-    //   P5  payload wire shape: SnapshotRemaining on both registries yields 4-field
-    //       (refId, remainingTicks, valueW, capW) entries with the constructed payloads.
+    //   P5  payload wire shape: SnapshotRemaining yields 5-field
+    //       (refId, remainingTicks, valueW, capW, storageW) entries on OverloadRegistry and
+    //       4-field (refId, remainingTicks, flowW, capW) on CableOverloadRegistry, with the
+    //       constructed payloads (storageW = 0 on the synthetic capacity net).
     //   P6  LIVE SURVEY (after synthetic cleanup): both registries' remaining entries
     //       with refId, prefab name (resolved via one OcclusionManager.AllThings walk),
     //       secondsLeft, and the payload formatted like the hover ("drawing X of Y" /
@@ -110,7 +114,7 @@ namespace ScenarioRunner
         private static MethodInfo _osfNoteOver, _osfNoteCable;
         private static MethodInfo _osfOverLocked, _osfCableLocked;       // IsLockedOut(long, int)
         private static MethodInfo _osfOverIsOver, _osfCableIsOver;       // peer-aware readers
-        private static MethodInfo _osfOverTryGet, _osfCableTryGet;       // TryGetFault(long, int, out, out, out)
+        private static MethodInfo _osfOverTryGet, _osfCableTryGet;       // overload: +out storageW; cable: (out seconds, flow, cap)
         private static MethodInfo _osfOverSnap, _osfCableSnap;           // SnapshotRemaining(int)
         private static MethodInfo _osfOverCurr, _osfCableCurr;           // CurrentlyLockedOut(int)
         private static MethodInfo _osfOverClear, _osfCableClear;         // ClearLockout(long)
@@ -172,7 +176,10 @@ namespace ScenarioRunner
         {
             var asm = GetModAssembly(PGP_ASSEMBLY);
             const BindingFlags SF = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static;
-            Type[] sigNote = { typeof(long), typeof(int), typeof(float), typeof(float) };
+            // OverloadRegistry.NoteOverload widened to a (valueW, capW, storageW) triple; the
+            // cable registry's NoteCableOverload stays a (flowW, capW) pair.
+            Type[] sigNoteOver = { typeof(long), typeof(int), typeof(float), typeof(float), typeof(float) };
+            Type[] sigNoteCable = { typeof(long), typeof(int), typeof(float), typeof(float) };
             Type[] sigLongInt = { typeof(long), typeof(int) };
             Type[] sigLong = { typeof(long) };
 
@@ -185,8 +192,8 @@ namespace ScenarioRunner
             var hoverT = asm?.GetType("PowerGridPlus.FaultHover");
             var tickT = asm?.GetType("PowerGridPlus.ElectricityTickCounter");
 
-            _osfNoteOver = _osfOverT?.GetMethod("NoteOverload", SF, null, sigNote, null);
-            _osfNoteCable = _osfCableT?.GetMethod("NoteCableOverload", SF, null, sigNote, null);
+            _osfNoteOver = _osfOverT?.GetMethod("NoteOverload", SF, null, sigNoteOver, null);
+            _osfNoteCable = _osfCableT?.GetMethod("NoteCableOverload", SF, null, sigNoteCable, null);
             _osfOverLocked = _osfOverT?.GetMethod("IsLockedOut", SF, null, sigLongInt, null);
             _osfCableLocked = _osfCableT?.GetMethod("IsLockedOut", SF, null, sigLongInt, null);
             _osfOverIsOver = _osfOverT?.GetMethod("IsOverloaded", SF, null, sigLongInt, null);
@@ -223,7 +230,7 @@ namespace ScenarioRunner
             bool tickOk = _osfCurrentTick != null;
 
             OsfCheck("P1", registriesOk && allocOk && hoverOk && tickOk && logicOk,
-                $"seams: OverloadRegistry(NoteOverload4/IsLockedOut/IsOverloaded/TryGetFault/Snapshot/Currently/Clear)={registriesOk && _osfOverT != null} " +
+                $"seams: OverloadRegistry(NoteOverload5/IsLockedOut/IsOverloaded/TryGetFault/Snapshot/Currently/Clear)={registriesOk && _osfOverT != null} " +
                 $"CableOverloadRegistry(NoteCableOverload4/IsLockedOut/IsCableOverloaded/TryGetFault/Snapshot/Currently/Clear)={_osfCableT != null && _osfNoteCable != null} " +
                 $"allocator(DetectStructuralOverload={_osfDetectStructural != null} DetectSupplyOverload={_osfDetectSupply != null} Net/Seg/Elastic mirrors={_osfNetT != null && _osfSegT != null && _osfElasticT != null}) " +
                 $"FaultHover(ActiveFault={_osfActiveFault != null} TryGetMergedBlock={_osfTryGetMerged != null}) CurrentTick={tickOk} " +
@@ -286,24 +293,42 @@ namespace ScenarioRunner
 
         // ---- registry wrappers ----
 
-        private static void OsfNote(bool cable, long refId, int tick, float valueW, float capW)
+        // storageW is the internal-storage slice of the overload cap; the cable registry has no
+        // storage split, so the cable route ignores it and takes the (flowW, capW) note.
+        private static void OsfNote(bool cable, long refId, int tick, float valueW, float capW, float storageW = 0f)
         {
-            (cable ? _osfNoteCable : _osfNoteOver).Invoke(null, new object[] { refId, tick, valueW, capW });
+            if (cable)
+                _osfNoteCable.Invoke(null, new object[] { refId, tick, valueW, capW });
+            else
+                _osfNoteOver.Invoke(null, new object[] { refId, tick, valueW, capW, storageW });
             if (!_osfNotedRefs.Contains(refId)) _osfNotedRefs.Add(refId);
         }
 
         private static bool OsfLocked(bool cable, long refId, int tick)
             => (cable ? _osfCableLocked : _osfOverLocked).Invoke(null, new object[] { refId, tick }) is bool b && b;
 
+        // OverloadRegistry.TryGetFault has an extra out storageW; CableOverloadRegistry.TryGetFault
+        // does not. storageW comes back 0 for the cable route.
         private static bool OsfTryGetFault(bool cable, long refId, int tick,
-            out float seconds, out float valueW, out float capW)
+            out float seconds, out float valueW, out float capW, out float storageW)
         {
-            var args = new object[] { refId, tick, 0f, 0f, 0f };
-            bool ok = (cable ? _osfCableTryGet : _osfOverTryGet).Invoke(null, args) is bool b && b;
-            seconds = (float)args[2];
-            valueW = (float)args[3];
-            capW = (float)args[4];
-            return ok;
+            if (cable)
+            {
+                var args = new object[] { refId, tick, 0f, 0f, 0f };
+                bool okc = _osfCableTryGet.Invoke(null, args) is bool bc && bc;
+                seconds = (float)args[2];
+                valueW = (float)args[3];
+                capW = (float)args[4];
+                storageW = 0f;
+                return okc;
+            }
+            var oargs = new object[] { refId, tick, 0f, 0f, 0f, 0f };
+            bool oko = _osfOverTryGet.Invoke(null, oargs) is bool bo && bo;
+            seconds = (float)oargs[2];
+            valueW = (float)oargs[3];
+            capW = (float)oargs[4];
+            storageW = (float)oargs[5];
+            return oko;
         }
 
         private static void OsfClear(long refId)
@@ -335,7 +360,11 @@ namespace ScenarioRunner
             bool cable = (bool)OsfGet(segOrElastic, "CableOverloaded");
             float valueW = (float)OsfGet(segOrElastic, "OverloadValueW");
             float capW = (float)OsfGet(segOrElastic, "OverloadCapW");
-            OsfNote(cable, refId, tick, valueW, capW);
+            // OverloadStorageW is the Seg-only storage slice written at the DetectStructuralOverload
+            // site; the cable route (Seg or Elastic) has no storage split, so only read it for the
+            // capacity route.
+            float storageW = cable ? 0f : (float)OsfGet(segOrElastic, "OverloadStorageW");
+            OsfNote(cable, refId, tick, valueW, capW, storageW);
         }
 
         // ---- P2: capacity family (Device overloaded) ----
@@ -373,13 +402,16 @@ namespace ScenarioRunner
 
             bool inOver = OsfLocked(false, OSF_SEG_A, tick) && OsfLocked(false, OSF_SEG_B, tick);
             bool inCable = OsfLocked(true, OSF_SEG_A, tick) || OsfLocked(true, OSF_SEG_B, tick);
-            bool gotFault = OsfTryGetFault(false, OSF_SEG_A, tick, out float secA, out float valA, out float capA);
+            bool gotFault = OsfTryGetFault(false, OSF_SEG_A, tick, out float secA, out float valA, out float capA, out float storA);
+            // The capacity net has no elastic storage, so the storage slice comes back 0
+            // (the storageW>0 breakdown path is covered by pgp-fault-hover-fixture).
             bool tryOk = gotFault && secA > 0f
-                && Math.Abs(valA - OSF_CAP_DEMAND) < OSF_EPS && Math.Abs(capA - OSF_CAP_COMBINED) < OSF_EPS;
+                && Math.Abs(valA - OSF_CAP_DEMAND) < OSF_EPS && Math.Abs(capA - OSF_CAP_COMBINED) < OSF_EPS
+                && Math.Abs(storA) < OSF_EPS;
             OsfCheck("P2b", inOver && !inCable && tryOk,
                 $"commit lands in OverloadRegistry only (over={inOver} cable={inCable}); " +
-                $"TryGetFault(A) -> found={gotFault} secondsLeft={secA:0.00} payload=({valA:0},{capA:0}) " +
-                $"expected ({OSF_CAP_DEMAND:0},{OSF_CAP_COMBINED:0}).");
+                $"TryGetFault(A) -> found={gotFault} secondsLeft={secA:0.00} payload=({valA:0},{capA:0} storage={storA:0}) " +
+                $"expected ({OSF_CAP_DEMAND:0},{OSF_CAP_COMBINED:0} storage=0).");
         }
 
         // ---- P3: cable family (Cable Overloaded) ----
@@ -421,7 +453,7 @@ namespace ScenarioRunner
 
             bool inCable = OsfLocked(true, OSF_SEG_CABLE, tick) && OsfLocked(true, OSF_ELASTIC_CABLE, tick);
             bool inOver = OsfLocked(false, OSF_SEG_CABLE, tick) || OsfLocked(false, OSF_ELASTIC_CABLE, tick);
-            bool gotFault = OsfTryGetFault(true, OSF_SEG_CABLE, tick, out float sec, out float flow, out float cap);
+            bool gotFault = OsfTryGetFault(true, OSF_SEG_CABLE, tick, out float sec, out float flow, out float cap, out float _);
             bool tryOk = gotFault && sec > 0f
                 && Math.Abs(flow - OSF_CABLE_FLOW) < OSF_EPS && Math.Abs(cap - OSF_CABLE_CAP) < OSF_EPS;
             OsfCheck("P3b", inCable && !inOver && tryOk,
@@ -550,19 +582,22 @@ namespace ScenarioRunner
             var ld = _osfOverT.GetField("LockoutDurationTicks", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
             if (ld?.GetValue(null) is int i && i > 0) lockoutTicks = i;
 
+            // OverloadRegistry snapshots are now 5-field (refId, remainingTicks, valueW, capW,
+            // storageW); the synthetic capacity net has no elastic storage, so storageW is 0.
+            // CableOverloadRegistry stays 4-field (refId, remainingTicks, flowW, capW).
             OsfCheckSnapshotShape("P5a", _osfOverSnap, _osfOverCurr, OSF_SEG_A, tick, lockoutTicks,
-                OSF_CAP_DEMAND, OSF_CAP_COMBINED, "transformer-overloaded");
+                OSF_CAP_DEMAND, OSF_CAP_COMBINED, 5, 0f, "transformer-overloaded");
             OsfCheckSnapshotShape("P5b", _osfCableSnap, _osfCableCurr, OSF_SEG_CABLE, tick, lockoutTicks,
-                OSF_CABLE_FLOW, OSF_CABLE_CAP, "cable-overloaded");
+                OSF_CABLE_FLOW, OSF_CABLE_CAP, 4, 0f, "cable-overloaded");
         }
 
         private static void OsfCheckSnapshotShape(string id, MethodInfo snap, MethodInfo curr, long wantRef,
-            int tick, int lockoutTicks, float expValue, float expCap, string label)
+            int tick, int lockoutTicks, float expValue, float expCap, int expectedFields, float expStorage, string label)
         {
             bool found = false;
-            bool fourFields = false;
+            bool shapeOk = false;
             int remaining = -1;
-            float gotV = float.NaN, gotC = float.NaN;
+            float gotV = float.NaN, gotC = float.NaN, gotS = float.NaN;
             if (snap.Invoke(null, new object[] { tick }) is IEnumerable en)
             {
                 foreach (var item in en)
@@ -572,13 +607,16 @@ namespace ScenarioRunner
                     var f2 = it.GetField("Item2");
                     var f3 = it.GetField("Item3");
                     var f4 = it.GetField("Item4");
-                    fourFields = f1 != null && f2 != null && f3 != null && f4 != null && it.GetFields().Length == 4;
-                    if (!fourFields) break;
+                    var f5 = expectedFields >= 5 ? it.GetField("Item5") : null;
+                    shapeOk = f1 != null && f2 != null && f3 != null && f4 != null
+                        && (expectedFields < 5 || f5 != null) && it.GetFields().Length == expectedFields;
+                    if (!shapeOk) break;
                     if (Convert.ToInt64(f1.GetValue(item)) != wantRef) continue;
                     found = true;
                     remaining = Convert.ToInt32(f2.GetValue(item));
                     gotV = Convert.ToSingle(f3.GetValue(item));
                     gotC = Convert.ToSingle(f4.GetValue(item));
+                    gotS = f5 != null ? Convert.ToSingle(f5.GetValue(item)) : 0f;
                     break;
                 }
             }
@@ -586,10 +624,13 @@ namespace ScenarioRunner
             if (curr?.Invoke(null, new object[] { tick }) is IEnumerable ce)
                 foreach (var o in ce)
                     if (o is long r && r == wantRef) { inCensus = true; break; }
-            OsfCheck(id, found && fourFields && inCensus && remaining > 0 && remaining <= lockoutTicks
-                    && Math.Abs(gotV - expValue) < OSF_EPS && Math.Abs(gotC - expCap) < OSF_EPS,
-                $"{label} SnapshotRemaining entry shape (refId, remainingTicks, valueW, capW): found={found} fourFields={fourFields} " +
-                $"CurrentlyLockedOut={inCensus} remaining={remaining} (0 < r <= {lockoutTicks}) payload=({gotV:0},{gotC:0}) expected ({expValue:0},{expCap:0}).");
+            bool storageOk = expectedFields < 5 || Math.Abs(gotS - expStorage) < OSF_EPS;
+            OsfCheck(id, found && shapeOk && inCensus && remaining > 0 && remaining <= lockoutTicks
+                    && Math.Abs(gotV - expValue) < OSF_EPS && Math.Abs(gotC - expCap) < OSF_EPS && storageOk,
+                $"{label} SnapshotRemaining entry shape ({expectedFields}-field): found={found} shapeOk={shapeOk} " +
+                $"CurrentlyLockedOut={inCensus} remaining={remaining} (0 < r <= {lockoutTicks}) payload=({gotV:0},{gotC:0}" +
+                $"{(expectedFields >= 5 ? $",storage={gotS:0}" : "")}) expected ({expValue:0},{expCap:0}" +
+                $"{(expectedFields >= 5 ? $",storage={expStorage:0}" : "")}).");
         }
 
         // ---- P6: live survey (operator census; informational, no PASS/FAIL) ----
@@ -606,7 +647,7 @@ namespace ScenarioRunner
                     var f1 = item.GetType().GetField("Item1");
                     if (f1 == null) continue;
                     long refId = Convert.ToInt64(f1.GetValue(item));
-                    OsfTryGetFault(cable, refId, tick, out float sec, out float v, out float c);
+                    OsfTryGetFault(cable, refId, tick, out float sec, out float v, out float c, out float _);
                     entries.Add((cable, refId, sec, v, c));
                 }
             }

@@ -310,6 +310,10 @@ namespace ScenarioRunner
                     Scenario_PgpOverloadSplitFixture();
                     return;
 
+                case "pgp-fault-hover-fixture":
+                    Scenario_PgpFaultHoverFixture();
+                    return;
+
                 case "pgp-rearch-suite":
                     Scenario_PgpRearchSuite();
                     return;
@@ -3519,7 +3523,8 @@ namespace ScenarioRunner
                             { remaining = pair.Value; break; }
                             // DeprioritizedRegistry.SnapshotRemaining yields the hover-payload
                             // tuple (long refId, int remainingTicks, float needsW,
-                            // float upstreamDemandW, float upstreamSupplyW); this check only
+                            // float upstreamDemandW, float upstreamSupplyW, float shortfallW,
+                            // DeprioritizeReason reason, int victimPriority); this check only
                             // needs the first two fields.
                             var itemType = item?.GetType();
                             var refField = itemType?.GetField("Item1");

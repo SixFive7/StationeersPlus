@@ -552,37 +552,47 @@ namespace ScenarioRunner
                     AfterP3b:;
                 }
 
-                // ---- P3c: the locked D/U/S hover payload round-trips the registry and renders ----
-                // The 5-arg NoteDeprioritized carries (needsW, upstreamDemandW, upstreamSupplyW);
-                // TryGetFault must hand the same triple back, and the rendered hover must carry
-                // the locked "Needs D while U competes for S upstream" sentence. The numeric
-                // values are asserted through TryGetFault (exact floats) rather than the
-                // rendered string, which is locale-formatted.
-                var noteDeprioritizedPayload = deprioritizedRegistryType.GetMethod("NoteDeprioritized",
+                // ---- P3c: the widened deprioritized hover payload round-trips the registry and renders ----
+                // NoteDeprioritized now carries (needsW, upstreamDemandW, upstreamSupplyW, shortfallW,
+                // reason, victimPriority); TryGetFault hands the same values back, and the rendered
+                // hover carries the new "Upstream demand of U exceeded the upstream supply of S" +
+                // "Due to the shortfall of X this device's N share was cut" lines plus the reason
+                // line. The numeric values are asserted through TryGetFault (exact floats) rather
+                // than the rendered string, which is locale-formatted.
+                var reasonEnumType = deprioritizedRegistryType.Assembly.GetType("PowerGridPlus.DeprioritizeReason");
+                var noteDeprioritizedPayload = reasonEnumType == null ? null : deprioritizedRegistryType.GetMethod("NoteDeprioritized",
                     BindingFlags.NonPublic | BindingFlags.Static,
-                    null, new[] { typeof(long), typeof(int), typeof(float), typeof(float), typeof(float) }, null);
+                    null, new[] { typeof(long), typeof(int), typeof(float), typeof(float), typeof(float),
+                        typeof(float), reasonEnumType, typeof(int) }, null);
                 var tryGetFault = deprioritizedRegistryType.GetMethod("TryGetFault",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 totalChecks++;
-                if (noteDeprioritizedPayload != null && tryGetFault != null)
+                if (noteDeprioritizedPayload != null && tryGetFault != null && reasonEnumType != null)
                 {
-                    noteDeprioritizedPayload.Invoke(null, new object[] { sampleT.ReferenceId, tickNow, 12000f, 30000f, 20000f });
-                    var tgArgs = new object[] { sampleT.ReferenceId, tickNow, 0f, 0f, 0f, 0f };
+                    object lowerPriority = Enum.ToObject(reasonEnumType, 0);   // DeprioritizeReason.LowerPriority
+                    noteDeprioritizedPayload.Invoke(null, new object[]
+                        { sampleT.ReferenceId, tickNow, 12000f, 30000f, 20000f, 8000f, lowerPriority, 80 });
+                    var tgArgs = new object[] { sampleT.ReferenceId, tickNow, 0f, 0f, 0f, 0f, 0f, null, 0 };
                     bool gotPayload = tryGetFault.Invoke(null, tgArgs) is bool gp && gp;
                     float needsW = (float)tgArgs[3], upstreamDemandW = (float)tgArgs[4], upstreamSupplyW = (float)tgArgs[5];
+                    float shortfallW = (float)tgArgs[6];
+                    int victimPriority = (int)tgArgs[8];
                     object ttPayload = gptOnThing.Invoke(sampleT, gptArgs);
                     string extendedPayload = ReflectGetExtended(ttPayload) ?? string.Empty;
-                    bool renders = extendedPayload.IndexOf("Needs ", StringComparison.Ordinal) >= 0
-                        && extendedPayload.IndexOf(" competes for ", StringComparison.Ordinal) >= 0
-                        && extendedPayload.IndexOf(" upstream", StringComparison.Ordinal) >= 0;
+                    bool renders = extendedPayload.IndexOf("Upstream demand of", StringComparison.Ordinal) >= 0
+                        && extendedPayload.IndexOf("exceeded the upstream supply of", StringComparison.Ordinal) >= 0
+                        && extendedPayload.IndexOf("Due to the shortfall of", StringComparison.Ordinal) >= 0
+                        && extendedPayload.IndexOf("share was cut", StringComparison.Ordinal) >= 0
+                        && extendedPayload.IndexOf("Its priority of 80 was below other consumers", StringComparison.Ordinal) >= 0;
                     if (gotPayload && Math.Abs(needsW - 12000f) < 0.5f && Math.Abs(upstreamDemandW - 30000f) < 0.5f
-                        && Math.Abs(upstreamSupplyW - 20000f) < 0.5f && renders)
-                    { _log?.LogInfo("[ScenarioRunner] HP P3c PASS: D/U/S payload (12 kW / 30 kW / 20 kW) round-trips TryGetFault and the hover renders the 'Needs D while U competes for S upstream' line."); passCount++; }
+                        && Math.Abs(upstreamSupplyW - 20000f) < 0.5f && Math.Abs(shortfallW - 8000f) < 0.5f
+                        && victimPriority == 80 && renders)
+                    { _log?.LogInfo("[ScenarioRunner] HP P3c PASS: deprioritized payload (needs 12 kW / demand 30 kW / supply 20 kW / shortfall 8 kW / priority 80) round-trips TryGetFault and the hover renders the upstream/shortfall/reason lines."); passCount++; }
                     else
-                    { _log?.LogError($"[ScenarioRunner] HP P3c FAIL: got={gotPayload} needs={needsW} upstreamDemand={upstreamDemandW} upstreamSupply={upstreamSupplyW} renders={renders}. Extended={Truncate(extendedPayload, 300)}"); failCount++; }
+                    { _log?.LogError($"[ScenarioRunner] HP P3c FAIL: got={gotPayload} needs={needsW} upstreamDemand={upstreamDemandW} upstreamSupply={upstreamSupplyW} shortfall={shortfallW} victimPriority={victimPriority} renders={renders}. Extended={Truncate(extendedPayload, 300)}"); failCount++; }
                 }
                 else
-                { _log?.LogError($"[ScenarioRunner] HP P3c FAIL: 5-arg NoteDeprioritized={noteDeprioritizedPayload != null} TryGetFault={tryGetFault != null} seam missing."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] HP P3c FAIL: 8-arg NoteDeprioritized={noteDeprioritizedPayload != null} TryGetFault={tryGetFault != null} DeprioritizeReason={reasonEnumType != null} seam missing."); failCount++; }
 
                 // ---- P4: clear the deprioritization -> tooltip back to the fault-free state ----
                 clearAll?.Invoke(null, null);
@@ -807,35 +817,43 @@ namespace ScenarioRunner
                 // driven exclusively by ReplaceClientSnapshot (full-state replace, self-healing).
                 // On a HOST the peer-aware IsDeprioritized reads the host lockout dict, so the
                 // client mirror (_clientExpiry, a ClientEntry struct with the MonotonicClock
-                // expiry plus the locked needs/upstream-demand/upstream-supply hover triple) is
-                // asserted directly. The snapshot entry tuple is the registry's own
-                // (long refId, int remainingTicks, float needsW, float upstreamDemandW,
-                // float upstreamSupplyW) shape, built via MakeGenericType so this fixture keeps
-                // compiling if the mod assembly is absent.
+                // expiry plus the widened hover payload) is asserted directly. The snapshot entry
+                // tuple is the registry's own (long refId, int remainingTicks, float needsW,
+                // float upstreamDemandW, float upstreamSupplyW, float shortfallW,
+                // DeprioritizeReason reason, int victimPriority) shape, built via MakeGenericType
+                // so this fixture keeps compiling if the mod assembly is absent. An 8-arity
+                // ValueTuple carries its 8th element (victimPriority) as a nested ValueTuple<int>
+                // rest, matching the C# tuple lowering ReplaceClientSnapshot deconstructs.
+                var reasonEnumType = deprioritizedRegistryType.Assembly.GetType("PowerGridPlus.DeprioritizeReason");
                 var replaceClientSnapshot = deprioritizedRegistryType.GetMethod("ReplaceClientSnapshot",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var clientMirrorField = deprioritizedRegistryType.GetField("_clientExpiry",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var clientMirror = clientMirrorField?.GetValue(null) as System.Collections.IDictionary;
-                var snapshotTupleType = typeof(ValueTuple<,,,,>).MakeGenericType(
-                    typeof(long), typeof(int), typeof(float), typeof(float), typeof(float));
+                var victimRestType = typeof(ValueTuple<>).MakeGenericType(typeof(int));
+                var snapshotTupleType = typeof(ValueTuple<,,,,,,,>).MakeGenericType(
+                    typeof(long), typeof(int), typeof(float), typeof(float), typeof(float),
+                    typeof(float), reasonEnumType, victimRestType);
                 var snapshotListType = typeof(List<>).MakeGenericType(snapshotTupleType);
 
                 long testRef = 7777777777L;
 
                 // ---- P1: DeprioritizedRegistry client-mirror state machine ----
                 var oneEntry = (System.Collections.IList)Activator.CreateInstance(snapshotListType);
-                oneEntry.Add(Activator.CreateInstance(snapshotTupleType, testRef, 120, 12000f, 30000f, 20000f));
+                object mpReason = Enum.ToObject(reasonEnumType, 0);
+                object mpVictimRest = Activator.CreateInstance(victimRestType, 80);
+                oneEntry.Add(Activator.CreateInstance(snapshotTupleType,
+                    testRef, 120, 12000f, 30000f, 20000f, 8000f, mpReason, mpVictimRest));
                 replaceClientSnapshot?.Invoke(null, new object[] { oneEntry });
                 bool after1 = clientMirror != null && clientMirror.Contains(testRef);
                 var emptySnapshot = (System.Collections.IList)Activator.CreateInstance(snapshotListType);
                 replaceClientSnapshot?.Invoke(null, new object[] { emptySnapshot });
                 bool after2 = clientMirror != null && clientMirror.Contains(testRef);
                 totalChecks++;
-                if (replaceClientSnapshot != null && clientMirror != null && after1 && !after2)
-                { _log?.LogInfo($"[ScenarioRunner] MP P1 PASS: ReplaceClientSnapshot with one payload entry inserts the _clientExpiry mirror entry ({after1}), the empty snapshot clears it ({after2})."); passCount++; }
+                if (replaceClientSnapshot != null && clientMirror != null && reasonEnumType != null && after1 && !after2)
+                { _log?.LogInfo($"[ScenarioRunner] MP P1 PASS: ReplaceClientSnapshot with one 8-field payload entry inserts the _clientExpiry mirror entry ({after1}), the empty snapshot clears it ({after2})."); passCount++; }
                 else
-                { _log?.LogError($"[ScenarioRunner] MP P1 FAIL: state machine inconsistent. method={replaceClientSnapshot != null} mirrorDict={clientMirror != null} trueRead={after1} falseRead={after2}."); failCount++; }
+                { _log?.LogError($"[ScenarioRunner] MP P1 FAIL: state machine inconsistent. method={replaceClientSnapshot != null} mirrorDict={clientMirror != null} reason={reasonEnumType != null} trueRead={after1} falseRead={after2}."); failCount++; }
 
                 // ---- P2: FaultRegistrySnapshotMessage.Process on host short-circuits ----
                 // Host's NetworkManager.IsServer=true, so Process must NOT touch the client mirror.
@@ -2588,12 +2606,14 @@ namespace ScenarioRunner
                 else
                 { _log?.LogError($"[ScenarioRunner] OP P2 FAIL: LockoutDurationTicks={ld}, expected 120."); fail++; }
 
-                // P3: NoteOverload -> instant lockout.
+                // P3: NoteOverload -> instant lockout. NoteOverload widened to a
+                // (long, int, float valueW, float capW, float storageW) signature; synthetic
+                // notes pass 0 for the watt payload (the lockout state is what P3-P8 exercise).
                 var clearAll = overloadType.GetMethod("ClearAll",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var noteOverload = overloadType.GetMethod("NoteOverload",
                     BindingFlags.NonPublic | BindingFlags.Static,
-                    null, new[] { typeof(long), typeof(int) }, null);
+                    null, new[] { typeof(long), typeof(int), typeof(float), typeof(float), typeof(float) }, null);
                 var isLockedOut = overloadType.GetMethod("IsLockedOut",
                     BindingFlags.NonPublic | BindingFlags.Static,
                     null, new[] { typeof(long), typeof(int) }, null);
@@ -2605,7 +2625,7 @@ namespace ScenarioRunner
                 int tick = (int)(currentTickProp?.GetValue(null) ?? 0);
                 long syntheticRef = 99887766L;
                 clearAll?.Invoke(null, null);
-                noteOverload?.Invoke(null, new object[] { syntheticRef, tick });
+                noteOverload?.Invoke(null, new object[] { syntheticRef, tick, 0f, 0f, 0f });
                 bool locked = (bool)(isLockedOut?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
                 bool overloaded = (bool)(isOverloaded?.Invoke(null, new object[] { syntheticRef, tick }) ?? false);
                 total++;
@@ -2642,7 +2662,7 @@ namespace ScenarioRunner
                 var sampleT = _transformers.FirstOrDefault(x => x != null);
                 if (sampleT != null)
                 {
-                    noteOverload?.Invoke(null, new object[] { sampleT.ReferenceId, tick });
+                    noteOverload?.Invoke(null, new object[] { sampleT.ReferenceId, tick, 0f, 0f, 0f });
                     double v = sampleT.GetLogicValue(overloadedLogic);
                     total++;
                     if (Math.Abs(v - 1.0) < 0.001)
@@ -2701,8 +2721,12 @@ namespace ScenarioRunner
                 var overloadMirrorField = overloadType.GetField("_clientExpiry",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 var overloadMirror = overloadMirrorField?.GetValue(null) as System.Collections.IDictionary;
-                var overloadTupleType = typeof(ValueTuple<,,,>).MakeGenericType(
-                    typeof(long), typeof(int), typeof(float), typeof(float));
+                // OverloadRegistry.ReplaceClientSnapshot widened to a 5-field entry
+                // (refId, remainingTicks, valueW, capW, storageW); this test only exercises the
+                // host short-circuit, so an empty snapshot is enough, but the element type must
+                // still match the new signature.
+                var overloadTupleType = typeof(ValueTuple<,,,,>).MakeGenericType(
+                    typeof(long), typeof(int), typeof(float), typeof(float), typeof(float));
                 var overloadEmptySnapshot = (System.Collections.IList)Activator.CreateInstance(
                     typeof(System.Collections.Generic.List<>).MakeGenericType(overloadTupleType));
                 overloadReplaceClient?.Invoke(null, new object[] { overloadEmptySnapshot });

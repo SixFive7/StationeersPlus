@@ -698,9 +698,10 @@ namespace ScenarioRunner
                 {
                     if (item is KeyValuePair<long, int> pair)
                     { result[pair.Key] = pair.Value; continue; }
-                    // DeprioritizedRegistry.SnapshotRemaining now yields the hover-payload tuple
+                    // DeprioritizedRegistry.SnapshotRemaining yields the hover-payload tuple
                     // (long refId, int remainingTicks, float needsW, float upstreamDemandW,
-                    // float upstreamSupplyW); the countdown assert only needs the first two.
+                    // float upstreamSupplyW, float shortfallW, DeprioritizeReason reason,
+                    // int victimPriority); the countdown assert only needs the first two.
                     var itemType = item?.GetType();
                     var refField = itemType?.GetField("Item1");
                     var ticksField = itemType?.GetField("Item2");
