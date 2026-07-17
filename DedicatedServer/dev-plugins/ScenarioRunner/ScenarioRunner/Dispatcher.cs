@@ -314,6 +314,10 @@ namespace ScenarioRunner
                     Scenario_PgpOverloadSplitFixture();
                     return;
 
+                case "pgp-desire-split-fixture":
+                    Scenario_PgpDesireSplitFixture();
+                    return;
+
                 case "pgp-fault-hover-fixture":
                     Scenario_PgpFaultHoverFixture();
                     return;
