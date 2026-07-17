@@ -3359,6 +3359,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#isstructurecompleted-exact-semantics-the-index-setter-clamps-overshoot-to-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IsStructureCompleted exact semantics; the index setter clamps overshoot to 0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network-and-port-registration-is-never-completion-gated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network and port registration is never completion-gated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#multiplayer-flow-the-destructive-interaction-runs-host-side" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5610,6 +5632,8 @@
       
         
       
+        
+      
     
     
     
@@ -6508,6 +6532,34 @@
     
   
     MultiplayerStateMutation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Patterns/PassiveTooltipPipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Passive tooltip pipelines
   
 
     
@@ -8466,6 +8518,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#isstructurecompleted-exact-semantics-the-index-setter-clamps-overshoot-to-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IsStructureCompleted exact semantics; the index setter clamps overshoot to 0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network-and-port-registration-is-never-completion-gated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network and port registration is never completion-gated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#multiplayer-flow-the-destructive-interaction-runs-host-side" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8593,7 +8667,7 @@
         <p class="research-meta-verified">
           <strong>Verified</strong>
            in game version <code>0.2.6403.27689</code>
-           on 2026-07-15.
+           on 2026-07-18.
         </p>
       
       
@@ -8603,7 +8677,7 @@
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (5)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:177-179</code></li>
@@ -8616,12 +8690,14 @@
             
               <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 314994-315262 (Structure.AttackWith deconstruct branch), 315366-315369 (CanDeconstruct), 315390-315491 (StructureDestroyed), 316015-316234 (ToolBasic / ToolUse / SpawnItem), 39630-39654 / 39866-39876 / 39914-39926 (OnServer.AttackWith / Create / Destroy), 277409-277420 (AttackWithMessage.Process), 315307-315315 (UpgradeStructureServer)'}</code></li>
             
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 313965-313979 (IsStructureCompleted), 314029-314062 (CurrentBuildStateIndex setter), 371775-371815 / 370383-370390 (Device.InitializeDevice / InitializeDeviceAction), 268725 (LoadWorld device-init call), 270966-270992 (CableNetwork.AddDevice)'}</code></li>
+            
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (7)</summary>
+          <summary><strong>Related pages</strong> (9)</summary>
           <ul>
             
               <li><code>./Thing.md</code></li>
@@ -8631,6 +8707,10 @@
               <li><code>./OnServer.md</code></li>
             
               <li><code>./Cable.md</code></li>
+            
+              <li><code>./Device.md</code></li>
+            
+              <li><code>./AreaPowerControl.md</code></li>
             
               <li><code>../GameSystems/DamageState.md</code></li>
             
@@ -8992,25 +9072,166 @@
 <p>The base <code>Device.GetUsedPower(CableNetwork)</code> (371510-371521) returns <code>-1</code> when the queried network is not one of the device's own power networks, and <code>0</code> unless <code>OnOff &amp;&amp; IsStructureCompleted</code>. Consequence: an under-construction device sits on the network with zero demand, and its demand appears the moment the completing tool stroke lands, with no other side effect.</p>
 <p>Programmatic spawns land INCOMPLETE for multi-state structures: <code>Thing.Create</code> / <code>OnServer.Create</code> instances arrive at <code>CurrentBuildStateIndex = 0</code> (live-observed on <code>StructureConsole</code>, 2 build states, spawned via <code>OnServer.Create&lt;Structure&gt;</code> on the dedicated server at 0.2.6403.27689: 24 electricity ticks on a live network with row demand 0, then demand appeared on the tick after <code>CurrentBuildStateIndex</code> was advanced to final through the real completion write). A single-state structure (a cable) spawns complete because state 0 IS its final state.</p>
 <p>Live verification 2026-07-15 via a ScenarioRunner per-tick trace on the dedicated server (scenario pgp-fresh-device-trace: RTG feeding a small transformer feeding consumers; logged per electricity tick: snapshot demand rows, transformer grants, net verdicts, device <code>IsStructureCompleted</code> / <code>OnOff</code> / <code>Powered</code>): a spawn-complete device's demand and its funding both appear on the same first tick that snapshots it, and a build-state completion likewise lands demand and funding on the same tick. The registration and completion boundaries are tick-coherent in vanilla.</p>
+<h3 id="isstructurecompleted-exact-semantics-the-index-setter-clamps-overshoot-to-0">IsStructureCompleted exact semantics; the index setter clamps overshoot to 0<a class="headerlink" href="#isstructurecompleted-exact-semantics-the-index-setter-clamps-overshoot-to-0" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+<p>The exact body behind the summary above (313965-313979), verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsStructureCompleted</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">CurrentBuildStateIndex</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">BuildStates</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">CurrentBuildStateIndex</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">CurrentBuildStateIndex</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">BuildStates</span><span class="p">.</span><span class="n">Count</span><span class="p">)</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">BuildStates</span><span class="p">[</span><span class="n">CurrentBuildStateIndex</span><span class="p">].</span><span class="n">CanManufacture</span><span class="p">;</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Three consequences pinned down:</p>
+<ul>
+<li><code>CurrentBuildStateIndex == BuildStates.Count - 1</code> is unconditionally completed, so a single-state prefab (a cable) is completed at index 0: state 0 IS its last state.</li>
+<li>A non-last index counts as completed only when ALL of <code>CurrentBuildStateIndex &gt; 0</code>, <code>CurrentBuildStateIndex &lt; BuildStates.Count</code>, and <code>BuildStates[CurrentBuildStateIndex].CanManufacture</code> hold. The <code>CanManufacture</code> carve-out never applies to index 0.</li>
+<li>Index 0 of a multi-state ladder is therefore NEVER completed: it is neither the last index nor <code>&gt; 0</code>.</li>
+</ul>
+<p>The <code>CurrentBuildStateIndex</code> setter (314029-314062), verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">public</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">CurrentBuildStateIndex</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="p">{</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="k">get</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">_currentBuildState</span><span class="p">;</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="k">set</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">BuildStates</span><span class="p">.</span><span class="n">Count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">            </span><span class="k">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">value</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">_currentBuildState</span><span class="p">)</span>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="w">            </span><span class="n">UpdateSoundsOnBuildState</span><span class="p">(</span><span class="n">construct</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">currentBuildState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_currentBuildState</span><span class="p">;</span>
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="w">        </span><span class="n">_currentBuildState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="n">OnBuildState</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a><span class="w">            </span><span class="k">this</span><span class="p">.</span><span class="n">OnBuildState</span><span class="p">();</span>
+</span><span id="__span-13-22"><a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-13-23"><a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_currentBuildState</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">currentBuildState</span><span class="p">)</span>
+</span><span id="__span-13-24"><a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-13-25"><a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a><span class="w">            </span><span class="n">UpdateSoundsOnBuildState</span><span class="p">(</span><span class="n">construct</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</span><span id="__span-13-26"><a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-13-27"><a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a><span class="w">        </span><span class="k">base</span><span class="p">.</span><span class="n">GridController</span><span class="o">?.</span><span class="n">UpdateAirState</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-13-28"><a id="__codelineno-13-28" name="__codelineno-13-28" href="#__codelineno-13-28"></a><span class="w">        </span><span class="n">OnBuildStateUpdated</span><span class="p">(</span><span class="k">value</span><span class="p">,</span><span class="w"> </span><span class="n">currentBuildState</span><span class="p">);</span>
+</span><span id="__span-13-29"><a id="__codelineno-13-29" name="__codelineno-13-29" href="#__codelineno-13-29"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsServer</span><span class="p">)</span>
+</span><span id="__span-13-30"><a id="__codelineno-13-30" name="__codelineno-13-30" href="#__codelineno-13-30"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-13-31"><a id="__codelineno-13-31" name="__codelineno-13-31" href="#__codelineno-13-31"></a><span class="w">            </span><span class="k">base</span><span class="p">.</span><span class="n">NetworkUpdateFlags</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span>
+</span><span id="__span-13-32"><a id="__codelineno-13-32" name="__codelineno-13-32" href="#__codelineno-13-32"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-13-33"><a id="__codelineno-13-33" name="__codelineno-13-33" href="#__codelineno-13-33"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-13-34"><a id="__codelineno-13-34" name="__codelineno-13-34" href="#__codelineno-13-34"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The first statement is the clamp: a value above <code>BuildStates.Count - 1</code> silently becomes 0. A saved or written index that overshoots the prefab's ladder (a prefab whose state count shrank across game versions, or bad mod data) lands at the BOTTOM of the ladder, not the top.</p>
+<h3 id="network-and-port-registration-is-never-completion-gated">Network and port registration is never completion-gated<a class="headerlink" href="#network-and-port-registration-is-never-completion-gated" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+<p>Build state never controls which networks a device belongs to; it only shapes the watt numbers the device reports afterwards. Two verbatim proofs at 0.2.6403.27689:</p>
+<p><code>Device.InitializeDevice</code> (371775-371815) registers the device into EVERY adjacent cable, pipe, and chute network, with no build-state term anywhere:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">InitializeDevice</span><span class="p">()</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="p">{</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">SmallCellRef</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="n">SmallCellRef</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="n">FillConnected</span><span class="o">&lt;</span><span class="n">Cable</span><span class="o">&gt;</span><span class="p">(</span><span class="n">span</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">SmallCellRef</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span</span><span class="p">;</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">SmallCellRef</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span2</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">span3</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">        </span><span class="n">SmallCellRef</span><span class="w"> </span><span class="n">smallCellRef</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span3</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCellRef</span><span class="p">.</span><span class="n">TryGet</span><span class="o">&lt;</span><span class="n">Cable</span><span class="o">&gt;</span><span class="p">(</span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">found</span><span class="p">))</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="w">            </span><span class="n">found</span><span class="p">.</span><span class="n">CableNetwork</span><span class="p">.</span><span class="n">AddDevice</span><span class="p">(</span><span class="n">found</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="w">    </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="w">    </span><span class="n">FillConnected</span><span class="o">&lt;</span><span class="n">INetworkedPipe</span><span class="o">&gt;</span><span class="p">(</span><span class="n">span</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a><span class="w">    </span><span class="n">span2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span</span><span class="p">;</span>
+</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a><span class="w">    </span><span class="n">span3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span2</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">span3</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-14-21"><a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-22"><a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a><span class="w">        </span><span class="n">SmallCellRef</span><span class="w"> </span><span class="n">smallCellRef2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span3</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-14-23"><a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCellRef2</span><span class="p">.</span><span class="n">TryGet</span><span class="o">&lt;</span><span class="n">INetworkedPipe</span><span class="o">&gt;</span><span class="p">(</span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">found2</span><span class="p">))</span>
+</span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-14-25"><a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a><span class="w">            </span><span class="n">found2</span><span class="p">.</span><span class="n">PipeNetwork</span><span class="p">.</span><span class="n">AddDevice</span><span class="p">(</span><span class="n">found2</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-14-26"><a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-28"><a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a><span class="w">    </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-14-29"><a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a><span class="w">    </span><span class="n">FillConnected</span><span class="o">&lt;</span><span class="n">INetworkedChute</span><span class="o">&gt;</span><span class="p">(</span><span class="n">span</span><span class="p">,</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-14-30"><a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a><span class="w">    </span><span class="n">span2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span</span><span class="p">;</span>
+</span><span id="__span-14-31"><a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a><span class="w">    </span><span class="n">span3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span2</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+</span><span id="__span-14-32"><a id="__codelineno-14-32" name="__codelineno-14-32" href="#__codelineno-14-32"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">span3</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span><span id="__span-14-33"><a id="__codelineno-14-33" name="__codelineno-14-33" href="#__codelineno-14-33"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-14-34"><a id="__codelineno-14-34" name="__codelineno-14-34" href="#__codelineno-14-34"></a><span class="w">        </span><span class="n">SmallCellRef</span><span class="w"> </span><span class="n">smallCellRef3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span3</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span><span id="__span-14-35"><a id="__codelineno-14-35" name="__codelineno-14-35" href="#__codelineno-14-35"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">smallCellRef3</span><span class="p">.</span><span class="n">TryGet</span><span class="o">&lt;</span><span class="n">INetworkedChute</span><span class="o">&gt;</span><span class="p">(</span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">found3</span><span class="p">))</span>
+</span><span id="__span-14-36"><a id="__codelineno-14-36" name="__codelineno-14-36" href="#__codelineno-14-36"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-14-37"><a id="__codelineno-14-37" name="__codelineno-14-37" href="#__codelineno-14-37"></a><span class="w">            </span><span class="n">found3</span><span class="p">.</span><span class="n">ChuteNetwork</span><span class="p">.</span><span class="n">AddDevice</span><span class="p">(</span><span class="n">found3</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-14-38"><a id="__codelineno-14-38" name="__codelineno-14-38" href="#__codelineno-14-38"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-14-39"><a id="__codelineno-14-39" name="__codelineno-14-39" href="#__codelineno-14-39"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-14-40"><a id="__codelineno-14-40" name="__codelineno-14-40" href="#__codelineno-14-40"></a><span class="w">    </span><span class="n">CheckConnections</span><span class="p">();</span>
+</span><span id="__span-14-41"><a id="__codelineno-14-41" name="__codelineno-14-41" href="#__codelineno-14-41"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>On world load it runs for every device regardless of build state: <code>XmlSaveLoad.LoadWorld</code> calls <code>Device.AllDevices.ForEach(Device.InitializeDeviceAction);</code> (268725; the action at 370383-370390 skips only null / <code>IsBeingDestroyed</code> devices before calling <code>device.InitializeDevice()</code> and <code>device.InitializeDataConnection()</code>).</p>
+<p><code>CableNetwork.AddDevice(Cable, Device)</code> (270966-270992) is pure membership bookkeeping, also with no completion check:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">AddDevice</span><span class="p">(</span><span class="n">Cable</span><span class="w"> </span><span class="n">cable</span><span class="p">,</span><span class="w"> </span><span class="n">Device</span><span class="w"> </span><span class="n">device</span><span class="p">)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="p">{</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="n">HashSet</span><span class="o">&lt;</span><span class="n">Cable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">deviceRegistration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GetDeviceRegistration</span><span class="p">(</span><span class="n">device</span><span class="p">);</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">deviceRegistration</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">        </span><span class="n">deviceRegistration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">HashSet</span><span class="o">&lt;</span><span class="n">Cable</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">cable</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">        </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">DeviceList</span><span class="p">)</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">            </span><span class="n">DeviceList</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">device</span><span class="p">);</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">        </span><span class="n">DeviceRegister</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">device</span><span class="p">,</span><span class="w"> </span><span class="n">deviceRegistration</span><span class="p">);</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">        </span><span class="n">Battery</span><span class="w"> </span><span class="n">battery</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">device</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Battery</span><span class="p">;</span>
+</span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">battery</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-15-14"><a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-15-15"><a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="w">            </span><span class="n">BatteryList</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">battery</span><span class="p">);</span>
+</span><span id="__span-15-16"><a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-15-17"><a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="w">        </span><span class="n">device</span><span class="p">.</span><span class="n">ConnectedCableNetworks</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+</span><span id="__span-15-18"><a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a><span class="w">        </span><span class="n">RefreshNetworkDevice</span><span class="p">(</span><span class="n">device</span><span class="p">);</span>
+</span><span id="__span-15-19"><a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-15-20"><a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">deviceRegistration</span><span class="p">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">cable</span><span class="p">))</span>
+</span><span id="__span-15-21"><a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-15-22"><a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a><span class="w">        </span><span class="n">deviceRegistration</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">cable</span><span class="p">);</span>
+</span><span id="__span-15-23"><a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a><span class="w">        </span><span class="n">DeviceRegister</span><span class="p">[</span><span class="n">device</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">deviceRegistration</span><span class="p">;</span>
+</span><span id="__span-15-24"><a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a><span class="w">        </span><span class="n">RefreshNetworkDevice</span><span class="p">(</span><span class="n">device</span><span class="p">);</span>
+</span><span id="__span-15-25"><a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-15-26"><a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a><span class="w">    </span><span class="n">DirtyPowerAndDataDeviceLists</span><span class="p">();</span>
+</span><span id="__span-15-27"><a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>What completion DOES gate is per-class query behavior after registration: the base <code>Device.GetUsedPower</code> (371510-371521, quoted in "Construction completion" above) returns 0 unless <code>OnOff &amp;&amp; base.IsStructureCompleted</code>, so an incomplete device sits on the network with zero demand. IMPORTANT caveat: that gating is per-CLASS, applied inside individual method overrides, and an override can drop it entirely. <code>AreaPowerControl</code> is the proven example: its <code>GetUsedPower</code> replaces the base without any completion term, and its <code>IsOperable</code> output-network fallback keeps <code>Error</code> at 0, so an APC generates output power at any <code>CurrentBuildStateIndex</code> while a valid output network exists (see <a href="../AreaPowerControl/">AreaPowerControl</a>, "IsOperable: a valid output network bypasses completion, broken, and short-circuit gating"). Per-method gate census for the base class: <a href="../Device/">Device</a>, "GetUsedPower gates: what makes the base override report zero demand".</p>
 <h3 id="multiplayer-flow-the-destructive-interaction-runs-host-side">Multiplayer flow: the destructive interaction runs host-side<a class="headerlink" href="#multiplayer-flow-the-destructive-interaction-runs-host-side" title="Permanent link">&para;</a></h3>
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
 
 <p><code>OnServer.AttackWith</code> (39630-39654) executes <code>thing.AttackWith(attack, runSimulation)</code> locally with <code>doAction = GameManager.RunSimulation</code>; on a remote client that is a preview-only call, and the client forwards an <code>AttackWithMessage</code> to the server. <code>AttackWithMessage.Process</code> (277409-277420) reconstructs the <code>Attack</code> and calls <code>thing2.AttackWith(attack)</code> with the default <code>doAction = true</code>. So the kit spawn and destroy above only ever execute where <code>RunSimulation</code> is true. <code>AttackWithMessage</code> is MessageFactory index 63 (191267; see <a href="../../Protocols/GameMessageFactory/">GameMessageFactory</a>).</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">AttackWith</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">attackParent</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">activeHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">offHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">targetId</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isCopy</span><span class="p">)</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">runSimulation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">;</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="n">Slot</span><span class="w"> </span><span class="n">activeHand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">attackParent</span><span class="p">.</span><span class="n">Slots</span><span class="p">[</span><span class="n">activeHandSlotId</span><span class="p">];</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">targetId</span><span class="p">);</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">thing</span><span class="p">)</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">        </span><span class="n">Slot</span><span class="w"> </span><span class="n">otherHand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">attackParent</span><span class="p">.</span><span class="n">Slots</span><span class="p">[</span><span class="n">offHandSlotId</span><span class="p">];</span>
-</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">        </span><span class="n">Attack</span><span class="w"> </span><span class="n">attack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Attack</span><span class="p">(</span><span class="n">activeHand</span><span class="p">,</span><span class="w"> </span><span class="n">otherHand</span><span class="p">,</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">,</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="n">isCopy</span><span class="p">);</span>
-</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thing</span><span class="p">.</span><span class="n">AttackWith</span><span class="p">(</span><span class="n">attack</span><span class="p">,</span><span class="w"> </span><span class="n">runSimulation</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
-</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">            </span><span class="n">NetworkClient</span><span class="p">.</span><span class="n">SendToServer</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">AttackWithMessage</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">});</span><span class="w">   </span><span class="c1">// fields at 39641-39651</span>
-</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="p">}</span>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">AttackWith</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">attackParent</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">activeHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">byte</span><span class="w"> </span><span class="n">offHandSlotId</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">targetId</span><span class="p">,</span><span class="w"> </span><span class="n">Vector3</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">isCopy</span><span class="p">)</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="p">{</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">runSimulation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameManager</span><span class="p">.</span><span class="n">RunSimulation</span><span class="p">;</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="n">Slot</span><span class="w"> </span><span class="n">activeHand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">attackParent</span><span class="p">.</span><span class="n">Slots</span><span class="p">[</span><span class="n">activeHandSlotId</span><span class="p">];</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Thing</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">targetId</span><span class="p">);</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">bool</span><span class="p">)</span><span class="n">thing</span><span class="p">)</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">        </span><span class="n">Slot</span><span class="w"> </span><span class="n">otherHand</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">attackParent</span><span class="p">.</span><span class="n">Slots</span><span class="p">[</span><span class="n">offHandSlotId</span><span class="p">];</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">        </span><span class="n">Attack</span><span class="w"> </span><span class="n">attack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Attack</span><span class="p">(</span><span class="n">activeHand</span><span class="p">,</span><span class="w"> </span><span class="n">otherHand</span><span class="p">,</span><span class="w"> </span><span class="n">attackPosition</span><span class="p">,</span><span class="w"> </span><span class="n">thing</span><span class="p">,</span><span class="w"> </span><span class="n">completedRatio</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">,</span><span class="w"> </span><span class="n">isDestroy</span><span class="p">,</span><span class="w"> </span><span class="n">isCopy</span><span class="p">);</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thing</span><span class="p">.</span><span class="n">AttackWith</span><span class="p">(</span><span class="n">attack</span><span class="p">,</span><span class="w"> </span><span class="n">runSimulation</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">IsClient</span><span class="p">)</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">            </span><span class="n">NetworkClient</span><span class="p">.</span><span class="n">SendToServer</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">AttackWithMessage</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">});</span><span class="w">   </span><span class="c1">// fields at 39641-39651</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>What syncs automatically once a mod acts host-side: item spawns replicate via <code>Thing.NewToSend</code> (added inside <code>Thing.Create</code>; clients construct in <code>Thing.DeserializeNew</code> 322270); destruction replicates via <code>Thing.DestroyToSend</code> (<code>Thing.OnDestroy</code> 320984-320999 adds <code>DestroyEvent.Create(this)</code> when <code>IsServer &amp;&amp; HasClients</code>); cable-network splits replicate via <code>RebuildCableNetworkEvent</code> (271214-271217); quantity on a spawned stack rides the normal delta state (the <code>Stackable.Quantity</code> setter sets <code>NetworkUpdateFlags |= 1024</code>).</p>
 <p>Therefore a mod's refuse-and-drop needs exactly: run on <code>GameManager.RunSimulation</code> only; <code>OnServer.Create&lt;Item&gt;(BuildStates[0].Tool.ToolEntry, position, rotation)</code>; <code>SetQuantity(EntryQuantity)</code>; <code>OnServer.Destroy(structure)</code>. Nothing manual to send. Mimic <code>ToolUse.SpawnItem</code>'s order (spawn the refund, then destroy) and prefer <code>Item.SetQuantity</code> (as used at 316216) over the raw <code>Quantity</code> setter.</p>
@@ -9022,6 +9243,7 @@
 <li>2026-06-19: extended the subclass tree with the ladder family (<code>Ladder : SmallGrid, ISmartRotatable</code>, <code>LadderEnd : Ladder</code>, <code>LadderPlatform : Floor : Wall : LargeStructure</code>) and a <code>Stairs : Structure</code> note. Additive; no existing content changed. Sources: <code>Assets.Scripts.Objects.Ladder</code> / <code>LadderEnd</code> / <code>LadderPlatform</code>, <code>SmallGrid</code>, <code>LargeStructure</code>, <code>Wall</code>, <code>Floor</code>, <code>Stairs</code> (all in <code>Assembly-CSharp</code>, game version 0.2.6228.27061).</li>
 <li>2026-07-14: added four subsections to "Build-state model and the destruction path" from the mixed-tier cable network guard research pass against the 0.2.6403.27689 decompile: the tool-deconstruct branch of <code>Structure.AttackWith</code> verbatim (315205-315262, with the <code>CanDeconstruct</code> gate at 315366-315369 and <code>Cable.CanDeconstruct</code>'s <code>AttachedDevices</code> refusal at 392393-392405, and the <code>StructureDestroyed</code> kit-refund excerpt gated on <code>!destroyedFromDamage</code>), the <code>ToolBasic</code> / <code>ToolUse</code> field blocks (316015-316027 / 316130-316143) with the cable-coil kit-identity note (read <code>BuildStates[0].Tool.ToolEntry</code> x <code>EntryQuantity</code> from the live instance), <code>ToolUse.Deconstruct</code> + <code>SpawnItem</code> verbatim (316169-316234) as the canonical drop-spawn pattern plus <code>OnServer.Create&lt;T&gt;</code> (39866-39876) and <code>OnServer.Destroy</code> (39914-39926) with its soft non-simulation guard (logs an error on a client, still destroys locally), and the multiplayer flow (<code>OnServer.AttackWith</code> 39630-39654 runs with <code>doAction = RunSimulation</code>; <code>AttackWithMessage.Process</code> 277409-277420 re-runs host-side with <code>doAction = true</code>; <code>AttackWithMessage</code> is MessageFactory index 63 at 191267; spawns replicate via <code>NewToSend</code>, destroys via <code>DestroyToSend</code> per <code>Thing.OnDestroy</code> 320984-320999, stack quantity via <code>NetworkUpdateFlags |= 1024</code>). Also recorded <code>Structure.UpgradeStructureServer</code> (315307-315315) as the destroy-then-<code>SpawnConstruct</code> upgrade pattern. Additive; the existing prose summary of the deconstruct path ("deconstructing build state 0 removes the object via <code>BuildStates[0].Tool.Deconstruct</code> then <code>OnServer.Destroy</code>") is refined, not contradicted, by the exact branch mechanics.</li>
 <li>2026-07-15: added the "Construction completion: the tool stroke has no network side effects" subsection from the fresh-device power investigation against the 0.2.6403.27689 decompile plus a live dedicated-server trace: the construct branch's completion write is <code>CurrentBuildStateIndex++</code> + <code>UpdateStateVisualizer()</code> only (315202-315203); <code>IsStructureCompleted</code> is last-index with the <code>CanManufacture</code> carve-out (313965-313978); base <code>Device.GetUsedPower</code> returns -1 for a foreign network and gates demand on <code>OnOff &amp;&amp; IsStructureCompleted</code> (371510-371521); <code>Thing.Create</code> / <code>OnServer.Create</code> spawns of multi-state structures arrive at <code>CurrentBuildStateIndex = 0</code> (live-observed on StructureConsole). Live verification via a ScenarioRunner per-tick trace (scenario pgp-fresh-device-trace on the dedicated server): demand and funding land on the same electricity tick at both the spawn-complete and the build-completion boundaries. Additive; no existing claim contradicted.</li>
+<li>2026-07-18: added two subsections to "Build-state model and the destruction path" from the build-state completion boundary research pass; the findings were produced and independently adversarially verified against the 0.2.6403.27689 decompile this session. "IsStructureCompleted exact semantics" (verbatim 313965-313979: last index unconditionally completed, so 1-state prefabs are complete at index 0; a non-last index requires index &gt; 0 AND &lt; Count AND CanManufacture; index 0 of a multi-state ladder is never completed; plus the CurrentBuildStateIndex setter 314029-314062, whose first statement clamps any value above Count - 1 to 0). "Network and port registration is never completion-gated" (Device.InitializeDevice 371775-371815 registers into every adjacent cable / pipe / chute network with no build-state term, invoked for all devices from XmlSaveLoad.LoadWorld at 268725 via InitializeDeviceAction 370383-370390; CableNetwork.AddDevice 270966-270992 has no completion check; completion shapes only per-class query methods afterwards, with the per-class caveat recorded and AreaPowerControl cited as the proven override that drops the gate). Additive; the existing "Construction completion" summary is refined, not contradicted (its "middle state" carve-out phrasing is the index &gt; 0 case, now spelled out).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>

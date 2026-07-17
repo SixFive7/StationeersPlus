@@ -5408,6 +5408,8 @@
       
         
       
+        
+      
     
     
     
@@ -6326,6 +6328,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../PassiveTooltipPipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Passive tooltip pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../PeriodicProcessing/" class="md-nav__link">
         
   
@@ -6585,6 +6615,17 @@
     <span class="md-ellipsis">
       
         XmlSaveLoad.LoadWorld is async: a Harmony postfix fires at load START, not load completion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#onfinishedload-also-fires-on-multiplayer-client-join-not-only-on-save-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OnFinishedLoad also fires on multiplayer client join, not only on save load
       
     </span>
   </a>
@@ -8348,6 +8389,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#onfinishedload-also-fires-on-multiplayer-client-join-not-only-on-save-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OnFinishedLoad also fires on multiplayer client join, not only on save load
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8459,7 +8511,7 @@
 type: Patterns
 created_in: 0.2.6228.27061
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-13
+verified_at: 2026-07-18
 sources:
   - Plans/EquipmentPlus/RESEARCH.md:250-251 (F0122, primary)
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:11-28 (F0333)
@@ -8467,6 +8519,7 @@ sources:
   - Plans/EquipmentPlus/EquipmentPlus/ActiveSlotPersistence.cs:95-101 (F0374)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: XmlSaveLoad class (line 267663), Load<T> (line 268424), Load (line 268463)
   - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: LoadWorld (line 268507), caller (line 264682), GameManager.GameTick pause gate (lines 204387-204418)
+  - .work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :: NetworkClient.ProcessJoinData (line 213188, tail 213235-213239), GameManager.StartGame (204575-204581), UpdateThingsOnGameStart (204629-204632) + UpdateThingsOnGameStartAction (203847-203869), Device.InitAllDevices (371889-371892)
 related:
   - ../GameSystems/SaveDataRegistration.md
   - ./HarmonyInheritedMethods.md
@@ -8634,6 +8687,53 @@ tags: [save-load, harmony]</p>
 <li>To run code at load completion, do not postfix <code>LoadWorld</code> directly. Hook something the tail of the load actually reaches (per-Thing <code>OnFinishedLoad</code>, or the <code>GameState</code> transition to <code>Running</code>), or take <code>__result</code> (the <code>UniTask</code>) in the postfix and continue after awaiting it.</li>
 <li>A postfix that assumes "no simulation tick is running because the game just paused" is also wrong on arrival: <code>GameManager.GameTick</code> (204387) checks <code>WorldManager.IsGamePaused</code> only at the TOP of each loop iteration (204394) and then moves the tick body onto a ThreadPool worker (<code>await UniTask.SwitchToThreadPool()</code>, 204418). A tick that passed the pause check before <code>SetGamePause(true)</code> landed runs to completion, including <code>ElectricityManager.ElectricityTick()</code> (204466), concurrently with the first stretch of <code>LoadWorld</code> and with anything a load-start postfix does. See <a href="../../GameSystems/PowerTickThreading/">PowerTickThreading</a>.</li>
 </ul>
+<h2 id="onfinishedload-also-fires-on-multiplayer-client-join-not-only-on-save-load">OnFinishedLoad also fires on multiplayer client join, not only on save load<a class="headerlink" href="#onfinishedload-also-fires-on-multiplayer-client-join-not-only-on-save-load" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+<p>The <code>OnFinishedLoad</code> hook this page's pattern relies on is NOT exclusive to the save-load path. Both game-entry paths funnel into the same per-Thing sweep, <code>GameManager.UpdateThingsOnGameStart</code> (204629-204632):</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">UpdateThingsOnGameStart</span><span class="p">()</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">OcclusionManager</span><span class="p">.</span><span class="n">AllThings</span><span class="p">.</span><span class="n">ForEach</span><span class="p">(</span><span class="n">UpdateThingsOnGameStartAction</span><span class="p">);</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>whose action (203847-203869) invokes <code>thing.OnFinishedLoad()</code> per thing behind a per-thing try / catch, verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">private</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Action</span><span class="o">&lt;</span><span class="n">Thing</span><span class="o">&gt;</span><span class="w"> </span><span class="n">UpdateThingsOnGameStartAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delegate</span><span class="p">(</span><span class="n">Thing</span><span class="w"> </span><span class="n">thing</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">object</span><span class="p">)</span><span class="n">thing</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="k">try</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">        </span><span class="n">thing</span><span class="p">.</span><span class="n">OnFinishedLoad</span><span class="p">();</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">        </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">Interactable</span><span class="w"> </span><span class="n">interactable</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">thing</span><span class="p">.</span><span class="n">Interactables</span><span class="p">)</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">interactable</span><span class="p">.</span><span class="n">JoinInProgressSync</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="n">interactable</span><span class="p">.</span><span class="n">Animator</span><span class="p">)</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">            </span><span class="p">{</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">                </span><span class="n">interactable</span><span class="p">.</span><span class="n">SetState</span><span class="p">();</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">                </span><span class="n">thing</span><span class="p">.</span><span class="n">OnFinishedInteractionSync</span><span class="p">(</span><span class="n">interactable</span><span class="p">);</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">            </span><span class="p">}</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="w">    </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="w"> </span><span class="n">arg</span><span class="p">)</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">        </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;OnFinishedLoad failed for {thing.DisplayName} #{thing.ReferenceId}: {arg}&quot;</span><span class="p">);</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="p">};</span>
+</span></code></pre></div>
+<p>Call sites (whole-decompile census at 0.2.6403.27689: exactly two):</p>
+<ul>
+<li>Host / single-player start after load: <code>GameManager.StartGame</code> (204575) sets <code>GameState = GameState.Running;</code> (204577) and calls <code>UpdateThingsOnGameStart();</code> (204580).</li>
+<li>Multiplayer client join: <code>NetworkClient.ProcessJoinData</code> (<code>NetworkClient : NetworkBase</code> at 212856; the method at 213188, awaited from the join flow at 213084) ends the join with (213235-213239), verbatim:</li>
+</ul>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">GameManager</span><span class="p">.</span><span class="n">GameState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GameState</span><span class="p">.</span><span class="n">Running</span><span class="p">;</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">GameManager</span><span class="p">.</span><span class="n">UpdateThingsOnGameStart</span><span class="p">();</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">Device</span><span class="p">.</span><span class="n">InitAllDevices</span><span class="p">();</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">Singleton</span><span class="o">&lt;</span><span class="n">DiscordClient</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Instance</span><span class="p">.</span><span class="n">UpdateActivityInGame</span><span class="p">();</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">Rocket</span><span class="p">.</span><span class="n">OnFinishedLoad</span><span class="p">();</span>
+</span></code></pre></div>
+<p>(<code>Device.InitAllDevices</code> at 371889-371892 is <code>AllDevices.ForEach(InitializeDeviceAction);</code>, the same device network-registration sweep the load path runs at 268725; the joining client re-registers device network membership right after the OnFinishedLoad sweep.) On both paths the sweep runs after <code>GameState</code> was set to <code>Running</code>, so a <code>GameManager.GameState</code> check inside an <code>OnFinishedLoad</code> hook sees <code>Running</code>, never <code>Loading</code> or <code>Joining</code>.</p>
+<p>Consequence for this page's pattern (stale-cache hazard): a mod restore keyed on <code>Thing.OnFinishedLoad</code> ALSO fires on every multiplayer join, for every replicated thing, with whatever state the mod's process-level caches hold at that moment. A stash dictionary populated by an earlier world in the same game process (a single-player session before joining a server, or a previous join) is still there when the join-time sweep runs, and colliding <code>ReferenceId</code>s apply stale entries to the new world's things. A load-keyed restore must clear its stashes on world teardown (or key them per world session) and must tolerate things for which no stash entry exists.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
 
@@ -8642,6 +8742,7 @@ tags: [save-load, harmony]</p>
 <li>2026-06-10: added the "OnRegistered fires before DeserializeSave" section from a direct read of <code>XmlSaveLoad.LoadThing</code> (line 251312) and <code>GridController.AddGridStructure</code> (line 191515-191563) in the 0.2.6228.27061 decompile, during the PowerGridPlus Setting-init design.</li>
 <li>2026-07-02: added the "XmlSaveLoad.LoadThing renamed to Load at 0.2.6403" section (<code>Load</code> plus a new generic <code>Load&lt;T&gt;</code> overload). Verified against the 0.2.6403.27689 decompile: zero grep hits for <code>LoadThing</code>, replacement overloads quoted verbatim from lines 268424 and 268463. The 0.2.6228-stamped ordering sections above were not restamped; the new section records which part of their evidence (the Create -&gt; DeserializeSave -&gt; ValidateOnLoad order) is re-confirmed by the new body and which part (<code>GridController.AddGridStructure</code>) was not re-read.</li>
 <li>2026-07-13: added the "XmlSaveLoad.LoadWorld is async" section (game version 0.2.6403.27689) from a fresh-validation pass on a decompile-claim audit. Verbatim method head read at 268507-268516 (<code>public static async UniTask LoadWorld(bool loadWithoutChars = false)</code>; <code>SetGamePause(true)</code> is the first synchronous statement, <code>GameState = Loading</code> lands only after three awaits); sole caller <code>await XmlSaveLoad.LoadWorld();</code> at 264682; the <code>GameTick</code> top-of-loop pause gate (204394) and <code>SwitchToThreadPool</code> handoff (204418) read the same pass. Establishes that a Harmony postfix on <code>LoadWorld</code> fires at load start (the async stub returns at the first suspending await) with a simulation tick possibly still in flight. Additive; no existing content contradicted.</li>
+<li>2026-07-18: added the "OnFinishedLoad also fires on multiplayer client join" section (game version 0.2.6403.27689); the finding was produced and independently adversarially verified against the decompile this session. Whole-decompile census: <code>UpdateThingsOnGameStart</code> (204629-204632, <code>OcclusionManager.AllThings.ForEach(UpdateThingsOnGameStartAction)</code>) has exactly two callers, <code>GameManager.StartGame</code> (204580, after <code>GameState = Running</code> at 204577) and the tail of <code>NetworkClient.ProcessJoinData</code> (213236, after <code>GameState = Running</code> at 213235 and followed by <code>Device.InitAllDevices()</code> at 213237); the action delegate (203847-203869) calls <code>thing.OnFinishedLoad()</code> (203855) behind a per-thing try / catch. Records the stale-cache hazard for OnFinishedLoad-keyed restores on join. Additive; no existing content contradicted.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None at creation.</p>
