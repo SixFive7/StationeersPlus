@@ -215,7 +215,9 @@ namespace PowerGridPlus
                 "each input network.\n" +
                 "Deprioritization: a transformer that cannot get its share of the input network is deprioritized " +
                 "for 60 seconds (contributes 0 to the output network, flashes its on / off button orange, hover " +
-                "shows the cause with a live countdown), then re-engages automatically. Lowest priority drops first.\n" +
+                "shows the cause with a live countdown), then re-engages automatically. Lowest priority drops first, " +
+                "and this includes transformers feeding higher-tier networks: give a backbone transformer a high " +
+                "Priority so a small deficit sheds rooms, never the trunk that feeds them.\n" +
                 "Device overload: a transformer delivering at its Setting cap while downstream demand stays " +
                 "unmet enters device overload (red flash, hover countdown with the draw and cap in Watts), " +
                 "contributes 0 for 60 seconds, then re-engages.\n" +

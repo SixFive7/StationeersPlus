@@ -762,10 +762,10 @@ namespace PowerGridPlus
             ShortfallDiagnostics.PublishRatioScope(ratioScope);
 
             // ----------------------------------------------------------------
-            // STRANDED-INFLOW CLAWBACK. The deciding rounds keep deprioritized contributors' desires
-            // visible (DesireActive ignores Deprioritized) so deprioritization stays re-decidable. The converged
-            // state can therefore carry inflow committed for a consumer the same forward pass
-            // deprioritized: billed upstream, consumed by nobody (the net-487688 conservation bug). Undo
+            // STRANDED-INFLOW CLAWBACK. Since decision-33 (d) desires exclude deprioritized
+            // contributors, so the converged inflow is normally sized without them; residual
+            // stranding can still arise from the 2-cycle union settle (flags OR'd after the
+            // grants) and rounding, the net-487688 conservation shape. Undo
             // exactly that surplus and nothing else: walk leaf -> source; on every network whose
             // total committed inflow exceeds its total consumption, take the surplus back from
             // its active suppliers in reverse grant order (the tail of the sequential grant loop
@@ -1186,12 +1186,17 @@ namespace PowerGridPlus
         // would have relieved (the 2c case).
         // =====================================================================
 
-        // A contributor is eligible to DESIRE power (backward pass) when it is not locked and not
-        // overloaded. Deprioritized is deliberately IGNORED here: the forward pass re-decides deprioritization
-        // every round, so a previously-deprioritized contributor must still present its desired pull to be
-        // reconsidered. The inflow this can leave committed toward a still-deprioritized consumer at the final state is
-        // removed after the loop by the stranded-inflow clawback in RunAtomic, not by changing this gate.
-        private static bool DesireActive(Seg s) => !s.Locked && !s.Overloaded;
+        // A contributor is eligible to DESIRE power (backward pass) when it is fully active.
+        // Decision-33 (d) change: Deprioritized now EXCLUDES the desire, so a shed branch's claim
+        // stops inflating its parents' claims the very next round and the source net's deficit
+        // resolves within the tick (previously the trunk claim stayed inflated by already-shed
+        // children, leaving the source DEAD_UNMET for a spurious 60 s hold per escalation level).
+        // Re-decidability is NOT lost: DecideVictimsDeepFirst clears every flag at its start, so a
+        // cleared claim re-enters its own net's contest each round and survives whenever the
+        // budget genuinely covers it (the 2c overload-frees-budget retraction still works through
+        // that path). The stranded-inflow clawback stays as the belt for settle-only states (the
+        // 2-cycle union) and rounding residue.
+        private static bool DesireActive(Seg s) => !s.Locked && !s.Overloaded && !s.Deprioritized;
 
         // Kahn topological order over the live contributor edges InNet -> OutNet. Cycle-faulted segs are
         // Locked and excluded, so the live graph is a forest/DAG; every network lands AFTER all the
@@ -1266,7 +1271,7 @@ namespace PowerGridPlus
         {
             // Clean slate once per tick (clearFaults: the FIRST call of the tick only; the decision-33
             // rule-1b outer iteration re-enters with the sticky flags preserved). Within the loop
-            // DEPRIORITIZED is re-decided every round (ForwardSupplyAndDeprioritize
+            // DEPRIORITIZED is re-decided every round (DecideVictimsDeepFirst
             // clears it); OVERLOAD only ever GROWS (sticky: committed on detection, reset only by the 60 s
             // timeout or a player turn-off), so it is cleared here once and never inside a round. The
             // overload kind bit and payload pair travel with the flag: written by the detector that
@@ -1312,7 +1317,12 @@ namespace PowerGridPlus
                 // run once at loop settle after shedding has finished (decision 33). The supply
                 // rules (elastic / cable) need the forward pass's Unmet, so they run after it.
                 DetectStructuralOverload(netList, segs);
-                ForwardSupplyAndDeprioritize(topo, segs, settleOnly: false);
+                // Grant with the previous decisions, re-decide leaf-to-source against the settled
+                // grants (decision-33 (d)), then settle with the fresh decisions so Unmet and the
+                // flows the supply-overload rules read are never a pre-shed transient.
+                ForwardSupplyAndDeprioritize(topo, segs);
+                DecideVictimsDeepFirst(topoRev, segs);
+                ForwardSupplyAndDeprioritize(topo, segs);
                 DetectSupplyOverload(netList, elastics);
 
                 var curDeprioritized = CollectFlagged(segs, deprioritized: true);
@@ -1337,7 +1347,7 @@ namespace PowerGridPlus
                     }
                     foreach (var e in elastics) if (prevEl.Contains(e.RefId)) e.Overloaded = true;
                     BackwardDesirePass(topoRev);
-                    ForwardSupplyAndDeprioritize(topo, segs, settleOnly: true);
+                    ForwardSupplyAndDeprioritize(topo, segs);
                     converged = true;
                     break;
                 }
@@ -1390,12 +1400,10 @@ namespace PowerGridPlus
                         ? c.DesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f) + c.UsedPower
                         : (DesireActive(c) && c.QuiescentAlwaysOn ? c.UsedPower : 0f);
                     pulls += c.DesiredPull;
-                    // Soft gates on IsActive, NOT DesireActive: rigid must keep a deprioritized
-                    // contributor's claim visible so the forward pass can re-decide the
-                    // deprioritization, but soft never drives a deprioritization, so a deprioritized
-                    // contributor's charge desire must NOT size its suppliers -- the delivered soft
-                    // would strand on this net (billed upstream, consumed by nobody). A contributor
-                    // released from deprioritization next round restores the desire one round later.
+                    // Soft gates on IsActive like rigid does since decision-33 (d): a deprioritized
+                    // contributor's desires must not size its suppliers (the delivered power would
+                    // strand on this net, billed upstream and consumed by nobody). Re-decision
+                    // rides the decision pass's flag clear, not desire persistence.
                     c.SoftDesiredPull = (IsActive(c) && c.SoftDesiredThroughput > 0f)
                         ? c.SoftDesiredThroughput * Mathf.Max(c.InputDrawFactor, 1f)
                           + (c.DesiredPull > 0f ? 0f : c.UsedPower)
@@ -1474,14 +1482,13 @@ namespace PowerGridPlus
 
         // Forward supply sweep (source -> leaf). For each network in topo order (so every supplier's
         // actual throughput is already finalized), compute the supply actually reaching it and distribute
-        // to its consumers highest-priority-first. When deciding (settleOnly == false) deprioritization is
-        // RE-DECIDED here: if the active consumers' desired RIGID pulls exceed the budget the network can
-        // pass, victims are deprioritized (whole, never partial) per the tier-major best-fit rule in
-        // SelectDeprioritizationVictims until the rest fit; a network with
-        // no supply at all (avail <= Eps) deprioritizes nothing (dead-input idle). settleOnly == true keeps the
-        // current deprioritized/overload flags and only recomputes throughputs + per-net fields (used to settle a
-        // 2-cycle). After the rigid grants, SOFT (storage charge) is granted per net from the firm
-        // residual: deprioritization decisions, budgets, and Unmet never see the soft class.
+        // to its consumers highest-priority-first under the CURRENT flags. Since decision 33 (d) this
+        // pass makes NO deprioritization decisions: victims are re-decided by DecideVictimsDeepFirst
+        // between the round's two forward passes (grant with last decisions, decide leaf-to-source,
+        // settle with the fresh decisions), so the round's published grants, Unmet, and flows are
+        // always consistent with its own decisions and the supply-overload rules never read a
+        // pre-shed transient. After the rigid grants, SOFT (storage charge) is granted per net from
+        // the firm residual: deprioritization decisions, budgets, and Unmet never see the soft class.
 
         // Caller-side scratch for the victim selector's candidate tuples. Power-worker only; the
         // selector itself keeps no state, so its purity / re-entrancy is unaffected by this buffer.
@@ -1490,8 +1497,10 @@ namespace PowerGridPlus
 
         // Leaf-first victim protection: true while this seg's output net feeds at least one other
         // ACTIVE (unlocked, unoverloaded, not deprioritized) seg, i.e. the seg is a mid-chain hop.
-        // Evaluated fresh inside every deciding round, so a hop becomes eligible for deprioritization
-        // the round after its whole subtree went dark, and only then.
+        // Since decision 33 this is the ONLY trunk protection (the categorical step-up exclusion is
+        // retired), and the decision pass walks leaf-to-source, so a hop sees its children's
+        // decisions from THIS round and becomes eligible the moment its whole subtree is dark,
+        // within the same tick.
         private static bool FeedsActiveSeg(Seg c)
         {
             var outNet = c.OutNetModel;
@@ -1505,7 +1514,79 @@ namespace PowerGridPlus
             return false;
         }
 
-        private static void ForwardSupplyAndDeprioritize(List<Net> topo, List<Seg> segs, bool settleOnly)
+        // Decision-33 (d): the per-round victim re-decision, run leaf-to-source (netsDeepFirst)
+        // AFTER the forward pass has settled this round's grants and BEFORE the settle pass grants
+        // against the fresh decisions. Deep-first ordering means a parent's FeedsActiveSeg sees
+        // its children's decisions from THIS round, so leaf-to-trunk escalation completes within
+        // one tick's rounds instead of one level per tick (each level previously costing the
+        // source net a spurious 60 s DEAD_UNMET hold). Clears every seg's Deprioritized flag
+        // first: the flag clear IS the re-decision mechanism (a cleared claim re-enters its net's
+        // contest and survives whenever the budget genuinely covers it), which is what lets the
+        // backward pass gate desires on full IsActive without losing re-decidability.
+        private static void DecideVictimsDeepFirst(List<Net> netsDeepFirst, List<Seg> segs)
+        {
+            foreach (var seg in segs) seg.Deprioritized = false;
+
+            foreach (var n in netsDeepFirst)
+            {
+                // The same supply expressions the forward pass used this round. Suppliers of n sit
+                // shallower than n, so the deep-first walk has not re-marked them yet when n is
+                // decided: their settled Throughput is the consistent avail basis.
+                float firmIn = n.GenSupply;
+                foreach (var s in n.Suppliers)
+                    if (IsActive(s)) firmIn += s.Throughput;
+                float avail = firmIn + AvailableElastic(n);
+                if (avail <= Eps) continue;   // dead-input carveout (§8.3.1): a dead net sheds nothing
+
+                float budget = avail - n.RigidDemand;
+                if (budget < 0f) budget = 0f;
+
+                float claims = 0f;
+                foreach (var c in n.Consumers)
+                    if (!c.Locked && !c.Overloaded && !c.Deprioritized) claims += c.DesiredPull;
+                if (claims <= budget + Eps) continue;
+
+                // Victim CHOICE is delegated to the pure selector (watt-minimizing, POWER.md 8.3 /
+                // 8.3.3); this block only feeds it the live candidates and marks the returned set
+                // whole. Locked / overloaded / already-marked segs never enter (live per-round
+                // gates); the protected-hop and tiny-claim gates are policy and live inside
+                // SelectDeprioritizationVictims. If the selector runs out of eligible candidates
+                // the residual deficit is accepted as-is.
+                _victimCandidateBuffer.Clear();
+                foreach (var c in n.Consumers)
+                    if (!c.Locked && !c.Overloaded && !c.Deprioritized)
+                        // Leaf-first deprioritization (POWER.md §0 decision 24 stage 4; decision-33
+                        // step-up edition): a seg whose output net still feeds ACTIVE child segs is
+                        // a HOP and is protected (partial grant, never a victim), so the deficit
+                        // forwards downstream until it reaches segs feeding leaf nets. The
+                        // categorical step-up exclusion is RETIRED: a terminal step-up branch is a
+                        // leaf like any other, and a trunk step-up stays protected exactly while
+                        // its subtree is active.
+                        _victimCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, FeedsActiveSeg(c)));
+                var victims = SelectDeprioritizationVictimsDetailed(_victimCandidateBuffer, claims - budget);
+                for (int vi = 0; vi < victims.Count; vi++)
+                {
+                    var victim = victims[vi];
+                    foreach (var c in n.Consumers)
+                        if (c.RefId == victim.RefId)
+                        {
+                            c.Deprioritized = true;
+                            // Hover payload (the block FaultHover renders, POWER.md §11.1): the
+                            // victim's own rigid pull, the net's total rigid want this round, the
+                            // supply the net could raise, and the selector's decision fields.
+                            c.DeprioritizedNeedsW = c.DesiredPull;
+                            c.DeprioritizedUpstreamDemandW = n.RigidDemand + claims;
+                            c.DeprioritizedUpstreamSupplyW = avail;
+                            c.DeprioritizedShortfallW = victim.ShortfallAtCut;
+                            c.DeprioritizedReason = victim.Reason;
+                            c.DeprioritizedVictimPriority = victim.Priority;
+                            break;
+                        }
+                }
+            }
+        }
+
+        private static void ForwardSupplyAndDeprioritize(List<Net> topo, List<Seg> segs)
         {
             foreach (var seg in segs)
             {
@@ -1513,7 +1594,6 @@ namespace PowerGridPlus
                 seg.Pull = 0f;
                 seg.SoftThrough = 0f;
                 seg.SoftPull = 0f;
-                if (!settleOnly) seg.Deprioritized = false;
             }
 
             foreach (var n in topo)
@@ -1527,60 +1607,6 @@ namespace PowerGridPlus
 
                 float budget = avail - n.RigidDemand;
                 if (budget < 0f) budget = 0f;
-
-                if (!settleOnly && avail > Eps)
-                {
-                    float claims = 0f;
-                    foreach (var c in n.Consumers)
-                        if (!c.Locked && !c.Overloaded && !c.Deprioritized) claims += c.DesiredPull;
-                    if (claims > budget + Eps)
-                    {
-                        // Victim CHOICE is delegated to the pure selector (tier-major best-fit,
-                        // POWER.md 8.3 / 8.3.3); this block only feeds it the live candidates and
-                        // marks the returned set whole. Locked / overloaded / already-deprioritized segs
-                        // never enter (live per-round gates); the step-up and tiny-claim gates are
-                        // policy and live inside SelectDeprioritizationVictims. If the selector runs out of
-                        // eligible candidates the residual deficit is accepted as-is, exactly as
-                        // the old walk's null-victim break did.
-                        _victimCandidateBuffer.Clear();
-                        foreach (var c in n.Consumers)
-                            if (!c.Locked && !c.Overloaded && !c.Deprioritized)
-                                // Leaf-first deprioritization (POWER.md §0 decision 24 stage 4): a seg whose
-                                // output net still feeds ACTIVE child segs is a HOP and is protected
-                                // exactly like a step-up (partial grant, never a victim), so the
-                                // deficit forwards downstream until it reaches segs feeding leaf
-                                // nets. As children are deprioritized across rounds, their parent
-                                // stops being a hop and becomes eligible: deprioritization escalates
-                                // leaf-to-trunk, and a no-practical-load trunk chain is never
-                                // deprioritized at all.
-                                _victimCandidateBuffer.Add((c.RefId, c.Priority, c.DesiredPull, c.StepUp || FeedsActiveSeg(c)));
-                        var victims = SelectDeprioritizationVictimsDetailed(_victimCandidateBuffer, claims - budget);
-                        for (int vi = 0; vi < victims.Count; vi++)
-                        {
-                            var victim = victims[vi];
-                            foreach (var c in n.Consumers)
-                                if (c.RefId == victim.RefId)
-                                {
-                                    c.Deprioritized = true;
-                                    // Hover payload (the block FaultHover renders, POWER.md §11.1):
-                                    // the victim's own rigid pull, the net's
-                                    // total rigid want this round (local rigid loads + every
-                                    // active contributor claim, the same terms the deficit above
-                                    // is made of), and the supply the net could actually raise.
-                                    c.DeprioritizedNeedsW = c.DesiredPull;
-                                    c.DeprioritizedUpstreamDemandW = n.RigidDemand + claims;
-                                    c.DeprioritizedUpstreamSupplyW = avail;
-                                    // Decision fields the selector recorded as this victim was cut:
-                                    // the decision-time shortfall, which reason case applied, and
-                                    // the victim's own priority value (the "priority of 80" text).
-                                    c.DeprioritizedShortfallW = victim.ShortfallAtCut;
-                                    c.DeprioritizedReason = victim.Reason;
-                                    c.DeprioritizedVictimPriority = victim.Priority;
-                                    break;
-                                }
-                        }
-                    }
-                }
 
                 float remaining = budget;
                 float survivorPull = 0f;
@@ -2020,7 +2046,7 @@ namespace PowerGridPlus
             for (int i = 0; i < candidates.Count; i++)
             {
                 var c = candidates[i];
-                if (c.stepUp) continue;        // never deprioritized (§5.2)
+                if (c.stepUp) continue;        // protected hop (FeedsActiveSeg): active subtree, never a victim
                 if (c.claim <= Eps) continue;  // nothing to reclaim
                 int claim = c.claim >= int.MaxValue ? int.MaxValue : (int)Math.Floor(c.claim);
                 pool.Add((c.priority, claim, c.refId));
