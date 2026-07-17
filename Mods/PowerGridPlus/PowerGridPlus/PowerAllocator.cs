@@ -201,6 +201,11 @@ namespace PowerGridPlus
             public long RefId;
             public CableNetwork OutNet;
             public float EffDischarge;     // min(rate cap, cable cap, stored)
+            // Decision-33 (f): true when STORED ENERGY is the binding term of EffDischarge (the
+            // store is running empty), false when the rate side binds. Rule 2 only faults
+            // rate-bound stores; an energy-bound store's shortfall is a supply problem and falls
+            // to the DEAD_UNMET verdict and its Undersupplied face.
+            public bool StoredBound;
             public bool Locked;
             public bool Overloaded;        // per-round (elastic hit-max analog); covers both overload kinds for the solve
             // Overload KIND bit + hover payload, same contract as Seg: CableOverloaded routes the
@@ -431,14 +436,14 @@ namespace PowerGridPlus
                             Elastic cellElastic = null;
                             if (cell.PowerStored > 0f)
                             {
+                                float apcRateSide = Mathf.Min(Settings.ApcBatteryDischargeRate.Value,
+                                    CableMax.For(apc.OutputConnection?.GetCable()));
                                 elastics.Add(cellElastic = new Elastic
                                 {
                                     RefId = apc.ReferenceId,
                                     OutNet = apc.OutputNetwork,
-                                    EffDischarge = Mathf.Min(
-                                        Mathf.Min(Settings.ApcBatteryDischargeRate.Value,
-                                            CableMax.For(apc.OutputConnection?.GetCable())),
-                                        cell.PowerStored),
+                                    EffDischarge = Mathf.Min(apcRateSide, cell.PowerStored),
+                                    StoredBound = cell.PowerStored < apcRateSide,
                                     Locked = seg.Locked,
                                     Kind = ChargeDeliveryAudit.KindApcCell,
                                     Owner = apc,
@@ -490,6 +495,7 @@ namespace PowerGridPlus
                                 RefId = battery.ReferenceId,
                                 OutNet = battery.OutputNetwork,
                                 EffDischarge = Mathf.Min(rateCap, battery.PowerStored),
+                                StoredBound = battery.PowerStored < rateCap,
                                 Locked = locked,
                                 Kind = ChargeDeliveryAudit.KindBattery,
                                 Owner = battery,
@@ -535,6 +541,9 @@ namespace PowerGridPlus
                                 RefId = umbilical.ReferenceId,
                                 OutNet = spec.OutNet,
                                 EffDischarge = spec.ElasticCapacity,
+                                // The adapter's capacity composition is opaque here; keep the
+                                // rate-bound overload semantics for umbilical cells.
+                                StoredBound = false,
                                 Locked = locked,
                                 Kind = ChargeDeliveryAudit.KindUmbilical,
                                 Owner = umbilical,
@@ -919,6 +928,7 @@ namespace PowerGridPlus
             //     untouched (next tick re-reads real supply), so recovery is never deadlocked.
             // ----------------------------------------------------------------
             var liveness = new Dictionary<long, byte>(netList.Count);
+            UndersuppliedRegistry.BeginServerPass();
             foreach (var n in netList)
             {
                 // Supply-absence is tested FIRST (decision-33 hold fix): a net nothing energized
@@ -928,11 +938,28 @@ namespace PowerGridPlus
                 // through the connecting merge onto the whole powered trunk (the fresh-device 60 s
                 // darkness root cause). A zero-supply net cannot deliver, so the demand-collapse
                 // flap the hold guards against is impossible there.
-                bool hasSupply = n.GenSupply + n.InflowCommitted + AvailableElastic(n) > Eps;
+                float availNow = n.GenSupply + n.InflowCommitted + AvailableElastic(n);
+                bool hasSupply = availNow > Eps;
                 byte formula = !hasSupply ? NetLiveness.DeadNoSupply
                              : n.Unmet > Eps ? NetLiveness.DeadUnmet
                              : NetLiveness.Live;
-                liveness[n.Id] = NetLiveness.ApplyHold(n.Id, formula, currentTick);
+                byte verdict = NetLiveness.ApplyHold(n.Id, formula, currentTick);
+                liveness[n.Id] = verdict;
+                if (verdict == NetLiveness.DeadUnmet)
+                {
+                    // Decision-33 Undersupplied face: record the needs-vs-delivers numbers and a
+                    // pointer at the strongest feeder for every device on this dark net to show.
+                    // Marked during the HELD tail too (formula-LIVE but held): the room is still
+                    // dark then, so the cue must not vanish before the light actually returns.
+                    float needsW = n.RigidDemand;
+                    foreach (var c in n.Consumers)
+                        if (IsActive(c)) needsW += c.DesiredPull;
+                    long feederRef = 0L;
+                    float feederCap = -1f;
+                    foreach (var s in n.Suppliers)
+                        if (!s.Locked && s.EffCap > feederCap) { feederCap = s.EffCap; feederRef = s.RefId; }
+                    UndersuppliedRegistry.MarkUndersupplied(n.Id, needsW, availNow, feederRef);
+                }
             }
             NetLiveness.Publish(liveness, currentTick);
             bool IsDeadNet(CableNetwork net)
@@ -1832,8 +1859,12 @@ namespace PowerGridPlus
             foreach (var n in netList)   // rule 2: elastic hit-max
             {
                 if (n.Unmet <= Eps) continue;
+                // Decision-33 (f): only RATE-bound stores take the capacity fault (their discharge
+                // rating is the binding limit; more or parallel stores fix it). An ENERGY-bound
+                // store is simply running empty, which is a supply problem, so it is skipped and
+                // the residual falls to the DEAD_UNMET verdict and its Undersupplied face.
                 foreach (var e in n.Elastics)
-                    if (!e.Locked && !e.Overloaded) e.Overloaded = true;
+                    if (!e.Locked && !e.Overloaded && !e.StoredBound) e.Overloaded = true;
             }
 
             foreach (var n in netList)   // rule 3: §5.7 cable overflow
@@ -2210,6 +2241,7 @@ namespace PowerGridPlus
         private static bool _currentMismatchWasNonEmpty;
         private static bool _deadInputWasNonEmpty;
         private static bool _cableOverloadWasNonEmpty;
+        private static bool _undersuppliedWasNonEmpty;
 
         internal static void SyncFaultSnapshots(int currentTick)
         {
@@ -2224,6 +2256,7 @@ namespace PowerGridPlus
                 DeadInputRegistry.SnapshotRemaining(), ref _deadInputWasNonEmpty);
             SendWithWattPayload(FaultRegistrySnapshotMessage.KindCableOverload,
                 CableOverloadRegistry.SnapshotRemaining(currentTick), ref _cableOverloadWasNonEmpty);
+            SendUndersupplied(ref _undersuppliedWasNonEmpty);
 
             var currentMismatch = new List<KeyValuePair<long, int>>();
             var violators = new List<string>();
@@ -2250,6 +2283,37 @@ namespace PowerGridPlus
             foreach (var pair in snapshot) entries.Add(pair);
             if (entries.Count > 0 || wasNonEmpty)
                 new FaultRegistrySnapshotMessage { Kind = kind, Entries = entries }.SendAll(0L);
+            wasNonEmpty = entries.Count > 0;
+        }
+
+        // Undersupplied (the DEAD_UNMET face, decision 33) is keyed by NETWORK id and carries the
+        // hover's needs / delivers pair plus the feeder pointer; a keep-alive TTL like the
+        // dead-input cue (no countdown to display), and intentionally not in the join handshake
+        // (the first heartbeat refreshes it within a tick).
+        private static void SendUndersupplied(ref bool wasNonEmpty)
+        {
+            var entries = new List<KeyValuePair<long, int>>();
+            var needs = new List<float>();
+            var avails = new List<float>();
+            var feeders = new List<long>();
+            foreach (var (netId, ttl, needsW, availW, feederRefId) in UndersuppliedRegistry.SnapshotRemaining())
+            {
+                entries.Add(new KeyValuePair<long, int>(netId, ttl));
+                needs.Add(needsW);
+                avails.Add(availW);
+                feeders.Add(feederRefId);
+            }
+            if (entries.Count > 0 || wasNonEmpty)
+            {
+                new FaultRegistrySnapshotMessage
+                {
+                    Kind = FaultRegistrySnapshotMessage.KindUndersupplied,
+                    Entries = entries,
+                    PayloadValuesW = needs,
+                    PayloadCapsW = avails,
+                    PayloadFeederRefId = feeders,
+                }.SendAll(0L);
+            }
             wasNonEmpty = entries.Count > 0;
         }
 

@@ -52,6 +52,17 @@ namespace PowerGridPlus
     ///     in-place); counters are scalar fields; the only string work happens inside the
     ///     throttled warning.</para>
     ///
+    ///     <para><b>Cold-start grace.</b> The first tick after a load boundary does guaranteed
+    ///     one-time work: Mono JIT-compiles the whole allocator pipeline on its first invocation
+    ///     and the pending load sweeps (censuses, wreckage cleanup, boundary drain) all fire.
+    ///     Measured near a full second on any save, allocator-dominant, every load; that is
+    ///     cold start, not a regression, and judging it would emit the "please report it"
+    ///     warning on every world load. The first <see cref="ColdStartGraceTicks"/> recorded
+    ///     ticks after <see cref="Clear"/> (and after process start) are therefore never judged
+    ///     and do not set the high-water captures; they still enter the rings, where one outlier
+    ///     among 256 cannot move a median. A genuine pathology persists past the grace and fires
+    ///     from the third tick on.</para>
+    ///
     ///     <para><b>Always-on, no config entry</b> (the ledger-audit posture). Counts are exact
     ///     and never throttled; one aggregated warning at most once per 600 ticks while new
     ///     violations arrive, carrying totals since load, the high-water captures for both spans,
@@ -75,6 +86,7 @@ namespace PowerGridPlus
         private const int RecomputeEvery = 64;        // median refresh cadence (ticks)
         private const int WarnCooldownTicks = 600;    // one aggregated warning per ~5 minutes at 2 Hz
         private const int MinAllocatorOverrunSharePercent = 50; // allocator excess must explain >= this share of the overrun
+        private const int ColdStartGraceTicks = 2;    // first ticks after a load boundary: one-time JIT + load sweeps, never judged
 
         private static readonly long[] _ring = new long[RingSize];
         private static readonly long[] _scratch = new long[RingSize];
@@ -136,6 +148,7 @@ namespace PowerGridPlus
 
         private static long _violationsAtLastWarn;
         private static int _lastWarnTick = -WarnCooldownTicks;
+        private static int _recordedSinceClear;
 
         /// <summary>Convert a Stopwatch timestamp delta to microseconds (no allocation).</summary>
         internal static long TimestampDeltaToMicros(long startTimestamp, long endTimestamp)
@@ -153,13 +166,21 @@ namespace PowerGridPlus
         /// </summary>
         internal static void RecordTick(int currentTick, long tickMicros, long allocatorMicros)
         {
-            if (tickMicros > MaxTickMicros) { MaxTickMicros = tickMicros; MaxTickAt = currentTick; }
-            if (allocatorMicros > MaxAllocatorMicros) { MaxAllocatorMicros = allocatorMicros; MaxAllocatorAt = currentTick; }
+            bool coldStart = _recordedSinceClear < ColdStartGraceTicks;
+            if (coldStart) _recordedSinceClear++;
+
+            if (!coldStart)
+            {
+                if (tickMicros > MaxTickMicros) { MaxTickMicros = tickMicros; MaxTickAt = currentTick; }
+                if (allocatorMicros > MaxAllocatorMicros) { MaxAllocatorMicros = allocatorMicros; MaxAllocatorAt = currentTick; }
+            }
 
             long activeThreshold = _ringCount >= WarmupSamples ? _thresholdMicros : CeilingMicros;
-            // Two conditions: the whole tick overran its budget (sim could back up) AND the
-            // allocator is the dominant cause (it is the mod's fault, not the environment's).
-            bool violated = tickMicros >= activeThreshold
+            // Three conditions: past the cold-start grace, the whole tick overran its budget (sim
+            // could back up), AND the allocator is the dominant cause (the mod's fault, not the
+            // environment's).
+            bool violated = !coldStart
+                && tickMicros >= activeThreshold
                 && IsAllocatorAttributable(tickMicros, allocatorMicros, _allocMedianMicros, activeThreshold);
             if (violated)
             {
@@ -238,6 +259,7 @@ namespace PowerGridPlus
             LastWarning = null;
             _violationsAtLastWarn = 0;
             _lastWarnTick = -WarnCooldownTicks;
+            _recordedSinceClear = 0;
         }
     }
 }

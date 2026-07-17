@@ -135,7 +135,15 @@ namespace PowerGridPlus.Core
                 if (net == null) continue;
                 net.DuringTickLoad = 0f;
                 net.RequiredLoad = r.Required;
-                net.CurrentLoad = r.Current;
+                // Decision-33 gauge honesty: CurrentLoad is DELIVERY truth. A net whose verdict is
+                // not LIVE delivers nothing (the write-back and the ownership sweep skip it), so
+                // the analyser and IC10 PowerActual must read 0 there instead of the allocator's
+                // internal flow model (the phantom watts that read as partial power in a dark
+                // room). Required (demand exists) and Potential (supply present) stay as-is, and
+                // the fuse/burn logic below keeps the MODEL flow (currentById).
+                bool netLive = !NetLiveness.TryGetVerdict(r.Id, out byte verdict)
+                    || verdict == NetLiveness.Live;
+                net.CurrentLoad = netLive ? r.Current : 0f;
                 net.PotentialLoad = r.Potential;
                 net.ShortfallLoad = r.Required > r.Potential ? r.Required - r.Potential : 0f;
                 currentById[r.Id] = r.Current;

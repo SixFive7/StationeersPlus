@@ -35,6 +35,7 @@ namespace PowerGridPlus.Core
             CycleFaultRegistry.ClearAll();
             CurrentMismatchFaultRegistry.ClearAll();
             DeadInputRegistry.ClearAll();
+            UndersuppliedRegistry.ClearAll();
 
             // Burn/split machinery (the burn-reason registry itself is cleared IMMEDIATELY at load,
             // before the sidecar restore repopulates it; see FaultRegistryLoadPatches).

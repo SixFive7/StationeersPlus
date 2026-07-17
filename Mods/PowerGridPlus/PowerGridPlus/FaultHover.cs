@@ -55,6 +55,7 @@ namespace PowerGridPlus
             CurrentMismatch,
             DeadInput,
             Throttled,
+            Undersupplied,
         }
 
         // FaultRed = power wanted (downstream demand, cable flow, the shortfall / overage) and the
@@ -87,10 +88,11 @@ namespace PowerGridPlus
         private const string LogicOrange = "#FF8000";
 
         // True for the five lockout faults (the registries with a 60 s timer and a flash). The
-        // two info states share the hover pipeline but must never trigger the fault-only
+        // three info states share the hover pipeline but must never trigger the fault-only
         // presentation extras (no-ALT body-tooltip visibility).
         internal static bool IsLockoutFault(Kind kind)
-            => kind != Kind.None && kind != Kind.DeadInput && kind != Kind.Throttled;
+            => kind != Kind.None && kind != Kind.DeadInput && kind != Kind.Throttled
+               && kind != Kind.Undersupplied;
 
         // Resolve the device whose ReferenceId keys the registries (PR -> linked PT).
         internal static long ResolveFaultRefId(Thing thing)
@@ -208,10 +210,50 @@ namespace PowerGridPlus
                         block += $"\n<color={CalmGrey}>Use IC10 to set the <color={LogicOrange}>Setting</color> value</color>";
                         return true;
                     }
+                    // Decision-33 Undersupplied (the DEAD_UNMET face; the most generic info state,
+                    // so it renders only when nothing more specific applies): any device on a
+                    // network whose rigid demand outran the supply that reaches it, with shedding
+                    // exhausted, shows the amber needs-vs-delivers block plus a pointer at the
+                    // strongest feeder so the dark room diagnoses itself.
+                    if (TryGetUndersuppliedNet(thing, out float usNeedsW, out float usAvailW, out long usFeederRef))
+                    {
+                        kind = Kind.Undersupplied;
+                        block = InfoTitleLine(thing, "Undersupplied", ThrottleAmber);
+                        block += $"\n<color={CalmGrey}>Needs <color={FaultRed}>{FmtWatts(usNeedsW)}</color> while upstream delivers <color={CapBlue}>{FmtWatts(usAvailW)}</color></color>";
+                        string feederName = UndersuppliedFeederName(usFeederRef);
+                        if (feederName != null)
+                            block += $"\n<color={CalmGrey}>Check {feederName}</color>";
+                        return true;
+                    }
                     block = null;
                     return false;
                 }
             }
+        }
+
+        // Decision-33 Undersupplied lookup: keyed by the device's power NETWORK (the state is
+        // per-net). Host reads the live set, clients the synced mirror.
+        private static bool TryGetUndersuppliedNet(Thing thing, out float needsW, out float availW, out long feederRefId)
+        {
+            needsW = 0f;
+            availW = 0f;
+            feederRefId = 0L;
+            var net = (thing as Assets.Scripts.Objects.Pipes.Device)?.PowerCableNetwork;
+            if (net == null) return false;
+            if (!UndersuppliedRegistry.TryGet(net.ReferenceId, out var info)) return false;
+            needsW = info.NeedsW;
+            availW = info.AvailW;
+            feederRefId = info.FeederRefId;
+            return true;
+        }
+
+        // Resolve the feeder pointer to a display name on the main-thread hover path; null when
+        // there is no feeder (a generator-only net) or the device is gone.
+        private static string UndersuppliedFeederName(long refId)
+        {
+            if (refId == 0L) return null;
+            var feeder = Thing.Find(refId);
+            return feeder != null ? feeder.DisplayName : null;
         }
 
         // Line 1 for a lockout fault: "{On|Off} - {title}: {countdown}s", title + countdown red.

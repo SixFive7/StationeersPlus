@@ -21,6 +21,8 @@ namespace PowerGridPlus
     //                                          single upstreamSupplyW, single shortfallW,
     //                                          byte reason, int32 victimPriority
     //   KindCurrentMismatch:                   int64 refId, int32 remainingTicks, string violators
+    //   KindUndersupplied:                     int64 NETWORK id, int32 keepAliveTtl,
+    //                                          single needsW, single availW, int64 feederRefId
     // The float payloads are the hover diagnostics: for KindDeviceOverload the rigid draw that
     // tripped the capacity rule, the combined deliverable cap, and the internal-storage component
     // of that cap; for KindCableOverload the flow and the network's weakest-cable cap; for
@@ -38,6 +40,7 @@ namespace PowerGridPlus
         public const byte KindCurrentMismatch = 3;
         public const byte KindDeadInput = 4;
         public const byte KindCableOverload = 5;
+        public const byte KindUndersupplied = 6;
 
         public byte Kind;
         public List<KeyValuePair<long, int>> Entries = new List<KeyValuePair<long, int>>();
@@ -55,6 +58,9 @@ namespace PowerGridPlus
         public List<float> PayloadShortfallW = new List<float>();
         public List<byte> PayloadReason = new List<byte>();
         public List<int> PayloadVictimPriority = new List<int>();
+        // Parallel to Entries for KindUndersupplied only (the feeder pointer; Entries carry
+        // NETWORK ids for that kind, and PayloadValuesW/PayloadCapsW carry needsW/availW).
+        public List<long> PayloadFeederRefId = new List<long>();
 
         private static bool KindHasWattPayload(byte kind)
             => kind == KindDeviceOverload || kind == KindCableOverload;
@@ -86,6 +92,12 @@ namespace PowerGridPlus
                     writer.WriteByte(i < PayloadReason.Count ? PayloadReason[i] : (byte)0);
                     writer.WriteInt32(i < PayloadVictimPriority.Count ? PayloadVictimPriority[i] : 0);
                 }
+                if (Kind == KindUndersupplied)
+                {
+                    writer.WriteSingle(i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f);
+                    writer.WriteSingle(i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f);
+                    writer.WriteInt64(i < PayloadFeederRefId.Count ? PayloadFeederRefId[i] : 0L);
+                }
             }
         }
 
@@ -98,8 +110,10 @@ namespace PowerGridPlus
             bool wattPayload = KindHasWattPayload(Kind);
             bool deviceOverload = Kind == KindDeviceOverload;
             bool triplePayload = Kind == KindDeprioritized;
-            PayloadValuesW = new List<float>(wattPayload ? count : 0);
-            PayloadCapsW = new List<float>(wattPayload ? count : 0);
+            bool undersupplied = Kind == KindUndersupplied;
+            PayloadValuesW = new List<float>((wattPayload || undersupplied) ? count : 0);
+            PayloadCapsW = new List<float>((wattPayload || undersupplied) ? count : 0);
+            PayloadFeederRefId = new List<long>(undersupplied ? count : 0);
             PayloadStoragesW = new List<float>(deviceOverload ? count : 0);
             PayloadNeedsW = new List<float>(triplePayload ? count : 0);
             PayloadUpstreamDemandW = new List<float>(triplePayload ? count : 0);
@@ -129,6 +143,12 @@ namespace PowerGridPlus
                     PayloadShortfallW.Add(reader.ReadSingle());
                     PayloadReason.Add(reader.ReadByte());
                     PayloadVictimPriority.Add(reader.ReadInt32());
+                }
+                if (undersupplied)
+                {
+                    PayloadValuesW.Add(reader.ReadSingle());
+                    PayloadCapsW.Add(reader.ReadSingle());
+                    PayloadFeederRefId.Add(reader.ReadInt64());
                 }
             }
         }
@@ -172,6 +192,17 @@ namespace PowerGridPlus
                 case KindCableOverload:
                     CableOverloadRegistry.ReplaceClientSnapshot(CombineWattPayload());
                     break;
+                case KindUndersupplied:
+                {
+                    var combined = new List<(long, int, float, float, long)>(Entries.Count);
+                    for (int i = 0; i < Entries.Count; i++)
+                        combined.Add((Entries[i].Key, Entries[i].Value,
+                            i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f,
+                            i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f,
+                            i < PayloadFeederRefId.Count ? PayloadFeederRefId[i] : 0L));
+                    UndersuppliedRegistry.ReplaceClientSnapshot(combined);
+                    break;
+                }
             }
         }
 
