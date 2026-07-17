@@ -44,7 +44,7 @@ A pure-patch mod: no new devices, no asset bundle. Parts derive from Sukasa's Re
 [h3]Transformer priority and dispatch (new)[/h3]
 [list]
 [*]Setting is the vanilla throughput cap again (IC10 reads and writes it as in the base game); new transformers start at full throughput, saved worlds keep theirs.
-[*]The in-world knob and the Labeller set [b]Priority[/b] instead (default 100; step 10, or 1 with Alt). Priority decides who is deprioritized first, per input network, and deprioritization is leaf-first: mid-chain bridges forward a deficit downstream.
+[*]The in-world knob and the Labeller set [b]Priority[/b] instead (default 100; step 10, or 1 with Alt). Priority decides who is deprioritized first, per input network, and deprioritization is leaf-first: mid-chain bridges forward a deficit downstream. Give backbone transformers a high Priority so they shed last.
 [*]New writable [b]Priority[/b] + read-only [b]DeprioritizedFault[/b] / [b]DeviceOverloadedFault[/b] / [b]CableOverloadedFault[/b] / [b]CycleFault[/b] logic values; Priority saves with the world and syncs in multiplayer.
 [*]Transmitter / receiver dish pairs join dispatch like transformers, using whichever distance-cost model is active.
 [/list]
@@ -96,7 +96,7 @@ Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/
   <ChangeLog>
 v0.2.0: Atomic power tick and the fault system (work in progress)
 - The power simulation is fully mod-owned: one per-tick snapshot reads the whole grid exactly once, the global allocator solves every network at once, and a write-back applies the result (energy, storage, Powered flags, readouts, fuses, burns). The vanilla per-network power flow no longer runs, so its mid-tick races, billing leaks, and partial-power brownouts are gone.
-- Deprioritization is leaf-first: only bridges feeding end-of-chain networks with unmet demand are deprioritized, lowest Priority first; mid-chain hops forward the deficit downstream.
+- Deprioritization is leaf-first: only bridges feeding end-of-chain networks with unmet demand are deprioritized, lowest Priority first with the smallest-combined-watts cut inside a tier; mid-chain hops forward the deficit downstream, and step-up transformers compete like any branch (give backbone transformers a high Priority to shed them last).
 - Five 60-second fault lockouts: Deprioritized (orange flash; the input runs short, the lowest Priority drops first), Device overloaded (red; more draw than the device can deliver, titled per device: Transformer / Link / Battery / APC / Umbilical), Cable overloaded (red; the weakest cable cannot carry the flow), Cycle fault (red; every loop member faults, no burn), and Current mismatch (red; an unprotected producer stops generating). Toggling off clears instantly.
 - One hover template on the casing and the on/off button: the switch state and the fault title with a live countdown, then grey diagnostics with the offending value in red and the capacity in blue (Drawing 150.0 kW of 100.0 kW, Pushing 80.0 kW onto a 5.0 kW wire, Needs 12.0 kW while 30.0 kW competes for 20.0 kW upstream). The current-mismatch hover names the offenders, one per line, capped at three.
 - Five read-only fault logic values: DeprioritizedFault, DeviceOverloadedFault, CableOverloadedFault, CycleFault, and CurrentMismatchFault, each 1 while its lockout is active. A battery tripped by cable overflow now takes the visible 60-second lockout instead of silently producing zero.

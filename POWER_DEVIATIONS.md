@@ -292,6 +292,11 @@ via the per-tick fault snapshot (`KindDeadInput`) so it shows on every peer; cle
 transformers, APCs, and PT pairs (the pull-through contributors); batteries and umbilicals are pure suppliers
 and do not receive it. Spec'd in POWER.md §8.3.1. Build green at v0.2.0; queued in `Mods/PowerGridPlus/PLAYTEST.md`.
 
+2026-07-17, decision 33: the dead-input cue keeps its per-device semantics; the related NETWORK-level
+DEAD_UNMET state gained its own face (Undersupplied, `UndersuppliedRegistry`, snapshot kind 6, same
+keep-alive TTL model). The two cues are complementary: dead input means "my feed carries nothing",
+Undersupplied means "my whole net cannot fund its demand"; both are info states, never lockouts.
+
 ### P8. Parallel-supplier demand split: priority-tiered, proportional within a tier (RESOLVED 2026-06-14)
 
 §8 specified the deprioritization victim order and the §8.4 trigger but not how a met demand divides across parallel
@@ -491,7 +496,9 @@ and the two `LogicType.DeprioritizedFault` / `DeviceOverloadedFault` table rows 
 OverloadStateMessage").
 
 Folded-in check (per the developer's request, confirming the just-extended current-mismatch fault is synced): the snapshot
-now carries FIVE kinds, deprioritized (0), device-overload (1), cycle (2), current-mismatch (3), dead-input (4). The current-mismatch
+at that date carried FIVE kinds, deprioritized (0), device-overload (1), cycle (2), current-mismatch (3), dead-input (4);
+the census is SEVEN since cable-overload (5, decision 29's split) and undersupplied (6, decision 33's face,
+network-keyed with the dead-input-style keep-alive TTL) joined. The current-mismatch
 network commit (§8.5) rides `KindCurrentMismatch` with violator names; because the commit stamps a cohort
 to ONE shared expiry, every member carries the same remaining-tick count, so clients render the cohort's
 countdowns ticking down together (no per-client desync) with no new sync mechanism. The dead-input cue
