@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/DevicePowerDraw/">
       
       
-        <link rel="prev" href="../DedicatedServerSettings/">
+        <link rel="prev" href="../DevicePortGeometry/">
       
       
         <link rel="next" href="../DirectConnect/">
@@ -3588,6 +3588,8 @@
       
         
       
+        
+      
     
     
     
@@ -3870,6 +3872,34 @@
     
   
     Dedicated Server Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DevicePortGeometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Port Geometry (power connection cells)
   
 
     
@@ -8406,19 +8436,27 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-27.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-17.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (4)</summary>
+          <summary><strong>Sources</strong> (6)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Device, AdvancedFurnace, ArcFurnace, CarbonSequester, Transformer'}</code></li>
             
               <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': 'lines 349604 (Device.UsedPower), 350696 (Device.GetGeneratedPower virtual), 350705 (Device.GetUsedPower virtual), 344409+ (AdvancedFurnace), 344837+ (ArcFurnace), 345293+ (CarbonSequester), 403311 (Transformer.OutputMaximum), 138702 (IPowerGenerator interface)'}</code></li>
+            
+              <li><code>{'.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs :': 'lines 416897-416928 (RadioscopicThermalGenerator class body)'}</code></li>
+            
+              <li><code>{'Live capture 2026-07-17 on the dedicated server, game 0.2.6403.27689, ScenarioRunner scenario pgp-fresh-device-trace (grep the log for "FDT t="': "the upstream net's gen= field with a single spawned StructureRTG as sole generator)"}</code></li>
             
               <li><code>Plans/PowerGridPlus/PLAN.md (NEW-3 / voltage-tier research)</code></li>
             
@@ -8488,7 +8526,7 @@
 <p>Implication: a design that puts <strong>every</strong> device on a single 5 kW network is not viable for endgame machines without either (a) exempting high-draw devices (a power-threshold or whitelist carve-out), or (b) accepting that those machines need a higher-rated cable -- a 45 kW Carbon Sequester physically must be fed by a &gt;= 45 kW (heavy) cable; no transformer between it and a 5 kW cable changes that, because the <em>cable feeding the device</em> still carries the device's full draw. A transformer steps voltage between <em>networks</em>, not the load a single cable segment carries.</p>
 <p><code>Transformer.OutputMaximum = 10000f</code> is the C# default (decompile line 403311); the per-prefab small/medium/large transformer values are serialized, not in the decompile.</p>
 <h2 id="vanilla-generator-outputs-which-generators-feed-more-than-5-kw-into-a-network">Vanilla generator outputs (which generators feed more than 5 kW into a network)<a class="headerlink" href="#vanilla-generator-outputs-which-generators-feed-more-than-5-kw-into-a-network" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-17 -->
 
 <p>A <code>normal</code> cable ruptures on the network's <em>total</em> throughput vs the weakest cable's <code>MaxVoltage</code> (5 kW), so a generator (or a generator field) feeding more than 5 kW into a <code>normal</code> network burns it. The peak outputs below are mostly C# constants (unlike per-device <code>UsedPower</code>, which is prefab data), so they <em>are</em> extractable. "Event peak" = output during a weather event (solar storm for solar, high-wind storm for wind turbines).</p>
 <table>
@@ -8561,9 +8599,9 @@
 <tr>
 <td>RTG (Creative RTG; the various RTG-recipe mods make it craftable)</td>
 <td><code>RadioscopicThermalGenerator : Electrical</code></td>
-<td><strong>50 kW constant</strong> (<code>GetGeneratedPower</code> returns <code>PowerGenerated</code> flat)</td>
+<td><strong>4000 W live</strong> (<code>GetGeneratedPower</code> returns <code>PowerGenerated</code> flat; the field is prefab-serialized, and the shipped StructureRTG prefab carries 4000, overriding the 50000f class default in code)</td>
 <td>--</td>
-<td><code>PowerGenerated = 50000f</code> (line 395568)</td>
+<td><code>public float PowerGenerated = 50000f</code> class default (0.2.6403.27689 decompile lines 416897-416928); live 4000 W confirmed 2026-07-17, see Verification history</td>
 </tr>
 <tr>
 <td>Wireless Power Receiver</td>
@@ -8574,9 +8612,9 @@
 </tr>
 </tbody>
 </table>
-<p>So the generators that <strong>must sit on <code>heavy</code> cable or higher</strong> under a "lowest tier rated for peak output" rule: <strong>RTG</strong> (50 kW), <strong>Solid Fuel Generator</strong> (~20 kW), <strong>Gas Fuel Generator</strong> (tens of kW), <strong>Stirling Engine</strong> (~6 kW, just over), and <strong>Large Wind Turbine</strong> (only ~1 kW normally, but ~20 kW during a high-wind event -- its <em>peak</em> is what matters). Solar panels, the small Wind Turbine, and the Turbine Generator stay on <code>normal</code>. Note the <em>field-total</em> trap: many small <code>normal</code>-rated generators on one <code>normal</code> network can sum past 5 kW and burn it even though no single unit does.</p>
+<p>So the generators that <strong>must sit on <code>heavy</code> cable or higher</strong> under a "lowest tier rated for peak output" rule: <strong>Solid Fuel Generator</strong> (~20 kW), <strong>Gas Fuel Generator</strong> (tens of kW), <strong>Stirling Engine</strong> (~6 kW, just over), and <strong>Large Wind Turbine</strong> (only ~1 kW normally, but ~20 kW during a high-wind event -- its <em>peak</em> is what matters). The <strong>RTG</strong> (4000 W live, prefab-serialized; see the table row) fits under the 5 kW <code>normal</code> cap; only its CODE default (50000f) would not, and the shipped prefab overrides it. Solar panels, the small Wind Turbine, and the Turbine Generator stay on <code>normal</code>. Note the <em>field-total</em> trap: many small <code>normal</code>-rated generators on one <code>normal</code> network can sum past 5 kW and burn it even though no single unit does.</p>
 <h2 id="generator-detection-two-parallel-mechanisms-in-vanilla-code">Generator detection: two parallel mechanisms in vanilla code<a class="headerlink" href="#generator-detection-two-parallel-mechanisms-in-vanilla-code" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-17 -->
 
 <p>The game uses two independent mechanisms to mark a device as a power generator. Both must be checked to enumerate generators exhaustively; many generators use only one of the two.</p>
 <p><strong>Mechanism 1: the <code>IPowerGenerator</code> interface.</strong> Declared at decompile line 138702 in <code>namespace Objects</code>:</p>
@@ -8588,7 +8626,7 @@
 <p>Implementers in vanilla (game version 0.2.6228.27061):</p>
 <ul>
 <li><code>WindTurbineGenerator : Device, ..., IPowerGenerator</code> (decompile line 138706)</li>
-<li><code>LargeWindTurbineGenerator : WindTurbineGenerator</code> (line 138218 — inherits the interface)</li>
+<li><code>LargeWindTurbineGenerator : WindTurbineGenerator</code> (line 138218 -- inherits the interface)</li>
 <li><code>SolarPanel : Electrical, IPowerGenerator</code> (~line 399768; see Research/GameClasses/SolarPanel.md)</li>
 </ul>
 <p><strong>Mechanism 2: the <code>Device.GetGeneratedPower(CableNetwork)</code> virtual.</strong> Declared at decompile line 350696:</p>
@@ -8596,18 +8634,18 @@
 </span></code></pre></div>
 <p>This is the parallel of <code>GetUsedPower</code> (line 350705) on the same class. Subclasses override it to compute per-tick power output. Vanilla classes that override it but do NOT implement <code>IPowerGenerator</code>:</p>
 <ul>
-<li><code>Battery</code> (line 371127) — discharges generate power into the OutputNetwork side.</li>
-<li><code>Transformer</code> (line 403496) — output side is "generated" relative to the upstream network.</li>
-<li><code>WirelessPower.PowerReceiver</code> (line 386810) / <code>PowerTransmitter</code> (line 387028) / <code>PowerTransmitterOmni</code> (line 387268) — relays.</li>
-<li><code>RocketPowerUmbilicalFemale</code> (line 148191) / <code>RocketPowerUmbilicalMale</code> (line 148761) — rocket -&gt; ground bridge.</li>
-<li><code>RadioscopicThermalGenerator : Electrical, IRocketInternals, IRocketComponent</code> (line 395566; override at 395580). The 50 kW RTG.</li>
+<li><code>Battery</code> (line 371127) -- discharges generate power into the OutputNetwork side.</li>
+<li><code>Transformer</code> (line 403496) -- output side is "generated" relative to the upstream network.</li>
+<li><code>WirelessPower.PowerReceiver</code> (line 386810) / <code>PowerTransmitter</code> (line 387028) / <code>PowerTransmitterOmni</code> (line 387268) -- relays.</li>
+<li><code>RocketPowerUmbilicalFemale</code> (line 148191) / <code>RocketPowerUmbilicalMale</code> (line 148761) -- rocket -&gt; ground bridge.</li>
+<li><code>RadioscopicThermalGenerator : Electrical, IRocketInternals, IRocketComponent</code> (0.2.6403.27689 decompile lines 416897-416928). The RTG: 4000 W live via the prefab-serialized <code>PowerGenerated</code> (50000f is only the class default).</li>
 <li><code>PowerGeneratorSlot : DeviceImport, ...</code> (line 400441; override at 400512). Base class for <code>SolidFuelGenerator</code> (line 400538).</li>
 <li><code>PowerGeneratorPipe : DeviceInputOutput, IThermal</code> (line 375414; override at 375517). Base class for <code>GasFuelGenerator</code> (line 375700).</li>
 <li><code>TurbineGenerator : Device, ISmartRotatable</code> (line 403819; override at 403973). The gas-pipe spinner.</li>
 <li><code>StirlingEngine : DeviceInputOutput, IThermal</code> (line 402334; override at 402686).</li>
-<li>Two more overrides at lines 370000 and 400139 — context-dependent (Battery has two and a similar shape repeats inside the same hierarchy).</li>
+<li>Two more overrides at lines 370000 and 400139 -- context-dependent (Battery has two and a similar shape repeats inside the same hierarchy).</li>
 </ul>
-<p><strong>Why this matters for tier classification.</strong> PowerGridPlus's voltage-tier check distinguishes generators (heavy-only) from consumers (normal+ if low draw, heavy+ if high draw). A type check that only walks <code>IPowerGenerator</code> implementers misses every generator that uses <code>GetGeneratedPower</code> instead — RTG, Solid Fuel, Gas Fuel, Turbine, Stirling. To catch all generators exhaustively, the classifier must walk both: <code>type.GetInterfaces().Any(i =&gt; i.Name == "IPowerGenerator")</code> OR <code>type.GetMethod("GetGeneratedPower", new[] { typeof(CableNetwork) }).DeclaringType != typeof(Device)</code>.</p>
+<p><strong>Why this matters for tier classification.</strong> PowerGridPlus's voltage-tier check distinguishes generators (heavy-only) from consumers (normal+ if low draw, heavy+ if high draw). A type check that only walks <code>IPowerGenerator</code> implementers misses every generator that uses <code>GetGeneratedPower</code> instead -- RTG, Solid Fuel, Gas Fuel, Turbine, Stirling. To catch all generators exhaustively, the classifier must walk both: <code>type.GetInterfaces().Any(i =&gt; i.Name == "IPowerGenerator")</code> OR <code>type.GetMethod("GetGeneratedPower", new[] { typeof(CableNetwork) }).DeclaringType != typeof(Device)</code>.</p>
 <h2 id="runtime-enumeration-via-the-prefab-registry">Runtime enumeration via the prefab registry<a class="headerlink" href="#runtime-enumeration-via-the-prefab-registry" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-05-27 -->
 
@@ -8617,7 +8655,12 @@
 <p>This is the cheapest way to get an authoritative current-game list of power devices without trusting the decompile's static <code>UsedPower</code> literals (which are usually <code>10f</code> defaults overridden by prefab-asset data).</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
-<li>2026-05-12: page created. From a voltage-tier design check (planned mod "Power Grid Plus") against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>: <code>Device.UsedPower</code> default (line 349604), <code>AdvancedFurnace.GetUsedPower</code> (verbatim, ~line 344688), <code>ArcFurnace.GetUsedPower</code>/<code>_powerUsedDuringTick</code> (~line 344877+), <code>CarbonSequester.POWER_PER_UNIT_CARBON = 45000f</code> (line ~345293), <code>Transformer.OutputMaximum</code> default (line 403311). Per-device wattages confirmed to be prefab serialized data, not in the decompile.</li>
+<li>
+<p>2026-07-17: conflict on "RTG generated wattage". Previous claim: 50 kW constant (the code literal 50000f read as the device's output). New finding: the shipped StructureRTG prefab generates 4000 W live; PowerGenerated is a prefab-serialized public field with no runtime writer, so the 50000f literal is only the class default a prefab overrides. Fresh validator verdict: B is correct, backed by the 0.2.6403.27689 class body (decompile lines 416897-416928: public float field on a MonoBehaviour-descended class, single occurrence in the decompile, GetGeneratedPower returns it flat) and the 2026-07-17 pgp-fresh-device-trace live capture (a net whose only generator was one spawned StructureRTG read GenSupply 4000 W every tick through PowerGridPlus's once-per-tick boundary read). Result: the RTG table row now reads 4000 W live with the field/default mechanism spelled out, the RTG left the must-sit-on-heavy list (4000 W fits the 5 kW normal cap), and the Generator detection entry re-cites the relocated class body. Restamp scope note: this pass re-verified the RTG rows only; the other generator rows keep their inline 0.2.6228 line citations and were not re-read.</p>
+</li>
+<li>
+<p>2026-05-12: page created. From a voltage-tier design check (planned mod "Power Grid Plus") against <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code>: <code>Device.UsedPower</code> default (line 349604), <code>AdvancedFurnace.GetUsedPower</code> (verbatim, ~line 344688), <code>ArcFurnace.GetUsedPower</code>/<code>_powerUsedDuringTick</code> (~line 344877+), <code>CarbonSequester.POWER_PER_UNIT_CARBON = 45000f</code> (line ~345293), <code>Transformer.OutputMaximum</code> default (line 403311). Per-device wattages confirmed to be prefab serialized data, not in the decompile.</p>
+</li>
 <li>2026-05-27: added two new sections, "Generator detection: two parallel mechanisms in vanilla code" and "Runtime enumeration via the prefab registry". Sourced from the same decompile: <code>IPowerGenerator</code> interface at line 138702 (namespace <code>Objects</code>), <code>Device.GetGeneratedPower</code> virtual at line 350696, and grep of every <code>override.*GetGeneratedPower\(CableNetwork</code> in the decompile yielding 15 hits across Battery, Transformer, the wireless trio, the rocket umbilical pair, RTG, PowerGeneratorSlot/SolidFuelGenerator, PowerGeneratorPipe/GasFuelGenerator, TurbineGenerator, and StirlingEngine. Runtime methodology verified by <code>ScenarioRunner</code> <code>power-prefab-dump</code> scenario (<code>DedicatedServer/dev-plugins/ScenarioRunner/ScenarioRunner/Dispatcher.cs</code>) returning <code>emitted=410 totalPrefabs=2041</code> on a vanilla <code>-New Lunar</code> start; the 410-line dump now lives at <code>.work/2026-05-27-pgp-device-classification/source2-runtime-dump.raw.log</code> for that session and is the basis of PowerGridPlus's per-device tier classification table.</li>
 <li>2026-05-12: added "Vanilla generator outputs" section. Sourced from the same decompile: <code>SolarPanel.MaxPowerGenerated = 500f</code> (line 399768) + <code>Research/GameClasses/SolarPanel.md</code> formula; <code>WindTurbineGenerator</code> base getters <code>MAXPowerOutput =&gt; 500f</code> / <code>MaxPowerOutputStorm =&gt; 1000f</code> / <code>WeatherUtilisationMultiplier =&gt; 3f</code> / <code>NoiseIntensity =&gt; 10f</code> (~lines 138758-138764) and <code>CalculateGenerationRate</code> (~138817-138865); <code>LargeWindTurbineGenerator</code> overrides <code>MAXPowerOutput =&gt; 1000f</code> / <code>MaxPowerOutputStorm =&gt; 20000f</code> / <code>WeatherUtilisationMultiplier =&gt; 20f</code> / <code>NoiseIntensity =&gt; 25f</code> (lines 138218-138242); <code>TurbineGenerator.MaxOutputPower = 90f</code> + <code>_generatedPower = num * MaxOutputPower</code> (~line 403849, ~403959); <code>StirlingEngine.maxPower = 6000f</code> (~line 402367); <code>PowerGeneratorSlot.PowerGenerated = 20000f</code> + <code>SolidFuelGenerator : PowerGeneratorSlot</code> (lines 400449, 400538); <code>GasFuelGenerator : PowerGeneratorPipe</code> (lines 375700, 375414); <code>RadioscopicThermalGenerator.PowerGenerated = 50000f</code> + <code>GetGeneratedPower</code> returns it flat (line 395568+).</li>
 </ul>
@@ -8666,7 +8709,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../DedicatedServerSettings/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Dedicated Server Settings">
+          <a href="../DevicePortGeometry/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Device Port Geometry (power connection cells)">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8676,7 +8719,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Dedicated Server Settings
+                Device Port Geometry (power connection cells)
               </div>
             </div>
           </a>
