@@ -604,7 +604,19 @@ namespace PowerGridPlus
             //    clawback then removes deprioritization-orphaned surplus before the elastic-share / publish /
             //    conservation tail reads them.
             // ----------------------------------------------------------------
-            RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList);
+            RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList, clearFaults: true);
+
+            // Decision-33 rule 1b outer iteration: the settle-time residual capacity test (see the
+            // method doc). A new stamp changes the budget picture (the stamped supplier stops
+            // claiming upstream from the next pass), so the loop re-runs WITHOUT the once-per-tick
+            // fault clear and re-decides deprioritization against the overload BEFORE any lockout
+            // commits: an overload that frees the budget still un-sheds its victim the same tick
+            // (the 2c guarantee). Grow-only stamps bound the iteration by the supplier count; in
+            // practice a single extra pass. A supplier stamped on the final pass conducts this
+            // last tick, presents the fault immediately, and locks from the next tick via the
+            // registry commit below.
+            for (int pass = 0; pass < segs.Count + 1 && DetectResidualOverload(netList, segs); pass++)
+                RunAllocationLoop(topo, netsDeepFirst, segs, elastics, netList, clearFaults: false);
 
             // Dead-input cue (POWER.md §8.3): a contributor whose input network has NO effective supply
             // (no generators, no upstream inflow, no live battery -- the same totalAvail the deprioritization
@@ -1250,32 +1262,37 @@ namespace PowerGridPlus
         private static int _lastNonConvergenceWarnTick = -NonConvergenceWarnCooldownTicks;
 
         private static void RunAllocationLoop(List<Net> topo, List<Net> topoRev, List<Seg> segs,
-            List<Elastic> elastics, List<Net> netList)
+            List<Elastic> elastics, List<Net> netList, bool clearFaults)
         {
-            // Clean slate once per tick. Within the loop DEPRIORITIZED is re-decided every round (ForwardSupplyAndDeprioritize
+            // Clean slate once per tick (clearFaults: the FIRST call of the tick only; the decision-33
+            // rule-1b outer iteration re-enters with the sticky flags preserved). Within the loop
+            // DEPRIORITIZED is re-decided every round (ForwardSupplyAndDeprioritize
             // clears it); OVERLOAD only ever GROWS (sticky: committed on detection, reset only by the 60 s
             // timeout or a player turn-off), so it is cleared here once and never inside a round. The
             // overload kind bit and payload pair travel with the flag: written by the detector that
             // first trips the device, cleared only here.
-            foreach (var seg in segs)
+            if (clearFaults)
             {
-                seg.Deprioritized = false;
-                seg.Overloaded = false;
-                seg.CableOverloaded = false;
-                seg.OverloadValueW = 0f;
-                seg.OverloadCapW = 0f;
-                seg.OverloadStorageW = 0f;
-                // The deprioritized decision fields (ShortfallW / Reason / VictimPriority) are NOT
-                // reset here, matching the sticky DeprioritizedNeedsW / UpstreamDemandW /
-                // UpstreamSupplyW triple: they are only read when Deprioritized is set, and the
-                // 2-cycle union re-mark reuses the values from the round that last marked the seg.
-            }
-            foreach (var e in elastics)
-            {
-                e.Overloaded = false;
-                e.CableOverloaded = false;
-                e.OverloadValueW = 0f;
-                e.OverloadCapW = 0f;
+                foreach (var seg in segs)
+                {
+                    seg.Deprioritized = false;
+                    seg.Overloaded = false;
+                    seg.CableOverloaded = false;
+                    seg.OverloadValueW = 0f;
+                    seg.OverloadCapW = 0f;
+                    seg.OverloadStorageW = 0f;
+                    // The deprioritized decision fields (ShortfallW / Reason / VictimPriority) are NOT
+                    // reset here, matching the sticky DeprioritizedNeedsW / UpstreamDemandW /
+                    // UpstreamSupplyW triple: they are only read when Deprioritized is set, and the
+                    // 2-cycle union re-mark reuses the values from the round that last marked the seg.
+                }
+                foreach (var e in elastics)
+                {
+                    e.Overloaded = false;
+                    e.CableOverloaded = false;
+                    e.OverloadValueW = 0f;
+                    e.OverloadCapW = 0f;
+                }
             }
 
             int maxRounds = 2 * segs.Count + 4;
@@ -1288,10 +1305,12 @@ namespace PowerGridPlus
                 BackwardDesirePass(topoRev);
                 // Overload is evaluated BEFORE deprioritization and is grow-only (precedence CYCLE > CURRENT-MISMATCH >
                 // CABLE-OVERLOADED > DEVICE-OVERLOADED > DEPRIORITIZED, POWER.md decision 3). Only DEPRIORITIZED is
-                // re-decidable within a tick: a transformer that
-                // structurally cannot serve its downstream is diagnosed as OVERLOAD here, before the deprioritization
-                // pass could mislabel it as input-starved. The structural rule is desire-based (pre-deprioritization);
-                // the supply rules (elastic / cable) need the forward pass's Unmet, so they run after it.
+                // re-decidable within a tick. Rule 1a here is OWN-demand based (a net's directly
+                // wired machines against the hardware cap): shedding can never relieve that, so it
+                // trips immediately, before the deprioritization pass could mislabel the supplier
+                // as input-starved. The forwarded-demand case is rule 1b (DetectResidualOverload),
+                // run once at loop settle after shedding has finished (decision 33). The supply
+                // rules (elastic / cable) need the forward pass's Unmet, so they run after it.
                 DetectStructuralOverload(netList, segs);
                 ForwardSupplyAndDeprioritize(topo, segs, settleOnly: false);
                 DetectSupplyOverload(netList, elastics);
@@ -1697,15 +1716,48 @@ namespace PowerGridPlus
         //      live elastics, so a battery-fed subnet goes dark cleanly instead of partial-powering.
         //   3. §5.7 cable overflow: flow above the weakest cable cap with generators alone under it trips
         //      every supplier + elastic on the network (transformer/battery overflow does not burn cable).
-        // Structural overload (rule 1): a network whose demand exceeds gen + elastic + its Setting-limited
-        // suppliers' caps overloads those suppliers. Runs BEFORE the deprioritization pass so a transformer that
-        // structurally cannot serve its downstream is diagnosed as OVERLOAD (the higher-precedence fault)
-        // instead of getting deprioritized first and mislabeled input-starved. GROW-ONLY: never clears within a tick,
-        // so the overload commits even if a same-tick deprioritization in its subnetwork would have removed the condition
-        // (desired: overload is the structural signal the player must act on). Desire-based, no forward
-        // dependency, so it is safe to run before the forward pass.
+        // Structural overload rule 1a (decision 33; immediate, per round): a network whose OWN
+        // rigid demand, the machines wired directly to it, exceeds gen + storage + its suppliers'
+        // combined hardware caps overloads its Setting-limited suppliers. Own demand cannot be
+        // relieved by deprioritization (victims are child segmenters, never plain devices), so
+        // this trips immediately and GROW-ONLY: never cleared within a tick, before the
+        // deprioritization pass could mislabel the supplier as input-starved. The forwarded-demand
+        // case (child segmenter claims) is rule 1b, DetectResidualOverload, evaluated once at loop
+        // settle after shedding has finished.
+        //
+        // Capacity semantics (decision-33 (b)): the cap counts every supplier that physically
+        // exists and is not registry-Locked, INCLUDING same-tick Deprioritized ones, so "Device
+        // overloaded" always means "demand exceeds what the hardware could deliver even fully
+        // fed" and a same-tick shed of one supplier can never stamp a false sticky overload on
+        // its surviving co-suppliers. Overloaded suppliers likewise stay counted (the pre-existing
+        // anti-oscillation rule: a stamped supplier contributing 0 would otherwise make the net
+        // look relieved and flap the detector).
         private static void DetectStructuralOverload(List<Net> netList, List<Seg> segs)
         {
+            foreach (var n in netList)
+            {
+                float demand = n.RigidDemand;
+                float elasticCap = AvailableElastic(n);
+                float cap = n.GenSupply + elasticCap;
+                foreach (var s in n.Suppliers)
+                    if (!s.Locked) cap += s.EffCap;
+                if (demand <= cap + Eps) continue;
+                StampCapacityOverload(n, demand, cap, elasticCap);
+            }
+        }
+
+        // Structural overload rule 1b (decision 33; once, at loop settle): the post-shedding
+        // residual. After the allocation rounds converge, every deprioritization this tick is
+        // final; a network whose UNSHEDDABLE residual demand (its own machines plus its still-
+        // active child segmenters' claims) exceeds the same hardware cap as rule 1a is genuinely
+        // capacity-bound: even leaf-first shedding could not fit it under the cap, so the
+        // Setting-limited suppliers take the Device overloaded fault with the residual as the
+        // payload. Capacity is tested here BEFORE the residual is left to the availability story
+        // (DEAD_UNMET and its player face), the decision-33 (g) ordering: a too-small trunk reads
+        // "upgrade the transformer" while scarcity keeps reading "add supply".
+        private static bool DetectResidualOverload(List<Net> netList, List<Seg> segs)
+        {
+            bool stamped = false;
             foreach (var n in netList)
             {
                 float demand = n.RigidDemand;
@@ -1714,23 +1766,34 @@ namespace PowerGridPlus
                 float elasticCap = AvailableElastic(n);
                 float cap = n.GenSupply + elasticCap;
                 foreach (var s in n.Suppliers)
-                    if (!s.Locked && !s.Deprioritized) cap += s.EffCap;
+                    if (!s.Locked) cap += s.EffCap;
                 if (demand <= cap + Eps) continue;
-                foreach (var s in n.Suppliers)
-                {
-                    if (s.Locked || s.Deprioritized || s.Overloaded) continue;
-                    if (s.CapSetting >= float.MaxValue) continue;   // APC: no throughput rating to hit
-                    if (s.CapSetting > s.CableCap) continue;        // cable-limited (rule 3), not Setting-limited
-                    s.Overloaded = true;                            // includes input-limited PT pairs (taken offline)
-                    // Fault-1 hover payload: the net's rigid desire against the combined deliverable
-                    // cap, the exact locals of this rule. Net-level numbers, shared by every supplier
-                    // the rule flags on this net. StorageW is the elastic (battery) slice of the cap,
-                    // so the hover can split it from the upstream gen + supplier caps.
-                    s.OverloadValueW = demand;
-                    s.OverloadCapW = cap;
-                    s.OverloadStorageW = elasticCap;
-                }
+                stamped |= StampCapacityOverload(n, demand, cap, elasticCap);
             }
+            return stamped;
+        }
+
+        // The shared rule-1 stamp: every Setting-limited, not-Locked, not-yet-stamped supplier of
+        // the tripping net takes the capacity fault with the net-level (demand, cap, storage
+        // slice) payload; StorageW is the elastic (battery) slice of the cap so the hover can
+        // split it from the upstream gen + supplier caps. Deprioritized suppliers are skipped for
+        // the STAMP only (offline this tick, a double fault would be noise); their EffCap stays in
+        // the cap per decision-33 (b).
+        private static bool StampCapacityOverload(Net n, float demand, float cap, float elasticCap)
+        {
+            bool stamped = false;
+            foreach (var s in n.Suppliers)
+            {
+                if (s.Locked || s.Deprioritized || s.Overloaded) continue;
+                if (s.CapSetting >= float.MaxValue) continue;   // APC: no throughput rating to hit
+                if (s.CapSetting > s.CableCap) continue;        // cable-limited (rule 3), not Setting-limited
+                s.Overloaded = true;                            // includes input-limited PT pairs (taken offline)
+                s.OverloadValueW = demand;
+                s.OverloadCapW = cap;
+                s.OverloadStorageW = elasticCap;
+                stamped = true;
+            }
+            return stamped;
         }
 
         // Supply overload (rules 2 and 3): elastic hit-max and the §5.7 cable overflow. Both read the forward
