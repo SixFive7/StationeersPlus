@@ -6454,6 +6454,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-cursor-target-accessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cursor-target accessor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8378,6 +8389,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-cursor-target-accessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cursor-target accessor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8783,8 +8805,13 @@
 <li><code>PowerConnector</code> (408050-408059): only its input-port collider.</li>
 <li>Every class that falls through to the empty base tooltip (Thing 319731-319734), including undamaged wreckage.</li>
 </ul>
+<h2 id="the-cursor-target-accessor">The cursor-target accessor<a class="headerlink" href="#the-cursor-target-accessor" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+<p>The Thing under the crosshair or mouse resolves through <code>CursorManager.CursorThing</code> (class <code>CursorManager : ManagerBase</code> in namespace <code>Assets.Scripts</code>, decompile 200808; example vanilla consumer at 115374). A mod patch bracketing <code>InventoryManager.NormalModeThing</code> with a flag and completing the tooltip at <code>Tooltip.HandleToolTipDisplay</code> (Assets.Scripts.UI.Tooltip) can therefore attribute the displayed tooltip to the cursor target and append or Title-fill additively, covering the tool-in-hand branches that bypass GetPassiveTooltip; PowerGridPlus's CursorTooltipChokePatches is the working example.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-18: added the cursor-target accessor section (CursorManager.CursorThing, Assets.Scripts namespace, decompile 200808) with the choke-point pattern note.</li>
 <li>2026-07-18: added the per-class Title-filling census (SolarPanel / PowerGeneratorPipe / StirlingEngine / AreaPowerControl fill Title on the body; the ElectricalInputOutput family and PowerConnector title only port colliders), read from the 0.2.6403.27689 decompile during the hover-surface matrix review.</li>
 <li>2026-07-18: page created (game version 0.2.6403.27689). All quoted lines read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>; the findings were produced and independently adversarially verified against the decompile this session. Crosshair pipeline: <code>InventoryManager.NormalModeThing</code> (287864) builds the hover tooltip from <code>GetPassiveTooltip</code> (287869) and displays it only when <code>Title</code> is non-empty (287963); tool-action hovers build <code>PassiveTooltip(DelayedActionInstance, ...)</code> directly (287920, 287950). Mouse-control pipeline: <code>InputMouse.Idle</code> (239679, tooltip sourced at 239691) hands the tooltip to <code>HandleToolTipDisplay</code> unconditionally (239720-239721); <code>Tooltip.HandleToolTipDisplay</code> (254322) treats a non-empty <code>Extended</code> as sufficient (<code>flag2</code> includes <code>_hasExtended</code> at 254331; <code>ExtendedRenderer.SetVisible(_hasExtended)</code> at 254350). Producer gates: <code>Structure.GetPassiveTooltip</code> (314440-314471) with the three ExtendedTooltips-gated helpers (314388-314428) and the all-empty <code>Thing</code> base (319731-319734; <code>PassiveTooltip(bool)</code> zeroes <code>Title</code> at 307091).</li>
 </ul>
