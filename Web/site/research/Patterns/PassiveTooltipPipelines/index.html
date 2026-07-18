@@ -6443,6 +6443,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#per-class-title-filling-which-device-bodies-render-extended-only-text-on-a-crosshair-hover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-class Title filling: which device bodies render Extended-only text on a crosshair hover
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8356,6 +8367,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#per-class-title-filling-which-device-bodies-render-extended-only-text-on-a-crosshair-hover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-class Title filling: which device bodies render Extended-only text on a crosshair hover
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8743,8 +8765,27 @@
 <li>Concrete case: <code>CableRuptured</code> wreckage spawns undamaged (<code>DamageState.Total == 0</code>, see <a href="../../GameClasses/Cable/">Cable</a>, "The wreckage spawns undamaged"), so a burn-reason annotation on the wreckage must fill <code>Title</code> to show on a crosshair hover; <code>Extended</code>-only text appears solely in the ALT mouse-control hover.</li>
 <li>Tool-action hovers (crosshair with a tool in hand producing a <code>DelayedActionInstance</code>) never consult <code>GetPassiveTooltip</code> output; annotating those requires touching the action-instance path (287920 / 287950), not the passive-tooltip producer.</li>
 </ul>
+<h2 id="per-class-title-filling-which-device-bodies-render-extended-only-text-on-a-crosshair-hover">Per-class Title filling: which device bodies render Extended-only text on a crosshair hover<a class="headerlink" href="#per-class-title-filling-which-device-bodies-render-extended-only-text-on-a-crosshair-hover" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+<p>The crosshair Title gate makes the practical visibility of an appended Extended line depend on whether the hovered class's own <code>GetPassiveTooltip</code> override fills <code>Title</code>. Census at 0.2.6403.27689:</p>
+<p>Title-FILLING bodies (Extended-only annotations DO render on a bare crosshair hover):</p>
+<ul>
+<li><code>SolarPanel.GetPassiveTooltip</code> (421384-421397): when fully built, always sets <code>Title = DisplayName</code> plus <code>State = SolarInfo()</code>.</li>
+<li><code>PowerGeneratorPipe.GetPassiveTooltip</code> (396655-396675): fills <code>Title = DisplayName</code> whenever the base chain left it empty.</li>
+<li><code>StirlingEngine.GetPassiveTooltip</code> (424241-424269): same pattern.</li>
+<li><code>AreaPowerControl.GetPassiveTooltip</code> (390800-390810): the null-collider body poll gets <code>Title = DisplayName</code> plus the charge readout in Extended.</li>
+<li>Any DAMAGED structure (the damage gate fills a repair tooltip) and any Input / Output port collider on the <code>ElectricalInputOutput</code> family (395008-395023 titles the port colliders).</li>
+</ul>
+<p>Title-LESS bodies (Extended-only annotations render ONLY under ALT):</p>
+<ul>
+<li>The <code>ElectricalInputOutput</code> family body hover (Transformer, Battery, PowerTransmitter, PowerReceiver, both umbilical halves): only port colliders are titled.</li>
+<li><code>PowerConnector</code> (408050-408059): only its input-port collider.</li>
+<li>Every class that falls through to the empty base tooltip (Thing 319731-319734), including undamaged wreckage.</li>
+</ul>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-18: added the per-class Title-filling census (SolarPanel / PowerGeneratorPipe / StirlingEngine / AreaPowerControl fill Title on the body; the ElectricalInputOutput family and PowerConnector title only port colliders), read from the 0.2.6403.27689 decompile during the hover-surface matrix review.</li>
 <li>2026-07-18: page created (game version 0.2.6403.27689). All quoted lines read directly from <code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs</code>; the findings were produced and independently adversarially verified against the decompile this session. Crosshair pipeline: <code>InventoryManager.NormalModeThing</code> (287864) builds the hover tooltip from <code>GetPassiveTooltip</code> (287869) and displays it only when <code>Title</code> is non-empty (287963); tool-action hovers build <code>PassiveTooltip(DelayedActionInstance, ...)</code> directly (287920, 287950). Mouse-control pipeline: <code>InputMouse.Idle</code> (239679, tooltip sourced at 239691) hands the tooltip to <code>HandleToolTipDisplay</code> unconditionally (239720-239721); <code>Tooltip.HandleToolTipDisplay</code> (254322) treats a non-empty <code>Extended</code> as sufficient (<code>flag2</code> includes <code>_hasExtended</code> at 254331; <code>ExtendedRenderer.SetVisible(_hasExtended)</code> at 254350). Producer gates: <code>Structure.GetPassiveTooltip</code> (314440-314471) with the three ExtendedTooltips-gated helpers (314388-314428) and the all-empty <code>Thing</code> base (319731-319734; <code>PassiveTooltip(bool)</code> zeroes <code>Title</code> at 307091).</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
