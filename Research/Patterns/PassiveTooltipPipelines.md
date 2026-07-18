@@ -275,8 +275,14 @@ Title-LESS bodies (Extended-only annotations render ONLY under ALT):
 - `PowerConnector` (408050-408059): only its input-port collider.
 - Every class that falls through to the empty base tooltip (Thing 319731-319734), including undamaged wreckage.
 
+## The cursor-target accessor
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+The Thing under the crosshair or mouse resolves through `CursorManager.CursorThing` (class `CursorManager : ManagerBase` in namespace `Assets.Scripts`, decompile 200808; example vanilla consumer at 115374). A mod patch bracketing `InventoryManager.NormalModeThing` with a flag and completing the tooltip at `Tooltip.HandleToolTipDisplay` (Assets.Scripts.UI.Tooltip) can therefore attribute the displayed tooltip to the cursor target and append or Title-fill additively, covering the tool-in-hand branches that bypass GetPassiveTooltip; PowerGridPlus's CursorTooltipChokePatches is the working example.
+
 ## Verification history
 
+- 2026-07-18: added the cursor-target accessor section (CursorManager.CursorThing, Assets.Scripts namespace, decompile 200808) with the choke-point pattern note.
 - 2026-07-18: added the per-class Title-filling census (SolarPanel / PowerGeneratorPipe / StirlingEngine / AreaPowerControl fill Title on the body; the ElectricalInputOutput family and PowerConnector title only port colliders), read from the 0.2.6403.27689 decompile during the hover-surface matrix review.
 - 2026-07-18: page created (game version 0.2.6403.27689). All quoted lines read directly from `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs`; the findings were produced and independently adversarially verified against the decompile this session. Crosshair pipeline: `InventoryManager.NormalModeThing` (287864) builds the hover tooltip from `GetPassiveTooltip` (287869) and displays it only when `Title` is non-empty (287963); tool-action hovers build `PassiveTooltip(DelayedActionInstance, ...)` directly (287920, 287950). Mouse-control pipeline: `InputMouse.Idle` (239679, tooltip sourced at 239691) hands the tooltip to `HandleToolTipDisplay` unconditionally (239720-239721); `Tooltip.HandleToolTipDisplay` (254322) treats a non-empty `Extended` as sufficient (`flag2` includes `_hasExtended` at 254331; `ExtendedRenderer.SetVisible(_hasExtended)` at 254350). Producer gates: `Structure.GetPassiveTooltip` (314440-314471) with the three ExtendedTooltips-gated helpers (314388-314428) and the all-empty `Thing` base (319731-319734; `PassiveTooltip(bool)` zeroes `Title` at 307091).
 
