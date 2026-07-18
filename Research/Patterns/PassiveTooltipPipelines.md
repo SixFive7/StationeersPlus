@@ -256,8 +256,28 @@ When `DamageState.Total <= 0f` and no gate passes, the return is the all-empty b
 - Concrete case: `CableRuptured` wreckage spawns undamaged (`DamageState.Total == 0`, see [Cable](../GameClasses/Cable.md), "The wreckage spawns undamaged"), so a burn-reason annotation on the wreckage must fill `Title` to show on a crosshair hover; `Extended`-only text appears solely in the ALT mouse-control hover.
 - Tool-action hovers (crosshair with a tool in hand producing a `DelayedActionInstance`) never consult `GetPassiveTooltip` output; annotating those requires touching the action-instance path (287920 / 287950), not the passive-tooltip producer.
 
+## Per-class Title filling: which device bodies render Extended-only text on a crosshair hover
+<!-- verified: 0.2.6403.27689 @ 2026-07-18 -->
+
+The crosshair Title gate makes the practical visibility of an appended Extended line depend on whether the hovered class's own `GetPassiveTooltip` override fills `Title`. Census at 0.2.6403.27689:
+
+Title-FILLING bodies (Extended-only annotations DO render on a bare crosshair hover):
+
+- `SolarPanel.GetPassiveTooltip` (421384-421397): when fully built, always sets `Title = DisplayName` plus `State = SolarInfo()`.
+- `PowerGeneratorPipe.GetPassiveTooltip` (396655-396675): fills `Title = DisplayName` whenever the base chain left it empty.
+- `StirlingEngine.GetPassiveTooltip` (424241-424269): same pattern.
+- `AreaPowerControl.GetPassiveTooltip` (390800-390810): the null-collider body poll gets `Title = DisplayName` plus the charge readout in Extended.
+- Any DAMAGED structure (the damage gate fills a repair tooltip) and any Input / Output port collider on the `ElectricalInputOutput` family (395008-395023 titles the port colliders).
+
+Title-LESS bodies (Extended-only annotations render ONLY under ALT):
+
+- The `ElectricalInputOutput` family body hover (Transformer, Battery, PowerTransmitter, PowerReceiver, both umbilical halves): only port colliders are titled.
+- `PowerConnector` (408050-408059): only its input-port collider.
+- Every class that falls through to the empty base tooltip (Thing 319731-319734), including undamaged wreckage.
+
 ## Verification history
 
+- 2026-07-18: added the per-class Title-filling census (SolarPanel / PowerGeneratorPipe / StirlingEngine / AreaPowerControl fill Title on the body; the ElectricalInputOutput family and PowerConnector title only port colliders), read from the 0.2.6403.27689 decompile during the hover-surface matrix review.
 - 2026-07-18: page created (game version 0.2.6403.27689). All quoted lines read directly from `.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs`; the findings were produced and independently adversarially verified against the decompile this session. Crosshair pipeline: `InventoryManager.NormalModeThing` (287864) builds the hover tooltip from `GetPassiveTooltip` (287869) and displays it only when `Title` is non-empty (287963); tool-action hovers build `PassiveTooltip(DelayedActionInstance, ...)` directly (287920, 287950). Mouse-control pipeline: `InputMouse.Idle` (239679, tooltip sourced at 239691) hands the tooltip to `HandleToolTipDisplay` unconditionally (239720-239721); `Tooltip.HandleToolTipDisplay` (254322) treats a non-empty `Extended` as sufficient (`flag2` includes `_hasExtended` at 254331; `ExtendedRenderer.SetVisible(_hasExtended)` at 254350). Producer gates: `Structure.GetPassiveTooltip` (314440-314471) with the three ExtendedTooltips-gated helpers (314388-314428) and the all-empty `Thing` base (319731-319734; `PassiveTooltip(bool)` zeroes `Title` at 307091).
 
 ## Open questions
