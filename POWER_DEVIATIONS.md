@@ -562,7 +562,11 @@ unblocked.
 found 0 renderers, so the pulse was invisible on them. Extended the name-fallback to the APC `MasterLever`,
 the nuclear battery `Indic0NoShadow`, and the stationary battery body (reached only when the on/off-button
 path fails, so transformers are unaffected); `pgp-pt-flash-all` now reports renderers>0 on all three. The
-eyes-on pulse confirm remains a client check.
+eyes-on pulse confirm remains a client check. (Superseded 2026-07-18 for the APC only: the flash target
+moved off the `MasterLever` onto the charge LED, resolved through the serialized
+`_chargingLedMaterialChanger` renderer, with vanilla `ApcMaterialChanger.RefreshState` suppressed while
+faulted and re-run on fault exit; `Lever` is gone from the name-fallback list. Battery and nuclear-battery
+targeting are unchanged.)
 
 ### Irreducible client residue (in `Mods/PowerGridPlus/PLAYTEST.md`, grouped to minimize reloads)
 

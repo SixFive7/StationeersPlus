@@ -112,6 +112,47 @@ namespace PowerGridPlus
 
         internal static bool IsQuarantined(long refId) => _quarantined.ContainsKey(refId);
 
+        // ---- Quarantine hover sync (2026-07-18) ----
+        // The quarantine state was log-only; now every quarantined device wears a grey info
+        // block on its casing and button, host and clients alike (FaultHover renders it, the
+        // per-tick snapshot kind 7 mirrors it). Same keep-alive TTL model as DeadInputRegistry:
+        // the host heartbeats the full set each tick while non-empty; the carried int is a TTL,
+        // not a countdown.
+        private const int QuarantineHeartbeatTtl = 2;
+
+        private static readonly ConcurrentDictionary<long, long> _clientQuarantineExpiry =
+            new ConcurrentDictionary<long, long>();
+
+        private static bool IsClientPeer =>
+            Assets.Scripts.Networking.NetworkManager.IsActive
+            && !Assets.Scripts.Networking.NetworkManager.IsServer;
+
+        /// <summary>Hover-side quarantine test: host reads the live set, clients the mirror.</summary>
+        internal static bool IsQuarantinedForHover(long refId)
+        {
+            if (IsClientPeer)
+                return _clientQuarantineExpiry.TryGetValue(refId, out long exp)
+                       && exp > MonotonicClock.NowMs;
+            return _quarantined.ContainsKey(refId);
+        }
+
+        /// <summary>Server: per-tick heartbeat snapshot for the kind-7 sync.</summary>
+        internal static IEnumerable<KeyValuePair<long, int>> SnapshotQuarantineRemaining()
+        {
+            foreach (var pair in _quarantined)
+                yield return new KeyValuePair<long, int>(pair.Key, QuarantineHeartbeatTtl);
+        }
+
+        /// <summary>Client: replace the mirror from a received snapshot.</summary>
+        internal static void ReplaceClientQuarantineSnapshot(List<KeyValuePair<long, int>> entries)
+        {
+            _clientQuarantineExpiry.Clear();
+            long now = MonotonicClock.NowMs;
+            for (int i = 0; i < entries.Count; i++)
+                if (entries[i].Value > 0)
+                    _clientQuarantineExpiry[entries[i].Key] = now + entries[i].Value * 500L;
+        }
+
         /// <summary>
         ///     Registry hygiene (RegistryHygiene sweep): drop quarantine entries whose device no
         ///     longer exists, so a deconstructed self-asserter does not pin its ReferenceId for
@@ -328,6 +369,7 @@ namespace PowerGridPlus
         {
             _state.Clear();
             _quarantined.Clear();
+            _clientQuarantineExpiry.Clear();
             _mismatchDevices.Clear();
             MismatchDeviceTicks = 0;
             LastMismatchRefId = 0L;

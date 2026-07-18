@@ -6,6 +6,10 @@ using Assets.Scripts.Objects.Electrical;
 using HarmonyLib;
 using UnityEngine;
 using VanillaSwitchOnOff = global::Objects.SwitchOnOff;
+// ApcMaterialChanger (and its base MaterialChanger) live in the bare `Effects`
+// namespace (decompile L191915-L192225), another case of Stationeers splitting
+// classes across the bare and Assets.Scripts namespace trees.
+using VanillaApcMaterialChanger = global::Effects.ApcMaterialChanger;
 
 namespace PowerGridPlus
 {
@@ -17,6 +21,9 @@ namespace PowerGridPlus
     // assets or prefab modification (Research/GameClasses/LogicOnOffButton.md).
     //
     // Renderer targeting (in priority order, first match wins):
+    //   0. AreaPowerControl: the charge LED's MeshRenderer, resolved through the
+    //      serialized _chargingLedMaterialChanger -> MaterialChanger.renderer chain.
+    //      No name matching; the lever is retired as an APC flash target.
     //   1. Every MeshRenderer that is a descendant of the InteractableType.OnOff
     //      Interactable on the Transformer. This is the on/off button's geometry.
     //   2. (Fallback) Every MeshRenderer whose GameObject name contains "OnOff"
@@ -79,6 +86,20 @@ namespace PowerGridPlus
         {
             if (device == null) return new MeshRenderer[0];
 
+            // (0) AreaPowerControl: flash the charge LED, resolved through the serialized
+            // component chain (AreaPowerControl._chargingLedMaterialChanger, decompile
+            // L390564-390565 -> the base MaterialChanger's serialized `renderer` MeshRenderer,
+            // L192195-192201). The LED is the state indicator a player actually reads on an
+            // APC; the lever is transform-animated only and is retired as a flash target.
+            // Serialized-reference targeting survives prefab renames where the old "Lever"
+            // name fallback would not. A null anywhere in the chain (field removed by a game
+            // update, prefab variant without the LED) falls through to the generic tiers.
+            if (device is AreaPowerControl)
+            {
+                var led = ResolveApcChargeLedRenderer(device);
+                if (led != null) return new[] { led };
+            }
+
             // (1) On/Off Interactable -> its descendant MeshRenderers. This is the precise
             // path for the on/off button geometry. Interactable is `[Serializable]` (not a
             // MonoBehaviour), but it carries an `Animator` reference plus the GameObject
@@ -102,15 +123,17 @@ namespace PowerGridPlus
             }
 
             // (2) Name-substring fallback for prefab variants whose Interactable doesn't have its own
-            // renderer subtree. Covers the switch/lever/indicator geometry the player reads as the
-            // device's state: the APC's MasterLever, the nuclear battery's Indic0NoShadow, plus the
-            // generic on/off button / LED names. This branch is reached ONLY when (1) found nothing,
+            // renderer subtree. Covers the switch/indicator geometry the player reads as the
+            // device's state: the nuclear battery's Indic0NoShadow, plus the generic on/off
+            // button / LED names. "Lever" is deliberately absent: it existed only for the APC's
+            // MasterLever, and the APC resolves its charge LED at (0), so no device should ever
+            // select lever geometry. This branch is reached ONLY when (0)/(1) found nothing,
             // which excludes transformers (they resolve via the OnOff Interactable), so the green-LED
             // cabinet wash that motivated avoiding a broad tint cannot occur here.
             var all = device.GetComponentsInChildren<MeshRenderer>();
             string[] indicatorNames =
             {
-                "OnOff", "Button", "Switch", "Lever", "Indic", "Led", "Light", "Lamp",
+                "OnOff", "Button", "Switch", "Indic", "Led", "Light", "Lamp",
                 "Display", "Screen", "Status", "Meter", "Glow", "Emissive"
             };
             var preferred = System.Array.FindAll(all, r =>
@@ -128,7 +151,8 @@ namespace PowerGridPlus
             // only its body + broken-state meshes): flash the primary body mesh so the fault is at
             // least visible. Prefer the active built-state body (named "BuildState..." or after the
             // prefab); skip the BrokenState meshes (inactive on an intact device). Reached only after
-            // (1) and (2) both fail, i.e. Battery / APC-without-lever, never a transformer.
+            // (0), (1), and (2) all fail, i.e. Battery / an APC whose LED chain failed to
+            // resolve, never a transformer.
             // Flash ALL body candidates (the prefab-named root body + any "BuildState" built-stage mesh,
             // minus the inactive "BrokenState" meshes), not just the first: a battery exposes both a root
             // body renderer and a BuildState00 mesh, and which one is the visible built mesh varies, so
@@ -142,6 +166,35 @@ namespace PowerGridPlus
                     || (device.PrefabName != null && n == device.PrefabName);
             });
             return body;
+        }
+
+        // Reflection handles for the APC charge-LED chain, resolved once at type load via
+        // AccessTools so a missing field after a game update degrades to the generic tiers
+        // instead of throwing. `_chargingLedMaterialChanger` is private on AreaPowerControl
+        // (decompile L390564-390565); `renderer` is protected on the Effects.MaterialChanger
+        // base (L192200-192201; AccessTools.Field walks base types from the derived class).
+        private static readonly FieldInfo ApcChargingLedChangerField =
+            AccessTools.Field(typeof(AreaPowerControl), "_chargingLedMaterialChanger");
+
+        private static readonly FieldInfo ApcLedRendererField =
+            AccessTools.Field(typeof(VanillaApcMaterialChanger), "renderer");
+
+        // Both resolvers use Unity-overloaded null checks deliberately: a destroyed or
+        // never-assigned serialized reference is a fake-null UnityEngine.Object and must
+        // count as "chain failed" so discovery falls through to the generic tiers.
+        internal static VanillaApcMaterialChanger ResolveApcChargeLedChanger(Thing device)
+        {
+            if (ApcChargingLedChangerField == null || !(device is AreaPowerControl)) return null;
+            var changer = ApcChargingLedChangerField.GetValue(device) as VanillaApcMaterialChanger;
+            return changer != null ? changer : null;
+        }
+
+        private static MeshRenderer ResolveApcChargeLedRenderer(Thing device)
+        {
+            var changer = ResolveApcChargeLedChanger(device);
+            if (changer == null || ApcLedRendererField == null) return null;
+            var led = ApcLedRendererField.GetValue(changer) as MeshRenderer;
+            return led != null ? led : null;
         }
 
         private void CacheBaseline()
@@ -213,7 +266,8 @@ namespace PowerGridPlus
                 if (_wasFlashing)
                 {
                     RestoreBaseline();
-                    // Force vanilla SwitchOnOff.RefreshColorState so the
+                    // Force the vanilla repaint (SwitchOnOff.RefreshColorState,
+                    // plus ApcMaterialChanger.RefreshState on an APC) so the
                     // button's material reflects the CURRENT (OnOff, Powered,
                     // HasPowerState, Error) tuple, not the material we cached
                     // at Init time. Without this, a transformer that the
@@ -314,6 +368,14 @@ namespace PowerGridPlus
 
         private static readonly object[] RefreshColorStateArgs = BuildDefaultArgs(RefreshColorStateMethod);
 
+        // Same arity-proof treatment for vanilla ApcMaterialChanger.RefreshState (the APC
+        // charge-LED single-write entry point, decompile L191966-192013): parameterless
+        // today, default-argument array built from the current signature in case it grows one.
+        private static readonly MethodInfo ApcRefreshStateMethod =
+            AccessTools.Method(typeof(VanillaApcMaterialChanger), "RefreshState");
+
+        private static readonly object[] ApcRefreshStateArgs = BuildDefaultArgs(ApcRefreshStateMethod);
+
         private static object[] BuildDefaultArgs(MethodInfo method)
         {
             if (method == null) return null;
@@ -331,7 +393,22 @@ namespace PowerGridPlus
 
         private void ForceVanillaRefresh()
         {
-            if (_device == null || RefreshColorStateMethod == null) return;
+            if (_device == null) return;
+            // APC: the flash target is the charge LED (DiscoverRenderers tier 0), so after the
+            // material restore re-run vanilla ApcMaterialChanger.RefreshState to resume the
+            // CURRENT charge state (idle / charging / discharging / error blink) immediately
+            // instead of waiting for the next mode transition to dispatch RefreshAnimState.
+            // ApcLedFaultPatches lets the call through because the fault has cleared by now.
+            if (_device is AreaPowerControl && ApcRefreshStateMethod != null)
+            {
+                var changer = ResolveApcChargeLedChanger(_device);
+                if (changer != null)
+                {
+                    try { ApcRefreshStateMethod.Invoke(changer, ApcRefreshStateArgs); }
+                    catch (System.Exception e) { Plugin.Log?.LogWarning($"[FaultFlash] ApcMaterialChanger.RefreshState invoke failed for ref={_device.ReferenceId}: {e.Message}"); }
+                }
+            }
+            if (RefreshColorStateMethod == null) return;
             var switches = _device.GetComponentsInChildren<VanillaSwitchOnOff>();
             if (switches == null) return;
             for (int i = 0; i < switches.Length; i++)

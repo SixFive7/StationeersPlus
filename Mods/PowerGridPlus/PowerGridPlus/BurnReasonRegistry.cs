@@ -17,9 +17,12 @@ namespace PowerGridPlus
     ///     2. <see cref="Patches.BurnReasonPatches.CableRuptured_OnRegistered_Postfix"/> consumes the
     ///        pending entry by cell and stores the reason on the wreckage instance via
     ///        <see cref="Attach"/> (a <see cref="ConditionalWeakTable{TKey,TValue}"/> sidecar, so GC
-    ///        cleans up automatically when the wreckage is destroyed or unloaded).
+    ///        cleans up automatically when the wreckage is destroyed or unloaded), then replicates it
+    ///        to clients via <see cref="BurnReasonSyncMessage"/> (live) and the join suffix (bulk);
+    ///        a client stores received reasons in <see cref="_clientByReference"/>.
     ///     3. <see cref="Patches.BurnReasonPatches.Structure_GetPassiveTooltip_Postfix"/> appends the reason
-    ///        to the wreckage's hover tooltip (<see cref="PassiveTooltip.Extended"/>).
+    ///        to the wreckage's hover tooltip (<see cref="PassiveTooltip.Extended"/>) via
+    ///        <see cref="TryGetReason"/>, which consults all three stores.
     ///
     ///     Threading: the power tick runs on UniTask worker threads, so multiple worker threads can
     ///     register pending reasons concurrently. <see cref="_pendingByCell"/> is a
@@ -36,6 +39,12 @@ namespace PowerGridPlus
         // enumeration on .NET Framework 4.7.2, so BurnReasonSideCar snapshots from here. Entries for
         // wreckage that no longer exists are purged at snapshot time.
         private static readonly ConcurrentDictionary<long, string> _attachedByReference = new ConcurrentDictionary<long, string>();
+        // Client-side lane: reasons received over the wire (BurnReasonSyncMessage live, the join
+        // suffix in bulk). Keyed by ReferenceId because the message can land before the client has
+        // any use for the Thing itself. Entries for wreckage that later despawns (the decision-32
+        // sweep, deconstruction) just sit unread; they are a few bytes each and the dictionary is
+        // cleared on every world load and at the start of every join, so no pruning pass is needed.
+        private static readonly ConcurrentDictionary<long, string> _clientByReference = new ConcurrentDictionary<long, string>();
 
         private class ReasonHolder { public string Reason; }
 
@@ -61,11 +70,38 @@ namespace PowerGridPlus
                 _attachedByReference[thing.ReferenceId] = reason;
         }
 
-        internal static string GetAttached(object wreckage)
+        // Consolidated read path for the tooltip: the instance weak table (live host attach), the
+        // ReferenceId mirror (host durable copy; also catches a restore racing the weak table), then
+        // the client cache filled over the wire. First non-empty hit wins.
+        internal static bool TryGetReason(Thing wreckage, out string reason)
         {
+            reason = null;
             if (wreckage == null)
-                return null;
-            return _attached.TryGetValue(wreckage, out var holder) ? holder.Reason : null;
+                return false;
+            if (_attached.TryGetValue(wreckage, out var holder) && !string.IsNullOrEmpty(holder.Reason))
+            {
+                reason = holder.Reason;
+                return true;
+            }
+            if (_attachedByReference.TryGetValue(wreckage.ReferenceId, out var mirrored) && !string.IsNullOrEmpty(mirrored))
+            {
+                reason = mirrored;
+                return true;
+            }
+            if (_clientByReference.TryGetValue(wreckage.ReferenceId, out var synced) && !string.IsNullOrEmpty(synced))
+            {
+                reason = synced;
+                return true;
+            }
+            return false;
+        }
+
+        // Client-side store (BurnReasonSyncMessage.Process and the join-suffix deserializer).
+        internal static void StoreClientReason(long referenceId, string reason)
+        {
+            if (referenceId == 0L || string.IsNullOrEmpty(reason))
+                return;
+            _clientByReference[referenceId] = reason;
         }
 
         // Save-side restore (BurnReasonSideCar): re-attach a persisted reason to reloaded wreckage.
@@ -91,12 +127,17 @@ namespace PowerGridPlus
             return result;
         }
 
-        // World-load reset: reasons re-attach from the side-car per Thing; stale entries from the
-        // previous session must not leak into the next world.
+        // Reset for both world entry paths. Local load (FaultRegistryLoadPatches): reasons
+        // re-attach from the side-car per Thing, and stale entries from the previous session must
+        // not leak into the next world. Join (Plugin.DeserializeJoinSuffix): nothing local
+        // survives; the join suffix and live sync messages repopulate the client lane. Either way,
+        // an entry surviving into a world it was not recorded in surfaces a wrong reason on
+        // ReferenceId collision.
         internal static void ClearAll()
         {
             _pendingByCell.Clear();
             _attachedByReference.Clear();
+            _clientByReference.Clear();
         }
     }
 }

@@ -184,6 +184,13 @@ namespace PowerGridPlus.Core
                     if (nr.MinFuse != null && nr.MinFuseBreak < flow)
                     {
                         // Deterministic protective blow (vanilla: random Pick among breakables).
+                        // CableFuse.Break burns the cable seated under the fuse (SmallCell.Cable,
+                        // decompile 392834-392846), so the reason keys off that cable's cell like
+                        // every other writer. A fuse with no seated cable burns nothing: skip.
+                        var fuseCable = nr.MinFuse.SmallCell?.Cable;
+                        if (fuseCable != null)
+                            BurnReasonRegistry.RegisterPending(fuseCable,
+                                $"Fuse blew: the flow of {flow:0} W exceeded the fuse's {nr.MinFuseBreak:0} W rating");
                         nr.MinFuse.Break();
                     }
 

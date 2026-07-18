@@ -1,6 +1,8 @@
+using Assets.Scripts;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using HarmonyLib;
+using LaunchPadBooster.Networking;
 using UnityEngine;
 
 namespace PowerGridPlus.Patches
@@ -8,7 +10,8 @@ namespace PowerGridPlus.Patches
     /// <summary>
     ///     Hooks the <see cref="CableRuptured"/> registration so a pending burn-reason (recorded by the
     ///     caller in <see cref="BurnReasonRegistry"/> just before invoking <see cref="Cable.Break"/>) gets
-    ///     attached to the freshly-spawned wreckage; and patches the wreckage's hover tooltip to show it.
+    ///     attached to the freshly-spawned wreckage and replicated to clients; and patches the wreckage's
+    ///     hover tooltip to show it (with a grey legacy fallback when no store has a reason).
     /// </summary>
     // Class-level [HarmonyPatch] is REQUIRED for PatchAll to process the per-method patches below:
     // this class targets three different methods, so it cannot put a single target on the class; the
@@ -25,8 +28,25 @@ namespace PowerGridPlus.Patches
         public static void CableRuptured_OnRegistered_Postfix(CableRuptured __instance)
         {
             if (__instance == null) return;
-            if (BurnReasonRegistry.TryConsumePending(__instance.LocalGrid, out var reason))
-                BurnReasonRegistry.Attach(__instance, reason);
+            if (!BurnReasonRegistry.TryConsumePending(__instance.LocalGrid, out var reason))
+                return;
+            BurnReasonRegistry.Attach(__instance, reason);
+            // Replicate to clients: every burn writer sits behind the RunSimulation gate, so a
+            // connected client never records a reason of its own; without this its hover shows the
+            // legacy fallback for wreckage that burned mid-session. SendAll no-ops with no clients.
+            if (GameManager.RunSimulation)
+                new BurnReasonSyncMessage { WreckageRefId = __instance.ReferenceId, Reason = reason }.SendAll(0L);
+        }
+
+        // Single source for the hover line: a recorded reason renders as before; wreckage with no
+        // entry in any store (burned before this mod was installed, or records lost) gets a calm
+        // grey fallback instead of nothing, so the line never silently vanishes. "Burned:" stays
+        // orange in both for consistency.
+        internal static string BuildBurnLine(Thing wreckage)
+        {
+            if (BurnReasonRegistry.TryGetReason(wreckage, out var reason))
+                return "<color=#ffa500>Burned:</color> " + reason;
+            return "<color=#ffa500>Burned:</color> <color=#9aa0a6>cause predates this mod's records</color>";
         }
 
         // Virtual-dispatch trap (POWERTODO 0.2): Thing.GetPassiveTooltip is virtual and Structure overrides
@@ -40,29 +60,31 @@ namespace PowerGridPlus.Patches
         {
             if (!(__instance is CableRuptured))
                 return;
-            var reason = BurnReasonRegistry.GetAttached(__instance);
-            if (string.IsNullOrEmpty(reason))
-                return;
             var prefix = string.IsNullOrEmpty(__result.Extended) ? string.Empty : (__result.Extended + "\n");
-            __result.Extended = prefix + "<color=#ffa500>Burned:</color> " + reason;
+            __result.Extended = prefix + BuildBurnLine(__instance);
+            // No-ALT visibility: the crosshair HUD path (InventoryManager.NormalModeThing, decompile
+            // 287864+) only displays a body tooltip whose Title is non-empty (the empty-Title gate,
+            // Research/Patterns/PassiveTooltipPipelines.md); wreckage falls through the vanilla chain
+            // with the all-empty struct, so the burn line used to render under ALT only. Fill the
+            // empty Title with the wreckage's DisplayName, the same move FaultHoverPatches makes for
+            // lockout faults. A Title a vanilla override already set is respected.
+            if (string.IsNullOrEmpty(__result.Title))
+                __result.Title = __instance.DisplayName;
         }
 
         // Secondary re-apply (POWERTODO 0.2): when the cursor thing exposes ANY interactable
-        // affordance (deconstruct / wrench / pickup), MouseManager.Idle calls
+        // affordance (deconstruct / wrench / pickup), the HUD path calls
         // Tooltip.SetValuesForInteractable, which REPLACES the whole PassiveTooltip struct
-        // (decompile L237486 / L288646) and erases the Extended text injected above. This postfix
-        // re-applies the burn line after the clobber. Harmless no-op when the wreckage exposes no
+        // (decompile 254408) and erases the Extended text injected above. This postfix re-applies
+        // the burn line after the clobber. Harmless no-op when the wreckage exposes no
         // interactable (the method is simply not called for it).
         [HarmonyPostfix, HarmonyPatch(typeof(Assets.Scripts.UI.Tooltip), "SetValuesForInteractable")]
         public static void SetValuesForInteractable_Postfix(ref PassiveTooltip tooltip, Thing CursorThing)
         {
             if (!(CursorThing is CableRuptured))
                 return;
-            var reason = BurnReasonRegistry.GetAttached(CursorThing);
-            if (string.IsNullOrEmpty(reason))
-                return;
             var prefix = string.IsNullOrEmpty(tooltip.Extended) ? string.Empty : (tooltip.Extended + "\n");
-            tooltip.Extended = prefix + "<color=#ffa500>Burned:</color> " + reason;
+            tooltip.Extended = prefix + BuildBurnLine(CursorThing);
         }
     }
 }

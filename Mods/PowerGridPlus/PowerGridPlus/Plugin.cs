@@ -68,6 +68,9 @@ namespace PowerGridPlus
                 // One snapshot message covers all five fault registries (per-tick full sync,
                 // POWER.md §13); the former per-transition messages are gone.
                 MOD.Networking.RegisterMessage<FaultRegistrySnapshotMessage>();
+                // Live burn-reason replication (host -> clients at wreckage spawn); the full set
+                // for a fresh joiner rides the join suffix below.
+                MOD.Networking.RegisterMessage<BurnReasonSyncMessage>();
                 MOD.Networking.JoinSuffixSerializer = this;
 
                 var harmony = new Harmony(PluginGuid);
@@ -157,6 +160,9 @@ namespace PowerGridPlus
             //   4. CurrentMismatch: count, then per entry int64 + int32 + string violators.
             //   5. CableOverload:   count, then per entry int64 + int32 + single flowW + single
             //                       capW (the cable-overload hover payload).
+            //   6. BurnReason:      count, then per entry int64 wreckage refId + string reason
+            //                       (not a fault registry: the burned-cable wreckage hover lines,
+            //                       final block of the suffix).
             int tick = ElectricityTickCounter.CurrentTick;
             WriteRemainingDeprioritized(writer, DeprioritizedRegistry.SnapshotRemaining(tick));
             WriteRemainingDeviceOverload(writer, OverloadRegistry.SnapshotRemaining(tick));
@@ -171,6 +177,18 @@ namespace PowerGridPlus
                 writer.WriteString(entry.violators ?? string.Empty);
             }
             WriteRemainingWithWatts(writer, CableOverloadRegistry.SnapshotRemaining(tick));
+
+            // Burn reasons for existing wreckage (block 6). The ReferenceId mirror is the durable
+            // combined set: every live Attach and every side-car restore writes it, so
+            // SnapshotAttached (which also purges entries whose wreckage no longer exists) is the
+            // whole host-side truth in one call.
+            var burnReasons = BurnReasonRegistry.SnapshotAttached();
+            writer.WriteInt32(burnReasons.Count);
+            foreach (var entry in burnReasons)
+            {
+                writer.WriteInt64(entry.Key);
+                writer.WriteString(entry.Value ?? string.Empty);
+            }
         }
 
         // The deprioritized registry carries the locked hover triple (needs, upstream demand,
@@ -311,6 +329,17 @@ namespace PowerGridPlus
 
         public void DeserializeJoinSuffix(RocketBinaryReader reader)
         {
+            // Cross-world stale-attach bug: a join does not run the world-load reset (that hook
+            // fires on XmlSaveLoad.LoadWorld, local loads only), so a client that earlier loaded a
+            // LOCAL world still holds that world's reasons in the registry mirror and the side-car
+            // cache; TryGetReason would serve the mirror's entries on ReferenceId collision, and
+            // Thing.OnFinishedLoad (on a join it fires per Thing from
+            // GameManager.UpdateThingsOnGameStart, AFTER this suffix is read) would re-attach the
+            // side-car ones. Drop all client-side burn-reason state before reading the host's;
+            // block 6 below and live BurnReasonSyncMessages repopulate the client lane.
+            BurnReasonRegistry.ClearAll();
+            BurnReasonSideCar.LoadedReasons = null;
+
             int count = reader.ReadInt32();
             for (int i = 0; i < count; i++)
             {
@@ -342,7 +371,7 @@ namespace PowerGridPlus
             // Fault-registry join handshake: remaining-ticks snapshots for all five registries, in
             // the fixed block order documented in SerializeJoinSuffix (Deprioritized + hover
             // triple, DeviceOverload + watt payload, CycleFault, CurrentMismatch + violators,
-            // CableOverload + watt payload).
+            // CableOverload + watt payload, then the burn-reason block).
             DeprioritizedRegistry.ReplaceClientSnapshot(ReadRemainingDeprioritized(reader));
             OverloadRegistry.ReplaceClientSnapshot(ReadRemainingDeviceOverload(reader));
             CycleFaultRegistry.ReplaceClientSnapshot(ReadRemaining(reader));
@@ -357,6 +386,15 @@ namespace PowerGridPlus
             }
             CurrentMismatchFaultRegistry.ReplaceClientSnapshot(currentMismatch);
             CableOverloadRegistry.ReplaceClientSnapshot(ReadRemainingWithWatts(reader));
+
+            // Burn reasons for existing wreckage (block 6, final).
+            int burnReasonCount = reader.ReadInt32();
+            for (int i = 0; i < burnReasonCount; i++)
+            {
+                long refId = reader.ReadInt64();
+                string reason = reader.ReadString();
+                BurnReasonRegistry.StoreClientReason(refId, reason);
+            }
         }
 
         /// <summary>

@@ -57,6 +57,7 @@ namespace PowerGridPlus
             Throttled,
             Undersupplied,
             NoPowerSource,
+            Quarantined,
         }
 
         // FaultRed = power wanted (downstream demand, cable flow, the shortfall / overage) and the
@@ -93,7 +94,8 @@ namespace PowerGridPlus
         // presentation extras (no-ALT body-tooltip visibility).
         internal static bool IsLockoutFault(Kind kind)
             => kind != Kind.None && kind != Kind.DeadInput && kind != Kind.Throttled
-               && kind != Kind.Undersupplied && kind != Kind.NoPowerSource;
+               && kind != Kind.Undersupplied && kind != Kind.NoPowerSource
+               && kind != Kind.Quarantined;
 
         // Resolve the device whose ReferenceId keys the registries (PR -> linked PT).
         internal static long ResolveFaultRefId(Thing thing)
@@ -208,11 +210,21 @@ namespace PowerGridPlus
                 }
                 default:
                 {
-                    // No lockout fault. The two INFO states (no timer, no flash, never the
-                    // fault-only presentation extras), in fixed order: the dead-input cue first
-                    // (POWER.md §8.3 carveout; keyed on the resolved fault refId so a PR aliases
-                    // to its PT; host reads the live set, clients the synced mirror), then the
-                    // transformer throttle note (§5.3 / P13, live Setting-vs-rated read).
+                    // No lockout fault. The INFO states (no timer, no flash, never the fault-only
+                    // presentation extras), in fixed order: Quarantined first (the device is
+                    // outside the grid model, so every other cue would be stale for it), then the
+                    // dead-input cue (POWER.md §8.3 carveout; keyed on the resolved fault refId so
+                    // a PR aliases to its PT), then the transformer throttle note (§5.3 / P13),
+                    // then the dark-net faces (the most generic, so they render last).
+                    if (thing != null && PoweredOwnership.IsQuarantinedForHover(thing.ReferenceId))
+                    {
+                        // The PoweredOwnership 10-tick contradiction valve handed this device
+                        // back to vanilla control (2026-07-18: was log-only).
+                        kind = Kind.Quarantined;
+                        block = InfoTitleLine(thing, "Quarantined", CalmGrey);
+                        block += $"\n<color={CalmGrey}>This device fought the grid model and was handed back to vanilla control</color>";
+                        return true;
+                    }
                     if (DeadInputRegistry.IsDeadInput(refId))
                     {
                         kind = Kind.DeadInput;

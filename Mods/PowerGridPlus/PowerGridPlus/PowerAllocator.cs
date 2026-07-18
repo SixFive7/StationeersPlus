@@ -2291,6 +2291,7 @@ namespace PowerGridPlus
         private static bool _deadInputWasNonEmpty;
         private static bool _cableOverloadWasNonEmpty;
         private static bool _undersuppliedWasNonEmpty;
+        private static bool _quarantinedWasNonEmpty;
 
         internal static void SyncFaultSnapshots(int currentTick)
         {
@@ -2306,6 +2307,7 @@ namespace PowerGridPlus
             SendWithWattPayload(FaultRegistrySnapshotMessage.KindCableOverload,
                 CableOverloadRegistry.SnapshotRemaining(currentTick), ref _cableOverloadWasNonEmpty);
             SendUndersupplied(ref _undersuppliedWasNonEmpty);
+            SendQuarantined(ref _quarantinedWasNonEmpty);
 
             var currentMismatch = new List<KeyValuePair<long, int>>();
             var violators = new List<string>();
@@ -2339,6 +2341,21 @@ namespace PowerGridPlus
         // hover's needs / delivers pair plus the feeder pointer; a keep-alive TTL like the
         // dead-input cue (no countdown to display), and intentionally not in the join handshake
         // (the first heartbeat refreshes it within a tick).
+        private static void SendQuarantined(ref bool wasNonEmpty)
+        {
+            var entries = new List<KeyValuePair<long, int>>();
+            foreach (var kv in PoweredOwnership.SnapshotQuarantineRemaining()) entries.Add(kv);
+            if (entries.Count > 0 || wasNonEmpty)
+            {
+                new FaultRegistrySnapshotMessage
+                {
+                    Kind = FaultRegistrySnapshotMessage.KindQuarantined,
+                    Entries = entries,
+                }.SendAll(0L);
+            }
+            wasNonEmpty = entries.Count > 0;
+        }
+
         private static void SendUndersupplied(ref bool wasNonEmpty)
         {
             var entries = new List<KeyValuePair<long, int>>();

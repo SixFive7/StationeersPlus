@@ -43,6 +43,7 @@ namespace PowerGridPlus
         public const byte KindDeadInput = 4;
         public const byte KindCableOverload = 5;
         public const byte KindUndersupplied = 6;
+        public const byte KindQuarantined = 7;   // entries only (refId + keep-alive TTL), no payload
 
         public byte Kind;
         public List<KeyValuePair<long, int>> Entries = new List<KeyValuePair<long, int>>();
@@ -220,6 +221,9 @@ namespace PowerGridPlus
                     UndersuppliedRegistry.ReplaceClientSnapshot(combined);
                     break;
                 }
+                case KindQuarantined:
+                    PoweredOwnership.ReplaceClientQuarantineSnapshot(Entries);
+                    break;
             }
         }
 
