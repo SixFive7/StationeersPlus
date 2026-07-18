@@ -107,7 +107,7 @@ All settings are server-authoritative: in multiplayer the host's values apply fo
 | Server - Transformers | Small Transformer Passthrough Default | true | Passthrough mode the three small transformer prefabs start with while their own mode was never set. |
 | Server - Transformers | Other Transformer Passthrough Default | false | Passthrough mode every other transformer variant starts with while its own mode was never set. |
 | Server - Area Power Control | APC Battery Charge Rate | 1000 | APC cell charge cap (W). |
-| Server - Area Power Control | APC Battery Discharge Rate | 1000 | APC cell discharge cap (W). |
+| Server - Area Power Control | APC Battery Discharge Rate | 0 | APC cell discharge cap (W); 0 matches the connected output wire's tier cap (never overloads it). |
 | Server - Area Power Control | APC Passthrough Default | true | Passthrough mode an APC starts with. The APC has no logic port, so the config default is its only seed. |
 | Server - Power Transmitters | Power Transmitter Passthrough Default | true | Passthrough mode a linked dish pair starts with while its own mode was never set. |
 | Server - Rocket Umbilical | Rocket Umbilical Charge Rate | 10000 | Umbilical charge cap (W). |

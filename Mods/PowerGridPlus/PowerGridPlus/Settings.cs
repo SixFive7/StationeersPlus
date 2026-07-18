@@ -238,10 +238,13 @@ namespace PowerGridPlus
                      "APC's own downstream pass-through is subtracted, so a single APC can never blow its own cable " +
                      "just by charging on top of what it is already passing through. Vanilla default is 1000.", 15));
 
-            ApcBatteryDischargeRate = config.Bind("Server - Area Power Control", "APC Battery Discharge Rate", 1000f,
+            ApcBatteryDischargeRate = config.Bind("Server - Area Power Control", "APC Battery Discharge Rate", 0f,
                 Desc("(Server-authoritative) Maximum wattage the APC's inserted battery cell can discharge per tick to the " +
-                     "output network. Per device, not per network. Capped further by the output cable's MaxVoltage. The " +
-                     "elastic-supply allocator discharges the cell only to fill the output network's shortfall, never more.", 17));
+                     "output network. 0 (the default) matches the connected output wire: the cell may fill the wire's " +
+                     "tier cap from this mod's cable settings (5000 W on normal cable) but never overload it. A positive " +
+                     "value caps below the wire; values above the wire cap are clamped to it. Per device, not per " +
+                     "network. The elastic-supply allocator discharges the cell only to fill the output network's " +
+                     "shortfall, never more.", 17));
 
             ApcPassthroughDefault = config.Bind("Server - Area Power Control", "APC Passthrough Default", true,
                 Desc("(Server-authoritative) The logic-passthrough mode an Area Power Control starts with: applies to a " +

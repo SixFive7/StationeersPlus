@@ -436,8 +436,15 @@ namespace PowerGridPlus
                             Elastic cellElastic = null;
                             if (cell.PowerStored > 0f)
                             {
-                                float apcRateSide = Mathf.Min(Settings.ApcBatteryDischargeRate.Value,
-                                    CableMax.For(apc.OutputConnection?.GetCable()));
+                                float apcCableCap = CableMax.For(apc.OutputConnection?.GetCable());
+                                float apcConfigured = Settings.ApcBatteryDischargeRate.Value;
+                                // 0 means "match the connected output wire" (user decision
+                                // 2026-07-18): the cell may fill the wire's tier cap but never
+                                // overload it; a positive value caps below the wire and is
+                                // clamped to it above.
+                                float apcRateSide = apcConfigured <= 0f
+                                    ? apcCableCap
+                                    : Mathf.Min(apcConfigured, apcCableCap);
                                 elastics.Add(cellElastic = new Elastic
                                 {
                                     RefId = apc.ReferenceId,
