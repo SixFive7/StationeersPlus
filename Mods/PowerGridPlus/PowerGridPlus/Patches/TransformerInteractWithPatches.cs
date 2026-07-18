@@ -100,9 +100,12 @@ namespace PowerGridPlus.Patches
             int p = PriorityStore.GetPriority(transformer.ReferenceId);
             AppendRawStateMessage(dai, $"Priority <color=green>{p}</color>");
             AppendRawStateMessage(dai, $"Throughput <color=green>{(float)transformer.Setting:0} W</color> of {transformer.OutputMaximum:0} W (IC10 Setting)");
-            if (DeprioritizedRegistry.IsDeprioritized(transformer.ReferenceId, ElectricityTickCounter.CurrentTick))
+            if (DeprioritizedRegistry.TryGetFault(transformer.ReferenceId, ElectricityTickCounter.CurrentTick,
+                    out float depSeconds, out _, out _, out _, out _, out _, out _))
             {
-                AppendRawStateMessage(dai, "<color=#ffa500>Deprioritized fault: insufficient upstream supply</color>");
+                // Registry-driven, matching the main hover block's vocabulary and countdown
+                // (user decision 2026-07-18; the old static orange line predated the overhaul).
+                AppendRawStateMessage(dai, $"<color=#ff2626>Deprioritized fault: {depSeconds:0.00}s</color>");
             }
             AppendRawStateMessage(dai, "Hold <color=yellow>Alt</color> for fine adjustment");
         }

@@ -72,10 +72,17 @@ namespace PowerGridPlus.Core
 
         internal static Plan Current;
 
+        // D-09 (2026-07-18): the plan-net ids of the PREVIOUS tick, so a network that drops out
+        // of the plan (lost its last device; wires remain) gets its readouts zeroed instead of
+        // freezing at their last values forever (stale analyser numbers, and a stale-active
+        // signal into the wrong-tier activity gate). Worker-only, like the plan itself.
+        private static readonly HashSet<long> _prevPlanNetIds = new HashSet<long>();
+
         internal static void Clear()
         {
             Current = null;
             _deliveryWarnLastTick.Clear();
+            _prevPlanNetIds.Clear();
         }
 
         // Umbilical Last* mirrors (vanilla ReceivePower/UsePower kept these; public get, protected set).
@@ -148,6 +155,23 @@ namespace PowerGridPlus.Core
                 net.ShortfallLoad = r.Required > r.Potential ? r.Required - r.Potential : 0f;
                 currentById[r.Id] = r.Current;
             }
+
+            // D-09 (2026-07-18): zero the readouts of every network that left the plan since the
+            // previous tick. Referencable.Find is a plain dictionary lookup (the OffAsResetSweep
+            // precedent), safe on the worker; a destroyed network resolves null and needs nothing.
+            foreach (long id in _prevPlanNetIds)
+            {
+                if (currentById.ContainsKey(id)) continue;
+                var gone = Referencable.Find<CableNetwork>(id);
+                if (gone == null) continue;
+                gone.RequiredLoad = 0f;
+                gone.CurrentLoad = 0f;
+                gone.PotentialLoad = 0f;
+                gone.ShortfallLoad = 0f;
+                gone.DuringTickLoad = 0f;
+            }
+            _prevPlanNetIds.Clear();
+            foreach (long id in currentById.Keys) _prevPlanNetIds.Add(id);
 
             // ---- 2. Fuses + the deterministic generator-overflow burn ----
             for (int i = 0; i < snap.Nets.Count; i++)

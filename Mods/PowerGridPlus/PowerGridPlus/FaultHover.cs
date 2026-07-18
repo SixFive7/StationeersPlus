@@ -56,6 +56,7 @@ namespace PowerGridPlus
             DeadInput,
             Throttled,
             Undersupplied,
+            NoPowerSource,
         }
 
         // FaultRed = power wanted (downstream demand, cable flow, the shortfall / overage) and the
@@ -88,11 +89,11 @@ namespace PowerGridPlus
         private const string LogicOrange = "#FF8000";
 
         // True for the five lockout faults (the registries with a 60 s timer and a flash). The
-        // three info states share the hover pipeline but must never trigger the fault-only
+        // four info states share the hover pipeline but must never trigger the fault-only
         // presentation extras (no-ALT body-tooltip visibility).
         internal static bool IsLockoutFault(Kind kind)
             => kind != Kind.None && kind != Kind.DeadInput && kind != Kind.Throttled
-               && kind != Kind.Undersupplied;
+               && kind != Kind.Undersupplied && kind != Kind.NoPowerSource;
 
         // Resolve the device whose ReferenceId keys the registries (PR -> linked PT).
         internal static long ResolveFaultRefId(Thing thing)
@@ -145,17 +146,22 @@ namespace PowerGridPlus
                     block = FaultTitleLine(thing, DeviceOverloadLabel(thing) + " overloaded fault", seconds);
                     if (valueW > 0f || capW > 0f)
                     {
-                        block += $"\n<color={CalmGrey}>Downstream demand of <color={FaultRed}>{FmtWatts(valueW)}</color> exceeds the available <color={CapBlue}>{FmtWatts(capW)}</color></color>";
-                        // The source-breakdown line is driven by what the device CAN do, not by
+                        // The source presentation is driven by what the device CAN do, not by
                         // which number happens to be zero right now, so the hover teaches the
-                        // device's mechanics (user decision 2026-07-18). A pass-through-only
-                        // device (transformer, wireless link) never shows a storage component; a
-                        // storage-only device (battery, umbilical) shows only its storage
-                        // component; a device that can do both (the APC) always shows both
-                        // parts, zero-valued parts included.
+                        // device's mechanics (user decisions 2026-07-18). A pass-through-only
+                        // device (transformer, wireless link) shows ONLY the upstream part of
+                        // the cap: the payload keeps the lossless net-level cap (which counts
+                        // co-stores on the net, needed by the trip condition and the audits),
+                        // and the render subtracts the storage slice so a transformer never
+                        // displays power it cannot route. A storage-only device (battery,
+                        // umbilical) shows only its storage component; a device that can do
+                        // both (the APC) always shows both parts, zero-valued parts included.
                         float upstreamW = capW - storageW;
                         if (upstreamW < 0f) upstreamW = 0f;
-                        switch (OverloadSourceMode(thing))
+                        var mode = OverloadSourceMode(thing);
+                        float shownCapW = mode == SourceMode.PassthroughOnly ? upstreamW : capW;
+                        block += $"\n<color={CalmGrey}>Downstream demand of <color={FaultRed}>{FmtWatts(valueW)}</color> exceeds the available <color={CapBlue}>{FmtWatts(shownCapW)}</color></color>";
+                        switch (mode)
                         {
                             case SourceMode.Both:
                                 block += $"\n<color={CalmGrey}><color={CapBlue}>{FmtWatts(upstreamW)}</color> upstream + <color={TealStorage}>{FmtWatts(storageW)}</color> internal storage = <color={CapBlue}>{FmtWatts(capW)}</color> available</color>";
@@ -164,9 +170,9 @@ namespace PowerGridPlus
                                 block += $"\n<color={CalmGrey}><color={TealStorage}>{FmtWatts(storageW)}</color> of the available comes from internal storage</color>";
                                 break;
                             case SourceMode.PassthroughOnly:
-                                break;   // no storage component exists on the device; the total says it all
+                                break;   // upstream-only total shown above; no storage component on the device
                         }
-                        float shortW = valueW - capW;
+                        float shortW = valueW - shownCapW;
                         if (shortW > 0f)
                             block += $"\n<color={CalmGrey}>Short by <color={FaultRed}>{FmtWatts(shortW)}</color></color>";
                     }
@@ -223,17 +229,24 @@ namespace PowerGridPlus
                         block += $"\n<color={CalmGrey}>Use IC10 to set the <color={LogicOrange}>Setting</color> value</color>";
                         return true;
                     }
-                    // Decision-33 Undersupplied (the DEAD_UNMET face; the most generic info state,
-                    // so it renders only when nothing more specific applies): any device on a
-                    // network whose rigid demand outran the supply that reaches it, with shedding
-                    // exhausted, shows the amber needs-vs-delivers block plus a pointer at the
-                    // strongest feeder so the dark room diagnoses itself.
-                    if (TryGetUndersuppliedNet(thing, out float usNeedsW, out float usAvailW, out long usFeederRef))
+                    // Decision-33 dark-net faces (the most generic info states, so they render
+                    // only when nothing more specific applies): any device on a dark net that
+                    // WANTS power shows the face. DEAD_UNMET nets wear the amber Undersupplied
+                    // face, DEAD_NOSUPPLY nets the grey No-power-source face, and both always
+                    // render ALL source components (upstream, local generation, local storage,
+                    // zeros included; user decision 2026-07-18: teach where power could come
+                    // from) plus a pointer at the strongest feeder, locked ones included.
+                    if (TryGetUndersuppliedNet(thing, out var usInfo))
                     {
-                        kind = Kind.Undersupplied;
-                        block = InfoTitleLine(thing, "Undersupplied", ThrottleAmber);
-                        block += $"\n<color={CalmGrey}>Needs <color={FaultRed}>{FmtWatts(usNeedsW)}</color> while upstream delivers <color={CapBlue}>{FmtWatts(usAvailW)}</color></color>";
-                        string feederName = UndersuppliedFeederName(usFeederRef);
+                        bool noSource = usInfo.Face == UndersuppliedRegistry.FaceNoPowerSource;
+                        kind = noSource ? Kind.NoPowerSource : Kind.Undersupplied;
+                        block = noSource
+                            ? InfoTitleLine(thing, "No power source", CalmGrey)
+                            : InfoTitleLine(thing, "Undersupplied", ThrottleAmber);
+                        float usTotal = usInfo.UpstreamW + usInfo.GenW + usInfo.StorageW;
+                        block += $"\n<color={CalmGrey}>Needs <color={FaultRed}>{FmtWatts(usInfo.NeedsW)}</color> while the network raises <color={CapBlue}>{FmtWatts(usTotal)}</color></color>";
+                        block += $"\n<color={CalmGrey}><color={CapBlue}>{FmtWatts(usInfo.UpstreamW)}</color> upstream + <color={CapBlue}>{FmtWatts(usInfo.GenW)}</color> generation + <color={TealStorage}>{FmtWatts(usInfo.StorageW)}</color> storage = <color={CapBlue}>{FmtWatts(usTotal)}</color></color>";
+                        string feederName = UndersuppliedFeederName(usInfo.FeederRefId);
                         if (feederName != null)
                             block += $"\n<color={CalmGrey}>Check {feederName}</color>";
                         return true;
@@ -244,20 +257,14 @@ namespace PowerGridPlus
             }
         }
 
-        // Decision-33 Undersupplied lookup: keyed by the device's power NETWORK (the state is
+        // Decision-33 dark-net-face lookup: keyed by the device's power NETWORK (the state is
         // per-net). Host reads the live set, clients the synced mirror.
-        private static bool TryGetUndersuppliedNet(Thing thing, out float needsW, out float availW, out long feederRefId)
+        private static bool TryGetUndersuppliedNet(Thing thing, out UndersuppliedRegistry.Info info)
         {
-            needsW = 0f;
-            availW = 0f;
-            feederRefId = 0L;
+            info = default;
             var net = (thing as Assets.Scripts.Objects.Pipes.Device)?.PowerCableNetwork;
             if (net == null) return false;
-            if (!UndersuppliedRegistry.TryGet(net.ReferenceId, out var info)) return false;
-            needsW = info.NeedsW;
-            availW = info.AvailW;
-            feederRefId = info.FeederRefId;
-            return true;
+            return UndersuppliedRegistry.TryGet(net.ReferenceId, out info);
         }
 
         // Resolve the feeder pointer to a display name on the main-thread hover path; null when

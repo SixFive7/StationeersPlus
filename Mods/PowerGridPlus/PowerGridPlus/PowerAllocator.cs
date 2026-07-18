@@ -952,20 +952,37 @@ namespace PowerGridPlus
                              : NetLiveness.Live;
                 byte verdict = NetLiveness.ApplyHold(n.Id, formula, currentTick);
                 liveness[n.Id] = verdict;
-                if (verdict == NetLiveness.DeadUnmet)
+                if (verdict == NetLiveness.DeadUnmet || verdict == NetLiveness.DeadNoSupply)
                 {
-                    // Decision-33 Undersupplied face: record the needs-vs-delivers numbers and a
-                    // pointer at the strongest feeder for every device on this dark net to show.
-                    // Marked during the HELD tail too (formula-LIVE but held): the room is still
-                    // dark then, so the cue must not vanish before the light actually returns.
+                    // Decision-33 dark-net faces (extended 2026-07-18): DEAD_UNMET wears the amber
+                    // Undersupplied face, DEAD_NOSUPPLY the grey No-power-source face, and both
+                    // carry ALL source components (upstream inflow, local generation, local store
+                    // availability) so the hover teaches where power could come from even when a
+                    // component is 0. Marked during the HELD tail too (formula-LIVE but held):
+                    // the room is still dark then, so the cue must not vanish before the light
+                    // actually returns. A dark net with nothing asking for power is not marked
+                    // (an empty wire run needs no face).
                     float needsW = n.RigidDemand;
                     foreach (var c in n.Consumers)
                         if (IsActive(c)) needsW += c.DesiredPull;
-                    long feederRef = 0L;
-                    float feederCap = -1f;
-                    foreach (var s in n.Suppliers)
-                        if (!s.Locked && s.EffCap > feederCap) { feederCap = s.EffCap; feederRef = s.RefId; }
-                    UndersuppliedRegistry.MarkUndersupplied(n.Id, needsW, availNow, feederRef);
+                    if (needsW > Eps)
+                    {
+                        // Feeder pointer: the strongest live feeder, else the strongest LOCKED
+                        // one (a store or seg sitting in a fault lockout is exactly the thing
+                        // the player should go look at; user decision 2026-07-18).
+                        long feederRef = 0L;
+                        float feederCap = -1f;
+                        foreach (var s in n.Suppliers)
+                            if (!s.Locked && s.EffCap > feederCap) { feederCap = s.EffCap; feederRef = s.RefId; }
+                        if (feederRef == 0L)
+                            foreach (var s in n.Suppliers)
+                                if (s.EffCap > feederCap) { feederCap = s.EffCap; feederRef = s.RefId; }
+                        byte face = verdict == NetLiveness.DeadUnmet
+                            ? UndersuppliedRegistry.FaceUndersupplied
+                            : UndersuppliedRegistry.FaceNoPowerSource;
+                        UndersuppliedRegistry.MarkNet(n.Id, face, needsW,
+                            n.InflowCommitted, n.GenSupply, AvailableElastic(n), feederRef);
+                    }
                 }
             }
             NetLiveness.Publish(liveness, currentTick);
@@ -1155,6 +1172,31 @@ namespace PowerGridPlus
                     Required = n.RigidDemand + n.PullsGranted + n.SoftPullsGranted + n.SoftGrantedLocal,
                     Current = n.RigidServed + n.PullsGranted + n.SoftPullsGranted + n.SoftGrantedLocal,
                     Potential = n.GenSupply + n.InflowCommitted + elasticGrantedTotal,
+                });
+            }
+            // D-04 (2026-07-18): the wireless carrier network between a linked dish pair has no
+            // cables and never enters netList, so nothing above writes its readouts and IC10
+            // PowerActual on the pair read ~0 while power flowed. Fill each carrier with the
+            // pair's settled totals as plan rows ONLY (the carrier never joins the solve, the
+            // census, or the conservation scope). Potential advertises the link's rated
+            // deliverable so an idle pair still reads its capacity. This lives in PowerGridPlus,
+            // not PowerTransmitterPlus: with this mod alone the data plane is mod-owned and
+            // nothing else would fill the carrier; without this mod the vanilla engine fills it
+            // natively; together, the settled totals already carry the PowerTransmitterPlus
+            // billing through the interop.
+            foreach (var seg in segs)
+            {
+                if (seg.Kind != SegKind.PtPair) continue;
+                var carrier = (seg.AnchorDevice as PowerTransmitter)?.OutputNetwork;
+                if (carrier == null) continue;
+                float through = seg.Throughput + seg.SoftThrough;
+                writePlan.Nets.Add(new Core.WriteBack.NetResult
+                {
+                    Network = carrier,
+                    Id = carrier.ReferenceId,
+                    Required = through,
+                    Current = through,
+                    Potential = seg.EffCap,
                 });
             }
             foreach (var s in softs)
@@ -2300,14 +2342,21 @@ namespace PowerGridPlus
         private static void SendUndersupplied(ref bool wasNonEmpty)
         {
             var entries = new List<KeyValuePair<long, int>>();
+            var faces = new List<byte>();
             var needs = new List<float>();
-            var avails = new List<float>();
+            var upstreams = new List<float>();
+            var gens = new List<float>();
+            var storages = new List<float>();
             var feeders = new List<long>();
-            foreach (var (netId, ttl, needsW, availW, feederRefId) in UndersuppliedRegistry.SnapshotRemaining())
+            foreach (var (netId, ttl, face, needsW, upstreamW, genW, storageW, feederRefId)
+                     in UndersuppliedRegistry.SnapshotRemaining())
             {
                 entries.Add(new KeyValuePair<long, int>(netId, ttl));
+                faces.Add(face);
                 needs.Add(needsW);
-                avails.Add(availW);
+                upstreams.Add(upstreamW);
+                gens.Add(genW);
+                storages.Add(storageW);
                 feeders.Add(feederRefId);
             }
             if (entries.Count > 0 || wasNonEmpty)
@@ -2316,8 +2365,11 @@ namespace PowerGridPlus
                 {
                     Kind = FaultRegistrySnapshotMessage.KindUndersupplied,
                     Entries = entries,
+                    PayloadReason = faces,      // the face byte rides the reason list for kind 6
                     PayloadValuesW = needs,
-                    PayloadCapsW = avails,
+                    PayloadCapsW = upstreams,
+                    PayloadGenW = gens,
+                    PayloadStorageW = storages,
                     PayloadFeederRefId = feeders,
                 }.SendAll(0L);
             }

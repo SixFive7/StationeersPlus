@@ -4,33 +4,50 @@ using System.Collections.Generic;
 namespace PowerGridPlus
 {
     /// <summary>
-    ///     The player-facing face of the DEAD_UNMET verdict (decision 33; the name Undersupplied
-    ///     was approved by the user): a network whose rigid demand cannot be fully funded by the
-    ///     supply that reaches it, with shedding exhausted, goes dark whole and holds 60 s. Until
-    ///     now that state had no cue at all. Every device on such a network shows the amber
-    ///     "Undersupplied" info block: the needs-vs-delivers numbers plus a pointer at the
-    ///     strongest feeding segmenter, so a dark room diagnoses itself. NOT a fault lockout: no
-    ///     timer to display, no flash, instant recovery when supply returns; the verdict machinery
-    ///     itself (NetLiveness) is unchanged.
+    ///     The player-facing faces of the two dark-net verdicts (decision 33; names approved by
+    ///     the user). A network that WANTS power but is dark explains itself on every device it
+    ///     carries:
     ///
-    ///     <para>Keyed by NETWORK ReferenceId (the state is per-net, not per-device). Rebuilt
-    ///     every allocator pass at the liveness tail; mirrored to clients via the per-tick fault
-    ///     snapshot (<see cref="FaultRegistrySnapshotMessage.KindUndersupplied"/>) with the
+    ///     <para><b>Undersupplied</b> (DEAD_UNMET, amber): supply reaches the net but cannot fund
+    ///     its rigid demand, shedding exhausted; the 60 s hold rhythm applies.</para>
+    ///
+    ///     <para><b>No power source</b> (DEAD_NOSUPPLY, grey): nothing energized reaches the net
+    ///     at all this tick (no inflow, no local generation, no unlocked store); recovers the
+    ///     tick supply returns. Covers the store-in-lockout room that previously showed nothing
+    ///     (user decision 2026-07-18).</para>
+    ///
+    ///     <para>Both faces carry ALL source components (user decision 2026-07-18, "be complete
+    ///     on all possible sources"): upstream inflow through feeder segmenters, local generator
+    ///     supply, and local store discharge available (0 while a store is locked out), plus a
+    ///     pointer at the strongest feeder (a LOCKED feeder is named when no live one exists; the
+    ///     locked device is exactly the thing to go look at). Consumerless dark nets are not
+    ///     marked (an empty wire run needs no face).</para>
+    ///
+    ///     <para>NOT a fault lockout: no timer to display, no flash; the verdict machinery itself
+    ///     (NetLiveness) is unchanged. Keyed by NETWORK ReferenceId; rebuilt every allocator pass
+    ///     at the liveness tail; mirrored to clients via the per-tick fault snapshot
+    ///     (<see cref="FaultRegistrySnapshotMessage.KindUndersupplied"/>) with the
     ///     DeadInputRegistry keep-alive TTL shape (the carried int is a TTL, not a countdown),
     ///     and intentionally not in the join handshake (the first heartbeat refreshes it within a
     ///     tick).</para>
     /// </summary>
     internal static class UndersuppliedRegistry
     {
+        internal const byte FaceUndersupplied = 0;   // DEAD_UNMET: fed but short
+        internal const byte FaceNoPowerSource = 1;   // DEAD_NOSUPPLY: nothing energized reaches it
+
         // Client-mirror keep-alive: the host sends the full set every tick while non-empty, so
         // 2 ticks (1 s) comfortably bridges one heartbeat.
         private const int HeartbeatTtlTicks = 2;
 
         internal struct Info
         {
+            public byte Face;         // FaceUndersupplied / FaceNoPowerSource
             public float NeedsW;      // the net's rigid want (own machines + active claims)
-            public float AvailW;      // the supply that actually reached the net
-            public long FeederRefId;  // the strongest supplier seg; 0 when none (generator-only net)
+            public float UpstreamW;   // inflow committed through feeder segmenters this tick
+            public float GenW;        // local generator supply on the net
+            public float StorageW;    // local store discharge available (0 while locked out)
+            public long FeederRefId;  // strongest feeder seg (locked fallback); 0 when none
         }
 
         // Server: netId -> info this tick. Rebuilt every allocator pass.
@@ -54,10 +71,19 @@ namespace PowerGridPlus
         /// <summary>Server: clear the set at the start of an allocator pass, before re-marking.</summary>
         internal static void BeginServerPass() => _serverByNet.Clear();
 
-        internal static void MarkUndersupplied(long netId, float needsW, float availW, long feederRefId)
-            => _serverByNet[netId] = new Info { NeedsW = needsW, AvailW = availW, FeederRefId = feederRefId };
+        internal static void MarkNet(long netId, byte face, float needsW,
+            float upstreamW, float genW, float storageW, long feederRefId)
+            => _serverByNet[netId] = new Info
+            {
+                Face = face,
+                NeedsW = needsW,
+                UpstreamW = upstreamW,
+                GenW = genW,
+                StorageW = storageW,
+                FeederRefId = feederRefId,
+            };
 
-        /// <summary>Undersupplied info for a network (host: live set; client: synced mirror).</summary>
+        /// <summary>Dark-net face for a network (host: live set; client: synced mirror).</summary>
         internal static bool TryGet(long netId, out Info info)
         {
             if (IsClientPeer)
@@ -74,14 +100,15 @@ namespace PowerGridPlus
         }
 
         /// <summary>Server: per-tick heartbeat snapshot. The int is a keep-alive TTL, not a countdown.</summary>
-        internal static IEnumerable<(long netId, int ttl, float needsW, float availW, long feederRefId)> SnapshotRemaining()
+        internal static IEnumerable<(long netId, int ttl, byte face, float needsW, float upstreamW, float genW, float storageW, long feederRefId)> SnapshotRemaining()
         {
             foreach (var kv in _serverByNet)
-                yield return (kv.Key, HeartbeatTtlTicks, kv.Value.NeedsW, kv.Value.AvailW, kv.Value.FeederRefId);
+                yield return (kv.Key, HeartbeatTtlTicks, kv.Value.Face, kv.Value.NeedsW,
+                    kv.Value.UpstreamW, kv.Value.GenW, kv.Value.StorageW, kv.Value.FeederRefId);
         }
 
         /// <summary>Client: replace the mirror from a received snapshot.</summary>
-        internal static void ReplaceClientSnapshot(List<(long netId, int ttl, float needsW, float availW, long feederRefId)> entries)
+        internal static void ReplaceClientSnapshot(List<(long netId, int ttl, byte face, float needsW, float upstreamW, float genW, float storageW, long feederRefId)> entries)
         {
             _clientByNet.Clear();
             long now = MonotonicClock.NowMs;
@@ -93,8 +120,11 @@ namespace PowerGridPlus
                     ExpiryMs = now + entries[i].ttl * 500L,
                     Info = new Info
                     {
+                        Face = entries[i].face,
                         NeedsW = entries[i].needsW,
-                        AvailW = entries[i].availW,
+                        UpstreamW = entries[i].upstreamW,
+                        GenW = entries[i].genW,
+                        StorageW = entries[i].storageW,
                         FeederRefId = entries[i].feederRefId,
                     },
                 };

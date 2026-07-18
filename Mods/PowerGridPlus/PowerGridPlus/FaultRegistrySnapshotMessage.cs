@@ -21,8 +21,10 @@ namespace PowerGridPlus
     //                                          single upstreamSupplyW, single shortfallW,
     //                                          byte reason, int32 victimPriority
     //   KindCurrentMismatch:                   int64 refId, int32 remainingTicks, string violators
-    //   KindUndersupplied:                     int64 NETWORK id, int32 keepAliveTtl,
-    //                                          single needsW, single availW, int64 feederRefId
+    //   KindUndersupplied:                     int64 NETWORK id, int32 keepAliveTtl, byte face
+    //                                          (0 Undersupplied / 1 No power source),
+    //                                          single needsW, single upstreamW, single genW,
+    //                                          single storageW, int64 feederRefId
     // The float payloads are the hover diagnostics: for KindDeviceOverload the rigid draw that
     // tripped the capacity rule, the combined deliverable cap, and the internal-storage component
     // of that cap; for KindCableOverload the flow and the network's weakest-cable cap; for
@@ -58,9 +60,12 @@ namespace PowerGridPlus
         public List<float> PayloadShortfallW = new List<float>();
         public List<byte> PayloadReason = new List<byte>();
         public List<int> PayloadVictimPriority = new List<int>();
-        // Parallel to Entries for KindUndersupplied only (the feeder pointer; Entries carry
-        // NETWORK ids for that kind, and PayloadValuesW/PayloadCapsW carry needsW/availW).
+        // Parallel to Entries for KindUndersupplied only. Entries carry NETWORK ids for that
+        // kind; the face byte rides PayloadReason, PayloadValuesW carries needsW, PayloadCapsW
+        // upstreamW, and the two lists below the local generation / storage components.
         public List<long> PayloadFeederRefId = new List<long>();
+        public List<float> PayloadGenW = new List<float>();
+        public List<float> PayloadStorageW = new List<float>();
 
         private static bool KindHasWattPayload(byte kind)
             => kind == KindDeviceOverload || kind == KindCableOverload;
@@ -94,8 +99,11 @@ namespace PowerGridPlus
                 }
                 if (Kind == KindUndersupplied)
                 {
+                    writer.WriteByte(i < PayloadReason.Count ? PayloadReason[i] : (byte)0);
                     writer.WriteSingle(i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f);
                     writer.WriteSingle(i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f);
+                    writer.WriteSingle(i < PayloadGenW.Count ? PayloadGenW[i] : 0f);
+                    writer.WriteSingle(i < PayloadStorageW.Count ? PayloadStorageW[i] : 0f);
                     writer.WriteInt64(i < PayloadFeederRefId.Count ? PayloadFeederRefId[i] : 0L);
                 }
             }
@@ -114,6 +122,9 @@ namespace PowerGridPlus
             PayloadValuesW = new List<float>((wattPayload || undersupplied) ? count : 0);
             PayloadCapsW = new List<float>((wattPayload || undersupplied) ? count : 0);
             PayloadFeederRefId = new List<long>(undersupplied ? count : 0);
+            PayloadGenW = new List<float>(undersupplied ? count : 0);
+            PayloadStorageW = new List<float>(undersupplied ? count : 0);
+            if (undersupplied) PayloadReason = new List<byte>(count);
             PayloadStoragesW = new List<float>(deviceOverload ? count : 0);
             PayloadNeedsW = new List<float>(triplePayload ? count : 0);
             PayloadUpstreamDemandW = new List<float>(triplePayload ? count : 0);
@@ -146,8 +157,11 @@ namespace PowerGridPlus
                 }
                 if (undersupplied)
                 {
+                    PayloadReason.Add(reader.ReadByte());
                     PayloadValuesW.Add(reader.ReadSingle());
                     PayloadCapsW.Add(reader.ReadSingle());
+                    PayloadGenW.Add(reader.ReadSingle());
+                    PayloadStorageW.Add(reader.ReadSingle());
                     PayloadFeederRefId.Add(reader.ReadInt64());
                 }
             }
@@ -194,11 +208,14 @@ namespace PowerGridPlus
                     break;
                 case KindUndersupplied:
                 {
-                    var combined = new List<(long, int, float, float, long)>(Entries.Count);
+                    var combined = new List<(long, int, byte, float, float, float, float, long)>(Entries.Count);
                     for (int i = 0; i < Entries.Count; i++)
                         combined.Add((Entries[i].Key, Entries[i].Value,
+                            i < PayloadReason.Count ? PayloadReason[i] : (byte)0,
                             i < PayloadValuesW.Count ? PayloadValuesW[i] : 0f,
                             i < PayloadCapsW.Count ? PayloadCapsW[i] : 0f,
+                            i < PayloadGenW.Count ? PayloadGenW[i] : 0f,
+                            i < PayloadStorageW.Count ? PayloadStorageW[i] : 0f,
                             i < PayloadFeederRefId.Count ? PayloadFeederRefId[i] : 0L));
                     UndersuppliedRegistry.ReplaceClientSnapshot(combined);
                     break;
