@@ -17,8 +17,10 @@ namespace ScenarioRunner
     // and pgp-pt-hover-all).
     //
     // Registry payloads (POWER.md 11.1). OverloadRegistry: ValueW = downstream demand, CapW =
-    // available total, StorageW = the internal-storage slice of CapW, so the hover splits the cap
-    // into an upstream part (CapW - StorageW) and a teal internal-storage part. DeprioritizedRegistry:
+    // available total, StorageW = the internal-storage slice of CapW. The hover's source
+    // breakdown is selected by the hovered device's CLASS since 2026-07-18 (APC = both parts
+    // always, Battery / Umbilical = storage component only, Transformer / Link / unknown =
+    // no breakdown), never by which payload value happens to be zero. DeprioritizedRegistry:
     // ShortfallW = the decision-time deficit at this victim's cut, VictimPriority = the device's own
     // priority, Reason = which of the three DeprioritizeReason cases the allocator recorded.
     //
@@ -144,25 +146,75 @@ namespace ScenarioRunner
             return sb.ToString();
         }
 
-        // ---- Device overloaded (capacity family): storage vs no-storage breakdown ----
+        // ---- Device overloaded (capacity family): the capability-driven source breakdown ----
+        //
+        // Since 2026-07-18 the breakdown line is selected by the hovered device's CLASS, never by
+        // which payload value is zero: the APC (passthrough AND storage) always renders both
+        // parts, zero-valued parts included; Battery / Umbilical render only the storage
+        // component; Transformer / Link / unknown render no breakdown. Prefab instances give the
+        // fixture real class dispatch without spawning (Prefab.Find is a dictionary lookup, safe
+        // on the tick worker; the DeviceOverload branch reads the thing only for the label, the
+        // switch prefix, and the mode).
+
+        private static Thing FhfPrefab(string name) => Prefab.Find(name) as Thing;
 
         private static void FhfDeviceOverload(Assembly asm, int tick)
         {
-            // storageW > 0 and (capW - storageW) > 0: the teal internal-storage breakdown renders.
+            // APC, two-source payload: both parts render.
             PgpClearAllFaults(asm);
             PgpNoteOverload(asm, FHF_OVER_STORAGE, tick, 3000f, 1800f, 800f);   // upstream 1000 + storage 800
-            bool gotS = FhfRender(FHF_OVER_STORAGE, tick, null, out string blockS, out string kindS);
+            bool gotS = FhfRender(FHF_OVER_STORAGE, tick, FhfPrefab("StructureAreaPowerControl"), out string blockS, out string kindS);
             string plainS = FhfStrip(blockS);
             bool okStorage = gotS && kindS == "DeviceOverload"
                 && plainS.Contains("Downstream demand of")
+                && plainS.Contains("upstream + ")
                 && plainS.Contains("internal storage = ")
                 && blockS.Contains("#2DD4BF")
                 && plainS.Contains("Short by");
             FhfCheck("P2a", okStorage,
-                $"device overload with storage renders 'Downstream demand of' + the teal 'internal storage = ' breakdown (#2DD4BF) + 'Short by' " +
+                $"APC overload renders 'Downstream demand of' + the two-part 'upstream + ... internal storage = ' breakdown (#2DD4BF) + 'Short by' " +
                 $"(kind={kindS} block='{Truncate(blockS, 240)}').");
 
-            // storageW == 0: no internal-storage line, no teal tag, still Downstream demand + Short by.
+            // APC, storage-only payload (capW == storageW): the zero upstream part STILL renders
+            // (the hover teaches the device's mechanics even when a component is 0).
+            PgpClearAllFaults(asm);
+            PgpNoteOverload(asm, FHF_OVER_STORAGE, tick, 3000f, 1800f, 1800f);
+            bool gotZ = FhfRender(FHF_OVER_STORAGE, tick, FhfPrefab("StructureAreaPowerControl"), out string blockZ, out string kindZ);
+            string plainZ = FhfStrip(blockZ);
+            bool okZero = gotZ && kindZ == "DeviceOverload"
+                && plainZ.Contains("0 W upstream + ")
+                && plainZ.Contains("internal storage = ");
+            FhfCheck("P2a2", okZero,
+                $"APC overload with zero upstream still renders '0 W upstream + ... internal storage = ' " +
+                $"(kind={kindZ} block='{Truncate(blockZ, 240)}').");
+
+            // Battery: only the storage component, phrased without an upstream part.
+            PgpClearAllFaults(asm);
+            PgpNoteOverload(asm, FHF_OVER_STORAGE, tick, 3000f, 1800f, 800f);
+            bool gotB = FhfRender(FHF_OVER_STORAGE, tick, FhfPrefab("StructureBattery"), out string blockB, out string kindB);
+            string plainB = FhfStrip(blockB);
+            bool okBattery = gotB && kindB == "DeviceOverload"
+                && plainB.Contains("of the available comes from internal storage")
+                && !plainB.Contains("upstream + ");
+            FhfCheck("P2b", okBattery,
+                $"Battery overload renders the storage-only 'of the available comes from internal storage' line, never an upstream part " +
+                $"(kind={kindB} block='{Truncate(blockB, 240)}').");
+
+            // Transformer: no breakdown line at all, even with a storage slice in the payload.
+            PgpClearAllFaults(asm);
+            PgpNoteOverload(asm, FHF_OVER_NOSTORE, tick, 3000f, 1800f, 800f);
+            bool gotT = FhfRender(FHF_OVER_NOSTORE, tick, FhfPrefab("StructureTransformerSmall"), out string blockT, out string kindT);
+            string plainT = FhfStrip(blockT);
+            bool okTransformer = gotT && kindT == "DeviceOverload"
+                && plainT.Contains("Downstream demand of")
+                && !plainT.Contains("internal storage")
+                && !blockT.Contains("#2DD4BF")
+                && plainT.Contains("Short by");
+            FhfCheck("P2c", okTransformer,
+                $"Transformer overload renders no storage breakdown even with a storage slice in the payload " +
+                $"(kind={kindT} block='{Truncate(blockT, 240)}').");
+
+            // Unknown device (null thing): passthrough-only fallback, no breakdown.
             PgpClearAllFaults(asm);
             PgpNoteOverload(asm, FHF_OVER_NOSTORE, tick, 3000f, 1800f, 0f);
             bool gotN = FhfRender(FHF_OVER_NOSTORE, tick, null, out string blockN, out string kindN);
@@ -170,10 +222,9 @@ namespace ScenarioRunner
             bool okNoStore = gotN && kindN == "DeviceOverload"
                 && plainN.Contains("Downstream demand of")
                 && !plainN.Contains("internal storage")
-                && !blockN.Contains("#2DD4BF")
                 && plainN.Contains("Short by");
-            FhfCheck("P2b", okNoStore,
-                $"device overload with zero storage omits the internal-storage line and keeps 'Downstream demand of' + 'Short by' " +
+            FhfCheck("P2d", okNoStore,
+                $"unknown-class overload keeps 'Downstream demand of' + 'Short by' with no breakdown " +
                 $"(kind={kindN} block='{Truncate(blockN, 240)}').");
             PgpClearAllFaults(asm);
         }
@@ -204,15 +255,12 @@ namespace ScenarioRunner
                 "Due to the shortfall of", "share was cut",
                 "Its priority of 80 was below other consumers",
             });
+            // Decision-33 phase 3 collapsed the reason vocabulary to two values: LowerPriority (0)
+            // and EqualWattCover (1). The old EqualBestFit / EqualLargest cases are retired.
             FhfDeprioritizedCase("P4b", asm, tick, FHF_DEP_BESTFIT, 1, 50, new[]
             {
                 "Its priority was equal to other consumers",
-                "Its draw alone covered the remaining shortfall",
-            });
-            FhfDeprioritizedCase("P4c", asm, tick, FHF_DEP_LARGEST, 2, 50, new[]
-            {
-                "No single consumer's draw could cover the shortfall",
-                "Its draw was the largest consumer",
+                "It was part of the smallest combined cut covering the shortfall",
             });
         }
 
