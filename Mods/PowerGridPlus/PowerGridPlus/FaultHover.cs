@@ -146,13 +146,26 @@ namespace PowerGridPlus
                     if (valueW > 0f || capW > 0f)
                     {
                         block += $"\n<color={CalmGrey}>Downstream demand of <color={FaultRed}>{FmtWatts(valueW)}</color> exceeds the available <color={CapBlue}>{FmtWatts(capW)}</color></color>";
-                        // Breakdown line only when internal storage actually contributes AND the
-                        // upstream share is non-zero, i.e. two real sources. A device with no
-                        // storage on its net never shows a phantom "0 W internal storage", and a
-                        // single-source cap needs no trivial "X = X" restatement.
+                        // The source-breakdown line is driven by what the device CAN do, not by
+                        // which number happens to be zero right now, so the hover teaches the
+                        // device's mechanics (user decision 2026-07-18). A pass-through-only
+                        // device (transformer, wireless link) never shows a storage component; a
+                        // storage-only device (battery, umbilical) shows only its storage
+                        // component; a device that can do both (the APC) always shows both
+                        // parts, zero-valued parts included.
                         float upstreamW = capW - storageW;
-                        if (storageW > 0f && upstreamW > 0f)
-                            block += $"\n<color={CalmGrey}><color={CapBlue}>{FmtWatts(upstreamW)}</color> upstream + <color={TealStorage}>{FmtWatts(storageW)}</color> internal storage = <color={CapBlue}>{FmtWatts(capW)}</color> available</color>";
+                        if (upstreamW < 0f) upstreamW = 0f;
+                        switch (OverloadSourceMode(thing))
+                        {
+                            case SourceMode.Both:
+                                block += $"\n<color={CalmGrey}><color={CapBlue}>{FmtWatts(upstreamW)}</color> upstream + <color={TealStorage}>{FmtWatts(storageW)}</color> internal storage = <color={CapBlue}>{FmtWatts(capW)}</color> available</color>";
+                                break;
+                            case SourceMode.StorageOnly:
+                                block += $"\n<color={CalmGrey}><color={TealStorage}>{FmtWatts(storageW)}</color> of the available comes from internal storage</color>";
+                                break;
+                            case SourceMode.PassthroughOnly:
+                                break;   // no storage component exists on the device; the total says it all
+                        }
                         float shortW = valueW - capW;
                         if (shortW > 0f)
                             block += $"\n<color={CalmGrey}>Short by <color={FaultRed}>{FmtWatts(shortW)}</color></color>";
@@ -270,7 +283,12 @@ namespace PowerGridPlus
         private static string StatePrefix(Thing thing)
         {
             if (thing == null || !thing.HasOnOffState) return string.Empty;
-            string word = thing.OnOff
+            bool on;
+            try { on = thing.OnOff; }
+            catch { return string.Empty; }   // a Thing whose OnOff backing is absent (a prefab
+                                             // template, or a broken modded getter) renders
+                                             // switchless; a tooltip must never throw
+            string word = on
                 ? $"<color={StateGreen}>{ActionStrings.On}</color>"
                 : $"<color={CalmGrey}>{ActionStrings.Off}</color>";
             return word + $"<color={CalmGrey}> - </color>";
@@ -328,6 +346,27 @@ namespace PowerGridPlus
         // transmitter / receiver pair; they derive from WirelessPower, not Transformer), the
         // storage elastics "Battery" / "APC" / "Umbilical". Unknown overload-capable devices
         // (and the fixture's null thing) fall back to the IC10 name's own generic "Device".
+        // What power sources the device class can physically route to its output: through
+        // upstream passthrough, from internal storage, or both. Drives the overload hover's
+        // source-breakdown line (the class capability decides what renders, never the current
+        // values, so a zero-valued part still teaches).
+        private enum SourceMode { PassthroughOnly, StorageOnly, Both }
+
+        private static SourceMode OverloadSourceMode(Thing thing)
+        {
+            switch (thing)
+            {
+                case AreaPowerControl _:
+                    return SourceMode.Both;
+                case Battery _:
+                case RocketPowerUmbilicalMale _:
+                case RocketPowerUmbilicalFemale _:
+                    return SourceMode.StorageOnly;
+                default:
+                    return SourceMode.PassthroughOnly;   // Transformer, wireless link, unknown
+            }
+        }
+
         private static string DeviceOverloadLabel(Thing thing)
         {
             switch (thing)
