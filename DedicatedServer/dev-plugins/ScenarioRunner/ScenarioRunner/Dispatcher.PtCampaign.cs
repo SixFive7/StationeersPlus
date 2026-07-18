@@ -1249,7 +1249,7 @@ namespace ScenarioRunner
                 var rField = flashType?.GetField("_renderers", BindingFlags.NonPublic | BindingFlags.Instance);
                 var flashExpect = new (string cls, string expect)[]
                 {
-                    ("Transformer", null), ("Battery", null), ("AreaPowerControl", "Lever"),
+                    ("Transformer", null), ("Battery", null), ("AreaPowerControl", null),
                     ("StationBatteryNuclear", "Indic"), ("PowerTransmitter", null), ("PowerReceiver", null),
                     ("RocketPowerUmbilicalMale", null),
                 };
@@ -1264,8 +1264,32 @@ namespace ScenarioRunner
                     var names = new List<string>();
                     if (arr != null) foreach (var ro in arr) { if (ro is MeshRenderer mr && mr.gameObject != null) names.Add(mr.gameObject.name); }
                     bool ok = names.Count > 0 && (expect == null || names.Any(n => n.IndexOf(expect, StringComparison.OrdinalIgnoreCase) >= 0));
-                    if (ok) { _log?.LogInfo($"[ScenarioRunner] PTFIX B1 {cls} PASS: renderers=[{string.Join(",", names)}]{(expect != null ? $" matches '{expect}'" : "")}"); pass++; }
-                    else { _log?.LogError($"[ScenarioRunner] PTFIX B1 {cls} FAIL: renderers=[{string.Join(",", names)}] expected substr '{expect}'."); fail++; }
+                    string detail = "";
+                    if (cls == "AreaPowerControl")
+                    {
+                        // 2026-07-18 contract: the APC flashes the charge LED resolved through the
+                        // serialized _chargingLedMaterialChanger -> MaterialChanger.renderer chain;
+                        // the MasterLever is retired as a flash target. Assert the discovered set
+                        // contains that exact renderer (reference equality, resolved here the same
+                        // way the mod resolves it) and that no lever geometry was matched.
+                        MeshRenderer led = null;
+                        try
+                        {
+                            var changerField = HarmonyLib.AccessTools.Field(th.GetType(), "_chargingLedMaterialChanger");
+                            var changer = changerField?.GetValue(th);
+                            var ledField = changer == null ? null : HarmonyLib.AccessTools.Field(changer.GetType(), "renderer");
+                            led = ledField?.GetValue(changer) as MeshRenderer;
+                        }
+                        catch { }
+                        bool noLever = !names.Any(n => n.IndexOf("Lever", StringComparison.OrdinalIgnoreCase) >= 0);
+                        bool ledMatched = false;
+                        if (led != null && arr != null)
+                            foreach (var ro in arr) if (ReferenceEquals(ro, led)) ledMatched = true;
+                        ok = ok && noLever && ledMatched;
+                        detail = $" ledResolved={led != null} ledMatched={ledMatched} noLever={noLever}";
+                    }
+                    if (ok) { _log?.LogInfo($"[ScenarioRunner] PTFIX B1 {cls} PASS: renderers=[{string.Join(",", names)}]{(expect != null ? $" matches '{expect}'" : "")}{detail}"); pass++; }
+                    else { _log?.LogError($"[ScenarioRunner] PTFIX B1 {cls} FAIL: renderers=[{string.Join(",", names)}] expected substr '{expect}'{detail}."); fail++; }
                 }
                 foreach (var cls in new[] { "SolarPanel", "PowerConnector", "RocketPowerUmbilicalFemale" })
                 {
