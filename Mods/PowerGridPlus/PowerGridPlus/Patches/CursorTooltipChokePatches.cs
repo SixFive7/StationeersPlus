@@ -41,7 +41,12 @@ namespace PowerGridPlus.Patches
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Assets.Scripts.UI.Tooltip), "HandleToolTipDisplay")]
-        private static void HandleToolTipDisplay_Prefix(ref PassiveTooltip passiveTooltip)
+        // The parameter MUST carry the original's exact name, "cursorPassiveTooltip": HarmonyX
+        // binds injected arguments by name, and a mismatch is an IL-compile error that ABORTS
+        // the whole PatchAll mid-assembly (the 2026-07-18 half-patched-mod incident: every
+        // class after this one stayed unpatched and the battery reverse-patch stub threw on
+        // every tick of any world with a battery).
+        private static void HandleToolTipDisplay_Prefix(ref PassiveTooltip cursorPassiveTooltip)
         {
             if (!_inCursorPipeline) return;
             var thing = CursorManager.CursorThing;
@@ -62,17 +67,17 @@ namespace PowerGridPlus.Patches
             int nl = block.IndexOf('\n');
             if (nl > 0) marker = block.Substring(0, nl);
             bool present =
-                (passiveTooltip.Title != null && passiveTooltip.Title.Contains(marker))
-                || (passiveTooltip.Extended != null && passiveTooltip.Extended.Contains(marker));
+                (cursorPassiveTooltip.Title != null && cursorPassiveTooltip.Title.Contains(marker))
+                || (cursorPassiveTooltip.Extended != null && cursorPassiveTooltip.Extended.Contains(marker));
             if (!present)
             {
                 string aligned = "<align=left>" + block + "</align>";
-                passiveTooltip.Extended = string.IsNullOrEmpty(passiveTooltip.Extended)
+                cursorPassiveTooltip.Extended = string.IsNullOrEmpty(cursorPassiveTooltip.Extended)
                     ? aligned
-                    : passiveTooltip.Extended + "\n" + aligned;
+                    : cursorPassiveTooltip.Extended + "\n" + aligned;
             }
-            if (string.IsNullOrEmpty(passiveTooltip.Title))
-                passiveTooltip.Title = thing.DisplayName;
+            if (string.IsNullOrEmpty(cursorPassiveTooltip.Title))
+                cursorPassiveTooltip.Title = thing.DisplayName;
         }
     }
 }
