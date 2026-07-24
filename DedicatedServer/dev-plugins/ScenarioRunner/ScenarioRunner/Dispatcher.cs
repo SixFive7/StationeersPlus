@@ -125,6 +125,10 @@ namespace ScenarioRunner
                     Scenario_DevicePortDump();
                     return;
 
+                case "spp-color-swatch-probe":
+                    Scenario_SppColorSwatchProbe();
+                    return;
+
                 case "pgp-mixedwire-fixture":
                     Scenario_PgpMixedWireFixture();
                     return;
