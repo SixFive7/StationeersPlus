@@ -3928,6 +3928,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="DLCManager: local entitlements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initialization-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialization timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8463,6 +8480,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="DLCManager: local entitlements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initialization-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialization timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -8680,11 +8714,11 @@
           <summary><strong>Sources</strong> (7)</summary>
           <ul>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.DLCManager'}</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'DLC.DLCManager'}</code></li>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.SharedDLCManager'}</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'DLC.SharedDLCManager'}</code></li>
             
-              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.DLCType'}</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'DLC.DLCType'}</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Thing (_dlcType field)'}</code></li>
             
@@ -8861,7 +8895,13 @@
 </span><span id="__span-2-31"><a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>    return CheckAccess(thing.DLCType);
 </span><span id="__span-2-32"><a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>}
 </span></code></pre></div>
-<p><code>DLCType.None</code> always passes. A null / destroyed <code>Thing</code> or <code>KitItem</code> always passes. <code>DLCManager.Initialize()</code> is called during game startup.</p>
+<p><code>DLCType.None</code> always passes. A null / destroyed <code>Thing</code> or <code>KitItem</code> always passes.</p>
+<p>All three types live in the bare <code>DLC</code> namespace (<code>DLC.DLCManager</code>, <code>DLC.SharedDLCManager</code>, <code>DLC.DLCType</code>), NOT under <code>Assets.Scripts</code> where most game code sits. A mod needs <code>using DLC;</code>.</p>
+<h3 id="initialization-timing">Initialization timing<a class="headerlink" href="#initialization-timing" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p><code>DLCManager.Initialize()</code> is called from a manager's <code>private async void Start()</code>, in a startup sequence alongside <code>ControllerAxisItem.InitializeJoysticks()</code>, <code>InputMouse.Initialize()</code>, <code>Settings.Initialize()</code>, and <code>Stationpedia.Initialize()</code>. Until it runs, <code>_ownedDLC</code> is <code>0</code> and every <code>CheckAccess</code> call for a non-<code>None</code> <code>DLCType</code> returns false.</p>
+<p>This matters for BepInEx mods: plugin <code>Awake()</code> runs during the BepInEx chainloader, before Unity <code>Start()</code> on scene objects, so <strong>entitlement is not yet known at plugin <code>Awake</code> time</strong>. Any mod that wants to branch on DLC ownership must defer the read, for example to <code>Prefab.OnPrefabsLoaded</code> or to first use, rather than sampling it while binding config. A concrete consequence: StationeersLaunchPad's settings panel supports a <code>Disabled</code> tag for rendering a config entry read-only (see <code>../Patterns/StationeersLaunchPadSettingsGrouping.md</code>), but the tag has to be supplied inside the <code>ConfigDescription</code> at <code>Config.Bind</code> time, which is too early to test ownership. Computing it there would grey the entry out for players who do own the DLC.</p>
 <h2 id="shareddlcmanager-session-wide-entitlement-pool">SharedDLCManager: session-wide entitlement pool<a class="headerlink" href="#shareddlcmanager-session-wide-entitlement-pool" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
@@ -9063,6 +9103,7 @@
 
 <ul>
 <li>2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. <code>CheckSharedAccess</code> resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). <code>CheckAccess</code> resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (<code>DLCManager.CheckAccess(kitItem)</code> inside <code>HasDLC</code>). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.</li>
+<li>2026-07-25: corrected the namespace on all three types. The page was created citing <code>Assets.Scripts.DLCManager</code> / <code>SharedDLCManager</code> / <code>DLCType</code>; they are actually in the bare <code>DLC</code> namespace (decompile line 192302 opens <code>namespace DLC</code>). Found while writing a mod against the page, which is exactly the sort of error that costs a later reader a build failure. Also added the "Initialization timing" subsection: <code>DLCManager.Initialize()</code> runs from a manager's <code>async void Start()</code>, so entitlement is still zero during BepInEx plugin <code>Awake</code>, which rules out testing ownership at <code>Config.Bind</code> time.</li>
 <li>2026-07-25: added runtime confirmation of the color-index-to-<code>DLCType</code> map, gathered by the <code>spp-color-swatch-probe</code> ScenarioRunner scenario on the headless dedicated server (fresh Mars2 world, game version 0.2.6403.27689). All 16 swatch <code>Normal</code> materials are distinct assets and all 16 <code>SprayCan</code> prefabs resolve one-to-one onto them, so the prefab-derived gate described in "Where the game does NOT check" is implementable as written. Metallic swatches confirmed at indices 12-15 in the order Obsidian, Silver, Bronze, Gold. Swatches and prefabs confirmed present regardless of entitlement. Two open questions resolved and removed. Full table and method on <code>../GameClasses/ColorSwatch.md</code>.</li>
 <li>2026-07-25: page created. Decompile findings sourced from Assembly-CSharp.dll (<code>DLCManager</code> and <code>DLCType</code> at decompile line 192304-192427, <code>SharedDLCManager</code> at 192428-192515, <code>Thing._dlcType</code> / <code>Thing.DLCType</code> at 316896 / 317376, <code>SpawnDynamicThingMaxStack</code> gate at 40154, fabricator gate at 420505, <code>HasDLC(KitItem)</code> at 194335, <code>AvailableDLCMessage</code> at 277477, <code>DLCCommand</code> at 97470). Data-file findings sourced from <code>StreamingAssets/Data/paints.xml</code> and <code>StreamingAssets/Language/english.xml</code>. The "Where the game does NOT check" claim rests on an exhaustive text search of the decompile for <code>CheckSharedAccess</code> and <code>DLCManager.CheckAccess</code>, which returns only those call sites.</li>
 </ul>
