@@ -8945,9 +8945,60 @@
 <li><code>ItemSprayCanMetallicObsidian</code></li>
 <li><code>ItemSprayCanMetallicSilver</code></li>
 </ul>
-<p>Their swatches are the motivating case for <code>PaintOnly</code> per the field's own tooltip, so the expectation is four additional <code>CustomColors</code> entries with <code>PaintOnly = true</code>.</p>
-<p>What is NOT yet confirmed: the resulting <code>CustomColors</code> count, whether the four append after the vanilla twelve at indices 12-15, and in what order. <code>CustomColors</code> is a serialized inspector list on the <code>GameManager</code> prefab (see "ColorSwatch list"), so ordering is authored asset data and cannot be read from the decompile. Do not write code against positional metallic indices until an in-game enumeration confirms them; resolve a metallic swatch by name or by material lookup instead. This also means <code>Patterns/Colors/ColorSwatchIndex.cs</code> still covers only the vanilla twelve, which remain indices 0-11.</p>
-<p>Consequence for the "Mod-registered swatches (index 12 and up)" guidance in <code>Patterns/Colors/README.md</code>: with the DLC installed, indices 12-15 are most likely occupied by game content rather than mod content, so a mod must not assume index 12 is the first mod-registered slot.</p>
+<p><code>CustomColors</code> holds 16 entries at 0.2.6403.27689: the vanilla twelve at indices 0-11 unchanged, plus the four metallic swatches at indices 12-15. All four carry <code>PaintOnly = true</code>, and no vanilla swatch does. Confirmed by runtime enumeration (see below for method).</p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Swatch name</th>
+<th><code>PaintOnly</code></th>
+<th>Dispensing prefab</th>
+<th><code>Thing.DLCType</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0-11</td>
+<td><code>ColorBlue</code> ... <code>ColorPurple</code></td>
+<td>false</td>
+<td><code>ItemSprayCan&lt;Color&gt;</code></td>
+<td><code>None</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>ColorObsidian</code></td>
+<td>true</td>
+<td><code>ItemSprayCanMetallicObsidian</code></td>
+<td><code>MetallicPaints</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>ColorSilver</code></td>
+<td>true</td>
+<td><code>ItemSprayCanMetallicSilver</code></td>
+<td><code>MetallicPaints</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>ColorBronze</code></td>
+<td>true</td>
+<td><code>ItemSprayCanMetallicBronze</code></td>
+<td><code>MetallicPaints</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>ColorGold</code></td>
+<td>true</td>
+<td><code>ItemSprayCanMetallicGold</code></td>
+<td><code>MetallicPaints</code></td>
+</tr>
+</tbody>
+</table>
+<p>Two naming traps. The swatch names carry NO <code>Metallic</code> prefix (<code>ColorObsidian</code>, not <code>ColorMetallicObsidian</code>) while the prefabs do (<code>ItemSprayCanMetallicObsidian</code>). And the swatch order (Obsidian, Silver, Bronze, Gold) matches neither alphabetical order nor the order the recipes appear in <code>paints.xml</code> (Bronze, Gold, Obsidian, Silver). Never derive one identifier from the other by string manipulation, and never assume the DLC ordering.</p>
+<p><strong>Every swatch's <code>Normal</code> Material is a distinct asset.</strong> A pairwise <code>ReferenceEquals</code> scan across all 16 <code>Normal</code> materials found no sharing at any index, including among the four metallic swatches. Every one of the 16 <code>SprayCan</code> prefabs resolves to exactly one swatch by <code>ReferenceEquals(swatch.Normal, can.PaintMaterial)</code> (16 cans, 16 distinct matches, one match each, no collisions). A <code>Material</code>-keyed swatch lookup is therefore sound, which is what makes <code>GameManager.GetColorSwatch(Material)</code> work and what lets a mod recover the colour-index-to-<code>DLCType</code> map from the can prefabs.</p>
+<p>Both swatch presence and prefab presence are independent of entitlement: a player who does not own Metallic Paints still has all 16 swatches in <code>CustomColors</code> and all 16 <code>SprayCan</code> prefabs in <code>Prefab.AllPrefabs</code>. Only acquisition of the item is gated (see <code>../GameSystems/DLCGating.md</code>), which is precisely why an index-driven colour picker bypasses the gate.</p>
+<p>Verified on 2026-07-25 in game version 0.2.6403.27689 by runtime enumeration on the headless dedicated server, via the <code>spp-color-swatch-probe</code> scenario in <code>DedicatedServer/dev-plugins/ScenarioRunner/</code>. The probe walks <code>GameManager.Instance.CustomColors</code> and <code>Prefab.AllPrefabs</code>, reading only managed state (<code>ColorSwatch.Name</code>, <code>ColorSwatch.PaintOnly</code>, <code>Thing.PrefabName</code>, <code>Thing.DLCType</code>) and comparing <code>Material</code> references with <code>object.ReferenceEquals</code> plus <code>RuntimeHelpers.GetHashCode</code>. <code>Material.name</code> and <code>GetInstanceID()</code> are deliberately avoided because the scenario pump runs on a UniTask worker rather than the Unity main thread. Fresh Mars2 world, ~60 Workshop mods loaded alongside.</p>
+<p>No mod-registered swatches appeared despite roughly 60 Workshop mods being loaded in that run, so <code>CustomColors.Count</code> was exactly 16. Mod swatches, where a mod adds them, land at index 16 and up in an install like that one.</p>
 <h2 id="vanilla-swatch-material-naming-runtime">Vanilla swatch material naming (runtime)<a class="headerlink" href="#vanilla-swatch-material-naming-runtime" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
@@ -9003,12 +9054,12 @@
 <li>2026-07-25: re-read the <code>ColorSwatch</code> declaration against 0.2.6403.27689. Restamped "Declaration and fields" and added the new <code>PaintOnly</code> field, the three private <code>Mask*Id</code> shader property IDs, <code>ToTooltip()</code>, and <code>ApplyToSuitMaterial(Material)</code>. Added the "PaintOnly flag" section with the verbatim tooltip, the <code>GenerateColorStrings</code> / <code>IsLogicSelectableColor</code> logic-dropdown filter, and the metallic shader response. Added "Metallic swatch addition (v0.2.6403.27689)". Added the explicit finding that <code>ColorSwatch</code> carries no <code>DLCType</code>, cross-referenced to the new <code>../GameSystems/DLCGating.md</code>.</li>
 <li>2026-07-25: version drift on the <code>Bit</code> field. The 0.2.6228.27061 row read "Legacy field, currently unused". At 0.2.6403.27689 the identifier has four call sites in <code>Assembly-CSharp</code> (decompile lines 338789, 338892, 338931, 338989, the color-scanner / screen-color UI path). No fresh validator was spawned: the two statements are scoped to different game versions and both can be accurate, and the new reading rests on direct grep evidence rather than a competing interpretation of the same code, so per <code>../WORKFLOW.md</code> Rule 3 this is an additive version-scoped update rather than a contradiction. The original characterization is preserved by reference in the field row. Whether <code>Bit</code> was genuinely unreferenced at 0.2.6228.27061 was not re-checked against that version's DLL.</li>
 <li>2026-07-25: re-checked <code>Cutable</code> against 0.2.6403.27689. The declaration remains the only occurrence of the identifier; the open question below still stands.</li>
+<li>2026-07-25: resolved the two open questions raised earlier the same day by runtime enumeration on the headless dedicated server (<code>spp-color-swatch-probe</code>, method and caveats recorded in "Metallic swatch addition"). <code>CustomColors.Count</code> is 16 with the metallic swatches at indices 12-15 in the order Obsidian, Silver, Bronze, Gold, all four <code>PaintOnly = true</code>. Every swatch's <code>Normal</code> Material is a distinct asset (pairwise <code>ReferenceEquals</code> scan, no sharing), and all 16 <code>SprayCan</code> prefabs resolve one-to-one to a swatch by material reference, so a <code>Material</code>-keyed lookup is sound. Also recorded: swatches and prefabs are present regardless of entitlement, and no mod-registered swatches appeared under ~60 Workshop mods. "Metallic swatch addition" rewritten from the unconfirmed placeholder to the confirmed table; both questions removed from Open Questions.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>ColorSwatch.Cutable</code> Material: inspector-visible but the consumer has not been traced. Possibly a cut-out / cutscene variant. Still unreferenced at 0.2.6403.27689 (declaration is the sole occurrence).</li>
-<li><code>CustomColors</code> count and the index positions of the four metallic swatches at 0.2.6403.27689. Not readable from the decompile because the list is serialized inspector data on the <code>GameManager</code> prefab. Resolve with an InspectorPlus request over <code>GameManager</code> reading <code>CustomColors</code> (<code>Name</code>, <code>PaintOnly</code>, <code>Normal</code>), then update "Metallic swatch addition" and <code>Patterns/Colors/README.md</code>.</li>
-<li>Whether each metallic swatch has its own <code>Normal</code> Material asset or the four share one. <code>GameManager.GetColorSwatch(Material)</code> keying on a Material implies per-swatch distinctness, but this has not been confirmed for the metallic set. Matters for any mod that maps material back to swatch index.</li>
+<li>Whether <code>PaintOnly</code> and DLC entitlement stay correlated. At 0.2.6403.27689 the two coincide exactly (the four <code>PaintOnly</code> swatches are precisely the four <code>MetallicPaints</code> ones), but <code>PaintOnly</code> carries no <code>DLCType</code> and the game does not couple them, so this is an observed coincidence rather than a guarantee. Code should gate on the prefab-derived <code>DLCType</code>, not on <code>PaintOnly</code>.</li>
 <li>Does setting <code>_EmissionColor</code> alone on the shared <code>Normal</code> material (without swapping to the Emissive asset) produce visible glow? The Normal shader is <code>Custom/StandardTextureArray</code> (a custom game shader); whether it honors <code>_EmissionColor</code> with the <code>_EMISSION</code> keyword disabled is unknown. Because the Normal material is SHARED across all painted Things, the property-write path would require a per-instance material clone per <code>../Patterns/UnityMaterialPerInstance.md</code>. Relevant only for mod-added swatches whose <code>Emissive</code> is null, since every vanilla swatch has a pre-baked Emissive asset.</li>
 </ul>
 

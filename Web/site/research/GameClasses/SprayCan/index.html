@@ -8588,6 +8588,7 @@
 <p>Metallic four: <code>ItemSprayCanMetallicBronze</code>, <code>ItemSprayCanMetallicGold</code>, <code>ItemSprayCanMetallicObsidian</code>, <code>ItemSprayCanMetallicSilver</code>.</p>
 <p>Every recipe, vanilla and metallic alike, is <code>Time 5</code>, <code>Energy 500</code>, <code>Iron 1</code>. The recipes ship to all players; the DLC gate in the fabricator path is what stops a non-owner producing the metallic four.</p>
 <p>Note the prefab name uses <code>Grey</code> while the swatch name is <code>ColorGray</code> (see <code>./ColorSwatch.md</code>). Do not derive one from the other by string manipulation.</p>
+<p>Runtime enumeration on 2026-07-25 in game version 0.2.6403.27689 confirmed all 16 prefabs are present in <code>Prefab.AllPrefabs</code> regardless of entitlement, each with a non-null <code>PaintMaterial</code>, each resolving to exactly one <code>CustomColors</code> swatch by material reference, with the twelve vanilla cans carrying <code>DLCType.None</code> and the four metallic cans <code>DLCType.MetallicPaints</code>. The full index map is on <code>./ColorSwatch.md</code> under "Metallic swatch addition"; the method and its threading caveats are recorded there too.</p>
 <p>Because <code>SprayCan</code> prefabs are the only carrier of the color-to-DLC mapping, walking <code>Prefab.AllPrefabs</code> for <code>SprayCan</code> instances is how a mod resolves which <code>CustomColors</code> entries are entitlement-gated:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>foreach (Thing thing in Prefab.AllPrefabs)
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>{
@@ -8605,9 +8606,7 @@
 <li>2026-07-25: re-read against 0.2.6403.27689. Added the verbatim class declaration, the <code>PollutionMixture</code> constants, and the inherited <code>DLCType</code> field. Added "One prefab per color, and the metallic set" listing all sixteen prefab names from <code>paints.xml</code> and the identical recipe cost. Added <code>related</code> links and the cross-reference to the new <code>../GameSystems/DLCGating.md</code>. No existing claim was contradicted; all prior content was additive-confirmed.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Whether the four metallic cans point at four distinct <code>Normal</code> materials or share one. Tracked as an open question on <code>./ColorSwatch.md</code>; it determines whether a <code>PaintMaterial</code>-keyed color-to-DLC map can distinguish the metallic swatches from each other.</li>
-</ul>
+<p>None. The distinct-material question raised at page revision time was resolved the same day by runtime enumeration: all 16 cans map one-to-one onto 16 distinct swatch materials. See <code>./ColorSwatch.md</code>.</p>
 
 
 
