@@ -39,6 +39,19 @@ namespace SprayPaintPlus
                 return;
             }
 
+            // Entitlement check at the trust boundary. The sending client runs the same gate
+            // before it ever scrolls, so a well-behaved client never trips this; the point is
+            // that a modified one cannot push a DLC color the session is not entitled to.
+            // IsColorAllowed, never IsColorInCycle: the cycle filter is the sender's own
+            // client-local preference and is none of the server's business.
+            if (!DlcPaintGate.IsColorAllowed(ColorIndex))
+            {
+                SprayPaintPlusPlugin.Log.LogWarning(
+                    $"Rejected ColorIndex {ColorIndex} from host {hostId}: requires a DLC that is not " +
+                    "available in this session, ignoring");
+                return;
+            }
+
             var thing = Thing.Find(SprayCanId);
             if (thing is SprayCan sprayCan)
             {

@@ -73,6 +73,7 @@ All features are configurable via the mod settings panel.
 [list]
 [*][b]Paint Single Item By Default[/b] (default Off): Swap Shift behavior, single paint by default, hold Shift for network paint
 [*][b]Invert Color Scroll Direction[/b] (default Off): Reverse the scroll wheel direction
+[*][b]Enable Metallic Paints[/b] (default On): Include the Metallic Paints DLC colors in the color scroll
 [/list]
 
 [b]Server - Consumables[/b] (the host's value controls gameplay for everyone):

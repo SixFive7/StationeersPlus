@@ -31,6 +31,7 @@ namespace SprayPaintPlus
         // Client settings
         internal static ConfigEntry<bool> InvertColorScrollDirection;
         internal static ConfigEntry<bool> PaintSingleItemByDefault;
+        internal static ConfigEntry<bool> EnableMetallicPaints;
         internal static ConfigEntry<bool> MakeMoreStructuresPaintable;
 
         // Server settings
@@ -95,6 +96,11 @@ namespace SprayPaintPlus
                 // for load-order races. See Research/GameSystems/SaveDataRegistration.md.
                 MOD.AddSaveDataType<GlowThingSaveData>();
                 RegisterSaveDataTypeLate(typeof(GlowThingSaveData));
+
+                // Build the color-to-DLC map before the patches go live so the very first
+                // scroll is already gated. Build() is a no-op-and-retry if GameManager or the
+                // prefab registry is not ready yet; the accessors rebuild lazily in that case.
+                DlcPaintGate.Build();
 
                 var harmony = new Harmony(PluginGuid);
                 harmony.PatchAll();
@@ -165,7 +171,11 @@ namespace SprayPaintPlus
                 {
                     extraTypesField.SetValue(null, new[] { t });
                 }
-                else if (!current.Contains(t))
+                // Array.IndexOf, not LINQ Contains: on an array the compiler prefers
+                // MemoryExtensions.Contains(ReadOnlySpan<T>, T), which UniTask.dll makes
+                // visible, and then fails with CS7069 because net472's mscorlib has no
+                // Span<T>. Array.IndexOf has no Span overload and is identical here.
+                else if (Array.IndexOf(current, t) < 0)
                 {
                     var next = new Type[current.Length + 1];
                     Array.Copy(current, next, current.Length);
@@ -216,6 +226,25 @@ namespace SprayPaintPlus
                     "through spray can colors. Each player can set this independently.",
                     null,
                     new KeyValuePair<string, int>("Order", 20)));
+
+            // No "Disabled" tag on this entry even though StationeersLaunchPad supports one.
+            // The tag would have to be computed here, in Awake, and DLCManager.Initialize()
+            // runs later (from a manager's async Start), so ownership still reads as zero at
+            // bind time. Greying the toggle out on that value would hide it from the DLC
+            // owners it exists for. The entry stays editable and is simply inert without the
+            // DLC: DlcPaintGate.IsColorAllowed is checked first and never consults this.
+            EnableMetallicPaints = Config.Bind(
+                "Client - Preferences", "Enable Metallic Paints", true,
+                new ConfigDescription(
+                    "(Client-local) Adds the four Metallic Paints colors (Obsidian, Silver, Bronze, Gold) " +
+                    "to the spray can color scroll. On by default. Turn it off to keep the scroll to the " +
+                    "twelve base game colors. Requires the Metallic Paints DLC " +
+                    "(https://store.steampowered.com/app/4842920): without it these four colors stay locked " +
+                    "whatever this is set to, exactly as in the base game. Stationeers has had years of " +
+                    "steady care from Rocketwerkz and it is a wonderful game for it, so if you are enjoying " +
+                    "it, the DLC is an easy way to say thanks. Each player sets this independently.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 30)));
 
             MakeMoreStructuresPaintable = Config.Bind(
                 "Client - Paintability", "Make More Structures Paintable", true,

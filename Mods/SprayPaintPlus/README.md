@@ -88,6 +88,7 @@ Client settings are personal preference: each player sets them independently and
 |---|---|---|
 | Paint Single Item By Default | Off | Swap Shift behavior: single paint by default, hold Shift for network paint |
 | Invert Color Scroll Direction | Off | Reverse the scroll wheel direction |
+| Enable Metallic Paints | On | Include the four Metallic Paints colors (Obsidian, Silver, Bronze, Gold) in the color scroll. Requires the [Metallic Paints DLC](https://store.steampowered.com/app/4842920); without it these colors stay locked whatever this is set to, exactly as in the base game |
 
 **Server - Consumables**:
 

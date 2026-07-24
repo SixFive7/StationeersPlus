@@ -33,6 +33,14 @@ namespace SprayPaintPlus
         }
     }
 
+    // The two receive paths below deliberately do NOT consult DlcPaintGate. They apply
+    // state the server has already decided and validated (SprayCanColorMessage.Process
+    // runs the entitlement check before anything reaches the wire), so re-checking here
+    // would be checking the wrong machine's entitlement: a client that does not own the
+    // DLC must still render an obsidian can correctly in a session where the host does.
+    // Gating these would produce a can whose color differs per player. Read-only sync,
+    // no gate.
+
     [HarmonyPatch(typeof(Consumable), nameof(Consumable.ProcessUpdate))]
     public class ConsumableProcessUpdatePatch
     {

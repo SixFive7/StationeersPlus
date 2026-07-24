@@ -57,18 +57,18 @@ namespace SprayPaintPlus
             if (colorCount == 0)
                 return;
 
-            int current = SprayPaintHelpers.GetSprayCanColorIndex(sprayCan);
+            int previous = SprayPaintHelpers.GetSprayCanColorIndex(sprayCan);
 
             bool forward = SprayPaintPlusPlugin.InvertColorScrollDirection.Value
                 ? scroll < 0f
                 : scroll > 0f;
 
-            current += forward ? 1 : -1;
+            int current = NextColorInCycle(previous, colorCount, forward);
 
-            if (current >= colorCount)
-                current = 0;
-            else if (current < 0)
-                current = colorCount - 1;
+            // Nothing else is selectable (every other color is DLC-gated or filtered out),
+            // so leave the can alone rather than sending a no-op to the server.
+            if (current == previous)
+                return;
 
             if (NetworkManager.IsServer)
             {
@@ -89,6 +89,40 @@ namespace SprayPaintPlus
                     ColorIndex = current,
                 }.SendToHost();
             }
+        }
+
+        /// <summary>
+        /// Steps one place in the scroll direction, skipping over any color that is not in
+        /// this client's cycle: DLC colors the session is not entitled to, and metallic
+        /// colors an owner has switched off. Skipping rather than stopping keeps the wheel
+        /// feeling continuous; stopping on a gated color would read as a stuck scroll.
+        ///
+        /// Starting the walk from the current index (rather than filtering a candidate list)
+        /// also handles a can whose CURRENT color is gated. A player can legitimately hold a
+        /// real metallic can in a session that has since lost its entitlement, and they can
+        /// still scroll off it; they just cannot scroll back on.
+        ///
+        /// The loop is bounded by colorCount, so it terminates even in the degenerate case
+        /// where nothing at all is selectable, returning the index it started from.
+        /// </summary>
+        private static int NextColorInCycle(int from, int colorCount, bool forward)
+        {
+            int candidate = from;
+
+            for (int step = 0; step < colorCount; step++)
+            {
+                candidate += forward ? 1 : -1;
+
+                if (candidate >= colorCount)
+                    candidate = 0;
+                else if (candidate < 0)
+                    candidate = colorCount - 1;
+
+                if (DlcPaintGate.IsColorInCycle(candidate))
+                    return candidate;
+            }
+
+            return from;
         }
 
         private static void SendModifierStateIfChanged()
@@ -159,6 +193,14 @@ namespace SprayPaintPlus
             }
 
             if (pickedIndex < 0)
+                return;
+
+            // Entitlement only, deliberately not IsColorInCycle. A world can hold metallic
+            // paint the session is not entitled to (painted by an owner, or loaded from a
+            // save), and copying it onto a can would be the same bypass by another route.
+            // The cycle preference is not consulted: an owner who hid metallics from the
+            // wheel and then deliberately eyedroppers a metallic wall meant to do that.
+            if (!DlcPaintGate.IsColorAllowed(pickedIndex))
                 return;
 
             int current = SprayPaintHelpers.GetSprayCanColorIndex(sprayCan);
