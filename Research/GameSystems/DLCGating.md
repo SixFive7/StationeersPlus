@@ -332,7 +332,9 @@ foreach (Thing thing in Prefab.AllPrefabs)
 }
 ```
 
-`GameManager.GetColorSwatch(Material)` is the game's own material-to-swatch lookup, used by `ISprayer.DoSpray`, so a per-swatch `Normal` material is a valid key for this mapping.
+`GameManager.GetColorSwatch(Material)` is the game's own material-to-swatch lookup, used by `ISprayer.DoSpray`, so a per-swatch `Normal` material is a valid key for this mapping. Confirmed at runtime on 2026-07-25 in game version 0.2.6403.27689: all 16 swatch `Normal` materials are distinct assets and all 16 `SprayCan` prefabs resolve one-to-one onto them, yielding a complete and unambiguous colour-index-to-`DLCType` map (indices 0-11 `None`, indices 12-15 `MetallicPaints`). Method, caveats, and the full table are on `../GameClasses/ColorSwatch.md` under "Metallic swatch addition".
+
+Both the swatches and the can prefabs are present regardless of entitlement, so the mapping can be built on any install, including one that does not own the DLC.
 
 ## Metallic Paints DLC content
 
@@ -351,16 +353,17 @@ All four recipes are `Time 5`, `Energy 500`, `Iron 1`, identical to the vanilla 
 
 The corresponding color swatches carry `ColorSwatch.PaintOnly = true`, which drives the metallic shader response (`_MaskMetallic` and `_MaskSmoothness` set to 0.85) and excludes them from logic color dropdowns. `PaintOnly` is a rendering and logic-selectability flag, not an entitlement flag: it happens to coincide with the DLC set today but carries no `DLCType`. See `../GameClasses/ColorSwatch.md`.
 
+The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidian`, `ColorSilver`, `ColorBronze`, `ColorGold`, confirmed at runtime. Note the swatch names drop the `Metallic` prefix the prefab names carry, and the swatch order matches neither alphabetical order nor the `paints.xml` recipe order, so neither identifier nor index can be derived from the other.
+
 ## Verification history
 
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
 - 2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. `CheckSharedAccess` resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). `CheckAccess` resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (`DLCManager.CheckAccess(kitItem)` inside `HasDLC`). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.
+- 2026-07-25: added runtime confirmation of the colour-index-to-`DLCType` map, gathered by the `spp-color-swatch-probe` ScenarioRunner scenario on the headless dedicated server (fresh Mars2 world, game version 0.2.6403.27689). All 16 swatch `Normal` materials are distinct assets and all 16 `SprayCan` prefabs resolve one-to-one onto them, so the prefab-derived gate described in "Where the game does NOT check" is implementable as written. Metallic swatches confirmed at indices 12-15 in the order Obsidian, Silver, Bronze, Gold. Swatches and prefabs confirmed present regardless of entitlement. Two open questions resolved and removed. Full table and method on `../GameClasses/ColorSwatch.md`.
 - 2026-07-25: page created. Decompile findings sourced from Assembly-CSharp.dll (`DLCManager` and `DLCType` at decompile line 192304-192427, `SharedDLCManager` at 192428-192515, `Thing._dlcType` / `Thing.DLCType` at 316896 / 317376, `SpawnDynamicThingMaxStack` gate at 40154, fabricator gate at 420505, `HasDLC(KitItem)` at 194335, `AvailableDLCMessage` at 277477, `DLCCommand` at 97470). Data-file findings sourced from `StreamingAssets/Data/paints.xml` and `StreamingAssets/Language/english.xml`. The "Where the game does NOT check" claim rests on an exhaustive text search of the decompile for `CheckSharedAccess` and `DLCManager.CheckAccess`, which returns only those call sites.
 
 ## Open questions
 
-- Exact `GameManager.CustomColors` count and index positions of the four metallic swatches in this version have not been confirmed at runtime. The vanilla twelve were verified at 0.2.6228.27061 (see `../GameClasses/ColorSwatch.md`); whether the metallic swatches append at 12-15, and in which order, needs an in-game enumeration before any code depends on it. Resolve with an InspectorPlus request over `GameManager` reading `CustomColors` (`Name`, `PaintOnly`, `Normal`) before relying on positional indices.
-- Whether each metallic swatch has a distinct `Normal` Material asset, or whether the four share one material and are distinguished another way. `GameManager.GetColorSwatch(Material)` taking a Material as its key implies per-swatch distinctness, but this has not been confirmed at runtime for the metallic set specifically.
 - `DLCManager.GrantFullOwnership()` has no observed call site. Whether it is dead code, called via reflection, or reached from a build-conditional path has not been traced.
 - Behavior of the shared pool on a dedicated server has not been tested in-game. `HostFinishedLoad()` skips seeding under `IsBatchMode`, so the expectation is that a dedicated server grants DLC content only while an owning client is connected, but this has not been confirmed.

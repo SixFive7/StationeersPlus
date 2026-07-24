@@ -75,6 +75,8 @@ Every recipe, vanilla and metallic alike, is `Time 5`, `Energy 500`, `Iron 1`. T
 
 Note the prefab name uses `Grey` while the swatch name is `ColorGray` (see `./ColorSwatch.md`). Do not derive one from the other by string manipulation.
 
+Runtime enumeration on 2026-07-25 in game version 0.2.6403.27689 confirmed all 16 prefabs are present in `Prefab.AllPrefabs` regardless of entitlement, each with a non-null `PaintMaterial`, each resolving to exactly one `CustomColors` swatch by material reference, with the twelve vanilla cans carrying `DLCType.None` and the four metallic cans `DLCType.MetallicPaints`. The full index map is on `./ColorSwatch.md` under "Metallic swatch addition"; the method and its threading caveats are recorded there too.
+
 Because `SprayCan` prefabs are the only carrier of the color-to-DLC mapping, walking `Prefab.AllPrefabs` for `SprayCan` instances is how a mod resolves which `CustomColors` entries are entitlement-gated:
 
 ```
@@ -95,4 +97,4 @@ foreach (Thing thing in Prefab.AllPrefabs)
 
 ## Open questions
 
-- Whether the four metallic cans point at four distinct `Normal` materials or share one. Tracked as an open question on `./ColorSwatch.md`; it determines whether a `PaintMaterial`-keyed color-to-DLC map can distinguish the metallic swatches from each other.
+None. The distinct-material question raised at page revision time was resolved the same day by runtime enumeration: all 16 cans map one-to-one onto 16 distinct swatch materials. See `./ColorSwatch.md`.
