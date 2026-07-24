@@ -12,13 +12,13 @@
         <meta name="author" content="SixFive7">
       
       
-        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/PowerSegmentingDevices/">
+        <link rel="canonical" href="https://stationeers.huisman.io/research/GameSystems/DLCGating/">
       
       
-        <link rel="prev" href="../PowerProducerOnOffState/">
+        <link rel="prev" href="../CreativeModeAndDifficulty/">
       
       
-        <link rel="next" href="../PowerTickThreading/">
+        <link rel="next" href="../DamageState/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Power Segmenting Devices - StationeersPlus</title>
+        <title>DLC gating - StationeersPlus</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#power-segmenting-devices" class="md-skip">
+        <a href="#dlc-gating" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Power Segmenting Devices
+              DLC gating
             
           </span>
         </div>
@@ -3835,10 +3835,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../DLCGating/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DLC gating
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3854,6 +3881,175 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#dlctype-enum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DLCType enum
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steam-app-ids-per-dlc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steam app IDs per DLC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dlcmanager-local-entitlements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DLCManager: local entitlements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shareddlcmanager-session-wide-entitlement-pool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SharedDLCManager: session-wide entitlement pool
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SharedDLCManager: session-wide entitlement pool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#availabledlcmessage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AvailableDLCMessage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delta-state-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delta-state serialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlc-console-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dlc console command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thingdlctype" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thing.DLCType
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-game-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the game checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-game-does-not-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the game does NOT check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metallic-paints-dlc-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metallic Paints DLC content
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -4619,37 +4815,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Power Segmenting Devices
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../PowerSegmentingDevices/" class="md-nav__link">
         
   
   
@@ -4665,114 +4834,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-seven-real-segmenting-classes-one-vestigial" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The seven real segmenting classes + one vestigial
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shared-base-electricalinputoutput" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shared base: ElectricalInputOutput
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#wireless-pair-anatomy-powertransmitter-powerreceiver" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Wireless pair anatomy (PowerTransmitter / PowerReceiver)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#internal-cell-devices-battery-areapowercontrol-rocketpowerumbilical" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Internal-cell devices (Battery, AreaPowerControl, RocketPowerUmbilical*)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#power-producer-classes-not-segmenters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Power producer classes (not segmenters)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#getgeneratedpower-override-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        GetGeneratedPower override map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification-history" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification history
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#open-questions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Open questions
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -8372,10 +8433,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-seven-real-segmenting-classes-one-vestigial" class="md-nav__link">
+  <a href="#dlctype-enum" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The seven real segmenting classes + one vestigial
+        DLCType enum
       
     </span>
   </a>
@@ -8383,10 +8444,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shared-base-electricalinputoutput" class="md-nav__link">
+  <a href="#steam-app-ids-per-dlc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shared base: ElectricalInputOutput
+        Steam app IDs per DLC
       
     </span>
   </a>
@@ -8394,10 +8455,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#wireless-pair-anatomy-powertransmitter-powerreceiver" class="md-nav__link">
+  <a href="#dlcmanager-local-entitlements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Wireless pair anatomy (PowerTransmitter / PowerReceiver)
+        DLCManager: local entitlements
       
     </span>
   </a>
@@ -8405,10 +8466,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#internal-cell-devices-battery-areapowercontrol-rocketpowerumbilical" class="md-nav__link">
+  <a href="#shareddlcmanager-session-wide-entitlement-pool" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Internal-cell devices (Battery, AreaPowerControl, RocketPowerUmbilical*)
+        SharedDLCManager: session-wide entitlement pool
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SharedDLCManager: session-wide entitlement pool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#availabledlcmessage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AvailableDLCMessage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delta-state-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delta-state serialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlc-console-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dlc console command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thingdlctype" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thing.DLCType
       
     </span>
   </a>
@@ -8416,10 +8527,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#power-producer-classes-not-segmenters" class="md-nav__link">
+  <a href="#where-the-game-checks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Power producer classes (not segmenters)
+        Where the game checks
       
     </span>
   </a>
@@ -8427,10 +8538,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#getgeneratedpower-override-map" class="md-nav__link">
+  <a href="#where-the-game-does-not-check" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GetGeneratedPower override map
+        Where the game does NOT check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metallic-paints-dlc-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metallic Paints DLC content
       
     </span>
   </a>
@@ -8548,33 +8670,43 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-06-10.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-25.
         </p>
       
       
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (1)</summary>
+          <summary><strong>Sources</strong> (7)</summary>
           <ul>
             
-              <li><code>{'.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs :': '373755 (ElectricalInputOutput), 403300 (Transformer), 370616 (Battery), 369509 (AreaPowerControl), 387065 (PowerTransmitter), 386861 (PowerReceiver), 148269 (RocketPowerUmbilicalMale), 147895 (RocketPowerUmbilicalFemale), 386738 (PowerConnection), 405441 (WirelessPower), 373728 (Electrical), 139947 (namespace Objects.Rockets)'}</code></li>
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.DLCManager'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.SharedDLCManager'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.DLCType'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Thing (_dlcType field)'}</code></li>
+            
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Networking.AvailableDLCMessage'}</code></li>
+            
+              <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Data\paints.xml</code></li>
+            
+              <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Language\english.xml</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
             
-              <li><code>../GameClasses/Transformer.md</code></li>
+              <li><code>../GameClasses/ColorSwatch.md</code></li>
             
-              <li><code>../GameClasses/Battery.md</code></li>
+              <li><code>../GameClasses/SprayCan.md</code></li>
             
-              <li><code>../GameClasses/PowerTransmitter.md</code></li>
-            
-              <li><code>../GameClasses/Cable.md</code></li>
+              <li><code>../GameClasses/Thing.md</code></li>
             
           </ul>
         </details>
@@ -8590,308 +8722,353 @@
       
       
       
-        <span class="md-tag">power</span>
+        <span class="md-tag">network</span>
+      
+    
+      
+      
+      
+      
+        <span class="md-tag">prefab</span>
       
     
   </nav>
 
 
 
-<h1 id="power-segmenting-devices">Power Segmenting Devices<a class="headerlink" href="#power-segmenting-devices" title="Permanent link">&para;</a></h1>
-<p>A "segmenting device" is any device that holds two distinct cable / wireless network references AND has Input/Output power-flow semantics, so it bridges (segments) the power-flow graph. PowerGridPlus treats these as the level boundaries of its allocator cascade and as the edges of its cycle-detection graph. This page is the verified catalogue of the concrete classes, their namespaces, base chain, and the members the power simulation reads off them.</p>
-<h2 id="the-seven-real-segmenting-classes-one-vestigial">The seven real segmenting classes + one vestigial<a class="headerlink" href="#the-seven-real-segmenting-classes-one-vestigial" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-09 -->
+<h1 id="dlc-gating">DLC gating<a class="headerlink" href="#dlc-gating" title="Permanent link">&para;</a></h1>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<p>Seven concrete instantiable classes segment the power graph. All seven derive from <code>ElectricalInputOutput</code> (so they expose <code>InputNetwork</code> / <code>OutputNetwork</code> / <code>InputConnection</code> / <code>OutputConnection</code> / <code>OnOff</code> / <code>ReferenceId</code> uniformly):</p>
-<table>
-<thead>
-<tr>
-<th>Class</th>
-<th>Namespace</th>
-<th>Base chain</th>
-<th>Decompile line</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Transformer</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>ElectricalInputOutput : Device</td>
-<td>403300</td>
-</tr>
-<tr>
-<td>Battery</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>ElectricalInputOutput : Device</td>
-<td>370616</td>
-</tr>
-<tr>
-<td>AreaPowerControl</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>ElectricalInputOutput : Device</td>
-<td>369509</td>
-</tr>
-<tr>
-<td>PowerTransmitter</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>WirelessPower : ElectricalInputOutput : Device</td>
-<td>387065</td>
-</tr>
-<tr>
-<td>PowerReceiver</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>WirelessPower : ElectricalInputOutput : Device</td>
-<td>386861</td>
-</tr>
-<tr>
-<td>RocketPowerUmbilicalMale</td>
-<td><code>Objects.Rockets</code></td>
-<td>ElectricalInputOutput : Device</td>
-<td>148269</td>
-</tr>
-<tr>
-<td>RocketPowerUmbilicalFemale</td>
-<td><code>Objects.Rockets</code></td>
-<td>ElectricalInputOutput : Device</td>
-<td>147895</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Namespace correction worth noting:</strong> <code>RocketPowerUmbilicalMale</code> / <code>RocketPowerUmbilicalFemale</code> are in the bare <code>Objects.Rockets</code> namespace (decompile <code>namespace Objects.Rockets</code> at line 139947), NOT <code>Assets.Scripts.Objects.Rockets</code>. The bare-<code>Objects</code> namespace family is the same one that holds <code>Objects.SwitchOnOff</code> and <code>Objects.DevicePart</code>; Stationeers uses both <code>Objects.*</code> and <code>Assets.Scripts.Objects.*</code> for different classes.</p>
-<p><code>PowerConnection : Electrical</code> (line 386738) is the eighth two-network candidate but is <strong>vestigial dead code</strong>: no prefab, no recipe, no build-menu entry, never <code>is</code>-checked anywhere in vanilla or any surveyed mod, and it does NOT derive from <code>ElectricalInputOutput</code> (it derives from <code>Electrical</code> at line 373728, which has no <code>InputNetwork</code>/<code>OutputNetwork</code>; it carries a <code>ConnectedCableNetworks</code> list and a never-called <code>GetOtherNetwork</code> helper). PowerGridPlus ignores it entirely.</p>
-<h2 id="shared-base-electricalinputoutput">Shared base: ElectricalInputOutput<a class="headerlink" href="#shared-base-electricalinputoutput" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-09 -->
+<p>How the game decides whether a player may obtain DLC-locked content. Two managers cooperate: <code>DLCManager</code> holds the local player's Steam entitlements, <code>SharedDLCManager</code> holds the union of every connected player's entitlements for the current session. Enforcement happens at a small number of acquisition sites; there is no enforcement at the point where DLC-derived content is applied to an existing object.</p>
+<p>This page exists because a mod that hands the player DLC-derived content through a path the game does not gate silently bypasses the entitlement check. The gap documented in "Where the game does NOT check" is the one that matters for mod authors.</p>
+<h2 id="dlctype-enum">DLCType enum<a class="headerlink" href="#dlctype-enum" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">// line 373755</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ElectricalInputOutput</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Device</span><span class="p">,</span><span class="w"> </span><span class="n">ISmartRotatable</span><span class="p">,</span><span class="w"> </span><span class="n">ISubmergeable</span><span class="p">,</span><span class="w"> </span><span class="n">IPowered</span><span class="p">,</span><span class="w"> </span><span class="n">IDensePoolable</span><span class="p">,</span><span class="w"> </span><span class="n">IReferencable</span><span class="p">,</span><span class="w"> </span><span class="n">IEvaluable</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">{</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="na">[Header(&quot;Electrical I/O&quot;)]</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Connection</span><span class="w"> </span><span class="n">InputConnection</span><span class="p">;</span><span class="w">      </span><span class="c1">// line 373758</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Connection</span><span class="w"> </span><span class="n">OutputConnection</span><span class="p">;</span><span class="w">     </span><span class="c1">// line 373760</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="na">[ReadOnly]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">InputNetwork</span><span class="p">;</span><span class="w">    </span><span class="c1">// line 373763</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="na">[ReadOnly]</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">CableNetwork</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="p">;</span><span class="w">   </span><span class="c1">// line 373766</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsPowerInputOutput</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">   </span><span class="c1">// line 373801</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="c1">// Short-circuit gate (line 373803): both terminals on the same network -&gt; not operable.</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsOperable</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="p">{</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="k">get</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="p">{</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">OutputNetwork</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">InputNetwork</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">OutputNetwork</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">base</span><span class="p">.</span><span class="n">IsOperable</span><span class="p">;</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="p">}</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="p">}</span>
+<p><code>[Flags] public enum DLCType</code>, backing store is used as a <code>ushort</code> on the wire:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Flags]
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>public enum DLCType
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>{
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    None = 0,
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    Zrilian = 1,
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    HemDroid = 2,
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    HumanCharacter = 4,
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    CountryOveralls = 8,
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    BobbleHeadEva = 0x10,
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    IcarusSuit = 0x20,
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    BobbleHeadHard = 0x40,
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    BobbleHeadMarine = 0x80,
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    MetallicPaints = 0x100
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>}
 </span></code></pre></div>
-<ul>
-<li>The connected cable is reached via <code>InputConnection.GetCable()</code> / <code>OutputConnection.GetCable()</code>, and the per-instance Watts cap via that cable's <code>MaxVoltage</code> field (see <code>Cable.md</code>).</li>
-<li><code>OnOff</code> is a <code>public virtual bool</code> declared on <code>Device</code> (line ~299160). Read it to know whether the device is switched on.</li>
-<li>All seven override <code>GetGeneratedPower(CableNetwork)</code> and <code>GetUsedPower(CableNetwork)</code> (public, returns float; the parameter is <code>[NotNull]</code>). Because each concrete class overrides these, a Harmony patch must target each concrete override, not the base.</li>
-<li>Counterintuitive namespace: the base <code>Device</code> class is <code>Assets.Scripts.Objects.Pipes.Device : SmallGrid</code> (decompile line 349588), NOT <code>Assets.Scripts.Objects.Device</code>. Power devices, pipe devices, and chutes all derive from this one <code>Device</code> in the <code>Pipes</code> namespace.</li>
-</ul>
-<h2 id="wireless-pair-anatomy-powertransmitter-powerreceiver">Wireless pair anatomy (PowerTransmitter / PowerReceiver)<a class="headerlink" href="#wireless-pair-anatomy-powertransmitter-powerreceiver" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-09 -->
+<p><code>DLCManager.AllDLC</code> is the OR of every named value:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>public static readonly DLCType AllDLC = DLCType.Zrilian | DLCType.HemDroid | DLCType.HumanCharacter | DLCType.CountryOveralls | DLCType.BobbleHeadEva | DLCType.IcarusSuit | DLCType.BobbleHeadHard | DLCType.BobbleHeadMarine | DLCType.MetallicPaints;
+</span></code></pre></div>
+<h2 id="steam-app-ids-per-dlc">Steam app IDs per DLC<a class="headerlink" href="#steam-app-ids-per-dlc" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<ul>
-<li><code>PowerTransmitter</code> (line 387065): <code>InputNetwork</code> is the source cable network; <code>OutputNetwork</code> is the wireless network (<code>WirelessOutputNetwork =&gt; OutputNetwork as WirelessNetwork</code>, line 387087). <code>public PowerReceiver LinkedReceiver</code> (line 387089), null when unlinked. <code>MaxPowerTransmission = 5000f</code> static (387071); <code>PowerLossOverDistance</code> AnimationCurve (387073).</li>
-<li><code>PowerReceiver</code> (line 386861): <code>OutputNetwork</code> is the destination cable network; <code>InputNetwork</code> is the wireless network. <code>private PowerTransmitter _linkedPowerTransmitter</code> (386865) exposed via <code>public PowerTransmitter LinkedPowerTransmitter</code> (386871) whose setter also writes <code>InputNetwork = value.OutputNetwork</code>.</li>
-<li>Because the setter ties <code>PR.InputNetwork</code> to <code>PT.OutputNetwork</code>, every receiver linked to a transmitter shares that one <code>WirelessNetwork</code> object. The wireless link is therefore representable in a topology graph as the single shared <code>WirelessNetwork</code> node bracketed by <code>PT.InputNetwork</code> (cable) and <code>PR.OutputNetwork</code> (cable); multi-PR fan-out from one PT all join through that shared node.</li>
-</ul>
-<h2 id="internal-cell-devices-battery-areapowercontrol-rocketpowerumbilical">Internal-cell devices (Battery, AreaPowerControl, RocketPowerUmbilical*)<a class="headerlink" href="#internal-cell-devices-battery-areapowercontrol-rocketpowerumbilical" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-09 -->
-
-<ul>
-<li><code>Battery</code> (370616): <code>public float PowerStored { get; set; }</code> (370665, clamped <code>[0, PowerMaximum]</code>), <code>public float PowerMaximum = 3600000f</code> (370629). <code>UsePower</code> / <code>ReceivePower</code> overrides at 371098 / 371106. Prefabs: small <code>StationBatterySmall</code> (PrefabName <code>StructureBattery</code>), large <code>StationBatteryLarge</code> (<code>StructureBatteryLarge</code>); the nuclear variant ships from the third-party MorePowerMod.</li>
-<li><code>AreaPowerControl</code> (369509): inserted cell via <code>public BatteryCell Battery =&gt; BatterySlot.Get&lt;BatteryCell&gt;()</code> (369548); <code>public float BatteryChargeRate = 1000f</code> (369540, per-instance serialized); <code>private float _powerProvided</code> (369546) couples per-tick charge XOR discharge. No vanilla discharge-rate field.</li>
-<li><code>RocketPowerUmbilicalMale</code> (148269) / <code>RocketPowerUmbilicalFemale</code> (147895): both <code>public float PowerMaximum = 10000f</code> and <code>public float PowerStored { get; set; }</code> (clamped). The Female has NO OnOff interactable button on the device itself (fault state must be surfaced by hover text only); the Male has the on-button affordance. Prefab names (verified from a live save's <code>&lt;PrefabName&gt;</code> entries): <code>StructurePowerUmbilicalMale</code> / <code>StructurePowerUmbilicalFemale</code>. Power methods are battery-shaped: <code>GetUsedPower(input)</code> returns <code>UsedPower + clamp(PowerMaximum - PowerStored, ...)</code> (the Male additionally gates on OnOff and returns just <code>UsedPower</code> when <code>Error == 1 &amp;&amp; OnOff</code>); <code>GetGeneratedPower(output)</code> returns <code>max(PowerStored, 0)</code> (Female L148182-148199, Male L148744-148772). Logic-method declarations: the Male declares <code>CanLogicRead</code> / <code>CanLogicWrite</code> / <code>SetLogicValue</code> but NOT <code>GetLogicValue</code>; the Female declares none of them (both halves reach <code>GetLogicValue</code> through the <code>Device</code> base declaration). The <code>Device</code> base also declares slot-keyed overloads of <code>CanLogicRead</code> / <code>GetLogicValue</code>, so a Harmony patch on the base MUST pass an explicit <code>typeof(LogicType)</code> argument array or it raises <code>AmbiguousMatchException</code> and takes the whole <code>PatchAll</code> down.</li>
-</ul>
-<h2 id="power-producer-classes-not-segmenters">Power producer classes (not segmenters)<a class="headerlink" href="#power-producer-classes-not-segmenters" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-09 -->
-
-<p>Producers are the rigid power sources on the graph (a generator produces its <code>GetGeneratedPower</code> value whether or not anything consumes it). They are NOT segmenters (single network). PowerGridPlus's producer-isolation rule (a producer may connect only to a transformer or to other producers, else it faults) classifies them as below. Namespaces and base chains verified from the decompile:</p>
+<p><code>DLCManager.FetchOwnershipFromSteam</code> maps each flag to a Steam app ID via <code>NetworkManager.CurrentTransport.IsDlcInstalled(uint)</code>. <code>DLCManager.GetStorePageLink(DLCType)</code> returns the matching store URL.</p>
 <table>
 <thead>
 <tr>
-<th>Class</th>
-<th>Namespace</th>
-<th>Base</th>
-<th>Has OnOff button?</th>
+<th>DLCType</th>
+<th>Steam app ID</th>
+<th>Store link</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>SolarPanel</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>Electrical, IPowerGenerator</td>
-<td>No (hover/burn only)</td>
+<td><code>HemDroid</code></td>
+<td>1038500</td>
+<td>https://store.steampowered.com/app/1038500</td>
 </tr>
 <tr>
-<td>WindTurbineGenerator</td>
-<td><code>Objects</code></td>
-<td>Device, IPowerGenerator</td>
-<td>No</td>
+<td><code>Zrilian</code></td>
+<td>1038400</td>
+<td>https://store.steampowered.com/app/1038400</td>
 </tr>
 <tr>
-<td>LargeWindTurbineGenerator</td>
-<td><code>Objects</code></td>
-<td>WindTurbineGenerator</td>
-<td>No</td>
+<td><code>HumanCharacter</code></td>
+<td>2089290</td>
+<td>https://store.steampowered.com/app/2089290</td>
 </tr>
 <tr>
-<td>RadioscopicThermalGenerator</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>Electrical</td>
-<td>No</td>
+<td><code>CountryOveralls</code></td>
+<td>2542990</td>
+<td>https://store.steampowered.com/app/2542990</td>
 </tr>
 <tr>
-<td>PowerGeneratorPipe</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>DeviceInputOutput, IThermal</td>
-<td>Yes</td>
+<td><code>BobbleHeadMarine</code></td>
+<td>3196220</td>
+<td>https://store.steampowered.com/app/3196220</td>
 </tr>
 <tr>
-<td>GasFuelGenerator</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>PowerGeneratorPipe</td>
-<td>Yes (inherited)</td>
+<td><code>BobbleHeadEva</code></td>
+<td>3166330</td>
+<td>https://store.steampowered.com/app/3166330</td>
 </tr>
 <tr>
-<td>PowerGeneratorSlot</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>DeviceImport</td>
-<td>Yes</td>
+<td><code>BobbleHeadHard</code></td>
+<td>3196210</td>
+<td>https://store.steampowered.com/app/3196210</td>
 </tr>
 <tr>
-<td>SolidFuelGenerator</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>PowerGeneratorSlot</td>
-<td>Yes (inherited)</td>
+<td><code>IcarusSuit</code></td>
+<td>1149460</td>
+<td>https://store.steampowered.com/app/1149460</td>
 </tr>
 <tr>
-<td>StirlingEngine</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>DeviceInputOutput, IThermal</td>
-<td>Yes</td>
+<td><code>MetallicPaints</code></td>
+<td>4842920</td>
+<td>https://store.steampowered.com/app/4842920</td>
 </tr>
 </tbody>
 </table>
-<p><code>WindTurbineGenerator</code> and <code>LargeWindTurbineGenerator</code> are in the bare <code>Objects</code> namespace (like the umbilicals and <code>Objects.SwitchOnOff</code>), NOT <code>Assets.Scripts.Objects</code>. Because <code>LargeWindTurbineGenerator : WindTurbineGenerator</code>, <code>GasFuelGenerator : PowerGeneratorPipe</code>, and <code>SolidFuelGenerator : PowerGeneratorSlot</code>, a base-class <code>is</code> check covers each pair. "Has OnOff button" determines whether a producer-isolation fault can flash on the device (button-bearing producers) or must burn a cable / show hover only (SolarPanel, both wind turbines, RTG).</p>
-<p>Two additional power-generating classes that the producer table above originally omitted:</p>
-<table>
-<thead>
-<tr>
-<th>Class</th>
-<th>Namespace</th>
-<th>Base</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>TurbineGenerator</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>Device, ISmartRotatable (line 403819)</td>
-<td>The small wall wind turbine. Declares its own <code>GetGeneratedPower</code> (line 403973). No OnOff button.</td>
-</tr>
-<tr>
-<td>PowerConnector</td>
-<td><code>Assets.Scripts.Objects.Electrical</code></td>
-<td>Electrical (line 386798)</td>
-<td>The dynamic-generator dock (portable generator connection point). Declares its own <code>GetGeneratedPower</code> (line 386810); supplies the network from the docked portable generator. Distinct from the vestigial <code>PowerConnection</code>.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="getgeneratedpower-override-map">GetGeneratedPower override map<a class="headerlink" href="#getgeneratedpower-override-map" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-06-10 -->
+<p>The fallback link for an unmatched <code>DLCType</code> is <code>https://store.steampowered.com/dlc/544550/Stationeers/</code>.</p>
+<p><code>DLCManager.GrantFullOwnership()</code> sets <code>_ownedDLC = AllDLC</code>. It exists in the class but has no call site in <code>DLCManager.Initialize</code>, which calls <code>FetchDlcOwnership()</code> and therefore <code>FetchOwnershipFromSteam()</code> only.</p>
+<h2 id="dlcmanager-local-entitlements">DLCManager: local entitlements<a class="headerlink" href="#dlcmanager-local-entitlements" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<p>Every class that supplies power to a cable network declares its own <code>GetGeneratedPower(CableNetwork)</code> override; none of the producer classes inherit it from an intermediate base. The complete declaration list in the 0.2.6228.27061 decompile (<code>grep "float GetGeneratedPower"</code>, 16 hits):</p>
-<table>
-<thead>
-<tr>
-<th>Line</th>
-<th>Declaring class</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>350696</td>
-<td><code>Device</code> (virtual base)</td>
-</tr>
-<tr>
-<td>138898</td>
-<td><code>WindTurbineGenerator</code> (inherited by <code>LargeWindTurbineGenerator</code>)</td>
-</tr>
-<tr>
-<td>148191</td>
-<td><code>RocketPowerUmbilicalFemale</code></td>
-</tr>
-<tr>
-<td>148761</td>
-<td><code>RocketPowerUmbilicalMale</code></td>
-</tr>
-<tr>
-<td>370000</td>
-<td><code>AreaPowerControl</code></td>
-</tr>
-<tr>
-<td>371127</td>
-<td><code>Battery</code></td>
-</tr>
-<tr>
-<td>375517</td>
-<td><code>PowerGeneratorPipe</code> (inherited by <code>GasFuelGenerator</code>)</td>
-</tr>
-<tr>
-<td>386810</td>
-<td><code>PowerConnector</code></td>
-</tr>
-<tr>
-<td>387028</td>
-<td><code>PowerReceiver</code></td>
-</tr>
-<tr>
-<td>387268</td>
-<td><code>PowerTransmitter</code></td>
-</tr>
-<tr>
-<td>395580</td>
-<td><code>RadioscopicThermalGenerator</code></td>
-</tr>
-<tr>
-<td>400139</td>
-<td><code>SolarPanel</code></td>
-</tr>
-<tr>
-<td>400512</td>
-<td><code>PowerGeneratorSlot</code> (inherited by <code>SolidFuelGenerator</code>)</td>
-</tr>
-<tr>
-<td>402686</td>
-<td><code>StirlingEngine</code></td>
-</tr>
-<tr>
-<td>403496</td>
-<td><code>Transformer</code></td>
-</tr>
-<tr>
-<td>403973</td>
-<td><code>TurbineGenerator</code></td>
-</tr>
-</tbody>
-</table>
-<p>Implication for Harmony: a postfix aimed at a producer class resolves to that class's own declared method (no inherited-method trap for these), and one patch on <code>WindTurbineGenerator</code> / <code>PowerGeneratorPipe</code> / <code>PowerGeneratorSlot</code> covers the respective subclass for free. The full producer patch set is 8 declared methods: SolarPanel, WindTurbineGenerator, RadioscopicThermalGenerator, PowerGeneratorPipe, PowerGeneratorSlot, StirlingEngine, TurbineGenerator, PowerConnector.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>private static DLCType _ownedDLC;
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>public static DLCType GetOwnedDLC() =&gt; _ownedDLC;
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>public static void Initialize() =&gt; FetchDlcOwnership();
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>private static bool CheckAccess(DLCType dlcType)
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>{
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    if (dlcType == DLCType.None)
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    {
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        return true;
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    }
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    return (dlcType &amp; _ownedDLC) != 0;
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>}
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>public static bool CheckAccess(KitItem kitItem)
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>{
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    if ((bool)kitItem)
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    {
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        return CheckAccess(kitItem.DlcType);
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    }
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    return true;
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>}
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>public static bool CheckAccess(Thing thing)
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>{
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>    if (!thing)
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>    {
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>        return true;
+</span><span id="__span-2-30"><a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>    }
+</span><span id="__span-2-31"><a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>    return CheckAccess(thing.DLCType);
+</span><span id="__span-2-32"><a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>}
+</span></code></pre></div>
+<p><code>DLCType.None</code> always passes. A null / destroyed <code>Thing</code> or <code>KitItem</code> always passes. <code>DLCManager.Initialize()</code> is called during game startup.</p>
+<h2 id="shareddlcmanager-session-wide-entitlement-pool">SharedDLCManager: session-wide entitlement pool<a class="headerlink" href="#shareddlcmanager-session-wide-entitlement-pool" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p>Stationeers shares DLC across a multiplayer session: if any connected player owns a DLC, every player in that session can use its content. <code>SharedDLCManager</code> holds the union.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>private static ushort _sharedDLC;
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>public static ushort SharedDLC
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>{
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    get { return _sharedDLC; }
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    set
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    {
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        _sharedDLC = value;
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        if (NetworkManager.IsServer &amp;&amp; NetworkServer.HasClients())
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        {
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>            NetworkUpdateFlags |= 256;
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>        }
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    }
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>}
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>public static void AddSharedDLC(ushort clientOwnedDLC) =&gt; SharedDLC |= clientOwnedDLC;
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>public static void HostFinishedLoad()
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>{
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    if (!GameManager.IsBatchMode &amp;&amp; GameManager.RunSimulation)
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    {
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>        SharedDLC = (ushort)DLCManager.GetOwnedDLC();
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    }
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>}
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>public static void ClientFinishedLoad()
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>{
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>    DLCType ownedDLC = DLCManager.GetOwnedDLC();
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>    NetworkClient.SendToServer(new AvailableDLCMessage { DLCType = (ushort)ownedDLC });
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>}
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>public static bool CheckSharedAccess(DLCType dlcType)
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>{
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>    DLCType sharedDLC = (DLCType)SharedDLC;
+</span><span id="__span-3-35"><a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>    return CheckAccess(dlcType, sharedDLC);
+</span><span id="__span-3-36"><a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>}
+</span><span id="__span-3-37"><a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>
+</span><span id="__span-3-38"><a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>private static bool CheckAccess(DLCType dlcType, DLCType ownedDlc)
+</span><span id="__span-3-39"><a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a>{
+</span><span id="__span-3-40"><a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a>    if (dlcType == DLCType.None)
+</span><span id="__span-3-41"><a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a>    {
+</span><span id="__span-3-42"><a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a>        return true;
+</span><span id="__span-3-43"><a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a>    }
+</span><span id="__span-3-44"><a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a>    return (dlcType &amp; ownedDlc) != 0;
+</span><span id="__span-3-45"><a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a>}
+</span><span id="__span-3-46"><a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a>
+</span><span id="__span-3-47"><a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a>public static void ClearAll() =&gt; SharedDLC = 0;
+</span></code></pre></div>
+<p>Lifecycle:</p>
+<ul>
+<li><code>SharedDLCManager.ClearAll()</code> runs on world teardown, resetting the pool to 0.</li>
+<li><code>HostFinishedLoad()</code> seeds the pool from the host's own entitlements. The <code>!GameManager.IsBatchMode &amp;&amp; GameManager.RunSimulation</code> guard means a dedicated server in batch mode does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients.</li>
+<li><code>ClientFinishedLoad()</code> makes each client send <code>AvailableDLCMessage</code> to the server with its own <code>DLCType</code> bitmask.</li>
+<li><code>AvailableDLCMessage.Process</code> calls <code>SharedDLCManager.AddSharedDLC(DLCType)</code>, ORing the client's entitlements into the pool.</li>
+<li>The pool syncs back to clients as delta state under network update bit 256.</li>
+</ul>
+<p>Important consequence: the pool only grows during a session. A player who owns the DLC joining and then leaving leaves the pool with the bit still set until <code>ClearAll()</code> runs.</p>
+<h3 id="availabledlcmessage">AvailableDLCMessage<a class="headerlink" href="#availabledlcmessage" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>public class AvailableDLCMessage : ProcessedMessage&lt;AvailableDLCMessage&gt;
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>{
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    public ushort DLCType;
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    public override void Process(long hostId)
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    {
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        SharedDLCManager.AddSharedDLC(DLCType);
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    }
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    public override void Deserialize(RocketBinaryReader reader) =&gt; DLCType = reader.ReadUInt16();
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    public override void Serialize(RocketBinaryWriter writer) =&gt; writer.WriteUInt16(DLCType);
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>}
+</span></code></pre></div>
+<p>The server accepts the client's claimed bitmask without verification. Entitlement is client-asserted, not server-validated.</p>
+<h3 id="delta-state-serialization">Delta-state serialization<a class="headerlink" href="#delta-state-serialization" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>public static void SerializeDeltaState(RocketBinaryWriter writer)
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>{
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    writer.WriteUInt16(NetworkUpdateFlags);
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    if (IsNetworkUpdateRequired(256, NetworkUpdateFlags))
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    {
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        writer.WriteUInt16(SharedDLC);
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    }
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    NetworkUpdateFlags = 0;
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>}
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>public static void DeserializeDeltaState(RocketBinaryReader reader)
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>{
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    ushort networkUpdateType = reader.ReadUInt16();
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    if (IsNetworkUpdateRequired(256, networkUpdateType))
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    {
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>        SharedDLC = reader.ReadUInt16();
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    }
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>}
+</span></code></pre></div>
+<h3 id="dlc-console-command">dlc console command<a class="headerlink" href="#dlc-console-command" title="Permanent link">&para;</a></h3>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p><code>DLCCommand</code> (<code>CommandScope.InGame | CommandScope.HostOrSinglePlayer</code>) prints the session pool:</p>
+<ul>
+<li>Help text: "Provides DLC debug functions. Host or singleplayer only."</li>
+<li>Argument: <code>shared : print the shared (server-union) owned DLC</code></li>
+<li><code>HandleShared()</code> returns <code>((DLCType)SharedDLCManager.SharedDLC).ToString()</code>.</li>
+</ul>
+<p><code>dlc shared</code> is the fastest in-game way to read the current pool while testing entitlement behavior.</p>
+<h2 id="thingdlctype">Thing.DLCType<a class="headerlink" href="#thingdlctype" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p>Every <code>Thing</code> carries its DLC requirement as a serialized field set on the prefab:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>[SerializeField]
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>private DLCType _dlcType;
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>public DLCType DLCType =&gt; _dlcType;
+</span></code></pre></div>
+<p>Read-only at runtime (no public setter). <code>DLCType.None</code> on all non-DLC content. This is the single per-object source of truth the gates below consult.</p>
+<h2 id="where-the-game-checks">Where the game checks<a class="headerlink" href="#where-the-game-checks" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p>Three enforcement sites exist in <code>Assembly-CSharp</code>, all of them at the moment content is ACQUIRED:</p>
+<ol>
+<li><strong>Console / creative spawn.</strong> <code>SpawnDynamicThingMaxStack(long parentId, string prefabName)</code>:</li>
+</ol>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>else if (!SharedDLCManager.CheckSharedAccess(dynamicThing.DLCType))
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>{
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    ConsoleWindow.PrintError(&quot;error DLC not owned for &quot; + prefabName, suppressStacktrace: true);
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>}
+</span></code></pre></div>
+<p>This is the source of the in-game red console line <code>error DLC not owned for ItemSprayCanMetallicObsidian</code>.</p>
+<ol>
+<li><strong>Fabrication.</strong> The manufactory / fabricator interaction path checks the recipe's product before allowing <code>Activate</code>:</li>
+</ol>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>DynamicThing product = GetProduct(CurrentIndex);
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>if ((object)product != null &amp;&amp; !SharedDLCManager.CheckSharedAccess(product.DLCType))
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>{
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    return delayedActionInstance.Fail(GameStrings.RequireDlcToFabricate);
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>}
+</span></code></pre></div>
+<p>A recipe may therefore exist in the data files for every player while remaining unfabricatable without the entitlement.</p>
+<ol>
+<li><strong>Character customisation.</strong> <code>HasDLC(KitItem kitItem)</code> uses the LOCAL check, not the shared pool:</li>
+</ol>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>private bool HasDLC(KitItem kitItem)
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>{
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    bool num = DLCManager.CheckAccess(kitItem);
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    if (!num)
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    {
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        _currentDlcLink = DLCManager.GetStorePageLink(kitItem.DlcType);
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    }
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    return num;
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>}
+</span></code></pre></div>
+<p>Cosmetic character content is gated on personal ownership (<code>DLCManager.CheckAccess</code>); in-world content is gated on the session pool (<code>SharedDLCManager.CheckSharedAccess</code>). The two are deliberately different and a mod should copy whichever matches the content it is handling.</p>
+<h2 id="where-the-game-does-not-check">Where the game does NOT check<a class="headerlink" href="#where-the-game-does-not-check" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p>There is no DLC check anywhere on the paint-application path. A full-text search of <code>Assembly-CSharp</code> for <code>CheckSharedAccess</code> and <code>DLCManager.CheckAccess</code> returns only the four call sites above (three enforcement sites plus the definition). None of the following consults <code>DLCType</code>:</p>
+<ul>
+<li><code>Thing.SetCustomColor(int index, bool emissive = false)</code></li>
+<li><code>OnServer.SetCustomColor(Thing thing, int colorIndex)</code></li>
+<li><code>ISprayer.DoSpray(Thing thing, ISprayer sprayer, bool doAction)</code></li>
+<li><code>ColorSwatch</code> itself (the class has no <code>DLCType</code> field; see <code>../GameClasses/ColorSwatch.md</code>)</li>
+<li><code>GameManager.CustomColors</code>, which holds every swatch regardless of entitlement</li>
+</ul>
+<p>The design is coherent for vanilla: the only way to reach a DLC paint color is to hold the matching spray can, and both routes to that can (console spawn, fabrication) are gated. Ownership of the color is expressed entirely through ownership of the item.</p>
+<p>The gap this leaves for mods: <code>GameManager.CustomColors</code> is an ungated list, and any code that applies a color by index reaches DLC colors with no check. A mod that lets the player pick a color by index rather than by holding a can (a color cycler, a color picker UI, an eyedropper, a logic-driven paint writable) bypasses entitlement without touching any gated code path. Vanilla has no backstop to catch it.</p>
+<p>Mod authors handling colors by index should reproduce the vanilla gate themselves. The check that matches vanilla in-world behavior is <code>SharedDLCManager.CheckSharedAccess(dlcType)</code>. Resolving a color index to a <code>DLCType</code> requires going through the spray can prefab that carries that color, because the swatch itself does not record one:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>foreach (Thing thing in Prefab.AllPrefabs)
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>{
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    if (thing is SprayCan prefabCan &amp;&amp; prefabCan.PaintMaterial != null)
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    {
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>        // prefabCan.PaintMaterial identifies the swatch; prefabCan.DLCType is the gate
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    }
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>}
+</span></code></pre></div>
+<p><code>GameManager.GetColorSwatch(Material)</code> is the game's own material-to-swatch lookup, used by <code>ISprayer.DoSpray</code>, so a per-swatch <code>Normal</code> material is a valid key for this mapping.</p>
+<h2 id="metallic-paints-dlc-content">Metallic Paints DLC content<a class="headerlink" href="#metallic-paints-dlc-content" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p><code>DLCType.MetallicPaints</code> (0x100, Steam app 4842920) covers four spray cans. <code>rocketstation_Data/StreamingAssets/Data/paints.xml</code> lists Tool Manufactory recipes for all sixteen cans, twelve vanilla plus these four:</p>
+<ul>
+<li><code>ItemSprayCanMetallicBronze</code></li>
+<li><code>ItemSprayCanMetallicGold</code></li>
+<li><code>ItemSprayCanMetallicObsidian</code></li>
+<li><code>ItemSprayCanMetallicSilver</code></li>
+</ul>
+<p>All four recipes are <code>Time 5</code>, <code>Energy 500</code>, <code>Iron 1</code>, identical to the vanilla cans. The recipes ship to every player; the fabricator gate in "Where the game checks" is what stops a non-owner from producing them.</p>
+<p><code>rocketstation_Data/StreamingAssets/Language/english.xml</code> carries the four keys with descriptions of the form "Metallic obsidian spray paint. Using it with a spray gun will extend the usage greatly."</p>
+<p>The corresponding color swatches carry <code>ColorSwatch.PaintOnly = true</code>, which drives the metallic shader response (<code>_MaskMetallic</code> and <code>_MaskSmoothness</code> set to 0.85) and excludes them from logic color dropdowns. <code>PaintOnly</code> is a rendering and logic-selectability flag, not an entitlement flag: it happens to coincide with the DLC set today but carries no <code>DLCType</code>. See <code>../GameClasses/ColorSwatch.md</code>.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
 <ul>
-<li>2026-06-09: Page created (0.2.6228.27061). Class catalogue and members gathered during the PowerGridPlus power refactor from the 0.2.6228.27061 decompile; <code>Objects.Rockets</code> namespace for the umbilical classes confirmed directly (nearest <code>namespace</code> decl above line 148269 is <code>namespace Objects.Rockets</code> at line 139947, correcting an earlier <code>Assets.Scripts.Objects.Rockets</code> guess).</li>
-<li>2026-06-09: Added the power-producer class catalogue (namespaces, base chains, OnOff-button presence) verified from the same decompile, for the producer-isolation rule.</li>
-<li>2026-06-10: Added the <code>GetGeneratedPower</code> override map (all 16 declarations) and the two previously-omitted power-generating classes <code>TurbineGenerator</code> (small wall wind turbine, line 403819) and <code>PowerConnector</code> (dynamic-generator dock, line 386798). Both declare their own <code>GetGeneratedPower</code>; both are single-network suppliers and therefore subject to producer-isolation, neither has an OnOff button.</li>
-<li>2026-06-10 (correction): <code>Battery</code> is in <code>Assets.Scripts.Objects.Electrical</code>, NOT <code>Assets.Scripts.Objects.Pipes</code> as this page previously stated. Two independent machine witnesses: the C# compiler rejected <code>Assets.Scripts.Objects.Pipes.Battery</code> with CS0234 during the PowerGridPlus build, and the nearest <code>namespace</code> declaration above the class at decompile line 370616 reads <code>namespace Assets.Scripts.Objects.Electrical</code>. The fresh-validator sub-agent step was skipped because compiler evidence is conclusive; recorded here per the conflict-resolution rule.</li>
-<li>2026-06-10: Added the rocket umbilical prefab names (<code>StructurePowerUmbilicalMale</code> / <code>StructurePowerUmbilicalFemale</code>, read from a live save's PrefabName entries), their battery-shaped power-method bodies (Female L148182-148199, Male L148744-148772), the logic-method declaration map for both halves, and the slot-keyed-overload <code>AmbiguousMatchException</code> trap on <code>Device.CanLogicRead</code> / <code>Device.GetLogicValue</code> base patches (hit live: it silently disabled every PowerGridPlus patch until the argument-type array was added).</li>
+<li>2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. <code>CheckSharedAccess</code> resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). <code>CheckAccess</code> resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (<code>DLCManager.CheckAccess(kitItem)</code> inside <code>HasDLC</code>). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.</li>
+<li>2026-07-25: page created. Decompile findings sourced from Assembly-CSharp.dll (<code>DLCManager</code> and <code>DLCType</code> at decompile line 192304-192427, <code>SharedDLCManager</code> at 192428-192515, <code>Thing._dlcType</code> / <code>Thing.DLCType</code> at 316896 / 317376, <code>SpawnDynamicThingMaxStack</code> gate at 40154, fabricator gate at 420505, <code>HasDLC(KitItem)</code> at 194335, <code>AvailableDLCMessage</code> at 277477, <code>DLCCommand</code> at 97470). Data-file findings sourced from <code>StreamingAssets/Data/paints.xml</code> and <code>StreamingAssets/Language/english.xml</code>. The "Where the game does NOT check" claim rests on an exhaustive text search of the decompile for <code>CheckSharedAccess</code> and <code>DLCManager.CheckAccess</code>, which returns only those call sites.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li>None outstanding for the segmenting-device catalogue itself. Per-class power-method formulas (the bodies of <code>GetGeneratedPower</code> / <code>GetUsedPower</code>) are documented on the individual <code>GameClasses/</code> pages where present.</li>
+<li>Exact <code>GameManager.CustomColors</code> count and index positions of the four metallic swatches in this version have not been confirmed at runtime. The vanilla twelve were verified at 0.2.6228.27061 (see <code>../GameClasses/ColorSwatch.md</code>); whether the metallic swatches append at 12-15, and in which order, needs an in-game enumeration before any code depends on it. Resolve with an InspectorPlus request over <code>GameManager</code> reading <code>CustomColors</code> (<code>Name</code>, <code>PaintOnly</code>, <code>Normal</code>) before relying on positional indices.</li>
+<li>Whether each metallic swatch has a distinct <code>Normal</code> Material asset, or whether the four share one material and are distinguished another way. <code>GameManager.GetColorSwatch(Material)</code> taking a Material as its key implies per-swatch distinctness, but this has not been confirmed at runtime for the metallic set specifically.</li>
+<li><code>DLCManager.GrantFullOwnership()</code> has no observed call site. Whether it is dead code, called via reflection, or reached from a build-conditional path has not been traced.</li>
+<li>Behavior of the shared pool on a dedicated server has not been tested in-game. <code>HostFinishedLoad()</code> skips seeding under <code>IsBatchMode</code>, so the expectation is that a dedicated server grants DLC content only while an owning client is connected, but this has not been confirmed.</li>
 </ul>
 
 
@@ -8932,7 +9109,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../PowerProducerOnOffState/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Power producer HasOnOffState and On-writeability">
+          <a href="../CreativeModeAndDifficulty/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Creative Mode and Difficulty">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -8942,20 +9119,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Power producer HasOnOffState and On-writeability
+                Creative Mode and Difficulty
               </div>
             </div>
           </a>
         
         
           
-          <a href="../PowerTickThreading/" class="md-footer__link md-footer__link--next" aria-label="Next: PowerTickThreading">
+          <a href="../DamageState/" class="md-footer__link md-footer__link--next" aria-label="Next: DamageState">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                PowerTickThreading
+                DamageState
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -3074,10 +3074,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#declaration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declaration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fields" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-prefab-per-color-and-the-metallic-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One prefab per color, and the metallic set
       
     </span>
   </a>
@@ -3670,6 +3692,8 @@
       
         
       
+        
+      
     
     
     
@@ -3896,6 +3920,34 @@
     
   
     Creative Mode and Difficulty
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DLCGating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DLC gating
   
 
     
@@ -8287,10 +8339,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#declaration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declaration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fields" class="md-nav__link">
     <span class="md-ellipsis">
       
         Fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-prefab-per-color-and-the-metallic-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One prefab per color, and the metallic set
       
     </span>
   </a>
@@ -8408,23 +8482,44 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-20.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-25.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (2)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>Mods/SprayPaintPlus/RESEARCH.md:94-98</code></li>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Items.SprayCan'}</code></li>
             
+              <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.Objects.Items.ISprayer'}</code></li>
+            
+              <li><code>$(StationeersPath)\rocketstation_Data\StreamingAssets\Data\paints.xml</code></li>
+            
           </ul>
         </details>
       
+      
+        <details class="research-meta-related">
+          <summary><strong>Related pages</strong> (3)</summary>
+          <ul>
+            
+              <li><code>./ColorSwatch.md</code></li>
+            
+              <li><code>./ISprayer.md</code></li>
+            
+              <li><code>../GameSystems/DLCGating.md</code></li>
+            
+          </ul>
+        </details>
       
     </aside>
   
@@ -8446,23 +8541,73 @@
 
 <h1 id="spraycan">SprayCan<a class="headerlink" href="#spraycan" title="Permanent link">&para;</a></h1>
 <p>Vanilla game class representing a spray-paint can consumable. The game ships one <code>SprayCan</code> prefab per color.</p>
-<h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<h2 id="declaration">Declaration<a class="headerlink" href="#declaration" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
-<p>Source: F0015.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>public class SprayCan : Consumable, ISprayer, IUsedAmount, IUsed
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>{
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    [Header(&quot;Spray Can&quot;)]
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    public Material PaintMaterial;
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    private static readonly GasMixture PollutionMixture = new GasMixture(new Mole(Chemistry.GasType.Pollutant, new MoleQuantity(0.009999999776482582), new MoleEnergy(73.0)));
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    public override int ConstructingSoundHash =&gt; Animator.StringToHash(&quot;SprayPaintLong&quot;);
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    public override int FinishedConstructingSoundHash =&gt; Animator.StringToHash(&quot;SprayPaintFinished&quot;);
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    public float TimeToUse() =&gt; 0.5f;
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    public Material GetPaintMaterial() =&gt; PaintMaterial;
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    public override bool UseDefaultUiUsingSounds() =&gt; false;
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    public override bool OnUseItem(float quantity, Thing onUseThing)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    {
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>        base.Quantity -= quantity;
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>        AtmosphericEventInstance.CloneGlobalAddGasMix(base.WorldGrid, PollutionMixture);
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>        return true;
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    }
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>}
+</span></code></pre></div>
+<p><code>OnUseItem</code> is the whole of the can's per-use behavior: decrement quantity, emit one <code>PollutionMixture</code> (0.01 mol Pollutant at 73 J) into the can's <code>WorldGrid</code>. It always returns true.</p>
+<h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p>Source: F0015, re-confirmed against 0.2.6403.27689.</p>
 <ul>
-<li><code>PaintMaterial</code> / <code>PaintableMaterial</code>: The <code>Material</code> representing the can's current color. The game has one <code>SprayCan</code> prefab per color.</li>
+<li><code>PaintMaterial</code> / <code>PaintableMaterial</code>: The <code>Material</code> representing the can's current color. The game has one <code>SprayCan</code> prefab per color. <code>GameManager.GetColorSwatch(Material)</code> is the game's own reverse lookup from this material to the <code>ColorSwatch</code>, used by <code>ISprayer.DoSpray</code>.</li>
 <li><code>Thumbnail</code>: The <code>Sprite</code> shown in the inventory slot. Tied to the prefab, so switching color requires updating it manually.</li>
 <li><code>Quantity</code>: Decremented on each use. Setting it to 0 before vanilla runs effectively makes the can infinite.</li>
+<li><code>DLCType</code> (inherited from <code>Thing</code>, <code>[SerializeField] private DLCType _dlcType</code> with a getter-only <code>public DLCType DLCType</code>): the entitlement required to obtain this can. <code>DLCType.None</code> on the twelve vanilla cans; <code>DLCType.MetallicPaints</code> on the four metallic cans. This is the ONLY place a paint color's DLC requirement is recorded, because <code>ColorSwatch</code> has no <code>DLCType</code> field. See <code>../GameSystems/DLCGating.md</code>.</li>
 </ul>
+<h2 id="one-prefab-per-color-and-the-metallic-set">One prefab per color, and the metallic set<a class="headerlink" href="#one-prefab-per-color-and-the-metallic-set" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p><code>rocketstation_Data/StreamingAssets/Data/paints.xml</code> lists a Tool Manufactory recipe per can. Sixteen cans ship at 0.2.6403.27689: twelve vanilla plus four from the Metallic Paints DLC.</p>
+<p>Vanilla twelve: <code>ItemSprayCanBlack</code>, <code>ItemSprayCanBlue</code>, <code>ItemSprayCanBrown</code>, <code>ItemSprayCanGreen</code>, <code>ItemSprayCanGrey</code>, <code>ItemSprayCanKhaki</code>, <code>ItemSprayCanOrange</code>, <code>ItemSprayCanPink</code>, <code>ItemSprayCanPurple</code>, <code>ItemSprayCanRed</code>, <code>ItemSprayCanWhite</code>, <code>ItemSprayCanYellow</code>.</p>
+<p>Metallic four: <code>ItemSprayCanMetallicBronze</code>, <code>ItemSprayCanMetallicGold</code>, <code>ItemSprayCanMetallicObsidian</code>, <code>ItemSprayCanMetallicSilver</code>.</p>
+<p>Every recipe, vanilla and metallic alike, is <code>Time 5</code>, <code>Energy 500</code>, <code>Iron 1</code>. The recipes ship to all players; the DLC gate in the fabricator path is what stops a non-owner producing the metallic four.</p>
+<p>Note the prefab name uses <code>Grey</code> while the swatch name is <code>ColorGray</code> (see <code>./ColorSwatch.md</code>). Do not derive one from the other by string manipulation.</p>
+<p>Because <code>SprayCan</code> prefabs are the only carrier of the color-to-DLC mapping, walking <code>Prefab.AllPrefabs</code> for <code>SprayCan</code> instances is how a mod resolves which <code>CustomColors</code> entries are entitlement-gated:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>foreach (Thing thing in Prefab.AllPrefabs)
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>{
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    if (thing is SprayCan prefabCan &amp;&amp; prefabCan.PaintMaterial != null)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    {
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        // prefabCan.PaintMaterial identifies the swatch, prefabCan.DLCType is the gate
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    }
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>}
+</span></code></pre></div>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-20 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
 <ul>
 <li>2026-04-20: page created from the Research migration; verbatim content lifted from F0015. No conflicts.</li>
+<li>2026-07-25: re-read against 0.2.6403.27689. Added the verbatim class declaration, the <code>PollutionMixture</code> constants, and the inherited <code>DLCType</code> field. Added "One prefab per color, and the metallic set" listing all sixteen prefab names from <code>paints.xml</code> and the identical recipe cost. Added <code>related</code> links and the cross-reference to the new <code>../GameSystems/DLCGating.md</code>. No existing claim was contradicted; all prior content was additive-confirmed.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
-<p>None at creation.</p>
+<ul>
+<li>Whether the four metallic cans point at four distinct <code>Normal</code> materials or share one. Tracked as an open question on <code>./ColorSwatch.md</code>; it determines whether a <code>PaintMaterial</code>-keyed color-to-DLC map can distinguish the metallic swatches from each other.</li>
+</ul>
 
 
 

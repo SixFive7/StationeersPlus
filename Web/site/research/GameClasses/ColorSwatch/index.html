@@ -1293,6 +1293,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#paintonly-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PaintOnly flag
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#colorswatch-list" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1341,6 +1352,17 @@
     <span class="md-ellipsis">
       
         Vanilla swatch inventory (v0.2.6228.27061)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metallic-swatch-addition-v02640327689" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metallic swatch addition (v0.2.6403.27689)
       
     </span>
   </a>
@@ -3736,6 +3758,8 @@
       
         
       
+        
+      
     
     
     
@@ -3962,6 +3986,34 @@
     
   
     Creative Mode and Difficulty
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameSystems/DLCGating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DLC gating
   
 
     
@@ -8364,6 +8416,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#paintonly-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PaintOnly flag
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#colorswatch-list" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8412,6 +8475,17 @@
     <span class="md-ellipsis">
       
         Vanilla swatch inventory (v0.2.6228.27061)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metallic-swatch-addition-v02640327689" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metallic swatch addition (v0.2.6403.27689)
       
     </span>
   </a>
@@ -8540,10 +8614,14 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-04-21.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-25.
         </p>
       
+      
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
       
       
         <details class="research-meta-sources">
@@ -8567,7 +8645,7 @@
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (4)</summary>
+          <summary><strong>Related pages</strong> (5)</summary>
           <ul>
             
               <li><code>./Thing.md</code></li>
@@ -8577,6 +8655,8 @@
               <li><code>../Protocols/ThingColorMessage.md</code></li>
             
               <li><code>../GameSystems/RenderingPipelineAndGlow.md</code></li>
+            
+              <li><code>../GameSystems/DLCGating.md</code></li>
             
           </ul>
         </details>
@@ -8604,7 +8684,7 @@
 
 <p>Vanilla game class at <code>Assets.Scripts.Objects.ColorSwatch</code>. Serializable container for one entry in <code>GameManager.CustomColors</code>. Holds two <code>Material</code> references (<code>Normal</code> and <code>Emissive</code>) plus light and localization metadata. <code>Thing.CustomColor</code> holds a reference to one of these; <code>ThingSaveData.CustomColorIndex</code> is the on-disk identifier of which swatch is active on a given Thing.</p>
 <h2 id="declaration-and-fields">Declaration and fields<a class="headerlink" href="#declaration-and-fields" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
 <p><code>ColorSwatch</code> is a C# <code>class</code> (not a struct), serializable for Unity inspector editing, with no explicit base. Fields in declaration order:</p>
 <table>
@@ -8629,12 +8709,17 @@
 <tr>
 <td><code>Bit</code></td>
 <td><code>public int</code></td>
-<td>Legacy field, currently unused.</td>
+<td>Access-bit identifier. Consumed by the color-scanner / screen-color UI path: <code>GetAccess =&gt; CustomColor.Bit</code> (decompile line 338789), <code>screenColorItem.Bit = colorSwatch.Bit</code> (338892), <code>ScannedThing.HasAccess(gasItem.Bit)</code> (338931), <code>_selectedColorBit = colorSwatch.Bit</code> (338989). Documented as unused at 0.2.6228.27061; see Verification History.</td>
 </tr>
 <tr>
 <td><code>StringKey</code></td>
 <td><code>public int</code></td>
 <td>Localization key (ReadOnly).</td>
+</tr>
+<tr>
+<td><code>PaintOnly</code></td>
+<td><code>public bool</code></td>
+<td>Added since 0.2.6228.27061. Marks a swatch as spray-paint-only: hidden from logic color dropdowns and rejected by logic / IC10 <code>Color</code> writes, and rendered with a metallic shader response. See "PaintOnly flag" below.</td>
 </tr>
 <tr>
 <td><code>Normal</code></td>
@@ -8649,7 +8734,7 @@
 <tr>
 <td><code>Cutable</code></td>
 <td><code>public Material</code></td>
-<td>Present on the inspector; code path that consumes it has not been traced.</td>
+<td>Present on the inspector; code path that consumes it has not been traced. Re-checked at 0.2.6403.27689: the declaration at decompile line 295158 remains the only occurrence of the identifier in <code>Assembly-CSharp</code>.</td>
 </tr>
 <tr>
 <td><code>Light</code></td>
@@ -8663,12 +8748,75 @@
 </tr>
 </tbody>
 </table>
+<p>Static shader property IDs (private, added since 0.2.6228.27061):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>private static readonly int MaskColorId = Shader.PropertyToID(&quot;_MaskColor&quot;);
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>private static readonly int MaskMetallicId = Shader.PropertyToID(&quot;_MaskMetallic&quot;);
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>private static readonly int MaskSmoothnessId = Shader.PropertyToID(&quot;_MaskSmoothness&quot;);
+</span></code></pre></div>
 <p>Properties:</p>
 <ul>
-<li><code>public int Index { get; }</code> — lazy, calls <code>GameManager.GetColorIndex(this)</code> on first access and caches in <code>_index</code>.</li>
+<li><code>public int Index { get; }</code>: lazy, calls <code>GameManager.GetColorIndex(this)</code> on first access and caches in <code>_index</code>.</li>
 <li><code>public bool IsSet =&gt; Index != -1</code>.</li>
 <li><code>public string DisplayName =&gt; Localization.GetName(this)</code>.</li>
 </ul>
+<p>Methods:</p>
+<ul>
+<li><code>public string ToTooltip()</code> returns <code>"&lt;color=yellow&gt;" + DisplayName + "&lt;/color&gt;"</code>.</li>
+<li><code>public void ApplyToSuitMaterial(Material mat)</code>, see "PaintOnly flag" below.</li>
+</ul>
+<p>There is no <code>DLCType</code> field on <code>ColorSwatch</code>. A swatch carries no entitlement information; the DLC requirement for a color lives on the spray can prefab that dispenses it. See <code>../GameSystems/DLCGating.md</code>.</p>
+<h2 id="paintonly-flag">PaintOnly flag<a class="headerlink" href="#paintonly-flag" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p><code>public bool PaintOnly</code> does not exist in the 0.2.6228.27061 declaration and was added by 0.2.6403.27689. Its verbatim inspector tooltip:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>[Tooltip(&quot;When true, this colour can ONLY be applied by spray painting - it is hidden from the logic colour dropdowns and rejected by IC10/logic Color writes. Used for cosmetic paint-only colours (e.g. the metallic spray cans). Default false so all existing colours stay logic-selectable (an absent value deserialises to false).&quot;)]
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>public bool PaintOnly;
+</span></code></pre></div>
+<p>The flag drives two independent behaviors.</p>
+<p><strong>Logic selectability.</strong> <code>GameManager.GenerateColorStrings()</code> builds the logic dropdown from only the non-<code>PaintOnly</code> swatches, keeping a parallel <code>LogicColorIndices</code> list so dropdown positions still map back to real swatch indices:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>LogicColorIndices.Clear();
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>List&lt;string&gt; list = new List&lt;string&gt;(Singleton&lt;GameManager&gt;.Instance.CustomColors.Count);
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>for (int i = 0; i &lt; Singleton&lt;GameManager&gt;.Instance.CustomColors.Count; i++)
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>{
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    if (!Singleton&lt;GameManager&gt;.Instance.CustomColors[i].PaintOnly)
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    {
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        LogicColorIndices.Add(i);
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>        list.Add(Singleton&lt;GameManager&gt;.Instance.CustomColors[i].DisplayName);
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    }
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>}
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>ColorStrings = list.ToArray();
+</span></code></pre></div>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>public static bool IsLogicSelectableColor(int colorIndex)
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    if (0 &lt;= colorIndex &amp;&amp; colorIndex &lt; Singleton&lt;GameManager&gt;.Instance.CustomColors.Count)
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    {
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>        return !Singleton&lt;GameManager&gt;.Instance.CustomColors[colorIndex].PaintOnly;
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    }
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    return false;
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>}
+</span></code></pre></div>
+<p>Note <code>IsLogicSelectableColor</code> returns false for an out-of-range index, so it doubles as a range check.</p>
+<p><strong>Metallic shader response.</strong> <code>PaintOnly</code> selects a metallic / smooth surface in both places a swatch is pushed into a material:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>public void ApplyToSuitMaterial(Material mat)
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>{
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    if (!(mat == null))
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    {
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        mat.SetColor(MaskColorId, Color);
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>        mat.SetFloat(MaskMetallicId, PaintOnly ? 0.85f : 0f);
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        mat.SetFloat(MaskSmoothnessId, PaintOnly ? 0.85f : 0f);
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    }
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>}
+</span></code></pre></div>
+<p>The same 0.85 pair appears in the mask-material component at decompile line 35041-35045:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>public void SetColor(ColorSwatch colorSwatch)
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>{
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    _material.SetColor(MaskColor, colorSwatch.Color);
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    _material.SetFloat(MaskMetallic, colorSwatch.PaintOnly ? 0.85f : 0f);
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    _material.SetFloat(MaskSmoothness, colorSwatch.PaintOnly ? 0.85f : 0f);
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>}
+</span></code></pre></div>
+<p><code>ApplyToSuitMaterial</code> callers: decompile lines 123788, 310669, 345793, 428172, 428610, 429946.</p>
+<p><strong>PaintOnly is not an entitlement flag.</strong> It coincides with the Metallic Paints DLC set in this version (the tooltip names the metallic spray cans as the motivating case) but it carries no <code>DLCType</code> and no DLC code path reads it. A mod must not treat <code>PaintOnly == true</code> as "requires DLC": the two happen to overlap today and nothing in the game guarantees they keep overlapping. The entitlement gate is documented in <code>../GameSystems/DLCGating.md</code>.</p>
 <h2 id="colorswatch-list">ColorSwatch list<a class="headerlink" href="#colorswatch-list" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
@@ -8678,29 +8826,29 @@
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
 <p><code>Thing.SelectColorSwatchMaterial(bool emissive)</code> is overridable. <code>PowerTool.SelectColorSwatchMaterial</code> (decompile line 139053-139061) is the canonical body:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>public override Material SelectColorSwatchMaterial(bool emissive)
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>{
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    if (!emissive)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    {
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        return CustomColor.Normal;
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    }
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    return CustomColor.Emissive;
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>public override Material SelectColorSwatchMaterial(bool emissive)
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>{
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    if (!emissive)
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    {
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        return CustomColor.Normal;
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    }
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    return CustomColor.Emissive;
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>}
 </span></code></pre></div>
 <p><code>Thing.SetCustomColor(int index, bool emissive = false)</code> (decompile line 302860-302911) calls <code>SelectColorSwatchMaterial(emissive)</code> to choose the material, then for each <code>CustomColorMapping</code> entry in <code>_customMaterials</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>if (emissive)
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    customMaterial.SetEmissive(material);
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>else
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    customMaterial.SetColor(material, index);
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>if (emissive)
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    customMaterial.SetEmissive(material);
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>else
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    customMaterial.SetColor(material, index);
 </span></code></pre></div>
 <p>After the per-mapping swap, the method writes the shader-level <code>_EmissionColor</code> vector on every <code>ThingRenderer</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>EmissionColor = Color.white * (emissive ? 1f : 0f);
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>foreach (ThingRenderer renderer in Renderers)
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>{
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    renderer.SetShaderVectorProperty(EMISSION_COLOR, EmissionColor);
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    renderer.SetShaderFloatProperty(DiffuseIndexPropertyID, DiffuseIndex);
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    ...
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>EmissionColor = Color.white * (emissive ? 1f : 0f);
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>foreach (ThingRenderer renderer in Renderers)
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>{
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    renderer.SetShaderVectorProperty(EMISSION_COLOR, EmissionColor);
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    renderer.SetShaderFloatProperty(DiffuseIndexPropertyID, DiffuseIndex);
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    ...
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>}
 </span></code></pre></div>
 <p><code>EMISSION_COLOR</code> is a cached <code>Shader.PropertyToID("_EmissionColor")</code> on <code>Thing</code>. So the renderer is driven by two independent signals on every color change: the material-swap (material asset changes) and the <code>_EmissionColor</code> shader property (value changes from <code>Color.black</code> to <code>Color.white</code>).</p>
 <h2 id="transience-of-the-emissive-flag">Transience of the emissive flag<a class="headerlink" href="#transience-of-the-emissive-flag" title="Permanent link">&para;</a></h2>
@@ -8787,6 +8935,19 @@
 </table>
 <p>Verified via the <code>Plans/GlowPaintProbe/</code> probe plugin's <code>OnPrefabsLoaded</code> enumeration on 2026-04-21 in game version 0.2.6228.27061. The per-entry breakdown (<code>name="..." normal=yes emissive=yes</code>) is recorded in the probe's startup log lines.</p>
 <p>The <code>if (CustomColor.Emissive == null)</code> null-checks that appear in vanilla decompiled code (documented above in "Declaration and fields") remain defensive code: the possibility of a null <code>Emissive</code> is coded against, but no shipping vanilla swatch currently hits the null branch. Mod-added swatches may still populate <code>Emissive</code> as null, and any mod iterating <code>CustomColors</code> across installs should continue to null-check.</p>
+<h2 id="metallic-swatch-addition-v02640327689">Metallic swatch addition (v0.2.6403.27689)<a class="headerlink" href="#metallic-swatch-addition-v02640327689" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+<p>The Metallic Paints DLC (<code>DLCType.MetallicPaints</code>, Steam app 4842920) adds four spray cans on top of the twelve vanilla ones, confirmed from <code>rocketstation_Data/StreamingAssets/Data/paints.xml</code> (Tool Manufactory recipes) and <code>rocketstation_Data/StreamingAssets/Language/english.xml</code> (localization keys):</p>
+<ul>
+<li><code>ItemSprayCanMetallicBronze</code></li>
+<li><code>ItemSprayCanMetallicGold</code></li>
+<li><code>ItemSprayCanMetallicObsidian</code></li>
+<li><code>ItemSprayCanMetallicSilver</code></li>
+</ul>
+<p>Their swatches are the motivating case for <code>PaintOnly</code> per the field's own tooltip, so the expectation is four additional <code>CustomColors</code> entries with <code>PaintOnly = true</code>.</p>
+<p>What is NOT yet confirmed: the resulting <code>CustomColors</code> count, whether the four append after the vanilla twelve at indices 12-15, and in what order. <code>CustomColors</code> is a serialized inspector list on the <code>GameManager</code> prefab (see "ColorSwatch list"), so ordering is authored asset data and cannot be read from the decompile. Do not write code against positional metallic indices until an in-game enumeration confirms them; resolve a metallic swatch by name or by material lookup instead. This also means <code>Patterns/Colors/ColorSwatchIndex.cs</code> still covers only the vanilla twelve, which remain indices 0-11.</p>
+<p>Consequence for the "Mod-registered swatches (index 12 and up)" guidance in <code>Patterns/Colors/README.md</code>: with the DLC installed, indices 12-15 are most likely occupied by game content rather than mod content, so a mod must not assume index 12 is the first mod-registered slot.</p>
 <h2 id="vanilla-swatch-material-naming-runtime">Vanilla swatch material naming (runtime)<a class="headerlink" href="#vanilla-swatch-material-naming-runtime" title="Permanent link">&para;</a></h2>
 <!-- verified: 0.2.6228.27061 @ 2026-04-21 -->
 
@@ -8827,11 +8988,11 @@
 <li><code>SetCustomColor(index, emissive: true)</code> drives two changes simultaneously: material asset swap (from shared Normal to per-color Emissive) AND <code>_EmissionColor</code> shader-property write. The <code>_EMISSION</code> shader keyword is enabled on the Emissive material.</li>
 </ul>
 <p>Runtime evidence for a <code>Piping</code> instance with <code>CustomColor.Index = 11</code> (ColorPurple):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>SetCustomColor(11, emissive: true)
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  -&gt; renderer[0] shader=&quot;StandardInstanced&quot; material=&quot;ColorPurpleEmissive&quot; _EmissionColor=RGBA(1.051, 0.000, 2.290, 1.000) _EMISSION=on
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>SetCustomColor(11, emissive: false)
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  -&gt; renderer[0] shader=&quot;Custom/StandardTextureArray&quot; material=&quot;TextureArrayColorSwatch&quot; _EmissionColor=RGBA(0.000, 0.000, 0.000, 0.000) _EMISSION=off
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>SetCustomColor(11, emissive: true)
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  -&gt; renderer[0] shader=&quot;StandardInstanced&quot; material=&quot;ColorPurpleEmissive&quot; _EmissionColor=RGBA(1.051, 0.000, 2.290, 1.000) _EMISSION=on
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>SetCustomColor(11, emissive: false)
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  -&gt; renderer[0] shader=&quot;Custom/StandardTextureArray&quot; material=&quot;TextureArrayColorSwatch&quot; _EmissionColor=RGBA(0.000, 0.000, 0.000, 0.000) _EMISSION=off
 </span></code></pre></div>
 <p>Verified visually: the pipe glows with a bloom halo in a dark room after F9; reverts to flat-colored pipe after F10. Confirmed via <code>Plans/GlowPaintProbe/</code> probe logs on 2026-04-21 in game version 0.2.6228.27061.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
@@ -8839,10 +9000,15 @@
 <li>2026-04-21: page created. Decompile findings sourced from Assembly-CSharp.dll (ColorSwatch declaration, Thing.SetCustomColor body at line 302860-302911, PowerTool.SelectColorSwatchMaterial at line 139053-139061, Thing.LoadSimData at line 302262-302287, ChemLight.OnInteractableUpdated at line 322433, RoadFlare.OnInteractableUpdated at line 334170).</li>
 <li>2026-04-21: added "Vanilla swatch inventory (v0.2.6228.27061)" section with the 12 shipping swatches and their Normal/Emissive presence, verified via the GlowPaintProbe plugin logs. Resolves the open question about how many swatches populate <code>Emissive</code>: the answer is all 12. Defensive null-check guidance retained for mod-added swatches.</li>
 <li>2026-04-21: added "Vanilla swatch material naming (runtime)" section documenting the <code>TextureArrayColorSwatch</code> + <code>Custom/StandardTextureArray</code> normal pair and per-color <code>Color&lt;Name&gt;Emissive</code> + <code>StandardInstanced</code> emissive pair, with HDR <code>_EmissionColor</code> values and keyword state. Confirmed visible bloom halo on a dark-room pipe via the probe's F9 / F10 flow. Verified through <code>Plans/GlowPaintProbe/</code> plugin logs.</li>
+<li>2026-07-25: re-read the <code>ColorSwatch</code> declaration against 0.2.6403.27689. Restamped "Declaration and fields" and added the new <code>PaintOnly</code> field, the three private <code>Mask*Id</code> shader property IDs, <code>ToTooltip()</code>, and <code>ApplyToSuitMaterial(Material)</code>. Added the "PaintOnly flag" section with the verbatim tooltip, the <code>GenerateColorStrings</code> / <code>IsLogicSelectableColor</code> logic-dropdown filter, and the metallic shader response. Added "Metallic swatch addition (v0.2.6403.27689)". Added the explicit finding that <code>ColorSwatch</code> carries no <code>DLCType</code>, cross-referenced to the new <code>../GameSystems/DLCGating.md</code>.</li>
+<li>2026-07-25: version drift on the <code>Bit</code> field. The 0.2.6228.27061 row read "Legacy field, currently unused". At 0.2.6403.27689 the identifier has four call sites in <code>Assembly-CSharp</code> (decompile lines 338789, 338892, 338931, 338989, the color-scanner / screen-color UI path). No fresh validator was spawned: the two statements are scoped to different game versions and both can be accurate, and the new reading rests on direct grep evidence rather than a competing interpretation of the same code, so per <code>../WORKFLOW.md</code> Rule 3 this is an additive version-scoped update rather than a contradiction. The original characterization is preserved by reference in the field row. Whether <code>Bit</code> was genuinely unreferenced at 0.2.6228.27061 was not re-checked against that version's DLL.</li>
+<li>2026-07-25: re-checked <code>Cutable</code> against 0.2.6403.27689. The declaration remains the only occurrence of the identifier; the open question below still stands.</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>ColorSwatch.Cutable</code> Material: inspector-visible but the consumer has not been traced. Possibly a cut-out / cutscene variant.</li>
+<li><code>ColorSwatch.Cutable</code> Material: inspector-visible but the consumer has not been traced. Possibly a cut-out / cutscene variant. Still unreferenced at 0.2.6403.27689 (declaration is the sole occurrence).</li>
+<li><code>CustomColors</code> count and the index positions of the four metallic swatches at 0.2.6403.27689. Not readable from the decompile because the list is serialized inspector data on the <code>GameManager</code> prefab. Resolve with an InspectorPlus request over <code>GameManager</code> reading <code>CustomColors</code> (<code>Name</code>, <code>PaintOnly</code>, <code>Normal</code>), then update "Metallic swatch addition" and <code>Patterns/Colors/README.md</code>.</li>
+<li>Whether each metallic swatch has its own <code>Normal</code> Material asset or the four share one. <code>GameManager.GetColorSwatch(Material)</code> keying on a Material implies per-swatch distinctness, but this has not been confirmed for the metallic set. Matters for any mod that maps material back to swatch index.</li>
 <li>Does setting <code>_EmissionColor</code> alone on the shared <code>Normal</code> material (without swapping to the Emissive asset) produce visible glow? The Normal shader is <code>Custom/StandardTextureArray</code> (a custom game shader); whether it honors <code>_EmissionColor</code> with the <code>_EMISSION</code> keyword disabled is unknown. Because the Normal material is SHARED across all painted Things, the property-write path would require a per-instance material clone per <code>../Patterns/UnityMaterialPerInstance.md</code>. Relevant only for mod-added swatches whose <code>Emissive</code> is null, since every vanilla swatch has a pre-baked Emissive asset.</li>
 </ul>
 
