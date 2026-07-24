@@ -129,6 +129,10 @@ namespace ScenarioRunner
                     Scenario_SppColorSwatchProbe();
                     return;
 
+                case "spp-dlc-gate-verify":
+                    Scenario_SppDlcGateVerify();
+                    return;
+
                 case "pgp-mixedwire-fixture":
                     Scenario_PgpMixedWireFixture();
                     return;
