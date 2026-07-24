@@ -5,9 +5,9 @@ created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
 verified_at: 2026-07-25
 sources:
-  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.DLCManager
-  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.SharedDLCManager
-  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.DLCType
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.DLCManager
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.SharedDLCManager
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.DLCType
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Objects.Thing (_dlcType field)
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.AvailableDLCMessage
   - $(StationeersPath)\rocketstation_Data\StreamingAssets\Data\paints.xml
@@ -117,7 +117,17 @@ public static bool CheckAccess(Thing thing)
 }
 ```
 
-`DLCType.None` always passes. A null / destroyed `Thing` or `KitItem` always passes. `DLCManager.Initialize()` is called during game startup.
+`DLCType.None` always passes. A null / destroyed `Thing` or `KitItem` always passes.
+
+All three types live in the bare `DLC` namespace (`DLC.DLCManager`, `DLC.SharedDLCManager`, `DLC.DLCType`), NOT under `Assets.Scripts` where most game code sits. A mod needs `using DLC;`.
+
+### Initialization timing
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+
+`DLCManager.Initialize()` is called from a manager's `private async void Start()`, in a startup sequence alongside `ControllerAxisItem.InitializeJoysticks()`, `InputMouse.Initialize()`, `Settings.Initialize()`, and `Stationpedia.Initialize()`. Until it runs, `_ownedDLC` is `0` and every `CheckAccess` call for a non-`None` `DLCType` returns false.
+
+This matters for BepInEx mods: plugin `Awake()` runs during the BepInEx chainloader, before Unity `Start()` on scene objects, so **entitlement is not yet known at plugin `Awake` time**. Any mod that wants to branch on DLC ownership must defer the read, for example to `Prefab.OnPrefabsLoaded` or to first use, rather than sampling it while binding config. A concrete consequence: StationeersLaunchPad's settings panel supports a `Disabled` tag for rendering a config entry read-only (see `../Patterns/StationeersLaunchPadSettingsGrouping.md`), but the tag has to be supplied inside the `ConfigDescription` at `Config.Bind` time, which is too early to test ownership. Computing it there would grey the entry out for players who do own the DLC.
 
 ## SharedDLCManager: session-wide entitlement pool
 
@@ -360,6 +370,7 @@ The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidia
 <!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
 
 - 2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. `CheckSharedAccess` resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). `CheckAccess` resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (`DLCManager.CheckAccess(kitItem)` inside `HasDLC`). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.
+- 2026-07-25: corrected the namespace on all three types. The page was created citing `Assets.Scripts.DLCManager` / `SharedDLCManager` / `DLCType`; they are actually in the bare `DLC` namespace (decompile line 192302 opens `namespace DLC`). Found while writing a mod against the page, which is exactly the sort of error that costs a later reader a build failure. Also added the "Initialization timing" subsection: `DLCManager.Initialize()` runs from a manager's `async void Start()`, so entitlement is still zero during BepInEx plugin `Awake`, which rules out testing ownership at `Config.Bind` time.
 - 2026-07-25: added runtime confirmation of the color-index-to-`DLCType` map, gathered by the `spp-color-swatch-probe` ScenarioRunner scenario on the headless dedicated server (fresh Mars2 world, game version 0.2.6403.27689). All 16 swatch `Normal` materials are distinct assets and all 16 `SprayCan` prefabs resolve one-to-one onto them, so the prefab-derived gate described in "Where the game does NOT check" is implementable as written. Metallic swatches confirmed at indices 12-15 in the order Obsidian, Silver, Bronze, Gold. Swatches and prefabs confirmed present regardless of entitlement. Two open questions resolved and removed. Full table and method on `../GameClasses/ColorSwatch.md`.
 - 2026-07-25: page created. Decompile findings sourced from Assembly-CSharp.dll (`DLCManager` and `DLCType` at decompile line 192304-192427, `SharedDLCManager` at 192428-192515, `Thing._dlcType` / `Thing.DLCType` at 316896 / 317376, `SpawnDynamicThingMaxStack` gate at 40154, fabricator gate at 420505, `HasDLC(KitItem)` at 194335, `AvailableDLCMessage` at 277477, `DLCCommand` at 97470). Data-file findings sourced from `StreamingAssets/Data/paints.xml` and `StreamingAssets/Language/english.xml`. The "Where the game does NOT check" claim rests on an exhaustive text search of the decompile for `CheckSharedAccess` and `DLCManager.CheckAccess`, which returns only those call sites.
 
