@@ -2,6 +2,16 @@
 
 Full version history for Spray Paint Plus. The newest entry also appears in `About.xml` `<ChangeLog>` and as the latest note on the Steam Workshop Change Notes tab.
 
+## v1.10.1: Respect the Metallic Paints DLC
+- FIX: The color scroll and the right-click eyedropper no longer reach the four Metallic Paints colors (Obsidian, Silver, Bronze, Gold) without the DLC. The base game checks DLC ownership only when you obtain a spray can, and recoloring the can already in your hand never passed through that check, so the scroll could reach paints the player did not own. The mod now resolves each color back to the spray can that dispenses it and applies the same ownership check the base game uses.
+- The check runs on the server too, so a modified client cannot push a locked color to the host.
+- Shared DLC behaves as in vanilla: if any player in the session owns Metallic Paints, everyone in that session can use those colors.
+- NEW: Client setting "Enable Metallic Paints" (default On) keeps the metallic colors out of the scroll for players who own the DLC but prefer cycling only the twelve base colors. It cannot unlock anything; without the DLC those colors stay locked regardless of this setting.
+- Existing saves are left alone. Structures already painted metallic keep their color, and a spray can already sitting on a metallic color keeps it. Once such a can is scrolled to a different color, the metallic colors are no longer reachable without the DLC.
+- Stationeers has had years of steady care put into it and it shows. If the game has been good to you, the Metallic Paints DLC is an easy way to say thanks.
+- Multiplayer-safe; no save-format changes.
+- REQUIRES: All players on a server must run 1.10.1 (matching-version handshake).
+
 ## v1.10.0: Paint the Steel Frame corner and side variants
 - NEW: The Steel Frame (Corner) and Steel Frame (Side) shapes now accept spray paint, like the other two shapes from the Steel Frames kit. The base game ships them without a paintable surface, so the spray can ignored them.
 - NEW: Client setting "Make More Structures Paintable" (default On), under a new Client - Paintability group. More normally-unpaintable structures will be added in later versions.
