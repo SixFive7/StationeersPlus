@@ -3,7 +3,7 @@ title: DLC gating
 type: GameSystems
 created_in: 0.2.6403.27689
 verified_in: 0.2.6403.27689
-verified_at: 2026-07-25
+verified_at: 2026-07-27
 sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.DLCManager
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: DLC.SharedDLCManager
@@ -12,6 +12,8 @@ sources:
   - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.AvailableDLCMessage
   - $(StationeersPath)\rocketstation_Data\StreamingAssets\Data\paints.xml
   - $(StationeersPath)\rocketstation_Data\StreamingAssets\Language\english.xml
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.GameManager (IsBatchMode, RunSimulation, SetMatchMode, ClearGameAll)
+  - $(StationeersPath)\rocketstation_Data\Managed\Assembly-CSharp.dll :: Assets.Scripts.Networking.MessageBase (DeserializeReceivedData)
 related:
   - ../GameClasses/ColorSwatch.md
   - ../GameClasses/SprayCan.md
@@ -131,7 +133,7 @@ This matters for BepInEx mods: plugin `Awake()` runs during the BepInEx chainloa
 
 ## SharedDLCManager: session-wide entitlement pool
 
-<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
 Stationeers shares DLC across a multiplayer session: if any connected player owns a DLC, every player in that session can use its content. `SharedDLCManager` holds the union.
 
@@ -188,12 +190,84 @@ public static void ClearAll() => SharedDLC = 0;
 Lifecycle:
 
 - `SharedDLCManager.ClearAll()` runs on world teardown, resetting the pool to 0.
-- `HostFinishedLoad()` seeds the pool from the host's own entitlements. The `!GameManager.IsBatchMode && GameManager.RunSimulation` guard means a dedicated server in batch mode does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients.
+- `HostFinishedLoad()` seeds the pool from the host's own entitlements. Its sole call site is decompile line 268799, at the end of the world-load path, immediately after `World.OnLoadingFinished`. Of the two guard terms only `!IsBatchMode` can fail on a server: `GameManager.RunSimulation` is `=> !NetworkManager.IsClient` (203945), which is always true on a server. So a dedicated server does NOT seed the pool from the server process; the pool starts empty and fills only from connecting clients. See "Dedicated server behavior" below for what `IsBatchMode` actually keys off, which is broader than the `-batchmode` flag.
 - `ClientFinishedLoad()` makes each client send `AvailableDLCMessage` to the server with its own `DLCType` bitmask.
 - `AvailableDLCMessage.Process` calls `SharedDLCManager.AddSharedDLC(DLCType)`, ORing the client's entitlements into the pool.
 - The pool syncs back to clients as delta state under network update bit 256.
 
 Important consequence: the pool only grows during a session. A player who owns the DLC joining and then leaving leaves the pool with the bit still set until `ClearAll()` runs.
+
+Exhaustive write-site list for the pool, from a whole-file search of the decompile:
+
+```
+192430:  private static ushort _sharedDLC;          (declaration)
+192442:  _sharedDLC = value;                        (setter body)
+192452:  SharedDLC |= clientOwnedDLC;               (AddSharedDLC)
+192459:  SharedDLC = (ushort)DLCManager.GetOwnedDLC();  (HostFinishedLoad)
+192493:  SharedDLC = reader.ReadUInt16();           (DeserializeDeltaState, client side)
+192499:  SharedDLC = 0;                             (ClearAll)
+```
+
+There is no disconnect, leave, or player-removal path that clears or recomputes the pool, and no per-player subtraction is even possible because no per-player entitlement record exists anywhere (see "Not caller-scoped" below).
+
+### Dedicated server behavior
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+`IsBatchMode` keys off more than the `-batchmode` command-line flag. `GameManager.SetMatchMode()` (204290-204304) runs at `AfterAssembliesLoaded`, so it is settled long before any world load:
+
+```
+[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+private static void SetMatchMode()
+{
+    int isBatchMode;
+    if (!Application.isBatchMode)
+    {
+        RuntimePlatform platform = Application.platform;
+        isBatchMode = ((platform == RuntimePlatform.LinuxServer || platform == RuntimePlatform.WindowsServer) ? 1 : 0);
+    }
+    else
+    {
+        isBatchMode = 1;
+    }
+    IsBatchMode = (byte)isBatchMode != 0;
+}
+```
+
+A dedicated-server build therefore has `IsBatchMode == true` from its platform alone, with or without `-batchmode` on the command line.
+
+Trace for a dedicated server that owns nothing, with one connected client that owns a DLC:
+
+1. Server process starts. `_sharedDLC` is 0 (static default).
+2. World load completes and calls `SharedDLCManager.HostFinishedLoad()` (268799). `IsBatchMode` is true, so the guard fails and the pool is not seeded. It stays 0.
+3. Each connecting client, at the very end of its own join, calls `ClientFinishedLoad()` and sends its `AvailableDLCMessage`. Non-owning clients contribute 0.
+4. The owning client's message lands. The server runs `AvailableDLCMessage.Process`, which calls `AddSharedDLC`, which ORs the bit in.
+5. `CheckSharedAccess` on the server now returns true for that DLC.
+
+Two windows follow from this, both worth knowing:
+
+- **Before the owning client is fully joined, the answer is false.** `ClientFinishedLoad()` is the last step before the client is announced ready: decompile 213241 sits immediately before `UpdateHandshakeState(HandshakeType.ClientReady)` at 213243. So during the entire join (world stream, thing processing, character request) the owning client is connected but has not yet contributed its bit. Any code sampling the pool on client-connect rather than client-ready reads false.
+- **After the owning client disconnects, the answer stays true.** Per the write-site list above, nothing removes a bit. The entitlement persists for the remaining lifetime of the loaded world, until `ClearAll()` runs from `GameManager.ClearGameAll()` (204810) on teardown.
+
+Consequence for server operators and mod authors: while at least one owning client is fully joined, **every** connected player can fabricate and spawn that DLC's content, not just the owner. The pool is broadcast back to all clients under delta bit 256, so each client's local gate passes too. That is the designed shared-DLC behavior and it holds on a dedicated server that owns nothing itself.
+
+One coupling to note: the dirty flag that triggers the broadcast is only raised when `NetworkManager.IsServer && NetworkServer.HasClients()` (192443). In practice `HasClients()` is true when a client's own message arrives over its own connection, but the pool can change without being marked dirty if that ever fails, in which case the server would allow the DLC while no client's local gate had been updated.
+
+`AddSharedDLC` uses `|=`, which invokes the property setter even when the value does not change. Every later client's join message therefore re-dirties the pool and re-broadcasts it, which is how a client joining after the owner receives an already-populated pool. There is no `SharedDLC` field in the join package itself.
+
+### Not caller-scoped
+
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+There is no way to ask "does THIS player own it". Only "does anyone in the session own it, or has since world load".
+
+- `CheckSharedAccess(DLCType)` (192472) takes no player or caller argument.
+- `AvailableDLCMessage.Process(long hostId)` (277481) receives the sender id and discards it, calling `AddSharedDLC(DLCType)` and nothing else.
+- The per-connection `Client` type carries no DLC field, and `Thing._dlcType` describes the object, not the owner.
+
+`AvailableDLCMessage` is a server-processed message. `MessageBase.DeserializeReceivedData` (39287-39308) carries a whitelist of message types allowed to process off the server, and `AvailableDLCMessage` is not on it. Note that the whitelist only controls an error print: `messageProcessable.Process(hostId)` at 39306 sits outside the `if`, so processing runs regardless.
+
+For a mod that needs per-player entitlement on a dedicated server, the only point where the sender id and the bitmask coexist is inside `AvailableDLCMessage.Process`, so a Harmony prefix or postfix there is the single interception point. The mod would have to build and maintain its own player-to-`DLCType` map.
 
 ### AvailableDLCMessage
 
@@ -367,8 +441,9 @@ The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidia
 
 ## Verification history
 
-<!-- verified: 0.2.6403.27689 @ 2026-07-25 -->
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
+- 2026-07-27: added "Dedicated server behavior" and "Not caller-scoped" subsections, and widened the `HostFinishedLoad` lifecycle bullet. Findings: `GameManager.RunSimulation` is `!NetworkManager.IsClient` (203945) and so always passes on a server, leaving `!IsBatchMode` as the only term that blocks self-seeding; `IsBatchMode` is set by `SetMatchMode()` (204290-204304) from `Application.isBatchMode` OR `RuntimePlatform.LinuxServer`/`WindowsServer`, so a dedicated-server build sets it without the `-batchmode` flag; `HostFinishedLoad`'s sole call site is 268799; the client sends its bitmask at 213241, immediately before `UpdateHandshakeState(HandshakeType.ClientReady)` at 213243, so the pool is empty for the whole of an owning client's join; `AvailableDLCMessage` is absent from the `MessageBase.DeserializeReceivedData` whitelist (39302) though `Process` at 39306 runs regardless of that check; `Process` discards `hostId` and no per-player entitlement record exists, so the check cannot be made caller-scoped without a mod-maintained map; `ClearAll`'s sole caller is `GameManager.ClearGameAll` (204756, call at 204810). Also resolved the second open question: it hypothesised that a dedicated server "grants DLC content only while an owning client is connected", which the exhaustive write-site list disproves, and which already contradicted the verified line in this section stating the pool only grows. Replaced with a narrower open question about live confirmation. All quotes re-read first-hand against the 0.2.6403.27689 decompile rather than taken from a sub-agent summary.
 - 2026-07-25: independent re-verification of the "Where the game does NOT check" claim against the 0.2.6403.27689 decompile. `CheckSharedAccess` resolves to exactly three occurrences (console spawn gate at 40154, definition at 192472, fabricator gate at 420505). `CheckAccess` resolves to the definitions and internal calls at 192370 / 192396 / 192400 / 192405 / 192411 / 192475 / 192507 plus exactly one external caller at 194337 (`DLCManager.CheckAccess(kitItem)` inside `HasDLC`). No additional enforcement site exists, confirming that no DLC check runs on any paint-application path.
 - 2026-07-25: corrected the namespace on all three types. The page was created citing `Assets.Scripts.DLCManager` / `SharedDLCManager` / `DLCType`; they are actually in the bare `DLC` namespace (decompile line 192302 opens `namespace DLC`). Found while writing a mod against the page, which is exactly the sort of error that costs a later reader a build failure. Also added the "Initialization timing" subsection: `DLCManager.Initialize()` runs from a manager's `async void Start()`, so entitlement is still zero during BepInEx plugin `Awake`, which rules out testing ownership at `Config.Bind` time.
 - 2026-07-25: added runtime confirmation of the color-index-to-`DLCType` map, gathered by the `spp-color-swatch-probe` ScenarioRunner scenario on the headless dedicated server (fresh Mars2 world, game version 0.2.6403.27689). All 16 swatch `Normal` materials are distinct assets and all 16 `SprayCan` prefabs resolve one-to-one onto them, so the prefab-derived gate described in "Where the game does NOT check" is implementable as written. Metallic swatches confirmed at indices 12-15 in the order Obsidian, Silver, Bronze, Gold. Swatches and prefabs confirmed present regardless of entitlement. Two open questions resolved and removed. Full table and method on `../GameClasses/ColorSwatch.md`.
@@ -377,4 +452,4 @@ The four swatches sit at `CustomColors` indices 12-15 in the order `ColorObsidia
 ## Open questions
 
 - `DLCManager.GrantFullOwnership()` has no observed call site. Whether it is dead code, called via reflection, or reached from a build-conditional path has not been traced.
-- Behavior of the shared pool on a dedicated server has not been tested in-game. `HostFinishedLoad()` skips seeding under `IsBatchMode`, so the expectation is that a dedicated server grants DLC content only while an owning client is connected, but this has not been confirmed.
+- The dedicated-server pool behavior in "Dedicated server behavior" is derived from code, not yet observed in a live session. The `dlc shared` console command is the intended runtime probe: its scope is `CommandScope.InGame | CommandScope.HostOrSinglePlayer` (97480), so it runs on the dedicated-server console, though reaching it from a connected admin client needs `serverrun`.
