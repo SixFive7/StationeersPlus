@@ -778,6 +778,8 @@
       
         
       
+        
+      
     
     
     
@@ -1340,6 +1342,34 @@
     
   
     ConnectionRole
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ConsoleWindow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConsoleWindow
   
 
     
@@ -6252,10 +6282,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#consolewindow-api" class="md-nav__link">
+  <a href="#the-five-traps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ConsoleWindow API
+        The five traps
       
     </span>
   </a>
@@ -6267,6 +6297,17 @@
     <span class="md-ellipsis">
       
         Recommended mod pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-namespace-question-and-the-cs0104-story" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The namespace question, and the CS0104 story
       
     </span>
   </a>
@@ -8328,10 +8369,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#consolewindow-api" class="md-nav__link">
+  <a href="#the-five-traps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ConsoleWindow API
+        The five traps
       
     </span>
   </a>
@@ -8343,6 +8384,17 @@
     <span class="md-ellipsis">
       
         Recommended mod pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-namespace-question-and-the-cs0104-story" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The namespace question, and the CS0104 story
       
     </span>
   </a>
@@ -8460,29 +8512,39 @@
       
         <p class="research-meta-verified">
           <strong>Verified</strong>
-           in game version <code>0.2.6228.27061</code>
-           on 2026-05-12.
+           in game version <code>0.2.6403.27689</code>
+           on 2026-07-27.
         </p>
       
       
+        <p class="research-meta-created">
+          <strong>First written</strong> against game version <code>0.2.6228.27061</code>.
+        </p>
+      
       
         <details class="research-meta-sources">
-          <summary><strong>Sources</strong> (3)</summary>
+          <summary><strong>Sources</strong> (4)</summary>
           <ul>
             
               <li><code>{'$(StationeersPath)\\rocketstation_Data\\Managed\\Assembly-CSharp.dll :': 'Assets.Scripts.ConsoleWindow'}</code></li>
             
-              <li><code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:206094-206957 (ConsoleWindow), :184063 (enclosing namespace Assets.Scripts), :248232 (Assets.Scripts.Settings)</code></li>
+              <li><code>.work/decomp/0.2.6403.27689/Assembly-CSharp.decompiled.cs:221811-223400 (ConsoleWindow), :195722 (enclosing namespace Assets.Scripts), :265338 (Assets.Scripts.Serialization.Settings)</code></li>
             
-              <li><code>Mods/EquipmentPlus/EquipmentPlus/HelmetBeamPatches.cs:123, ScrollDispatchPatches.cs:271 (direct ConsoleWindow.PrintError reference, using Assets.Scripts;)</code></li>
+              <li><code>Mods/NetworkPuristPlus/NetworkPuristPlus/Plugin.cs (the PlayerLog / PlayerWarn / PlayerError helpers)</code></li>
+            
+              <li><code>Mods/PowerGridPlus/PowerGridPlus/DeviceOutputSanitizer.cs (dedupe + main-thread marshal reference implementation)</code></li>
             
           </ul>
         </details>
       
       
         <details class="research-meta-related">
-          <summary><strong>Related pages</strong> (1)</summary>
+          <summary><strong>Related pages</strong> (3)</summary>
           <ul>
+            
+              <li><code>../GameClasses/ConsoleWindow.md</code></li>
+            
+              <li><code>./GameLoggingSinks.md</code></li>
             
               <li><code>../GameSystems/ChatBroadcast.md</code></li>
             
@@ -8500,6 +8562,13 @@
       
       
       
+        <span class="md-tag">threading</span>
+      
+    
+      
+      
+      
+      
         <span class="md-tag">ui</span>
       
     
@@ -8507,8 +8576,9 @@
 
 
 
-<h1 id="printing-to-the-in-game-console-and-where-mod-log-lines-actually-go">Printing to the in-game <code>~</code> console (and where mod log lines actually go)<a class="headerlink" href="#printing-to-the-in-game-console-and-where-mod-log-lines-actually-go" title="Permanent link">&para;</a></h1>
-<p>There are three separate "log" surfaces in a BepInEx-modded Stationeers, and they do <strong>not</strong> all carry the same content:</p>
+<h1 id="printing-to-the-in-game-console-and-where-mod-log-lines-actually-go">Printing to the in-game console (and where mod log lines actually go)<a class="headerlink" href="#printing-to-the-in-game-console-and-where-mod-log-lines-actually-go" title="Permanent link">&para;</a></h1>
+<p>How a mod puts a message in front of a player, and the traps that make it go wrong. The API reference for the class itself, with verbatim decompiled bodies, is <a href="../../GameClasses/ConsoleWindow/">ConsoleWindow</a>.</p>
+<p>There are three separate "log" surfaces in a BepInEx-modded Stationeers, and they do <strong>not</strong> carry the same content:</p>
 <table>
 <thead>
 <tr>
@@ -8529,64 +8599,117 @@
 <td>Occasionally.</td>
 </tr>
 <tr>
-<td>The in-game <code>~</code> console (<code>ConsoleWindow</code>)</td>
-<td><strong>Only</strong> <code>ConsoleWindow.Print*</code> calls and console-command output. <strong>Not</strong> <code>UnityEngine.Debug.Log</code>, and <strong>not</strong> BepInEx <code>Logger.Log*</code>.</td>
-<td>Yes -- this is the one a player sees while playing.</td>
+<td>The in-game console (<code>ConsoleWindow</code>, opened with <code>KeyMap.ToggleConsole</code>, F3 by default)</td>
+<td><code>ConsoleWindow.Print*</code> calls, console-command output, <strong>and</strong> <code>UnityEngine.Debug.LogError</code> / <code>LogException</code> via the log bridge below. <strong>Not</strong> <code>Debug.Log</code>, <strong>not</strong> <code>Debug.LogWarning</code>, <strong>not</strong> BepInEx <code>Logger.Log*</code>.</td>
+<td>Yes, this is the one a player sees while playing.</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Key gotcha:</strong> <code>UnityEngine.Debug.Log(...)</code> writes to <code>Player.log</code> but does <strong>not</strong> appear in the in-game <code>~</code> console (Stationeers' <code>ConsoleWindow</code> does not subscribe to <code>Application.logMessageReceived</code>). And BepInEx <code>Logger.LogInfo(...)</code> goes to <code>LogOutput.log</code> (and <code>Player.log</code> via the StationeersLaunchPad mirror) but also not the in-game console. So a mod whose only output is <code>Logger.LogInfo</code> / <code>Debug.Log</code> will look "silent" to a player who checks the <code>~</code> console. To show up there, call <code>ConsoleWindow.Print*</code>.</p>
-<h2 id="consolewindow-api">ConsoleWindow API<a class="headerlink" href="#consolewindow-api" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
+<p><strong>Key gotcha:</strong> <code>Debug.Log(...)</code> and <code>Logger.LogInfo(...)</code> write to their log files but do not appear in the in-game console, so a mod whose only output is those will look silent to a player who checks the console. To show up there, call <code>ConsoleWindow.Print*</code>.</p>
+<p><strong>The matching trap in the other direction:</strong> <code>Debug.LogError</code> and <code>Debug.LogException</code> DO appear in the in-game console. <code>ConsoleWindow</code> subscribes to <code>Application.logMessageReceivedThreaded</code> (<code>Assembly-CSharp.decompiled.cs:221927</code>) and its handler (<code>:222266-222282</code>) re-prints <code>LogType.Error</code> and <code>LogType.Exception</code> itself, lowercased, prefixed <code>[ERROR]</code>, in red, followed by the stack trace. So calling <code>Debug.LogError</code> <strong>and</strong> a <code>ConsoleWindow</code> method for the same message shows it to the player twice. Pick one.</p>
+<h2 id="the-five-traps">The five traps<a class="headerlink" href="#the-five-traps" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
 
-<p><code>public static class Assets.Scripts.ConsoleWindow</code> (<code>Assembly-CSharp.dll</code>). The namespace is <strong><code>Assets.Scripts</code></strong> -- the class sits inside the <code>namespace Assets.Scripts { ... }</code> block (around <code>Assembly-CSharp.decompiled.cs:206094</code>; the enclosing namespace opens at ~184063 and the next sibling namespace <code>Assets.Scripts.Weather</code> does not open until ~207612). The game's own code refers to it everywhere as bare <code>ConsoleWindow.PrintAction(...)</code> / <code>ConsoleWindow.PrintError(...)</code> after <code>using Assets.Scripts;</code>. There is exactly one <code>ConsoleWindow</code> type in <code>Assembly-CSharp</code> and none in any other shipped DLL. Print methods:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Print</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="n">ConsoleColor</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ConsoleColor</span><span class="p">.</span><span class="n">White</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">clearLine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">aged</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">unformatted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PrintAction</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">aged</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span><span class="w">                  </span><span class="c1">// the &quot;an action happened&quot; style line (Yellow)</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PrintError</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">suppressStacktrace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span><span class="w">     </span><span class="c1">// Red, plus a gray Environment.StackTrace line unless suppressed</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1">// plus several Print(GameString, ...) overloads for localised strings, and AsyncPrintError(string, bool)</span>
-</span></code></pre></div>
-<p><code>PrintAction</code> is what the game itself uses for "X happened" notices (input recording started, server paused, an id was reassigned, etc.). <code>PrintError</code> for errors. <code>aged: false</code> keeps the line from fading out quickly.</p>
-<p>The buffer accepts lines even before the console UI exists (there is an internal <code>PrematureLog</code> struct that queues early calls), but at <em>very</em> early startup -- e.g. a <code>Prefab.OnPrefabsLoaded</code> handler, which fires before the main menu -- it is safest to wrap the call in try/catch and rely on the <code>Debug.Log</code> / <code>Logger.Log</code> channels as the fallback.</p>
-<h2 id="recommended-mod-pattern">Recommended mod pattern<a class="headerlink" href="#recommended-mod-pattern" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
-
-<p>For a message the player should actually see, emit it on all three channels (greppable in the log files, visible in the <code>~</code> console). A direct compile-time reference is fine for any mod that already depends on <code>Assembly-CSharp</code> (<code>ConsoleWindow</code> is a vanilla game class). Reference it via a <code>using</code> alias rather than a blanket <code>using Assets.Scripts;</code> -- <code>Assets.Scripts</code> is a large namespace that contains common short names (<code>Settings : UserInterfaceBase</code> at ~<code>Assembly-CSharp.decompiled.cs:248232</code>, <code>Localization</code>, etc.), so a bare <code>using Assets.Scripts;</code> collides with any same-named type in the caller's own namespace (a mod with its own <code>Settings</code> class gets <code>CS0104 'Settings' is an ambiguous reference</code>). The alias dodges that:</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">using</span><span class="w"> </span><span class="nn">ConsoleWindow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">ConsoleWindow</span><span class="p">;</span><span class="w">   </span><span class="c1">// top of the file, with the other usings</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PlayerLog</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">Plugin</span><span class="p">.</span><span class="n">Log</span><span class="o">?.</span><span class="n">LogInfo</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span><span class="w">                          </span><span class="c1">// -&gt; LogOutput.log (+ Player.log via StationeersLaunchPad mirror)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Debug</span><span class="p">.</span><span class="n">Log</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">);</span><span class="w">          </span><span class="c1">// -&gt; Player.log</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">aged</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span><span class="w">   </span><span class="c1">// -&gt; in-game ~ console</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PlayerError</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">Plugin</span><span class="p">.</span><span class="n">Log</span><span class="o">?.</span><span class="n">LogError</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Debug</span><span class="p">.</span><span class="n">LogError</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">);</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">suppressStacktrace</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
-</span></code></pre></div>
-<p><code>EquipmentPlus</code> references <code>ConsoleWindow.PrintError(...)</code> exactly this way -- <code>using Assets.Scripts;</code> plus a bare <code>ConsoleWindow.PrintError(...)</code> (it has no <code>Settings</code> class of its own, so the blanket <code>using</code> is safe there): <code>Mods/EquipmentPlus/EquipmentPlus/HelmetBeamPatches.cs:123</code>, <code>ScrollDispatchPatches.cs:271</code>. <code>MaintenanceBureauPlus</code> (<code>Plans/</code>) reflects but already uses the correct <code>asm.GetType("Assets.Scripts.ConsoleWindow")</code> name.</p>
-<p>Reflection variant (only if you want zero compile-time dependency on <code>Assembly-CSharp</code> and graceful degradation if the class ever moves):</p>
-<div class="language-csharp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">static</span><span class="w"> </span><span class="n">MethodInfo</span><span class="w"> </span><span class="n">_printAction</span><span class="p">,</span><span class="w"> </span><span class="n">_printError</span><span class="p">;</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_resolved</span><span class="p">;</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ResolveConsole</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_resolved</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="n">_resolved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">TypeByName</span><span class="p">(</span><span class="s">&quot;Assets.Scripts.ConsoleWindow&quot;</span><span class="p">)</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">             </span><span class="o">??</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">TypeByName</span><span class="p">(</span><span class="s">&quot;ConsoleWindow&quot;</span><span class="p">)</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">             </span><span class="o">??</span><span class="w"> </span><span class="n">AppDomain</span><span class="p">.</span><span class="n">CurrentDomain</span><span class="p">.</span><span class="n">GetAssemblies</span><span class="p">().</span><span class="n">SelectMany</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">GetTypes</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Type</span><span class="p">.</span><span class="n">EmptyTypes</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">})</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">                  </span><span class="p">.</span><span class="n">FirstOrDefault</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;ConsoleWindow&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">IsClass</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">IsAbstract</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">IsSealed</span><span class="p">);</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="n">_printAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintAction&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">),</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintAction&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">        </span><span class="n">_printError</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintError&quot;</span><span class="p">,</span><span class="w">  </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">),</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintError&quot;</span><span class="p">,</span><span class="w">  </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="p">}</span>
-</span></code></pre></div>
-<p>Do not include <code>"Util.Commands.ConsoleWindow"</code> in the resolver -- <code>Util.Commands</code> is a real namespace (the <code>say</code> / console-command classes live there) but <code>ConsoleWindow</code> is not in it; the lookup always fails and HarmonyX logs a <code>Could not find type named Util.Commands.ConsoleWindow</code> warning at startup.</p>
-<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
-<!-- verified: 0.2.6228.27061 @ 2026-05-12 -->
-
+<p>Each of these produced a real defect in this repo, found in the 2026-07-27 audit.</p>
+<ol>
+<li>
+<p><strong><code>aged</code> is inverted from its name.</strong> <code>aged: true</code> sets the line's activeTime to 0, so it is NOT drawn on the closed-console overlay and appears only once the console is opened. <code>aged: false</code> is what puts a line in front of a player who has not opened the console. Plain <code>Print</code> defaults to <code>aged: true</code>; <code>PrintAction</code> and <code>PrintError</code> already pass <code>false</code>.</p>
+</li>
+<li>
+<p><strong><code>PrintError</code> dumps a stack trace by default.</strong> Unless it is passed <code>suppressStacktrace: true</code>, it prints a full <code>Environment.StackTrace</code> as a second grey line. On an ordinary "you cannot do that" message this reads to a player as a mod crash. Always pass <code>suppressStacktrace: true</code> for anything that is not a genuine unexpected failure, and prefer the BepInEx log for the diagnostic detail.</p>
+</li>
+<li>
+<p><strong>There is no <code>PrintWarning</code>.</strong> The three levels available are <code>Print</code> (any <code>ConsoleColor</code>), <code>PrintAction</code> (Yellow), and <code>PrintError</code> (Red). A warning belongs in <code>PrintAction</code>, not <code>PrintError</code>.</p>
+</li>
+<li>
+<p><strong>Main thread only.</strong> Every print shifts an unlocked 1024-entry static array while the draw loop reads it. Marshal first from any worker, <code>UniTask</code>, <code>FileSystemWatcher</code>, or network-message thread. The game's own async print paths check <code>GameManager.IsThread</code> and <code>await UniTask.SwitchToMainThread()</code> before printing.</p>
+</li>
+<li>
+<p><strong>No rate limiting exists, and every print is O(1024).</strong> The console has no throttle, no dedupe, and no same-message collapse; each print runs the full ring-buffer shift. Self-limiting is entirely the caller's job. This matters most on per-tick, per-frame, and per-input-notch paths: one scroll-wheel flick is 10-20 notches.</p>
+</li>
+</ol>
+<p>Two more constraints that shape message text:</p>
 <ul>
-<li>2026-05-11: page created after a NetworkPuristPlus user reported "I see nothing in the player log" despite the mod's <code>Logger.LogInfo</code> lines being present in both <code>LogOutput.log</code> and <code>Player.log</code> -- they were looking at the in-game <code>~</code> console, which neither <code>Logger.Log*</code> nor <code>Debug.Log</code> reaches. <code>ConsoleWindow.PrintAction</code> / <code>PrintError</code> signatures lifted from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> (around line 206094, 206824-206957). Namespace of <code>ConsoleWindow</code> could not be pinned from the dump at the time (the <code>awk</code> "last <code>namespace</code> before the class" heuristic said <code>Assets.Scripts</code>; a brace-depth tracker said global -- unreliable because decompiled <code>$"..."</code> interpolation throws off naive <code>{ }</code> counting; a direct <code>using Util.Commands;</code> failed to compile) -- the page recommended the reflection-based resolver and listed the namespace as an open question.</li>
-<li>2026-05-12: namespace resolved to <code>Assets.Scripts</code>. Confirmed two ways: (1) in <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> the <code>public static class ConsoleWindow</code> at ~206094 sits inside the <code>namespace Assets.Scripts</code> block opened at ~184063 with no intervening <code>namespace</code> declaration before the next sibling <code>namespace Assets.Scripts.Weather</code> at ~207612; (2) <code>EquipmentPlus</code> compiles cleanly with <code>using Assets.Scripts;</code> + a bare <code>ConsoleWindow.PrintError(...)</code> (<code>Mods/EquipmentPlus/EquipmentPlus/HelmetBeamPatches.cs:123</code>, <code>ScrollDispatchPatches.cs:271</code>; built <code>EquipmentPlus.dll</code> present). The earlier "a direct <code>using</code> failed to compile" was specifically <code>using Assets.Scripts;</code> colliding with a same-named <code>Settings</code> class in the caller (<code>NetworkPuristPlus.Settings</code> vs <code>Assets.Scripts.Settings</code>), not a <code>ConsoleWindow</code>-name problem -- the fix is a <code>using ConsoleWindow = Assets.Scripts.ConsoleWindow;</code> alias. <code>ConsoleWindow API</code> and <code>Recommended mod pattern</code> sections rewritten accordingly; <code>Util.Commands.ConsoleWindow</code> removed from the suggested reflection chain (it never matched). No fresh-validator pass needed: the contradicted claim ("namespace unknown / a <code>using</code> fails") is overturned by a strictly stronger source (the decompiled <code>namespace</code> block plus a compiling counter-example mod), with no ambiguity to resolve.</li>
+<li><strong>No rich text.</strong> The console renders through ImGui <code>TextUnformatted</code>, so TextMeshPro tags appear as literal characters. Worse, on a dedicated server without <code>-logFile</code>, any line containing <code>&lt;color=</code> is silently discarded (<code>:222987</code>). Keep console text plain, and be careful with interpolated values that a player controls (a renameable <code>DisplayName</code>, chat text) or that a language model produced.</li>
+<li><strong>Process-local, not networked.</strong> A <code>Print</code> on the server appears only on the server. To reach clients a mod must send its own message and print locally in <code>Process()</code>; see <a href="../../GameSystems/ChatBroadcast/">ChatBroadcast</a> for the replicating chat channel and the <code>NetworkServer.SendToClient&lt;T&gt;</code> unicast form.</li>
+</ul>
+<p>Safe to call on every machine role including a headless dedicated server (the batch-mode branch writes stdout or the log and touches no UI) and before world load (early lines queue in <code>_prematureLogQueue</code> and replay at init).</p>
+<h2 id="recommended-mod-pattern">Recommended mod pattern<a class="headerlink" href="#recommended-mod-pattern" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>Reference <code>ConsoleWindow</code> through a <code>using</code> alias rather than a blanket <code>using Assets.Scripts;</code>. The alias imports one name instead of the 145 top-level types in that namespace and states the fully-qualified target at the top of the file, so a namespace move at the next game update produces a precise error.</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">using</span><span class="w"> </span><span class="nn">ConsoleWindow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">ConsoleWindow</span><span class="p">;</span><span class="w">   </span><span class="c1">// top of the file, with the other usings</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1">// Informational. Yellow, visible without opening the console, no stack trace.</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PlayerLog</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="n">Plugin</span><span class="p">.</span><span class="n">Log</span><span class="o">?.</span><span class="n">LogInfo</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span><span class="w">                          </span><span class="c1">// -&gt; LogOutput.log (+ Player.log via StationeersLaunchPad mirror)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Debug</span><span class="p">.</span><span class="n">Log</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">);</span><span class="w">         </span><span class="c1">// -&gt; Player.log. LogType.Log is NOT re-printed, so no duplicate.</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">aged</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1">// A warning is not an error. There is no PrintWarning; yellow is PrintAction.</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PlayerWarn</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="n">Plugin</span><span class="p">.</span><span class="n">Log</span><span class="o">?.</span><span class="n">LogWarning</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="n">UnityEngine</span><span class="p">.</span><span class="n">Debug</span><span class="p">.</span><span class="n">LogWarning</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">);</span><span class="w">  </span><span class="c1">// LogType.Warning is NOT re-printed either.</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintAction</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">aged</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">}</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1">// NOTE the absence of Debug.LogError. It would be re-printed by the console&#39;s own</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="c1">// logMessageReceivedThreaded handler, so the player would see the line twice: once as this</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1">// controlled PrintError, and again lowercased with an unavoidable stack trace. Nothing is lost --</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="c1">// Log.LogError already reaches Player.log through the StationeersLaunchPad mirror.</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PlayerError</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="n">Plugin</span><span class="p">.</span><span class="n">Log</span><span class="o">?.</span><span class="n">LogError</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">suppressStacktrace</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="p">}</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="c1">// Exception overload: full detail to the file log, type and message only to the player.</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="c1">// Interpolating a bare {e} into a console line dumps a multi-line managed stack trace complete</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="c1">// with compiler-generated frame names like &lt;Postfix&gt;b__0.</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="k">internal</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">PlayerError</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="n">Exception</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">    </span><span class="n">Plugin</span><span class="p">.</span><span class="n">Log</span><span class="o">?.</span><span class="n">LogError</span><span class="p">(</span><span class="s">$&quot;{msg}: {e}&quot;</span><span class="p">);</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ConsoleWindow</span><span class="p">.</span><span class="n">PrintError</span><span class="p">(</span><span class="s">$&quot;[ModName] {msg}: {e.GetType().Name}: {e.Message}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">suppressStacktrace</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The <code>try</code>/<code>catch</code> is for calls that can fire from <code>Prefab.OnPrefabsLoaded</code>, before the console UI exists. <code>ConsoleWindow</code> has an internal premature-log queue so it should be fine, but the catch costs nothing.</p>
+<p><strong>Self-limiting on repeatable paths.</strong> The console will not do it for you. Three patterns in use in this repo, in rough order of preference:</p>
+<ul>
+<li><strong>Once per subject per session.</strong> <code>Mods/PowerGridPlus/PowerGridPlus/DeviceOutputSanitizer.cs</code> keeps a <code>ConcurrentDictionary&lt;long, byte&gt;</code> keyed by reference id and calls <code>TryAdd</code> before printing, so each broken device is named exactly once and the set is cleared on world load. It also marshals through <code>UnityMainThreadDispatcher</code> because the power tick runs on a worker, and degrades to the file log when no dispatcher exists. This is the reference implementation.</li>
+<li><strong>Hard cap with an overflow summary.</strong> <code>Mods/PowerGridPlus/PowerGridPlus/WreckageCleanup.cs</code> prints at most <code>AnnounceCap = 6</code> lines and then one summary line for the remainder.</li>
+<li><strong>First occurrence only, rest to the file log.</strong> <code>Mods/NetworkPuristPlus/NetworkPuristPlus/ClampNegativeMergeQuantityPatch.cs</code> and the one-shot guards in <code>CableRollOnConstruct</code>.</li>
+</ul>
+<p>For a loop over world content (every cable, every structure), prefer a count plus a summary line over one line per item. <code>Mods/EquipmentPlus/EquipmentPlus/PlayerNotice.cs</code> shows the input-path variant: a per-message cooldown, because the alternative is one line per scroll notch.</p>
+<p><strong>Message prefix.</strong> Use a bracketed mod tag so a player can tell whose message it is. Prefixes are inconsistent across this repo today (<code>[EquipmentPlus]</code>, <code>[NetworkPuristPlus]</code>, <code>[Power Grid Plus]</code>, <code>[PowerGridPlus]</code>, and PowerGridPlus's <code>PlayerConsole</code> messages carry none at all). The repo convention for player-facing text is the display name, so <code>[Power Grid Plus]</code> is the correct form of that pair; the code name is for machine-facing identifiers. Whichever a mod picks, it should use one form everywhere.</p>
+<p>Reflection variant, only if you want zero compile-time dependency on <code>Assembly-CSharp</code> and graceful degradation if the class ever moves:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">static</span><span class="w"> </span><span class="n">MethodInfo</span><span class="w"> </span><span class="n">_printAction</span><span class="p">,</span><span class="w"> </span><span class="n">_printError</span><span class="p">;</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_resolved</span><span class="p">;</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">ResolveConsole</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_resolved</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="n">_resolved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">TypeByName</span><span class="p">(</span><span class="s">&quot;Assets.Scripts.ConsoleWindow&quot;</span><span class="p">)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">             </span><span class="o">??</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">TypeByName</span><span class="p">(</span><span class="s">&quot;ConsoleWindow&quot;</span><span class="p">)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">             </span><span class="o">??</span><span class="w"> </span><span class="n">AppDomain</span><span class="p">.</span><span class="n">CurrentDomain</span><span class="p">.</span><span class="n">GetAssemblies</span><span class="p">().</span><span class="n">SelectMany</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">try</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">GetTypes</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Type</span><span class="p">.</span><span class="n">EmptyTypes</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">})</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">                  </span><span class="p">.</span><span class="n">FirstOrDefault</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;ConsoleWindow&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">IsClass</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">IsAbstract</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">IsSealed</span><span class="p">);</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="n">_printAction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintAction&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">),</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintAction&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="n">_printError</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintError&quot;</span><span class="p">,</span><span class="w">  </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">),</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="n">AccessTools</span><span class="p">.</span><span class="n">Method</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PrintError&quot;</span><span class="p">,</span><span class="w">  </span><span class="k">new</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Do not include <code>"Util.Commands.ConsoleWindow"</code> in the resolver. <code>Util.Commands</code> is a real namespace (the <code>say</code> / console-command classes live there) but <code>ConsoleWindow</code> is not in it; the lookup always fails and HarmonyX logs a <code>Could not find type named Util.Commands.ConsoleWindow</code> warning at startup.</p>
+<h2 id="the-namespace-question-and-the-cs0104-story">The namespace question, and the CS0104 story<a class="headerlink" href="#the-namespace-question-and-the-cs0104-story" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p><code>ConsoleWindow</code> is in <code>Assets.Scripts</code> (class at <code>:221811</code>, inside the <code>namespace Assets.Scripts</code> block opened at <code>:195722</code>, next sibling namespace <code>Assets.Scripts.Weather</code> at <code>:223978</code>). A blanket <code>using Assets.Scripts;</code> plus a bare <code>ConsoleWindow.PrintError(...)</code> compiles.</p>
+<p>This page previously claimed that a blanket <code>using Assets.Scripts;</code> risks <code>CS0104 'Settings' is an ambiguous reference</code> for a mod with its own <code>Settings</code> class. <strong>That claim was wrong and has been removed.</strong> There is exactly one type named <code>Settings</code> in the entire reference closure of these mod projects, and it is <code>Assets.Scripts.Serialization.Settings</code> (<code>public class Settings : UserInterfaceBase</code>, <code>:265338</code>, inside <code>namespace Assets.Scripts.Serialization</code> opened at <code>:264409</code>). <code>Assets.Scripts</code> contains no <code>Settings</code> at all, so there is only ever one candidate and CS0104 cannot fire. Independently, even with two candidates C# resolves a name in the enclosing namespace before consulting that namespace's using-directives, so a mod's own <code>Settings</code> would win regardless. Six files in this repo already combine <code>using Assets.Scripts;</code> with an unqualified reference to their own <code>Settings</code> and are present in shipped DLLs.</p>
+<p>The alias recommendation above still stands, on the honest grounds (one imported name instead of 145, and a precise error if the type moves) rather than on the CS0104 grounds.</p>
+<p>Where real ambiguity exposure in this codebase actually comes from: <code>Assembly-CSharp</code> ships parallel namespace pairs, both <code>Objects</code> and <code>Assets.Scripts.Objects</code>, both <code>Networks</code> and <code>Assets.Scripts.Networks</code>, both <code>Networking</code> and <code>Assets.Scripts.Networking</code>, both <code>Util</code> and <code>Assets.Scripts.Util</code>, both <code>UI</code> and <code>Assets.Scripts.UI</code>, both <code>Weather</code> and <code>Assets.Scripts.Weather</code>. <code>Mods/PowerGridPlus/PowerGridPlus/VoltageTier.cs</code> already imports <code>Assets.Scripts.Objects</code>, <code>Objects</code>, and <code>Objects.Rockets</code> together.</p>
+<h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
+<ul>
+<li>2026-07-27: <strong>conflict on "does ConsoleWindow subscribe to Unity's log callback".</strong> Previous claim (line 26): "Stationeers' <code>ConsoleWindow</code> does not subscribe to <code>Application.logMessageReceived</code>", sourced to <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs:206094-206957</code> (a decompile folder no longer on disk). New finding: it subscribes to <code>Application.logMessageReceivedThreaded</code> and re-prints <code>LogType.Error</code> and <code>LogType.Exception</code>. Fresh validator verdict: <strong>B is correct</strong>, quoting <code>_Init</code> at <code>:221924-221928</code> and the <code>LogMessage</code> handler at <code>:222266-222282</code>; the non-threaded event is never subscribed anywhere in the assembly, which is why the old claim was literally true about <code>logMessageReceived</code> while being substantively wrong about the outcome. The validator also determined the claim was <strong>wrong when written rather than changed between versions</strong> (high confidence): <code>GameLoggingSinks.md:41</code>, written 2026-06-24 against the same 0.2.6228.27061 decompile, already documented the subscription at <code>ConsoleWindow._Init line 206182</code>, and its several independent line citations reconstruct the old <code>_Init</code> with internal offsets (+7, +9) that match today's exactly, so the old <code>_Init</code> was structurally identical. Result: the summary table row and the "Key gotcha" paragraph rewritten to state that <code>Debug.LogError</code> / <code>LogException</code> DO reach the console; the recommended <code>PlayerError</code> helper no longer pairs <code>Debug.LogError</code> with <code>PrintError</code>. That pairing was the direct cause of a double-print defect in <code>Mods/NetworkPuristPlus/NetworkPuristPlus/Plugin.cs</code>, which this page had taught.</li>
+<li>2026-07-27: <strong>conflict on "does a blanket <code>using Assets.Scripts;</code> risk CS0104 against a mod's own <code>Settings</code>".</strong> Previous claim (lines 47 and 90): yes, because <code>Assets.Scripts</code> contains <code>Settings : UserInterfaceBase</code>. New finding: no such type exists in <code>Assets.Scripts</code>; it is <code>Assets.Scripts.Serialization.Settings</code>, and enclosing-namespace resolution would win anyway. Fresh validator verdict: <strong>B is correct</strong>, quoting <code>namespace Assets.Scripts.Serialization</code> at <code>:264409</code> with <code>public class Settings : UserInterfaceBase</code> at <code>:265338</code>; exactly one <code>Settings</code> exists in the whole reference closure of both mod projects, and CS0104 requires two candidates. The validator noted the old page refutes itself: line 90 places <code>Assets.Scripts</code> as closed by ~207612 in the old dump while the frontmatter placed <code>Settings</code> at 248232, some 40,000 lines later. The originally observed compile failure was almost certainly <code>CS0246</code> from the <code>using Util.Commands;</code> attempt recorded in the same history entry, not <code>CS0104</code>. Result: the CS0104 rationale removed from the "Recommended mod pattern" section and replaced by a dedicated section stating the correct facts; the alias recommendation kept on other grounds. The frontmatter source entry for <code>Settings</code> was corrected from <code>Assets.Scripts.Settings</code> to <code>Assets.Scripts.Serialization.Settings</code>.</li>
+<li>2026-07-27: re-verified and restamped against 0.2.6403.27689. All cited line numbers from the 0.2.6228.27061 era had drifted and no longer resolved (the old decompile folder is gone). The API detail that had accumulated on this page moved to the new <a href="../../GameClasses/ConsoleWindow/">ConsoleWindow</a> game-class page, with this page keeping the mod-facing guidance. Added, all newly verified: the inverted <code>aged</code> semantics, <code>PrintError</code>'s default stack-trace dump, the absence of <code>PrintWarning</code>, the main-thread-only constraint, the absence of any rate limiting, the ImGui / no-rich-text constraint and the dedicated-server <code>&lt;color=</code> drop, and the process-local (non-networked) nature of the console. Added the self-limiting patterns section citing the three in-repo implementations.</li>
+<li>2026-05-11: page created after a NetworkPuristPlus user reported "I see nothing in the player log" despite the mod's <code>Logger.LogInfo</code> lines being present in both <code>LogOutput.log</code> and <code>Player.log</code> -- they were looking at the in-game console, which neither <code>Logger.Log*</code> nor <code>Debug.Log</code> reaches. <code>ConsoleWindow.PrintAction</code> / <code>PrintError</code> signatures lifted from <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> (around line 206094, 206824-206957). Namespace of <code>ConsoleWindow</code> could not be pinned from the dump at the time (the <code>awk</code> "last <code>namespace</code> before the class" heuristic said <code>Assets.Scripts</code>; a brace-depth tracker said global -- unreliable because decompiled <code>$"..."</code> interpolation throws off naive <code>{ }</code> counting; a direct <code>using Util.Commands;</code> failed to compile) -- the page recommended the reflection-based resolver and listed the namespace as an open question.</li>
+<li>2026-05-12: namespace resolved to <code>Assets.Scripts</code>. Confirmed two ways: (1) in <code>.work/decomp/0.2.6228.27061/Assembly-CSharp.decompiled.cs</code> the <code>public static class ConsoleWindow</code> at ~206094 sits inside the <code>namespace Assets.Scripts</code> block opened at ~184063 with no intervening <code>namespace</code> declaration before the next sibling <code>namespace Assets.Scripts.Weather</code> at ~207612; (2) <code>EquipmentPlus</code> compiles cleanly with <code>using Assets.Scripts;</code> + a bare <code>ConsoleWindow.PrintError(...)</code> (<code>Mods/EquipmentPlus/EquipmentPlus/HelmetBeamPatches.cs:123</code>, <code>ScrollDispatchPatches.cs:271</code>; built <code>EquipmentPlus.dll</code> present). The earlier "a direct <code>using</code> failed to compile" was specifically <code>using Assets.Scripts;</code> colliding with a same-named <code>Settings</code> class in the caller (<code>NetworkPuristPlus.Settings</code> vs <code>Assets.Scripts.Settings</code>), not a <code>ConsoleWindow</code>-name problem -- the fix is a <code>using ConsoleWindow = Assets.Scripts.ConsoleWindow;</code> alias. <code>ConsoleWindow API</code> and <code>Recommended mod pattern</code> sections rewritten accordingly; <code>Util.Commands.ConsoleWindow</code> removed from the suggested reflection chain (it never matched). No fresh-validator pass needed: the contradicted claim ("namespace unknown / a <code>using</code> fails") is overturned by a strictly stronger source (the decompiled <code>namespace</code> block plus a compiling counter-example mod), with no ambiguity to resolve. (The <code>Settings</code>-collision half of this entry was itself overturned on 2026-07-27; see above.)</li>
 </ul>
 <h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h2>
 <p>None.</p>

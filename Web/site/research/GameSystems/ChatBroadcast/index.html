@@ -778,6 +778,8 @@
       
         
       
+        
+      
     
     
     
@@ -1340,6 +1342,34 @@
     
   
     ConnectionRole
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../GameClasses/ConsoleWindow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConsoleWindow
   
 
     
@@ -3823,6 +3853,17 @@
     <span class="md-ellipsis">
       
         AnnounceMessage: the louder channel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reaching-one-client-sendtoclient-singular" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reaching one client: SendToClient (singular)
       
     </span>
   </a>
@@ -8394,6 +8435,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reaching-one-client-sendtoclient-singular" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reaching one client: SendToClient (singular)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#verification-history" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8716,8 +8768,60 @@
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>Namespace trap for the recipe above: <code>ChatMessage</code> lives in <code>Assets.Scripts.Networking</code>, but <code>NetworkServer</code> (213543) and its <code>SendToClients</code> overloads live in the bare <code>Assets.Scripts</code> namespace (the last <code>namespace</code> declaration before 213543 is <code>Assets.Scripts</code> at 195722), so the send call needs <code>using Assets.Scripts;</code> in addition to <code>using Assets.Scripts.Networking;</code>. <code>SendToClients&lt;T&gt;</code> (213921) defaults both trailing parameters (<code>channel = NetworkChannel.GeneralTraffic</code>, <code>excludeConnectionId = -1L</code>).</p>
+<h2 id="reaching-one-client-sendtoclient-singular">Reaching one client: SendToClient (singular)<a class="headerlink" href="#reaching-one-client-sendtoclient-singular" title="Permanent link">&para;</a></h2>
+<!-- verified: 0.2.6403.27689 @ 2026-07-27 -->
+
+<p>The recipe above broadcasts. To put a line on exactly one client, <code>NetworkServer</code> has a unicast form. <code>SendToClient&lt;T&gt;</code> (213907), verbatim:</p>
+<div class="language-csharp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="n">SendToClient</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">MessageBase</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">NetworkChannel</span><span class="w"> </span><span class="n">channel</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">clientConnectionId</span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">MessageBase</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="p">()</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">Client</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Client</span><span class="p">.</span><span class="n">Find</span><span class="p">(</span><span class="n">clientConnectionId</span><span class="p">);</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">client</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="n">Assets</span><span class="p">.</span><span class="n">Scripts</span><span class="p">.</span><span class="n">Networking</span><span class="p">.</span><span class="n">NetworkManager</span><span class="p">.</span><span class="n">SendNetworkMessageToClient</span><span class="p">(</span><span class="n">client</span><span class="p">,</span><span class="w"> </span><span class="n">channel</span><span class="p">,</span><span class="w"> </span><span class="n">message</span><span class="p">);</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Note the differences from the plural form, all of them easy to get wrong:</p>
+<ul>
+<li><strong>Neither trailing parameter is optional.</strong> <code>SendToClients&lt;T&gt;</code> defaults <code>channel</code> and <code>excludeConnectionId</code>; <code>SendToClient&lt;T&gt;</code> defaults nothing, so the channel must be passed explicitly.</li>
+<li><strong>It silently no-ops</strong> when <code>clientConnectionId</code> does not resolve to a <code>Client</code>. There is no return value and no log line, so a wrong or stale connection id looks exactly like a delivered message.</li>
+<li><strong>The last parameter means the opposite of the plural form's.</strong> <code>SendToClients(..., excludeConnectionId)</code> takes an id to EXCLUDE (<code>-1L</code> = send to everyone); <code>SendToClient(..., clientConnectionId)</code> takes the id to send TO. Passing <code>-1L</code> here sends to nobody.</li>
+</ul>
+<p>Related overloads on <code>NetworkServer</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Signature</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>213902</td>
+<td><code>SendToClientReliable&lt;T&gt;(MessageBase&lt;T&gt;, NetworkChannel, Client)</code>, returns <code>UniTask</code></td>
+</tr>
+<tr>
+<td>213907</td>
+<td><code>SendToClient&lt;T&gt;(MessageBase&lt;T&gt;, NetworkChannel, long clientConnectionId)</code></td>
+</tr>
+<tr>
+<td>213916</td>
+<td><code>SendToClient&lt;T&gt;(MessageBase&lt;T&gt;, NetworkChannel, Client)</code> (overload taking an already-resolved <code>Client</code>)</td>
+</tr>
+<tr>
+<td>213921</td>
+<td><code>SendToClients&lt;T&gt;(MessageBase&lt;T&gt;, NetworkChannel = GeneralTraffic, long excludeConnectionId = -1L)</code></td>
+</tr>
+<tr>
+<td>213926 / 213931 / 213945</td>
+<td><code>SendToClientsDirect(...)</code> raw-byte broadcast overloads</td>
+</tr>
+</tbody>
+</table>
+<p>This is the mechanism a mod needs when a message concerns one player rather than the server population, because the in-game console is process-local: a <code>ConsoleWindow.Print</code> on the server is invisible to every client (see <a href="../../GameClasses/ConsoleWindow/">ConsoleWindow</a>). The pattern is to send a custom message and print locally in the receiving side's <code>Process()</code>, exactly as <code>ChatMessage.Process</code> does above.</p>
 <h2 id="verification-history">Verification history<a class="headerlink" href="#verification-history" title="Permanent link">&para;</a></h2>
 <ul>
+<li>2026-07-27: additive, during a repo-wide console-output audit. Added the "Reaching one client: SendToClient (singular)" section: the page documented only the broadcast form, and the unicast form is what a mod needs when a message concerns one player. Verified verbatim against 0.2.6403.27689: <code>SendToClient&lt;T&gt;</code> at 213907 with <code>where T : MessageBase&lt;T&gt;, new()</code>, three non-optional parameters, silent no-op when the connection id does not resolve, plus the sibling overload table at 213902 / 213916 / 213921 / 213926 / 213931 / 213945. Called out the parameter-semantics reversal between <code>SendToClients(..., excludeConnectionId)</code> and <code>SendToClient(..., clientConnectionId)</code>, where <code>-1L</code> means "everyone" in the first and "nobody" in the second. No existing claim was contradicted, so no fresh validator was required.</li>
 <li>2026-07-14 (second pass, same day): added the namespace note (NetworkServer and SendToClients in bare Assets.Scripts at 213543/213921 vs ChatMessage in Assets.Scripts.Networking) after a mod build failed to resolve NetworkServer with only the Networking using. Additive.</li>
 </ul>
 <!-- verified: 0.2.6403.27689 @ 2026-07-14 -->
