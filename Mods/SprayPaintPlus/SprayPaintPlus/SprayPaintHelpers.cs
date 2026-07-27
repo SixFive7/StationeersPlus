@@ -15,14 +15,41 @@ namespace SprayPaintPlus
         // Entries are removed when a spray can is destroyed (see CleanupPatches).
         internal static readonly Dictionary<long, int> SprayCanColors = new Dictionary<long, int>();
 
-        // Tracks modifier key state per player, keyed by the player's Human ReferenceId.
-        // Bit 0 = wants single-item paint (invert already applied client-side),
-        // Bit 1 = wants checkered pattern.
-        // Server receives remote players' state via PaintModifierMessage; local
-        // player's own state is also written here so host/single-player takes the
-        // same lookup path as remote clients. Entries for remote players are
-        // removed on disconnect (see CleanupPatches).
-        internal static readonly Dictionary<long, byte> PlayerModifiers = new Dictionary<long, byte>();
+        // Tracks each player's full client-half preference mask, keyed by that player's
+        // Human ReferenceId. Not just the two modifier keys any more: as of v1.11.0 this
+        // carries every client-side setting the server has to merge before acting on a
+        // paint (the eleven network-painting toggles, glow paint, unlimited uses)
+        // alongside the two live modifier bits it has always carried.
+        //
+        // Bit positions live in SettingsMerge.PlayerPrefs and are the single source of
+        // truth for the layout; do not restate them here. Bits 0 and 1 predate v1.11.0
+        // and keep their meaning (single-item paint with the invert already applied, and
+        // checkered pattern). Read through SettingsMerge.PlayerPrefs.Has, which treats an
+        // absent player as permissive.
+        //
+        // Server receives remote players' masks via PaintModifierMessage; the local
+        // player's own mask is also written here so host/single-player takes the same
+        // lookup path as remote clients. Entries for remote players are removed on
+        // disconnect (see CleanupPatches).
+        internal static readonly Dictionary<long, ushort> PlayerModifiers = new Dictionary<long, ushort>();
+
+        // How many SettingBlockedNotice messages each player has already been sent this
+        // session, keyed by that player's Human ReferenceId and then by function name.
+        //
+        // The client caps what it DISPLAYS at three per function (WarningNotifier), which
+        // does nothing about the traffic: the server detects a block once per stroke and
+        // painting repeats several times a second, so a player working along a pipe run
+        // on a server with pipes disabled produced a message per stroke, forever. This is
+        // the same cap applied on the sending side, so the fourth detection costs nothing
+        // on the wire. SettingBlockedNotice owns the counting; the rows live here because
+        // this is where the server keeps its per-player state.
+        //
+        // Rows are removed per player on disconnect, next to PlayerModifiers (see
+        // CleanupPatches), and the whole table is dropped when this machine leaves the
+        // session (see LeaveGameResetPatch), which is what makes the cap per session on
+        // both sides.
+        internal static readonly Dictionary<long, Dictionary<string, int>> BlockedNoticeCounts =
+            new Dictionary<long, Dictionary<string, int>>();
 
         // ReferenceId of the Human whose paint action is currently being processed.
         // Set by PaintAttackerTracker_Local/_Remote prefixes before the paint

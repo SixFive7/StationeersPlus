@@ -1,6 +1,6 @@
 # Spray Paint Plus: Research Reference
 
-Spray Paint Plus is a BepInEx plugin that combines Color Cycler, Network Painter, and Infinite Spray Paint into one server-authoritative mod. Clients send input events (scroll, modifier keys) through LaunchPadBooster messages; the server applies paint and broadcasts results through the vanilla `Consumable` network update path with a piggybacked color index. First-time readers: plugin wiring, conflict detection, and the file walkthrough live in Section 1; the six patch classes are catalogued in Section 3; the wire format and two sync flows are Section 4; decompiled game internals (Cell, Room, Grid3, SprayCan, OnServer.SetCustomColor, NetworkUpdateFlags, etc.) live on the central pages pointed to from Section 5.
+Spray Paint Plus is a BepInEx plugin that combines Color Cycler, Network Painter, and Infinite Spray Paint into one server-authoritative mod. Clients send input events (scroll, modifier keys) through LaunchPadBooster messages; the server applies paint and broadcasts results through the vanilla `Consumable` network update path with a piggybacked color index. First-time readers: plugin wiring, conflict detection, the file walkthrough, and the paired client/server settings model live in Section 1; the patch classes are catalogued in Section 3; the wire format, the two sync flows, and the settings data-flow map are Section 4; decompiled game internals (Cell, Room, Grid3, SprayCan, OnServer.SetCustomColor, NetworkUpdateFlags, etc.) live on the central pages pointed to from Section 5.
 
 ## 1. Architecture
 
@@ -16,7 +16,7 @@ The mod is server-authoritative. Clients send input events (color scroll, modifi
 
 ### 1.1. Plugin wiring
 
-`Plugin.Awake()` binds config, runs conflict detection, registers LaunchPadBooster messages (`SprayCanColorMessage`, `PaintModifierMessage`), then applies Harmony patches. `StationeersLaunchPad` provides `Prefab.OnPrefabsLoaded` for deferred initialization; `LaunchPadBooster` provides `INetworkMessage`, channel-based message transport, automatic compression, and the version-matching handshake.
+`Plugin.Awake()` binds config, runs conflict detection, registers LaunchPadBooster messages (`SprayCanColorMessage`, `PaintModifierMessage`, `SettingBlockedNotice`) and the join-suffix serializer that pushes the server-half settings down to a joining client, then applies Harmony patches. `StationeersLaunchPad` provides `Prefab.OnPrefabsLoaded` for deferred initialization; `LaunchPadBooster` provides `INetworkMessage`, channel-based message transport, automatic compression, and the version-matching handshake.
 
 **Conflict detection.** The mod replaces Color Cycler and Network Painter. It cannot coexist with them because they patch the same methods. `BepInIncompatibility` attributes cover load-time detection, but StationeersLaunchPad loads mods progressively, so those assemblies may not exist when `Awake()` runs. A second check runs on `Prefab.OnPrefabsLoaded`, scanning `AppDomain.CurrentDomain.GetAssemblies()` for the conflicting assembly names. If found, the mod logs a fatal error and starts a coroutine that repeats the warning every 5 seconds. No Harmony patches are applied. See [../../Research/Patterns/ConflictDetection.md](../../Research/Patterns/ConflictDetection.md) for the general assembly-scan-on-prefab-load pattern.
 
@@ -39,11 +39,55 @@ Server runs paint logic. Clients send input and receive visual updates through t
 | `SprayCanUsePatch.cs` | Patches `SprayCan.OnUseItem`. Implements infinite paint (sets quantity to 0) and pollution suppression (skips vanilla's gas emission). |
 | `ConsumableSyncPatch.cs` | Patches `Consumable.BuildUpdate`, `ProcessUpdate`, `SerializeOnJoin`, `DeserializeOnJoin`. Appends the spray can's color index to the game's binary network stream so color syncs to all clients and late joiners. |
 | `SprayCanColorMessage.cs` | LaunchPadBooster `INetworkMessage`. Client-to-server: "I scrolled to color X on spray can Y." Server validates the color index and applies it. |
-| `PaintModifierMessage.cs` | LaunchPadBooster `INetworkMessage`. Client-to-server: "My modifier key state is now X." Carries the player's Human ReferenceId so the server can key the lookup correctly. |
-| `CleanupPatches.cs` | Patches `Thing.OnDestroy` and `NetworkServer.ClientDisconnected`. Removes stale entries from `SprayCanColors` and `PlayerModifiers` dictionaries. |
-| `DlcPaintGate.cs` | Entitlement gate for paint colors. Builds a `colorIndex -> DLCType` map by walking `Prefab.AllPrefabs` for `SprayCan` prefabs and matching each can's `PaintMaterial` back to a `CustomColors` swatch, then answers `IsColorAllowed` (hard entitlement, via `SharedDLCManager.CheckSharedAccess`) and `IsColorInCycle` (entitlement plus the client's own `Enable Metallic Paints` preference). |
+| `PaintModifierMessage.cs` | LaunchPadBooster `INetworkMessage`. Client-to-server: "My modifier keys and client-half preferences are now X." Carries the player's Human ReferenceId so the server can key the lookup correctly. Payload widened from `byte` to `ushort` in v1.11.0. |
+| `CleanupPatches.cs` | Patches `Thing.OnDestroy` and `NetworkServer.ClientDisconnected`. Removes stale entries from `SprayCanColors`, `PlayerModifiers`, and `BlockedNoticeCounts`. |
+| `DlcPaintGate.cs` | Entitlement gate for paint colors. Builds a `colorIndex -> DLCType` map by walking `Prefab.AllPrefabs` for `SprayCan` prefabs and matching each can's `PaintMaterial` back to a `CustomColors` swatch, then answers `IsColorAllowed` (hard entitlement, via `SharedDLCManager.CheckSharedAccess`) and the family grouping (`FamilyOf`, `SameFamily`, `FamilyName`) that `Cycles within paint family` needs. `IsColorInCycle` now forwards straight to `IsColorAllowed`; the one client-local filter it used to carry was the removed `Enable Metallic Paints` toggle, and the family rule cannot replace it because family is relative to the color already on the can, which a single-index predicate cannot express. |
+| `SettingsMerge.cs` | The single resolution point for every paired setting. Holds the `Synced*` host values, `IsAuthority`, the `Effective*` accessors, the server-side per-player `ServerAllows`, and the `PlayerPrefs` bit layout. Nothing outside this file reads a paired `ConfigEntry.Value`. |
+| `SettingsConfigSync.cs` | `IJoinSuffixSerializer` that ships the sixteen server-half settings to a joining client. Also hosts `LeaveGameResetPatch`, which clears the synced values and the per-session notice counters on `GameManager.LeaveGame`. |
+| `ColorCyclingMode.cs` | The three-member strictness-ladder enum (`CannotChange = 0`, `WithinFamily = 1`, `AllColors = 2`) with `[Display]` labels for the StationeersLaunchPad dropdown. |
+| `WarningNotifier.cs` | The three user-facing channels for "this setting had no effect here": the join info log line, the consolidated join warning, and the first-use warnings with their three-per-function-per-session cap. Owns the canonical `Functions` name constants. |
+| `SettingBlockedNotice.cs` | LaunchPadBooster `INetworkMessage`, and the only server-to-client one. Carries a single function name to one player, for the functions the server evaluates and the client therefore cannot detect on its own. |
 
-`SprayPaintHelpers` carries three concurrent dictionaries: `SprayCanColors` maps spray can ReferenceId to color index (server-side authoritative, mirrored to clients via the sync postfixes); `PlayerModifiers` maps Human ReferenceId to a modifier byte; `CurrentPaintingHumanId` is a one-slot static filled by the tracker patches right before `SetCustomColor` runs.
+`SprayPaintHelpers` carries the shared dictionaries: `SprayCanColors` maps spray can ReferenceId to color index (server-side authoritative, mirrored to clients via the sync postfixes); `PlayerModifiers` maps Human ReferenceId to a preference `ushort`; `BlockedNoticeCounts` maps Human ReferenceId to that player's per-function notice budget; `CurrentPaintingHumanId` is a one-slot static filled by the tracker patches right before `SetCustomColor` runs.
+
+### 1.5. Paired client and server settings
+
+Every capability has two `ConfigEntry` halves, one bound under a `Client - *` group and one under a `Server - *` group, and the capability works only when both allow it. 35 entries across eleven groups as of v1.11.0. The rule for which settings get a pair: a setting gets a client copy when switching it off affects only that player, and a server copy when switching it off affects the world.
+
+Three settings are deliberately unpaired. `Paint Single Item By Default` and `Invert Color Scroll Direction` are pure input mapping, where a server has no sensible opinion. `Suppress Spray Paint Pollution` is server-only, because the atmosphere is shared and a personal opt-out would change the air for everybody.
+
+Booleans merge as client AND server. `ColorCyclingMode` merges as the stricter of the two.
+
+**Where each half comes from.** Both halves always participate. The session only decides where the *server* half is read from:
+
+```csharp
+internal static bool IsAuthority => !NetworkManager.IsActive || NetworkManager.IsServer;
+
+private static bool ServerHalf(ConfigEntry<bool> local, bool? synced)
+{
+    if (local == null) return true;
+    if (IsAuthority) return local.Value;   // single-player, listen host, dedicated server
+    return synced ?? local.Value;          // remote client, own value until the join payload lands
+}
+```
+
+**Single-player is the trap this shape exists to defuse.** Solo reports `NetworkRole.None`, so both `IsActive` and `IsServer` are false. That is the exact shape of the v1.2.2 infinite-spray bug, where a bare `!IsServer` guard conflated solo play with a remote client. It is ambiguous a second way too: in solo *both* halves exist locally, so "return the local value" has two possible answers. Routing the server half through `ServerHalf()` and always ANDing both makes solo behave exactly like a one-player server. Both halves are local, both apply, either one disables the capability. No special case, and nowhere for the v1.2.2 conflation to reappear. See [../../Research/Patterns/SinglePlayerNetworkRole.md](../../Research/Patterns/SinglePlayerNetworkRole.md).
+
+The remote-client fallback to its own server-half entry before the join payload arrives is permissive but harmless: the server independently enforces its own value at the trust boundary regardless of what any client believes.
+
+**The enum is a ladder, and the merge depends on it.** `EffectiveColorCycling` is `(ColorCyclingMode)Math.Min((int)client, (int)server)`, so the numeric values must run strictest to most permissive: `CannotChange = 0`, `WithinFamily = 1`, `AllColors = 2`. Four rules for anyone editing `ColorCyclingMode` after release:
+
+- **Never rename or reorder a member.** BepInEx stores the chosen value by member *name*, so a rename silently resets every player who customised it, and a renumber inverts the merge.
+- **Keep `[Display(Name = "...")]` on every member.** StationeersLaunchPad reads member labels through `EnumInfo<T>.ValueInfo`, which falls back to the raw C# identifier, so without the attribute players see `CannotChange` in the dropdown.
+- **An enum is the only route to a dropdown.** StationeersLaunchPad renders enums as `BeginCombo` plus one `Selectable` per member; `AcceptableValueList` is not supported and gives no dropdown. See [../../Research/Patterns/StationeersLaunchPadSettingsGrouping.md](../../Research/Patterns/StationeersLaunchPadSettingsGrouping.md).
+- **A fourth value is safe only if it genuinely slots into the ladder.** A mode such as "only colors you carry a can for" does not sit on that line and would break the merge rule; it needs a different mechanism, not a new member here.
+
+**Two hard invariants.**
+
+1. **Sync receive paths never consult settings.** `ConsumableSyncPatch` and `ThingGlowSyncPatches` apply state the server already validated. A settings check in those files tests the receiving client's configuration instead of the session's, and worse, a conditional read or write leaves `RocketBinaryReader` / `RocketBinaryWriter` at an unknown offset and corrupts every later field in that packet. This is the exact defect the pre-v1.11.0 audit found in `ThingSetCustomColorGlowPatch`, where a client with glow disabled stopped re-applying the emissive material and silently lost glow on recoloured objects that everyone else still saw glowing. See [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md).
+2. **A client half governs what you can do, never what you see.** A player with glow disabled still renders glow other players applied. A player with a network type disabled still sees networks other players flooded. Any accessor on `SettingsMerge` is a "may I do this" question and never a rendering question.
+
+Two supporting rules predate the rework and still hold. The DLC gate is independent of every mod setting: `DlcPaintGate.IsColorAllowed` is the hard gate, checked first everywhere, so no mode can reach a color the session is not entitled to, and no mode restricts a color the session is entitled to beyond what the mode itself says. And no setting gates Harmony patch application: every patch applies unconditionally, and settings are checked inside patch bodies only.
 
 ## 2. Design decisions
 
@@ -56,7 +100,8 @@ Server runs paint logic. Clients send input and receive visual updates through t
 - **DLC entitlement resolved through the can prefab, not the swatch.** `ColorSwatch` carries no `DLCType`, and the game checks DLC only when you OBTAIN a spray can (creative spawn, fabricator), never when a color is applied. The color scroll and the eyedropper recolor the can already in hand, so before v1.10.1 both reached the four Metallic Paints colors with no check at all. `DlcPaintGate` rebuilds the missing link by walking `Prefab.AllPrefabs` for `SprayCan` prefabs and mapping each can's `PaintMaterial` to its swatch index, giving `colorIndex -> DLCType`. Runtime-verified in 0.2.6403.27689: 16 swatches with distinct `Normal` materials and 16 cans resolving one-to-one, indices 0-11 `None` and 12-15 `MetallicPaints`. Rejected alternatives: gating on `ColorSwatch.PaintOnly` (correlates today but is a rendering / logic-selectability flag, not entitlement, so it would rot on the next paint DLC) and hard-coding indices 12-15 (breaks the moment the game ships more paint). See [../../Research/GameSystems/DLCGating.md](../../Research/GameSystems/DLCGating.md).
 - **`CheckSharedAccess`, not local ownership.** The gate calls `SharedDLCManager.CheckSharedAccess`, matching vanilla's own spawn and fabricator gates, so shared DLC works as the game intends: if any player in the session owns Metallic Paints, everyone in that session may use those colors. Using `DLCManager.CheckAccess` (local entitlement) instead would have been stricter than vanilla and would have broken sessions that legitimately share the DLC.
 - **Three enforcement points, and one deliberate non-enforcement.** The scroll skips gated colors (`ColorCyclerPatch.NextColorInCycle`), the eyedropper refuses them, and `SprayCanColorMessage.Process` re-checks server-side so a modified client cannot push a locked color. `ConsumableSyncPatch`'s two receive paths are deliberately NOT gated: they apply state the server already validated, and re-checking there would test the receiving client's entitlement instead of the session's, making a legitimately obsidian can render differently per player.
-- **The setting can only subtract.** `Enable Metallic Paints` is checked inside `IsColorInCycle`, which calls `IsColorAllowed` first. A player who forces it true without the DLC changes nothing. It also carries no StationeersLaunchPad `Disabled` tag despite the panel supporting one: tags are evaluated at `Config.Bind` time in `Awake`, and `DLCManager.Initialize()` runs later from a manager's `async Start`, so ownership still reads as zero then and greying the toggle out would hide it from the owners it exists for.
+- **`Enable Metallic Paints` was removed in v1.11.0; `Cycles within paint family` replaces it.** The old toggle was checked inside `IsColorInCycle`, which calls `IsColorAllowed` first, so it could only ever subtract. The family mode covers the case that mattered (an owner who wants only the twelve base colors carries a base can), and one consequence is accepted: an owner can no longer hide the metallic colors from the wheel outright, only restrict cycling to the family of the can in hand. `IsColorInCycle` survives as the name for the trust-boundary distinction `SprayCanColorMessage` depends on, but its body now forwards straight to `IsColorAllowed`. The tag note behind the old toggle still applies to any future DLC-conditional setting: StationeersLaunchPad `Disabled` tags are evaluated at `Config.Bind` time in `Awake`, and `DLCManager.Initialize()` runs later from a manager's `async Start`, so ownership still reads as zero then and greying a toggle out would hide it from the owners it exists for.
+- **Unknown color swatches join the base family.** A swatch with no dispensing can (a typical mod-added color) has no entry in the `colorIndex -> DLCType` map, and `FamilyOf` returns `DLCType.None` for it. That is a decision, not a fallback: it keeps other mods' colors working, and it guarantees such a can lands in the largest family rather than a family of one, so `Cycles within paint family` can never strand a can with nothing to cycle to. Worth revisiting if a second paint DLC ever ships; grouping by `DLCType` generally would handle that automatically, but that generality is not built.
 - **GenericFlag2 (bit 12) for color sync.** Bit 12 of `NetworkUpdateFlags` was chosen because it is unused by `Consumable`'s vanilla serialization. Setting this flag triggers a network update that includes the spray can's data, and the postfix patches append the color index to that data. See [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md).
 
 ## 3. Harmony patches catalog
@@ -65,7 +110,13 @@ Server runs paint logic. Clients send input and receive visual updates through t
 
 Runs every frame. Checks if the active hand holds a `SprayCan`. If scroll input is nonzero, computes the next color index (wrapping), updates the can's visual locally, and sends a `SprayCanColorMessage` to the server. Also checks modifier key state each frame and sends `PaintModifierMessage` on change. When running on the host, modifier state is also mirrored directly into the server-side `PlayerModifiers` dictionary so the local player skips the network round-trip.
 
-The color index wraps with simple `+1` / `-1` and bounds check. `InvertColorScrollDirection` flips the scroll direction. `PaintSingleItemByDefault` XORs with Shift before encoding bit 0 of the modifier byte.
+`NextColorInCycle(int from, int colorCount, bool forward, ColorCyclingMode mode)` steps one place per iteration with wraparound and *skips* a rejected candidate rather than stopping, because stopping reads as a stuck scroll. Two filters, in fixed order: `DlcPaintGate.IsColorInCycle` (hard, every mode), then, in `WithinFamily`, `DlcPaintGate.SameFamily(from, candidate)` judged against the can's current color. The loop is bounded by `colorCount` and returns `from` when nothing is selectable, at which point the caller returns rather than sending a no-op to the server. `CannotChange` short-circuits before any of this, so the wheel is simply dead.
+
+`InvertColorScrollDirection` flips the scroll direction. `PaintSingleItemByDefault` XORs with Shift before encoding bit 0 of the preference mask. The rest of the mask is repacked from the live config entries on every send, so a mid-session settings change propagates with no separate change notification.
+
+The eyedropper (`HandleEyedropper`) checks `DlcPaintGate.IsColorAllowed` on the picked color, deliberately *not* `IsColorInCycle`, and before any mod setting: a world can hold metallic paint the session is not entitled to (painted by an owner, or loaded from a save), and copying it would be the same bypass by another route. `SettingsMerge.EffectiveColorPicking` folds in the `CannotChange` rule, because eyedropping is changing the can's color.
+
+Both client-evaluated warnings are attributed before they fire: the mod only tells a player a function is blocked when *their own* half allows it. Never lecture a player about their own choice.
 
 **Depends on:** [../../Research/GameClasses/InventoryManager.md](../../Research/GameClasses/InventoryManager.md), [../../Research/GameClasses/SprayCan.md](../../Research/GameClasses/SprayCan.md).
 
@@ -162,7 +213,7 @@ The Spray Paint Gun is a self-contained glow applicator. Firing at a painted tar
 
 **Gun slot block** (`GlowPaintPatches.cs`):
 
-- `SprayGunSlotHiderPatch` (Postfix on `SprayGun.Awake`, reached via `TargetMethod` because `Awake` is inherited from a base; see [../../Research/Patterns/HarmonyInheritedMethodTrap.md](../../Research/Patterns/HarmonyInheritedMethodTrap.md)): when glow paint is enabled and the gun's can slot (slot 0) is empty, flips the slot's `Type` to `Slot.Class.Blocked`, sets `IsInteractable` false, and swaps the slot icon. This hides the slot and blocks the UI insertion paths (`Slot.AllowMove` / `Slot.CanInsert` reject a can once the slot `Type` no longer matches the can's `SlotType`). It is NOT a server-authoritative `CanEnter` block: vanilla `Thing.CanEnter` does not consult `Slot.Class` for ordinary items, so a direct `OnServer.MoveToSlot` is not rejected. In practice every UI path a player can drive is blocked; the unguarded data-layer path is only reachable by a crafted network message or another mod calling `MoveToSlot` directly, and the glow gun ignores slot contents anyway. The stronger `CanEnter` + `AllowMove` technique in [../../Research/Patterns/SlotInsertionBlock.md](../../Research/Patterns/SlotInsertionBlock.md) is documented but not used here. Gated by `EnableGlowPaint`; when off, the patch no-ops and the gun accepts cans as before.
+- `SprayGunSlotHiderPatch` (Postfix on `SprayGun.Awake`, reached via `TargetMethod` because `Awake` is inherited from a base; see [../../Research/Patterns/HarmonyInheritedMethodTrap.md](../../Research/Patterns/HarmonyInheritedMethodTrap.md)): when glow paint is enabled and the gun's can slot (slot 0) is empty, flips the slot's `Type` to `Slot.Class.Blocked`, sets `IsInteractable` false, and swaps the slot icon. This hides the slot and blocks the UI insertion paths (`Slot.AllowMove` / `Slot.CanInsert` reject a can once the slot `Type` no longer matches the can's `SlotType`). It is NOT a server-authoritative `CanEnter` block: vanilla `Thing.CanEnter` does not consult `Slot.Class` for ordinary items, so a direct `OnServer.MoveToSlot` is not rejected. In practice every UI path a player can drive is blocked; the unguarded data-layer path is only reachable by a crafted network message or another mod calling `MoveToSlot` directly, and the glow gun ignores slot contents anyway. The stronger `CanEnter` + `AllowMove` technique in [../../Research/Patterns/SlotInsertionBlock.md](../../Research/Patterns/SlotInsertionBlock.md) is documented but not used here. Gated by `SettingsMerge.EffectiveGlowPaint`; when off, the patch no-ops and the gun accepts cans as before.
 
 Existing saves with a can loaded: a vanilla spray gun normally holds a can, so the common case of adding the mod to an existing save presents an occupied slot at `Awake`. `SprayGunSlotHiderPatch` then bails (the occupied-slot guard) and leaves the slot visible and interactable, so the can stays in the gun, the gun still works as a glow applicator (the can is never consumed), and the player can remove the can manually. Once the can is removed and the world reloaded, the now-empty slot is blocked and hidden like any other glow gun. There is no auto-eject; this edge case is accepted by design (see [../../Research/Patterns/SlotInsertionBlock.md](../../Research/Patterns/SlotInsertionBlock.md) "Legacy-state handling").
 
@@ -180,7 +231,7 @@ Read path: `XmlSaveLoadLoadWorldSideCarPatch` reads the side-car into `GlowSideC
 
 Back-compat: `GlowThingSaveData : ThingSaveData` is preserved for one release cycle. Old saves (v1.4.x-v1.5.x) contain `<ThingSaveData xsi:type="GlowThingSaveData">` entries; `Plugin.cs` keeps the type registered via `MOD.AddSaveDataType<GlowThingSaveData>()` plus direct `XmlSaveLoad.ExtraTypes` injection (see `RegisterSaveDataTypeLate`) so the vanilla `XmlSerializer` accepts them. `ThingDeserializeSaveGlowPatch` re-applies glow from the old entries on load. On the next save, the side-car writer owns persistence and `ThingSerializeSaveGlowPatch` is gone, so `world.xml` is rewritten without the custom `xsi:type` and the save migrates to the clean format.
 
-**Config**: server toggle `EnableGlowPaint` (default On). When off, `SprayGunIsOperablePatch` and `ThingAttackWithGunPatch` return early (vanilla gun behavior restored, including can-as-ammo use), `SprayGunSlotHiderPatch` no-ops (the can slot stays visible and usable), and the `Thing.SetCustomColor` glow postfix returns early (no glow state touched).
+**Config**: the paired `Glow Paint` setting, resolved through `SettingsMerge.EffectiveGlowPaint` (both halves default On). When off, `SprayGunIsOperablePatch` and `ThingAttackWithGunPatch` return early (vanilla gun behavior restored, including can-as-ammo use), `SprayGunSlotHiderPatch` no-ops (the can slot stays visible and usable), and the `Thing.SetCustomColor` glow postfix returns early (no glow state touched).
 
 **Depends on:** [../../Research/GameClasses/ISprayer.md](../../Research/GameClasses/ISprayer.md), [../../Research/GameClasses/SprayGun.md](../../Research/GameClasses/SprayGun.md), [../../Research/GameClasses/ColorSwatch.md](../../Research/GameClasses/ColorSwatch.md), [../../Research/GameClasses/ThingRenderer.md](../../Research/GameClasses/ThingRenderer.md), [../../Research/GameSystems/RenderingPipelineAndGlow.md](../../Research/GameSystems/RenderingPipelineAndGlow.md), [../../Research/GameSystems/NetworkUpdateFlags.md](../../Research/GameSystems/NetworkUpdateFlags.md), [../../Research/GameSystems/SaveDataRegistration.md](../../Research/GameSystems/SaveDataRegistration.md), [../../Research/Patterns/SaveDataIsinstInheritance.md](../../Research/Patterns/SaveDataIsinstInheritance.md), [../../Research/Patterns/SlotInsertionBlock.md](../../Research/Patterns/SlotInsertionBlock.md), [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md).
 
@@ -188,10 +239,12 @@ Back-compat: `GlowThingSaveData : ThingSaveData` is preserved for one release cy
 
 ### 4.1. Messages
 
-Two LaunchPadBooster `INetworkMessage` types, both client-to-server:
+Three LaunchPadBooster `INetworkMessage` types, plus one join-payload serializer:
 
-1. **SprayCanColorMessage**: `{ SprayCanId: long, ColorIndex: int }`. Sent when a client scrolls to change color. Server validates `ColorIndex` range, finds the SprayCan by ReferenceId, and applies the color. The update broadcasts to all clients via the normal `Consumable` network update path.
-2. **PaintModifierMessage**: `{ Modifiers: byte, PlayerHumanId: long }`. Sent when modifier key state changes. Server stores in `PlayerModifiers[PlayerHumanId]`. Read during `NetworkPainterPatch.Prefix` to decide single / network / checkered mode.
+1. **SprayCanColorMessage** (client to server): `{ SprayCanId: long, ColorIndex: int }`. Sent when a client scrolls to change color. Server validates `ColorIndex` range and entitlement, finds the SprayCan by ReferenceId, and applies the color. The update broadcasts to all clients via the normal `Consumable` network update path.
+2. **PaintModifierMessage** (client to server): `{ Modifiers: ushort, PlayerHumanId: long }`. Sent when the packed state changes. Server stores in `PlayerModifiers[PlayerHumanId]`. Read during `NetworkPainterPatch.Prefix` to decide single / network / checkered mode, and by every server-evaluated paired setting to merge the acting player's client half.
+3. **SettingBlockedNotice** (server to one client): `{ Function: string }`. Sent when the server suppresses a function the acting player had enabled, so that player can be told. Delivered with `NetworkServer.SendToClient`, the single-recipient form.
+4. **SettingsConfigSync** (server to client, join payload): not an `INetworkMessage` but an `IJoinSuffixSerializer`. Carries the sixteen server-half settings; see section 4.4.
 
 See [../../Research/Protocols/SprayPaintPlusNetworking.md](../../Research/Protocols/SprayPaintPlusNetworking.md) for the full schema and the version handshake (`Networking.Required = true`) that enforces mod-version matching across all connected players.
 
@@ -214,6 +267,52 @@ The color sync piggybacks on bit 12 (`GenericFlag2`) of `Thing.NetworkUpdateFlag
 4. Vanilla calls `OnServer.SetCustomColor` for the targeted item.
 5. `NetworkPainterPatch.Prefix` intercepts, looks up modifiers for the painter, and paints the network / room / grid.
 6. Each painted item's `SetCustomColor` sets its own `NetworkUpdateFlags`, broadcasting the color change to all clients through vanilla's update tick.
+
+### 4.4. Settings data-flow map
+
+The direction settings data travels is not uniform across functions. Getting this wrong is the easiest mistake in this area, so it is written out per function.
+
+| Function | Server to client | Client to server | Why |
+|---|---|---|---|
+| Color Cycling | Yes | No | The client applies the merge locally to decide what the wheel may land on. The server independently enforces its own value in `SprayCanColorMessage.Process` at the trust boundary, so it never needs the client's preference. |
+| Color Picking | Yes | No | Same shape as Color Cycling. |
+| Network Painting (all 11) | Yes | Yes | The flood runs server-side in the `OnServer.SetCustomColor` prefix, so the server must know the acting player's eleven preferences to merge them. The downward direction exists only for the join warning. |
+| Glow Paint | Yes | Yes | Glow application is server-side. The client half also drives local UI (operability, slot visibility, contextual name), so both directions matter. |
+| Unlimited Spray Paint Uses | Yes | Yes | `SprayCanUsePatch` runs server-side and must know whether the acting player opted into scarcity. |
+| Suppress Spray Paint Pollution | No | No | Server-only setting; no client half exists. |
+| Extra Paintable Structures | Yes | No | Both machines already check `IsPaintable` independently, so the AND happens naturally with no message. The server value comes down purely so the client can raise the join warning. |
+| Paint Single Item By Default | No | No | Client-only. The already-inverted modifier bit is what crosses the wire, as before. |
+| Invert Color Scroll Direction | No | No | Client-only, pure input mapping. |
+
+**Server to client** rides `SettingsConfigSync`, an `IJoinSuffixSerializer` that runs inside `NetworkServer.PackageJoinData` on the host and `NetworkClient.ProcessJoinData` on the client after `ProcessThings`. Sixteen values: one `Int32` for the color cycling mode, then fifteen booleans, no bit packing. Write order must equal read order, and both sides handle all sixteen unconditionally, with no branch and no try-catch around the reads (see [../../Research/Patterns/BinaryStreamSafety.md](../../Research/Patterns/BinaryStreamSafety.md)). The incoming mode is clamped into the ladder's range before the cast, because the merge is a `Math.Min`: below `CannotChange` would freeze every can, above `AllColors` would defeat a stricter client.
+
+Received values land in the nullable `SettingsMerge.Synced*` statics, where null means "the payload has not arrived yet". `LeaveGameResetPatch` clears them on `GameManager.LeaveGame` so a later solo session cannot read a stale host value. The serializer fires only on a remote join, never for a host's own world and never in single-player, which is consistent with the merge rule: those sessions are the authority and read their own local entries. `Plugin.Awake` calls `WarningNotifier.LogEffectiveSettings()` so a bug report from a solo or host session still carries the same settings dump a joining client gets.
+
+**Client to server** rides the existing `PaintModifierMessage`, whose payload widened from `byte` to `ushort`. Bits 0 and 1 keep their pre-v1.11.0 meaning. Appending a bit is safe; renumbering one is not. The authoritative table lives in `SettingsMerge.PlayerPrefs`:
+
+| Bit | Meaning | Source |
+|---|---|---|
+| 0 | Single item | live Shift key, XORed with `Paint Single Item By Default` (the invert is already applied client-side) |
+| 1 | Checkered | live Ctrl key |
+| 2 | Network Painting | client half |
+| 3-12 | Pipes, Cables, Chutes, Walls, Rails, Large Structures, Elevators, Ladders, Stairs, Stairwells | client halves, in that order |
+| 13 | Glow Paint | client half |
+| 14 | Unlimited Spray Paint Uses | client half |
+
+An absent player (no entry in `PlayerModifiers`) reads as permissive: the server's own half has already been applied by the caller, and a client that never reported preferences should not be silently restricted. The local player writes their own bits into the same dictionary, so host and single-player take an identical lookup path to a remote client's.
+
+The rejected alternative was to have the client resolve its own per-type preference locally into the existing single-item modifier bit, needing no wire change at all. It was rejected because the client would then have to duplicate the server's network-type classification, which is ten branches with an order-dependent `Wall` versus `LargeStructure` trap, and duplicated classification drifts.
+
+**The warning work splits in two**, and the split falls out of two decisions combining: warnings fire only when a disabled function actually changed the outcome, and the network-type classification lives server-side. So for server-evaluated functions the client cannot know a suppression happened.
+
+| Warning source | Functions | How |
+|---|---|---|
+| Client evaluates locally | Color Cycling, Color Picking | The client has both halves after join and knows what it is aiming at. No message. |
+| Server detects and notifies | Network Painting and its ten types, Glow Paint, Unlimited Spray Paint Uses | The server compares the player's bits against its own settings at the point of use and sends a `SettingBlockedNotice` to that one player. |
+
+`Extra Paintable Structures` is in neither column at use time. It is latched at startup and one-way: nothing ever sets `PaintableMaterial` back to null, so the synced server value can only feed the join warning, never change behavior mid-session. `Glow Paint`'s slot hiding has the mirror-image problem: it runs per gun at `Awake`, so guns that awoke before the synced value arrived need a fixup pass once it lands.
+
+Both sides cap first-use notices at three per function per session (`WarningNotifier.MaxNoticesPerFunction`, read by the send side too so the two cannot drift), and the counters reset on world load. The console has no rate limiting of its own and every print is an O(1024) array shift, so self-limiting is mandatory. One message is deliberately exempt: the eyedropper's cross-family explanation fires on every attempt, because it answers a deliberate action rather than reporting a background condition.
 
 ## 5. Relevant central pages
 

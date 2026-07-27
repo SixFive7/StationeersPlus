@@ -6,6 +6,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Objects.Structures;
 using Objects.RoboticArm;
+using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
 using System;
@@ -64,6 +65,12 @@ namespace SprayPaintPlus
     /// Prefix on OnServer.SetCustomColor. Paints entire pipe/cable/chute networks.
     /// Looks up the painter's modifier state from PlayerModifiers using the
     /// Human ReferenceId captured by the trackers above.
+    ///
+    /// This runs on the authority (single-player, host, dedicated server), so the
+    /// local machine owns the server half of every network-painting setting but is
+    /// NOT the acting player. Each of the eleven toggles is therefore merged per
+    /// player: the server half from this machine AND the acting player's client
+    /// half, which rides PaintModifierMessage into SprayPaintHelpers.PlayerModifiers.
     /// </summary>
     [HarmonyPatch(typeof(OnServer), nameof(OnServer.SetCustomColor))]
     public class NetworkPainterPatch
@@ -84,27 +91,37 @@ namespace SprayPaintPlus
             if (NetworkManager.IsActive && !NetworkManager.IsServer)
                 return;
 
-            if (!SprayPaintPlusPlugin.EnableNetworkPainting.Value)
-                return;
-
             long humanId = SprayPaintHelpers.CurrentPaintingHumanId;
 
             // Read-and-reset guards against a stale id leaking into a later
             // OnServer.SetCustomColor from a non-attack path (UI color picker,
             // etc.) if an attack threw before its tracker postfix fired.
+            //
+            // Hoisted above the settings work: every toggle is now keyed on the
+            // acting player, so the id has to be in hand before anything can be
+            // decided. Clearing it on strokes that used to return earlier is
+            // strictly closer to what the guard exists for.
             SprayPaintHelpers.CurrentPaintingHumanId = -1;
 
-            SprayPaintHelpers.PlayerModifiers.TryGetValue(humanId, out byte modifiers);
-            bool wantsSingle = (modifiers & 1) != 0;
-            bool ctrlHeld = (modifiers & 2) != 0;
+            SprayPaintHelpers.PlayerModifiers.TryGetValue(humanId, out ushort modifiers);
+            bool wantsSingle = (modifiers & (1 << SettingsMerge.PlayerPrefs.SingleItem)) != 0;
+            bool ctrlHeld = (modifiers & (1 << SettingsMerge.PlayerPrefs.Checkered)) != 0;
 
+            // Ahead of every settings check, so a player who deliberately aimed at
+            // one item is never told network painting was blocked. Nothing was
+            // suppressed there; a single item is what they asked for.
             if (wantsSingle)
                 return;
 
+            // The master toggle is checked inside PaintNetwork rather than here.
+            // Both spellings suppress exactly the same floods, but doing it after
+            // the seed has been classified keeps the warning honest. The classify
+            // pass is a handful of type tests and property reads; nothing floods
+            // until a merged toggle says yes.
             _painting = true;
             try
             {
-                PaintNetwork(thing, colorIndex, ctrlHeld);
+                PaintNetwork(thing, colorIndex, ctrlHeld, humanId);
             }
             finally
             {
@@ -112,9 +129,88 @@ namespace SprayPaintPlus
             }
         }
 
-        private static void PaintNetwork(Thing thing, int colorIndex, bool checkered)
+        /// <summary>
+        /// Tells the acting player the server blocked something they had switched
+        /// on. Only the server half saying no is news: a player who turned their
+        /// own half off got exactly the behavior they asked for and hears nothing.
+        /// ServerAllows has already returned false by the time this runs, so a set
+        /// client bit means the server half was the blocker.
+        ///
+        /// humanId is -1 when the paint did not come from a player attack (the UI
+        /// color picker, a script). There is nobody to tell, so stay quiet.
+        /// </summary>
+        private static void Warn(long humanId, int bit, string function)
         {
-            if (SprayPaintPlusPlugin.NetworkPaintPipes.Value)
+            if (humanId < 0)
+                return;
+            if (!SettingsMerge.PlayerPrefs.Has(humanId, bit))
+                return;
+            SettingBlockedNotice.NotifyBlocked(humanId, function);
+        }
+
+        /// <summary>
+        /// The union of the three pipe-family branch conditions below, in their
+        /// original order. Asking once means a tray or a vent merges the pipes
+        /// toggle (and can warn about it) exactly once per stroke, even though the
+        /// flood itself still has three shapes.
+        /// </summary>
+        private static bool IsPipeNetworkSeed(Thing thing)
+        {
+            return (thing is HydroponicTray tray && tray.PipeNetwork?.StructureList != null)
+                || (thing is PassiveVent pv && pv.PipeNetwork?.StructureList != null)
+                || (thing is Pipe pipe && pipe.PipeNetwork?.StructureList != null);
+        }
+
+        /// <summary>
+        /// Floods the network the seed belongs to.
+        ///
+        /// Every branch keeps its original fall-through: when a toggle says no,
+        /// control drops to the branch below exactly as it did when the toggle was
+        /// a bare Value read. That matters because several seeds match more than
+        /// one branch (an elevator shaft is also a large structure), and the whole
+        /// Wall-before-LargeStructure ordering trap depends on it.
+        ///
+        /// What changed is only WHEN the question is asked: the type test comes
+        /// first and the toggle second, so a suppressed flood can name the toggle
+        /// that suppressed it and a stroke at an unfloodable item stays silent.
+        /// </summary>
+        private static void PaintNetwork(Thing thing, int colorIndex, bool checkered, long humanId)
+        {
+            // A seed reaching two branches must not produce the same master line
+            // twice. Per-type lines cannot repeat: each type is asked at most once.
+            bool masterWarned = false;
+
+            // Merged answer for one toggle: master AND type, each the server half
+            // ANDed with the acting player's client half.
+            bool Allows(ConfigEntry<bool> serverEntry, bool? synced, int bit, string function)
+            {
+                if (!SettingsMerge.ServerAllows(
+                        SprayPaintPlusPlugin.ServerNetworkPainting,
+                        SettingsMerge.SyncedNetworkPainting,
+                        humanId,
+                        SettingsMerge.PlayerPrefs.NetworkPainting))
+                {
+                    if (!masterWarned)
+                    {
+                        masterWarned = true;
+                        Warn(humanId, SettingsMerge.PlayerPrefs.NetworkPainting,
+                             WarningNotifier.Functions.NetworkPainting);
+                    }
+                    return false;
+                }
+
+                if (SettingsMerge.ServerAllows(serverEntry, synced, humanId, bit))
+                    return true;
+
+                Warn(humanId, bit, function);
+                return false;
+            }
+
+            if (IsPipeNetworkSeed(thing)
+                && Allows(SprayPaintPlusPlugin.ServerNetworkPaintPipes,
+                          SettingsMerge.SyncedNetworkPaintPipes,
+                          SettingsMerge.PlayerPrefs.Pipes,
+                          WarningNotifier.Functions.Pipes))
             {
                 if (thing is HydroponicTray tray && tray.PipeNetwork?.StructureList != null)
                 {
@@ -155,9 +251,12 @@ namespace SprayPaintPlus
                 }
             }
 
-            if (SprayPaintPlusPlugin.NetworkPaintCables.Value)
+            if (thing is Cable cable && cable.CableNetwork?.CableList != null)
             {
-                if (thing is Cable cable && cable.CableNetwork?.CableList != null)
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintCables,
+                           SettingsMerge.SyncedNetworkPaintCables,
+                           SettingsMerge.PlayerPrefs.Cables,
+                           WarningNotifier.Functions.Cables))
                 {
                     foreach (Cable item in cable.CableNetwork.CableList.ToList())
                     {
@@ -170,9 +269,12 @@ namespace SprayPaintPlus
                 }
             }
 
-            if (SprayPaintPlusPlugin.NetworkPaintChutes.Value)
+            if (thing is Chute chute && chute.ChuteNetwork?.StructureList != null)
             {
-                if (thing is Chute chute && chute.ChuteNetwork?.StructureList != null)
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintChutes,
+                           SettingsMerge.SyncedNetworkPaintChutes,
+                           SettingsMerge.PlayerPrefs.Chutes,
+                           WarningNotifier.Functions.Chutes))
                 {
                     foreach (Chute item in chute.ChuteNetwork.StructureList.ToList())
                     {
@@ -189,9 +291,12 @@ namespace SprayPaintPlus
             // rail pieces plus junctions, bypass, and docks. One walk paints
             // the whole loop. INetworkedRoboticArm is the network-accessor
             // interface implemented by every rail-family base class.
-            if (SprayPaintPlusPlugin.NetworkPaintRails.Value)
+            if (thing is INetworkedRoboticArm armMember && armMember.RoboticArmNetwork?.RailList != null)
             {
-                if (thing is INetworkedRoboticArm armMember && armMember.RoboticArmNetwork?.RailList != null)
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintRails,
+                           SettingsMerge.SyncedNetworkPaintRails,
+                           SettingsMerge.PlayerPrefs.Rails,
+                           WarningNotifier.Functions.Rails))
                 {
                     foreach (IRoboticArmRail item in armMember.RoboticArmNetwork.RailList.ToList())
                     {
@@ -215,20 +320,31 @@ namespace SprayPaintPlus
             // left out of the flood: it is a separate movable object, painted
             // on its own. Only shaft/level seeds flood; painting the carriage
             // directly falls through to a plain single-item paint.
-            if (SprayPaintPlusPlugin.NetworkPaintElevators.Value
-                && thing is ElevatorShaft elevatorShaft && elevatorShaft.ShaftNetwork != null)
+            if (thing is ElevatorShaft elevatorShaft && elevatorShaft.ShaftNetwork != null)
             {
-                PaintElevatorNetwork(elevatorShaft, elevatorShaft.ShaftNetwork, colorIndex, checkered);
-                return;
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintElevators,
+                           SettingsMerge.SyncedNetworkPaintElevators,
+                           SettingsMerge.PlayerPrefs.Elevators,
+                           WarningNotifier.Functions.Elevators))
+                {
+                    PaintElevatorNetwork(elevatorShaft, elevatorShaft.ShaftNetwork, colorIndex, checkered);
+                    return;
+                }
             }
 
             // Ladders are SmallGrid structures (Ladder, plus LadderEnd caps) on the
             // 0.5 m small grid, not the large Cell grid, so the large-structure
             // flood never catches them; they need their own small-grid walk.
-            if (SprayPaintPlusPlugin.NetworkPaintLadders.Value && thing is Ladder ladderSeed)
+            if (thing is Ladder ladderSeed)
             {
-                PaintLadderRun(ladderSeed, colorIndex, checkered);
-                return;
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintLadders,
+                           SettingsMerge.SyncedNetworkPaintLadders,
+                           SettingsMerge.PlayerPrefs.Ladders,
+                           WarningNotifier.Functions.Ladders))
+                {
+                    PaintLadderRun(ladderSeed, colorIndex, checkered);
+                    return;
+                }
             }
 
             // Stairs are plain Structures (not LargeStructure), linked into runs by
@@ -241,10 +357,16 @@ namespace SprayPaintPlus
                 // under its own toggle.
                 if (IsStairwell(stairsSeed))
                 {
-                    if (SprayPaintPlusPlugin.NetworkPaintStairwells.Value)
+                    if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintStairwells,
+                               SettingsMerge.SyncedNetworkPaintStairwells,
+                               SettingsMerge.PlayerPrefs.Stairwells,
+                               WarningNotifier.Functions.Stairwells))
                         PaintStairwellRun(stairsSeed, colorIndex, checkered);
                 }
-                else if (SprayPaintPlusPlugin.NetworkPaintStairs.Value)
+                else if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintStairs,
+                                SettingsMerge.SyncedNetworkPaintStairs,
+                                SettingsMerge.PlayerPrefs.Stairs,
+                                WarningNotifier.Functions.Stairs))
                 {
                     PaintStairsRun(stairsSeed, colorIndex, checkered);
                 }
@@ -258,15 +380,24 @@ namespace SprayPaintPlus
             // the LargeStructure path.
             if (thing is Wall wall)
             {
-                if (SprayPaintPlusPlugin.NetworkPaintWalls.Value)
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintWalls,
+                           SettingsMerge.SyncedNetworkPaintWalls,
+                           SettingsMerge.PlayerPrefs.Walls,
+                           WarningNotifier.Functions.Walls))
                     PaintWallsInRoom(wall, colorIndex, checkered);
                 return;
             }
 
-            if (SprayPaintPlusPlugin.NetworkPaintLargeStructures.Value && thing is LargeStructure largeStructure)
+            if (thing is LargeStructure largeStructure)
             {
-                PaintLargeStructureGrid(largeStructure, colorIndex, checkered);
-                return;
+                if (Allows(SprayPaintPlusPlugin.ServerNetworkPaintLargeStructures,
+                           SettingsMerge.SyncedNetworkPaintLargeStructures,
+                           SettingsMerge.PlayerPrefs.LargeStructures,
+                           WarningNotifier.Functions.LargeStructures))
+                {
+                    PaintLargeStructureGrid(largeStructure, colorIndex, checkered);
+                    return;
+                }
             }
         }
 

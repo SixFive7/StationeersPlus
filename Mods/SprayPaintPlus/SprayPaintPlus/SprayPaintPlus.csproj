@@ -52,6 +52,9 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <!-- DisplayAttribute, used to label ColorCyclingMode members in the
+         StationeersLaunchPad settings dropdown. -->
+    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Xml" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />

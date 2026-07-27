@@ -133,6 +133,10 @@ namespace ScenarioRunner
                     Scenario_SppDlcGateVerify();
                     return;
 
+                case "spp-settings-merge-verify":
+                    Scenario_SppSettingsMergeVerify();
+                    return;
+
                 case "pgp-mixedwire-fixture":
                     Scenario_PgpMixedWireFixture();
                     return;

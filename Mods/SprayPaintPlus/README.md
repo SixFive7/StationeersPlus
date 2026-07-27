@@ -23,6 +23,8 @@ All features work correctly for every player, host and clients alike. Late-joini
 
 ### Color Cycling
 Scroll your mouse wheel while holding a spray can to cycle through all available paint colors. No more carrying twelve cans in a backpack.
+- Three modes, set by the **Color Cycling** setting: cycle every color (default), cycle only within the can's own paint family, or turn the wheel off entirely so each color needs its own printed can
+- Both you and the server pick a mode, and the stricter of the two applies
 
 ### Color Picking (Eyedropper)
 Right-click any paintable object while holding a spray can to copy that object's color onto the can. Left-click the next item to match, no hunting for the right color in the scroll cycle.
@@ -49,7 +51,7 @@ Spray-paint a wall and every same-type wall bounding the same room is painted. S
 ### Extra Paintable Structures
 Some structures ship from the base game without a paintable surface, so the spray can ignores them. This mod adds the missing surface so they paint like their siblings.
 - Currently covers the **Steel Frame (Corner)** and **Steel Frame (Side)** shapes from the Steel Frames kit; the base Steel Frame and Steel Frame (Corner Cut) were already paintable
-- Controlled by the **Make More Structures Paintable** client setting (default on)
+- Controlled by the **Extra Paintable Structures** setting (default on), which you and the server both have to allow
 - Painted frames also flow through Network Paint Large Structures like any other connected structure
 - More normally-unpaintable structures will be added in future versions
 
@@ -64,7 +66,7 @@ The **Spray Paint Gun** becomes a self-contained glow applicator. Point at any p
 - Right-click the gun to switch between **Add Glow** and **Remove Glow** modes (the vanilla on/off toggle, HUD label rebranded)
 - Color and glow are orthogonal: a can paint only changes color, a gun fire only changes glow
 - Glow state persists across save/load and syncs correctly in multiplayer; every connected player sees the same glowing targets
-- Server toggle "Enable Glow Paint" lets admins disable the feature; when off, the gun reverts to the vanilla can-accepting behavior
+- The **Glow Paint** setting turns the feature off on either side; when off, the gun reverts to the vanilla can-accepting behavior. Glow other players applied stays visible to you either way
 
 ### Safe to Uninstall
 
@@ -74,50 +76,107 @@ You can remove Spray Paint Plus from an existing save without breaking it. Saves
 
 All features are configurable via the mod settings panel.
 
-Client settings are personal preference: each player sets them independently and only the local value takes effect. Server settings are host-authoritative: only the host's value matters in multiplayer; clients' values are ignored. The in-game settings panel groups the seventeen entries under five headers:
+**Settings come in pairs.** Every capability has a client half and a server half, and it works only when both allow it. Your half decides what you personally do, never what you see: a player with glow paint switched off still sees the glow other players applied. The host's half decides what the world allows at all. Neither half can grant what the other refuses, and switching off either one is enough to disable the capability.
+
+Single-player and hosting count as the server. Both halves are local, both apply, and either one can switch a capability off, exactly as on a dedicated server.
+
+You are told when a mismatch matters. On joining a server you get one console message naming every function you have enabled that the server does not allow, and a message the first three times you actually try to use one. Your own settings are never rewritten; they just have no effect there.
+
+Three settings have no partner. **Paint Single Item By Default** and **Invert Color Scroll Direction** are pure input mapping, where a server has no sensible opinion. **Suppress Spray Paint Pollution** is server-only, because the atmosphere is shared and one player opting out would change the air for everybody.
+
+The [Metallic Paints DLC](https://store.steampowered.com/app/4842920) gate sits on top of all of this and no setting can move it. Without the DLC in the session the four metallic colors (Obsidian, Silver, Bronze, Gold) stay locked whatever the color cycling mode is, exactly as in the base game.
+
+The in-game settings panel groups the 35 entries under eleven headers, six client and five server. Groups sort alphabetically, so every **Client** group appears above every **Server** group.
+
+**Client - Color Cycling**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Color Cycling | Cycles through all colors | How the mouse wheel changes a spray can's color. Cycles within paint family keeps a base-color can on the twelve base colors and a metallic can on the four metallic ones. Can cannot change color turns the wheel off, so you print one can per color. If the server is set to something stricter, the stricter setting applies and you are told when you join |
+| Color Picking | On | Right-click a painted object with a spray can in hand to copy its color onto the can. Hold Ctrl to copy the color it was built with instead. Does nothing when Color Cycling is set to Can cannot change color |
+
+**Client - Consumables**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Unlimited Spray Paint Uses | On | Keeps your own spray cans from being used up. Turn it off to have your cans deplete normally even on a server that allows unlimited use |
+
+**Client - Glow Paint**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Glow Paint | On | Use the Spray Paint Gun to add and remove a glow on already-painted objects. Turn it off to get the base game gun that loads a spray can. Glow that other players apply stays visible to you whatever this is set to |
+
+**Client - Network Painting**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Network Painting | On | One spray stroke paints a whole connected set: a pipe run, a cable network, a staircase, the walls of a room. Turn it off to always paint one item at a time. The entries below leave out individual kinds of network; each one also has to be allowed by the server |
+| Network Paint Pipes | On | Includes pipe networks (pipes, passive vents, hydroponic trays) when your stroke paints a whole network. No effect if Network Painting is off |
+| Network Paint Cables | On | Includes cable networks when your stroke paints a whole network. No effect if Network Painting is off |
+| Network Paint Chutes | On | Includes chute networks when your stroke paints a whole network. No effect if Network Painting is off |
+| Network Paint Walls | On | Includes all same-type walls bounding the same room when your stroke paints a whole network. No effect if Network Painting is off |
+| Network Paint Rails | On | Includes every rail, junction, bypass and dock on one robotic arm assembly. No effect if Network Painting is off |
+| Network Paint Large Structures | On | Includes connected large structures such as frames and girders. No effect if Network Painting is off |
+| Network Paint Elevators | On | Includes every shaft and level segment of one elevator. The carriage is painted on its own. No effect if Network Painting is off |
+| Network Paint Ladders | On | Includes the whole ladder column and its end caps. No effect if Network Painting is off |
+| Network Paint Stairs | On | Includes a whole staircase across its width and its climb. No effect if Network Painting is off |
+| Network Paint Stairwells | On | Includes every adjacent stairwell block, all eight types, any orientation. No effect if Network Painting is off |
 
 **Client - Paintability**:
 
 | Setting | Default | Description |
 |---|---|---|
-| Make More Structures Paintable | On | Spray-paint structures the base game leaves unpaintable (currently the Steel Frame corner and side shapes) |
+| Extra Paintable Structures | On | Spray-paint structures the base game leaves unpaintable, currently Steel Frame (Corner) and Steel Frame (Side). Both you and the server need this on or painting them does nothing at all. Applies at game start, so changing it needs a restart |
 
 **Client - Preferences**:
 
 | Setting | Default | Description |
 |---|---|---|
-| Paint Single Item By Default | Off | Swap Shift behavior: single paint by default, hold Shift for network paint |
-| Invert Color Scroll Direction | Off | Reverse the scroll wheel direction |
-| Enable Metallic Paints | On | Include the four Metallic Paints colors (Obsidian, Silver, Bronze, Gold) in the color scroll. Requires the [Metallic Paints DLC](https://store.steampowered.com/app/4842920); without it these colors stay locked whatever this is set to, exactly as in the base game |
+| Paint Single Item By Default | Off | Painting targets a single item by default and Shift paints the whole network instead. Purely local; the server has no say |
+| Invert Color Scroll Direction | Off | Reverses the mouse wheel direction when scrolling through colors. Purely local; the server has no say |
+
+**Server - Color Cycling**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Color Cycling | Cycles through all colors | The most permissive color cycling allowed on this server. Cycles within paint family makes players print a metallic can to reach metallic colors. Can cannot change color turns the wheel off for everyone, so a can keeps whatever color it has now. Metallic Paints DLC rules apply on top of this whatever it is set to |
+| Color Picking | On | Allows right-click color copying from a painted object onto a spray can. Turn it off to keep colors coming only from printed cans |
 
 **Server - Consumables**:
 
 | Setting | Default | Description |
 |---|---|---|
-| Unlimited Spray Paint Uses | On | Infinite spray cans |
-| Suppress Spray Paint Pollution | On | No pollutant gas when spraying |
+| Unlimited Spray Paint Uses | On | Makes spray cans infinite. Players can still choose to have their own cans deplete |
+| Suppress Spray Paint Pollution | On | Stops spray cans releasing pollutant gas. There is no player-side version of this one: the atmosphere is shared, so one player opting out would change the air for everybody |
 
 **Server - Glow Paint**:
 
 | Setting | Default | Description |
 |---|---|---|
-| Enable Glow Paint | On | The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior |
+| Glow Paint | On | Allows the Spray Paint Gun to add and remove glow. When off, the gun works as it does in the base game and loads a spray can |
 
 **Server - Network Painting**:
 
 | Setting | Default | Description |
 |---|---|---|
-| Enable Network Painting | On | Paint entire networks at once |
-| Network Paint Pipes | On | Include pipes in network painting |
-| Network Paint Cables | On | Include cables in network painting |
-| Network Paint Chutes | On | Include chutes in network painting |
-| Network Paint Walls | On | Paint all same-type walls bounding the same room |
-| Network Paint Rails | On | Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke |
-| Network Paint Large Structures | On | Paint connected frames, girders, and other large structures in a 6-neighbor grid |
-| Network Paint Elevators | On | Paint every shaft and level segment on the same elevator (the moving carriage is painted on its own) |
-| Network Paint Ladders | On | Paint a whole ladder column in one stroke, including ladder end caps |
-| Network Paint Stairs | On | Paint a whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it |
-| Network Paint Stairwells | On | Paint every adjacent stairwell, across all eight stairwell types and any orientation |
+| Network Painting | On | Allows one stroke to paint a whole connected set. The entries below choose which kinds of network qualify on this server |
+| Network Paint Pipes | On | Includes pipe networks (pipes, passive vents, hydroponic trays) when painting a whole network. No effect if Network Painting is off |
+| Network Paint Cables | On | Includes cable networks when painting a whole network. No effect if Network Painting is off |
+| Network Paint Chutes | On | Includes chute networks when painting a whole network. No effect if Network Painting is off |
+| Network Paint Walls | On | Includes all same-type walls bounding the same room when painting a whole network. No effect if Network Painting is off |
+| Network Paint Rails | On | Includes every rail, junction, bypass and dock on one robotic arm assembly. No effect if Network Painting is off |
+| Network Paint Large Structures | On | Includes connected large structures such as frames and girders. No effect if Network Painting is off |
+| Network Paint Elevators | On | Includes every shaft and level segment of one elevator. The carriage is painted on its own. No effect if Network Painting is off |
+| Network Paint Ladders | On | Includes the whole ladder column and its end caps. No effect if Network Painting is off |
+| Network Paint Stairs | On | Includes a whole staircase across its width and its climb. No effect if Network Painting is off |
+| Network Paint Stairwells | On | Includes every adjacent stairwell block, all eight types, any orientation. No effect if Network Painting is off |
+
+**Server - Paintability**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Extra Paintable Structures | On | Allows the extra paintable structures to be painted on this server. Applies at server start |
 
 ## Compatibility
 
@@ -141,7 +200,7 @@ If you run into a bug or something behaves unexpectedly, please open an issue on
 
 ## Changelog
 
-Version history lives in [`SprayPaintPlus/About/About.xml`](SprayPaintPlus/About/About.xml) under `<ChangeLog>` and is published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3702940349) with every release.
+Full version history lives in [`CHANGELOG.md`](CHANGELOG.md). Each release is also published on the [Steam Workshop Change Notes tab](https://steamcommunity.com/sharedfiles/filedetails/changelog/3702940349).
 
 ## Credits
 

@@ -22,33 +22,61 @@ namespace SprayPaintPlus
     {
         public const string PluginGuid = "net.spraypaintplus";
         public const string PluginName = "SprayPaintPlus";
-        public const string PluginVersion = "1.10.1";
+        public const string PluginVersion = "1.11.0";
 
         internal static readonly Mod MOD = new Mod(PluginName, PluginVersion);
 
         internal static ManualLogSource Log;
 
-        // Client settings
+        // Settings come in client/server pairs: a capability works only when both
+        // halves allow it. Everything paired resolves through SettingsMerge; nothing
+        // outside that file reads a paired entry's Value directly.
+        //
+        // Three settings are deliberately unpaired. PaintSingleItemByDefault and
+        // InvertColorScrollDirection are pure input mapping, where a server has no
+        // sensible opinion. SuppressSprayPaintPollution is server-only because the
+        // atmosphere is shared, so a personal opt-out would change the air for everyone.
+
+        // Client-only
         internal static ConfigEntry<bool> InvertColorScrollDirection;
         internal static ConfigEntry<bool> PaintSingleItemByDefault;
-        internal static ConfigEntry<bool> EnableMetallicPaints;
-        internal static ConfigEntry<bool> MakeMoreStructuresPaintable;
 
-        // Server settings
-        internal static ConfigEntry<bool> UnlimitedSprayPaintUses;
-        internal static ConfigEntry<bool> SuppressSprayPaintPollution;
-        internal static ConfigEntry<bool> EnableNetworkPainting;
-        internal static ConfigEntry<bool> NetworkPaintPipes;
-        internal static ConfigEntry<bool> NetworkPaintCables;
-        internal static ConfigEntry<bool> NetworkPaintChutes;
-        internal static ConfigEntry<bool> NetworkPaintWalls;
-        internal static ConfigEntry<bool> NetworkPaintLargeStructures;
-        internal static ConfigEntry<bool> NetworkPaintRails;
-        internal static ConfigEntry<bool> NetworkPaintElevators;
-        internal static ConfigEntry<bool> NetworkPaintLadders;
-        internal static ConfigEntry<bool> NetworkPaintStairs;
-        internal static ConfigEntry<bool> NetworkPaintStairwells;
-        internal static ConfigEntry<bool> EnableGlowPaint;
+        // Client halves
+        internal static ConfigEntry<ColorCyclingMode> ClientColorCycling;
+        internal static ConfigEntry<bool> ClientColorPicking;
+        internal static ConfigEntry<bool> ClientUnlimitedSprayPaintUses;
+        internal static ConfigEntry<bool> ClientGlowPaint;
+        internal static ConfigEntry<bool> ClientNetworkPainting;
+        internal static ConfigEntry<bool> ClientNetworkPaintPipes;
+        internal static ConfigEntry<bool> ClientNetworkPaintCables;
+        internal static ConfigEntry<bool> ClientNetworkPaintChutes;
+        internal static ConfigEntry<bool> ClientNetworkPaintWalls;
+        internal static ConfigEntry<bool> ClientNetworkPaintRails;
+        internal static ConfigEntry<bool> ClientNetworkPaintLargeStructures;
+        internal static ConfigEntry<bool> ClientNetworkPaintElevators;
+        internal static ConfigEntry<bool> ClientNetworkPaintLadders;
+        internal static ConfigEntry<bool> ClientNetworkPaintStairs;
+        internal static ConfigEntry<bool> ClientNetworkPaintStairwells;
+        internal static ConfigEntry<bool> ClientExtraPaintableStructures;
+
+        // Server halves
+        internal static ConfigEntry<ColorCyclingMode> ServerColorCycling;
+        internal static ConfigEntry<bool> ServerColorPicking;
+        internal static ConfigEntry<bool> ServerUnlimitedSprayPaintUses;
+        internal static ConfigEntry<bool> ServerSuppressSprayPaintPollution;
+        internal static ConfigEntry<bool> ServerGlowPaint;
+        internal static ConfigEntry<bool> ServerNetworkPainting;
+        internal static ConfigEntry<bool> ServerNetworkPaintPipes;
+        internal static ConfigEntry<bool> ServerNetworkPaintCables;
+        internal static ConfigEntry<bool> ServerNetworkPaintChutes;
+        internal static ConfigEntry<bool> ServerNetworkPaintWalls;
+        internal static ConfigEntry<bool> ServerNetworkPaintRails;
+        internal static ConfigEntry<bool> ServerNetworkPaintLargeStructures;
+        internal static ConfigEntry<bool> ServerNetworkPaintElevators;
+        internal static ConfigEntry<bool> ServerNetworkPaintLadders;
+        internal static ConfigEntry<bool> ServerNetworkPaintStairs;
+        internal static ConfigEntry<bool> ServerNetworkPaintStairwells;
+        internal static ConfigEntry<bool> ServerExtraPaintableStructures;
 
         private static readonly string[] ConflictingAssemblies = { "ColorCycler", "NetworkPainter" };
 
@@ -90,6 +118,15 @@ namespace SprayPaintPlus
                 MOD.Networking.Required = true;
                 MOD.Networking.RegisterMessage<SprayCanColorMessage>();
                 MOD.Networking.RegisterMessage<PaintModifierMessage>();
+                MOD.Networking.RegisterMessage<SettingBlockedNotice>();
+
+                // Push the sixteen server-half settings down to a joining client as
+                // part of the world snapshot. It has to ride the join payload rather
+                // than an INetworkMessage broadcast: NetworkManager.PlayerConnected
+                // fires before the joiner is in NetworkBase.Clients, so a SendAll
+                // from there reaches everyone except the player who needs it.
+                // See SettingsConfigSync.
+                MOD.Networking.JoinSuffixSerializer = SettingsConfigSync.Instance;
 
                 // Register GlowThingSaveData via LaunchPadBooster so XmlSaveLoad
                 // ExtraTypes picks it up, AND inject directly as a fallback
@@ -107,6 +144,12 @@ namespace SprayPaintPlus
                 Log.LogInfo("Patches applied successfully");
 
                 ApplyExtraPaintability();
+
+                // The support line, so a bug report from a single-player or host
+                // session carries the same settings dump a joining client gets.
+                // Those sessions never receive a join payload, so nothing else
+                // would ever emit it for them. Info level, log only.
+                WarningNotifier.LogEffectiveSettings();
             }
             catch (Exception e)
             {
@@ -132,7 +175,11 @@ namespace SprayPaintPlus
 
         private static void ApplyExtraPaintability()
         {
-            if (!MakeMoreStructuresPaintable.Value) return;
+            // Both halves are local at boot: no session exists yet, so SettingsMerge
+            // reads the local server half. The prefab mutation is one-way and never
+            // unwound, so a later join cannot adopt or reverse it; the synced host value
+            // is used only to warn the player. See WarningNotifier.
+            if (!SettingsMerge.EffectiveExtraPaintable) return;
 
             // Donor material from a paintable sibling in the same Steel Frame kit; the
             // Corner/Side meshes use this same steel paint material.
@@ -205,194 +252,351 @@ namespace SprayPaintPlus
             }
         }
 
+        // Description prefix convention for paired settings: the terse marker stays so a
+        // power user reading the generated .cfg still sees the scope at a glance, and the
+        // friendly explanation follows it. Unpaired settings keep the original two markers.
         private void BindConfig()
         {
+            const string ClientPaired = "(Client-local, server must also allow) ";
+            const string ServerPaired = "(Server-authoritative, client must also enable) ";
+
+            // ---- Client - Color Cycling ----------------------------------------
+            ClientColorCycling = Config.Bind(
+                "Client - Color Cycling", "Color Cycling", ColorCyclingMode.AllColors,
+                new ConfigDescription(
+                    ClientPaired +
+                    "How the mouse wheel changes a spray can's color. Cycles within paint family " +
+                    "keeps a base-color can on the twelve base colors and a metallic can on the " +
+                    "four metallic ones. Can cannot change color turns the wheel off, so you print " +
+                    "one can per color. If the server is set to something stricter, the stricter " +
+                    "setting applies and you are told when you join.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            ClientColorPicking = Config.Bind(
+                "Client - Color Cycling", "Color Picking", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Right-click a painted object with a spray can in hand to copy its color onto " +
+                    "the can. Hold Ctrl to copy the color it was built with instead. Does nothing " +
+                    "when Color Cycling is set to Can cannot change color.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
+
+            // ---- Client - Consumables ------------------------------------------
+            ClientUnlimitedSprayPaintUses = Config.Bind(
+                "Client - Consumables", "Unlimited Spray Paint Uses", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Keeps your own spray cans from being used up. Turn it off to have your cans " +
+                    "deplete normally even on a server that allows unlimited use.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            // ---- Client - Glow Paint -------------------------------------------
+            ClientGlowPaint = Config.Bind(
+                "Client - Glow Paint", "Glow Paint", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Use the Spray Paint Gun to add and remove a glow on already-painted objects. " +
+                    "Turn it off to get the base game gun that loads a spray can. Glow that other " +
+                    "players apply stays visible to you whatever this is set to.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            // ---- Client - Network Painting --------------------------------------
+            ClientNetworkPainting = Config.Bind(
+                "Client - Network Painting", "Network Painting", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "One spray stroke paints a whole connected set: a pipe run, a cable network, " +
+                    "a staircase, the walls of a room. Turn it off to always paint one item at a " +
+                    "time. The entries below leave out individual kinds of network; each one also " +
+                    "has to be allowed by the server.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            ClientNetworkPaintPipes = Config.Bind(
+                "Client - Network Painting", "Network Paint Pipes", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes pipe networks (pipes, passive vents, hydroponic trays) when your " +
+                    "stroke paints a whole network. No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
+
+            ClientNetworkPaintCables = Config.Bind(
+                "Client - Network Painting", "Network Paint Cables", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes cable networks when your stroke paints a whole network. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 30)));
+
+            ClientNetworkPaintChutes = Config.Bind(
+                "Client - Network Painting", "Network Paint Chutes", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes chute networks when your stroke paints a whole network. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 40)));
+
+            ClientNetworkPaintWalls = Config.Bind(
+                "Client - Network Painting", "Network Paint Walls", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes all same-type walls bounding the same room when your stroke paints a " +
+                    "whole network. No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 50)));
+
+            ClientNetworkPaintRails = Config.Bind(
+                "Client - Network Painting", "Network Paint Rails", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes every rail, junction, bypass and dock on one robotic arm assembly. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 60)));
+
+            ClientNetworkPaintLargeStructures = Config.Bind(
+                "Client - Network Painting", "Network Paint Large Structures", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes connected large structures such as frames and girders. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 70)));
+
+            ClientNetworkPaintElevators = Config.Bind(
+                "Client - Network Painting", "Network Paint Elevators", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes every shaft and level segment of one elevator. The carriage is " +
+                    "painted on its own. No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 80)));
+
+            ClientNetworkPaintLadders = Config.Bind(
+                "Client - Network Painting", "Network Paint Ladders", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes the whole ladder column and its end caps. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 90)));
+
+            ClientNetworkPaintStairs = Config.Bind(
+                "Client - Network Painting", "Network Paint Stairs", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes a whole staircase across its width and its climb. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 100)));
+
+            ClientNetworkPaintStairwells = Config.Bind(
+                "Client - Network Painting", "Network Paint Stairwells", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Includes every adjacent stairwell block, all eight types, any orientation. " +
+                    "No effect if Network Painting is off.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 110)));
+
+            // ---- Client - Paintability ------------------------------------------
+            ClientExtraPaintableStructures = Config.Bind(
+                "Client - Paintability", "Extra Paintable Structures", true,
+                new ConfigDescription(
+                    ClientPaired +
+                    "Spray-paint structures the base game leaves unpaintable, currently Steel Frame " +
+                    "(Corner) and Steel Frame (Side). Both you and the server need this on or " +
+                    "painting them does nothing at all. Applies at game start, so changing it needs " +
+                    "a restart.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
+
+            // ---- Client - Preferences -------------------------------------------
             PaintSingleItemByDefault = Config.Bind(
                 "Client - Preferences", "Paint Single Item By Default", false,
                 new ConfigDescription(
-                    "(Client-local) Changes the default painting behavior. " +
-                    "When enabled, painting targets a single item by default " +
-                    "and you hold Shift to paint the entire network instead. " +
-                    "When disabled (default), painting targets the entire network " +
-                    "and Shift restricts to a single item. " +
-                    "Each player can set this independently.",
+                    "(Client-local) Painting targets a single item by default and Shift paints the " +
+                    "whole network instead. When disabled (default), painting targets the whole " +
+                    "network and Shift restricts to a single item. Purely local; the server has no say.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
             InvertColorScrollDirection = Config.Bind(
                 "Client - Preferences", "Invert Color Scroll Direction", false,
                 new ConfigDescription(
-                    "(Client-local) Reverses the mouse wheel direction when scrolling " +
-                    "through spray can colors. Each player can set this independently.",
+                    "(Client-local) Reverses the mouse wheel direction when scrolling through spray " +
+                    "can colors. Purely local; the server has no say.",
                     null,
                     new KeyValuePair<string, int>("Order", 20)));
 
-            // No "Disabled" tag on this entry even though StationeersLaunchPad supports one.
-            // The tag would have to be computed here, in Awake, and DLCManager.Initialize()
-            // runs later (from a manager's async Start), so ownership still reads as zero at
-            // bind time. Greying the toggle out on that value would hide it from the DLC
-            // owners it exists for. The entry stays editable and is simply inert without the
-            // DLC: DlcPaintGate.IsColorAllowed is checked first and never consults this.
-            EnableMetallicPaints = Config.Bind(
-                "Client - Preferences", "Enable Metallic Paints", true,
+            // ---- Server - Color Cycling ------------------------------------------
+            ServerColorCycling = Config.Bind(
+                "Server - Color Cycling", "Color Cycling", ColorCyclingMode.AllColors,
                 new ConfigDescription(
-                    "(Client-local) Adds the four Metallic Paints colors (Obsidian, Silver, Bronze, Gold) " +
-                    "to the spray can color scroll. On by default. Turn it off to keep the scroll to the " +
-                    "twelve base game colors. Requires the Metallic Paints DLC " +
-                    "(https://store.steampowered.com/app/4842920): without it these four colors stay locked " +
-                    "whatever this is set to, exactly as in the base game. Stationeers has had years of " +
-                    "steady care from Rocketwerkz and it is a wonderful game for it, so if you are enjoying " +
-                    "it, the DLC is an easy way to say thanks. Each player sets this independently.",
-                    null,
-                    new KeyValuePair<string, int>("Order", 30)));
-
-            MakeMoreStructuresPaintable = Config.Bind(
-                "Client - Paintability", "Make More Structures Paintable", true,
-                new ConfigDescription(
-                    "(Client-local) Lets you spray-paint structures the base game leaves unpaintable. " +
-                    "This version covers the Steel Frame (Corner) and Steel Frame (Side) shapes, which the " +
-                    "base game ships without a paintable surface; more structures will be added in future versions. " +
-                    "Each player sets this independently; applies when the game starts.",
+                    ServerPaired +
+                    "The most permissive color cycling allowed on this server. Cycles within paint " +
+                    "family makes players print a metallic can to reach metallic colors. Can cannot " +
+                    "change color turns the wheel off for everyone, so a can keeps whatever color it " +
+                    "has now. Metallic Paints DLC rules apply on top of this whatever it is set to.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
-            UnlimitedSprayPaintUses = Config.Bind(
+            ServerColorPicking = Config.Bind(
+                "Server - Color Cycling", "Color Picking", true,
+                new ConfigDescription(
+                    ServerPaired +
+                    "Allows right-click color copying from a painted object onto a spray can. " +
+                    "Turn it off to keep colors coming only from printed cans.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 20)));
+
+            // ---- Server - Consumables --------------------------------------------
+            ServerUnlimitedSprayPaintUses = Config.Bind(
                 "Server - Consumables", "Unlimited Spray Paint Uses", true,
                 new ConfigDescription(
-                    "(Server-authoritative) Makes all spray cans infinite. " +
-                    "When disabled, spray cans are consumed after their normal number of uses. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Makes spray cans infinite. When disabled, spray cans are consumed after their " +
+                    "normal number of uses. Players can still choose to have their own cans deplete.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
-            SuppressSprayPaintPollution = Config.Bind(
+            ServerSuppressSprayPaintPollution = Config.Bind(
                 "Server - Consumables", "Suppress Spray Paint Pollution", true,
                 new ConfigDescription(
-                    "(Server-authoritative) Prevents spray cans from releasing pollutant gas " +
-                    "into the atmosphere when used. " +
-                    "Only the server's value matters in multiplayer.",
+                    "(Server-authoritative) Stops spray cans releasing pollutant gas into the " +
+                    "atmosphere when used. There is no player-side version of this one: the " +
+                    "atmosphere is shared, so one player opting out would change the air for everybody.",
                     null,
                     new KeyValuePair<string, int>("Order", 20)));
 
-            EnableGlowPaint = Config.Bind(
-                "Server - Glow Paint", "Enable Glow Paint", true,
+            // ---- Server - Glow Paint ----------------------------------------------
+            ServerGlowPaint = Config.Bind(
+                "Server - Glow Paint", "Glow Paint", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When enabled, painting a Thing with the Spray Paint Gun makes it " +
-                    "glow (emissive material); painting with a bare Spray Paint can " +
-                    "keeps the normal, non-glowing paint. When disabled, the gun behaves like a can. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Allows the Spray Paint Gun to add and remove glow. When off, the gun works as " +
+                    "it does in the base game and loads a spray can.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
-            EnableNetworkPainting = Config.Bind(
-                "Server - Network Painting", "Enable Network Painting", true,
+            // ---- Server - Network Painting -----------------------------------------
+            ServerNetworkPainting = Config.Bind(
+                "Server - Network Painting", "Network Painting", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a pipe, cable, or chute, " +
-                    "the entire connected network is painted at once. " +
-                    "When disabled, only the targeted item is painted regardless of modifiers. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Allows one stroke to paint a whole connected set. When disabled, only the " +
+                    "targeted item is painted regardless of modifiers. The entries below choose " +
+                    "which kinds of network qualify on this server.",
                     null,
                     new KeyValuePair<string, int>("Order", 10)));
 
-            NetworkPaintPipes = Config.Bind(
+            ServerNetworkPaintPipes = Config.Bind(
                 "Server - Network Painting", "Network Paint Pipes", true,
                 new ConfigDescription(
-                    "(Server-authoritative) Includes pipe networks (pipes, passive vents, hydroponic trays) " +
-                    "when painting an entire network. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes pipe networks (pipes, passive vents, hydroponic trays) when painting " +
+                    "a whole network. No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 20)));
 
-            NetworkPaintCables = Config.Bind(
+            ServerNetworkPaintCables = Config.Bind(
                 "Server - Network Painting", "Network Paint Cables", true,
                 new ConfigDescription(
-                    "(Server-authoritative) Includes cable networks when painting an entire network. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes cable networks when painting a whole network. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 30)));
 
-            NetworkPaintChutes = Config.Bind(
+            ServerNetworkPaintChutes = Config.Bind(
                 "Server - Network Painting", "Network Paint Chutes", true,
                 new ConfigDescription(
-                    "(Server-authoritative) Includes chute networks when painting an entire network. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes chute networks when painting a whole network. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 40)));
 
-            NetworkPaintWalls = Config.Bind(
+            ServerNetworkPaintWalls = Config.Bind(
                 "Server - Network Painting", "Network Paint Walls", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a wall, all same-type walls " +
-                    "bounding the same room are painted too. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes all same-type walls bounding the same room when painting a whole " +
+                    "network. No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 50)));
 
-            NetworkPaintRails = Config.Bind(
+            ServerNetworkPaintRails = Config.Bind(
                 "Server - Network Painting", "Network Paint Rails", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a robotic arm rail, junction, bypass, or dock, " +
-                    "every piece on the same robotic arm assembly is painted too. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes every rail, junction, bypass and dock on one robotic arm assembly. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 60)));
 
-            NetworkPaintLargeStructures = Config.Bind(
+            ServerNetworkPaintLargeStructures = Config.Bind(
                 "Server - Network Painting", "Network Paint Large Structures", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a frame, girder, or other large structure, " +
-                    "all orthogonally-connected structures of the same exact type are painted too. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes connected large structures such as frames and girders. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 70)));
 
-            NetworkPaintElevators = Config.Bind(
+            ServerNetworkPaintElevators = Config.Bind(
                 "Server - Network Painting", "Network Paint Elevators", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting an elevator shaft or level, " +
-                    "every shaft and level segment on the same elevator is painted too. " +
-                    "The moving carriage is left out and painted on its own. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes every shaft and level segment of one elevator. The carriage is " +
+                    "painted on its own. No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 80)));
 
-            NetworkPaintLadders = Config.Bind(
+            ServerNetworkPaintLadders = Config.Bind(
                 "Server - Network Painting", "Network Paint Ladders", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a ladder, every connected ladder " +
-                    "and ladder end in the same run is painted too. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes the whole ladder column and its end caps. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 90)));
 
-            NetworkPaintStairs = Config.Bind(
+            ServerNetworkPaintStairs = Config.Bind(
                 "Server - Network Painting", "Network Paint Stairs", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a stair flight, the rest of the " +
-                    "staircase is painted too: flights set side by side to widen it and flights " +
-                    "run up or down to lengthen it. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes a whole staircase across its width and its climb: flights set side by " +
+                    "side to widen it and flights run up or down to lengthen it. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 100)));
 
-            NetworkPaintStairwells = Config.Bind(
+            ServerNetworkPaintStairwells = Config.Bind(
                 "Server - Network Painting", "Network Paint Stairwells", true,
                 new ConfigDescription(
-                    "(Server-authoritative) When spray-painting a stairwell, every adjacent " +
-                    "stairwell is painted too, across all eight stairwell types and any orientation. " +
-                    "Has no effect if Enable Network Painting is disabled. " +
-                    "Only the server's value matters in multiplayer.",
+                    ServerPaired +
+                    "Includes every adjacent stairwell block, all eight types, any orientation. " +
+                    "No effect if Network Painting is off.",
                     null,
                     new KeyValuePair<string, int>("Order", 110)));
+
+            // ---- Server - Paintability ---------------------------------------------
+            ServerExtraPaintableStructures = Config.Bind(
+                "Server - Paintability", "Extra Paintable Structures", true,
+                new ConfigDescription(
+                    ServerPaired +
+                    "Allows the extra paintable structures to be painted on this server, currently " +
+                    "Steel Frame (Corner) and Steel Frame (Side). Applies at server start.",
+                    null,
+                    new KeyValuePair<string, int>("Order", 10)));
         }
     }
 }

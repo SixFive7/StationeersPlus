@@ -3,7 +3,7 @@
   <Name>Spray Paint Plus</Name>
   <ModID>net.spraypaintplus</ModID>
   <Author>SixFive7</Author>
-  <Version>1.10.1</Version>
+  <Version>1.11.0</Version>
   <Description>[h1]Spray Paint Plus[/h1]
 
 Combines [b]color cycling[/b], [b]network painting[/b], [b]glow paint[/b], and [b]infinite spray paint[/b] into one multiplayer-safe Stationeers mod.
@@ -16,7 +16,7 @@ Full multiplayer compatibility. Safe to remove from existing savegames.
 Works for host and clients alike; late joiners immediately see the correct spray can colors.
 
 [h3]Color Cycling[/h3]
-Scroll your mouse wheel while holding a spray can to cycle through all paint colors. No more carrying twelve cans in a backpack.
+Scroll your mouse wheel while holding a spray can to cycle through all paint colors. No more carrying twelve cans in a backpack. Three modes: cycle every color, cycle only within the can's own paint family, or turn the wheel off so each color needs its own printed can.
 
 [h3]Color Picking (Eyedropper)[/h3]
 Right-click any paintable object with a spray can in hand to copy its color onto the can. Left-click the next item to match.
@@ -54,7 +54,7 @@ The [b]Spray Paint Gun[/b] becomes a glow applicator: fire at a painted target t
 [*]Shift (single target) and Ctrl (checkered pattern) modifiers apply to gun-paint too
 [*]Right-click the gun to switch between [b]Add Glow[/b] and [b]Remove Glow[/b] modes (vanilla on/off toggle, HUD label rebranded)
 [*]Glow state persists across save/load and syncs in multiplayer
-[*]Server toggle "Enable Glow Paint" disables the feature; when off, the gun reverts to vanilla can-accepting behavior
+[*]The "Glow Paint" setting turns the feature off on either side; when off, the gun reverts to vanilla can-accepting behavior. Glow other players applied stays visible to you either way
 [/list]
 
 [h3]Safe to Uninstall[/h3]
@@ -62,45 +62,23 @@ Saves written by v1.6.0+ open cleanly without this mod; glow lives in a side-car
 
 [h3]Settings[/h3]
 
-All features are configurable via the mod settings panel.
+[b]Settings come in pairs.[/b] Every capability has a client half and a server half, and it works only when both allow it. Your half decides what you personally do, never what you see; the host's half decides what the world allows at all. Neither half can grant what the other refuses. Single-player and hosting count as the server, so both halves are local and either one can switch a capability off.
 
-[b]Client - Paintability[/b] (personal preference, each player sets independently):
+Joining a server gives you one console message naming every function you have enabled that the server does not allow, and a message the first three times you actually try to use one. Your own settings are never rewritten; they just have no effect there.
+
+35 settings across eleven groups, six client and five server. What they cover:
 [list]
-[*][b]Make More Structures Paintable[/b] (default On): Paint structures the base game leaves unpaintable, currently the Steel Frame corner and side shapes
+[*][b]Color Cycling[/b]: how the mouse wheel changes a can's color (all colors, only within the can's own paint family, or not at all), and whether the right-click eyedropper works
+[*][b]Network Painting[/b]: the master toggle plus one entry per kind of network, for pipes, cables, chutes, walls, rails, large structures, elevators, ladders, stairs and stairwells
+[*][b]Glow Paint[/b]: whether the Spray Paint Gun applies glow, or reverts to the base game gun that loads a spray can
+[*][b]Paintability[/b]: whether the extra paintable structures accept paint
+[*][b]Consumables[/b]: unlimited spray can uses, plus pollution suppression (server-only, the atmosphere is shared)
+[*][b]Preferences[/b]: single-item-by-default and inverted scroll direction (client-only, pure input mapping)
 [/list]
 
-[b]Client - Preferences[/b] (personal preference, each player sets independently):
-[list]
-[*][b]Paint Single Item By Default[/b] (default Off): Swap Shift behavior, single paint by default, hold Shift for network paint
-[*][b]Invert Color Scroll Direction[/b] (default Off): Reverse the scroll wheel direction
-[*][b]Enable Metallic Paints[/b] (default On): Include the Metallic Paints DLC colors in the color scroll
-[/list]
+Metallic Paints DLC rules apply on top of every mode; no setting can reach a color the session is not entitled to.
 
-[b]Server - Consumables[/b] (the host's value controls gameplay for everyone):
-[list]
-[*][b]Unlimited Spray Paint Uses[/b] (default On): Infinite spray cans
-[*][b]Suppress Spray Paint Pollution[/b] (default On): No pollutant gas when spraying
-[/list]
-
-[b]Server - Glow Paint[/b]:
-[list]
-[*][b]Enable Glow Paint[/b] (default On): The Spray Paint Gun adds glow to painted targets without changing color, and the gun no longer accepts spray cans. When off, the gun reverts to its vanilla behavior
-[/list]
-
-[b]Server - Network Painting[/b]:
-[list]
-[*][b]Enable Network Painting[/b] (default On): Paint entire networks at once
-[*][b]Network Paint Pipes[/b] (default On): Include pipes in network painting
-[*][b]Network Paint Cables[/b] (default On): Include cables in network painting
-[*][b]Network Paint Chutes[/b] (default On): Include chutes in network painting
-[*][b]Network Paint Walls[/b] (default On): Paint all same-type walls bounding the same room
-[*][b]Network Paint Rails[/b] (default On): Paint every rail, junction, bypass, and dock on the same robotic arm assembly in one stroke
-[*][b]Network Paint Large Structures[/b] (default On): Paint connected frames, girders, and other large structures in a 6-neighbor grid
-[*][b]Network Paint Elevators[/b] (default On): Paint all shaft and level segments on one elevator (the carriage is painted separately)
-[*][b]Network Paint Ladders[/b] (default On): Paint a whole ladder column in one stroke, including ladder end caps
-[*][b]Network Paint Stairs[/b] (default On): Paint a whole staircase, both flights set side by side to widen it and flights run up or down to lengthen it
-[*][b]Network Paint Stairwells[/b] (default On): Paint every adjacent stairwell, across all eight stairwell types and any orientation
-[/list]
+The full 35-entry table with every default is in the [url=https://github.com/SixFive7/StationeersPlus/tree/master/Mods/SprayPaintPlus#settings]README on GitHub[/url].
 
 [h2]Compatibility[/h2]
 
@@ -136,15 +114,20 @@ Found a bug? Please open an issue on [url=https://github.com/SixFive7/Stationeer
 [h2]License[/h2]
 Licensed under the [url=https://github.com/SixFive7/StationeersPlus/blob/master/LICENSE]Apache License 2.0[/url]. Attribution required; see the LICENSE and NOTICE files at the repository root.</Description>
   <ChangeLog>
-v1.10.1: Respect the Metallic Paints DLC
-- FIX: The color scroll and the right-click eyedropper no longer reach the four Metallic Paints colors (Obsidian, Silver, Bronze, Gold) without the DLC. The base game checks DLC ownership only when you obtain a spray can, and recoloring the can already in your hand never passed through that check, so the scroll could reach paints the player did not own. The mod now resolves each color back to the spray can that dispenses it and applies the same ownership check the base game uses.
-- The check runs on the server too, so a modified client cannot push a locked color to the host.
-- Shared DLC behaves as in vanilla: if any player in the session owns Metallic Paints, everyone in that session can use those colors.
-- NEW: Client setting "Enable Metallic Paints" (default On) keeps the metallic colors out of the scroll for players who own the DLC but prefer cycling only the twelve base colors. It cannot unlock anything; without the DLC those colors stay locked regardless of this setting.
-- Existing saves are left alone. Structures already painted metallic keep their color, and a spray can already sitting on a metallic color keeps it. Once such a can is scrolled to a different color, the metallic colors are no longer reachable without the DLC.
-- Stationeers has had years of steady care put into it and it shows. If the game has been good to you, the Metallic Paints DLC is an easy way to say thanks.
+v1.11.0: Every setting has a client half and a server half
+- CHANGE: All settings reset to their defaults on this update. BepInEx identifies a setting by its group plus its name, and nearly every setting moved group, so the stored values are orphaned and the defaults are re-seeded on first launch. Set your preferences once more after updating. The same reset happened at v1.5.0.
+- NEW: Every capability now has a client setting and a server setting, and works only when both allow it. 35 settings across eleven groups, up from 18 across five. Your half decides what you do, never what you see; the host's half decides what the world allows.
+- NEW: Color Cycling is a dropdown with three modes. Cycles through all colors is the default and matches the old behavior. Cycles within paint family keeps a base-color can on the twelve base colors and a metallic can on the four metallic ones. Can cannot change color turns the wheel off, so each color needs its own printed can.
+- NEW: Color Picking, the right-click eyedropper, is its own setting instead of riding along with color cycling.
+- NEW: Joining a server gives you one console message naming every function you have enabled that the server does not allow, and a message the first three times you actually try to use one. Your own settings are never rewritten; they just have no effect there.
+- CHANGE: The client setting "Enable Metallic Paints" is gone. Cycles within paint family replaces it.
+- CHANGE: Extra Paintable Structures and Glow Paint already needed both sides to agree, but a mismatch failed silently and read as a bug. Both now say so in their descriptions and report it in-game.
+- Three settings deliberately have no partner. Paint Single Item By Default and Invert Color Scroll Direction are pure input mapping, where a server has no sensible opinion. Suppress Spray Paint Pollution is server-only, because the atmosphere is shared and one player opting out would change the air for everybody.
+- Single-player and hosting count as the server: both halves are local, both apply, and either one can switch a capability off.
+- Metallic Paints DLC rules are unchanged and still apply on top of every mode. No mod setting can reach a color the session is not entitled to.
+- Thanks to streakymirror73 for asking for a way to switch color cycling off, and to AlienXtream for asking for base and metallic colors to be cycled separately. This release is both.
 - Multiplayer-safe; no save-format changes.
-- REQUIRES: All players on a server must run 1.10.1 (matching-version handshake).
+- REQUIRES: All players on a server must run 1.11.0 (matching-version handshake).
   </ChangeLog>
   <WorkshopHandle>3702940349</WorkshopHandle>
   <Tags>
@@ -157,16 +140,16 @@ v1.10.1: Respect the Metallic Paints DLC
 <line-height=40%>Combines color cycling, network painting, glow paint, and infinite spray paint into one multiplayer-safe Stationeers mod.
 Full multiplayer compatibility. Safe to remove from existing savegames.
 <b>Features:</b>
-- Scroll wheel cycles spray can colors
-- Right-click a target with a can to copy its color; Ctrl+right-click picks the as-built kit color
+- Scroll wheel cycles can colors: all, one paint family, or off
+- Right-click a target with a can to copy its color; Ctrl+right-click picks the as-built color
 - Infinite spray paint, no pollution (both configurable)
 - One-stroke paint for pipe / cable / chute networks, rooms of same-type walls, connected large structures, robotic arm rail assemblies, elevators, ladder columns, staircases, and stairwell blocks
-- Spray Paint Gun adds glow to painted targets (ammo-less, preserves color); right-click the gun to toggle Add Glow / Remove Glow mode
+- Spray Paint Gun adds glow to painted targets (ammo-less, keeps color); right-click it to toggle Add Glow / Remove Glow
 - Shift = single item, Ctrl = checkered pattern
 - Full multiplayer with matching-version handshake
 - Safe to uninstall: v1.6.0+ saves open cleanly without this mod
-<b>Settings:</b> Server settings control gameplay for all players; client settings are personal.
-<b>Requires:</b> BepInEx + StationeersLaunchPad. All players, including dedicated servers, need the same setup.
+<b>Settings:</b> Settings come in pairs, yours and the server's; a function works when both allow it.
+<b>Requires:</b> BepInEx + StationeersLaunchPad. All players and dedicated servers need the same setup.
 <b>Incompatible with:</b> Color Cycler, Network Painter (both by Elmotrix).
 <b>Redundant</b> (disable if installed): Infinite Spray Paint by Aspct, Infinite Paint Mod by Dingo.
 <b>Credits:</b> Elmotrix, SubHobo (bls220), Aspct, Dingo.</line-height>

@@ -13,8 +13,19 @@ namespace ScenarioRunner
     // What it asserts, over every index in GameManager.CustomColors:
     //   Case 1  pool empty                    -> vanilla colors allowed, DLC colors blocked
     //   Case 2  pool has MetallicPaints       -> every color allowed
-    //   Case 3  pool has it, setting off      -> DLC colors still ALLOWED but out of cycle
-    //   Case 4  pool empty again              -> back to Case 1 (no state stuck on)
+    //   Case 3  pool empty again              -> back to Case 1 (no state stuck on)
+    //
+    // Entitlement is the entire subject. Every scroll below runs under
+    // ColorCyclingMode.AllColors, the most permissive mode, so the only thing that can
+    // take a color out of the walk is the gate. Before v1.11.0 there was a fourth case
+    // driving the "Enable Metallic Paints" toggle, which allowed a DLC color while
+    // keeping it out of the scroll cycle. That toggle is gone: the ColorCyclingMode
+    // ladder replaced it, and its restriction is relative to the color already on the
+    // can, so no per-index predicate can express it. DlcPaintGate.IsColorInCycle now
+    // delegates straight to IsColorAllowed, which is why the two expectations below
+    // always coincide; keeping both asserted is the tripwire for a future client-local
+    // filter leaking into the entitlement answer. Coverage of the mode itself lives in
+    // spp-settings-merge-verify (P2 for the ladder, P5 for WithinFamily).
     //
     // It also drives ColorCyclerPatch.NextColorInCycle, the actual scroll-step function, so
     // the test covers the behavior a player sees rather than just the predicate: with an
@@ -24,13 +35,15 @@ namespace ScenarioRunner
     // Why the pool is safe to write here: SharedDLCManager.SharedDLC is a plain static
     // ushort whose setter only raises a network flag when IsServer && HasClients. This runs
     // on a headless dedi with nobody connected, so the write is local and reversible, and
-    // Case 4 restores it. A batch-mode dedi never seeds the pool anyway
+    // Case 3 restores it. A batch-mode dedi never seeds the pool anyway
     // (SharedDLCManager.HostFinishedLoad skips seeding under IsBatchMode), so the natural
     // starting state is empty, which is exactly the state a non-owner sees.
     //
     // Reflection throughout: the gate and the scroll helper are internal / private to the
-    // mod, and ScenarioRunner has no build-time dependency on it. Managed state only, so
-    // this is safe on the UniTask worker the sim-tick pump runs on.
+    // mod, and ScenarioRunner has no build-time dependency on it. ColorCyclingMode is
+    // resolved as a Type and its member read with Enum.Parse for the same reason, so the
+    // scenario never names the enum at compile time. Managed state only, so this is safe
+    // on the UniTask worker the sim-tick pump runs on.
 
     internal static partial class Dispatcher
     {
@@ -53,29 +66,34 @@ namespace ScenarioRunner
 
                 var gate = asm.GetType("SprayPaintPlus.DlcPaintGate");
                 var cycler = asm.GetType("SprayPaintPlus.ColorCyclerPatch");
-                var plugin = asm.GetType("SprayPaintPlus.SprayPaintPlusPlugin");
-                if (gate == null || cycler == null || plugin == null)
+                var modeT = asm.GetType("SprayPaintPlus.ColorCyclingMode");
+                if (gate == null || cycler == null || modeT == null)
                 {
-                    _log?.LogError("[ScenarioRunner] spp-dlc-gate | could not resolve mod types, aborting");
+                    _log?.LogError("[ScenarioRunner] spp-dlc-gate | could not resolve mod types " +
+                                   $"(gate={gate != null} cycler={cycler != null} mode={modeT != null}), aborting");
                     return;
                 }
 
                 var isAllowed = gate.GetMethod("IsColorAllowed", flags);
                 var isInCycle = gate.GetMethod("IsColorInCycle", flags);
-                var nextInCycle = cycler.GetMethod("NextColorInCycle", flags);
-                if (isAllowed == null || isInCycle == null || nextInCycle == null)
-                {
-                    _log?.LogError("[ScenarioRunner] spp-dlc-gate | could not resolve gate methods, aborting");
-                    return;
-                }
 
-                // ConfigEntry<bool>.Value on the mod's static field.
-                var settingField = plugin.GetField("EnableMetallicPaints", flags);
-                object settingEntry = settingField?.GetValue(null);
-                PropertyInfo settingValue = settingEntry?.GetType().GetProperty("Value");
-                if (settingValue == null)
+                // Four parameters since v1.11.0: (int from, int colorCount, bool forward,
+                // ColorCyclingMode mode). Bound by explicit type array so an added overload
+                // cannot make this ambiguous.
+                var nextInCycle = cycler.GetMethod("NextColorInCycle", flags, null,
+                    new[] { typeof(int), typeof(int), typeof(bool), modeT }, null);
+
+                // The most permissive mode, so the gate is the only filter in play. Parsed
+                // off the reflected type, never named at compile time.
+                object allColors = Enum.IsDefined(modeT, "AllColors")
+                    ? Enum.Parse(modeT, "AllColors")
+                    : null;
+
+                if (isAllowed == null || isInCycle == null || nextInCycle == null || allColors == null)
                 {
-                    _log?.LogError("[ScenarioRunner] spp-dlc-gate | could not resolve EnableMetallicPaints, aborting");
+                    _log?.LogError("[ScenarioRunner] spp-dlc-gate | could not resolve gate methods " +
+                                   $"(isColorAllowed={isAllowed != null} isColorInCycle={isInCycle != null} " +
+                                   $"nextColorInCycle={nextInCycle != null} allColorsMode={allColors != null}), aborting");
                     return;
                 }
 
@@ -98,9 +116,8 @@ namespace ScenarioRunner
 
                 ushort originalPool = (ushort)sharedProp.GetValue(null);
                 const ushort METALLIC_PAINTS = 0x100;
-                bool originalSetting = (bool)settingValue.GetValue(settingEntry);
                 _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | swatches={count} poolAtStart=0x{originalPool:X} " +
-                              $"enableMetallicPaints={originalSetting}");
+                              $"cyclingMode={allColors}");
 
                 bool ok = true;
 
@@ -108,28 +125,27 @@ namespace ScenarioRunner
                 {
                     // ---- Case 1: nobody in the session owns Metallic Paints ----
                     sharedProp.SetValue(null, (ushort)0);
-                    settingValue.SetValue(settingEntry, true);
-                    ok &= Report("case1-pool-empty", colors, count, isAllowed, isInCycle, settingEntry,
+                    ok &= Report("case1-pool-empty", colors, count, isAllowed, isInCycle,
                         expectDlcAllowed: false, expectDlcInCycle: false);
 
                     // The scroll a player actually performs. Forward from the last vanilla
                     // color must wrap past the DLC block to index 0.
                     int fromLastVanilla = 11;
-                    int stepped = (int)nextInCycle.Invoke(null, new object[] { fromLastVanilla, count, true });
+                    int stepped = (int)nextInCycle.Invoke(null, new object[] { fromLastVanilla, count, true, allColors });
                     bool wrapOk = stepped == 0;
                     ok &= wrapOk;
                     _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | case1 scroll {fromLastVanilla} forward -> {stepped} " +
                                   $"(expected 0, skipping the DLC block) {(wrapOk ? "PASS" : "FAIL")}");
 
                     // Backward off index 0 must land on the last NON-DLC color, not index 15.
-                    int steppedBack = (int)nextInCycle.Invoke(null, new object[] { 0, count, false });
+                    int steppedBack = (int)nextInCycle.Invoke(null, new object[] { 0, count, false, allColors });
                     bool backOk = steppedBack == 11;
                     ok &= backOk;
                     _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | case1 scroll 0 backward -> {steppedBack} " +
                                   $"(expected 11) {(backOk ? "PASS" : "FAIL")}");
 
                     // A can already sitting on a gated color must still be able to scroll OFF it.
-                    int offGated = (int)nextInCycle.Invoke(null, new object[] { 12, count, true });
+                    int offGated = (int)nextInCycle.Invoke(null, new object[] { 12, count, true, allColors });
                     bool offOk = offGated == 0;
                     ok &= offOk;
                     _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | case1 scroll 12 forward -> {offGated} " +
@@ -137,38 +153,32 @@ namespace ScenarioRunner
 
                     // ---- Case 2: someone in the session owns it ----
                     sharedProp.SetValue(null, METALLIC_PAINTS);
-                    ok &= Report("case2-pool-has-metallic", colors, count, isAllowed, isInCycle, settingEntry,
+                    ok &= Report("case2-pool-has-metallic", colors, count, isAllowed, isInCycle,
                         expectDlcAllowed: true, expectDlcInCycle: true);
 
-                    int steppedOwned = (int)nextInCycle.Invoke(null, new object[] { 11, count, true });
+                    int steppedOwned = (int)nextInCycle.Invoke(null, new object[] { 11, count, true, allColors });
                     bool ownedOk = steppedOwned == 12;
                     ok &= ownedOk;
                     _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | case2 scroll 11 forward -> {steppedOwned} " +
                                   $"(expected 12, owner reaches the DLC block) {(ownedOk ? "PASS" : "FAIL")}");
 
-                    // ---- Case 3: owner who switched the metallics off ----
-                    settingValue.SetValue(settingEntry, false);
-                    ok &= Report("case3-owner-setting-off", colors, count, isAllowed, isInCycle, settingEntry,
-                        expectDlcAllowed: true, expectDlcInCycle: false);
-
-                    int steppedFiltered = (int)nextInCycle.Invoke(null, new object[] { 11, count, true });
-                    bool filteredOk = steppedFiltered == 0;
-                    ok &= filteredOk;
-                    _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | case3 scroll 11 forward -> {steppedFiltered} " +
-                                  $"(expected 0, setting hides the DLC block) {(filteredOk ? "PASS" : "FAIL")}");
-
-                    // ---- Case 4: entitlement withdrawn, nothing latched on ----
+                    // ---- Case 3: entitlement withdrawn, nothing latched on ----
                     sharedProp.SetValue(null, (ushort)0);
-                    settingValue.SetValue(settingEntry, true);
-                    ok &= Report("case4-pool-empty-again", colors, count, isAllowed, isInCycle, settingEntry,
+                    ok &= Report("case3-pool-empty-again", colors, count, isAllowed, isInCycle,
                         expectDlcAllowed: false, expectDlcInCycle: false);
+
+                    // The scroll is where a latch would show first, since case 2 walked it
+                    // into the DLC block. Same step as case 1, same answer expected.
+                    int steppedAgain = (int)nextInCycle.Invoke(null, new object[] { 11, count, true, allColors });
+                    bool againOk = steppedAgain == 0;
+                    ok &= againOk;
+                    _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | case3 scroll 11 forward -> {steppedAgain} " +
+                                  $"(expected 0, the case 2 walk left nothing latched) {(againOk ? "PASS" : "FAIL")}");
                 }
                 finally
                 {
                     sharedProp.SetValue(null, originalPool);
-                    settingValue.SetValue(settingEntry, originalSetting);
-                    _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | restored pool=0x{originalPool:X} " +
-                                  $"enableMetallicPaints={originalSetting}");
+                    _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | restored pool=0x{originalPool:X}");
                 }
 
                 _log?.LogInfo($"[ScenarioRunner] spp-dlc-gate | RESULT {(ok ? "ALL PASS" : "FAILURES PRESENT")}");
@@ -187,7 +197,7 @@ namespace ScenarioRunner
         private static bool[] _sppDlcColor;
 
         private static bool Report(string label, System.Collections.Generic.List<ColorSwatch> colors, int count,
-            MethodInfo isAllowed, MethodInfo isInCycle, object settingEntry,
+            MethodInfo isAllowed, MethodInfo isInCycle,
             bool expectDlcAllowed, bool expectDlcInCycle)
         {
             if (_sppDlcColor == null)

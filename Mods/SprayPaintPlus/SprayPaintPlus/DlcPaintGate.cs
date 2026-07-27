@@ -34,6 +34,13 @@ namespace SprayPaintPlus
     /// materials, and 16 SprayCan prefabs resolving one-to-one onto them. Indices 0-11 are
     /// DLCType.None; 12-15 (ColorObsidian, ColorSilver, ColorBronze, ColorGold) are
     /// DLCType.MetallicPaints. See Research/GameSystems/DLCGating.md.
+    ///
+    /// The same map is also the source of the paint-family grouping that
+    /// ColorCyclingMode.WithinFamily restricts cycling to (SameFamily / FamilyOf /
+    /// FamilyName). That is a separate concern from entitlement and is deliberately not
+    /// wired into IsColorAllowed: the family rule restricts which colors a can may reach,
+    /// while entitlement decides which colors exist for this session at all. Entitlement
+    /// is always checked first and no mode may loosen it.
     /// </summary>
     internal static class DlcPaintGate
     {
@@ -132,32 +139,67 @@ namespace SprayPaintPlus
         }
 
         /// <summary>
-        /// True when the color belongs in this client's scroll cycle: the entitlement gate
-        /// above, plus the client's own "Enable Metallic Paints" preference. Client-local
-        /// only. The server must never consult this, because one player's cycle preference
-        /// says nothing about what another player is allowed to do.
+        /// True when the color belongs in this client's scroll cycle. Client-local only.
+        /// The server must never consult this, because one player's cycle preference says
+        /// nothing about what another player is allowed to do.
+        ///
+        /// As of v1.11.0 this adds nothing on top of the entitlement gate. The one
+        /// client-local filter it used to carry was the "Enable Metallic Paints" toggle,
+        /// which is gone: the "Cycles within paint family" mode replaces it. That rule is
+        /// relative to the color already on the can, so a single-index predicate cannot
+        /// express it and it lives in ColorCyclerPatch.NextColorInCycle via SameFamily
+        /// instead. The method stays because it names a real distinction that the trust
+        /// boundary in SprayCanColorMessage depends on, and because a future client-local
+        /// filter belongs here rather than inside IsColorAllowed.
         /// </summary>
         internal static bool IsColorInCycle(int colorIndex)
         {
-            if (!IsColorAllowed(colorIndex))
-                return false;
-
-            if (!SprayPaintPlusPlugin.EnableMetallicPaints.Value && IsMetallicPaint(colorIndex))
-                return false;
-
-            return true;
+            return IsColorAllowed(colorIndex);
         }
 
         /// <summary>
-        /// True for a color dispensed by a can requiring the Metallic Paints DLC. Scoped to
-        /// that one DLC deliberately, matching the setting's name: a future paint DLC would
-        /// need its own setting rather than silently inheriting this one.
+        /// True when two colors belong to the same paint family, which is the boundary
+        /// ColorCyclingMode.WithinFamily may not cross.
         /// </summary>
-        private static bool IsMetallicPaint(int colorIndex)
+        internal static bool SameFamily(int indexA, int indexB)
+        {
+            return FamilyOf(indexA) == FamilyOf(indexB);
+        }
+
+        /// <summary>
+        /// The DLC that owns a color's family, reusing the colorIndex -> DLCType map that
+        /// the entitlement gate already builds. Base colors are DLCType.None; the four
+        /// Metallic Paints colors are DLCType.MetallicPaints.
+        ///
+        /// A color absent from the map joins the base family. That is a decided policy, not
+        /// a fallback: a swatch with no dispensing can is typically another mod's custom
+        /// color, and it has no DLC concept at all. Grouping it with the base colors keeps
+        /// those mods working, and it means such a can lands in the largest family rather
+        /// than a family of one, so WithinFamily never strands it with nowhere to cycle.
+        /// This matches IsColorAllowed, which treats the same absence as unrestricted.
+        /// </summary>
+        internal static DLCType FamilyOf(int colorIndex)
         {
             EnsureBuilt();
-            return ColorDlc.TryGetValue(colorIndex, out DLCType required)
-                && (required & DLCType.MetallicPaints) != 0;
+            if (!ColorDlc.TryGetValue(colorIndex, out DLCType required))
+                return DLCType.None;
+            return required;
+        }
+
+        /// <summary>
+        /// Short human-readable family name for the console message the eyedropper prints
+        /// when a pick would cross a family boundary. Any DLC beyond the one that exists
+        /// today falls back to its enum name: blunt, but it will not silently mislabel a
+        /// future paint DLC as metallic.
+        /// </summary>
+        internal static string FamilyName(int colorIndex)
+        {
+            DLCType family = FamilyOf(colorIndex);
+            if (family == DLCType.None)
+                return "standard";
+            if ((family & DLCType.MetallicPaints) != 0)
+                return "metallic";
+            return family.ToString();
         }
 
         private static void EnsureBuilt()
